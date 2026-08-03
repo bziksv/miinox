@@ -3132,7 +3132,7 @@ h3,
           justify-content: center;
   height: 140px;
   margin-bottom: .65em;
-  background: #eef3f6;
+  background: #fff;
   overflow: hidden;
 }
 
@@ -11532,8 +11532,7 @@ img.contact-section-desc.is-active {
           justify-content: center;
   aspect-ratio: 1 / 1;
   padding: .65em;
-  /* единый фон под cutout-PNG без белой «подложки» */
-  background: #eef3f6;
+  background: #fff;
   overflow: hidden;
 }
 
