@@ -139,9 +139,25 @@ class GroupAction
 	/**
 	 * @return string
 	 */
-	protected function getEntityId(): string
+	public function getEntityId(): string
 	{
 		return $this->entityId;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getIblockId(): int
+	{
+		return $this->iblockId;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getOptions(): array
+	{
+		return $this->options;
 	}
 
 	/**
@@ -193,7 +209,7 @@ class GroupAction
 	/**
 	 * @return string
 	 */
-	protected function getGridType(): string
+	public function getGridType(): string
 	{
 		return $this->gridType;
 	}
@@ -201,7 +217,7 @@ class GroupAction
 	/**
 	 * @return bool
 	 */
-	protected function isUiGrid(): bool
+	public function isUiGrid(): bool
 	{
 		return $this->getGridType() === self::GRID_TYPE_UI;
 	}
@@ -232,7 +248,7 @@ class GroupAction
 	/**
 	 * @return array
 	 */
-	protected function getDefaultApplyAction(): array
+	public function getDefaultApplyAction(): array
 	{
 		return ['JS' => "BX.adminUiList.SendSelected('{$this->getEntityId()}')"];
 	}
@@ -241,16 +257,16 @@ class GroupAction
 	 * @param string $id
 	 * @return string
 	 */
-	protected function getElementId(string $id): string
+	public function getElementId(string $id): string
 	{
-		return self::PREFIX_ID.$this->getEntityId().'_'.$id;
+		return self::PREFIX_ID.$this->getEntityId().'_'.strtolower($id);
 	}
 
 	/**
 	 * @param array $params
 	 * @return array
 	 */
-	protected function getApplyButton(array $params): array
+	public function getApplyButton(array $params): array
 	{
 		$result = $this->mainSnippet->getApplyButton([]);
 		$result['id'] = $this->getElementId($params['APPLY_BUTTON_ID']);
@@ -272,8 +288,26 @@ class GroupAction
 	 * @param array $params
 	 * @return array
 	 */
-	protected function getApplyButtonWithConfirm(array $params): array
+	public function getApplyButtonWithConfirm(array $params): array
 	{
+		$confirmMessage = null;
+		if (
+			isset($params['CONFIRM_MESSAGE'])
+			&& is_string($params['CONFIRM_MESSAGE'])
+			&& $params['CONFIRM_MESSAGE'] !== ''
+		)
+		{
+			$confirmMessage = $params['CONFIRM_MESSAGE'];
+		}
+		elseif (
+			isset($params['DEFAULT_CONFIRM_MESSAGE'])
+			&& is_string($params['DEFAULT_CONFIRM_MESSAGE'])
+			&& $params['DEFAULT_CONFIRM_MESSAGE'] !== ''
+		)
+		{
+			$confirmMessage = $params['DEFAULT_CONFIRM_MESSAGE'];
+		}
+
 		$result = $this->mainSnippet->getApplyButton([]);
 		$result['id'] = $this->getElementId($params['APPLY_BUTTON_ID']);
 		$this->mainSnippet->setButtonActions(
@@ -282,16 +316,14 @@ class GroupAction
 				[
 					'ACTION' => Main\Grid\Panel\Actions::CALLBACK,
 					'CONFIRM' => true,
-					'CONFIRM_MESSAGE' => (isset($params['CONFIRM_MESSAGE']) && $params['CONFIRM_MESSAGE'] != ''
-						? $params['CONFIRM_MESSAGE']
-						: $params['DEFAULT_CONFIRM_MESSAGE']
-					),
+					'CONFIRM_MESSAGE' => $confirmMessage,
 					'DATA' => [
 						$this->getDefaultApplyAction(),
 					],
 				],
 			]
 		);
+
 		return $result;
 	}
 
@@ -482,7 +514,7 @@ class GroupAction
 	{
 		return (isset($params['NAME']) && $params['NAME'] != ''
 			? $params['NAME']
-			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_ACTIVATE')
+			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_ACTIVATE_MSGVER_2')
 		);
 	}
 
@@ -494,7 +526,7 @@ class GroupAction
 	{
 		return (isset($params['NAME']) && $params['NAME'] != ''
 			? $params['NAME']
-			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_DEACTIVATE')
+			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_DEACTIVATE_MSGVER_2')
 		);
 	}
 

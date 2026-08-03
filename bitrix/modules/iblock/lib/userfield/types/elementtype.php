@@ -22,8 +22,7 @@ class ElementType extends EnumType
 		USER_TYPE_ID = 'iblock_element',
 		RENDER_COMPONENT = 'bitrix:iblock.field.element';
 
-	protected static
-		$iblockIncluded = null;
+	protected static ?bool $iblockIncluded = null;
 
 	/**
 	 * @return array
@@ -42,33 +41,33 @@ class ElementType extends EnumType
 	 */
 	public static function prepareSettings(array $userField): array
 	{
-		$height = (int)$userField['SETTINGS']['LIST_HEIGHT'];
-		$disp = $userField['SETTINGS']['DISPLAY'];
+		$height = (int)($userField['SETTINGS']['LIST_HEIGHT'] ?? 1);
+		$disp = ($userField['SETTINGS']['DISPLAY'] ?? '');
 
-		if($disp !== static::DISPLAY_CHECKBOX && $disp !== static::DISPLAY_LIST)
+		if ($disp !== static::DISPLAY_CHECKBOX && $disp !== static::DISPLAY_LIST)
 		{
 			$disp = static::DISPLAY_LIST;
 		}
 
-		$iblockId = (int)$userField['SETTINGS']['IBLOCK_ID'];
+		$iblockId = (int)($userField['SETTINGS']['IBLOCK_ID'] ?? 0);
 
 		if($iblockId <= 0)
 		{
 			$iblockId = '';
 		}
 
-		$elementId = (int)$userField['SETTINGS']['DEFAULT_VALUE'];
+		$elementId = (int)($userField['SETTINGS']['DEFAULT_VALUE'] ?? 0);
 
 		if($elementId <= 0)
 		{
 			$elementId = '';
 		}
 
-		$activeFilter = ($userField['SETTINGS']['ACTIVE_FILTER'] === 'Y' ? 'Y' : 'N');
+		$activeFilter = (($userField['SETTINGS']['ACTIVE_FILTER'] ?? '') === 'Y' ? 'Y' : 'N');
 
 		return [
 			'DISPLAY' => $disp,
-			'LIST_HEIGHT' => ($height < 1 ? 1 : $height),
+			'LIST_HEIGHT' => (max($height, 1)),
 			'IBLOCK_ID' => $iblockId,
 			'DEFAULT_VALUE' => $elementId,
 			'ACTIVE_FILTER' => $activeFilter,
@@ -148,15 +147,19 @@ class ElementType extends EnumType
 	 */
 	public static function getEnumList(array &$userField, array $additionalParameters = []): void
 	{
-		if(self::$iblockIncluded === null)
+		if (self::$iblockIncluded === null)
 		{
 			self::$iblockIncluded = Loader::includeModule('iblock');
 		}
 
-		if(
+		$userField['SETTINGS']['IBLOCK_ID'] ??= 0;
+		$userField['SETTINGS']['SHOW_NO_VALUE'] ??= 'Y';
+		$userField['SETTINGS']['DISPLAY'] ??= '';
+		$userField['SETTINGS']['ACTIVE_FILTER'] ??= 'N';
+
+		if (
 			!self::$iblockIncluded
-			||
-			(int)$userField['SETTINGS']['IBLOCK_ID'] <= 0
+			|| (int)$userField['SETTINGS']['IBLOCK_ID']<= 0
 		)
 		{
 			return;
@@ -165,23 +168,18 @@ class ElementType extends EnumType
 		$result = [];
 		$showNoValue = (
 			$userField['MANDATORY'] !== 'Y'
-			||
-			$userField['SETTINGS']['SHOW_NO_VALUE'] !== 'N'
-			||
-			(
+			|| $userField['SETTINGS']['SHOW_NO_VALUE'] !== 'N'
+			|| (
 				isset($additionalParameters['SHOW_NO_VALUE'])
-				&&
-				$additionalParameters['SHOW_NO_VALUE'] === true
+				&& $additionalParameters['SHOW_NO_VALUE'] === true
 			)
 		);
 
-		if(
+		if (
 			$showNoValue
-			&&
-			(
+			&& (
 				$userField['SETTINGS']['DISPLAY'] !== 'CHECKBOX'
-				||
-				$userField['MULTIPLE'] !== 'Y'
+				|| $userField['MULTIPLE'] !== 'Y'
 			)
 		)
 		{
@@ -195,7 +193,7 @@ class ElementType extends EnumType
 			$userField['SETTINGS']['ACTIVE_FILTER']
 		);
 
-		if(!is_array($elements))
+		if (!is_array($elements))
 		{
 			return;
 		}
@@ -213,57 +211,117 @@ class ElementType extends EnumType
 
 	protected static function getElements($iblockId, $activeFilter = 'N')
 	{
-		$result = false;
-
-		if($iblockId <= 0 || !Loader::includeModule('iblock'))
+		if ($iblockId <= 0 || !Loader::includeModule('iblock'))
 		{
-			return $result;
+			return false;
 		}
 
-		$currentCache = \Bitrix\Main\Data\Cache::createInstance();
-
 		$cacheTtl = 86400;
-		$cacheId = md5('CIBlockElementEnum::getTreeList_' . $iblockId . '_' . $activeFilter);
-		$cacheDir = '/iblock/elementtype/' . $iblockId;
 
-		if($currentCache->initCache($cacheTtl, $cacheId, $cacheDir))
+		$iblock = Iblock\IblockTable::getRow([
+			'select' => [
+				'ID',
+				'RIGHTS_MODE',
+			],
+			'filter' => [
+				'=ID' => $iblockId
+			],
+			'cache' => [
+				'ttl' => $cacheTtl,
+			],
+		]);
+		if ($iblock === null)
 		{
-			$result = $currentCache->getVars();
+			return false;
+		}
+
+		if ($iblock['RIGHTS_MODE'] === Iblock\IblockTable::RIGHTS_SIMPLE)
+		{
+			$currentCache = \Bitrix\Main\Data\Cache::createInstance();
+
+			$cacheId = md5('CIBlockElementEnum::getTreeList_' . $iblockId . '_' . $activeFilter);
+			$cacheDir = '/iblock/elementtype/' . $iblockId;
+
+			if ($currentCache->initCache($cacheTtl, $cacheId, $cacheDir))
+			{
+				$result = $currentCache->getVars();
+			}
+			else
+			{
+				$currentCache->startDataCache();
+
+				$taggedCache = Application::getInstance()->getTaggedCache();
+				$taggedCache->startTagCache($cacheDir);
+
+				$filter = ['IBLOCK_ID' => $iblockId];
+				if($activeFilter === 'Y')
+				{
+					$filter['=ACTIVE'] = 'Y';
+				}
+
+				$result = [];
+				$elements = \Bitrix\Iblock\ElementTable::getList([
+					'select' => [
+						'ID',
+						'NAME',
+					],
+					'filter' => \CIBlockElement::getPublicElementsOrmFilter($filter),
+					'order' => [
+						'NAME' => 'ASC',
+						'ID' => 'ASC',
+					],
+				]);
+
+				while($element = $elements->fetch())
+				{
+					$result[$element['ID']] = $element['NAME'];
+				}
+				unset($elements);
+
+				$taggedCache->registerTag('iblock_id_' . $iblockId);
+				$taggedCache->endTagCache();
+
+				if (empty($result))
+				{
+					$result = false;
+				}
+
+				$currentCache->endDataCache($result);
+			}
+			unset($currentCache);
 		}
 		else
 		{
-			$currentCache->startDataCache();
-
-			$taggedCache = Application::getInstance()->getTaggedCache();
-			$taggedCache->startTagCache($cacheDir);
-
-			$filter = ['IBLOCK_ID' => $iblockId];
-			if($activeFilter === 'Y')
+			$filter = [
+				'IBLOCK_ID' => $iblockId,
+				'CHECK_PERMISSIONS' => 'Y',
+				'MIN_PERMISSION' => \CIBlockRights::PUBLIC_READ,
+			];
+			if ($activeFilter === 'Y')
 			{
 				$filter['ACTIVE'] = 'Y';
 			}
 
 			$result = [];
-			$elements = \Bitrix\Iblock\ElementTable::getList([
-				'select' => ['ID', 'NAME'],
-				'filter' => \CIBlockElement::getPublicElementsOrmFilter($filter),
-				'order' => ['NAME' => 'ASC', 'ID' => 'ASC']
-			]);
+			$iterator = \CIBlockElement::GetList(
+				[
+					'NAME' => 'ASC',
+					'ID' => 'ASC',
+				],
+				$filter,
+				false,
+				false,
+				[
+					'ID',
+					'NAME',
+				]
+			);
 
-			while($element = $elements->fetch())
+			while ($element = $iterator->Fetch())
 			{
 				$result[$element['ID']] = $element['NAME'];
 			}
-
-			$taggedCache->registerTag('iblock_id_' . $iblockId);
-			$taggedCache->endTagCache();
-
-			if (empty($result))
-			{
-				$result = false;
-			}
-
-			$currentCache->endDataCache($result);
+			unset($iterator);
 		}
 
 		return $result;

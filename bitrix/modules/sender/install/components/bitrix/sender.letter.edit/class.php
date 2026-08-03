@@ -15,7 +15,6 @@ use Bitrix\Sender\Access\Map\MailingAction;
 use Bitrix\Sender\Entity;
 use Bitrix\Sender\Integration;
 use Bitrix\Sender\Internals\PostFiles;
-use Bitrix\Sender\Internals\SqlBatch;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\Security;
 use Bitrix\Sender\Templates;
@@ -52,7 +51,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 	protected function initParams()
 	{
 		$this->arParams['ID'] = isset($this->arParams['ID']) ? (int) $this->arParams['ID'] : 0;
-		$this->arParams['ID'] = $this->arParams['ID'] ? $this->arParams['ID'] : (int) $this->request->get('ID');
+		$this->arParams['ID'] = $this->arParams['ID'] ?: (int)$this->request->get('ID');
 		$this->arParams['IS_OUTSIDE'] = isset($this->arParams['IS_OUTSIDE']) ? (bool) $this->arParams['IS_OUTSIDE'] : $this->request->get('isOutside') === 'Y';
 
 		$this->arParams['IFRAME'] = isset($this->arParams['IFRAME'])
@@ -89,7 +88,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		}
 
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
-		$this->arParams['SHOW_SEGMENT_COUNTERS'] = isset($this->arParams['SHOW_SEGMENT_COUNTERS']) ? $this->arParams['SHOW_SEGMENT_COUNTERS'] : true;
+		$this->arParams['SHOW_SEGMENT_COUNTERS'] = $this->arParams['SHOW_SEGMENT_COUNTERS'] ?? true;
 		$this->arParams['CHECK_ON_STATIC'] = $this->arParams['CHECK_ON_STATIC'] ?? false;
 
 		$map = MailingAction::getMap();
@@ -106,7 +105,11 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 										);
 
 		$this->arParams['IS_TRIGGER'] = isset($this->arParams['IS_TRIGGER']) ? (bool) $this->arParams['IS_TRIGGER'] : false;
-		$this->arParams['SHOW_SEGMENTS'] = isset($this->arParams['SHOW_SEGMENTS']) ? (bool) $this->arParams['SHOW_SEGMENTS'] : true;
+		$this->arParams['SHOW_SEGMENTS'] =
+			isset($this->arParams['SHOW_SEGMENTS'])
+				? (bool) $this->arParams['SHOW_SEGMENTS']
+				: true
+		;
 		$this->arParams['GOTO_URI_AFTER_SAVE'] = isset($this->arParams['GOTO_URI_AFTER_SAVE'])
 			?
 			$this->arParams['GOTO_URI_AFTER_SAVE']
@@ -402,7 +405,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			return false;
 		}
 		$appliedConsents = json_decode(\COption::GetOptionString("sender", "sender_approve_consent_created"), true);
-		if (!$appliedConsents[Context::getCurrent()->getLanguage()])
+		if (!isset($appliedConsents[Context::getCurrent()->getLanguage()]))
 		{
 			\CAgent::AddAgent(
 				'\\Bitrix\\Sender\\Preset\\Consent\\ConsentInstaller::run(\''.Context::getCurrent()->getLanguage().'\');',
@@ -471,7 +474,8 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		);
 		// get row
 		$this->arResult['ROW'] = $this->letter->getData();
-		if ($this->arResult['ROW']['IS_TRIGGER'] === 'Y'
+		if (isset($this->arResult['ROW']['IS_TRIGGER'])
+			&& $this->arResult['ROW']['IS_TRIGGER'] === 'Y'
 			|| $isNewAds)
 		{
 			$this->arParams['SHOW_SEGMENTS'] = false;
@@ -586,18 +590,23 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		}
 
 		$this->arResult['LETTER_TILE'] = UI\TileView::create()->getTile(
-			$this->arResult['ROW']['ID'],
+			$this->arResult['ROW']['ID'] ?? null,
 			$this->arResult['ROW']['TITLE'],
 			[
 				'title' => $this->arResult['ROW']['TITLE'],
-				'userId' => $this->arResult['ROW']['USER_ID'],
-				'userName' => $this->arResult['ROW']['USER_NAME'] . ' ' . $this->arResult['ROW']['USER_LAST_NAME'],
-				'dateInsert' => (string) $this->arResult['ROW']['DATE_INSERT'],
-				'timeShift' => (int) $this->arResult['ROW']['TIME_SHIFT'],
+				'userId' => $this->arResult['ROW']['USER_ID'] ?? null,
+				'userName' => ($this->arResult['ROW']['USER_NAME'] ?? '') . ' ' . ($this->arResult['ROW']['USER_LAST_NAME'] ?? ''),
+				'dateInsert' => (string) ($this->arResult['ROW']['DATE_INSERT'] ?? ''),
+				'timeShift' => (int) ($this->arResult['ROW']['TIME_SHIFT'] ?? 0),
 			]
 		);
 		$this->arResult['IS_SAVED'] = $this->request->get('IS_SAVED') == 'Y';
 		$this->arResult['IS_AVAILABLE']  = $this->letter->getMessage()->isAvailable();
+
+		if ($this->arParams['SHOW_SEGMENTS'])
+		{
+			$this->arParams['SHOW_SEGMENTS'] = $this->needShowSegmentsByMessageCode($this->arResult['MESSAGE_CODE']);
+		}
 
 		return true;
 	}
@@ -699,5 +708,10 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 	public function getViewAction()
 	{
 		return ActionDictionary::ACTION_MAILING_VIEW;
+	}
+
+	protected function needShowSegmentsByMessageCode(string $messageCode): bool
+	{
+		return $messageCode !== Integration\Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_YANDEX;
 	}
 }

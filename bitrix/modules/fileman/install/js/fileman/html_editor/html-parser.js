@@ -3262,9 +3262,11 @@
 
 			function secureAtr(str)
 			{
-				if(!str.replace)
-					return str;
-				return str.replace(/("|<|>)/g, '');
+				if(!BX.type.isString(str))
+				{
+					return '';
+				}
+				return str.replace(/("|<|>|\[|\])/g, '');
 			}
 
 			// [CODE] == > #BX_CODE1#
@@ -3427,7 +3429,7 @@
 						size += 'height:' + parseInt(params.height) + 'px;';
 					if (size !== '')
 						size = 'style="' + size + '"';
-					return '<img  src="' + src + '"' + size + '/>';
+					return '<img src="' + src + '"' + size + '/>';
 				}
 			);
 
@@ -3435,7 +3437,12 @@
 			i = 0;
 			while (content.toLowerCase().indexOf('[color=') != -1 && content.toLowerCase().indexOf('[/color]') != -1 && i++ < 20)
 			{
-				content = content.replace(/\[color=((?:\s|\S)*?)\]((?:\s|\S)*?)\[\/color\]/ig, function(s, value, cont){ return '<span style="color:' + secureAtr(value) + '">' + cont + '</span>' });
+				content = content.replace(
+					/\[color=((?:\s|\S)*?)\]((?:\s|\S)*?)\[\/color\]/ig,
+					(s, value, cont) => {
+						return '<span style="color:' + secureAtr(value) + '">' + cont + '</span>';
+					}
+				);
 			}
 
 			// List
@@ -3456,15 +3463,24 @@
 			i = 0;
 			while (content.toLowerCase().indexOf('[font=') != -1 && content.toLowerCase().indexOf('[/font]') != -1 && i++ < 20)
 			{
-
-				content = content.replace(/\[font=((?:\s|\S)*?)\]((?:\s|\S)*?)\[\/font\]/ig, function(s, value, cont){ return '<span style="font-family:' + secureAtr(value) + '">' + cont + '</span>' });
+				content = content.replace(
+					/\[font=((?:\s|\S)*?)\]((?:\s|\S)*?)\[\/font\]/ig,
+					(s, value, cont) => {
+						return '<span style="font-family:' + secureAtr(value) + '">' + cont + '</span>'
+					}
+				);
 			}
 
 			// Font size
 			i = 0;
 			while (content.toLowerCase().indexOf('[size=') != -1 && content.toLowerCase().indexOf('[/size]') != -1 && i++ < 20)
 			{
-				content = content.replace(/\[size=((?:\s|\S)*?)\]((?:\s|\S)*?)\[\/size\]/ig, function(s, value, cont){ return '<span style="font-size:' + secureAtr(value) + '">' + cont + '</span>' });
+				content = content.replace(
+					/\[size=((?:\s|\S)*?)\]((?:\s|\S)*?)\[\/size\]/ig,
+					(s, value, cont) => {
+						return '<span style="font-size:' + secureAtr(value) + '">' + cont + '</span>'
+					}
+				);
 			}
 
 			if (this.parseAlign)
@@ -3727,6 +3743,7 @@
 			isTableTag = BX.util.in_array(nodeName, this.editor.TABLE_TAGS);
 			isAlign = this.parseAlign && (oNode.node.style.textAlign || oNode.node.align) && !isTableTag;
 
+			const bodyFontFamily = 'var(--ui-font-family-primary, var(--ui-font-family-helvetica))';
 			if(nodeName == 'STRONG' || nodeName == 'B')
 			{
 				oNode.bbTag = 'B';
@@ -3782,7 +3799,7 @@
 				}
 			}
 			// Font family
-			else if(oNode.node.style.fontFamily && !isTableTag)
+			else if(oNode.node.style.fontFamily && oNode.node.style.fontFamily !== bodyFontFamily && !isTableTag)
 			{
 				oNode.bbTag = 'FONT';
 				oNode.bbValue = oNode.node.style.fontFamily;

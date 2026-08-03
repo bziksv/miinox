@@ -1,4 +1,7 @@
 <?php
+
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Config;
 use Bitrix\Catalog\StoreTable;
 use Bitrix\Catalog\ProductTable;
@@ -44,12 +47,29 @@ class CatalogProductStoreAmountComponent
 
 	protected $defaultMeasure;
 
+	private AccessController $accessController;
+
+	public function __construct($component = null)
+	{
+		parent::__construct($component);
+
+		$this->accessController = AccessController::getCurrent();
+	}
+
 	public function executeComponent()
 	{
-		if ($this->checkModules() && $this->checkPermissions() && $this->checkProductId())
+		if ($this->checkModules() && $this->checkProductId())
 		{
-			$this->initializeStoreAmountGrid();
-			$this->includeComponentTemplate();
+			if ($this->checkPermissions())
+			{
+				$this->initializeStoreAmountGrid();
+				$this->includeComponentTemplate();
+			}
+			else
+			{
+				$this->includeComponentTemplate('access_denied');
+				return;
+			}
 		}
 
 		if ($this->hasErrors())
@@ -81,6 +101,17 @@ class CatalogProductStoreAmountComponent
 	 */
 	protected function checkPermissions(): bool
 	{
+		if (!$this->accessController->check(ActionDictionary::ACTION_CATALOG_READ))
+		{
+			return false;
+		}
+
+		$availableStores = $this->accessController->getPermissionValue(ActionDictionary::ACTION_STORE_VIEW);
+		if (empty($availableStores))
+		{
+			return false;
+		}
+
 		return true;
 	}
 
@@ -152,8 +183,6 @@ class CatalogProductStoreAmountComponent
 
 			$this->arResult['TOTAL_WRAPPER_ID'] = $this->getTotalWrapperId();
 			$this->arResult['STORE_RESERVE_ENABLE'] = Config\State::isShowedStoreReserve();
-			$this->arResult['SIGNED_PARAMS'] = $this->getStoreAmount()->getStoreAmountSignedParameters();
-			$this->arResult['PRODUCT_ID'] = $this->getProductId();
 			$this->arResult['RESERVED_DEALS_SLIDER_LINK'] = $this->getReservedDealsSliderLink();
 
 			$this->arResult['IM_LINK'] = null;
@@ -164,8 +193,14 @@ class CatalogProductStoreAmountComponent
 			$sliderPath = getLocalPath('components' . $sliderPath . '/slider.php');
 
 			$this->arResult['GRID'] = $this->getEmptyGridData();
+
+			$this->arResult['TOTAL_WRAPPER_ID'] = null;
+
 			$this->arResult['IM_LINK'] = $sliderPath;
 		}
+
+		$this->arResult['PRODUCT_ID'] = $this->getProductId();
+		$this->arResult['SIGNED_PARAMS'] = $this->getStoreAmount()->getStoreAmountSignedParameters();
 	}
 
 	/**
@@ -442,7 +477,12 @@ class CatalogProductStoreAmountComponent
 			$reservedQuantity .= "{$storeQuantity['QUANTITY_RESERVED']} $measureSymbol<br>";
 
 			$quantityValue = (float)$storeQuantity['QUANTITY_COMMON'] - (float)$storeQuantity['QUANTITY_RESERVED'];
-			$quantity .= "{$quantityValue} $measureSymbol<br>";
+			$currentQuantity = $quantityValue . ' ' . $measureSymbol;
+			if ($quantityValue <= 0)
+			{
+				$currentQuantity = '<span class="text--danger">' . $currentQuantity . '</span>';
+			}
+			$quantity .= $currentQuantity . '<br>';
 		}
 
 		$reservedQuantity .= '</a>';

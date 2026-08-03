@@ -2,6 +2,7 @@
 namespace Bitrix\Rest;
 
 use Bitrix\Main;
+use Bitrix\Main\ArgumentTypeException;
 use Bitrix\Main\Data\Cache;
 
 /**
@@ -91,12 +92,15 @@ class EventOfflineTable extends Main\Entity\DataManager
 			),
 			'PROCESS_ID' => array(
 				'data_type' => 'string',
+				'default_value' => '',
 			),
 			'CONNECTOR_ID' => array(
 				'data_type' => 'string',
+				'default_value' => '',
 			),
 			'ERROR' => array(
 				'data_type' => 'integer',
+				'default_value' => 0,
 			),
 		);
 	}
@@ -115,46 +119,76 @@ class EventOfflineTable extends Main\Entity\DataManager
 		return "\\Bitrix\\Rest\\EventOfflineTable::cleanProcessAgent();";
 	}
 
-	public static function callEvent($fields)
+	public static function callEvent(array $fields): void
 	{
-		if(!isset($fields['CONNECTOR_ID']))
+		if (!isset($fields['CONNECTOR_ID']))
 		{
 			$fields['CONNECTOR_ID'] = '';
 		}
 
-		$addFields = array(
+		if (!isset($fields['PROCESS_ID']))
+		{
+			$fields['PROCESS_ID'] = '';
+		}
+
+		if (!isset($fields['MESSAGE_ID']))
+		{
+			$fields['MESSAGE_ID'] = static::getMessageId($fields);
+		}
+
+		$addFields = [
 			'TIMESTAMP_X' => new Main\Type\DateTime(),
 			'MESSAGE_ID' => static::getMessageId($fields),
 			'APP_ID' => $fields['APP_ID'],
 			'EVENT_NAME' => $fields['EVENT_NAME'],
-			'EVENT_DATA' => serialize($fields['EVENT_DATA']),
-			'EVENT_ADDITIONAL' => serialize($fields['EVENT_ADDITIONAL']),
+			'EVENT_DATA' => $fields['EVENT_DATA'],
+			'EVENT_ADDITIONAL' => $fields['EVENT_ADDITIONAL'],
 			'CONNECTOR_ID' => $fields['CONNECTOR_ID'],
-		);
+		];
 
-		$updateFields = array(
+		$updateFields = [
 			'TIMESTAMP_X' => new Main\Type\DateTime(),
-			'EVENT_DATA' => serialize($fields['EVENT_DATA']),
-			'EVENT_ADDITIONAL' => serialize($fields['EVENT_ADDITIONAL']),
-		);
+			'EVENT_DATA' => $fields['EVENT_DATA'],
+			'EVENT_ADDITIONAL' => $fields['EVENT_ADDITIONAL'],
+		];
 
 		if(array_key_exists('ERROR', $fields))
 		{
-			$addFields['ERROR'] = intval($fields['ERROR']) > 0 ? 1 : 0;
-			$updateFields['ERROR'] = intval($fields['ERROR']) > 0 ? 1 : 0;
+			$addFields['ERROR'] = (int)$fields['ERROR'] > 0 ? 1 : 0;
+			$updateFields['ERROR'] = (int)$fields['ERROR'] > 0 ? 1 : 0;
 		}
 
-		$connection = Main\Application::getConnection();
-		$queries = $connection->getSqlHelper()->prepareMerge(
-			static::getTableName(),
-			array('MESSAGE_ID', 'APP_ID', 'CONNECTOR_ID', 'PROCESS_ID'),
-			$addFields,
-			$updateFields
-		);
-
-		foreach($queries as $query)
+		$filter = [
+			'=APP_ID' => $fields['APP_ID'],
+			'=MESSAGE_ID' => $fields['MESSAGE_ID']
+		];
+		if ($fields['CONNECTOR_ID'] !== '')
 		{
-			$connection->queryExecute($query);
+			$filter['=CONNECTOR_ID'] = $fields['CONNECTOR_ID'];
+		}
+
+		if ($fields['PROCESS_ID'] !== '')
+		{
+			$filter['=PROCESS_ID'] = $fields['PROCESS_ID'];
+		}
+
+		$dbResult = static::getList([
+			'select' => ['ID'],
+			'filter' => $filter,
+			'limit' => 1,
+		]);
+
+		$eventOffline = $dbResult->fetch();
+		if ($eventOffline)
+		{
+			static::update(
+				$eventOffline['ID'],
+				$updateFields
+			);
+		}
+		else
+		{
+			static::add($addFields);
 		}
 	}
 
@@ -163,11 +197,51 @@ class EventOfflineTable extends Main\Entity\DataManager
 		$processId = static::getProcessId();
 
 		$limit = intval($limit);
-
 		$query = new EventOfflineQuery(static::getEntity());
 		$query->setOrder($order);
-		$query->setFilter($filter);
 		$query->setLimit($limit);
+
+		if (is_array($filter))
+		{
+			foreach ($filter as $key => $value)
+			{
+				$matches = [];
+				if (preg_match('/^([\W]{1,2})(.+)/', $key, $matches) && $matches[0] === $key)
+				{
+					if (
+						!is_string($matches[2])
+						|| !is_string($matches[1])
+					)
+					{
+						throw new ArgumentTypeException('FILTER_KEYS', 'string');
+					}
+					if (is_array($value) || is_object($value))
+					{
+						throw new ArgumentTypeException($key);
+					}
+					$query->where(
+						$matches[2],
+						$matches[1],
+						$value
+					);
+				}
+				else
+				{
+					if (!is_string($key))
+					{
+						throw new ArgumentTypeException('FILTER_KEYS', 'string');
+					}
+					if (is_array($value) || is_object($value))
+					{
+						throw new ArgumentTypeException($key);
+					}
+					$query->where(
+						$key,
+						$value
+					);
+				}
+			}
+		}
 
 		$sql = $query->getMarkQuery($processId);
 

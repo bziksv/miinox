@@ -55,17 +55,13 @@ $enablePhoneVerification =
 		BX.ready(function ()
 		{
 			<?php if ($enablePhoneVerification): ?>
-			BX.Bitrix24.PhoneVerify
-				.setVerified(false)
-				.setMandatory(false);
-
-			BX.Bitrix24.PhoneVerify.showSlider(); // open slider on page load, also triggered on save btn
+			BX.Bitrix24.PhoneVerify.getInstance().startVerify({mandatory: false}); // open slider on page load, also triggered on save btn
 			<?php endif; ?>
 
 			BX.Sender.Letter.Time.init(<?=Json::encode(array(
 				'containerId' => $containerId,
 				'actionUrl' => $arResult['ACTION_URL'],
-				'isFrame' => $arParams['IFRAME'] == 'Y',
+				'isFrame' => isset($arParams['IFRAME']) && $arParams['IFRAME'] == 'Y',
 				'isSaved' => $arResult['IS_SAVED'],
 				'isOutside' => $arParams['IS_OUTSIDE'],
 				'canEdit' => $arResult['CAN_CHANGE'],
@@ -87,12 +83,12 @@ $enablePhoneVerification =
 					)
 				)
 			))?>);
-			<?php if ($arResult['USER_ERRORS']):
+			<?php if ($arResult['USER_ERRORS'] ?? false):
 			/** @var \Bitrix\Main\Error $userError */
 			$userError = $arResult['USER_ERRORS'][0];
 			$url = str_replace('#id#', $arParams['ID'], $arParams['PATH_TO_EDIT']);
 			$uri = new Bitrix\Main\Web\Uri($url);
-			if ($arParams['IFRAME'] == 'Y')
+			if (isset($arParams['IFRAME']) && $arParams['IFRAME'] == 'Y')
 			{
 				$uri->addParams(array('IFRAME' => 'Y'));
 			}
@@ -118,7 +114,7 @@ $enablePhoneVerification =
 			endif; ?>
 		});
 	</script>
-	<form method="post" data-role="letter-time-form" action="<?= htmlspecialcharsbx($arResult['SUBMIT_FORM_URL']) ?>">
+	<form method="post" data-role="letter-time-form" action="<?= htmlspecialcharsbx($arResult['SUBMIT_FORM_URL'] ?? '') ?>">
 		<?= bitrix_sessid_post() ?>
 
 		<div class="sender-letter-time-title">
@@ -178,7 +174,7 @@ $enablePhoneVerification =
 			{
 				$buttons[] = [
 				'TYPE' => 'save', 'ONCLICK' => $enablePhoneVerification
-					? 'return BX.Bitrix24.PhoneVerify.showSlider(function (verified) { BXPhoneVerifyOnSliderClose(verified) });'
+					? 'return BX.Bitrix24.PhoneVerify.getInstance().startVerify({callback: function (verified) { BXPhoneVerifyOnSliderClose(verified) }});'
 					: 'BXPhoneVerifyOnSliderClose(true)'
 			];
 			}
@@ -187,7 +183,7 @@ $enablePhoneVerification =
 				$buttons[] = ['TYPE' => 'close', 'LINK' => $arParams['PATH_TO_LIST']];
 			}
 			?>
-			<?php if ($arParams['DAY_LIMIT'] !== null): ?>
+			<?php if (isset($arParams['DAY_LIMIT']) && $arParams['DAY_LIMIT'] !== null): ?>
 				<div class="sender-letter-time-limitation-wrap">
 					<div class="ui-alert ui-alert-warning">
 						<div class="sender-letter-time-limitation-text">

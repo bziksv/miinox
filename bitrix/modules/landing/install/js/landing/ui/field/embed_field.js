@@ -35,15 +35,15 @@
 			props: {type: "hidden", value: content.src || this.input.innerText}
 		});
 
-		this.error = BX.Landing.UI.Field.BaseField.createDescription(
-			BX.Landing.Loc.getMessage("LANDING_EMBED_ERROR_WRONG_SOURCE_TEXT_ALL")
-		);
+		this.error = BX.create('div', {props: {className: 'landing-ui-field-error'}});
+		BX.Dom.append(this.error, this.layout);
 
-		BX.Dom.addClass(this.error, 'landing-ui-error');
 		BX.Dom.style(this.description, 'margin-bottom', '0px');
 
 		this.adjustForm();
 	};
+
+	BX.Landing.UI.Field.Embed.isBgVideo = false;
 
 
 	BX.Landing.UI.Field.Embed.prototype = {
@@ -81,7 +81,12 @@
 			return {
 				src: this.mediaService ? this.mediaService.getEmbedURL() : this.input.innerText,
 				preview: this.mediaService ? this.mediaService.getEmbedPreview() : '',
-				source: this.input.innerText
+				source: this.input.innerText,
+				ratio:
+					(this.mediaService && this.mediaService.isVertical)
+						? BX.Landing.Block.Node.Embed.DEFAULT_RATIO_V
+						: BX.Landing.Block.Node.Embed.DEFAULT_RATIO_H
+				,
 			};
 		},
 
@@ -93,17 +98,18 @@
 
 			if (this.isEmbedUrl(value))
 			{
-				var ServiceFactory = new BX.Landing.MediaService.Factory();
-
 				if (this.mediaService && this.mediaService.form)
 				{
 					remove(this.mediaService.form.layout);
 				}
 
+				const ServiceFactory = new BX.Landing.MediaService.Factory();
 				this.mediaService = ServiceFactory.create(
 					value,
 					!skipParams ? getQueryParam(this.hiddenInput.value) : {}
 				);
+
+				this.mediaService.setBgVideoMode(this.constructor.isBgVideo);
 
 				if (this.mediaService)
 				{
@@ -122,6 +128,11 @@
 							this.readyToSave = true;
 							this.emit('onChangeReadyToSave');
 						});
+						BX.addCustomEvent(this.mediaService, 'onDataLoadError', event =>
+						{
+							this.readyToSave = false;
+							this.showError(event.message);
+						});
 					}
 					this.emit('onChangeReadyToSave');
 				}
@@ -135,20 +146,20 @@
 
 				if (BX.Type.isStringFilled(value))
 				{
-					this.showError();
+					this.showError(BX.Landing.Loc.getMessage("LANDING_EMBED_ERROR_WRONG_SOURCE_TEXT_ALL"));
 				}
 			}
 		},
 
-		showError: function()
+		showError: function(message)
 		{
-			BX.Dom.append(this.error, this.layout);
+			BX.Dom.append(BX.Landing.UI.Field.BaseField.createError(message), this.error);
 			BX.Dom.style(this.description, 'margin-bottom', null);
 		},
 
 		hideError: function()
 		{
-			BX.Dom.remove(this.error);
+			BX.Dom.clean(this.error);
 			BX.Dom.style(this.description, 'margin-bottom', '0px');
 		}
 	}

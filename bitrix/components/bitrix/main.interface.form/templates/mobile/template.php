@@ -97,10 +97,20 @@ $arParams["DATE_FORMAT"] = array(
 );
 
 CJSCore::GetCoreMessages();
+
+\Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
+	'ajax',
+	'date',
+	"mobile_fastclick",
+	"uploader",
+]);
+
 global $APPLICATION;
 $APPLICATION->SetPageProperty('BodyClass', 'mobile-grid-field-form');
 $APPLICATION->SetAdditionalCSS($templateFolder."/style_add.css");
-CUtil::InitJSCore(array('ajax', 'date', "mobile_fastclick", "uploader"));
+
 $userUrl = str_replace("//", "/", "/".SITE_DIR."mobile/users/?user_id=#ID#");
 $groupUrl = str_replace("//", "/", "/".SITE_DIR."mobile/log/?group_id=#ID#");
 
@@ -206,7 +216,7 @@ array_unshift($tab["fields"], array(
 						{
 							if (!empty($sections))
 							{
-								while (($section = end($sections)) && $section)
+								while (($section = end($sections)))
 								{
 									if ($field["section"] == $section)
 									{
@@ -352,7 +362,6 @@ array_unshift($tab["fields"], array(
 										$className = "user";
 										$jsObjects[] = $field["~id"];
 										ob_start();
-										$html = '';
 
 										if (is_array($field["item"]))
 										{
@@ -442,7 +451,6 @@ array_unshift($tab["fields"], array(
 										$url = ($field["type"] === 'select-user' ? $userUrl : $groupUrl);
 										$className = "user";
 										$jsObjects[] = $field["~id"];
-										$html = '';
 										$u = 0;
 										ob_start();
 										if ($field["items"])
@@ -450,6 +458,10 @@ array_unshift($tab["fields"], array(
 											$val = is_array($val) ? $val : array($val);
 											foreach ($field["items"] as $item)
 											{
+												if (!is_array($item))
+												{
+													continue;
+												}
 												$item = array_change_key_case($item, CASE_LOWER);
 												if (!in_array($item["id"], $val))
 												{
@@ -515,10 +527,14 @@ array_unshift($tab["fields"], array(
 										$u = 0;
 										$i++;
 										ob_start();
-										if ($field["items"])
+										if (isset($field["items"]) && is_array($field["items"]))
 										{
 											foreach($field["items"] as $item)
 											{
+												if (!is_array($item))
+												{
+													continue;
+												}
 												$u++;
 												$item = array_change_key_case($item, CASE_LOWER);
 

@@ -2,6 +2,9 @@
 
 namespace Bitrix\Catalog\v2\Integration\UI\EntitySelector;
 
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Access\Permission\PermissionDictionary;
 use Bitrix\Catalog\ProductTable;
 use Bitrix\Catalog\StoreProductTable;
 use Bitrix\Catalog\StoreTable;
@@ -22,7 +25,8 @@ class StoreProvider extends BaseProvider
 	{
 		$this->options['searchDisabledStores'] = $options['searchDisabledStores'] ?? true;
 		$this->options['useAddressAsTitle'] = $options['useAddressAsTitle'] ?? true;
-		$this->options['productId'] = (int)$options['productId'];
+		$this->options['productId'] = (int)($options['productId'] ?? 0);
+
 		if ($this->options['productId'] > 0)
 		{
 			$product = ProductTable::getRow([
@@ -31,6 +35,10 @@ class StoreProvider extends BaseProvider
 			]);
 
 			$this->options['measureSymbol'] = $this->getMeasureSymbol((int)$product['MEASURE']);
+		}
+		else
+		{
+			$this->options['measureSymbol'] = '';
 		}
 
 		parent::__construct();
@@ -135,6 +143,17 @@ class StoreProvider extends BaseProvider
 
 	private function getStores(array $filter = []): array
 	{
+		$allowedStores = AccessController::getCurrent()->getPermissionValue(ActionDictionary::ACTION_STORE_VIEW);
+		if (empty($allowedStores))
+		{
+			return [];
+		}
+
+		if (!in_array(PermissionDictionary::VALUE_VARIATION_ALL, $allowedStores, true))
+		{
+			$filter['=ID'] = $allowedStores;
+		}
+
 		$filter['=ACTIVE'] = 'Y';
 
 		$storeProducts = [];
@@ -208,7 +227,7 @@ class StoreProvider extends BaseProvider
 			return null;
 		}
 
-		return Tools::getImageSrc($file, true) ?: null;
+		return Tools::getImageSrc($file, false) ?: null;
 	}
 
 	private function makeItem($store): Item
@@ -231,7 +250,7 @@ class StoreProvider extends BaseProvider
 			'avatar' => $store['IMAGE'],
 			'caption' => [
 				'text' =>
-					$store['PRODUCT_AMOUNT'] > 0
+					$this->getProductId() > 0
 						? $store['PRODUCT_AMOUNT'] . ' ' . $this->getOptions()['measureSymbol']
 						: ''
 				,

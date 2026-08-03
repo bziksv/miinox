@@ -1,13 +1,16 @@
 import {type BaseEvent, EventEmitter} from 'main.core.events';
-import {Dom, Reflection, Type} from 'main.core';
+import {Dom, Reflection, Type, Uri} from 'main.core';
+import GridStore from '../grid/grid-store';
 
 export default class VariationGridController extends BX.UI.EntityEditorController
 {
 	areaHeight = null
+	gridStore: GridStore;
 
 	constructor(id, settings)
 	{
 		super();
+
 		this.initialize(id, settings);
 	}
 
@@ -17,7 +20,7 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 
 		EventEmitter.subscribe('Grid::thereEditedRows', this.markAsChangedHandler.bind(this));
 		EventEmitter.subscribe('Grid::noEditedRows', this.checkEditorToolbar.bind(this));
-		EventEmitter.subscribe('Grid::updated', this.checkEditorToolbar.bind(this));
+		EventEmitter.subscribe('Grid::updated', this.onGridUpdated.bind(this));
 		EventEmitter.subscribe('Grid::beforeRequest', this.onBeforeGridRequest.bind(this));
 
 		EventEmitter.subscribe('onAjaxSuccess', this.ajaxSuccessHandler.bind(this));
@@ -27,6 +30,8 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 		EventEmitter.subscribe("BX.UI.EntityEditor:onNothingChanged", this.onNothingChanged.bind(this));
 
 		this.subscribeToFormSubmit();
+
+		this.gridStore = new GridStore(this.getGridId());
 	}
 
 	onBeforeIncludedAreaLoaded(event: BaseEvent)
@@ -70,7 +75,6 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 		super.rollback();
 		this.checkEditorToolbar();
 		this.unsubscribeGridEvents();
-
 		BX.Main.gridManager.destroy(this.getGridId());
 	}
 
@@ -87,6 +91,7 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 			);
 		}
 
+		BX.Main.gridManager.destroy(this.getGridId());
 		this.subscribeToFormSubmit();
 		super.onAfterSave();
 	}
@@ -129,7 +134,6 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 		}
 
 		EventEmitter.unsubscribeAll('BX.Main.grid:paramsUpdated');
-		this.getGrid()?.destroy();
 	}
 
 	ajaxSuccessHandler(event: BaseEvent)
@@ -180,6 +184,23 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 		return this._editor.getControlById('variation_grid');
 	}
 
+	onGridUpdated(event: BaseEvent)
+	{
+		const [grid] = event.getCompatData();
+
+		this.checkEditorToolbar();
+
+		if (grid.getId() === this.getGrid().getId())
+		{
+			setTimeout(
+				() => {
+					this.gridStore.loadEditedRows();
+				},
+				0 // delay for re-render grid
+			);
+		}
+	}
+
 	onBeforeGridRequest(event: BaseEvent)
 	{
 		const [grid, eventArgs] = event.getCompatData();
@@ -189,12 +210,37 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 			return;
 		}
 
+		let url = eventArgs.url;
+		if (url)
+		{
+			const params = (new Uri(url)).getQueryParams();
+			url = new Uri(this.getReloadUrl());
+
+			if (params)
+			{
+				for (const key in params) {
+					if (Object.hasOwnProperty.call(params, key)) {
+						url.setQueryParam(key, params[key])
+					}
+				}
+			}
+
+			url = url.toString();
+		}
+		else
+		{
+			url = this.getReloadUrl();
+		}
+
+		this.gridStore.saveEditedRows();
+
 		eventArgs.sessid = BX.bitrix_sessid();
 		eventArgs.method = 'POST';
-		eventArgs.url = this.getReloadUrl();
+		eventArgs.url = url;
 		eventArgs.data = {
 			...eventArgs.data,
-			signedParameters: this.getSignedParameters()
+			rows: this.gridStore.getEditedRowsFields(),
+			signedParameters: this.getSignedParameters(),
 		};
 
 		this.unsubscribeGridEvents();
@@ -330,7 +376,5 @@ export default class VariationGridController extends BX.UI.EntityEditorControlle
 		eventArgs.options.data[skuGridName] = skuGridData;
 
 		this.areaHeight = this.getGridControl().getWrapper().offsetHeight;
-
-		BX.Main.gridManager.destroy(this.getGridId());
 	}
 }

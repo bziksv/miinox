@@ -30,11 +30,11 @@ if($code &&  $cat == "catalog"){
 		</div>
 		<!-- end inner-page_title-section -->
 		<?$APPLICATION->IncludeComponent(
-	"bitrix:catalog",
-	"catalog",
+	"bitrix:catalog", 
+	"catalog", 
 	array(
-		"IBLOCK_TYPE" => "catalog",
-		"IBLOCK_ID" => $IBLOCK_ID,
+		"IBLOCK_TYPE" => "1c_catalog",
+		"IBLOCK_ID" => "39",
 		"TEMPLATE_THEME" => "site",
 		"HIDE_NOT_AVAILABLE" => "N",
 		"BASKET_URL" => "/personal/cart/",
@@ -64,7 +64,6 @@ if($code &&  $cat == "catalog"){
 		"FILTER_VIEW_MODE" => "VERTICAL",
 		"USE_COMPARE" => "N",
 		"PRICE_CODE" => array(
-			0 => "BASE",
 		),
 		"USE_PRICE_COUNT" => "N",
 		"SHOW_PRICE_COUNT" => "1",
@@ -84,7 +83,7 @@ if($code &&  $cat == "catalog"){
 		"SECTION_TOP_DEPTH" => "2",
 		"SECTIONS_VIEW_MODE" => "TILE",
 		"SECTIONS_SHOW_PARENT_NAME" => "N",
-		"PAGE_ELEMENT_COUNT" => "30",
+		"PAGE_ELEMENT_COUNT" => "15",
 		"LINE_ELEMENT_COUNT" => "3",
 		"ELEMENT_SORT_FIELD" => "sort",
 		"ELEMENT_SORT_ORDER" => "asc",
@@ -157,7 +156,8 @@ if($code &&  $cat == "catalog"){
 		"PAGER_DESC_NUMBERING_CACHE_TIME" => "36000000",
 		"PAGER_SHOW_ALL" => "N",
 		"ADD_PICT_PROP" => "MORE_PHOTO",
-		"LABEL_PROP" => "",
+		"LABEL_PROP" => array(
+		),
 		"PRODUCT_DISPLAY_MODE" => "Y",
 		"OFFER_ADD_PICT_PROP" => "MORE_PHOTO",
 		"OFFER_TREE_PROPS" => array(
@@ -308,6 +308,10 @@ if($code &&  $cat == "catalog"){
 			0 => "BUY",
 		),
 		"FILE_404" => "",
+		"SHOW_SKU_DESCRIPTION" => "N",
+		"MESS_NOT_AVAILABLE_SERVICE" => "Недоступно",
+		"SEARCH_USE_SEARCH_RESULT_ORDER" => "N",
+		"MESS_BTN_LAZY_LOAD" => "Показать ещё",
 		"SEF_URL_TEMPLATES" => array(
 			"sections" => "",
 			"section" => "#SECTION_CODE#/",

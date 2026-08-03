@@ -21,7 +21,12 @@ $this->setFrameMode(true);
                 $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
                 ?>
                 <div class="main-slide" data-background="<?=$arItem['PREVIEW_PICTURE']['SRC'];?>">
-					<?=$arItem['PREVIEW_TEXT']?>
+					<div class="slider-title">
+						<?=$arItem["PROPERTIES"]["TITLE"]["VALUE"]?>
+					</div>
+					<div class="slider-subtitle"><?=$arItem["PROPERTIES"]["SUBTITLE"]["VALUE"]?></div>
+					
+					<div class="slider-text"><?=$arItem['PREVIEW_TEXT']?></div>
                     <a href="<?echo $arItem["CODE"]?>" class="main-btn main-section_catalog-btn"><?echo $arItem["NAME"]?></a>
                 </div>
             <?endforeach;?>

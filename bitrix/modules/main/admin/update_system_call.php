@@ -34,7 +34,7 @@ if (!defined("UPD_INTERNAL_CALL") || UPD_INTERNAL_CALL != "Y")
 
 $stableVersionsOnly = COption::GetOptionString("main", "stable_versions_only", "Y");
 
-$queryType = $_REQUEST["query_type"];
+$queryType = isset($_REQUEST["query_type"]) ? $_REQUEST["query_type"] : '';
 if (!in_array($queryType, array("M", "L", "H")))
 {
 	$queryType = "M";
@@ -192,7 +192,7 @@ if ($queryType == "M")
 
 		echo "STP";
 		echo count($arUpdateDescription["DATA"]["#"]["ITEM"])."|";
-		$bFirst = True;
+		$bFirst = true;
 		for ($i = 0, $cnt = count($arUpdateDescription["DATA"]["#"]["ITEM"]); $i < $cnt; $i++)
 		{
 			$strModuleDescr = "";
@@ -207,7 +207,7 @@ if ($queryType == "M")
 			CUpdateClient::AddMessage2Log("Updated: ".$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["NAME"].(($arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"] != "0") ? " (".$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"].")" : "").$strModuleDescr, "UPD_SUCCESS");
 
 			echo ($bFirst ? "" : ", ").$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["NAME"].(($arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"] != "0") ? " (".$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"].")" : "");
-			$bFirst = False;
+			$bFirst = false;
 		}
 
 		CUpdateClient::finalizeModuleUpdate($arUpdateDescription["DATA"]["#"]["ITEM"]);
@@ -284,7 +284,7 @@ elseif ($queryType == "L")
 		if (isset($arStepUpdateInfo["DATA"]["#"]["ITEM"]))
 		{
 			for ($i = 0, $cnt = count($arStepUpdateInfo["DATA"]["#"]["ITEM"]); $i < $cnt; $i++)
-				$arItemsUpdated[$arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["NAME"]] = $arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"];
+				$arItemsUpdated[$arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["ID"]] = $arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["NAME"];
 		}
 	}
 
@@ -298,13 +298,10 @@ elseif ($queryType == "L")
 		}
 		else
 		{
-			if ($errorMessage == '')
+			if (!CUpdateClient::UpdateStepLangs($temporaryUpdatesDir, $errorMessage))
 			{
-				if (!CUpdateClient::UpdateStepLangs($temporaryUpdatesDir, $errorMessage))
-				{
-					$errorMessage .= "[CL04] ".GetMessage("SUPC_LE_UPD").". ";
-					CUpdateClient::AddMessage2Log(GetMessage("SUPC_LE_UPD"), "CL04");
-				}
+				$errorMessage .= "[CL04] ".GetMessage("SUPC_LE_UPD").". ";
+				CUpdateClient::AddMessage2Log(GetMessage("SUPC_LE_UPD"), "CL04");
 			}
 
 			if ($errorMessage <> '')
@@ -374,12 +371,12 @@ elseif ($queryType == "L")
 
 				echo "STP";
 				echo count($arItemsUpdated)."|";
-				$bFirst = True;
+				$bFirst = true;
 				foreach ($arItemsUpdated as $key => $value)
 				{
-					CUpdateClient::AddMessage2Log("Updated: ".$key.(($value <> '') ? "(".$value.")" : ""), "UPD_SUCCESS");
-					echo ($bFirst ? "" : ", ").$key.(($value <> '') ? "(".$value.")" : "");
-					$bFirst = False;
+					CUpdateClient::AddMessage2Log("Updated: ".$key.(($value <> '') ? " (".$value.")" : ""), "UPD_SUCCESS");
+					echo ($bFirst ? "" : ", ").$key.(($value <> '') ? " (".$value.")" : "");
+					$bFirst = false;
 				}
 
 				CUpdateClient::finalizeLanguageUpdate($arItemsUpdated);
@@ -445,13 +442,10 @@ else
 		}
 		else
 		{
-			if ($errorMessage == '')
+			if (!CUpdateClient::UpdateStepHelps($temporaryUpdatesDir, $errorMessage))
 			{
-				if (!CUpdateClient::UpdateStepHelps($temporaryUpdatesDir, $errorMessage))
-				{
-					$errorMessage .= "[CL04] ".GetMessage("SUPC_HE_UPD").". ";
-					CUpdateClient::AddMessage2Log(GetMessage("SUPC_HE_UPD"), "CL04");
-				}
+				$errorMessage .= "[CL04] ".GetMessage("SUPC_HE_UPD").". ";
+				CUpdateClient::AddMessage2Log(GetMessage("SUPC_HE_UPD"), "CL04");
 			}
 
 			if ($errorMessage <> '')
@@ -463,12 +457,12 @@ else
 			{
 				echo "STP";
 				echo count($arItemsUpdated)."|";
-				$bFirst = True;
+				$bFirst = true;
 				foreach ($arItemsUpdated as $key => $value)
 				{
 					CUpdateClient::AddMessage2Log("Updated: ".$key.(($value <> '') ? "(".$value.")" : ""), "UPD_SUCCESS");
 					echo ($bFirst ? "" : ", ").$key.(($value <> '') ? "(".$value.")" : "");
-					$bFirst = False;
+					$bFirst = false;
 				}
 			}
 		}

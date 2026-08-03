@@ -152,7 +152,21 @@ this.BX = this.BX || {};
 	  return PositionEvent;
 	}(main_core_events.BaseEvent);
 
+	/**
+	 * @namespace {BX.Main.Popup}
+	 */
+	var CloseIconSize = Object.freeze({
+	  LARGE: 'large',
+	  SMALL: 'small'
+	});
+
 	var _templateObject, _templateObject2, _templateObject3, _templateObject4, _templateObject5, _templateObject6, _templateObject7, _templateObject8, _templateObject9;
+
+	function _classPrivateMethodInitSpec(obj, privateSet) { _checkPrivateRedeclaration$1(obj, privateSet); privateSet.add(obj); }
+
+	function _checkPrivateRedeclaration$1(obj, privateCollection) { if (privateCollection.has(obj)) { throw new TypeError("Cannot initialize the same private elements twice on an object"); } }
+
+	function _classPrivateMethodGet(receiver, privateSet, fn) { if (!privateSet.has(receiver)) { throw new TypeError("attempted to get private field on non-instance"); } return fn; }
 	var aliases = {
 	  onPopupWindowInit: {
 	    namespace: 'BX.Main.Popup',
@@ -220,9 +234,14 @@ this.BX = this.BX || {};
 	  }
 	};
 	main_core_events.EventEmitter.registerAliases(aliases);
+	var disabledScrolls = new WeakMap();
 	/**
 	 * @memberof BX.Main
 	 */
+
+	var _disableTargetScroll = /*#__PURE__*/new WeakSet();
+
+	var _enableTargetScroll = /*#__PURE__*/new WeakSet();
 
 	var Popup = /*#__PURE__*/function (_EventEmitter) {
 	  babelHelpers.inherits(Popup, _EventEmitter);
@@ -263,6 +282,10 @@ this.BX = this.BX || {};
 
 	    babelHelpers.classCallCheck(this, Popup);
 	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Popup).call(this));
+
+	    _classPrivateMethodInitSpec(babelHelpers.assertThisInitialized(_this), _enableTargetScroll);
+
+	    _classPrivateMethodInitSpec(babelHelpers.assertThisInitialized(_this), _disableTargetScroll);
 
 	    _this.setEventNamespace('BX.Main.Popup');
 
@@ -313,6 +336,7 @@ this.BX = this.BX || {};
 	    _this.titleBar = null;
 	    _this.bindOptions = babelHelpers["typeof"](params.bindOptions) === 'object' ? params.bindOptions : {};
 	    _this.autoHide = params.autoHide === true;
+	    _this.disableScroll = params.disableScroll === true || params.isScrollBlock === true;
 	    _this.autoHideHandler = main_core.Type.isFunction(params.autoHideHandler) ? params.autoHideHandler : null;
 	    _this.handleAutoHide = _this.handleAutoHide.bind(babelHelpers.assertThisInitialized(_this));
 	    _this.handleOverlayClick = _this.handleOverlayClick.bind(babelHelpers.assertThisInitialized(_this));
@@ -322,6 +346,7 @@ this.BX = this.BX || {};
 	    _this.toFrontOnShow = true;
 	    _this.cacheable = true;
 	    _this.destroyed = false;
+	    _this.fixed = false;
 	    _this.width = null;
 	    _this.height = null;
 	    _this.minWidth = null;
@@ -377,6 +402,11 @@ this.BX = this.BX || {};
 
 	    if (params.closeIcon) {
 	      var className = 'popup-window-close-icon' + (params.titleBar ? ' popup-window-titlebar-close-icon' : '');
+
+	      if (Object.values(CloseIconSize).includes(params.closeIconSize) && params.closeIconSize !== CloseIconSize.SMALL) {
+	        className += " --".concat(params.closeIconSize);
+	      }
+
 	      _this.closeIcon = main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<span class=\"", "\" onclick=\"", "\"></span>\n\t\t\t"])), className, _this.handleCloseIconClick.bind(babelHelpers.assertThisInitialized(_this)));
 
 	      if (main_core.Type.isPlainObject(params.closeIcon)) {
@@ -456,7 +486,9 @@ this.BX = this.BX || {};
 
 	    _this.setCacheable(params.cacheable);
 
-	    _this.setToFrontOnShow(params.toFrontOnShow); // Compatibility
+	    _this.setToFrontOnShow(params.toFrontOnShow);
+
+	    _this.setFixed(params.fixed); // Compatibility
 
 
 	    if (params.contentNoPaddings) {
@@ -611,8 +643,8 @@ this.BX = this.BX || {};
 	        this.bindOptions.forceTop = true;
 	        return {
 	          left: windowSize.innerWidth / 2 - popupWidth / 2 + windowScroll.scrollLeft,
-	          top: windowSize.innerHeight / 2 - popupHeight / 2 + windowScroll.scrollTop,
-	          bottom: windowSize.innerHeight / 2 - popupHeight / 2 + windowScroll.scrollTop,
+	          top: windowSize.innerHeight / 2 - popupHeight / 2 + (this.isFixed() ? 0 : windowScroll.scrollTop),
+	          bottom: windowSize.innerHeight / 2 - popupHeight / 2 + (this.isFixed() ? 0 : windowScroll.scrollTop),
 	          //for optimisation purposes
 	          windowSize: windowSize,
 	          windowScroll: windowScroll,
@@ -1016,6 +1048,24 @@ this.BX = this.BX || {};
 	    key: "shouldFrontOnShow",
 	    value: function shouldFrontOnShow() {
 	      return this.toFrontOnShow;
+	    }
+	  }, {
+	    key: "setFixed",
+	    value: function setFixed(flag) {
+	      if (main_core.Type.isBoolean(flag)) {
+	        this.fixed = flag;
+
+	        if (flag) {
+	          main_core.Dom.addClass(this.getPopupContainer(), '--fixed');
+	        } else {
+	          main_core.Dom.removeClass(this.getPopupContainer(), '--fixed');
+	        }
+	      }
+	    }
+	  }, {
+	    key: "isFixed",
+	    value: function isFixed() {
+	      return this.fixed;
 	    }
 	  }, {
 	    key: "setResizeMode",
@@ -1447,6 +1497,21 @@ this.BX = this.BX || {};
 	      return this.zIndexComponent;
 	    }
 	  }, {
+	    key: "setDisableScroll",
+	    value: function setDisableScroll(flag) {
+	      var disable = main_core.Type.isBoolean(flag) ? flag : true;
+
+	      if (disable) {
+	        this.disableScroll = true;
+
+	        _classPrivateMethodGet(this, _disableTargetScroll, _disableTargetScroll2).call(this);
+	      } else {
+	        this.disableScroll = false;
+
+	        _classPrivateMethodGet(this, _enableTargetScroll, _enableTargetScroll2).call(this);
+	      }
+	    }
+	  }, {
 	    key: "show",
 	    value: function show() {
 	      var _this4 = this;
@@ -1473,6 +1538,11 @@ this.BX = this.BX || {};
 	      this.emit('onShow', new main_core_events.BaseEvent({
 	        compatData: [this]
 	      }));
+
+	      if (this.disableScroll) {
+	        _classPrivateMethodGet(this, _disableTargetScroll, _disableTargetScroll2).call(this);
+	      }
+
 	      this.adjustPosition();
 	      this.animateOpening(function () {
 	        if (_this4.isDestroyed()) {
@@ -1510,6 +1580,10 @@ this.BX = this.BX || {};
 
 	      if (this.isDestroyed()) {
 	        return;
+	      }
+
+	      if (this.disableScroll) {
+	        _classPrivateMethodGet(this, _enableTargetScroll, _enableTargetScroll2).call(this);
 	      }
 
 	      this.animateClosing(function () {
@@ -1645,6 +1719,10 @@ this.BX = this.BX || {};
 
 	      if (this.destroyed) {
 	        return;
+	      }
+
+	      if (this.disableScroll) {
+	        _classPrivateMethodGet(this, _enableTargetScroll, _enableTargetScroll2).call(this);
 	      }
 
 	      this.destroyed = true;
@@ -2032,6 +2110,32 @@ this.BX = this.BX || {};
 	  }]);
 	  return Popup;
 	}(main_core_events.EventEmitter);
+
+	function _disableTargetScroll2() {
+	  var target = this.getTargetContainer();
+	  var popups = disabledScrolls.get(target);
+
+	  if (!popups) {
+	    popups = new Set();
+	    disabledScrolls.set(target, popups);
+	  }
+
+	  popups.add(this);
+	  main_core.Dom.addClass(target, 'popup-window-disable-scroll');
+	}
+
+	function _enableTargetScroll2() {
+	  var target = this.getTargetContainer();
+	  var popups = disabledScrolls.get(target) || null;
+
+	  if (popups) {
+	    popups["delete"](this);
+	  }
+
+	  if (popups === null || popups.size === 0) {
+	    main_core.Dom.removeClass(target, 'popup-window-disable-scroll');
+	  }
+	}
 
 	babelHelpers.defineProperty(Popup, "options", {});
 	babelHelpers.defineProperty(Popup, "defaultOptions", {
@@ -3620,13 +3724,14 @@ this.BX = this.BX || {};
 	/*
 
 	//ES6
-	import { Popup, PopupManager } from 'main.popup';
+	import { Popup, PopupManager, CloseIconSize } from 'main.popup';
 	const popup = new Popup();
 	PopupManager.create();
 
 	//ES5
 	var popup = new BX.Main.Popup();
 	BX.Main.PopupManager.create();
+	BX.Main.Popup.CloseIconSize;
 
 	//ES6
 	import { Menu, MenuItem, MenuManager } from 'main.popup';
@@ -3674,6 +3779,7 @@ this.BX = this.BX || {};
 	exports.MenuItem = MenuItem;
 	exports.PopupManager = PopupManager;
 	exports.MenuManager = MenuManager;
+	exports.CloseIconSize = CloseIconSize;
 	exports.PopupWindow = PopupWindow;
 	exports.PopupMenuWindow = PopupMenuWindow;
 	exports.PopupMenuItem = PopupMenuItem;

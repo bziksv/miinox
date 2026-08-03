@@ -374,7 +374,6 @@ class CDeliveryCPCR
 				);
 			}
 
-			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/xml.php");
 			$objXML = new CDataXML();
 			$objXML->LoadString($data);
 			$arResult = $objXML->GetArray();
@@ -517,7 +516,7 @@ class CDeliveryCPCR
 	{
 		if (defined('DELIVERY_CPCR_WRITE_LOG') && DELIVERY_CPCR_WRITE_LOG === 1)
 		{
-			$fp = fopen(dirname(__FILE__)."/cpcr.log", "a");
+			$fp = fopen(__DIR__."/cpcr.log", "a");
 			fwrite($fp, "\r\n==========================================\r\n");
 			fwrite($fp, $data);
 			fclose($fp);

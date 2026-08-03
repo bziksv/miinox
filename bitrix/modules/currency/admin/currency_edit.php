@@ -33,7 +33,7 @@ while ($oneLang = $langIterator->Fetch())
 	$langID[] = $oneLang['LID'];
 	$langList[$oneLang['LID']] = $oneLang['NAME'];
 }
-unset($oneLang, $langIterator, $order, $by);
+unset($oneLang, $langIterator);
 
 $arFields = array();
 
@@ -42,10 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $CURRENCY_RIGHT=="W" && !empty($_POS
 	if (!isset($_POST['BASE']) || $_POST['BASE'] != 'Y')
 	{
 		$arFields = array(
-			'AMOUNT' => (isset($_POST['AMOUNT']) ? $_POST['AMOUNT'] : ''),
-			'AMOUNT_CNT' => (isset($_POST['AMOUNT_CNT']) ? $_POST['AMOUNT_CNT'] : ''),
-			'SORT' => (isset($_POST['SORT']) ? $_POST['SORT'] : ''),
-			'NUMCODE' => (isset($_POST['NUMCODE']) ? $_POST['NUMCODE'] : '')
+			'AMOUNT' => ($_POST['AMOUNT'] ?? ''),
+			'AMOUNT_CNT' => ($_POST['AMOUNT_CNT'] ?? ''),
+			'SORT' => ($_POST['SORT'] ?? ''),
+			'NUMCODE' => ($_POST['NUMCODE'] ?? '')
 		);
 	}
 	else
@@ -53,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $CURRENCY_RIGHT=="W" && !empty($_POS
 		$arFields = array(
 			'AMOUNT' => 1,
 			'AMOUNT_CNT' => 1,
-			'SORT' => (isset($_POST['SORT']) ? $_POST['SORT'] : ''),
-			'NUMCODE' => (isset($_POST['NUMCODE']) ? $_POST['NUMCODE'] : '')
+			'SORT' => ($_POST['SORT'] ?? ''),
+			'NUMCODE' => ($_POST['NUMCODE'] ?? '')
 		);
 	}
 	if (!$ID && isset($_POST['CURRENCY']))
@@ -148,7 +148,7 @@ if ($ID != '')
 				$language['FULL_NAME'] = $ID;
 			$currencyLangs[$language['LID']] = $language;
 		}
-		unset($language, $langIterator, $order, $by);
+		unset($language, $langIterator);
 	}
 }
 
@@ -230,18 +230,13 @@ function setThousandsVariant(lang)
 	document.forms['form1'].elements['LANG_' + lang + '[THOUSANDS_SEP]'].disabled = (value.length > 0);
 }
 </script>
-<form method="post" action="<?$APPLICATION->GetCurPage()?>" name="form1">
+<form method="post" action="<?= $APPLICATION->GetCurPage()?>" name="form1">
 <? echo bitrix_sessid_post(); ?>
 <?echo GetFilterHiddens("filter_");?>
 <input type="hidden" name="ID" value="<?=htmlspecialcharsbx($ID); ?>">
 <input type="hidden" name="Update" value="Y">
-<input type="hidden" name="from" value="<?echo htmlspecialcharsbx($from)?>">
 <input type="hidden" name="BASE" value="<?echo htmlspecialcharsbx($currency['BASE']); ?>">
 <?
-if (isset($return_url) && $return_url != '')
-{
-	?><input type="hidden" name="return_url" value="<?=htmlspecialcharsbx($return_url)?>"><?
-}
 
 $tabControl->Begin();?>
 <?$tabControl->BeginNextTab();?>
@@ -286,6 +281,10 @@ $tabControl->Begin();?>
 <?$tabControl->BeginNextTab();
 	foreach ($currencyLangs as $languageId => $settings)
 	{
+		if (!isset($langList[$languageId]))
+		{
+			continue;
+		}
 		$fieldPrefix = 'LANG_'.htmlspecialcharsbx($languageId);
 		$scriptLanguageId = CUtil::JSEscape(htmlspecialcharsbx($languageId));
 		?><tr class="heading"><td colspan="2"><?=htmlspecialcharsbx($langList[$languageId]); ?></td></tr>

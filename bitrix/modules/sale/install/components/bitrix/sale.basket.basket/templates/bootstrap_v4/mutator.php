@@ -11,9 +11,9 @@ use Bitrix\Sale\PriceMaths;
  * @var array $result
  */
 
-$mobileColumns = isset($this->arParams['COLUMNS_LIST_MOBILE'])
-	? $this->arParams['COLUMNS_LIST_MOBILE']
-	: $this->arParams['COLUMNS_LIST'];
+$this->arParams['BRAND_PROPERTY'] ??= '';
+
+$mobileColumns = $this->arParams['COLUMNS_LIST_MOBILE'] ?? $this->arParams['COLUMNS_LIST'];
 $mobileColumns = array_fill_keys($mobileColumns, true);
 
 $result['BASKET_ITEM_RENDER_DATA'] = array();
@@ -23,7 +23,7 @@ foreach ($this->basketItems as $row)
 	$rowData = array(
 		'ID' => $row['ID'],
 		'PRODUCT_ID' => $row['PRODUCT_ID'],
-		'NAME' => isset($row['~NAME']) ? $row['~NAME'] : $row['NAME'],
+		'NAME' => $row['~NAME'] ?? $row['NAME'],
 		'QUANTITY' => $row['QUANTITY'],
 		'PROPS' => $row['PROPS'],
 		'PROPS_ALL' => $row['PROPS_ALL'],
@@ -46,21 +46,19 @@ foreach ($this->basketItems as $row)
 		'SUM_FULL_PRICE_FORMATED' => $row['SUM_FULL_PRICE_FORMATED'],
 		'SUM_DISCOUNT_PRICE' => $row['SUM_DISCOUNT_PRICE'],
 		'SUM_DISCOUNT_PRICE_FORMATED' => $row['SUM_DISCOUNT_PRICE_FORMATED'],
-		'MEASURE_RATIO' => isset($row['MEASURE_RATIO']) ? $row['MEASURE_RATIO'] : 1,
+		'MEASURE_RATIO' => $row['MEASURE_RATIO'] ?? 1,
 		'MEASURE_TEXT' => $row['MEASURE_TEXT'],
-		'AVAILABLE_QUANTITY' => $row['AVAILABLE_QUANTITY'],
-		'CHECK_MAX_QUANTITY' => $row['CHECK_MAX_QUANTITY'],
+		'AVAILABLE_QUANTITY' => $row['AVAILABLE_QUANTITY'] ?? 0,
+		'CHECK_MAX_QUANTITY' => $row['CHECK_MAX_QUANTITY'] ?? 'N',
 		'MODULE' => $row['MODULE'],
 		'PRODUCT_PROVIDER_CLASS' => $row['PRODUCT_PROVIDER_CLASS'],
-		'NOT_AVAILABLE' => $row['NOT_AVAILABLE'] === true,
+		'NOT_AVAILABLE' => isset($row['NOT_AVAILABLE']) && $row['NOT_AVAILABLE'] === true,
 		'DELAYED' => $row['DELAY'] === 'Y',
 		'SKU_BLOCK_LIST' => array(),
 		'COLUMN_LIST' => array(),
 		'SHOW_LABEL' => false,
 		'LABEL_VALUES' => array(),
-		'BRAND' => isset($row[$this->arParams['BRAND_PROPERTY'].'_VALUE'])
-			? $row[$this->arParams['BRAND_PROPERTY'].'_VALUE']
-			: '',
+		'BRAND' => $row[$this->arParams['BRAND_PROPERTY'] . '_VALUE'] ?? '',
 	);
 
 	// show price including ratio
@@ -144,12 +142,13 @@ foreach ($this->basketItems as $row)
 					$valueId = $skuItem['NAME'];
 				}
 
+				$xmlId = !empty($skuItem['XML_ID']) ? $skuItem['XML_ID'] : false;
 				$skuValue = array(
 					'ID' => $skuItem['ID'],
 					'NAME' => $skuItem['NAME'],
 					'SORT' => $skuItem['SORT'],
 					'PICT' => !empty($skuItem['PICT']) ? $skuItem['PICT']['SRC'] : false,
-					'XML_ID' => !empty($skuItem['XML_ID']) ? $skuItem['XML_ID'] : false,
+					'XML_ID' => $xmlId,
 					'VALUE_ID' => $valueId,
 					'PROP_ID' => $skuBlock['ID'],
 					'PROP_CODE' => $skuBlock['CODE']
@@ -157,7 +156,7 @@ foreach ($this->basketItems as $row)
 
 				if (
 					!empty($propMap[$skuBlockData['CODE']])
-					&& ($propMap[$skuBlockData['CODE']] == $skuItem['NAME'] || $propMap[$skuBlockData['CODE']] == $skuItem['XML_ID'])
+					&& ($propMap[$skuBlockData['CODE']] == $skuItem['NAME'] || $propMap[$skuBlockData['CODE']] == $xmlId)
 				)
 				{
 					$skuValue['SELECTED'] = true;
@@ -179,7 +178,7 @@ foreach ($this->basketItems as $row)
 		}
 	}
 
-	if ($row['NOT_AVAILABLE'])
+	if (!empty($row['NOT_AVAILABLE']))
 	{
 		foreach ($rowData['SKU_BLOCK_LIST'] as $blockKey => $skuBlock)
 		{
@@ -275,7 +274,7 @@ foreach ($this->basketItems as $row)
 					$rowData['COLUMN_LIST'][] = array(
 						'CODE' => $value['id'],
 						'NAME' => $value['name'],
-						'VALUE' => isset($row['~NOTES']) ? $row['~NOTES'] : $row['NOTES'],
+						'VALUE' => $row['~NOTES'] ?? $row['NOTES'],
 						'IS_TEXT' => true,
 						'HIDE_MOBILE' => !isset($mobileColumns[$value['id']])
 					);
@@ -360,10 +359,11 @@ foreach ($this->basketItems as $row)
 			}
 			elseif (!empty($row[$value['id']]))
 			{
+				$rawValue = $row['~' . $value['id']] ?? $row[$value['id']];
 				$rowData['COLUMN_LIST'][] = array(
 					'CODE' => $value['id'],
 					'NAME' => $value['name'],
-					'VALUE' => $row[$value['id']],
+					'VALUE' => $rawValue,
 					'IS_TEXT' => true,
 					'HIDE_MOBILE' => !isset($mobileColumns[$value['id']])
 				);
@@ -420,7 +420,7 @@ if ($this->priceVatShowValue === 'Y')
 if ($this->hideCoupon !== 'Y' && !empty($result['COUPON_LIST']))
 {
 	$totalData['COUPON_LIST'] = $result['COUPON_LIST'];
-	
+
 	foreach ($totalData['COUPON_LIST'] as &$coupon)
 	{
 		if ($coupon['JS_STATUS'] === 'ENTERED')

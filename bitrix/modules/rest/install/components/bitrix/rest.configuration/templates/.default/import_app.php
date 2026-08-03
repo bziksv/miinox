@@ -14,7 +14,7 @@ if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
  * @global CMain $APPLICATION
  * @global CUser $USER
  */
-if($arResult['ERROR'])
+if(isset($arResult['ERROR']) && $arResult['ERROR'])
 {
 	ShowError($arResult['ERROR']);
 	return false;
@@ -28,6 +28,7 @@ if($arResult['ERROR'])
 			'APP' => $arResult['VARIABLES']['APP'],
 			'SET_TITLE' => 'Y',
 			'ADDITIONAL' => $arResult['VARIABLES']['ADDITIONAL_PARAMS'],
+			'FROM' => $arResult['FROM'],
 		)
 	);
 ?>

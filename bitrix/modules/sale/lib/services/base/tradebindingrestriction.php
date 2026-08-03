@@ -1,6 +1,7 @@
 <?php
 namespace Bitrix\Sale\Services\Base;
 
+use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\NotImplementedException;
 use Bitrix\Sale;
@@ -28,6 +29,11 @@ abstract class TradeBindingRestriction extends Restriction
 	public static function getClassDescription()
 	{
 		return Loc::getMessage('SALE_SRV_RSTR_BY_TRADE_BINDING_DESC');
+	}
+
+	public static function getOnApplyErrorMessage(): string
+	{
+		return Loc::getMessage('SALE_SRV_RSTR_BY_TRADE_BINDING_ON_APPLY_ERROR_MSG');
 	}
 
 	/**
@@ -63,6 +69,8 @@ abstract class TradeBindingRestriction extends Restriction
 	 */
 	protected static function getTradePlatformList()
 	{
+		Loader::includeModule('crm');
+
 		$result = [];
 
 		$dbRes = Sale\TradingPlatformTable::getList([
@@ -72,15 +80,12 @@ abstract class TradeBindingRestriction extends Restriction
 		]);
 		while ($data = $dbRes->fetch())
 		{
-			/** @var Sale\TradingPlatform\Platform $platformClassName */
-			$platformClassName = $data['CLASS'];
-
+			$platformClassName = (string)$data['CLASS'];
 			if (class_exists($platformClassName))
 			{
+				/** @var Sale\TradingPlatform\Platform $platformClassName */
 				$platform = $platformClassName::getInstanceByCode($data['CODE']);
-				if ($platform
-					&& $platform instanceof Sale\TradingPlatform\Landing\Landing
-				)
+				if ($platform instanceof Sale\TradingPlatform\IRestriction)
 				{
 					$result[$platform->getId()] = $platform->getRealName();
 				}

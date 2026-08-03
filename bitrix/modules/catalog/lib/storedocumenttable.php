@@ -1,6 +1,7 @@
 <?php
 namespace Bitrix\Catalog;
 
+use Bitrix\Main\Entity\ReferenceField;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main;
 use Bitrix\Main\ORM\Data\DataManager;
@@ -12,6 +13,7 @@ use Bitrix\Main\ORM\Fields\IntegerField;
 use Bitrix\Main\ORM\Fields\Relations\Reference;
 use Bitrix\Main\ORM\Fields\StringField;
 use Bitrix\Main\ORM\Fields\Validators\LengthValidator;
+use Bitrix\Main\ORM\Query\Join;
 use Bitrix\Main\UserTable;
 
 /**
@@ -44,6 +46,19 @@ use Bitrix\Main\UserTable;
  * </ul>
  *
  * @package Bitrix\Catalog
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_StoreDocument_Query query()
+ * @method static EO_StoreDocument_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_StoreDocument_Result getById($id)
+ * @method static EO_StoreDocument_Result getList(array $parameters = [])
+ * @method static EO_StoreDocument_Entity getEntity()
+ * @method static \Bitrix\Catalog\EO_StoreDocument createObject($setDefaultValues = true)
+ * @method static \Bitrix\Catalog\EO_StoreDocument_Collection createCollection()
+ * @method static \Bitrix\Catalog\EO_StoreDocument wakeUpObject($row)
+ * @method static \Bitrix\Catalog\EO_StoreDocument_Collection wakeUpCollection($rows)
  */
 
 class StoreDocumentTable extends DataManager
@@ -54,6 +69,7 @@ class StoreDocumentTable extends DataManager
 	public const TYPE_RETURN = 'R';
 	public const TYPE_DEDUCT = 'D';
 	public const TYPE_UNDO_RESERVE = 'U';
+	public const TYPE_SALES_ORDERS = 'W';
 	//public const TYPE_INVENTORY = 'I';
 
 	public const STATUS_CONDUCTED = 'Y';
@@ -426,7 +442,7 @@ class StoreDocumentTable extends DataManager
 		", ['ID']);
 	}
 
-	public static function withProducts(Main\ORM\Query\Query $query, array $productIds)
+	public static function withProductList(Main\ORM\Query\Query $query, array $productIds)
 	{
 		Main\Type\Collection::normalizeArrayValuesByInt($productIds);
 		if (empty($productIds))
@@ -478,7 +494,7 @@ class StoreDocumentTable extends DataManager
 		", ['ID']);
 	}
 
-	public static function withStores(Main\ORM\Query\Query $query, array $storeIds)
+	public static function withStoreList(Main\ORM\Query\Query $query, array $storeIds)
 	{
 		Main\Type\Collection::normalizeArrayValuesByInt($storeIds);
 		if (empty($storeIds))
@@ -503,5 +519,38 @@ class StoreDocumentTable extends DataManager
 				END
 			) = 1
 		", ['ID']);
+	}
+
+	public static function withStoreFromList(Main\ORM\Query\Query $query, array $storeIds)
+	{
+		static::addSingleStoreFilterToQuery($query, 'STORE_FROM', $storeIds);
+	}
+
+	public static function withStoreToList(Main\ORM\Query\Query $query, array $storeIds)
+	{
+		static::addSingleStoreFilterToQuery($query, 'STORE_TO', $storeIds);
+	}
+
+	protected static function addSingleStoreFilterToQuery(Main\ORM\Query\Query $query, string $fieldName, array $storeIds): void
+	{
+		Main\Type\Collection::normalizeArrayValuesByInt($storeIds);
+		if (empty($storeIds))
+		{
+			return;
+		}
+
+		$filter = new Main\ORM\Query\Filter\ConditionTree();
+		$filter
+			->whereIn('ref.' . $fieldName, $storeIds)
+		;
+		$query->registerRuntimeField(
+			new ReferenceField(
+				'FILTER_' . $fieldName . '_DOC_ID',
+				StoreDocumentElementTable::getEntity(),
+				Join::on('ref.DOC_ID', 'this.ID')->where($filter),
+				['join_type' => 'INNER']
+			)
+		);
+		$query->addGroup('ID');
 	}
 }

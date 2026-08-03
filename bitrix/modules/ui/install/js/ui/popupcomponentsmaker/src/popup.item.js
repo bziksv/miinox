@@ -13,10 +13,17 @@ export default class PopupComponentsMakerItem extends EventEmitter
 		this.flex = Type.isNumber(options?.flex) ? options.flex : null;
 		this.withoutBackground = Type.isBoolean(options?.withoutBackground) ? options.withoutBackground : null;
 		this.backgroundColor = Type.isString(options?.backgroundColor) ? options.backgroundColor : null;
+		this.backgroundImage = Type.isString(options?.backgroundImage) ? options.backgroundImage : null;
 		this.marginBottom = Type.isNumber(options?.marginBottom) ? options.marginBottom : null;
 		this.disabled = Type.isBoolean(options?.disabled) ? options.disabled : null;
+		this.secondary = Type.isBoolean(options?.secondary) ? options.secondary : null;
 		this.overflow = Type.isBoolean(options?.overflow) ? options.overflow : null;
 		this.displayBlock = Type.isBoolean(options?.displayBlock) ? options.displayBlock : null;
+		this.attrs = Type.isPlainObject(options?.attrs) ? options.attrs : null;
+		this.minHeight = Type.isString(options?.minHeight) ? options.minHeight : null;
+		this.sizeLoader = Type.isNumber(options?.sizeLoader) ? options.sizeLoader : 45;
+		this.asyncSecondary = (options?.asyncSecondary instanceof Promise) ? options.asyncSecondary : null;
+
 		this.layout = {
 			container: null
 		};
@@ -33,7 +40,7 @@ export default class PopupComponentsMakerItem extends EventEmitter
 		{
 			this.loader = new Loader({
 				target: this.getContainer(),
-				size: 45
+				size: this.sizeLoader
 			});
 		}
 
@@ -89,17 +96,26 @@ export default class PopupComponentsMakerItem extends EventEmitter
 		}
 	}
 
+	getMarginBottom()
+	{
+		return this.marginBottom;
+	}
+
 	getContainer(): HTMLElement
 	{
 		if (!this.layout.container)
 		{
 			this.layout.container = Tag.render`
-				<div class="ui-qr-popupcomponentmaker__content--section-item">${this.getContent()}</div>
+				<div class="ui-popupcomponentmaker__content--section-item">${this.getContent()}</div>
 			`;
 
 			if (this.backgroundColor)
 			{
 				this.layout.container.style.backgroundColor = this.backgroundColor;
+			}
+			if (this.backgroundImage)
+			{
+				this.layout.container.style.backgroundImage = this.backgroundImage;
 			}
 
 			if (this.withoutBackground && !this.backgroundColor)
@@ -117,6 +133,16 @@ export default class PopupComponentsMakerItem extends EventEmitter
 				this.layout.container.classList.add('--disabled');
 			}
 
+			if (this.disabled)
+			{
+				this.layout.container.classList.add('--disabled');
+			}
+
+			if (this.secondary)
+			{
+				Dom.addClass(this.layout.container, '--secondary');
+			}
+
 			if (this.overflow)
 			{
 				this.layout.container.classList.add('--overflow-hidden');
@@ -125,6 +151,30 @@ export default class PopupComponentsMakerItem extends EventEmitter
 			if (this.displayBlock)
 			{
 				this.layout.container.classList.add('--block');
+			}
+
+			if (this.attrs)
+			{
+				Dom.adjust(this.layout.container, {attrs: this.attrs});
+			}
+
+			if (this.minHeight)
+			{
+				Dom.style(this.layout.container, 'min-height', this.minHeight);
+			}
+
+			if (this.asyncSecondary)
+			{
+				this.asyncSecondary.then((secondary) => {
+					if (secondary === false)
+					{
+						Dom.removeClass(this.layout.container, '--secondary');
+					}
+					else
+					{
+						Dom.addClass(this.layout.container, '--secondary');
+					}
+				});
 			}
 		}
 

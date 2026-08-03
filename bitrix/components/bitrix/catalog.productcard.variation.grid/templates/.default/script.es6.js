@@ -3,6 +3,8 @@ import {typeof BaseEvent, EventEmitter} from 'main.core.events';
 import {MenuManager, Popup, PopupManager} from 'main.popup';
 import {MessageBox, MessageBoxButtons} from 'ui.dialogs.messagebox';
 import {TagSelector} from "ui.entity-selector";
+import 'ui.buttons';
+import 'ui.hint';
 
 const GRID_TEMPLATE_ROW = 'template_0';
 
@@ -18,16 +20,36 @@ class VariationGrid
 		this.createPropertyHintId = settings.createPropertyHintId;
 		this.gridId = settings.gridId;
 		this.isNew = settings.isNew;
+		this.isReadOnly = settings.isReadOnly;
+		this.isSimple = settings.isSimple;
 		this.hiddenProperties = settings.hiddenProperties;
 		this.modifyPropertyLink = settings.modifyPropertyLink;
+		this.productCopyLink = settings.productCopyLink;
 		this.gridEditData = settings.gridEditData;
 		this.canHaveSku = settings.canHaveSku || false;
 		this.storeAmount = settings.storeAmount;
 		this.isShowedStoreReserve = settings.isShowedStoreReserve;
 		this.reservedDealsSliderLink = settings.reservedDealsSliderLink;
+
 		if (settings.copyItemsMap)
 		{
 			this.getGrid().arParams.COPY_ITEMS_MAP = settings.copyItemsMap;
+		}
+
+		if (settings.supportedAjaxFields)
+		{
+			this.getGrid().arParams.SUPPORTED_AJAX_FIELDS = settings.supportedAjaxFields;
+		}
+
+		if (!this.isNew)
+		{
+			this.bindPopupInitToQuantityNodes();
+			this.bindSliderToReservedQuantityNodes();
+		}
+
+		if (this.isReadOnly)
+		{
+			return;
 		}
 
 		const isGridReload = settings.isGridReload || false;
@@ -55,13 +77,11 @@ class VariationGrid
 		else
 		{
 			this.bindInlineEdit();
-			this.bindPopupInitToQuantityNodes();
-			this.bindSliderToReservedQuantityNodes();
 		}
 
 		Event.bind(this.getGrid().getScrollContainer(), 'scroll', Runtime.throttle(this.onScrollHandler.bind(this), 50));
-		Event.bind(this.getGridSettingsButton(), 'click', this.showGridSettingsWindowHandler.bind(this));
 
+		this.modifyHeaders();
 		this.subscribeCustomEvents();
 	}
 
@@ -140,19 +160,39 @@ class VariationGrid
 		}
 	}
 
-	getGridSettingsButton()
+	modifyHeaders()
 	{
-		return this.getGrid().getContainer().querySelector('.' + this.getGrid().settings.get('classSettingsButton'))
-	}
+		const headers = this.getGrid().getParam('COLUMNS_ALL');
+		for (const headerName in headers)
+		{
+			const header = headers[headerName];
 
-	showGridSettingsWindowHandler(event)
-	{
-		event.preventDefault();
-		event.stopPropagation();
+			if (!header.locked && !Type.isStringFilled(header.headerHint))
+			{
+				continue;
+			}
 
-		this.askToLossGridData(() => {
-			this.getGrid().getSettingsWindow()._onSettingsButtonClick();
-		});
+			const headerCell = this.getGrid().getColumnHeaderCellByName(header.id);
+			const headerTitle = headerCell?.querySelector('.main-grid-head-title');
+			if (!headerTitle)
+			{
+				continue;
+			}
+
+			if (header.locked)
+			{
+				const lock = Tag.render`<span class='ui-btn ui-btn-link ui-btn-icon-lock'></span>`;
+				Dom.addClass(headerTitle.parentNode, 'main-grid-cell-head-container--locked');
+				Dom.prepend(lock, headerTitle);
+			}
+
+			if (Type.isStringFilled(header.headerHint))
+			{
+				Dom.attr(headerTitle, 'data-hint-no-icon', 'true');
+				Dom.attr(headerTitle, 'data-hint', header.headerHint);
+				BX.UI.Hint.init(headerCell);
+			}
+		}
 	}
 
 	onScrollHandler(event)
@@ -242,7 +282,7 @@ class VariationGrid
 
 		const addButton = Tag.render`
 			<div class="catalog-productcard-popup-select-item catalog-productcard-popup-multi-select-item-new">
-				<label 
+				<label
 					class="catalog-productcard-popup-select-label main-dropdown-item">
 					<span class="catalog-productcard-popup-select-add"></span>
 					<span class="catalog-productcard-popup-select-text">
@@ -270,10 +310,18 @@ class VariationGrid
 
 		const addRowButton = document.querySelector('[data-role="catalog-productcard-variation-add-row"]');
 
-		if (Type.isDomNode(addRowButton))
+		if (!Type.isDomNode(addRowButton))
 		{
-			Event.bind(addRowButton, 'click', this.addRowToGrid.bind(this));
+			return;
 		}
+
+		if (this.isSimple)
+		{
+			Event.bind(addRowButton, 'click', this.openSimpleProductRestrictionPopup.bind(this));
+			return;
+		}
+
+		Event.bind(addRowButton, 'click', this.addRowToGrid.bind(this));
 	}
 
 	addCustomClassToGrid()
@@ -341,6 +389,77 @@ class VariationGrid
 		});
 	}
 
+	static #getSimpleProductRestrictionContent()
+	{
+
+		const text = Loc.getMessage(
+			'C_PVG_SIMPLE_PRODUCT_POPUP_TEXT',
+			{
+						'#COPY_BUTTON_NAME#': `<b>${Loc.getMessage('C_PVG_SIMPLE_PRODUCT_POPUP_BUTTON_COPY')}</b>`,
+						'#LINK_INFO#': `<a href="">${Loc.getMessage('C_PVG_SIMPLE_PRODUCT_POPUP_DOC_LINK_INFO')}</a>`,
+				}
+			);
+
+		const content = Tag.render`<span>${text}</span>`;
+		Event.bind(content.querySelector('a'), 'click', (event)=>{
+			top.BX.Helper.show("redirect=detail&code=16172654");
+			event.preventDefault();
+		});
+
+		return Tag.render`
+			<div class="catalog-simple-popup-wrapper">
+				<h3>${Loc.getMessage('C_PVG_SIMPLE_PRODUCT_POPUP_TITLE')}</h3>
+				<div class="catalog-simple-popup-label-text">${content}</div>
+				<div class="catalog-simple-popup-link-block">
+					<a class="ui-link ui-link-primary " target="_blank" href="">
+					</a>
+				</div>
+			</div>
+		`;
+	}
+
+	openSimpleProductRestrictionPopup(event: Event)
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		const id = 'simple-product-restriction';
+		let popup = PopupManager.getPopupById(id);
+
+		if (!popup)
+		{
+			popup = new Popup(
+				{
+					id,
+					width: 400,
+					zIndexOptions: 4000,
+					autoHide: false,
+					draggable: true,
+					overlay: true,
+					className: "bxc-popup-window",
+					content: VariationGrid.#getSimpleProductRestrictionContent(),
+					buttons: [
+						new BX.UI.Button({
+							text : Loc.getMessage('C_PVG_SIMPLE_PRODUCT_POPUP_BUTTON_COPY'),
+							color: BX.UI.Button.Color.PRIMARY,
+							onclick: () => {
+								BX.SidePanel.Instance.open(this.productCopyLink);
+							},
+						}),
+						new BX.UI.Button({
+							text : Loc.getMessage('C_PVG_SIMPLE_PRODUCT_POPUP_BUTTON_CLOSE'),
+							color: BX.UI.Button.Color.LINK,
+							onclick: () => {
+								popup.close();
+							},
+						}),
+					],
+				}
+			);
+		}
+
+		popup.show();
+	}
+
 	openStoreAmountPopup(rowId, quantityNode)
 	{
 		const popupId = rowId + '-store-amount';
@@ -390,7 +509,7 @@ class VariationGrid
 	getStoreAmountPopupContent(rowId)
 	{
 		const skuStoreAmountData = this.storeAmount[rowId];
-		const currentSkusCount = skuStoreAmountData.storesCount;
+		const currentSkusCount = skuStoreAmountData?.storesCount || 0;
 		if (!Type.isObject(skuStoreAmountData) || currentSkusCount <= 0)
 		{
 			return Tag.render`
@@ -401,7 +520,7 @@ class VariationGrid
 		}
 
 		const stores = skuStoreAmountData.stores;
-		const linkToDetails = skuStoreAmountData.linkToDetails;
+		const linkToDetails = skuStoreAmountData?.linkToDetails;
 
 		return Tag.render`
 			<div class="store-amount-popup-container">
@@ -446,7 +565,13 @@ class VariationGrid
 					this.openDealsWithReservedProductSlider.bind(this, rowId, store.storeId)
 				);
 				this.addCellToTable(tableRow, quantityReservedNode, false);
-				this.addCellToTable(tableRow, store.quantityAvailable, false);
+				const quantityAvailable = parseInt(store.quantityAvailable, 10);
+				const viewQuantityAvailable =
+					quantityAvailable <= 0
+						? `<span class="text--danger">${quantityAvailable}</span>`
+						: quantityAvailable
+				;
+				this.addCellToTable(tableRow, viewQuantityAvailable, false);
 			}
 		});
 
@@ -545,6 +670,11 @@ class VariationGrid
 
 	enableEdit()
 	{
+		if (this.isReadOnly)
+		{
+			return;
+		}
+
 		this.getGrid().getRows().selectAll();
 		this.getGrid().getRows().editSelected();
 		this.getGrid()
@@ -647,6 +777,32 @@ class VariationGrid
 			{
 				changed = true;
 				this.activateInlineEdit(item);
+			}
+
+			if (this.isSimple)
+			{
+				item.getNode()
+					?.querySelectorAll('.main-grid-editor.main-dropdown.main-grid-editor-dropdown')
+					.forEach((item) => {
+						const id = item.id;
+						if (Type.isNil(id) || id.indexOf('SKU_GRID_PROPERTY_') === -1)
+						{
+							return;
+						}
+
+						Event.unbindAll(item);
+						Event.bind(item, 'click', this.openSimpleProductRestrictionPopup.bind(this));
+					})
+				;
+
+				item.getNode()
+					?.querySelectorAll('.catalog-productcard-select-container .catalog-productcard-select-block')
+					.forEach((item) => {
+						item.onclick = null;
+						Event.unbindAll(item);
+						Event.bind(item, 'click', this.openSimpleProductRestrictionPopup.bind(this));
+					})
+				;
 			}
 		}
 
@@ -904,8 +1060,8 @@ class VariationGrid
 		if (rowId)
 		{
 			const deleteButton = Tag.render`
-				<span 
-					class="main-grid-delete-button" 
+				<span
+					class="main-grid-delete-button"
 					onclick="${this.removeNewRowFromGrid.bind(this, rowId)}"
 				></span>
 			`;
@@ -1126,41 +1282,11 @@ class VariationGrid
 		const [propertyId] = event.getData();
 		const link = this.modifyPropertyLink.replace('#PROPERTY_ID#', propertyId);
 
-		this.askToLossGridData(() => {
-			BX.SidePanel.Instance.open(link, {
-				width: 550,
-				allowChangeHistory: false,
-				cacheable: false
-			});
+		BX.SidePanel.Instance.open(link, {
+			width: 550,
+			allowChangeHistory: false,
+			cacheable: false
 		});
-	}
-
-	askToLossGridData(okCallback?, cancelCallback?, options?: {})
-	{
-		if (this.isGridInEditMode())
-		{
-			const defaultOptions = {
-				title: Loc.getMessage('C_PVG_UNSAVED_DATA_TITLE'),
-				message: Loc.getMessage('C_PVG_UNSAVED_DATA_MESSAGE'),
-				modal: true,
-				buttons: MessageBoxButtons.OK_CANCEL,
-				okCaption: Loc.getMessage('C_PVG_UNSAVED_DATA_CONTINUE'),
-				onOk: messageBox => {
-					okCallback && okCallback();
-					messageBox.close();
-				},
-				onCancel: messageBox => {
-					cancelCallback && cancelCallback();
-					messageBox.close();
-				}
-			};
-
-			MessageBox.show({...defaultOptions, ...options});
-		}
-		else
-		{
-			okCallback && okCallback();
-		}
 	}
 
 	isGridInEditMode()

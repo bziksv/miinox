@@ -18,7 +18,9 @@ Loc::loadMessages(__FILE__);
  * Class RoboxchangeHandler
  * @package Sale\Handlers\PaySystem
  */
-class RoboxchangeHandler extends PaySystem\ServiceHandler implements PaySystem\Cashbox\ISupportPrintCheck
+class RoboxchangeHandler
+	extends PaySystem\ServiceHandler
+	implements PaySystem\Cashbox\ISupportPrintCheck
 {
 	use PaySystem\Cashbox\CheckTrait;
 
@@ -66,7 +68,7 @@ class RoboxchangeHandler extends PaySystem\ServiceHandler implements PaySystem\C
 			'PS_MODE' => self::getHandlerModeAlias($this->service->getField('PS_MODE')),
 			'SIGNATURE_VALUE' => $this->getSignatureValue($payment, $receipt, $additionalUserFields),
 			'ROBOXCHANGE_ORDERDESCR' => $this->getOrderDescription($payment),
-			'PAYMENT_ID' => $this->getBusinessValue($payment, 'PAYMENT_ID'),
+			'PAYMENT_ID' => $payment->getId(),
 			'SUM' => PriceMaths::roundPrecision($payment->getSum()),
 			'CURRENCY' => $payment->getField('CURRENCY'),
 			'OUT_SUM_CURRENCY' => $this->getOutSumCurrency($payment),
@@ -117,7 +119,7 @@ class RoboxchangeHandler extends PaySystem\ServiceHandler implements PaySystem\C
 		$signaturePartList = [
 			$this->getBusinessValue($payment, 'ROBOXCHANGE_SHOPLOGIN'),
 			$payment->getSum(),
-			$this->getBusinessValue($payment, 'PAYMENT_ID'),
+			$payment->getId(),
 		];
 
 		if ($receipt)
@@ -226,6 +228,18 @@ class RoboxchangeHandler extends PaySystem\ServiceHandler implements PaySystem\C
 		return $request->get('InvId');
 	}
 
+	protected function getUrl(Payment $payment = null, $action): string
+	{
+		$url = parent::getUrl($payment, $action);
+
+		if ($payment !== null)
+		{
+			$url = str_replace('#domain#', $this->getDomain($payment), $url);
+		}
+
+		return $url;
+	}
+
 	/**
 	 * @return mixed
 	 */
@@ -233,9 +247,15 @@ class RoboxchangeHandler extends PaySystem\ServiceHandler implements PaySystem\C
 	{
 		return [
 			'pay' => [
-				self::ACTIVE_URL => 'https://auth.robokassa.ru/Merchant/Index.aspx',
+				self::ACTIVE_URL => 'https://auth.robokassa.#domain#/Merchant/Index.aspx',
 			],
 		];
+	}
+
+	private function getDomain(Payment $payment): string
+	{
+		$countryCode = $this->getCountryCode($payment);
+		return mb_strtolower($countryCode);
 	}
 
 	/**

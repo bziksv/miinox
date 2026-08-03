@@ -7,15 +7,20 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
-\Bitrix\Main\UI\Extension::load(['ui.tooltip', 'ui.icons', 'ui.notification', 'ui.tour', 'catalog.document-grid', 'catalog.store-use']);
+\Bitrix\Main\UI\Extension::load([
+	'ui.alerts',
+	'ui.tooltip',
+	'ui.icons',
+	'ui.notification',
+	'ui.tour',
+	'catalog.document-grid',
+	'catalog.store-use',
+]);
 
 global $APPLICATION;
 
 $title = Loc::getMessage('CATALOG_DOCUMENT_LIST_TITLE_' . mb_strtoupper($arResult['MODE']));
 $APPLICATION->SetTitle($title);
-
-$bodyClass = $APPLICATION->GetPageProperty("BodyClass");
-$APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'no-background');
 
 $this->setViewTarget('above_pagetitle');
 $APPLICATION->IncludeComponent(
@@ -27,15 +32,29 @@ $APPLICATION->IncludeComponent(
 );
 $this->endViewTarget();
 
-if (!empty($arResult['ERROR_MESSAGES']) && is_array($arResult['ERROR_MESSAGES'])): ?>
-	<?php foreach($arResult['ERROR_MESSAGES'] as $error):?>
-		<div class="ui-alert ui-alert-danger" style="margin-bottom: 0px;">
-			<span class="ui-alert-message"><?= htmlspecialcharsbx($error) ?></span>
-		</div>
-	<?php endforeach;?>
-	<?php
+if (!empty($arResult['ERROR_MESSAGES']) && is_array($arResult['ERROR_MESSAGES']))
+{
+	if (is_array($arResult['ERROR_MESSAGES'][0]))
+	{
+		$APPLICATION->IncludeComponent(
+			'bitrix:ui.info.error',
+			'',
+			$arResult['ERROR_MESSAGES'][0]
+		);
+	}
+	else
+	{
+		$APPLICATION->IncludeComponent(
+			'bitrix:ui.info.error',
+			'',
+			[
+				'TITLE' => $arResult['ERROR_MESSAGES'][0],
+			],
+		);
+	}
+
 	return;
-endif;
+}
 
 $APPLICATION->IncludeComponent(
 	'bitrix:main.ui.grid',
@@ -82,10 +101,16 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 <script>
 	function reloadGrid()
 	{
-		var grid = BX.Main.gridManager.getInstanceById('<?= CUtil::JSEscape($arResult['GRID']['GRID_ID']) ?>');
-		if (grid)
+		try
 		{
-			grid.reload();
+			var grid = BX.Main.gridManager.getInstanceById('<?= CUtil::JSEscape($arResult['GRID']['GRID_ID']) ?>');
+			if (grid)
+			{
+				grid.reload();
+			}
+		}
+		catch (e)
+		{
 		}
 	}
 
@@ -158,6 +183,7 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 			filterId: '<?= $arResult['FILTER_ID'] ?>',
 			isConductDisabled: <?= $arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER_ON_ACTION'] ? 'true' : 'false' ?>,
 			masterSliderUrl: <?= CUtil::PhpToJSObject($arResult['MASTER_SLIDER_URL']) ?>,
+			inventoryManagementSource: <?= CUtil::PhpToJSObject($arResult['INVENTORY_MANAGEMENT_SOURCE']) ?>,
 		});
 	});
 
@@ -210,5 +236,9 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 
 			reloadGrid();
 		}
+	});
+
+	top.BX.addCustomEvent('CatalogWarehouseMasterClear:resetDocuments', function(event) {
+		reloadGrid();
 	});
 </script>

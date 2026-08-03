@@ -1,0 +1,44 @@
+---
+description: Контекст проекта miinox.ru
+alwaysApply: true
+---
+
+# miinox.ru
+
+Сайт на 1С-Битрикс — каталог металлопроката / нержавейки (Москва).
+
+## Правило работы
+
+- **Разработка:** только локально (`http://localhost:8091/`)
+- **«Выкатить» / «задеплоить»** = **dev.miinox.ru**, не prod
+- **Prod** (`miinox.ru`) — только по явной отдельной просьбе
+
+## Сервер (155.212.171.103)
+
+- **Dev (выкат):** dev.miinox.ru → `/var/www/dev_miinox_r_usr/data/www/dev.miinox.ru`
+- **Prod:** miinox.ru → `/var/www/miinox_ru_usr/data/www/miinox.ru`
+- Workflow: локально → dev → prod (только если явно попросили)
+- **Права:** никогда не оставлять `root:root` — владелец сайта (`dev_miinox_r_usr` на dev, `miinox_ru_usr` на prod). См. `server-permissions.mdc`
+
+## Git
+
+Репозиторий: https://github.com/bziksv/miinox
+Не коммитить: `.settings.php`, `dbconn.php`, `license_key.php`, `.local/`, `upload/`
+
+## Где искать код
+
+- Шаблон: `bitrix/templates/metplus/`
+- Инициализация: `bitrix/php_interface/init.php`
+- Подключаемые блоки: `include/`
+- Каталог: `catalog/`
+- AJAX: `ajax/`
+
+## Не трогать без необходимости
+
+- `bitrix/modules/` — ядро Битрикс
+- `upload/` — медиа товаров
+- `bitrix/cache/`, `managed_cache/`, `stack_cache/` — кеш
+
+## Документация
+
+Журнал и детали: `docs/PROJECT.md`

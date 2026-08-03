@@ -1,10 +1,13 @@
 <?
 return [
-	"controllers" => [
-		"value" => [
-			"defaultNamespace" => "\\Bitrix\\UI\\Controller"
+	'controllers' => [
+		'value' => [
+			'namespaces' => [
+				'\\Bitrix\\UI\\Avatar\\Controller' => 'avatar'
+			],
+			'defaultNamespace' => '\\Bitrix\\UI\\Controller'
 		],
-		"readonly" => true,
+		'readonly' => true,
 	],
 	'services' => [
 		'value' => [
@@ -12,5 +15,11 @@ return [
 				'className' => '\\Bitrix\\Ui\\EntityForm\\Scope',
 			],
 		]
-	]
+	],
+	'ui.uploader' => [
+		'value' => [
+			'allowUseControllers' => true,
+		],
+		'readonly' => true,
+	],
 ];

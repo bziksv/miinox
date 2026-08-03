@@ -8,6 +8,7 @@ use Bitrix\Main\Engine\Controller;
 use Bitrix\Main\Error;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ObjectNotFoundException;
 use Bitrix\Main\UI\PageNavigation;
 use Bitrix\Main\UserField\UserFieldAccess;
 use Bitrix\Main\UserFieldTable;
@@ -30,12 +31,26 @@ class UserFieldConfig extends Controller
 
 	protected function getAccess(string $moduleId, ?\CRestServer $restServer = null): ?UserFieldAccess
 	{
-		$access = UserFieldAccess::getInstance($moduleId);
+		try
+		{
+			$access = UserFieldAccess::getInstance($moduleId);
+		}
+		catch (ObjectNotFoundException $e)
+		{
+			if ($restServer)
+			{
+				$this->addError(new Error($e->getMessage()));
 
-		if ($restServer && Loader::includeModule('rest'))
+				return null;
+			}
+
+			throw $e;
+		}
+
+		if ($restServer)
 		{
 			$scopes = $restServer->getAuthScope();
-			if (!in_array($moduleId, $scopes))
+			if (!in_array($moduleId, $scopes, true))
 			{
 				$this->addError(
 					new Error(
@@ -394,7 +409,7 @@ class UserFieldConfig extends Controller
 		{
 			if ($field['USER_TYPE_ID'] === 'enumeration')
 			{
-				$this->updateEnums($id, $field['ENUM']);
+				$this->updateEnums($id, (array)$field['ENUM']);
 			}
 
 			return [
@@ -431,8 +446,7 @@ class UserFieldConfig extends Controller
 		{
 			if ($field['USER_TYPE_ID'] === 'enumeration')
 			{
-				$field['ID'] = $id;
-				$this->updateEnums($id, $field['ENUM'], UserFieldTable::getFieldData($id)['ENUM']);
+				$this->updateEnums($id, (array)$field['ENUM'], (array)UserFieldTable::getFieldData($id)['ENUM']);
 			}
 
 			return [

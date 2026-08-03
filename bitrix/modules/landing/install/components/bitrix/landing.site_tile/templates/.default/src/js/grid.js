@@ -3,7 +3,7 @@ import 'ui.design-tokens';
 import Item from './item';
 import ItemMarketing from './itemMarketing';
 import Scroller from './scroller';
-import '../css/landing.site.tile.css'
+import '../css/landing.site.tile.css';
 
 export class SiteTile
 {
@@ -11,14 +11,13 @@ export class SiteTile
 	{
 		this.renderTo = options.renderTo || null;
 		this.items = options.items || [];
-		this.scrollerText = options.scrollerText || null
+		this.scrollerText = options.scrollerText || null;
+		this.notPublishedText = options.notPublishedText || null;
 		this.siteTileItems = [];
 		this.$container = null;
 		this.scroller = null;
 		this.setData(this.items);
 		this.init();
-
-		setTimeout(this.refreshPreview, 3000);
 	}
 
 	getItems()
@@ -28,15 +27,15 @@ export class SiteTile
 
 	setData(data)
 	{
-		this.siteTileItems = data.map((item)=> {
-			if(item.type === 'itemMarketing')
+		this.siteTileItems = data.map((item) => {
+			if (item.type === 'itemMarketing')
 			{
 				return new ItemMarketing({
 					id: item.id || null,
 					title: item.title || null,
 					text: item.text || null,
 					buttonText: item.buttonText || null,
-					onClick: item.onClick || null
+					onClick: item.onClick || null,
 				});
 			}
 
@@ -50,18 +49,21 @@ export class SiteTile
 				ordersUrl: item.ordersUrl || null,
 				domainUrl: item.domainUrl || null,
 				contactsUrl: item.contactsUrl || null,
+				indexEditUrl: item.indexEditUrl || null,
 				ordersCount: parseInt(item.ordersCount) || null,
 				phone: item.phone || null,
 				preview: item.preview || null,
+				cloudPreview: item.cloudPreview || null,
 				published: item.published || null,
 				deleted: item.deleted || null,
 				domainStatus: item.domainStatus || null,
 				domainStatusMessage: item.domainStatusMessage || null,
 				menuItems: item.menuItems || null,
 				menuBottomItems: item.menuBottomItems || null,
+				notPublishedText: this.notPublishedText || null,
 				access: item.access || {},
 				articles: item.articles || null,
-				grid: this
+				grid: this,
 			});
 		});
 
@@ -70,7 +72,7 @@ export class SiteTile
 
 	getContainer()
 	{
-		if(!this.$container)
+		if (!this.$container)
 		{
 			this.$container = Tag.render`<div class="landing-sites__grid landing-sites__scope"></div>`;
 
@@ -85,7 +87,7 @@ export class SiteTile
 
 	draw()
 	{
-		if(this.renderTo)
+		if (this.renderTo)
 		{
 			this.renderTo.appendChild(this.getContainer());
 		}
@@ -95,13 +97,13 @@ export class SiteTile
 
 	afterDraw()
 	{
-		if(this.getItems().length > 4)
+		if (this.getItems().length > 4)
 		{
-			if(!this.scroller)
+			if (!this.scroller)
 			{
 				this.scroller = new Scroller({
 					grid: this,
-					scrollerText: this.scrollerText
+					scrollerText: this.scrollerText,
 				});
 			}
 		}
@@ -110,23 +112,5 @@ export class SiteTile
 	init()
 	{
 		this.draw();
-	}
-
-	refreshPreview()
-	{
-		const previews = document.querySelectorAll('.landing-sites__preview-image');
-
-		if (previews)
-		{
-			[...previews].map(node => {
-				let url = node.style.backgroundImage.match(/url\(["']?([^"']*)["']?\)/);
-				if (url)
-				{
-					url = url[1];
-					url += (url.indexOf('?') > 0) ? '&' : '?';
-					node.style.backgroundImage = 'url(' + url + 'refreshed' + (Date.now()/3600000|0) + ')';
-				}
-			});
-		}
 	}
 }

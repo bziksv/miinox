@@ -110,7 +110,10 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 					$by => $order,
 				];
 			}
-			if ($option['views'][$option['current_view']]['page_size'])
+			if (
+				isset($option['views'][$option['current_view']]['page_size'])
+				&& $option['views'][$option['current_view']]['page_size']
+			)
 			{
 				$result['limit'] = $option['views'][$option['current_view']]['page_size'];
 			}
@@ -128,7 +131,7 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 		$filterOption = new Options($this->arParams["FILTER_NAME"]);
 		$filter = $filterOption->getFilter();
 
-		if ($filter['ID'] > 0)
+		if (isset($filter['ID']) && $filter['ID'] > 0)
 		{
 			$result['=ID'] = intVal($filter['ID']);
 		}
@@ -138,7 +141,7 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 			$result['%TITLE'] = $filter['FIND'];
 		}
 
-		if ($filter['USER_ID'] > 0)
+		if (isset($filter['USER_ID']) && $filter['USER_ID'] > 0)
 		{
 			$result['=USER_ID'] = intVal($filter['USER_ID']);
 		}
@@ -248,7 +251,15 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 			$item['SCOPE'] = array_map(
 				function ($value)
 				{
-					$result = Loc::getMessage('REST_SCOPE_' . mb_strtoupper($value));
+					if (mb_strtoupper($value) === 'LOG')
+					{
+						$result = Loc::getMessage('REST_SCOPE_LOG_MSGVER_1');
+					}
+					else
+					{
+						$result = Loc::getMessage('REST_SCOPE_' . mb_strtoupper($value));
+					}
+
 					if (empty($result))
 					{
 						$result = $value;
@@ -284,7 +295,7 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 					'#ID#',
 				],
 				[
-					$item['SECTION_CODE'],
+					($item['SECTION_CODE'] ?? null),
 					$item['ELEMENT_CODE'],
 					$item['ID'],
 				],

@@ -2,6 +2,7 @@
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog\ProductTable;
 
 /**
 * @global CMain $APPLICATION
@@ -25,17 +26,22 @@ if (!empty($arResult['CURRENCIES']))
 	$currencyList = CUtil::PhpToJSObject($arResult['CURRENCIES'], false, true, true);
 }
 
-$templateData = array(
+$haveOffers = !empty($arResult['OFFERS']);
+
+$templateData = [
 	'TEMPLATE_THEME' => $arParams['TEMPLATE_THEME'],
 	'TEMPLATE_LIBRARY' => $templateLibrary,
 	'CURRENCIES' => $currencyList,
-	'ITEM' => array(
+	'ITEM' => [
 		'ID' => $arResult['ID'],
 		'IBLOCK_ID' => $arResult['IBLOCK_ID'],
-		'OFFERS_SELECTED' => $arResult['OFFERS_SELECTED'],
-		'JS_OFFERS' => $arResult['JS_OFFERS']
-	)
-);
+	],
+];
+if ($haveOffers)
+{
+	$templateData['ITEM']['OFFERS_SELECTED'] = $arResult['OFFERS_SELECTED'];
+	$templateData['ITEM']['JS_OFFERS'] = $arResult['JS_OFFERS'];
+}
 unset($currencyList, $templateLibrary);
 
 $mainId = $this->GetEditAreaId($arResult['ID']);
@@ -65,7 +71,7 @@ $itemIds = array(
 	'BASKET_ACTIONS_ID' => $mainId.'_basket_actions',
 	'NOT_AVAILABLE_MESS' => $mainId.'_not_avail',
 	'COMPARE_LINK' => $mainId.'_compare_link',
-	'TREE_ID' => $mainId.'_skudiv',
+	'TREE_ID' => $haveOffers && !empty($arResult['OFFERS_PROP']) ? $mainId.'_skudiv' : null,
 	'DISPLAY_PROP_DIV' => $mainId.'_sku_prop',
 	'DESCRIPTION_ID' => $mainId.'_description',
 	'DISPLAY_MAIN_PROP_DIV' => $mainId.'_main_sku_prop',
@@ -88,7 +94,6 @@ $alt = !empty($arResult['IPROPERTY_VALUES']['ELEMENT_DETAIL_PICTURE_FILE_ALT'])
 	? $arResult['IPROPERTY_VALUES']['ELEMENT_DETAIL_PICTURE_FILE_ALT']
 	: $arResult['NAME'];
 
-$haveOffers = !empty($arResult['OFFERS']);
 if ($haveOffers)
 {
 	$actualItem = $arResult['OFFERS'][$arResult['OFFERS_SELECTED']] ?? reset($arResult['OFFERS']);
@@ -148,7 +153,26 @@ $showSubscribe = $arParams['PRODUCT_SUBSCRIPTION'] === 'Y' && ($arResult['PRODUC
 
 $arParams['MESS_BTN_BUY'] = $arParams['MESS_BTN_BUY'] ?: Loc::getMessage('CT_BCE_CATALOG_BUY');
 $arParams['MESS_BTN_ADD_TO_BASKET'] = $arParams['MESS_BTN_ADD_TO_BASKET'] ?: Loc::getMessage('CT_BCE_CATALOG_ADD');
-$arParams['MESS_NOT_AVAILABLE'] = $arParams['MESS_NOT_AVAILABLE'] ?: Loc::getMessage('CT_BCE_CATALOG_NOT_AVAILABLE');
+
+if ($arResult['MODULES']['catalog'] && $arResult['PRODUCT']['TYPE'] === ProductTable::TYPE_SERVICE)
+{
+	$arParams['~MESS_NOT_AVAILABLE'] = $arParams['~MESS_NOT_AVAILABLE_SERVICE']
+		?: Loc::getMessage('CT_BCE_CATALOG_NOT_AVAILABLE_SERVICE')
+	;
+	$arParams['MESS_NOT_AVAILABLE'] = $arParams['MESS_NOT_AVAILABLE_SERVICE']
+		?: Loc::getMessage('CT_BCE_CATALOG_NOT_AVAILABLE_SERVICE')
+	;
+}
+else
+{
+	$arParams['~MESS_NOT_AVAILABLE'] = $arParams['~MESS_NOT_AVAILABLE']
+		?: Loc::getMessage('CT_BCE_CATALOG_NOT_AVAILABLE')
+	;
+	$arParams['MESS_NOT_AVAILABLE'] = $arParams['MESS_NOT_AVAILABLE']
+		?: Loc::getMessage('CT_BCE_CATALOG_NOT_AVAILABLE')
+	;
+}
+
 $arParams['MESS_BTN_COMPARE'] = $arParams['MESS_BTN_COMPARE'] ?: Loc::getMessage('CT_BCE_CATALOG_COMPARE');
 $arParams['MESS_PRICE_RANGES_TITLE'] = $arParams['MESS_PRICE_RANGES_TITLE'] ?: Loc::getMessage('CT_BCE_CATALOG_PRICE_RANGES_TITLE');
 $arParams['MESS_DESCRIPTION_TAB'] = $arParams['MESS_DESCRIPTION_TAB'] ?: Loc::getMessage('CT_BCE_CATALOG_DESCRIPTION_TAB');

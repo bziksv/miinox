@@ -5,7 +5,7 @@
 }
 
 .ui-selector-dialog {
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));;
 	display: -webkit-box;;
 	display: -ms-flexbox;;
 	display: flex;
@@ -94,11 +94,36 @@
 	}
 }
 
+.ui-selector-header-container {
+	font-size: 14px;
+}
+
+.ui-selector-header {
+	display: none;
+}
+
+.ui-selector-header--show {
+	display: block;
+}
+
+.ui-selector-header-default {
+	-webkit-box-align: center;
+	    -ms-flex-align: center;
+	        align-items: center;
+	display: -webkit-box;
+	display: -ms-flexbox;
+	display: flex;
+	height: 52px;
+	margin: 0 17px 0 20px;
+	overflow: hidden;
+	white-space: nowrap;
+	color: #525c69;
+	border-bottom: 1px solid rgba(82, 92, 105, 0.1);
+}
 
 .ui-selector-footer-container {
 
 }
-
 
 .ui-selector-footer {
 	display: none;
@@ -263,7 +288,8 @@
 	margin-right: 15px;
 	font-size: 11px;
 	text-transform: uppercase;
-	font-family: "OpenSans-Bold", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-bold, 700);
 	white-space: nowrap;
 	-o-text-overflow: ellipsis;
 	   text-overflow: ellipsis;
@@ -407,7 +433,8 @@
 .ui-selector-tab-default-stub-title {
 	color: #7f868d;
 	font-size: 20px;
-	font-family: "OpenSans-Light", "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-light, 300);
 	text-align: center;
 }
 
@@ -588,7 +615,7 @@
 .ui-selector-search-footer-query {
 	color: #525c69;
 	font-size: 14px;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 
 	white-space: nowrap;
 	-o-text-overflow: ellipsis;
@@ -629,6 +656,10 @@
 	/*content-visibility: visible;*/
 }
 
+.ui-selector-item-box.--hidden {
+	display: none;
+}
+
 .ui-selector-item {
 	min-height: 44px;
 	cursor: pointer;
@@ -644,16 +675,8 @@
 	border-radius: var(--ui-selector-item-border-radius, var(--ui-border-radius-2xs));
 }
 
-.bx-ie11 .ui-selector-item {
-	height: 44px;
-}
-
 .ui-selector-dialog--compact-view .ui-selector-item {
 	min-height: 34px;
-}
-
-.bx-ie11 .ui-selector-dialog--compact-view .ui-selector-item {
-	height: 34px;
 }
 
 .ui-selector-item-avatar {
@@ -705,7 +728,8 @@
 
 .ui-selector-item-supertitle {
 	font-size: 9px;
-	font-family: "OpenSans-Bold", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-bold, 700);
 	text-transform: uppercase;
 	color: #b1b6bb;
 	white-space: nowrap;
@@ -858,7 +882,18 @@
 	transition: height 300ms, opacity 300ms;
 	margin-left: 16px;
 	padding-left: 16px;
-	border-left: 1px solid #ebecee;
+	position: relative;
+}
+
+.ui-selector-item-children:before {
+	content: '';
+	display: block;
+	width: 1px;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	background: #ebecee;
+	left: 7px;
 }
 
 .ui-selector-item-box-max-depth .ui-selector-item-children {
@@ -914,6 +949,7 @@
 	color: #000;
 	background-color: #faf16d;
 }
+
 .ui-tag-selector-outer-container {
 	background: #fff;
 	border: 1px solid #c6cdd3;
@@ -1114,7 +1150,7 @@
 	overflow: hidden;
 	-o-text-overflow: ellipsis;
 	   text-overflow: ellipsis;
-	font: bold 13px/29px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: var(--ui-font-weight-bold) 13px/29px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	margin-left: 13px;
 }
 
@@ -1158,7 +1194,7 @@
 	background: #fff;
 	color: #555;
 	font-size: 13px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	-webkit-transition: opacity 100ms ease;
 	-o-transition: opacity 100ms ease;
 	transition: opacity 100ms ease;
@@ -1213,7 +1249,7 @@
 	-webkit-box-align: baseline;
 	    -ms-flex-align: baseline;
 	        align-items: baseline;
-	font: bold 14px "Helvetica Neue", Arial, Helvetica, sans-serif
+	font: var(--ui-font-weight-bold) 14px var(--ui-font-family-primary, var(--ui-font-family-helvetica))
 }
 
 .ui-tag-selector-add-button-caption:before,

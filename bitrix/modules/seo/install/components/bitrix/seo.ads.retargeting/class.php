@@ -29,7 +29,7 @@ class SeoAdsRetargetingComponent extends CBitrixComponent implements Controllera
 	{
 		$this->arParams['INPUT_NAME_PREFIX'] = isset($this->arParams['INPUT_NAME_PREFIX']) ? $this->arParams['INPUT_NAME_PREFIX'] : '';
 		$this->arParams['HAS_ACCESS'] = isset($this->arParams['HAS_ACCESS']) ? (bool) $this->arParams['HAS_ACCESS'] : false;
-		$this->arParams['AUDIENCE_LOOKALIKE_MODE'] = !!$this->arParams['AUDIENCE_LOOKALIKE_MODE'];
+		$this->arParams['AUDIENCE_LOOKALIKE_MODE'] = (bool)($this->arParams['AUDIENCE_LOOKALIKE_MODE'] ?? false);
 
 		return $this->arParams;
 	}
@@ -174,6 +174,33 @@ class SeoAdsRetargetingComponent extends CBitrixComponent implements Controllera
 			$service = AdsAudience::getService();
 			$service->setClientId($clientId);
 			$data = AdsAudience::getAudiences($type, $accountId);
+		}
+
+		return $this->prepareAjaxAnswer($data);
+	}
+
+	/**
+	 * Return audience array with normalized status and status translation
+	 * Normalize status example: 'READY', 'PROCESSED', 'OTHER'
+	 * @param $type
+	 * @param $messageCode
+	 * @param $clientId
+	 * @param $accountId
+	 * @return array
+	 */
+	public function getAudiencesWithNormalizedStatusAction(
+		$type,
+		$messageCode = '',
+		$clientId = null,
+		$accountId = null
+	): array
+	{
+		$data = [];
+		if ($this->checkAccess())
+		{
+			$service = AdsAudience::getService();
+			$service->setClientId($clientId);
+			$data = AdsAudience::getAudienceWithNormalizedStatus($type, $messageCode, $accountId);
 		}
 
 		return $this->prepareAjaxAnswer($data);

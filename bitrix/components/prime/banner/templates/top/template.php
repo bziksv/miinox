@@ -44,8 +44,12 @@
     }
 
     function closeBannerTop(El){
-        document.cookie = 'primeBannerClose-<?=$arResult['ID']?>=true';
-        document.getElementById('show-<?=$arResult['ID']?>').style.top='-90px';
+		
+		var showId = El.closest(".prime-banner-top").id;
+		var id = showId.split("-");
+		
+        document.cookie = 'primeBannerClose-' + id[1] + '=true; path=/;';
+        document.getElementById(showId).style.top='-90px';
     }
 
 

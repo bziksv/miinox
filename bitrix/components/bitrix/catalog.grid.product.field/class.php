@@ -76,6 +76,13 @@ class CatalogGridProductFieldComponent
 		$params['BUILDER_CONTEXT'] = (string)($params['BUILDER_CONTEXT'] ?? '') ?: BaseBuilder::TYPE_AUTODETECT;
 		$params['IS_NEW'] = ($params['IS_NEW'] ?? 'N') === 'Y';
 
+		$params['MODE'] = $params['MODE'] ?? '';
+		$params['VIEW_FORMAT'] =
+			isset($params['VIEW_FORMAT']) && $params['VIEW_FORMAT'] === 'short'
+				? 'short'
+				: 'full'
+		;
+
 		return parent::onPrepareComponentParams($params);
 	}
 
@@ -175,6 +182,8 @@ class CatalogGridProductFieldComponent
 				'SKU_ID' => $this->getSkuId(),
 				'NAME' => $this->getProductName(),
 			];
+			$this->arResult['FILE_TYPE'] = 'product';
+			$this->arResult['SKU_TREE'] = null;
 
 			if ($this->getIblockId() > 0 && $this->getProductId() > 0)
 			{
@@ -339,7 +348,8 @@ class CatalogGridProductFieldComponent
 			'GRID_ID' => $this->arParams['GRID_ID'] ?? '',
 			'ENABLE_IMAGE_INPUT' => $this->arParams['ENABLE_IMAGE_INPUT'] ?? true,
 			'ENABLE_CHANGES_RENDERING' => $this->arParams['ENABLE_CHANGES_RENDERING'] ?? true,
-			'MODEL_CONFIG' => ['isNew' => $this->arParams['IS_NEW']]
+			'MODEL_CONFIG' => ['isNew' => $this->arParams['IS_NEW']],
+			'VIEW_FORMAT' => $this->arParams['VIEW_FORMAT'],
 		];
 	}
 }

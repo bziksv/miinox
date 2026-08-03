@@ -28,6 +28,7 @@ export default class ButtonIcon
 	static DOWNLOAD = 'ui-btn-icon-download';
 	static DOTS = 'ui-btn-icon-ui-btn-icon-dots';
 	static DONE = 'ui-btn-icon-done';
+	static CANCEL = 'ui-btn-icon-cancel';
 	static DISK = 'ui-btn-icon-disk';
 	static LOCK = 'ui-btn-icon-lock';
 	static MAIL = 'ui-btn-icon-mail';
@@ -51,4 +52,11 @@ export default class ButtonIcon
 	static LOW_BATTERY = 'ui-btn-icon-low-battery';
 	static CRIT_BATTERY = 'ui-btn-icon-crit-battery';
 	static DEMO = 'ui-btn-icon-demo';
+	static ROBOTS = 'ui-btn-icon-robots';
+	static NOTE = 'ui-btn-icon-note';
+	static SCRIPT = 'ui-btn-icon-script';
+	static PRINT2 = 'ui-btn-icon-print-2';
+	static FUNNEL = 'ui-btn-icon-funnel';
+	static FORWARD = 'ui-btn-icon-forward';
+	static COPY = 'ui-btn-icon-copy';
 }

@@ -1,11 +1,14 @@
 <?php
 namespace Bitrix\Landing;
 
+use Bitrix\Landing\Internals\FileTable;
+use Bitrix\Main\File\Internal\FileDuplicateTable;
 use Bitrix\Main\Loader;
 use Bitrix\Landing\Subtype;
 use Bitrix\Landing\Internals\BlockTable;
 use Bitrix\Crm\WebForm;
 use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\Web\HttpClient;
 
 class Agent
 {
@@ -14,9 +17,15 @@ class Agent
 	 * @param string $funcName Function name from this class.
 	 * @param array $params Some params for agent function.
 	 * @param int $time Time in seconds for executing period.
+	 * @param int|null $nextExecDelay - time in sec before next agent delay, default - exec immediately
 	 * @return void
 	 */
-	public static function addUniqueAgent(string $funcName, array $params = [], int $time = 7200): void
+	public static function addUniqueAgent(
+		string $funcName,
+		array $params = [],
+		int $time = 7200,
+		?int $nextExecDelay = null
+	): void
 	{
 		if (!method_exists(__CLASS__, $funcName))
 		{
@@ -46,7 +55,20 @@ class Agent
 		);
 		if (!$res->fetch())
 		{
-			\CAgent::addAgent($funcName, 'landing', 'N', $time);
+			if ($nextExecDelay)
+			{
+				\CAgent::addAgent($funcName,
+					'landing',
+					'N',
+					$time,
+					'',
+					'Y',
+					\ConvertTimeStamp(time() + \CTimeZone::GetOffset() + $nextExecDelay, "FULL"));
+			}
+			else
+			{
+				\CAgent::addAgent($funcName, 'landing', 'N', $time);
+			}
 		}
 	}
 
@@ -383,5 +405,107 @@ class Agent
 		}
 
 		return '';
+	}
+
+	/**
+	 * In clouds files can gone. Check existing and del invalid rows from tables
+	 * @param int $fileId
+	 * @return void
+	 */
+	public static function checkFileExists(int $fileId): string
+	{
+		$file = \CFile::getFileArray($fileId);
+		if (!$file)
+		{
+			return '';
+		}
+		if (!$file['SRC'] || !preg_match('#^(https?://)#', $file['SRC']))
+		{
+			return '';
+		}
+		$request = new HttpClient(["redirect" => false,]);
+		$request->query(HttpClient::HTTP_HEAD, $file['SRC']);
+		if ($request->getStatus() !== 200)
+		{
+			$filesToDelete = [$fileId];
+
+			// find duplicates of file
+			$originals = FileDuplicateTable::getList([
+				'select' => ['ORIGINAL_ID'],
+				'filter' => [
+					'DUPLICATE_ID' => $fileId,
+				],
+			]);
+			while ($original = $originals->fetch())
+			{
+				$filesToDelete[] = (int)$original['ORIGINAL_ID'];
+			}
+
+			$duplicates = FileDuplicateTable::getList([
+				'select' => ['DUPLICATE_ID'],
+				'filter' => [
+					'ORIGINAL_ID' => $filesToDelete,
+				],
+			]);
+			while ($duplicate = $duplicates->fetch())
+			{
+				$filesToDelete[] = (int)$duplicate['DUPLICATE_ID'];
+			}
+
+			$filesToDelete = array_unique($filesToDelete);
+
+			// clear LandingFile table
+			$landingFiles = FileTable::getList([
+				'select' => ['ID', 'ENTITY_ID'],
+				'filter' => [
+					'ENTITY_TYPE' => File::ENTITY_TYPE_ASSET,
+					'=FILE_ID' => $filesToDelete,
+				],
+			]);
+			$landingsToUpdate = [];
+			while ($landingFile = $landingFiles->fetch())
+			{
+				FileTable::delete((int)$landingFile['ID']);
+				$landingsToUpdate[] = (int)$landingFile['ENTITY_ID'];
+			}
+			$landingsToUpdate = array_unique($landingsToUpdate);
+
+			// find landings for drop public cache
+			if (Manager::isB24())
+			{
+				$sites = Landing::getList([
+					'select' => ['SITE_ID'],
+					'filter' => [
+						'=ID' => $landingsToUpdate,
+					],
+				]);
+				while ($site = $sites->fetch())
+				{
+					Site::update((int)$site['SITE_ID'], []);
+				}
+			}
+
+			foreach ($filesToDelete as $fileToDelete)
+			{
+				\CFile::delete($fileToDelete);
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Publication landing and drop public cache if success.
+	 * F.e. need for recovery form-loader file, that is not created at the moment of first public
+	 * @param $landingId
+	 * @return void
+	 */
+	public static function rePublicationLanding($landingId): void
+	{
+		$landing = Landing::createInstance($landingId);
+		if ($landing->publication())
+		{
+			Manager::clearCacheForSite($landing->getSiteId());
+		}
 	}
 }

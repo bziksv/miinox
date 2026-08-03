@@ -9,6 +9,7 @@ import MatchField from '../search/match-field';
 import TextNode from '../common/text-node';
 import Animation from '../common/animation';
 import Item from './item';
+import encodeUrl from '../common/encode-url';
 
 import type Tab from '../dialog/tabs/tab';
 import type Dialog from '../dialog/dialog';
@@ -57,6 +58,7 @@ export default class ItemNode
 	textColor: ?string = null;
 	badges: ItemBadgeOptions[] = null;
 	badgesOptions: BadgesOptions = {};
+	hidden: boolean = false;
 
 	highlights: MatchField[] = [];
 
@@ -98,6 +100,8 @@ export default class ItemNode
 				bgSize: null,
 				bgColor: null,
 				bgImage: null,
+				border: null,
+				borderRadius: null,
 			};
 			this.textColor = '';
 			this.link = '';
@@ -651,7 +655,7 @@ export default class ItemNode
 		const avatar = this.getAvatar();
 		if (Type.isStringFilled(avatar))
 		{
-			this.getAvatarContainer().style.backgroundImage = `url('${avatar}')`;
+			this.getAvatarContainer().style.backgroundImage = `url('${encodeUrl(avatar)}')`;
 		}
 		else
 		{
@@ -662,7 +666,7 @@ export default class ItemNode
 			}
 			else
 			{
-				this.getAvatarContainer().style.removeProperty('background-size');
+				this.getAvatarContainer().style.removeProperty('background-image');
 			}
 		}
 
@@ -684,6 +688,26 @@ export default class ItemNode
 		else
 		{
 			this.getAvatarContainer().style.removeProperty('background-size');
+		}
+
+		const border = this.getAvatarOption('border');
+		if (Type.isStringFilled(border))
+		{
+			this.getAvatarContainer().style.border = border;
+		}
+		else
+		{
+			this.getAvatarContainer().style.removeProperty('border');
+		}
+
+		const borderRadius = this.getAvatarOption('borderRadius');
+		if (Type.isStringFilled(borderRadius))
+		{
+			this.getAvatarContainer().style.borderRadius = borderRadius;
+		}
+		else
+		{
+			this.getAvatarContainer().style.removeProperty('border-radius');
 		}
 
 		Dom.clean(this.getBadgeContainer());
@@ -733,8 +757,20 @@ export default class ItemNode
 			);
 		}
 
-		this.highlight();
+		if (this.hasChildren())
+		{
+			const hasVisibleChild = this.getChildren().getAll().some((child: ItemNode) => {
+				return child.isHidden() !== true;
+			});
 
+			if (!hasVisibleChild)
+			{
+				this.#setHidden(true);
+			}
+		}
+
+		this.toggleVisibility();
+		this.highlight();
 		this.renderChildren(appendChildren);
 
 		if (this.isAutoOpen())
@@ -836,6 +872,76 @@ export default class ItemNode
 	getRenderMode(): RenderMode
 	{
 		return this.renderMode;
+	}
+
+	isHidden(): boolean
+	{
+		return this.hidden === true || this.getItem().isHidden() === true;
+	}
+
+	setHidden(flag: boolean): void
+	{
+		if (!Type.isBoolean(flag) || this.isRoot())
+		{
+			return;
+		}
+
+		this.#setHidden(flag);
+
+		if (this.isRendered())
+		{
+			this.toggleVisibility();
+
+			let parentNode = this.getParentNode();
+			const isHidden = this.isHidden();
+			while (parentNode.isRoot() === false)
+			{
+				if (isHidden)
+				{
+					const hasVisibleChild = parentNode.getChildren().getAll().some((child: ItemNode) => {
+						return child.isHidden() !== true;
+					});
+
+					if (!hasVisibleChild)
+					{
+						parentNode.#setHidden(true);
+					}
+
+					parentNode.toggleVisibility();
+				}
+				else
+				{
+					parentNode.#setHidden(false);
+					parentNode.toggleVisibility();
+					if (parentNode.isHidden())
+					{
+						break;
+					}
+				}
+
+				parentNode = parentNode.getParentNode();
+			}
+		}
+	}
+
+	#setHidden(flag: boolean): void
+	{
+		if (Type.isBoolean(flag) && !this.isRoot())
+		{
+			this.hidden = flag;
+		}
+	}
+
+	toggleVisibility(): boolean
+	{
+		if (this.isHidden())
+		{
+			Dom.addClass(this.getOuterContainer(), '--hidden');
+		}
+		else if (this.getOuterContainer().classList.contains('--hidden'))
+		{
+			Dom.removeClass(this.getOuterContainer(), '--hidden');
+		}
 	}
 
 	getTitle(): string

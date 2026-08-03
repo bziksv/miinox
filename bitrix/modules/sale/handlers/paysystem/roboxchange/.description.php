@@ -1,13 +1,9 @@
 <?php
-use Bitrix\Main\Loader,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Sale\PaySystem;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Sale\PaySystem;
 
 Loc::loadMessages(__FILE__);
-
-$description = [
-	'MAIN' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_DESCRIPTION_MAIN'),
-];
 
 PaySystem\Manager::includeHandler('Roboxchange');
 
@@ -33,21 +29,6 @@ $data = [
 	'SORT' => 500,
 	'IS_AVAILABLE' => $isAvailable,
 	'CODES' => [
-		'ROBOXCHANGE_SHOPLOGIN' => [
-			'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SHOPLOGIN'),
-			'SORT' => 100,
-			'GROUP' => 'CONNECT_SETTINGS_ROBOXCHANGE',
-		],
-		'ROBOXCHANGE_SHOPPASSWORD' => [
-			'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SHOPPASSWORD'),
-			'SORT' => 200,
-			'GROUP' => 'CONNECT_SETTINGS_ROBOXCHANGE',
-		],
-		'ROBOXCHANGE_SHOPPASSWORD2' => [
-			'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SHOPPASSWORD2'),
-			'SORT' => 300,
-			'GROUP' => 'CONNECT_SETTINGS_ROBOXCHANGE',
-		],
 		'ROBOXCHANGE_ORDERDESCR' => [
 			'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_ORDERDESCR'),
 			'SORT' => 400,
@@ -96,15 +77,6 @@ $data = [
 				'PROVIDER_VALUE' => ($licensePrefix ?: $portalZone) === 'kz' ? 'KZ' : 'RU',
 			]
 		],
-		'PAYMENT_ID' => [
-			'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_PAYMENT_ID'),
-			'SORT' => 900,
-			'GROUP' => 'PAYMENT',
-			'DEFAULT' => [
-				'PROVIDER_VALUE' => 'ID',
-				'PROVIDER_KEY' => 'PAYMENT'
-			]
-		],
 		'BUYER_PERSON_EMAIL' => [
 			'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_EMAIL_USER'),
 			'SORT' => 1000,
@@ -136,3 +108,26 @@ $data = [
 		],
 	]
 ];
+
+$shopSettings = (new PaySystem\Robokassa\ShopSettings())->isOnlyCommonSettingsExists();
+if (!$shopSettings)
+{
+	$data['CODES']['ROBOXCHANGE_SHOPLOGIN'] = [
+		'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SHOPLOGIN'),
+		'SORT' => 100,
+		'GROUP' => 'CONNECT_SETTINGS_ROBOXCHANGE',
+	];
+
+	$data['CODES']['ROBOXCHANGE_SHOPPASSWORD'] = [
+		'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SHOPPASSWORD'),
+		'SORT' => 200,
+		'GROUP' => 'CONNECT_SETTINGS_ROBOXCHANGE',
+	];
+
+	$data['CODES']['ROBOXCHANGE_SHOPPASSWORD2'] = [
+		'NAME' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SHOPPASSWORD2'),
+		'SORT' => 300,
+		'GROUP' => 'CONNECT_SETTINGS_ROBOXCHANGE',
+	];
+}
+unset($shopSettings);

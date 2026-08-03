@@ -20,6 +20,7 @@ class ScopeManager
 	public const CACHE_DIR = '/rest/scope/';
 	private const CACHE_KEY = 'list';
 	private const METHOD_DELIMITER = '.';
+	private const VENDOR_DELIMITER = ':';
 
 	/** @var ScopeManager|null  */
 	private static $instance;
@@ -70,12 +71,18 @@ class ScopeManager
 
 					if (!empty($controllersConfig['controllers']['restIntegration']['enabled']))
 					{
-						if (!$controllersConfig['controllers']['restIntegration']['hideModuleScope'])
+						if (
+							!isset($controllersConfig['controllers']['restIntegration']['hideModuleScope'])
+							|| !$controllersConfig['controllers']['restIntegration']['hideModuleScope']
+						)
 						{
 							$this->scopeList[$moduleId] = $moduleId;
 						}
 
-						if (is_array($controllersConfig['controllers']['restIntegration']['scopes']))
+						if (
+							isset($controllersConfig['controllers']['restIntegration']['scopes'])
+							&& is_array($controllersConfig['controllers']['restIntegration']['scopes'])
+						)
 						{
 							$this->scopeList = array_merge(
 								$this->scopeList,
@@ -133,11 +140,21 @@ class ScopeManager
 		foreach ($this->listScope() as $code)
 		{
 			$key = mb_strtoupper($code);
-			$name = Loc::getMessage('REST_SCOPE_' . $key);
+			if (mb_strtoupper($key) === 'LOG')
+			{
+				$name = Loc::getMessage('REST_SCOPE_LOG_MSGVER_1');
+				$description = Loc::getMessage('REST_SCOPE_LOG_DESCRIPTION_MSGVER_1');
+			}
+			else
+			{
+				$name = Loc::getMessage('REST_SCOPE_' . $key);
+				$description = Loc::getMessage('REST_SCOPE_' . $key . '_DESCRIPTION');
+			}
+
 			$result[$code] = [
 				'code' => $code,
 				'title' => ($name) ? $name . ' (' . $code . ')' : $code,
-				'description' => Loc::getMessage('REST_SCOPE_' . $key . '_DESCRIPTION')
+				'description' => $description
 			];
 		}
 
@@ -172,6 +189,21 @@ class ScopeManager
 			elseif ($module !== $scope)
 			{
 				$method = $module . self::METHOD_DELIMITER . $method;
+			}
+
+			/**
+			 * for method with ':' doesn't add extra ':' for modules with points in the name
+			 */
+			if (
+				mb_strpos($method, self::VENDOR_DELIMITER) === false
+				&& mb_strpos($module, self::METHOD_DELIMITER) !== false
+			)
+			{
+				$moduleParts = explode(self::METHOD_DELIMITER, $module);
+				array_pop($moduleParts);
+				$vendor = implode(self::METHOD_DELIMITER, $moduleParts);
+
+				$method = preg_replace('/^' . $vendor . self::METHOD_DELIMITER . '/', $vendor . self::VENDOR_DELIMITER, $method);
 			}
 
 			$this->methodInfoList[$method] = [

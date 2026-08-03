@@ -7,12 +7,12 @@ class Dictionary
 	/**
 	 * @var array
 	 */
-	protected $values = array();
+	protected $values = [];
 
 	/**
 	 * Creates object.
 	 *
-	 * @param array $values
+	 * @param array | null $values
 	 */
 	public function __construct(array $values = null)
 	{
@@ -48,7 +48,7 @@ class Dictionary
 		}
 		else
 		{
-			$this->values[$name] = $value;
+			$this[$name] = $value;
 		}
 	}
 
@@ -70,7 +70,7 @@ class Dictionary
 
 	public function clear()
 	{
-		$this->values = array();
+		$this->values = [];
 	}
 
 	/**

@@ -38,27 +38,63 @@
             );?>
             <div class="footer-column">
                 <ul class="footer-contact_list">
-                    <li><a href="tel:+74951140102"><span class="glipf-call-answer"></span>+7 (495) 114-01-02</a></li>
+                    <li><a href="tel:74732475555"><span class="glipf-call-answer"></span>+7 (473) 247-55-55</a></li>
                     <li><a href="mailto:avs@metplus-vrn.ru" class="footer-mail"><span class="glipf-email"></span>avs@metplus-vrn.ru</a></li>
                     <li>
                         <span class="glipf-clock"></span>Будни: 8:00 - 17:00 <br>Суббота, воскресенье - выходные
                     </li>
-					<noindex><li><a href="https://vk.com/metplusvrn"  rel="nofollow"><span class="instagram-link"><img style="width:14px; height: 14px; margin-right: 6px;" src="https://metplus-osk.ru/upload/medialibrary/9f5/9f502909be683766dde6842684115a95.png" alt="vk"> Наш ВКонтакте</span></a></li></noindex>
+					<!--<noindex><li><a href="https://vk.com/metplusvrn"  rel="nofollow"><span class="instagram-link"><img style="width:14px; height: 14px; margin-right: 6px;" src="https://metplus-osk.ru/upload/medialibrary/9f5/9f502909be683766dde6842684115a95.png" alt="vk"> Наш ВКонтакте</span></a></li></noindex>
+					<noindex><li><a href="https://t.me/Metallinvest36" rel="nofollow"><span class="instagram-link"><img style="width:16px; height: 16px; margin-right: 6px;" src="/upload/medialibrary/6f7/q3yqym70uuv10fvmne8afn3u7f54znj8.png" alt="Telegram"> Наш Telegram</span></a></li></noindex>-->
 				</ul>
-                <ul class="social-network">
-                    <!--
+
+				<p>Мы в социальных сетях:</p>
+				<div style="display: flex; flex-wrap: nowrap; grid-gap: 10px;">
+					<a href="https://vk.com/metplusvrn"><img width="45px" src="/upload/medialibrary/a75/q0fdr53s6926bu7g6a2ye1mcny6yv14g.png"></a>
+					<a href="https://t.me/Metallinvest36"><img width="45px" src="/upload/medialibrary/e49/oj4xxvvqhf1taroulug3l4n7pej5tavv.png"></a>
+				</div>
+
+
+                <!--<ul class="social-network">
                     <li><a href=""><span class="glipf-vk"></span></a></li>
                     <li><a href=""><span class="glipf-facebook"></span></a></li>
                     <li><a href=""><span class="glipf-odnoklassniki"></span></a></li>
                     <li><a href=""><span class="glipf-twitter"></span></a></li>
-                -->
-                </ul>
+                </ul>-->
  </div>
-        </div>
+
+<div> <br>
+  <details>
+<summary>Прочая нержавейка</summary>
+ <li><a href="#">Гайки</a></li>
+ <li><a href="#">Шайбы</a></li> 
+ <li><a href="#">Шпильки</a></li>
+ <li><a href="#">Держатель ригеля</a></li>
+ <li><a href="#">Заглушки</a></li>
+ <li><a href="#">Крепление поручня к стойке</a></li>
+ <li><a href="#">Низ стойки</a></li>
+ <li><a href="#">Пристенный держатель</a></li>
+ <li><a href="#">Соединитель поручня</a></li>
+ <li><a href="#">Фланец цанговый</a></li>
+ <li><a href="#">Американка наружная рв/рв</a></li>
+ <li><a href="#">Гайка шлицевая</a></li>
+ <li><a href="#">Затвор дисковой</a></li>
+ <li><a href="#">Кран шаровый</a></li>
+ <li><a href="#">Муфта</a></li>
+ <li><a href="#">Полусгон</a></li>
+ <li><a href="#">Сгон</a></li>
+ <li><a href="#">Уплотнение DN</a></li>
+ <li><a href="#">Фланец плоский</a></li>
+ <li><a href="#">Штуцер конический</a></li>
+ <li><a href="#">Штуцер резьбовой</a></li>
+</details>
+  </div>
+
+ </div>
         <div class="row">
             <div class="col-lg-10">
                 <div class="rules">
-					@ 2006-2022. ООО «Корпорация Металлинвест»
+					@ 2006-2025. ООО «Корпорация Металлинвест» <br>
+                    Москва и Московская область
                     <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
                     <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
                 </div>
@@ -67,6 +103,8 @@
                 <a class="prime-incut white colour" style="padding: 1.2em 0 0;"></a>
             </div>
 </div>
+		<hr style="margin: 25px 0;">
+		<noindex><p style="font-size: 0.8rem;">На нашем сайте осуществляется сбор персональных данных и <a target="_blank" href="/upload/politika-ispolzovanija-cookies-metplus-vrn.pdf">cookies</a> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая пользоваться сайтом, вы соглашаетесь с использованием cookies и <a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a> в соответствии с нашей <a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a>. Чтобы отказаться от обработки, отключите сохранение cookies в настройках вашего браузера.</p></noindex>
 
 </footer>
 <!-- end main-footer -->
@@ -87,15 +125,13 @@
                 <ul class="modal-city_list-unstyled col-sm-6">
                     <li>Москва</li>
                     <li>
-                        <a href="https://metplus-vrn.ru/">Воронеж</a>
+                        <a href="https://metplus-vrn.ru/" data-text="Воронеж"></a>
                     </li>
                 </ul>
                 <ul class="modal-city_list-unstyled col-sm-6">
 
-                    <li><a href="http://metplus-osk.ru/">Старый Оскол</a></li>
-                    <li>
-                        Лиски
-                    </li>
+                    <li><a href="http://metplus-osk.ru/" data-text="Старый Оскол"></a></li>
+                    <li data-text="Лиски"></li>
                 </ul>
             </div>
         </div>
@@ -168,5 +204,18 @@
 </script>
 <? endif; ?>
 
+
+
+<!-- PRIME VISIT-->
+<script defer>
+    $.getScript("https://lk.redbox.su/client/js/prime.visit.js")
+        .done(function(script, textStatus) {
+            let paramVisit = new Visit('eyJkb21haW4iOiJtZXRwbHVzLW1zay5ydSIsIm1pbnV0ZXMiOjQsImNsaWNrcyI6NSwicGFnZXMiOjV9');
+            paramVisit.handle();
+        }).fail(function(jqxhr, settings, exception) {
+        console.log('prime.visit error!');
+    });
+</script>
+                    
 </body>
 </html>

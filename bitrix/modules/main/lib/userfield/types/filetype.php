@@ -44,16 +44,20 @@ class FileType extends BaseType
 	 */
 	public static function prepareSettings(array $userField): array
 	{
-		$size = (int)$userField['SETTINGS']['SIZE'];
+		$size = (int)($userField['SETTINGS']['SIZE'] ?? 0);
 		$resultExtensions = [];
 
-		if(is_array($userField['SETTINGS']['EXTENSIONS']))
+		$extensions = [];
+		if (isset($userField['SETTINGS']['EXTENSIONS']))
 		{
-			$extensions = $userField['SETTINGS']['EXTENSIONS'];
-		}
-		else
-		{
-			$extensions = explode(',', $userField['SETTINGS']['EXTENSIONS']);
+			if(is_array($userField['SETTINGS']['EXTENSIONS']))
+			{
+				$extensions = $userField['SETTINGS']['EXTENSIONS'];
+			}
+			else
+			{
+				$extensions = explode(',', $userField['SETTINGS']['EXTENSIONS']);
+			}
 		}
 
 		foreach($extensions as $key => $extension)
@@ -73,14 +77,14 @@ class FileType extends BaseType
 			}
 		}
 
-		$targetBlank = ($userField['SETTINGS']['TARGET_BLANK'] === 'N' ? 'N' : 'Y');
+		$targetBlank = (($userField['SETTINGS']['TARGET_BLANK'] ?? 'Y') === 'N' ? 'N' : 'Y');
 
 		return [
 			'SIZE' => ($size <= 1 ? 20 : ($size > 255 ? 225 : $size)),
-			'LIST_WIDTH' => (int)$userField['SETTINGS']['LIST_WIDTH'],
-			'LIST_HEIGHT' => (int)$userField['SETTINGS']['LIST_HEIGHT'],
-			'MAX_SHOW_SIZE' => (int)$userField['SETTINGS']['MAX_SHOW_SIZE'],
-			'MAX_ALLOWED_SIZE' => (int)$userField['SETTINGS']['MAX_ALLOWED_SIZE'],
+			'LIST_WIDTH' => (int)($userField['SETTINGS']['LIST_WIDTH'] ?? 0),
+			'LIST_HEIGHT' => (int)($userField['SETTINGS']['LIST_HEIGHT'] ?? 0),
+			'MAX_SHOW_SIZE' => (int)($userField['SETTINGS']['MAX_SHOW_SIZE'] ?? 0),
+			'MAX_ALLOWED_SIZE' => (int)($userField['SETTINGS']['MAX_ALLOWED_SIZE'] ?? 0),
 			'EXTENSIONS' => $resultExtensions,
 			'TARGET_BLANK' => $targetBlank
 		];
@@ -91,21 +95,44 @@ class FileType extends BaseType
 		return '&nbsp;';
 	}
 
+	/**
+	 * @param array $userField
+	 * @param string|array $value
+	 * @return array
+	 */
 	public static function checkFields(array $userField, $value): array
 	{
-		$msg = [];
-
-		if(!is_array($value))
+		if(!is_array($value) && $value)
 		{
-			if($value)
+			$fileInfo = \CFile::GetFileArray($value);
+			if($fileInfo)
 			{
-				$fileInfo = \CFile::GetFileArray($value);
-				if($fileInfo)
-				{
-					$value = \CFile::MakeFileArray($fileInfo['SRC']);
-				}
+				$value = \CFile::MakeFileArray($fileInfo['SRC']);
 			}
 		}
+
+		$fieldName = HtmlFilter::encode(
+			empty($userField['EDIT_FORM_LABEL'])
+				? $userField['FIELD_NAME']
+				: $userField['EDIT_FORM_LABEL']
+		);
+
+		if(
+			is_array($value)
+			&& (!isset($value['tmp_name']) && !isset($value['old_id']) && !isset($value['type']))
+		)
+		{
+			return [
+				[
+					'id' => $userField['FIELD_NAME'],
+					'text' => Loc::getMessage('USER_TYPE_FILE_VALUE_IS_MULTIPLE', [
+						'#FIELD_NAME#' => $fieldName,
+					]),
+				],
+			];
+		}
+
+		$msg = [];
 
 		if(is_array($value))
 		{
@@ -119,10 +146,7 @@ class FileType extends BaseType
 					'id' => $userField['FIELD_NAME'],
 					'text' => Loc::getMessage('USER_TYPE_FILE_MAX_SIZE_ERROR',
 						[
-							'#FIELD_NAME#' => HtmlFilter::encode(
-								$userField['EDIT_FORM_LABEL'] <> ''
-									? $userField['EDIT_FORM_LABEL'] : $userField['FIELD_NAME']
-							),
+							'#FIELD_NAME#' => $fieldName,
 							'#MAX_ALLOWED_SIZE#' => $userField['SETTINGS']['MAX_ALLOWED_SIZE']
 						]
 					),
@@ -274,7 +298,7 @@ class FileType extends BaseType
 		}
 
 		$value = array_filter($value, 'strlen');
-		if(count($value))
+		if(!empty($value))
 		{
 			$value = array_map([static::class, 'getFileContent'], $value);
 			$result = implode('\r\n', $value);
@@ -331,5 +355,10 @@ class FileType extends BaseType
 	public static function getPublicEditMultiple(array $userField, ?array $additionalParameters = []): string
 	{
 		return parent::getPublicEdit($userField, $additionalParameters);
+	}
+
+	public static function canUseArrayValueForSingleField(): bool
+	{
+		return true;
 	}
 }

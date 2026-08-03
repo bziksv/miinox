@@ -1,7 +1,7 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
 this.BX.Landing.UI = this.BX.Landing.UI || {};
-(function (exports,landing_ui_field_basefield,main_popup,ui_fonts_opensans,ui_designTokens,main_core_events,landing_backend,landing_pageobject,main_core) {
+(function (exports,landing_ui_field_basefield,main_popup,ui_fonts_opensans,ui_designTokens,main_core_events,landing_ui_field_image,landing_backend,landing_pageobject,main_core) {
 	'use strict';
 
 	const matcher = /^rgba? ?\((\d{1,3})[, ]+(\d{1,3})[, ]+(\d{1,3})([, ]+([\d\.]{1,5}))?\)$/i;
@@ -3348,7 +3348,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    this.unsetActive();
 	    this.activeControl = null;
 
-	    if (main_core.Type.isNull(value)) ; else if (isRgbString(value) || isHex(value) || isHslString(value) || isCssVar(value)) {
+	    if (main_core.Type.isNil(value)) ; else if (isRgbString(value) || isHex(value) || isHslString(value) || isCssVar(value)) {
 	      super.setValue(value);
 	      this.activeControl = this.colorSet;
 	    } else if (isGradientString(value)) {
@@ -3600,15 +3600,15 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	let _$g = t => t,
 	    _t$g;
 	class Image extends BaseControl {
+	  // todo: move to type
 	  constructor(options) {
 	    super();
 	    this.setEventNamespace('BX.Landing.UI.Field.Color.Image');
-	    this.options = options; // todo: set dimensions from block
-
-	    const rootWindow = landing_pageobject.PageObject.getRootWindow();
-	    this.imgField = new rootWindow.BX.Landing.UI.Field.Image({
+	    this.options = options;
+	    this.imgField = new landing_ui_field_image.Image({
 	      id: 'landing_ui_color_image_' + main_core.Text.getRandom().toLowerCase(),
 	      className: 'landing-ui-field-color-image-image',
+	      contextType: landing_ui_field_image.Image.CONTEXT_TYPE_STYLE,
 	      compactMode: true,
 	      disableLink: true,
 	      disableAltField: true,
@@ -3828,7 +3828,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    this.setEventNamespace('BX.Landing.UI.Field.Processor.Bg');
 	    this.styleNode = options.styleNode;
 	    this.parentVariableName = this.variableName;
-	    this.variableName = [this.parentVariableName, Bg.BG_URL_VAR, Bg.BG_URL_2X_VAR, Bg.BG_OVERLAY_VAR, Bg.BG_SIZE_VAR, Bg.BG_ATTACHMENT_VAR];
+	    this.variableName = [this.parentVariableName, Bg.BG_URL_VAR, Bg.BG_URL_2X_VAR, Bg.BG_OVERLAY_VAR, Bg.BG_SIZE_VAR, Bg.BG_ATTACHMENT_VAR, Bg.BG_IMAGE];
 	    this.parentClassName = this.className;
 	    this.className = 'g-bg-image';
 	    this.image = new Image(options);
@@ -4092,10 +4092,10 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	        processorValue[Bg.BG_IMAGE] = '';
 	        processorValue[Bg.BG_SIZE_VAR] = defaultBgImageSize;
 	        processorValue[Bg.BG_ATTACHMENT_VAR] = defaultBgImageAttachment;
-	        const regWebkitUrl = /-webkit-image-set\(url\(/i;
-	        const searchWebkitUrl = defaultValue[Bg.BG_IMAGE].match(regWebkitUrl);
+	        const regUrl = /image-set\(url\(/i;
+	        const searchUrl = defaultValue[Bg.BG_IMAGE].match(regUrl);
 
-	        if (searchWebkitUrl !== null) {
+	        if (searchUrl !== null) {
 	          const regSearchUrl = /"(https?:\/)?\/[\S]*"/gi;
 	          const search = defaultValue[Bg.BG_IMAGE].match(regSearchUrl);
 
@@ -4541,5 +4541,5 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	exports.ColorField = ColorField;
 
-}((this.BX.Landing.UI.Field = this.BX.Landing.UI.Field || {}),BX.Landing.UI.Field,BX.Main,BX,BX,BX.Event,BX.Landing,BX.Landing,BX));
+}((this.BX.Landing.UI.Field = this.BX.Landing.UI.Field || {}),BX.Landing.UI.Field,BX.Main,BX,BX,BX.Event,BX.Landing.UI.Field,BX.Landing,BX.Landing,BX));
 //# sourceMappingURL=color_field.bundle.js.map

@@ -1,8 +1,19 @@
 <?
+
+use Bitrix\Main\Loader;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
-if (!$USER->CanDoOperation('catalog_read') && !$USER->CanDoOperation('catalog_view'))
+Loader::includeModule('catalog');
+if (
+	!AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ)
+	&& !AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_VIEW)
+)
+{
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+}
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/include.php");
 
@@ -22,11 +33,13 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
 
 $sTableID = "tbl_catalog_product_search";
 
-$oSort = new CAdminSorting($sTableID, "ID", "asc");
-
+$oSort = new CAdminSorting($sTableID, "ID", "ASC");
 $lAdmin = new CAdminList($sTableID, $oSort);
 
-$IBLOCK_ID = intval($IBLOCK_ID);
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
+
+$IBLOCK_ID = (int)($IBLOCK_ID ?? 0);
 
 $dbIBlock = CIBlock::GetByID($IBLOCK_ID);
 if (!($arIBlock = $dbIBlock->Fetch()))
@@ -85,8 +98,7 @@ if (!$bBadBlock)
 		array($by => $order),
 		$arFilter,
 		false,
-		array("nPageSize" => 20),
-		${"filter_count_for_show"}
+		array("nPageSize" => 20)
 	);
 
 	$dbResultList = new CAdminResult($dbResultList, $sTableID);
@@ -136,12 +148,12 @@ $lAdmin->CheckListMode();
 $APPLICATION->SetTitle(GetMessage("SPS_SEARCH_TITLE"));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_popup_admin.php");
 
-$func_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['func_name']);
-$form_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['form_name']);
-$field_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['field_name']);
-$field_name_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['field_name_name']);
-$field_name_url = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['field_name_url']);
-$alt_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['alt_name']);
+$func_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['func_name'] ?? '');
+$form_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['form_name'] ?? '');
+$field_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['field_name'] ?? '');
+$field_name_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['field_name_name'] ?? '');
+$field_name_url = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['field_name_url'] ?? '');
+$alt_name = preg_replace("/[^a-z0-9_\\[\\]:]/i", "", $_REQUEST['alt_name'] ?? '');
 ?>
 
 <script type="text/javascript">

@@ -1,6 +1,10 @@
-<?
+<?php
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
+{
+	die();
+}
+
 use Bitrix\Main\ModuleManager;
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true) die();
 
 $arThemes = array();
 if (ModuleManager::isModuleInstalled('bitrix.eshop'))
@@ -16,7 +20,7 @@ $arThemesList = array(
 	'yellow' => GetMessage('CP_BCC_TPL_THEME_YELLOW'),
 	'black' => GetMessage('CP_BCC_TPL_THEME_BLACK')
 );
-$dir = trim(preg_replace("'[\\\\/]+'", "/", dirname(__FILE__)."/themes/"));
+$dir = trim(preg_replace("'[\\\\/]+'", "/", __DIR__."/themes/"));
 if (is_dir($dir))
 {
 	foreach ($arThemesList as $themeID => $themeName)
@@ -35,4 +39,3 @@ $arTemplateParameters['TEMPLATE_THEME'] = array(
 	'DEFAULT' => 'blue',
 	'ADDITIONAL_VALUES' => 'Y'
 );
-?>

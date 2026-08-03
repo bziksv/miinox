@@ -6,9 +6,13 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use Bitrix\Main\Localization\Loc;
 
+\Bitrix\Main\UI\Extension::load(['catalog.store-use']);
+
 $APPLICATION->SetTitle('Title');
 $messages = Loc::loadLanguageFile(__FILE__);
 \Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
 	'ui.hint',
 	'ui.label',
 	'ui.switcher',
@@ -21,7 +25,10 @@ $messages = Loc::loadLanguageFile(__FILE__);
 ]);
 
 CJSCore::Init(array('marketplace'));
-$APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'catalog-warehouse-master-clear');
+$APPLICATION->SetPageProperty(
+	'BodyClass',
+	$APPLICATION->GetPageProperty('BodyClass') . ' catalog-warehouse-master-clear'
+);
 ?>
 
 <div class="catalog-warehouse__master-clear--content">
@@ -61,36 +68,46 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 	isWithOrdersMode = <?= CUtil::PhpToJSObject((bool)$arResult['IS_WITH_ORDERS_MODE']) ?>;
 	isLeadEnabled = <?= CUtil::PhpToJSObject((bool)$arResult['IS_LEAD_ENABLED']) ?>;
 	isPlanRestricted = <?= CUtil::PhpToJSObject((bool)$arResult['IS_PLAN_RESTRICTED']) ?>;
+	isRestrictedAccess = <?= CUtil::PhpToJSObject((bool)$arResult['IS_RESTRICTED_ACCESS']) ?>;
 	isUsed = <?= CUtil::PhpToJSObject((bool)$arResult['IS_USED']) ?>;
 	isEmpty = <?= CUtil::PhpToJSObject((bool)$arResult['IS_EMPTY']) ?>;
-	conductedDocumentsExist = <?= CUtil::PhpToJSObject((bool)$arResult['CONDUCTED_DOCUMENTS_EXIST']) ?>;
 	presetList = <?= CUtil::PhpToJSObject($arResult['PRESET_LIST']) ?>;
 	previewLang = <?= CUtil::PhpToJSObject($arResult['PREVIEW_LANG']) ?>;
+	inventoryManagementSource = <?= CUtil::PhpToJSObject($arResult['INVENTORY_MANAGEMENT_SOURCE']) ?>;
 
 	BX.Vue.create({
 		el: document.getElementById('placeholder'),
 		data: () => ({
 			isEmpty: isEmpty,
 			isPlanRestricted: isPlanRestricted,
+			isRestrictedAccess: isRestrictedAccess,
 			isUsedOneC: isUsedOneC,
 			mode: mode,
 			isWithOrdersMode: isWithOrdersMode,
 			isLeadEnabled: isLeadEnabled,
 			isUsed: isUsed,
-			conductedDocumentsExist: conductedDocumentsExist,
 			showLoader: false,
 			showLoaderMP: false,
 			sliderType: 'store',
 			currentSlider: BX.SidePanel.Instance.getTopSlider() ?? false,
 			presetList: presetList,
-			previewLang: previewLang
+			previewLang: previewLang,
+			inventoryManagementSource: inventoryManagementSource,
 		}),
 		created: function ()
 		{
-			var enableHandler = this.enable.bind(this);
-			BX.Event.EventEmitter.subscribe(BX.Catalog.StoreUse.EventType.popup.confirm, enableHandler);
 			var disableHandler = this.disable.bind(this);
 			BX.Event.EventEmitter.subscribe(BX.Catalog.StoreUse.EventType.popup.disable, disableHandler);
+
+			BX.Event.EventEmitter.subscribe(BX.Catalog.StoreUse.EventType.popup.enable, () => {
+				this.enable();
+			});
+			BX.Event.EventEmitter.subscribe(BX.Catalog.StoreUse.EventType.popup.enableWithoutReset, () => {
+				this.enableWithoutReset();
+			});
+			BX.Event.EventEmitter.subscribe(BX.Catalog.StoreUse.EventType.popup.enableWithResetDocuments, () => {
+				this.enableWithResetDocuments();
+			});
 		},
 		mounted: function ()
 		{
@@ -114,6 +131,10 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 					{
 						classes.push('ui-btn-wait');
 					}
+					if (this.isRestrictedAccess === true)
+					{
+						classes.push('ui-btn-disabled');
+					}
 					return classes;
 				},
 				getObjectClassMP()
@@ -128,6 +149,10 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 					if (this.showLoaderMP === true)
 					{
 						classes.push('ui-btn-wait');
+					}
+					if (this.isRestrictedAccess === true)
+					{
+						classes.push('ui-btn-disabled');
 					}
 					return classes;
 				},
@@ -169,8 +194,8 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 				handleInstallPresetClick()
 				{
 					this.showLoader = true;
-					var master = new BX.Catalog.Master.CatalogWarehouseMasterClear();
-					master
+					var controller = new BX.Catalog.StoreUse.Controller();
+					controller
 					.inventoryManagementInstallPreset({preset: this.getListCheckedPreset()})
 					.then(() => {
 						this.showLoader = false;
@@ -183,6 +208,13 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 				},
 				handleEnableClick(sliderType)
 				{
+					if (this.isRestrictedAccess)
+					{
+						this.showRestrictedRightsErrorPopup();
+
+						return;
+					}
+
 					this.setSliderType(sliderType);
 					var storeControlHelpArticleId = 15718276;
 
@@ -210,33 +242,26 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 					}
 					else
 					{
-						if(this.isEmpty)
-						{
-							this.enable()
-						}
-						else
-						{
-							this.showResetQuantityPopup()
-						}
+						this.showEnablePopup()
 					}
 				},
 				handleDisableClick()
 				{
-					if (this.conductedDocumentsExist)
+					if (this.isRestrictedAccess)
 					{
-						this.showConductedDocumentsPopup();
+						this.showRestrictedRightsErrorPopup();
+
+						return;
 					}
-					else
-					{
-						this.showConfirmDisablePopup();
-					}
+
+					this.showConfirmDisablePopup();
 				},
 				isGridAlreadyOpened()
 				{
 					var openSliders = BX.SidePanel.Instance.getOpenSliders();
 					for (var openSlider of openSliders)
 					{
-						if (openSlider.getUrl().lastIndexOf('/shop/documents/') === 0)
+						if (openSlider.getUrl().indexOf('/shop/documents') >= 0)
 						{
 							return true;
 						}
@@ -248,32 +273,20 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 				{
 					var list = [];
 					var preset = [];
-					list = BX.UI.Switcher.getList()
-					.filter(function (item) {
-						return item.checked === true;
-					});
-					if (list.length>0)
+					list = BX.UI.Switcher.getList().filter((item) => item.isChecked());
+					if (list.length > 0)
 					{
-						list.forEach((item)=>{
+						list.forEach((item) => {
 							preset.push(item.id)
 						})
 					}
-					return preset.length>0 ? preset : ['empty'];
-				},
-				enable()
-				{
-					if(this.sliderType === 'marketplace')
-					{
-						this.showLoaderMP = true;
-					}
-					else
-					{
-						this.showLoader = true;
-					}
 
+					return preset.length > 0 ? preset : ['empty'];
+				},
+				_processEnableResponse(promise)
+				{
 					var master = new BX.Catalog.Master.CatalogWarehouseMasterClear();
-					master
-						.inventoryManagementEnabled({preset: this.getListCheckedPreset()})
+					promise
 						.then(() => {
 							if(this.sliderType === 'marketplace')
 							{
@@ -332,11 +345,69 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 							this.showLoaderMP = this.showLoader = false;
 						});
 				},
+				enableWithResetDocuments()
+				{
+					if(this.sliderType === 'marketplace')
+					{
+						this.showLoaderMP = true;
+					}
+					else
+					{
+						this.showLoader = true;
+					}
+
+					var controller = new BX.Catalog.StoreUse.Controller();
+					this._processEnableResponse(
+						controller.inventoryManagementEnableWithResetDocuments({
+							preset: this.getListCheckedPreset(),
+							inventoryManagementSource: this.inventoryManagementSource,
+						})
+					);
+				},
+				enableWithoutReset()
+				{
+					if(this.sliderType === 'marketplace')
+					{
+						this.showLoaderMP = true;
+					}
+					else
+					{
+						this.showLoader = true;
+					}
+
+					var controller = new BX.Catalog.StoreUse.Controller();
+					this._processEnableResponse(
+						controller.inventoryManagementEnableWithoutReset({
+							preset: this.getListCheckedPreset(),
+							inventoryManagementSource: this.inventoryManagementSource,
+						})
+					);
+				},
+				enable()
+				{
+					if(this.sliderType === 'marketplace')
+					{
+						this.showLoaderMP = true;
+					}
+					else
+					{
+						this.showLoader = true;
+					}
+
+					var controller = new BX.Catalog.StoreUse.Controller();
+
+					this._processEnableResponse(
+						controller.inventoryManagementEnabled({
+							preset: this.getListCheckedPreset(),
+							inventoryManagementSource: this.inventoryManagementSource,
+						})
+					);
+				},
 				disable()
 				{
 					this.showLoader = true;
-					var master = new BX.Catalog.Master.CatalogWarehouseMasterClear();
-					master
+					var controller = new BX.Catalog.StoreUse.Controller();
+					controller
 						.inventoryManagementDisabled()
 						.then(() => {
 							if (this.currentSlider)
@@ -363,15 +434,18 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 				{
 					(new BX.Catalog.StoreUse.DialogError(options)).popup();
 				},
-				showResetQuantityPopup()
+				showRestrictedRightsErrorPopup()
 				{
-					var dialogClearing = new BX.Catalog.StoreUse.DialogClearing();
-					dialogClearing.popup();
+					var storeControlHelpArticleId = 16556596;
+
+					this.showErrorPopup({
+						text: this.loc.CAT_WAREHOUSE_MASTER_CLEAR_RIGHTS_RESTRICTED,
+						helpArticleId: storeControlHelpArticleId
+					});
 				},
-				showConductedDocumentsPopup()
+				showEnablePopup()
 				{
-					var dialogDisable = new BX.Catalog.StoreUse.DialogDisable();
-					dialogDisable.conductedDocumentsPopup();
+					(new BX.Catalog.StoreUse.DialogEnable()).popup();
 				},
 				showConfirmDisablePopup()
 				{
@@ -424,7 +498,7 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 						<div class="catalog-warehouse__master-clear--selection-block">
 							<div class="catalog-warehouse__master-clear--item" :class="{'--disable': item.available === 'N'}"  v-for="(item, index) in this.presetList">
 								<div class="catalog-warehouse__master-clear--switcher">
-									<span class="ui-switcher-color-green ui-switcher ui-switcher-size-sm" :data-switcher="getDataSwitcher(item, index)">
+									<span class="ui-switcher ui-switcher-color-green ui-switcher-size-sm" :data-switcher="getDataSwitcher(item, index)">
 										<span class="ui-switcher-cursor"></span>
 										<span class="ui-switcher-enabled"><?=Loc::getMessage('CAT_WAREHOUSE_MASTER_CLEAR_7')?></span>
 										<span class="ui-switcher-disabled"><?=Loc::getMessage('CAT_WAREHOUSE_MASTER_CLEAR_8')?></span>
@@ -459,7 +533,6 @@ $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'c
 					<template v-if="isEdit === false">
 						<template v-if="isUsed === false">
 							<button :class="getObjectClass" class="ui-btn-success" @click="handleEnableClick('shop')" >{{loc.CAT_WAREHOUSE_MASTER_CLEAR_1}}</button>
-							<button :class="getObjectClassMP" class="ui-btn-success" @click="handleEnableClick('marketplace')" >{{loc.CAT_WAREHOUSE_MASTER_CLEAR_17}}</button>
 						</template>
 						<template v-else>
 							<button :class="getObjectClassMP" @click="handleDisableClick()">{{loc.CAT_WAREHOUSE_MASTER_CLEAR_2}}</button>

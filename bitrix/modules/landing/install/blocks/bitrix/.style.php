@@ -204,6 +204,17 @@ return [
 				],
 			],
 		],
+		'word-break' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK'),
+			'help' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_HELP'),
+			'property' => 'font-family',
+			'type' => 'list',
+			'items' => [
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_NORMAL'), 'value' => 'word-break-normal'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_BREAK_ALL'), 'value' => 'word-break-break-all'],
+				//['name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_KEEP_ALL'), 'value' => 'word-break-keep-all'],
+			],
+		],
 		'row-align' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ROW_ALIGN'),
 			'type' => 'buttons',
@@ -1595,7 +1606,7 @@ return [
 		// ),
 
 		'hamburger-size' => [
-			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE'),
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MSGVER_1'),
 			'type' => 'list',
 			'items' => [
 				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MD'), 'value' => 'hamburger--md'],
@@ -2844,8 +2855,8 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_N'), 'value' => 'u-block-border-none'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_Y'), 'value' => 'u-block-border'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_N'), 'value' => 'u-block-border-none', 'hide' => ['block-border-margin', 'border-radius', 'block-border-position']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_Y'), 'value' => 'u-block-border', 'show' => ['block-border-margin', 'border-radius', 'block-border-position']],
 			],
 		],
 		'block-border-margin' => [
@@ -2927,6 +2938,43 @@ return [
 				['name' => '21', 'value' => 'u-heading-v2-13-2--right'],
 			],
 		],
+		'orientation-free' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO'),
+			'type' => 'list',
+			'items' => [
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 16:9', 'value' => 'embed-responsive-16by9'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:16', 'value' => 'embed-responsive-9by16'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 4:3', 'value' => 'embed-responsive-4by3'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 3:4', 'value' => 'embed-responsive-3by4'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 21:9', 'value' => 'embed-responsive-21by9'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:21', 'value' => 'embed-responsive-9by21'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_S'), 'value' => 'embed-responsive-1by1'],
+			],
+		],
+		'orientation' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO') . ' ',
+			'type' => 'list',
+			'items' => [
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 4:3', 'value' => 'embed-responsive-4by3', 'hide' => ['video-scale']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 3:4', 'value' => 'embed-responsive-3by4', 'show' => ['video-scale']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 16:9', 'value' => 'embed-responsive-16by9', 'hide' => ['video-scale']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:16', 'value' => 'embed-responsive-9by16', 'show' => ['video-scale']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 21:9', 'value' => 'embed-responsive-21by9', 'hide' => ['video-scale']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:21', 'value' => 'embed-responsive-9by21', 'show' => ['video-scale']],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_S'), 'value' => 'embed-responsive-1by1', 'hide' => ['video-scale']],
+			],
+		],
+		'video-scale' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SCALE_VIDEO'),
+			'type' => 'slider',
+			'items' => [
+				['name' => '75%', 'value' => 'scale-75'],
+				['name' => '100%', 'value' => 'scale-100'],
+				['name' => '125%', 'value' => 'scale-125'],
+				['name' => '150%', 'value' => 'scale-150'],
+				['name' => '200%', 'value' => 'scale-200'],
+			],
+		],
 	],
 	'group' => [
 		'block-default' => [
@@ -2984,7 +3032,7 @@ return [
 		'margins' => ['margin-top', 'margin-bottom', 'margin-left', 'margin-right'],
 		'typo' => [
 			'text-align', 'color', 'font-size', 'font-family', 'font-weight',
-			'text-decoration', 'text-transform', 'line-height', 'letter-spacing', 'text-shadow',
+			'text-decoration', 'text-transform', 'line-height', 'letter-spacing', 'word-break', 'text-shadow',
 			'padding-top', 'padding-left', 'padding-right', 'margin-bottom'
 		],
 		'typo-simple' => [

@@ -10,7 +10,7 @@ use Bitrix\Main\Localization\Loc;
  * @global \CMain $APPLICATION
  */
 
-require_once(dirname(__FILE__)."/../include/prolog_admin_before.php");
+require_once(__DIR__."/../include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 
 if (!$USER->canDoOperation("view_other_settings"))
@@ -100,7 +100,7 @@ foreach ($diffScript as $scriptRecord)
 		class="adm-composite-source-link"><?=Loc::getMessage("MAIN_COMPOSITE_DIFF_SOURCE_CODE")?></a>)
 	</div>
 
-	<? if (!count($diffScript)):?>
+	<? if (empty($diffScript)):?>
 		<div class="adm-composite-diff-notice" id="right-header">
 			<?=Loc::getMessage("MAIN_COMPOSITE_DIFF_VERSIONS_IDENTICAL")?>
 		</div>
@@ -112,7 +112,7 @@ foreach ($diffScript as $scriptRecord)
 		<?
 			$deletedLines = 0;
 			for ($line = 0, $length = count($linesA); $line < $length; $line++):
-				$deletedLines = isset($deletedFromA[$line]) ? $deletedFromA[$line] : $deletedLines;
+				$deletedLines = $deletedFromA[$line] ?? $deletedLines;
 		?>
 				<div class="adm-composite-diff-line
 					<?if ($deletedLines): $deletedLines--?> adm-composite-deleted-line<?endif?>
@@ -141,7 +141,7 @@ foreach ($diffScript as $scriptRecord)
 		<?
 		$insertedLines = 0;
 		for ($line = 0, $length = count($linesB); $line < $length; $line++):
-			$insertedLines = isset($insertedToB[$line]) ? $insertedToB[$line] : $insertedLines;
+			$insertedLines = $insertedToB[$line] ?? $insertedLines;
 			?>
 			<div class="adm-composite-diff-line
 					<?if ($insertedLines): $insertedLines--?> adm-composite-inserted-line<?endif?>

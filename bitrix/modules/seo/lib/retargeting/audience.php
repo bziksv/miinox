@@ -25,18 +25,18 @@ abstract class Audience extends BaseApiObject
 
 	protected $accountId;
 	protected $audienceId;
-	protected static $listRowMap = array(
+	protected static $listRowMap = [
 		'ID' => 'ID',
 		'NAME' => 'NAME',
 		'COUNT_VALID' => 'COUNT',
 		'COUNT_MATCHED' => 'COUNT',
-		'SUPPORTED_CONTACT_TYPES' => array(
+		'SUPPORTED_CONTACT_TYPES' => [
 			self::ENUM_CONTACT_TYPE_EMAIL,
 			self::ENUM_CONTACT_TYPE_PHONE,
 			self::ENUM_CONTACT_TYPE_IDFA_GAID,
 			self::ENUM_CONTACT_TYPE_INTERNAL_ID
-		),
-	);
+		],
+	];
 	protected $isQueueModeEnabled = false;
 	protected $isQueueAutoRemove = true;
 	protected $queueDaysAutoRemove = 7;
@@ -84,6 +84,11 @@ abstract class Audience extends BaseApiObject
 	}
 
 	public static function isSupportRemoveContacts()
+	{
+		return true;
+	}
+
+	public static function isSupportCreateLookalikeFromSegments(): bool
 	{
 		return true;
 	}
@@ -294,7 +299,7 @@ abstract class Audience extends BaseApiObject
 	 * @param array $options
 	 * @return Response
 	 */
-	public function addContacts($audienceId, array $contacts = array(), array $options)
+	public function addContacts($audienceId, array $contacts, array $options)
 	{
 		$contacts = $this->normalizeContacts($contacts);
 		if ($this->isQueueModeEnabled())
@@ -320,7 +325,7 @@ abstract class Audience extends BaseApiObject
 	 * @param array $options
 	 * @return Response
 	 */
-	public function deleteContacts($audienceId, array $contacts = array(), array $options)
+	public function deleteContacts($audienceId, array $contacts, array $options)
 	{
 		if ($this->isQueueModeEnabled())
 		{
@@ -359,7 +364,7 @@ abstract class Audience extends BaseApiObject
 	 * @param array $options Options.
 	 * @return Response
 	 */
-	abstract protected function importContacts($audienceId, array $contacts = array(), array $options);
+	abstract protected function importContacts($audienceId, array $contacts, array $options);
 
 
 	/**
@@ -370,7 +375,7 @@ abstract class Audience extends BaseApiObject
 	 * @param array $options Options.
 	 * @return Response
 	 */
-	abstract protected function removeContacts($audienceId, array $contacts = array(), array $options);
+	abstract protected function removeContacts($audienceId, array $contacts, array $options);
 
 	public function createLookalike($sourceAudienceId, array $options)
 	{

@@ -16,7 +16,8 @@ type FolderEditOptions = {
 	selectorPreviewSrcPicture: HTMLElement,
 	selectorPreviewPictureWrapper: HTMLElement,
 	pathToLandingEdit: string,
-	pathToLandingCreate: string
+	pathToLandingCreate: string,
+	isUseNewMarket: bool,
 };
 
 export class FolderEdit
@@ -37,7 +38,8 @@ export class FolderEdit
 	#selectorPreviewPictureWrapper: HTMLElement;
 	#pathToLandingEdit: string;
 	#pathToLandingCreate: string;
-	#linkUrlSelector: BX.Landing.UI.Field.LinkURL;
+	#isUseNewMarket: bool;
+	#linkUrlSelector: BX.Landing.UI.Field.LinkUrl;
 	#linkPictureSelector: BX.Landing.UI.Field.Image;
 	#ajaxPathLoadPreview: string = '/bitrix/services/main/ajax.php?action=landing.api.landing.getById&landingId=#id#';
 
@@ -59,6 +61,7 @@ export class FolderEdit
 		this.#selectorPreviewPictureWrapper = options.selectorPreviewPictureWrapper;
 		this.#pathToLandingEdit = options.pathToLandingEdit;
 		this.#pathToLandingCreate = options.pathToLandingCreate;
+		this.#isUseNewMarket = options.isUseNewMarket;
 
 		this.#initSelector();
 		this.#initPicture();
@@ -73,11 +76,11 @@ export class FolderEdit
 
 	#initSelector()
 	{
-		this.#linkUrlSelector = new BX.Landing.UI.Field.LinkURL({
+		this.#linkUrlSelector = new BX.Landing.UI.Field.LinkUrl({
 			title: null,
 			content: null,
 			allowedTypes: [
-				BX.Landing.UI.Field.LinkURL.TYPE_PAGE
+				BX.Landing.UI.Field.LinkUrl.TYPE_PAGE
 			],
 			options: {
 				siteId: this.#siteId,
@@ -136,10 +139,20 @@ export class FolderEdit
 
 	#onSelect(title)
 	{
-		const id = this.#linkUrlSelector.getValue().substr(8);
+		let id;
+		const linkUrlSelectorValue = this.#linkUrlSelector.getValue();
+		if (linkUrlSelectorValue.startsWith('page:'))
+		{
+			id = linkUrlSelectorValue.substr(13);
+		}
+		else
+		{
+			id = linkUrlSelectorValue.substr(8);
+		}
 		const path = this.#pathToLandingEdit.replace('#landing_edit#', id);
 
-		this.#selectorPageLink.text = title;
+		this.#selectorPageLink.innerHTML =
+			`<span id="landing-folder-index-link-text" class="landing-folder-index-link-text">${title}</span>`;
 		this.#selectorPageLink.setAttribute('href', path);
 		this.#selectorFieldId.setAttribute('value', id);
 
@@ -153,15 +166,22 @@ export class FolderEdit
 
 	#onClickIndexCreate(e)
 	{
-		BX.SidePanel.Instance.open(this.#pathToLandingCreate, {
+		const options = {
 			allowChangeHistory: false,
+
 			events: {
 				onClose: function()
 				{
 					window.location.reload();
 				}
 			}
-		});
+		};
+		if (this.#isUseNewMarket)
+		{
+			options.cacheable = false;
+			options.customLeftBoundary = 0;
+		}
+		BX.SidePanel.Instance.open(this.#pathToLandingCreate, options);
 		BX.PreventDefault(e);
 	}
 

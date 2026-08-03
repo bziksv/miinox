@@ -121,6 +121,10 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			{
 				return BX.UI.EntityEditorHtml.create(controlId, settings);
 			}
+			else if(type === "bb")
+			{
+				return BX.UI.EntityEditorBB.create(controlId, settings);
+			}
 			else if(type === "link")
 			{
 				return BX.UI.EntityEditorLink.create(controlId, settings);
@@ -152,6 +156,10 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			else if(type === "included_area")
 			{
 				return BX.UI.EntityEditorIncludedArea.create(controlId, settings);
+			}
+			else if(type === "product_row_summary")
+			{
+				return BX.UI.EntityEditorProductRowSummary.create(controlId, settings);
 			}
 
 			for(var name in this.methods)

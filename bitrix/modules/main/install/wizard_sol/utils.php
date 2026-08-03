@@ -13,7 +13,7 @@ class WizardServices
 				$ffhtaccess = $io->GetFile($fnhtaccess);
 				$ffhtaccessContent = $ffhtaccess->GetContents();
 
-				if (mb_strpos($ffhtaccessContent, "/bitrix/virtual_file_system.php") === false)
+				if (strpos($ffhtaccessContent, "/bitrix/virtual_file_system.php") === false)
 				{
 					$ffhtaccessContent = preg_replace('/RewriteEngine On/is', "RewriteEngine On\r\n\r\n".
 						"RewriteCond %{REQUEST_FILENAME} -f [OR]\r\n".
@@ -257,7 +257,7 @@ class WizardServices
 				$arTheme = Array(
 					"ID" => $file,
 					"SORT" => (isset($arTemplate["SORT"]) && intval($arTemplate["SORT"]) > 0 ? intval($arTemplate["SORT"]) : 10),
-					"NAME" => (isset($arTemplate["NAME"]) ? $arTemplate["NAME"] : $file),
+					"NAME" => ($arTemplate["NAME"] ?? $file),
 				);
 
 				if(file_exists($themePath."/".$file."/lang/".LANGUAGE_ID."/small.png"))
@@ -379,7 +379,7 @@ class WizardServices
 		if (!is_array($siteID))
 			$siteID = Array($siteID);
 
-		require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/classes/".mb_strtolower($GLOBALS["DB"]->type)."/cml2.php");
+		require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/classes/mysql/cml2.php");
 		$iblockID = ImportXMLFile(
 			$xmlFile,
 			$iblockType,

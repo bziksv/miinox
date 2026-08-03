@@ -426,7 +426,7 @@ class Element extends Base
 								'value' => 'SYSTEM',
 							],
 						],
-						'QUERY_INFORMATION_URL' => 'https://dev.1c-bitrix.ru/rest_help/im/im_notify.php',
+						'QUERY_INFORMATION_URL' => 'https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=93&CHAPTER_ID=07693',
 					],
 				],
 				'OUTGOING_NEEDED' => 'D',
@@ -746,7 +746,7 @@ class Element extends Base
 							'DESCRIPTION.MESSAGE_CODE' => 'REST_INTEGRATION_PATTERNS_15_DESCRIPTION_METHOD_DESCRIPTION',
 						],
 						'CODE' => 'params',
-						'METHOD' => 'crm.invoice.add',
+						'METHOD' => 'task.elapseditem.getlist',
 						'METHOD_DOWNLOAD_EXAMPLE_TYPE' => 'query',
 						'QUERY_INFORMATION_URL.MESSAGE_CODE' => 'REST_INTEGRATION_PATTERNS_15_INCOMING_QUERY_INFORMATION_URL',
 						'ITEMS' => [

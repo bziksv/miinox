@@ -1,6 +1,6 @@
 .catalog-document-product-list-payment-side-table {
 	width: 50%;
-	font: 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 14px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #525c69;
 }
 
@@ -31,7 +31,7 @@
 	color: rgba(82,92,105,.5);
 }
 
-.catalog-document-product-list-result-grid-total-big .catalog-document-product-list-result-grid-item-currency-symbol {
+.catalog-document-product-list-result-grid-total-big.catalog-document-product-list-result-grid-total {
 	color: rgba(82,92,105,.5);
 	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
 	font-weight: var(--ui-font-weight-regular, 400);
@@ -57,7 +57,7 @@
 	-ms-flex-align: center;
 	align-items: center;
 	justify-content: flex-end;
-	font: 15px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 15px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #525c69;
 	margin-bottom: 5px;
 }
@@ -82,7 +82,8 @@
 	color: #525c69;
 }
 
-.catalog-document-product-list-result-grid-total-big {
+.catalog-document-product-list-result-grid-total-big,
+.catalog-document-product-list-result-grid-total-big .catalog-document-product-list-result-grid-total-sum {
 	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
 	font-weight: var(--ui-font-weight-semi-bold, 600);
 	font-size: 21px;

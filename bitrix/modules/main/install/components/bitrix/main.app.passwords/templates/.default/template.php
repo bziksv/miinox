@@ -3,9 +3,16 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	die();
 
 use Bitrix\Main\Text\HtmlFilter;
-\Bitrix\Main\UI\Extension::load("ui.common");
-\Bitrix\Main\UI\Extension::load("ui.forms");
-\Bitrix\Main\UI\Extension::load("ui.buttons");
+
+\Bitrix\Main\UI\Extension::load([
+	"ui.design-tokens",
+	"ui.fonts.opensans",
+	"ui.common",
+	"ui.forms",
+	"ui.buttons",
+	"popup",
+	"ajax",
+]);
 
 /**
  * @var array $arParams
@@ -15,9 +22,7 @@ use Bitrix\Main\Text\HtmlFilter;
  * @global CUser $USER
  */
 
-CJSCore::Init(array("popup", "ajax"));
-
-ShowMessage($arResult["MESSAGE"]);
+ShowMessage($arResult["MESSAGE"] ?? '');
 
 if($USER->IsAuthorized()):
 ?>
@@ -64,7 +69,7 @@ var bx_app_pass_mess = {
 					<?endif?>
 					<tbody>
 					<?
-					if(is_array($arResult["ROWS"][$app_id])):
+					if(isset($arResult["ROWS"][$app_id]) && is_array($arResult["ROWS"][$app_id])):
 						foreach($arResult["ROWS"][$app_id] as $pass):
 					?>
 						<tr id="bx_app_pass_row_<?=$pass["ID"]?>">
@@ -96,7 +101,7 @@ var bx_app_pass_mess = {
 									<table style="width: 100%;">
 										<thead>
 											<tr>
-												<td class="tal" style="padding: 0 30px 0 0;"><small class="fwn ttn m0"><?=($app["OPTIONS_CAPTION"] <> ''? HtmlFilter::encode($app["OPTIONS_CAPTION"]) : GetMessage("main_app_pass_link"))?></small></td>
+												<td class="tal" style="padding: 0 30px 0 0;"><small class="fwn ttn m0"><?=(!empty($app["OPTIONS_CAPTION"])? HtmlFilter::encode($app["OPTIONS_CAPTION"]) : GetMessage("main_app_pass_link"))?></small></td>
 												<td class="tal" style="padding: 0;"><small class="fwn ttn m0"><?echo GetMessage("main_app_pass_comment")?></small></td>
 											</tr>
 										</thead>

@@ -72,7 +72,7 @@
 
 .catalog-product-form-text {
 	color: #525c69;
-	font: 13px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 13px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 }
 
 .catalog-product-form-collapse-link-container {
@@ -85,7 +85,7 @@
 	color: #9b9b9b;
 	cursor: pointer;
 	text-decoration: none;
-	font: 13px/20px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 13px/20px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 }
 
 .catalog-product-form-collapse-link-hide,
@@ -93,7 +93,7 @@
 .catalog-product-form-collapse-link-pointer-event {
 	display: inline-block;
 	margin: 8px 0 0 1px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	font-size: 13px;
 	color: #80868e;
 	line-height: 20px;
@@ -178,7 +178,7 @@
 	background-color: #c4f1ff;
 	display: inline-block;
 	color: rgba(82, 92, 105, 0.82);
-	font: bold 7px/10px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 7px/10px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	vertical-align: middle;
 	text-transform: uppercase;
 	display: -webkit-box;
@@ -204,7 +204,7 @@
 	cursor: pointer;
 	position: relative;
 	transition: all .2s linear;
-	font: 15px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 15px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 }
 
 .catalog-product-form-add-item-link:hover {
@@ -248,7 +248,7 @@
 	-ms-flex-align: center;
 	align-items: center;
 	justify-content: flex-end;
-	font: 15px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 15px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #525c69;
 	margin-bottom: 5px;
 }
@@ -370,10 +370,14 @@
 }
 
 .catalog-product-form-container .ui-image-input-img {
+	max-width: 39px;
+	max-height: 39px;
+	object-fit: scale-down;
+}
+
+.catalog-product-form-container .ui-image-input-img-block-multiple .ui-image-input-img {
 	max-width: 37px;
 	max-height: 37px;
-	border: none;
-	border-radius: 0;
 }
 
 .catalog-product-form-container .ui-image-input-img-inner {
@@ -451,7 +455,7 @@
 	white-space: nowrap;
 	overflow: hidden;
 	padding: 0 5px 0 3px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	font-size: 14px;
 	color: rgba(82,92,105,.5);
 	border: 1px solid #c6cdd3;
@@ -581,6 +585,11 @@
 	white-space: nowrap;
 }
 
+.catalog-pf-product-item-section.catalog-product-view.--short-format {
+	margin-top: 4px;
+	overflow: inherit;
+}
+
 .catalog-pf-product-item-section.catalog-product-edit {
 	overflow: initial;
 }
@@ -637,6 +646,7 @@
 	flex: 1;
 	overflow: hidden;
 	height: 39px;
+	min-width: 35px;
 	box-sizing: border-box;
 	margin: 0;
 	padding: 0 0 0 11px;
@@ -647,14 +657,19 @@
 	border-bottom-right-radius: 0;
 	background: #fff;
 	color: #535c69;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	font-size: 14px;
 	line-height: 39px;
 }
 
+.catalog-pf-product-input-wrapper--disabled,
 .catalog-pf-product-input--disabled {
 	cursor: not-allowed;
 	color: rgba(82,92,105,.3);
+}
+.catalog-pf-product-input-wrapper--disabled *
+{
+	cursor: not-allowed !important;
 }
 
 .catalog-pf-product-input--gray {
@@ -685,6 +700,33 @@
 	margin-top: 15px;
 }
 
+.catalog-pf-product-input-brand-wrapper-readonly {
+	margin-left: 115px;
+}
+
+.catalog-product-form-container > div:first-child .catalog-pf-product-item .catalog-pf-product-input-brand-wrapper-readonly-no-sku {
+	position: absolute;
+	top: 10px;
+}
+
+.catalog-pf-product-input-brand-wrapper-readonly-no-sku {
+	position: absolute;
+	top: 28px;
+}
+
+.catalog-pf-product-input-brand-read-only-item {
+	line-height: 24px;
+	border-radius: 2px;
+	display: inline-block;
+	width: 24px;
+	height: 24px;
+	vertical-align: middle;
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .05);
+	-webkit-background-size: cover;
+	background-size: cover;
+	margin-bottom: 1px;
+}
+
 .catalog-pf-product-input--after:after {
 	content: '|';
 	display: inline-block;
@@ -698,6 +740,8 @@
 .catalog-pf-product-input-info {
 	display: flex;
 	align-items: center;
+	max-width: 100%;
+	overflow: hidden;
 	padding: 0 11px 0 5px;
 	background: #fff;
 	border: 1px solid #c6cdd3;
@@ -706,7 +750,7 @@
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
 	color: rgba(82,92,105,.5);
-	font: 400 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 400 14px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 }
 
 .catalog-pf-product-input-info--action {
@@ -716,6 +760,10 @@
 .catalog-pf-product-input-info--action span {
 	display: inline-block;
 	border-bottom: 1px dashed rgba(130,139,140,.4);
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .catalog-pf-product-input-info--action:hover span {
@@ -756,7 +804,7 @@
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
-	font: 400 13px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 400 13px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: rgba(82,92,105,1);
 	line-height: 22px;
 }
@@ -781,7 +829,7 @@
 	display: inline-block;
 	padding: 7px 0;
 	cursor: pointer;
-	font: 400 13px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 400 13px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #80868e;
 	line-height: 25px;
 }
@@ -872,7 +920,7 @@
 
 .catalog-pf-product-qr-popup-text {
 	display: block;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	font-size: 14px;
 	color: #333;
 	text-align: center;
@@ -911,7 +959,7 @@
 .catalog-pf-product-qr-popup-copy {
 	height: 18px;
 	line-height: 18px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	font-size: 14px;
 	color: rgba(82,92,105,1);
 	white-space: nowrap;
@@ -982,7 +1030,7 @@
 .catalog-pf-product-configure-link,
 .catalog-pf-product-add-link {
 	display: inline-block;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	font-size: 14px;
 	color: #2066b0;
 	border-bottom: 1px dashed rgba(39,107,179,.4);
@@ -1035,6 +1083,14 @@
 	background: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2213px%22%20height%3D%2212px%22%20viewBox%3D%220%200%2013%2012%22%20version%3D%221.1%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill%3D%22%23525C69%22%20d%3D%22M0.588236303%2C0.0349400114%20L0.678309137%2C0.0374718197%20C1.72519214%2C0.140143049%203.85614859%2C0.526357104%206.16306576%2C1.96747815%20L6.007%2C1.872%20L6.00830774%2C11.9552122%20C4.59638303%2C10.9804967%202.91938012%2C10.3403208%200.976025543%2C10.0346847%20L0.54675491%2C9.97317417%20C0.23646456%2C9.93327603%202.2470914e-12%2C9.6864395%202.2470914e-12%2C9.38640544%20L2.2470914e-12%2C9.38640544%20L2.2470914e-12%2C0.63062426%20C2.2470914e-12%2C0.278988598%200.313065756%2C0.0018294758%200.678309137%2C0.0374718197%20Z%20M12.2939368%2C0.00448935221%20C12.6675064%2C-0.0386006457%2013%2C0.233770699%2013%2C0.594981916%20L13%2C0.594981916%20L13%2C9.31246087%20C13%2C9.60557925%2012.7801879%2C9.85613961%2012.4776687%2C9.89976158%20C11.3730572%2C10.0604181%208.74807857%2C10.5743062%206.86024765%2C12%20L6.992%2C11.904%20L6.99127836%2C1.87029184%20C8.33457815%2C0.936396734%209.96087268%2C0.332727057%2011.869744%2C0.0592828063%20Z%22%3E%3C/path%3E%3C/svg%3E') center no-repeat;
 }
 
+.catalog-pf-product-add-link--disabled {
+	cursor: not-allowed;
+}
+.catalog-pf-product-add-link--disabled.catalog-pf-product-add-link--gray:before {
+	background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjYiIGhlaWdodD0iMjYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEzLjE0NiAxNi4wMjZ2MS41OTJoLTEuMjYxdi0xLjU5MmExLjAxIDEuMDEgMCAwMS0uMzczLS43ODRjMC0uNTU3LjQ1LTEuMDEgMS4wMDMtMS4wMS41NTQgMCAxLjAwMy40NTMgMS4wMDMgMS4wMSAwIC4zMTctLjE0NS42LS4zNzIuNzg0ek05Ljc3IDkuNTU4YTIuNzU0IDIuNzU0IDAgMDEyLjc0NS0yLjc2MyAyLjc1NCAyLjc1NCAwIDAxMi43NDYgMi43NjN2Mi4zMzVIOS43N1Y5LjU1OHptNi45NDIgMi4zMzVWOS41NThjMC0yLjMzMi0xLjg4LTQuMjIzLTQuMTk3LTQuMjIzUzguMzIgNy4yMjUgOC4zMiA5LjU1OHYyLjMzNUg3LjA0NXY3Ljk5NmgxMC45NHYtNy45OTZoLTEuMjczeiIgZmlsbD0iIzUyNUM2OSIgZmlsbC1ydWxlPSJldmVub2RkIi8+PC9zdmc+') center no-repeat;
+	background-size: 22px;
+}
+
 .catalog-pf-result-line {
 	display: block;
 	height: 1px;
@@ -1051,7 +1107,7 @@
 	overflow: hidden;
 	text-align: right;
 	font-size: 21px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 }
 
 .catalog-pf-result-wrapper {
@@ -1164,7 +1220,7 @@ label.ui-ctl-radio-selector {
 	background-color: #c4f1ff;
 	display: inline-block;
 	color: rgba(82, 92, 105, 0.82);
-	font: bold 7px/10px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 7px/10px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	vertical-align: middle;
 	text-transform: uppercase;
 	display: -webkit-box;
@@ -1206,7 +1262,7 @@ label.ui-ctl-radio-selector {
 
 .catalog-product-form-popup--creating-shop .catalog-product-form-popup--title {
 	order: -1;
-	font: bold 14px/17px 'HelveticaNeue', Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 14px/17px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #535C69;
 	margin-bottom: 25px;
 }
@@ -1261,6 +1317,13 @@ label.ui-ctl-radio-selector {
 	}
 }
 
+.catalog-product-form-popup--creating-shop .catalog-product-form-popup--button-container {
+	margin-top: 15px;
+	padding-top: 15px;
+	border-top: 1px solid rgba(82, 92, 105, .1);
+	text-align: center;
+}
+
 .catalog-product-form-popup--creating-shop .catalog-product-form-popup--text {
 	line-height: 17px;
 	color: #535c69;
@@ -1282,4 +1345,18 @@ label.ui-ctl-radio-selector {
 .catalog-product-form-setting-hint .ui-hint-icon {
 	margin-top: 0;
 	vertical-align: middle;
+}
+
+
+.catalog-pf-product-panel-compilation-checkbox-container {
+	min-height: auto;
+	margin: 0;
+}
+
+.catalog-pf-product-panel-compilation-price-info {
+	display: block;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
+	font-size: 12px;
+	color: rgba(128, 134, 142, .7);
+	line-height: 16px;
 }

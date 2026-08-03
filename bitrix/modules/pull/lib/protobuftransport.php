@@ -167,7 +167,7 @@ class ProtobufTransport
 
 		foreach ($messages as $message)
 		{
-			$event = $message['event'];
+			$event = $message['event'] ?? null;
 			if(!is_array($message['channels']) || count($message['channels']) == 0 || !isset($event['module_id']) || !isset($event['command']))
 			{
 				continue;
@@ -191,12 +191,6 @@ class ProtobufTransport
 
 		$extra = is_array($event['extra']) ? $event['extra'] : [];
 
-		$extra['server_time'] = $extra['server_time'] ?: new DateTime();
-		$extra['server_time_unix'] = $extra['server_time_unix'] ?: microtime(true);
-		$extra['server_name'] = Option::get('main', 'server_name', $_SERVER['SERVER_NAME']);
-		$extra['revision_web'] = PULL_REVISION_WEB;
-		$extra['revision_mobile'] = PULL_REVISION_MOBILE;
-
 		$body = Common::jsonEncode(array(
 			'module_id' => $event['module_id'],
 			'command' => $event['command'],
@@ -207,7 +201,7 @@ class ProtobufTransport
 		// for statistics
 		$messageType = "{$event['module_id']}_{$event['command']}";
 		$messageType = preg_replace("/[^\w]/", "", $messageType);
-		
+
 		$maxChannelsPerRequest = \CPullOptions::GetMaxChannelsPerRequest();
 		$receivers = [];
 		foreach ($channels as $channel)
@@ -236,6 +230,7 @@ class ProtobufTransport
 			$message->setReceiversList(new MessageCollection($receivers));
 			$message->setExpiry($event['expiry']);
 			$message->setBody($body);
+			$message->setType($messageType); // for statistics
 
 			$result[] = $message;
 		}

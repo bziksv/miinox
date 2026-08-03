@@ -135,7 +135,6 @@
 		this.precisionFactor = Math.pow(10, this.precision);
 		this.bigData = false;
 		this.fullDisplayMode = false;
-		this.viewMode = '';
 		this.templateTheme = '';
 
 		this.currentPriceMode = '';
@@ -231,7 +230,6 @@
 			this.useCompare = arParams.DISPLAY_COMPARE;
 			this.fullDisplayMode = arParams.PRODUCT_DISPLAY_MODE === 'Y';
 			this.bigData = arParams.BIG_DATA;
-			this.viewMode = arParams.VIEW_MODE || '';
 			this.templateTheme = arParams.TEMPLATE_THEME || '';
 			this.useEnhancedEcommerce = arParams.USE_ENHANCED_ECOMMERCE === 'Y';
 			this.dataLayerName = arParams.DATA_LAYER_NAME;
@@ -244,6 +242,7 @@
 				case 0: // no catalog
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					if (arParams.PRODUCT && typeof arParams.PRODUCT === 'object')
 					{
 						this.currentPriceMode = arParams.PRODUCT.ITEM_PRICE_MODE;
@@ -686,6 +685,7 @@
 					case 0: // no catalog
 					case 1: // product
 					case 2: // set
+					case 7: // service
 						this.checkQuantityControls();
 
 						break;
@@ -789,6 +789,7 @@
 				case 0: //no catalog
 				case 1: //product
 				case 2: //set
+				case 7: // service
 					item = {
 						'id': this.product.id,
 						'name': this.product.name,
@@ -2599,6 +2600,7 @@
 					case 0: // no catalog
 					case 1: // product
 					case 2: // set
+					case 7: // service
 						compareLink = url.replace('#ID#', this.product.id.toString());
 						break;
 					case 3: // sku
@@ -2750,6 +2752,7 @@
 				case 0: // no catalog
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					if (this.product.id == id)
 					{
 						this.setCompared(false);
@@ -2782,6 +2785,7 @@
 			{
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					this.basketUrl = this.basketUrl.replace('#ID#', this.product.id.toString());
 					break;
 				case 3: // sku
@@ -2941,6 +2945,7 @@
 			{
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					if (this.basketData.useProps && !this.basketData.emptyProps)
 					{
 						this.initPopupWindow();
@@ -3013,6 +3018,7 @@
 					{
 						case 1: // product
 						case 2: // set
+						case 7: // service
 							strPict = this.product.pict.SRC;
 							break;
 						case 3: // sku

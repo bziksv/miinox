@@ -1,6 +1,7 @@
 <?php
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Web\Uri;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
@@ -108,7 +109,7 @@ class MainMailFormComponent extends CBitrixComponent
 		\CJSCore::init($extensionsList);
 
 		$this->arParams['FIELDS'] = $this->arParams['~FIELDS'];
-		$this->arParams['FIELDS_EXT'] = $this->arParams['~FIELDS_EXT'];
+		$this->arParams['FIELDS_EXT'] = $this->arParams['~FIELDS_EXT'] ?? '';
 		$this->arParams['BUTTONS'] = $this->arParams['~BUTTONS'];
 
 		if (empty($this->arParams['FORM_ID']) || !trim($this->arParams['FORM_ID']))
@@ -133,9 +134,10 @@ class MainMailFormComponent extends CBitrixComponent
 
 			foreach ($fields as $k => $item)
 			{
-				if (in_array($item['type'], array('editor', 'files')))
+				$type = $item['type'] ?? null;
+				if (in_array($type, array('editor', 'files')))
 				{
-					$this->arParams[mb_strtoupper($item['type'])] = $item;
+					$this->arParams[mb_strtoupper($type)] = $item;
 					unset($fields[$k]);
 				}
 			}
@@ -298,7 +300,7 @@ class MainMailFormComponent extends CBitrixComponent
 					{
 						if ($item['email'] == $email)
 						{
-							$value = (!empty($field['isFormatted']) && $field['isFormatted'] && $item['formated'])
+							$value = (!empty($field['isFormatted']) && $item['formated'])
 								? $item['formated'] : $field['value'];
 							break;
 						}
@@ -359,10 +361,9 @@ class MainMailFormComponent extends CBitrixComponent
 				{
 					$editor['value'] = preg_replace(
 						sprintf('/bxacid:%u/', $fileId),
-						\CHTTP::urlAddParams(
-							$diskUrlManager->getUrlForShowFile($objects[$fileId]),
-							array('__bxacid' => $fileId)
-						),
+						(new Uri($diskUrlManager->getUrlForShowFile($objects[$fileId])))
+							->addParams(['__bxacid' => $fileId])
+							->getUri(),
 						$editor['value']
 					);
 				}

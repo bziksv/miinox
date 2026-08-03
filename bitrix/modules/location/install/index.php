@@ -84,7 +84,7 @@ Class location extends CModule
 
 		$DB->query(
 			"
-				INSERT INTO b_location_source (
+				INSERT IGNORE INTO b_location_source (
 					CODE,
 					NAME,
 					CONFIG
@@ -157,6 +157,8 @@ Class location extends CModule
 
 	public function installAreas()
 	{
+		\CTimeZone::Disable();
+
 		/**
 		 * @see \Bitrix\Location\Infrastructure\DataInstaller::installAreasAgent()
 		 */
@@ -164,11 +166,33 @@ Class location extends CModule
 			"\\Bitrix\\Location\\Infrastructure\\DataInstaller::installAreasAgent();",
 			"location",
 			"N",
-			120,
+			2,
 			'',
 			'Y',
-			\ConvertTimeStamp(time() + \CTimeZone::GetOffset() + 120, 'FULL')
+			\ConvertTimeStamp(time() + \CTimeZone::GetOffset() + 2, 'FULL')
 		);
+
+		\CTimeZone::Enable();
+	}
+
+	public function installConfigurer()
+	{
+		\CTimeZone::Disable();
+
+		/**
+		 * @see \Bitrix\Location\Source\Osm\Configurer::configure()
+		 */
+		CAgent::AddAgent(
+			"\\Bitrix\\Location\\Source\\Osm\\Configurer::configure();",
+			'location',
+			'N',
+			2,
+			'',
+			'Y',
+			\ConvertTimeStamp(time() + \CTimeZone::GetOffset() + 2, 'FULL')
+		);
+
+		\CTimeZone::Enable();
 	}
 
 	public function DoUninstall()
@@ -183,7 +207,7 @@ Class location extends CModule
 		elseif($step == 2)
 		{
 			$this->UnInstallDB(array(
-				"savedata" => $_REQUEST["savedata"],
+				"savedata" => $_REQUEST["savedata"] ?? null,
 			));
 
 			$this->UnInstallFiles();
@@ -224,6 +248,7 @@ Class location extends CModule
 
 		$this->installSources();
 		$this->installAreas();
+		$this->installConfigurer();
 		$this->setDefaultFormatCode();
 
 		return true;
@@ -234,14 +259,14 @@ Class location extends CModule
 		global $DB, $APPLICATION;
 		$this->errors = false;
 
-		if($DB->Query("SELECT 'x' FROM b_location", true))
+		if (array_key_exists('savedata', $arParams) && $arParams['savedata'] !== 'Y')
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/location/install/db/mysql/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"] . '/bitrix/modules/location/install/db/mysql/uninstall.sql');
 		}
 
-		if($this->errors !== false)
+		if ($this->errors !== false)
 		{
-			$APPLICATION->ThrowException(implode("", $this->errors));
+			$APPLICATION->ThrowException(implode('', $this->errors));
 			return false;
 		}
 
@@ -252,9 +277,9 @@ Class location extends CModule
 
 	public function InstallFiles($arParams = array())
 	{
-		if($_ENV["COMPUTERNAME"] !== 'BX')
+		if (!isset($_ENV['COMPUTERNAME']) || $_ENV['COMPUTERNAME'] !== 'BX')
 		{
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/location/install/js", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js", true, true);
+			CopyDirFiles($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/location/install/js', $_SERVER['DOCUMENT_ROOT'].'/bitrix/js', true, true);
 		}
 
 		return true;
@@ -262,9 +287,9 @@ Class location extends CModule
 
 	public function UnInstallFiles()
 	{
-		if($_ENV["COMPUTERNAME"] !== 'BX')
+		if (!isset($_ENV['COMPUTERNAME']) || $_ENV['COMPUTERNAME'] !== 'BX')
 		{
-			DeleteDirFilesEx("/bitrix/js/location/");
+			DeleteDirFilesEx('/bitrix/js/location/');
 		}
 
 		return true;
@@ -286,4 +311,3 @@ Class location extends CModule
 		return true;
 	}
 }
-?>

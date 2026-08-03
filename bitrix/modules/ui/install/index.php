@@ -20,6 +20,23 @@ class UI extends \CModule
 	public $MODULE_DESCRIPTION;
 	private $errors;
 
+	protected $events = [
+		'main' => [
+			'OnUserDelete' => ['\Bitrix\UI\Integration\Main\User', 'onDelete'],
+			'OnFileDelete' => ['\Bitrix\UI\Avatar\Mask\Item', 'onFileDelete']
+		],
+		'rest' => [
+			'onRestAppDelete' => ['\Bitrix\UI\Integration\Rest\App', 'onRestAppDelete'],
+			'OnRestAppInstall' => ['\Bitrix\UI\Integration\Rest\App', 'OnRestAppInstall'],
+			// import/export
+			'onRestApplicationConfigurationGetManifest' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationGetManifest'],
+			'onRestApplicationConfigurationGetManifestSetting' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationGetManifestSetting'],
+			'onRestApplicationConfigurationExport' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationExport'],
+			'onRestApplicationConfigurationEntity' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationEntity'],
+			'onRestApplicationConfigurationImport' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationImport'],
+		],
+	];
+
 	public function __construct()
 	{
 		$arModuleVersion = array();
@@ -41,6 +58,7 @@ class UI extends \CModule
 		$this->installDB();
 		$this->installFiles();
 		$this->installEvents();
+		$this->installInitialData();
 	}
 
 	function doUninstall()
@@ -70,7 +88,7 @@ class UI extends \CModule
 		if (!$DB->Query("SELECT 'x' FROM b_ui_entity_editor_config", true))
 		{
 			$this->errors = $DB->RunSQLBatch(
-				$_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/ui/install/db/mysql/install.sql'
+				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/ui/install/db/mysql/install.sql'
 			);
 		}
 
@@ -81,12 +99,29 @@ class UI extends \CModule
 
 		ModuleManager::registerModule($this->MODULE_ID);
 
+		\CAgent::addAgent('\Bitrix\UI\FileUploader\TempFileAgent::clearOldRecords();', 'ui', 'N', 1800);
+
+		$eventManager = Bitrix\Main\EventManager::getInstance();
+		foreach ($this->events as $module => $events)
+		{
+			foreach ($events as $eventCode => $callback)
+			{
+				$eventManager->registerEventHandler(
+					$module,
+					$eventCode,
+					$this->MODULE_ID,
+					$callback[0],
+					$callback[1]
+				);
+			}
+		}
+
 		return true;
 	}
 
-	function installEvents()
+	function installInitialData()
 	{
-		return true;
+		include_once __DIR__ . '/initialdata/masks.php';
 	}
 
 	function uninstallDB()
@@ -94,7 +129,7 @@ class UI extends \CModule
 		global $DB;
 
 		$this->errors = $DB->RunSQLBatch(
-			$_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/ui/install/db/mysql/uninstall.sql'
+			$_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/ui/install/db/mysql/uninstall.sql'
 		);
 
 		if (is_array($this->errors))

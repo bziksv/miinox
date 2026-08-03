@@ -26,7 +26,7 @@ class CControllerClient
 		if(
 			($prefix!='' && mb_substr(mb_strtolower($arParams["LOGIN"]), 0, mb_strlen($prefix) + 1) == $prefix.'\\')
 			||
-			($prefix=='' && mb_strpos($arParams["LOGIN"], "\\") === false)
+			($prefix=='' && strpos($arParams["LOGIN"], "\\") === false)
 		)
 		{
 			$site = $prefix;
@@ -782,7 +782,7 @@ class CControllerClient
 				unset($arBackup["security_subord_groups"][$group_code]);
 			}
 
-			if(count($arBackup["security"])<=0)
+			if(empty($arBackup["security"]))
 				unset($arBackup["security"]);
 
 			CControllerClient::SetBackup($arBackup);
@@ -819,9 +819,7 @@ class CControllerClient
 	public static function GetInstalledOptions($module_id)
 	{
 		$arOptions = CControllerClient::GetBackup();
-		$arOptions = $arOptions["options"][$module_id];
-		if(!is_array($arOptions))
-			return Array();
+		$arOptions = $arOptions["options"][$module_id] ?? [];
 		return $arOptions;
 	}
 
@@ -942,7 +940,7 @@ class __CControllerPacket
 			$arParameters = unserialize($parameters, ['allowed_classes' => false]);
 			if ($encoding)
 			{
-				if (array_key_exists("file", $arParameters))
+				if (is_array($arParameters) && array_key_exists("file", $arParameters))
 				{
 					$file = $arParameters["file"];
 					unset($arParameters["file"]);
@@ -1053,7 +1051,7 @@ class __CControllerPacketRequest extends __CControllerPacket
 		if(isset($_REQUEST['parameters']))
 		{
 			$this->strParameters = base64_decode($_REQUEST['parameters']);
-			$arParameters = $this->unpackParameters($this->strParameters, isset($_REQUEST['encoding'])? $_REQUEST['encoding']: '');
+			$arParameters = $this->unpackParameters($this->strParameters, $_REQUEST['encoding'] ?? '');
 			if ($arParameters)
 			{
 				$this->arParameters = $arParameters;
@@ -1090,7 +1088,7 @@ class __CControllerPacketRequest extends __CControllerPacket
 	 **/
 	public function Internal()
 	{
-		return (count($_POST)>0);
+		return !empty($_POST);
 	}
 
 	///////////////////////////////////////
@@ -1389,7 +1387,7 @@ class __CControllerPacketResponse extends __CControllerPacket
 			$this->encoding = urldecode($ar_result['encoding']);
 
 		$this->strParameters = base64_decode(urldecode($ar_result['parameters']));
-		$arParameters = $this->unpackParameters($this->strParameters, isset($_REQUEST['encoding'])? $_REQUEST['encoding']: '');
+		$arParameters = $this->unpackParameters($this->strParameters, $_REQUEST['encoding'] ?? '');
 		if ($arParameters)
 		{
 			$this->arParameters = $arParameters;
@@ -1574,7 +1572,7 @@ class CControllerTools
 {
 	public static function PackFileArchive($path)
 	{
-		include_once(dirname(__FILE__) . '/tar_gz.php');
+		include_once(__DIR__ . '/tar_gz.php');
 
 		if (file_exists($path))
 		{
@@ -1605,7 +1603,7 @@ class CControllerTools
 
 		if(file_put_contents($arcname, $strfile) !== false)
 		{
-			include_once(dirname(__FILE__) . '/tar_gz.php');
+			include_once(__DIR__ . '/tar_gz.php');
 			$ob = new CArchiver($arcname);
 
 			CheckDirPath($_SERVER['DOCUMENT_ROOT'].$path_to);
@@ -1614,7 +1612,7 @@ class CControllerTools
 			if(!$res && is_object($APPLICATION))
 			{
 				$arErrors = $ob->GetErrors();
-				if(count($arErrors))
+				if(!empty($arErrors))
 				{
 					$strError = "";
 					foreach($arErrors as $error)

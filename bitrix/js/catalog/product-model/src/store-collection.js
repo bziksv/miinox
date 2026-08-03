@@ -1,9 +1,11 @@
 import {ajax, Text, Type} from "main.core";
 import {ProductModel} from "catalog.product-model";
+import {RightActionDictionary} from "./right-action-dictionary";
 
 export class StoreCollection
 {
 	#map: Map = new Map();
+	#inited: boolean = false;
 
 	constructor(model: ProductModel = {})
 	{
@@ -12,6 +14,7 @@ export class StoreCollection
 
 	init(map: {})
 	{
+		this.#setInited(true);
 		Object.keys(map).forEach((key) => {
 			const item = map[key];
 			if (item['STORE_ID'] > 0)
@@ -32,7 +35,7 @@ export class StoreCollection
 	refresh(): {}
 	{
 		this.clear();
-		if (this.model.getSkuId() > 0)
+		if (this.model.getSkuId() > 0 && this.model.checkAccess(RightActionDictionary.ACTION_PRODUCT_VIEW))
 		{
 			ajax.runAction(
 				'catalog.storeSelector.getProductStores',
@@ -43,6 +46,7 @@ export class StoreCollection
 				}
 			)
 				.then((response) => {
+					this.#setInited(true);
 					response.data.forEach((item) => {
 						if (!Type.isNil(item['STORE_ID']))
 						{
@@ -97,9 +101,20 @@ export class StoreCollection
 		return result;
 	}
 
+	#setInited(inited: boolean): void
+	{
+		this.#inited = inited;
+	}
+
+	isInited(): boolean
+	{
+		return this.#inited;
+	}
+
 	clear(): StoreCollection
 	{
 		this.#map.clear();
+		this.#setInited(false);
 
 		return this;
 	}

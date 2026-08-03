@@ -42,9 +42,9 @@ use Bitrix\Main\UserTable;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Store_Query query()
- * @method static EO_Store_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Store_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Store_Result getById($id)
- * @method static EO_Store_Result getList(array $parameters = array())
+ * @method static EO_Store_Result getList(array $parameters = [])
  * @method static EO_Store_Entity getEntity()
  * @method static \Bitrix\Catalog\EO_Store createObject($setDefaultValues = true)
  * @method static \Bitrix\Catalog\EO_Store_Collection createCollection()
@@ -399,16 +399,16 @@ class StoreTable extends Main\Entity\DataManager
 
 	public static function getDefaultStoreId(): ?int
 	{
-		$iterator = self::getList([
-			'select' => ['ID'],
+		$row = self::getRow([
+			'select' => [
+				'ID',
+			],
 			'filter' => [
 				'=IS_DEFAULT' => 'Y',
 			],
 			'cache' => ['ttl' => 86400],
 		]);
-		$row = $iterator->fetch();
 		$defaultStoreId = (int)($row['ID'] ?? 0);
-		unset($row, $iterator);
 
 		return ($defaultStoreId > 0 ? $defaultStoreId : null);
 	}

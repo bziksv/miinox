@@ -2,8 +2,16 @@
 
 use Bitrix\Catalog\Component\BaseForm;
 use Bitrix\Catalog\Component\GridVariationForm;
+use Bitrix\Catalog\Component\GridServiceForm;
 use Bitrix\Catalog\Component\ProductForm;
+use Bitrix\Catalog\Component\ServiceForm;
 use Bitrix\Catalog\Component\StoreAmount;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Component\UseStore;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\Model\StoreDocument;
+use Bitrix\Catalog\Config\Feature;
+use Bitrix\Catalog\Config\State;
 use Bitrix\Catalog\ProductTable;
 use Bitrix\Catalog\v2\BaseIblockElementEntity;
 use Bitrix\Catalog\v2\IoC\Dependency;
@@ -11,9 +19,11 @@ use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Catalog\v2\Product\BaseProduct;
 use Bitrix\Catalog\v2\Sku\BaseSku;
 use Bitrix\Currency\Integration\IblockMoneyProperty;
+use Bitrix\Iblock\ElementTable;
 use Bitrix\Iblock\PropertyTable;
 use Bitrix\Iblock\Model\PropertyFeature;
 use Bitrix\Main\Engine\Contract\Controllerable;
+use Bitrix\Main\Engine\Response\AjaxJson;
 use Bitrix\Main\Entity\AddResult;
 use Bitrix\Main\Error;
 use Bitrix\Main\Errorable;
@@ -21,10 +31,15 @@ use Bitrix\Main\ErrorableImplementation;
 use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM;
 use Bitrix\Main\Text\HtmlFilter;
+use Bitrix\Main\UI\Extension;
+use Bitrix\Main\UI\FileInputUtility;
 use Bitrix\UI\Toolbar\Facade\Toolbar;
 use Bitrix\Catalog\v2\Barcode\Barcode;
 use Bitrix\Catalog\StoreDocumentTable;
+use Bitrix\Iblock\Component\Property\ComponentLinksBuilder;
+use Bitrix\Main\Web\Uri;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
@@ -37,15 +52,19 @@ class CatalogProductDetailsComponent
 {
 	use ErrorableImplementation;
 
-	private $iblockId;
-	private $productId;
-	/** @var \Bitrix\Catalog\Component\ProductForm */
+	private int $iblockId = 0;
+	private int $productId = 0;
+	private int $productTypeId = 0;
+	private int $copyProductId = 0;
+	private bool $isCopy = false;
+
+	/** @var ProductForm|ServiceForm */
 	private $form;
-	/** @var \Bitrix\Catalog\Component\StoreAmount */
+	/** @var StoreAmount */
 	private $storeAmount;
-	/** @var \Bitrix\Catalog\v2\Product\BaseProduct */
+	/** @var BaseProduct */
 	private $product;
-	/** @var \Bitrix\Catalog\v2\Product\BaseProduct */
+	/** @var BaseProduct */
 	private $copyProduct;
 
 	public function __construct($component = null)
@@ -56,21 +75,24 @@ class CatalogProductDetailsComponent
 
 	protected function showErrors()
 	{
-		Toolbar::deleteFavoriteStar();
 		foreach ($this->getErrors() as $error)
 		{
-			ShowError($error);
+			$this->includeErrorComponent($error->getMessage());
 		}
 	}
 
-	protected function includeErrorComponent(string $errorMessage): void
+	protected function includeErrorComponent(string $errorMessage, string $description = null): void
 	{
+		Toolbar::deleteFavoriteStar();
+
 		global $APPLICATION;
 		$APPLICATION->IncludeComponent(
-			"bitrix:catalog.notfounderror",
+			"bitrix:ui.info.error",
 			"",
 			[
-				'ERROR_MESSAGE' => $errorMessage,
+				'TITLE' => $errorMessage,
+				'DESCRIPTION' => $description,
+				'IS_HTML' => 'Y',
 			]
 		);
 	}
@@ -85,6 +107,7 @@ class CatalogProductDetailsComponent
 		return [
 			'PRODUCT_ID',
 			'IBLOCK_ID',
+			'PRODUCT_TYPE_ID',
 			'PATH_TO',
 			'COPY_PRODUCT_ID',
 			'BUILDER_CONTEXT',
@@ -94,14 +117,49 @@ class CatalogProductDetailsComponent
 
 	public function onPrepareComponentParams($params)
 	{
-		if (isset($params['PRODUCT_ID']))
+		if (
+			!$this->checkModules()
+		)
 		{
-			$this->setProductId($params['PRODUCT_ID']);
+			$this->showErrors();
+			return null;
 		}
 
 		if (isset($params['IBLOCK_ID']))
 		{
-			$this->setIblockId($params['IBLOCK_ID']);
+			$this->setIblockId((int)$params['IBLOCK_ID']);
+		}
+
+		if (isset($params['PRODUCT_ID']))
+		{
+			$this->setProductId((int)$params['PRODUCT_ID']);
+			if ($this->hasProductId())
+			{
+				unset($params['PRODUCT_TYPE_ID']);
+			}
+		}
+
+		if (isset($params['COPY_PRODUCT_ID']))
+		{
+			$this->setCopyProductId((int)$params['COPY_PRODUCT_ID']);
+			if (!$this->hasCopyProductId())
+			{
+				unset($params['COPY_PRODUCT_ID']);
+			}
+		}
+
+		if (isset($params['PRODUCT_TYPE_ID']))
+		{
+			$this->setProductTypeId((int)$params['PRODUCT_TYPE_ID']);
+			$currentTypeId = $this->getProductTypeId();
+			if ($currentTypeId > 0)
+			{
+				$params['PRODUCT_TYPE_ID'] = $currentTypeId;
+			}
+			else
+			{
+				unset($params['PRODUCT_TYPE_ID']);
+			}
 		}
 
 		$externalFields = $this->request->get('external_fields') ?? [];
@@ -115,15 +173,21 @@ class CatalogProductDetailsComponent
 
 	public function executeComponent()
 	{
+		if (
+			!$this->checkModules()
+		)
+		{
+			$this->showErrors();
+			return;
+		}
+
 		if (!$this->isProductTypeSupported())
 		{
-			$this->showProductTypeNotSupportedError();
 			return;
 		}
 
 		if (
-			$this->checkModules()
-			&& $this->checkPermissions()
+			$this->checkBasePermissions()
 			&& $this->checkRequiredParameters()
 		)
 		{
@@ -131,20 +195,24 @@ class CatalogProductDetailsComponent
 
 			if ($product)
 			{
-				$this->initializeExternalProductFields($product);
+				if (!$product->isNew() || $this->checkAddPermissions())
+				{
+					$this->initializeExternalProductFields($product);
 
-				$this->initializeProductFields($product);
-				$this->placePageTitle($product);
+					$this->initializeProductFields($product);
 
-				$this->errorCollection->clear();
-				$this->includeComponentTemplate();
+					$this->placePageTitle($product);
+
+					$this->errorCollection->clear();
+					$this->includeComponentTemplate();
+				}
 			}
 		}
 
 		$this->showErrors();
 	}
 
-	protected function checkModules()
+	protected function checkModules(): bool
 	{
 		if (!Loader::includeModule('catalog'))
 		{
@@ -156,6 +224,84 @@ class CatalogProductDetailsComponent
 		return true;
 	}
 
+	/**
+	 * Returns a list of product types that the component can display.
+	 *
+	 * @return array
+	 */
+	protected function getAllowedProductTypes(): array
+	{
+		$iblockInfo = ServiceContainer::getIblockInfo($this->getIblockId());
+		if (!$iblockInfo)
+		{
+			return [];
+		}
+
+		if ($iblockInfo->canHaveSku())
+		{
+			return [
+				ProductTable::TYPE_PRODUCT,
+				ProductTable::TYPE_SKU,
+				ProductTable::TYPE_OFFER,
+				ProductTable::TYPE_SERVICE,
+			];
+		}
+
+		return [
+			ProductTable::TYPE_PRODUCT,
+			ProductTable::TYPE_SERVICE,
+			ProductTable::TYPE_EMPTY_SKU,
+		];
+	}
+
+	protected function checkLimitedProductTypes(int $productTypeId): bool
+	{
+		if ($productTypeId !== ProductTable::TYPE_SERVICE)
+		{
+			return true;
+		}
+		if (Feature::isCatalogServicesEnabled())
+		{
+			return true;
+		}
+
+		if (Loader::includeModule('bitrix24'))
+		{
+			Extension::load('ui.info-helper');
+			$this->includeErrorComponent(Loc::getMessage(
+				'CPD_ERROR_CATALOG_SERVICES_LIMIT_TARIFF',
+				['#LINK#' => Feature::getCatalogServicesHelpLink()['LINK']]
+			));
+		}
+		else
+		{
+			$this->includeErrorComponent(Loc::getMessage('CPD_ERROR_CATALOG_SERVICES_LIMIT_EDITION'));
+		}
+
+		return false;
+	}
+
+	protected function checkAllowedProductTypes(int $productTypeId): bool
+	{
+		if (in_array($productTypeId, $this->getAllowedProductTypes(), true))
+		{
+			return true;
+		}
+
+		$row = $this->getElementRow($this->getProductId());
+		if ($row === null)
+		{
+			return true;
+		}
+		$row['ID'] = (int)$row['ID'];
+		$row['TYPE'] = (int)$row['TYPE'];
+		$row['IBLOCK_ID'] = (int)$row['IBLOCK_ID'];
+
+		$this->showProductTypeNotSupportedError($row);
+
+		return false;
+	}
+
 	protected function isProductTypeSupported(): bool
 	{
 		if (!$this->hasProductId())
@@ -163,41 +309,117 @@ class CatalogProductDetailsComponent
 			return true;
 		}
 
-		$dbResult = ProductTable::getRow([
-			'select' => ['TYPE'],
-			'filter' => ['=ID' => $this->getProductId()],
-		]);
-
-		if (!$dbResult)
+		$productTypeId = $this->getProductTypeId();
+		if ($productTypeId === 0)
 		{
 			return true;
 		}
 
-		$type = (int)$dbResult['TYPE'];
-		return $type !== ProductTable::TYPE_SET;
-	}
-
-	protected function showProductTypeNotSupportedError(): void
-	{
-		if (!Loader::includeModule('crm'))
+		if (!$this->checkAllowedProductTypes($productTypeId))
 		{
-			return;
+			return false;
+		}
+		if (!$this->checkLimitedProductTypes($productTypeId))
+		{
+			return false;
 		}
 
-		Toolbar::deleteFavoriteStar();
-		$builder = new \Bitrix\Catalog\Url\ShopBuilder();
-		$builder->setIblockId(\Bitrix\Crm\Product\Catalog::getDefaultId());
-		$url = $builder->getElementListUrl(0);
-		if ($url)
+		return true;
+	}
+
+	protected function showProductTypeNotSupportedError(array $row): void
+	{
+		$productTypes = ProductTable::getProductTypes(true);
+		if (isset($productTypes[$row['TYPE']]))
 		{
-			$link = '<a href="' . $url . '" target="_top" class="ui-link-solid">' . Loc::getMessage('CPD_SETS_NOT_SUPPORTED_LINK') . '</a>';
-			$errorMessage = Loc::getMessage('CPD_SETS_NOT_SUPPORTED_TITLE', ['#LINK#' => $link]);
-			$this->includeErrorComponent($errorMessage);
+			$errorMessage = $this->getFormedErrorMessage($row, $productTypes[$row['TYPE']]);
+			if (!empty($errorMessage))
+			{
+				$this->includeErrorComponent($errorMessage);
+			}
+		}
+		else
+		{
+			$this->includeErrorComponent(Loc::getMessage('CPD_ERROR_UNKNOWN_PRODUCT_TYPE'));
 		}
 	}
 
-	protected function checkPermissions(): bool
+	private function getFormedErrorMessage(array $row, string $productType): string
 	{
+		$title = $this->formatProductTypeName($productType);
+
+		if (
+			Loader::includeModule('crm')
+			&& !Loader::includeModule('bitrix24')
+			&& \Bitrix\Main\Config\Option::get('catalog', 'product_card_slider_enabled') === 'Y'
+		)
+		{
+			$builder = new \Bitrix\Catalog\Url\ShopBuilder();
+			$builder->setIblockId($row['IBLOCK_ID']);
+			$builder->setSliderMode(false);
+			$builder->setUrlParams([
+				\Bitrix\Catalog\Url\ShopBuilder::OPEN_SETTINGS_PARAM => 1,
+			]);
+			$url = $builder->getElementListUrl(0);
+
+			if ($url && $this->checkProductSliderEnablePermissions())
+			{
+				$link = '<a href="'
+					. $url
+					. '" target="_top" class="ui-link-solid">'
+					. Loc::getMessage('CPD_SETS_ENABLE_PRODUCT_SLIDER_LINK')
+					. '</a>'
+				;
+			}
+			else
+			{
+				$link = '';
+			}
+
+			return Loc::getMessage('CPD_ERROR_NOT_SUPPORTED_PRODUCT_TYPE_BUS', ['#TYPE#' => $title, '#LINK#' => $link]);
+		}
+		else
+		{
+			$builder = new \Bitrix\Catalog\Url\ShopBuilder();
+			$builder->setIblockId($row['IBLOCK_ID']);
+			$url = $builder->getElementListUrl(0);
+			if ($url)
+			{
+				$link = '<a href="'
+					. $url
+					. '" target="_top" class="ui-link-solid">'
+					. Loc::getMessage('CPD_SETS_NOT_SUPPORTED_LINK')
+					. '</a>'
+				;
+
+				return Loc::getMessage('CPD_ERROR_NOT_SUPPORTED_PRODUCT_TYPE', ['#TYPE#' => $title, '#LINK#' => $link]);
+			}
+		}
+
+		return '';
+	}
+
+	private function checkProductSliderEnablePermissions(): bool
+	{
+		$accessController = \Bitrix\Catalog\Access\AccessController::getCurrent();
+
+		return
+			(
+				$accessController->check(ActionDictionary::ACTION_CATALOG_READ)
+				&& $accessController->check(ActionDictionary::ACTION_CATALOG_SETTINGS_ACCESS)
+			)
+		;
+	}
+
+	protected function checkBasePermissions(): bool
+	{
+		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ))
+		{
+			$this->errorCollection[] = new \Bitrix\Main\Error(Loc::getMessage('CPD_ACCESS_DENIED_ERROR_TITLE'));
+
+			return false;
+		}
+
 		$form = $this->getForm();
 		if ($form === null)
 		{
@@ -213,7 +435,48 @@ class CatalogProductDetailsComponent
 		return true;
 	}
 
-	protected function checkRequiredParameters()
+	protected function checkEditPermissions(): bool
+	{
+		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_PRODUCT_EDIT))
+		{
+			$this->errorCollection[] = new \Bitrix\Main\Error(Loc::getMessage('CPD_EDIT_PRODUCT_DENIED_ERROR_TITLE'));
+
+			return false;
+		}
+
+		return true;
+	}
+
+	public function checkStoreViewPermissions(): bool
+	{
+		return AccessController::getCurrent()->check(ActionDictionary::ACTION_STORE_VIEW);
+	}
+
+	protected function checkAddPermissions(): bool
+	{
+		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_PRODUCT_ADD))
+		{
+			$this->errorCollection[] = new \Bitrix\Main\Error(Loc::getMessage('CPD_ADD_PRODUCT_DENIED_ERROR_TITLE'));
+
+			return false;
+		}
+
+		return true;
+	}
+
+	protected function checkDeletePermissions(): bool
+	{
+		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_PRODUCT_DELETE))
+		{
+			$this->errorCollection[] = new \Bitrix\Main\Error(Loc::getMessage('CPD_ACCESS_DENIED_ERROR_TITLE'));
+
+			return false;
+		}
+
+		return true;
+	}
+
+	protected function checkRequiredParameters(): bool
 	{
 		if (!$this->hasIblockId())
 		{
@@ -251,7 +514,22 @@ class CatalogProductDetailsComponent
 
 	protected function setProductId(int $productId): self
 	{
+		$productTypeId = 0;
+		if ($productId > 0)
+		{
+			$row = $this->getElementRow($productId);
+			if ($row !== null)
+			{
+				$productTypeId = (int)($row['TYPE'] ?? 0);
+			}
+			else
+			{
+				$productId = 0;
+			}
+		}
+
 		$this->productId = $productId;
+		$this->productTypeId = $productTypeId;
 
 		return $this;
 	}
@@ -266,14 +544,120 @@ class CatalogProductDetailsComponent
 		return $this->getProductId() > 0;
 	}
 
+	protected function getProductTypeId(): int
+	{
+		return $this->productTypeId;
+	}
+
+	protected function setProductTypeId(int $productTypeId): self
+	{
+		if ($this->productTypeId > 0)
+		{
+			return $this;
+		}
+
+		if (!in_array($productTypeId, $this->getAllowedProductTypes(), true))
+		{
+			return $this;
+		}
+
+		$this->productTypeId = $productTypeId;
+
+		return $this;
+	}
+
+	protected function hasProductTypeid(): bool
+	{
+		return $this->getProductTypeId() > 0;
+	}
+
+	protected function isServiceType(): bool
+	{
+		return $this->getProductTypeId() === ProductTable::TYPE_SERVICE;
+	}
+
+	protected function isProductType(): bool
+	{
+		$productTypeId = $this->getProductTypeId();
+
+		return (
+			$productTypeId === ProductTable::TYPE_PRODUCT
+			|| $productTypeId === ProductTable::TYPE_SET
+			|| $productTypeId === ProductTable::TYPE_SKU
+		);
+	}
+
+	protected function isVariationType(): bool
+	{
+		return $this->getProductTypeId() === ProductTable::TYPE_OFFER;
+	}
+
+	protected function setCopyProductId(int $copyProductId): self
+	{
+		if ($this->hasProductId())
+		{
+			$copyProductId = 0;
+		}
+		if ($copyProductId > 0)
+		{
+			$row = $this->getElementRow($copyProductId);
+			if ($row !== null)
+			{
+				$productTypeId = (int)($row['TYPE'] ?? 0);
+				if ($productTypeId > 0)
+				{
+					$this->setProductTypeId($productTypeId);
+				}
+			}
+			else
+			{
+				$copyProductId = 0;
+			}
+		}
+
+		$this->copyProductId = $copyProductId;
+		$this->isCopy = $this->copyProductId > 0;
+
+		return $this;
+	}
+
+	protected function getCopyProductId(): int
+	{
+		return $this->copyProductId;
+	}
+
+	protected function hasCopyProductId(): bool
+	{
+		return $this->getCopyProductId() > 0;
+	}
+
+	protected function isCopy(): bool
+	{
+		return $this->isCopy;
+	}
+
 	protected function placePageTitle(BaseProduct $product): void
 	{
-		$title = $product->isNew() ? Loc::getMessage('CPD_NEW_PRODUCT_TITLE') : HtmlFilter::encode($product->getName());
+		if ($product->isNew())
+		{
+			$title = $this->isServiceType()
+				? Loc::getMessage('CPD_NEW_SERVICE_TITLE')
+				: Loc::getMessage('CPD_NEW_PRODUCT_TITLE')
+			;
+		}
+		else
+		{
+			$title = HtmlFilter::encode($product->getName());
+		}
+
 		$this->getApplication()->setTitle($title);
 	}
 
-	protected function createProduct()
+	protected function createProduct(): ?BaseProduct
 	{
+		$isCopy = $this->isCopy();
+		$existsProductType = !$isCopy && $this->hasProductTypeid();
+
 		$product = null;
 		$productFactory = ServiceContainer::getProductFactory($this->getIblockId());
 
@@ -284,6 +668,10 @@ class CatalogProductDetailsComponent
 				->createEntity()
 				->setActive(true)
 			;
+			if ($existsProductType)
+			{
+				$product->setType($this->getProductTypeId());
+			}
 		}
 
 		if ($product === null)
@@ -293,9 +681,21 @@ class CatalogProductDetailsComponent
 			));
 		}
 
-		$copyProductId = (int)($this->arParams['COPY_PRODUCT_ID'] ?? 0);
-		if ($copyProductId > 0)
+		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_PRODUCT_PUBLIC_VISIBILITY_SET))
 		{
+			$product->setField('UF_PRODUCT_MAPPING', []);
+		}
+
+		if (!$existsProductType)
+		{
+			$skuRepository = ServiceContainer::getSkuRepository($this->getIblockId());
+			$productTypeId = $skuRepository ? ProductTable::TYPE_SKU : ProductTable::TYPE_PRODUCT;
+			$this->setProductTypeId($productTypeId);
+		}
+
+		if ($isCopy)
+		{
+			$copyProductId = $this->getCopyProductId();
 			$this->copyProduct = $this->loadProduct($copyProductId);
 			if ($this->copyProduct)
 			{
@@ -303,11 +703,16 @@ class CatalogProductDetailsComponent
 				unset(
 					$fields['ID'],
 					$fields['IBLOCK_ID'],
+					$fields['XML_ID'],
 					$fields['PREVIEW_PICTURE'],
 					$fields['DETAIL_PICTURE'],
 					$fields['QUANTITY'],
 					$fields['QUANTITY_RESERVED']
 				);
+				if ($fields['TYPE'] === ProductTable::TYPE_EMPTY_SKU)
+				{
+					unset($fields['TYPE']);
+				}
 				$product->setFields($fields);
 				$product->getSectionCollection()->setValues(
 					$this->copyProduct->getSectionCollection()->getValues()
@@ -335,16 +740,19 @@ class CatalogProductDetailsComponent
 
 	protected function loadProduct($productId): ?BaseProduct
 	{
-		$product = null;
-
 		$repositoryFacade = ServiceContainer::getRepositoryFacade();
+
+		$product = $repositoryFacade->loadProduct($productId);
+		if ($product)
+		{
+			return $product;
+		}
+
 		$variation = $repositoryFacade->loadVariation($productId);
 
 		if ($variation === null)
 		{
-			Toolbar::deleteFavoriteStar();
-
-			$this->includeErrorComponent(Loc::getMessage('CPD_NOT_FOUND_ERROR_TITLE'));
+			$this->includeErrorComponent(Loc::getMessage('CPD_NOT_FOUND_ERROR_TITLE'), '');
 
 			return null;
 		}
@@ -407,11 +815,20 @@ class CatalogProductDetailsComponent
 	{
 		$this->arResult['PRODUCT_ENTITY'] = $product;
 		$this->arResult['PRODUCT_FIELDS'] = $product->getFields();
+		$this->arResult['PRODUCT_FIELDS']['ID'] = $this->arResult['PRODUCT_FIELDS']['ID'] ?? null;
 		$this->arResult['SIMPLE_PRODUCT'] = $product->isSimple();
 		$this->arResult['IS_NEW_PRODUCT'] = $product->isNew();
 
+		$this->arResult['UI_GUID'] = $this->isServiceType()
+			? 'CATALOG_SERVICE_CARD'
+			: 'CATALOG_PRODUCT_CARD'
+		;
+
 		$this->arResult['UI_ENTITY_FIELDS'] = $this->getForm()->getDescriptions();
 		$this->arResult['UI_ENTITY_CONFIG'] = $this->getForm()->getConfig();
+		$this->arResult['UI_ENTITY_READ_ONLY'] = $this->getForm()->isReadOnly();
+		$this->arResult['UI_ENTITY_CARD_SETTINGS_EDITABLE'] = $this->getForm()->isCardSettingsEditable();
+		$this->arResult['UI_ENTITY_ENABLE_SETTINGS_FOR_ALL'] = $this->getForm()->isEnabledSetSettingsForAll();
 
 		$this->arResult['UI_ENTITY_DATA'] = $this->getForm()->getValues($product->isNew());
 
@@ -419,53 +836,154 @@ class CatalogProductDetailsComponent
 		$this->arResult['UI_CREATION_PROPERTY_URL'] = $this->getCreationPropertyUrl();
 		$this->arResult['UI_CREATION_SKU_PROPERTY_URL'] = $this->getCreationSkuPropertyLink();
 
+		$this->arResult['TAB_LIST'] = $this->getTabList();
 		$this->arResult['VARIATION_GRID_ID'] = $this->getForm()->getVariationGridId();
+		$this->arResult['VARIATION_GRID_COMPONENT_NAME'] = $this->getForm()->getVariationGridJsComponentName();
 		$this->arResult['STORE_AMOUNT_GRID_ID'] = $this->getStoreAmount()->getStoreAmountGridId();
 		$this->arResult['CARD_SETTINGS'] = $this->getForm()->getCardSettings();
+		$this->arResult['HIDDEN_FIELDS'] = $this->getForm()->getHiddenFields();
+		$this->arResult['IS_WITH_ORDERS_MODE'] = Loader::includeModule('crm') && \CCrmSaleHelper::isWithOrdersMode();
+		$this->arResult['IS_INVENTORY_MANAGEMENT_USED'] = UseStore::isUsed();
 
-		$this->arResult['CREATE_DOCUMENT_BUTTON_PARAMS'] = $this->getCreateDocumentButtonParams();
-		$this->arResult['CREATE_DOCUMENT_BUTTON_POPUP_ITEMS'] = $this->getCreateDocumentButtonPopupItems();
+		$this->arResult['CREATE_DOCUMENT_BUTTON'] = $this->getCreateDocumentButton();
+
+		$this->arResult['PRODUCT_TYPE_NAME'] = $this->getProductTypeName($product);
+		$this->arResult['DROPDOWN_TYPES'] = $this->getDropdownTypes($product);
+		$this->arResult['DISABLED_HTML_CONTROLS'] = $this->getDisabledHtmlControls();
 	}
 
-	protected function getCreateDocumentButtonParams(): array
+	/**
+	 * Returns tab list for entity card
+	 *
+	 * @return array
+	 */
+	protected function getTabList(): array
 	{
 		return [
-			'className' => 'ui-btn-primary',
-			'mainButton' => [
-				'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON'),
-				'link' => '/shop/documents/details/0/?DOCUMENT_TYPE=A&preselectedProductId=' . $this->getProductId() . '&inventoryManagementSource=product',
+			'MAIN' => true,
+			'BALANCE' => !$this->isServiceType(),
+			'SEO' => false,
+		];
+	}
+
+	/**
+	 * The button for creating a document with rights.
+	 *
+	 * @return array|null
+	 */
+	private function getCreateDocumentButton(): ?array
+	{
+		if (
+			!State::isUsedInventoryManagement()
+			|| !AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ)
+			|| !AccessController::getCurrent()->check(ActionDictionary::ACTION_INVENTORY_MANAGEMENT_ACCESS)
+		)
+		{
+			return null;
+		}
+
+		$popupItems = $this->getCreateDocumentButtonPopupItems();
+		if (empty($popupItems))
+		{
+			return null;
+		}
+
+		$row = reset($popupItems);
+
+		return [
+			'PARAMS' => [
+				'className' => 'ui-btn-primary',
+				'mainButton' => [
+					'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON'),
+					'link' => $row['link'],
+				],
 			],
+			'POPUP_ITEMS' => $popupItems,
 		];
 	}
 
 	protected function getCreateDocumentButtonPopupItems(): array
 	{
 		$productId = $this->getProductId();
-		return [
-			[
-				'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_ADJUSTMENT'),
-				'link' => '/shop/documents/details/0/?DOCUMENT_TYPE=' . StoreDocumentTable::TYPE_ARRIVAL
-					. '&preselectedProductId=' . $productId
-					. '&inventoryManagementSource=product',
-			],
-			[
-				'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_SHIPMENT'),
-				'link' => '/shop/documents/details/sales_order/0/?DOCUMENT_TYPE=W&preselectedProductId='. $productId
-					. '&inventoryManagementSource=product',
-			],
-			[
-				'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_MOVING'),
-				'link' => '/shop/documents/details/0/?DOCUMENT_TYPE=' .StoreDocumentTable::TYPE_MOVING
-					. '&preselectedProductId=' . $productId
-					. '&inventoryManagementSource=product',
-			],
-			[
-				'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_DEDUCT'),
-				'link' => '/shop/documents/details/0/?DOCUMENT_TYPE=' . StoreDocumentTable::TYPE_DEDUCT
-					. '&preselectedProductId=' . $productId
-					. '&inventoryManagementSource=product',
-			],
-		];
+		$isService = $this->isServiceType();
+
+		$baseLink = new Uri('/shop/documents/details/0/');
+		$baseLink->addParams([
+			'preselectedProductId' => $productId,
+			'inventoryManagementSource' => 'product',
+			'focusedTab' => 'tab_products',
+		]);
+
+		$result = [];
+
+		if (!$isService)
+		{
+			$documents = [
+				[
+					'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_ADJUSTMENT'),
+					'type' => StoreDocumentTable::TYPE_ARRIVAL,
+				],
+				[
+					'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_SHIPMENT'),
+					'type' => StoreDocumentTable::TYPE_SALES_ORDERS,
+				],
+				[
+					'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_MOVING'),
+					'type' => StoreDocumentTable::TYPE_MOVING,
+				],
+				[
+					'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_DEDUCT'),
+					'type' => StoreDocumentTable::TYPE_DEDUCT,
+				],
+			];
+		}
+		else
+		{
+			$documents = [
+				[
+					'text' => Loc::getMessage('CPD_CREATE_DOCUMENT_BUTTON_POPUP_SHIPMENT'),
+					'type' => StoreDocumentTable::TYPE_SALES_ORDERS,
+				],
+			];
+		}
+
+		foreach ($documents as $item)
+		{
+			$type = $item['type'];
+
+			$can = AccessController::getCurrent()->check(
+				ActionDictionary::ACTION_STORE_DOCUMENT_MODIFY,
+				StoreDocument::createFromArray([
+					'DOC_TYPE' => $type,
+				])
+			);
+			if (!$can)
+			{
+				continue;
+			}
+
+			if ($type === StoreDocumentTable::TYPE_SALES_ORDERS)
+			{
+				$link = new Uri('/shop/documents/details/sales_order/0/?DOCUMENT_TYPE=W&inventoryManagementSource=product');
+				$link->addParams([
+					'preselectedProductId' => $productId,
+					'focusedTab' => 'tab_products',
+				]);
+			}
+			else
+			{
+				$link = (clone $baseLink)->addParams([
+					'DOCUMENT_TYPE' => $type,
+				]);
+			}
+
+			$result[] = [
+				'text' => $item['text'],
+				'link' => (string)$link,
+			];
+		}
+
+		return $result;
 	}
 
 	protected function getProductDetailUrl(): string
@@ -486,7 +1004,12 @@ class CatalogProductDetailsComponent
 
 	protected function getCreationPropertyUrl(): string
 	{
-		return "/shop/settings/iblock_edit_property/?lang=".LANGUAGE_ID."&IBLOCK_ID=".urlencode($this->getIblockId())."&ID=n0&publicSidePanel=Y&newProductCard=Y";
+		if (Loader::includeModule('iblock'))
+		{
+			return (new ComponentLinksBuilder)->getActionCreateUrl($this->getIblockId());
+		}
+
+		return '';
 	}
 
 	protected function getCreationSkuPropertyLink()
@@ -496,6 +1019,25 @@ class CatalogProductDetailsComponent
 			$this->getForm()->getVariationIblockId(),
 			$this->arParams['PATH_TO']['PROPERTY_CREATOR']
 		);
+	}
+
+	private static function isNumericId($id): bool
+	{
+		if (is_int($id))
+		{
+			return true;
+		}
+
+		if (is_string($id))
+		{
+			$typedId = (int)$id;
+			if ((string)$typedId === $id)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private function parseIsSkuProduct(array $fields, BaseProduct $product): bool
@@ -510,12 +1052,13 @@ class CatalogProductDetailsComponent
 
 		foreach ($skuFields as $id => $sku)
 		{
-			if (is_numeric($id) && $this->getProductId() !== $id)
+			$isNumeric = static::isNumericId($id);
+			if ($isNumeric && $this->getProductId() !== $id)
 			{
 				return true;
 			}
 
-			if (!is_numeric($id) && !$product->isNew())
+			if (!$isNumeric && !$product->isNew())
 			{
 				return true;
 			}
@@ -540,22 +1083,15 @@ class CatalogProductDetailsComponent
 		return false;
 	}
 
-	private function parseSkuFields(&$fields)
+	private function parseSkuFields(&$fields): array
 	{
 		$skuGridId = $this->getForm()->getVariationGridId();
 
 		$skuFields = $fields[$skuGridId] ?? [];
 		unset($fields['ID'], $fields[$skuGridId]);
 
-		foreach ($fields as $name => $field)
-		{
-			if (mb_strpos($name, BaseForm::GRID_FIELD_PREFIX) === 0)
-			{
-				unset($fields[$name]);
-			}
-		}
-
 		$prefixLength = mb_strlen(BaseForm::GRID_FIELD_PREFIX);
+		$propertyPrefixLength = mb_strlen(BaseForm::PROPERTY_FIELD_PREFIX);
 
 		$oldProductName = isset($fields['NAME']) ? $this->product->getName() : null;
 		foreach ($skuFields as $id => $sku)
@@ -578,8 +1114,74 @@ class CatalogProductDetailsComponent
 						continue;
 					}
 
+					$propertyId = (int)mb_substr($originalName, $propertyPrefixLength);
+					if ($propertyId > 0)
+					{
+						$propertySettings = CIBlockProperty::GetByID($propertyId)->Fetch();
+
+						if ($propertySettings && $propertySettings['PROPERTY_TYPE'] === 'F')
+						{
+							$gridImages = false;
+							if (isset($sku[$name . '_custom']))
+							{
+								$gridImages = true;
+								$customValue = [];
+								if (isset($sku[$name . '_custom'][$name]))
+								{
+									$customValue = $this->prepareFilePropertyFromGrid($sku[$name . '_custom']);
+								}
+								$sku[$name] = [$customValue[0]['VALUE'] ?? ''];
+								$value = [$customValue[0]['VALUE'] ?? ''];
+								unset($sku[$name . '_custom']);
+							}
+
+							if (!isset($fields[$name]))
+							{
+								$value = '';
+								$skuFields[$id][$originalName] = $value;
+
+								continue;
+							}
+
+							if (static::isNumericId($id) && !$gridImages)
+							{
+								$prefix = BaseForm::GRID_FIELD_PREFIX . BaseForm::PROPERTY_FIELD_PREFIX . $propertyId;
+								$controlId = $prefix . '_uploader_' . $id;
+								if (isset($sku[$name]) && is_array($sku[$name]))
+								{
+									$checkedField = \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+										$controlId,
+										$sku[$name]
+									);
+								}
+								else
+								{
+									$checkedField = \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+										$controlId,
+										[$sku[$name] ?? 0]
+									);
+									$checkedField = reset($checkedField);
+								}
+								$value = $checkedField;
+							}
+						}
+					}
+
+					if (!isset($sku[$name]))
+					{
+						continue;
+					}
+
 					$skuFields[$id][$originalName] = $value;
 				}
+			}
+		}
+
+		foreach ($fields as $name => $field)
+		{
+			if (mb_strpos($name, BaseForm::GRID_FIELD_PREFIX) === 0)
+			{
+				unset($fields[$name]);
 			}
 		}
 
@@ -618,11 +1220,19 @@ class CatalogProductDetailsComponent
 		}
 	}
 
-	private function parsePropertyFields(&$fields)
+	private function parsePropertyFields(&$fields): array
 	{
 		$propertyFields = [];
 		$prefixLength = mb_strlen(BaseForm::PROPERTY_FIELD_PREFIX);
 		$propertyCollection = $this->product->getPropertyCollection();
+		$sku = $this->product->getSkuCollection()->getFirst();
+		$skuPropertyCollection = null;
+		if ($sku)
+		{
+			$skuPropertyCollection = $sku->getPropertyCollection();
+		}
+
+		$this->prepareFieldKeys($fields);
 
 		foreach ($fields as $name => $field)
 		{
@@ -633,10 +1243,17 @@ class CatalogProductDetailsComponent
 			{
 				$index = mb_substr($name, $prefixLength);
 
+				$isSkuProperty = false;
 				$property = $propertyCollection->findById((int)$index);
 				if ($property === null)
 				{
 					$property = $propertyCollection->findByCode($index);
+				}
+
+				if ($property === null && $skuPropertyCollection)
+				{
+					$isSkuProperty = true;
+					$property = $skuPropertyCollection->findById((int)$index);
 				}
 
 				$propertyType = null;
@@ -648,7 +1265,6 @@ class CatalogProductDetailsComponent
 				// grid file properties
 				if (!empty($fields[$name.'_custom']['isFile']))
 				{
-					unset($fields[$name.'_custom']['isFile']);
 					$field = $this->prepareFilePropertyFromGrid($fields[$name.'_custom']);
 					if (empty($field))
 					{
@@ -661,12 +1277,73 @@ class CatalogProductDetailsComponent
 				{
 					$descriptions = $fields[$name.'_descr'] ?? [];
 					$deleted = $fields[$name.'_del'] ?? [];
-					$field = $this->prepareFilePropertyFromEditor($fields[$name], $descriptions, $deleted);
+					if (!$isSkuProperty)
+					{
+						$entityId = $this->product->getId();
+						$controlId = BaseForm::PROPERTY_FIELD_PREFIX . $index . '_uploader_' . $entityId;
+
+						$editorFiles = $this->prepareFilePropertyFromEditor($fields[$name] ?? [], $descriptions, $deleted);
+						if (!$this->product->isNew())
+						{
+							$editorFiles = array_column($editorFiles ?? [], 'VALUE');
+						}
+						$checkedField = [];
+
+						if ($this->form->isImageProperty($property->getSettings()) || $this->product->isNew())
+						{
+							$actualFilesCollection = $this->product->getPropertyCollection()->getValues()[$property->getId()];
+							$actualFiles = [];
+							foreach ($actualFilesCollection as $item)
+							{
+								$actualFiles[] = $item['VALUE']; // already saved images
+							}
+
+							foreach ($editorFiles as $editorFile)
+							{
+								if (is_numeric($editorFile))
+								{
+									if (in_array($editorFile, $actualFiles))
+									{
+										$checkedField[] = $editorFile; // already recorded image
+									}
+								}
+								elseif (is_array($editorFile))
+								{
+									$checkedField[] = $editorFile; // array file ['tmp_name', 'size', ...], no need to check
+								}
+							}
+						}
+						else
+						{
+							$checkedField = \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+								$controlId,
+								$editorFiles
+							);
+						}
+					}
+					else
+					{
+						$checkedField = $fields[$name];
+					}
+					$field = $checkedField;
 					if (empty($field))
 					{
 						$field = '';
 					}
 					unset($fields[$name.'_descr']);
+				}
+				elseif (isset($property) && $property->getListType() === PropertyTable::CHECKBOX)
+				{
+					$variant = \Bitrix\Iblock\PropertyEnumerationTable::getRow([
+						'select' => ['ID', 'PROPERTY_ID', 'VALUE'],
+						'filter' => [
+							'=PROPERTY_ID' => $index,
+						],
+					]);
+					if ($variant && $field === $variant['VALUE'])
+					{
+						$field = $variant['ID'];
+					}
 				}
 				elseif (Loader::includeModule('currency'))
 				{
@@ -708,6 +1385,25 @@ class CatalogProductDetailsComponent
 		return $propertyFields;
 	}
 
+	private function prepareFieldKeys(&$fields)
+	{
+		foreach ($fields as $name => $field)
+		{
+			if (mb_substr($name, -8) === '_deleted')
+			{
+				$explodedName = explode('_', $name);
+				$propertyId = $explodedName[count($explodedName) - 2];
+				$propertyName = BaseForm::PROPERTY_FIELD_PREFIX . $propertyId;
+				$propertyNameDel = BaseForm::PROPERTY_FIELD_PREFIX . $propertyId . '_del';
+				if (!isset($fields[$propertyName]))
+				{
+					$fields[$propertyName] = '';
+				}
+				$fields[$propertyNameDel] = $field;
+			}
+		}
+	}
+
 	private function prepareDescriptionFields(&$fields): void
 	{
 		$descriptionFieldNames = ['DETAIL_TEXT', 'PREVIEW_TEXT'];
@@ -729,7 +1425,9 @@ class CatalogProductDetailsComponent
 		if ($sanitizer === null)
 		{
 			$sanitizer = new \CBXSanitizer;
+
 			$sanitizer->setLevel(\CBXSanitizer::SECURE_LEVEL_LOW);
+			$sanitizer->ApplyDoubleEncode(false);
 		}
 
 		return $sanitizer->sanitizeHtml($html);
@@ -748,6 +1446,31 @@ class CatalogProductDetailsComponent
 				$fields[$name] = \CIBlock::makeFileArray($fields[$name], $delete, $description);
 				unset($fields[$name.'_descr'], $fields[$name.'_del']);
 			}
+		}
+	}
+
+	private function prepareCatalogFields(&$fields): void
+	{
+		if ($this->form->isQuantityTraceSettingDisabled())
+		{
+			unset($fields['QUANTITY_TRACE']);
+		}
+	}
+
+	private function prepareDateFields(&$fields): void
+	{
+		if (isset($fields['ACTIVE_FROM']) && $fields['ACTIVE_FROM'] !== '')
+		{
+			$date = \Bitrix\Main\Type\DateTime::createFromUserTime($fields['ACTIVE_FROM']);
+			$date->disableUserTime();
+			$fields['ACTIVE_FROM'] = $date;
+		}
+
+		if (isset($fields['ACTIVE_TO']) && $fields['ACTIVE_TO'] !== '')
+		{
+			$date = \Bitrix\Main\Type\DateTime::createFromUserTime($fields['ACTIVE_TO']);
+			$date->disableUserTime();
+			$fields['ACTIVE_TO'] = $date;
 		}
 	}
 
@@ -803,14 +1526,43 @@ class CatalogProductDetailsComponent
 		}
 	}
 
+	/**
+	 * Only for new products.
+	 *
+	 * @param $fields
+	 * @return void
+	 */
 	private function prepareProductCode(&$fields): void
 	{
 		$productName = $fields['NAME'] ?? '';
 		$productCode = $fields['CODE'] ?? '';
 
-		if ($productName !== '' && $productCode === '')
+		$config = [
+			'CHECK_UNIQUE' => 'Y',
+			'CHECK_SIMILAR' => 'Y',
+		];
+
+		if ($productCode === '')
 		{
-			$fields['CODE'] = (new CIBlockElement())->generateMnemonicCode($productName, $this->getIblockId());
+			if ($productName !== '')
+			{
+				$fields['CODE'] = (new CIBlockElement())->createMnemonicCode(
+					[
+						'NAME' => $productName,
+						'IBLOCK_ID' => $this->getIblockId()
+					],
+					$config
+				);
+			}
+		}
+		else
+		{
+			$fields['CODE'] = (new CIBlockElement())->getUniqueMnemonicCode(
+				$productCode,
+				null,
+				$this->getIblockId(),
+				$config
+			);
 		}
 	}
 
@@ -836,13 +1588,22 @@ class CatalogProductDetailsComponent
 		return reset($fileProp)['VALUE'] ?? null;
 	}
 
-	private function prepareFilePropertyFromGrid($propertyFields)
+	private function prepareFilePropertyFromGrid($propertyFields): array
 	{
 		$fileProp = [];
 		$counter = 0;
 
 		foreach ($propertyFields as $key => $value)
 		{
+			if (
+				mb_substr($key, -9) === '_deleted['
+				|| mb_substr($key, -4) === '_del'
+				|| isset($propertyFields[$key . '_del'])
+			)
+			{
+				continue;
+			}
+
 			$description = $propertyFields[$key.'_descr'] ?? null;
 
 			if (is_array($value))
@@ -862,11 +1623,11 @@ class CatalogProductDetailsComponent
 					$fileArray['COPY_FILE'] = 'Y';
 					$fileProp['n'.$counter++] = $fileArray;
 				}
-				elseif ($description !== null)
+				else
 				{
 					$fileProp[] = [
 						'VALUE' => $value,
-						'DESCRIPTION' => $description,
+						'DESCRIPTION' => $description ?? '',
 					];
 				}
 			}
@@ -875,7 +1636,7 @@ class CatalogProductDetailsComponent
 		return $fileProp;
 	}
 
-	private function prepareFilePropertyFromEditor($propertyFields, $descriptions, $deleted)
+	private function prepareFilePropertyFromEditor($propertyFields, $descriptions, $deleted): ?array
 	{
 		if ($deleted !== null && !is_array($deleted))
 		{
@@ -933,7 +1694,7 @@ class CatalogProductDetailsComponent
 		return $this->prepareFilePropertyFromGrid($propertyFields);
 	}
 
-	private function parsePriceFields(&$fields)
+	private function parsePriceFields(&$fields): array
 	{
 		$priceFields = [];
 
@@ -975,7 +1736,7 @@ class CatalogProductDetailsComponent
 
 	private function prepareFileFields(&$fields)
 	{
-		$files = $_FILES['data'];
+		$files = $_FILES['data'] ?? [];
 		if (!empty($files))
 		{
 			CFile::ConvertFilesToPost($files, $fields);
@@ -984,7 +1745,7 @@ class CatalogProductDetailsComponent
 				if (is_array($field) && array_key_exists('FILE', $field))
 				{
 					$fields[$key] = [
-						$fields[$key],
+						$field,
 					];
 				}
 			}
@@ -1000,7 +1761,7 @@ class CatalogProductDetailsComponent
 		if (
 			empty($fields)
 			|| !$this->checkModules()
-			|| !$this->checkPermissions()
+			|| !$this->checkBasePermissions()
 			|| !$this->checkRequiredParameters()
 		)
 		{
@@ -1008,17 +1769,24 @@ class CatalogProductDetailsComponent
 		}
 
 		$product = $this->getProduct();
-
 		if ($product === null)
 		{
 			return null;
 		}
 
-		$isSkuProduct = $this->parseIsSkuProduct($fields, $product);
-		if (!$isSkuProduct && $product->isNew())
+		if ($product->isNew())
 		{
-			$product->setType(ProductTable::TYPE_PRODUCT);
+			if (!$this->checkAddPermissions())
+			{
+				return null;
+			}
 		}
+		elseif (!$this->checkEditPermissions())
+		{
+			return null;
+		}
+
+		$isSkuProduct = $this->parseIsSkuProduct($fields, $product);
 
 		$skuFields = $this->parseSkuFields($fields);
 		$propertyFields = $this->parsePropertyFields($fields);
@@ -1026,17 +1794,24 @@ class CatalogProductDetailsComponent
 		$sectionFields = $this->parseSectionFields($fields);
 
 		$convertedSku = null;
-		if ($isSkuProduct && $product->isSimple())
+		if ($isSkuProduct && $product->allowConvertToSku())
 		{
 			$convertedSku = $this->convertSimpleProductToSku($product);
 		}
 
 		$this->prepareDescriptionFields($fields);
 		$this->preparePictureFields($fields);
+		$this->prepareCatalogFields($fields);
+		$this->prepareDateFields($fields);
 
-		if ((!isset($fields['CODE']) || $fields['CODE'] === '') && $product->isNew())
+		if ($product->isNew())
 		{
 			$this->prepareProductCode($fields);
+		}
+
+		if (!$this->getForm()->isVisibilityEditable())
+		{
+			unset($fields['UF_PRODUCT_MAPPING']);
 		}
 
 		$product->setFields($fields);
@@ -1061,7 +1836,7 @@ class CatalogProductDetailsComponent
 			{
 				$sku = null;
 
-				if (is_numeric($skuId))
+				if (static::isNumericId($skuId))
 				{
 					$skuId = (int)$skuId;
 
@@ -1076,16 +1851,20 @@ class CatalogProductDetailsComponent
 						$sku = $product->getSkuCollection()->findById($skuId);
 					}
 				}
-				elseif ($product->isNew() && $product->isSimple())
+				elseif ($product->isNew())
 				{
-					$sku = $product->getSkuCollection()->getIterator()[0] ?? null;
+					$sku =
+						$product->isSimple()
+							? $product->getSkuCollection()->getFirst()
+							: $product->getSkuCollection()->create()
+					;
 				}
 
 				if ($sku === null)
 				{
 					$notifyAboutNewVariation = true;
 
-					$sku = $this->createSkuItem($product, (int)$skuField['COPY_SKU_ID']);
+					$sku = $this->createSkuItem($product, (int)($skuField['COPY_SKU_ID'] ?? 0));
 				}
 
 				$this->fillSku($sku, $skuField);
@@ -1097,7 +1876,6 @@ class CatalogProductDetailsComponent
 
 	private function convertSimpleProductToSku(BaseProduct $product): ?BaseSku
 	{
-		/** @var \Bitrix\Catalog\v2\Converter\ProductConverter $converter */
 		$converter = ServiceContainer::get(Dependency::PRODUCT_CONVERTER);
 		$result = $converter->convert($product, $converter::SKU_PRODUCT);
 		if (!$result->isSuccess())
@@ -1110,12 +1888,18 @@ class CatalogProductDetailsComponent
 
 	private function fillSku(BaseSku $sku, array $fields = []): void
 	{
+		/** @var BaseProduct $product */
 		$product = $sku->getParent();
 		$this->prepareSkuPictureFields($fields);
 		$skuPropertyFields = $this->parsePropertyFields($fields);
 		$this->checkCompatiblePictureFields($sku, $skuPropertyFields);
 		$skuPriceFields = $this->parsePriceFields($fields);
 		$skuMeasureRatioField = $this->parseMeasureRatioFields($fields);
+
+		if (!$this->getForm()->isPurchasingPriceAllowed())
+		{
+			unset($fields['PURCHASING_PRICE']);
+		}
 
 		if (!empty($fields))
 		{
@@ -1189,7 +1973,7 @@ class CatalogProductDetailsComponent
 			$sku->getPropertyCollection()->setValues($skuPropertyFields);
 		}
 
-		if (!empty($skuPriceFields))
+		if (!empty($skuPriceFields) && $this->getForm()->isPricesEditable())
 		{
 			$sku->getPriceCollection()->setValues($skuPriceFields);
 		}
@@ -1210,11 +1994,18 @@ class CatalogProductDetailsComponent
 
 		if ($this->copyProduct && $copySkuId > 0)
 		{
+			/** @var BaseSku $copySku */
 			$copySku = $this->copyProduct->getSkuCollection()->findById($copySkuId);
 			if ($copySku)
 			{
 				$fields = $copySku->getFields();
-				unset($fields['ID'], $fields['IBLOCK_ID'], $fields['PREVIEW_PICTURE'], $fields['DETAIL_PICTURE']);
+				unset(
+					$fields['ID'],
+					$fields['IBLOCK_ID'],
+					$fields['XML_ID'],
+					$fields['PREVIEW_PICTURE'],
+					$fields['DETAIL_PICTURE']
+				);
 				$sku->setFields($fields);
 
 				$propertyValues = [];
@@ -1243,20 +2034,14 @@ class CatalogProductDetailsComponent
 
 	private function saveInternal(BaseProduct $product, bool $notifyAboutNewVariation = false): ?array
 	{
-		global $DB;
-		$DB->StartTransaction();
-
 		$result = $product->save();
 
 		if (!$result->isSuccess())
 		{
-			$DB->Rollback();
 			$this->errorCollection->add($result->getErrors());
 
 			return null;
 		}
-
-		$DB->Commit();
 
 		$redirect = !$this->hasProductId();
 		$this->setProductId($product->getId());
@@ -1276,7 +2061,7 @@ class CatalogProductDetailsComponent
 		return $response;
 	}
 
-	private function getEntityDataForResponse()
+	private function getEntityDataForResponse(): array
 	{
 		$entityData = $this->getForm()->getValues(false);
 
@@ -1293,7 +2078,12 @@ class CatalogProductDetailsComponent
 
 	public function refreshLinkedPropertiesAction(array $sectionIds = []): ?array
 	{
-		if ($this->checkModules() && $this->checkPermissions() && $this->checkRequiredParameters())
+		if (
+			$this->checkModules()
+			&& $this->checkBasePermissions()
+			&& $this->checkEditPermissions()
+			&& $this->checkRequiredParameters()
+		)
 		{
 			$product = $this->getProduct();
 
@@ -1313,7 +2103,12 @@ class CatalogProductDetailsComponent
 
 	public function addPropertyAction(array $fields = []): ?array
 	{
-		if ($this->checkModules() && $this->checkPermissions() && $this->checkRequiredParameters())
+		if (
+			$this->checkModules()
+			&& $this->checkBasePermissions()
+			&& $this->checkEditPermissions()
+			&& $this->checkRequiredParameters()
+		)
 		{
 			$fields['IBLOCK_ID'] = $this->getIblockId();
 			$result = self::addProperty($fields);
@@ -1373,9 +2168,14 @@ class CatalogProductDetailsComponent
 	public function updatePropertyAction(array $fields = []): array
 	{
 		$resultFields = [];
-		if ($this->checkModules() && $this->checkPermissions() && $this->checkRequiredParameters())
+		if (
+			$this->checkModules()
+			&& $this->checkBasePermissions()
+			&& $this->checkEditPermissions()
+			&& $this->checkRequiredParameters()
+		)
 		{
-			$id = str_replace(\Bitrix\Catalog\Component\ProductForm::PROPERTY_FIELD_PREFIX, '', $fields['CODE']);
+			$id = str_replace(BaseForm::PROPERTY_FIELD_PREFIX, '', $fields['CODE']);
 			$result = self::updateProperty($id, $fields);
 			if (!$result->isSuccess())
 			{
@@ -1426,6 +2226,9 @@ class CatalogProductDetailsComponent
 		$updateFields = [
 			'IBLOCK_ID' => $property['IBLOCK_ID'],
 			'NAME' => $fields['NAME'],
+			'USER_TYPE_SETTINGS' => null,
+			'SMART_FILTER' => null,
+			'DEFAULT_VALUE' => null,
 		];
 
 		if (!empty($fields['MULTIPLE']))
@@ -1456,12 +2259,19 @@ class CatalogProductDetailsComponent
 			\Bitrix\Iblock\Model\PropertyFeature::updateFeatures($id, $features);
 		}
 
-		if ($fields['USER_TYPE'] === 'Date' || $fields['USER_TYPE'] === 'DateTime')
+		if (isset($fields['USER_TYPE']))
 		{
-			$updateFields['USER_TYPE'] = $fields['USER_TYPE'];
+			if (
+				$fields['USER_TYPE'] === CIBlockPropertyDate::USER_TYPE
+				|| $fields['USER_TYPE'] === CIBlockPropertyDateTime::USER_TYPE
+				|| $fields['USER_TYPE'] === CIBlockPropertySKU::USER_TYPE
+			)
+			{
+				$updateFields['USER_TYPE'] = $fields['USER_TYPE'];
+			}
 		}
 
-		if ($fields['PROPERTY_TYPE'] === PropertyTable::TYPE_LIST)
+		if (isset($fields['PROPERTY_TYPE']) && $fields['PROPERTY_TYPE'] === PropertyTable::TYPE_LIST)
 		{
 			$updateFields['VALUES'] = is_array($fields['VALUES']) ? $fields['VALUES'] : [];
 			if (empty($updateFields['VALUES']))
@@ -1470,7 +2280,22 @@ class CatalogProductDetailsComponent
 					new \Bitrix\Main\Error(Loc::getMessage('CPD_ERROR_EMPTY_LIST_ITEMS'))
 				);
 			}
-			$updateFields['VALUES'] = array_column($updateFields['VALUES'], null, 'ID');
+
+			if (count($updateFields['VALUES']) === 1 && $updateFields['VALUES'][0]['VALUE'] === 'Y')
+			{
+				$variant = \Bitrix\Iblock\PropertyEnumerationTable::getRow([
+					'select' => ['ID', 'PROPERTY_ID', 'VALUE'],
+					'filter' => [
+						'=PROPERTY_ID' => $id,
+					],
+				]);
+				unset($updateFields['VALUES'][0]);
+				$updateFields['VALUES'][$variant['ID']] = ['VALUE' => 'Y'];
+			}
+			else
+			{
+				$updateFields['VALUES'] = array_column($updateFields['VALUES'], null, 'ID');
+			}
 		}
 
 		$iblockProperty = new \CIBlockProperty();
@@ -1482,7 +2307,7 @@ class CatalogProductDetailsComponent
 			return $result;
 		}
 
-		$tableName = $property['USER_TYPE_SETTINGS']['TABLE_NAME'];
+		$tableName = $property['USER_TYPE_SETTINGS']['TABLE_NAME'] ?? null;
 		if ($property['USER_TYPE'] === 'directory'
 			&& !empty($tableName)
 			&& Loader::includeModule('highloadblock')
@@ -1623,7 +2448,7 @@ class CatalogProductDetailsComponent
 			return $result->addError(new \Bitrix\Main\Error('User has no rights to edit property.'));
 		}
 
-		if ($fields['USER_TYPE'] === 'directory')
+		if (isset($fields['USER_TYPE']) && $fields['USER_TYPE'] === 'directory')
 		{
 			$addDictionaryResult = self::addDictionary($fields);
 			if (!$addDictionaryResult->isSuccess())
@@ -1662,6 +2487,10 @@ class CatalogProductDetailsComponent
 			$fields['CODE'] = mb_strtoupper($fields['CODE']);
 		}
 
+		$listType = (isset($fields['LIST_TYPE']) && $fields['LIST_TYPE'] === PropertyTable::CHECKBOX)
+			? PropertyTable::CHECKBOX
+			: PropertyTable::LISTBOX;
+
 		$propertyFields = [
 			'IBLOCK_ID' => $fields['IBLOCK_ID'],
 			'NAME' => $fields['NAME'],
@@ -1671,7 +2500,10 @@ class CatalogProductDetailsComponent
 			'IS_REQUIRED' => ($fields['IS_REQUIRED'] === 'Y') ? 'Y' : 'N',
 			'PROPERTY_TYPE' => $fields['PROPERTY_TYPE'],
 			'USER_TYPE' => $fields['USER_TYPE'] ?? '',
-			'LIST_TYPE' => ($fields['LIST_TYPE'] === PropertyTable::CHECKBOX) ? PropertyTable::CHECKBOX : PropertyTable::LISTBOX,
+			'LIST_TYPE' => $listType,
+			'SMART_FILTER' => null,
+			'USER_TYPE_SETTINGS' => null,
+			'DEFAULT_VALUE' => null,
 		];
 
 		if ($fields['PROPERTY_TYPE'] === PropertyTable::TYPE_LIST)
@@ -1747,10 +2579,15 @@ class CatalogProductDetailsComponent
 			]
 		);
 		$chunks = array_map(
-			static function ($string) {
-				return mb_strtoupper(mb_substr($string, 0, 1)).mb_substr($string, 1);
+			static function ($string)
+			{
+				return mb_strtoupper(mb_substr($string, 0, 1)) . mb_substr($string, 1);
 			},
-			['Property', $translitName, $tableId]
+			[
+				'Property',
+				$translitName,
+				$tableId,
+			]
 		);
 		$dictionaryName = implode('', $chunks);
 		$tableName = CIBlockPropertyDirectory::createHighloadTableName($tableId);
@@ -1836,7 +2673,7 @@ class CatalogProductDetailsComponent
 					$fieldType = 'string';
 			}
 
-			$arUserField = [
+			$userField = [
 				"ENTITY_ID" => "HLBLOCK_".$highloadBlockID,
 				"FIELD_NAME" => $column,
 				"USER_TYPE_ID" => $fieldType,
@@ -1851,7 +2688,7 @@ class CatalogProductDetailsComponent
 				"SETTINGS" => [],
 			];
 
-			$obUserField->Add($arUserField);
+			$obUserField->Add($userField);
 			$columnSorting += 100;
 		}
 
@@ -1868,11 +2705,15 @@ class CatalogProductDetailsComponent
 		]);
 	}
 
-	public function setCardSettingAction(string $settingId, $selected): Bitrix\Main\Engine\Response\AjaxJson
+	public function setCardSettingAction(string $settingId, $selected): AjaxJson
 	{
-		if (!$this->checkModules() || !$this->checkPermissions() || !$this->checkRequiredParameters())
+		if (
+			!$this->checkModules()
+			|| !$this->checkBasePermissions()
+			|| !$this->checkRequiredParameters()
+		)
 		{
-			return Bitrix\Main\Engine\Response\AjaxJson::createError($this->errorCollection);
+			return AjaxJson::createError($this->errorCollection);
 		}
 
 		$selected = $selected === 'true';
@@ -1888,105 +2729,60 @@ class CatalogProductDetailsComponent
 			}
 		}
 
-		return Bitrix\Main\Engine\Response\AjaxJson::createSuccess();
+		return AjaxJson::createSuccess();
 	}
 
-	public function setGridSettingAction(string $settingId, $selected, array $currentHeaders = []): Bitrix\Main\Engine\Response\AjaxJson
+	public function setGridSettingAction(string $settingId, $selected, array $currentHeaders = []): AjaxJson
 	{
-		if (!$this->checkModules() || !$this->checkPermissions() || !$this->checkRequiredParameters())
+		if (
+			!$this->checkModules()
+			|| !$this->checkBasePermissions()
+			|| !$this->checkRequiredParameters()
+		)
 		{
-			return Bitrix\Main\Engine\Response\AjaxJson::createError($this->errorCollection);
+			return AjaxJson::createError($this->errorCollection);
 		}
 
-		$headers = [];
-
-		if ($settingId === 'MEASUREMENTS')
+		$gridVariationForm = null;
+		$productFactory = ServiceContainer::getProductFactory($this->getIblockId());
+		if ($productFactory)
 		{
-			$headers = ['WEIGHT', 'WIDTH', 'LENGTH', 'HEIGHT'];
-		}
-		elseif ($settingId === 'PURCHASING_PRICE_FIELD')
-		{
-			$headers = ['PURCHASING_PRICE_FIELD'];
-		}
-		elseif ($settingId === 'MEASURE_RATIO')
-		{
-			$headers = ['MEASURE_RATIO'];
-		}
-		elseif ($settingId === 'VAT_INCLUDED')
-		{
-			$headers = ['VAT_INCLUDED', 'VAT_ID'];
-		}
-		elseif ($settingId === 'WAREHOUSE')
-		{
-			\Bitrix\Catalog\Component\UseStore::disable();
+			$newProduct = $productFactory->createEntity();
+			$emptyVariation = $newProduct->getSkuCollection()->create();
+			/** @var GridVariationForm|GridServiceForm $gridVariationClassName */
+			$gridVariationClassName = $this->getForm()->getVariationGridClassName();
+			$gridVariationForm = new $gridVariationClassName($emptyVariation);
 		}
 
-		if (!empty($headers))
+		if (!$gridVariationForm)
 		{
-			$gridVariationForm = null;
-			$productFactory = ServiceContainer::getProductFactory($this->getIblockId());
-			if ($productFactory)
-			{
-				$newProduct = $productFactory->createEntity();
-				$emptyVariation = $newProduct->getSkuCollection()->create();
-				$gridVariationForm = new GridVariationForm($emptyVariation);
-			}
+			$this->errorCollection[] = new Error('Grid variation form not found');
 
-			if (!$gridVariationForm)
-			{
-				return Bitrix\Main\Engine\Response\AjaxJson::createError($this->errorCollection);
-			}
-
-			foreach ($headers as &$header)
-			{
-				$header = $gridVariationForm::formatFieldName($header);
-			}
-
-			unset($header);
-
-			$options = new \Bitrix\Main\Grid\Options($gridVariationForm->getVariationGridId());
-			$allUsedColumns = $options->getUsedColumns();
-
-			if (empty($allUsedColumns))
-			{
-				$allUsedColumns = $currentHeaders;
-			}
-
-			if ($selected === 'true')
-			{
-				// sort new columns by default grid column sort
-				$defaultHeaders = array_column($gridVariationForm->getGridHeaders(), 'id');
-				$currentHeadersInDefaultPosition = array_values(
-					array_intersect($defaultHeaders, array_merge($allUsedColumns, $headers))
-				);
-				$headers = array_values(array_intersect($defaultHeaders, $headers));
-
-				foreach ($headers as $header)
-				{
-					$insertPosition = array_search($header, $currentHeadersInDefaultPosition, true);
-					array_splice($allUsedColumns, $insertPosition, 0, $header);
-				}
-			}
-			else
-			{
-				$allUsedColumns = array_diff($allUsedColumns, $headers);
-			}
-
-			$options->setColumns(implode(',', $allUsedColumns));
-			$options->save();
+			return AjaxJson::createError($this->errorCollection);
 		}
 
-		return Bitrix\Main\Engine\Response\AjaxJson::createSuccess();
+		return $gridVariationForm->setGridSettings($settingId, $selected, $currentHeaders);
 	}
 
-	private function getForm(): ?ProductForm
+	/**
+	 * @return null|ProductForm|ServiceForm
+	 */
+	private function getForm()
 	{
 		if ($this->form === null)
 		{
 			$product = $this->getProduct();
 			if ($product !== null)
 			{
-				$this->form = new ProductForm($product, $this->arParams);
+				switch ($product->getType())
+				{
+					case ProductTable::TYPE_SERVICE:
+						$this->form = new ServiceForm($product, $this->arParams);
+						break;
+					default:
+						$this->form = new ProductForm($product, $this->arParams);
+						break;
+				}
 			}
 		}
 
@@ -1997,8 +2793,90 @@ class CatalogProductDetailsComponent
 	{
 		if ($this->storeAmount === null)
 		{
-			$this->storeAmount = new \Bitrix\Catalog\Component\StoreAmount($this->getProductId());
+			$this->storeAmount = new StoreAmount($this->getProductId());
 		}
 		return $this->storeAmount;
+	}
+
+	private function getElementRow(int $id): ?array
+	{
+		return ElementTable::getRow([
+			'runtime' => [
+				new ORM\Fields\Relations\Reference(
+					'TMP_PRODUCT',
+					'Bitrix\Catalog\ProductTable',
+					['=this.ID' => 'ref.ID']
+				),
+			],
+			'select' => [
+				'ID',
+				'IBLOCK_ID',
+				'TYPE' => 'TMP_PRODUCT.TYPE',
+			],
+			'filter' => [
+				'=ID' => $id,
+			],
+		]);
+	}
+
+	private function getProductTypeName(BaseProduct $product): string
+	{
+		$entityName = ProductTable::getTradingEntityNameByType($product->getType());
+		return ($entityName === null
+			? ''
+			: $this->formatProductTypeName($entityName)
+		);
+	}
+
+	private function getDropdownTypes(BaseProduct $product): array
+	{
+		if (!Feature::isCatalogServicesEnabled())
+		{
+			return [];
+		}
+		$iblockInfo = ServiceContainer::getIblockInfo($this->getIblockId());
+		if (!$iblockInfo)
+		{
+			return [];
+		}
+
+
+		$result = [];
+
+		$dropdownTypes = [
+			$iblockInfo->canHaveSku() ? ProductTable::TYPE_SKU : ProductTable::TYPE_PRODUCT,
+			ProductTable::TYPE_SERVICE,
+		];
+
+		if (
+			$product->isNew()
+			&& !$this->isCopy()
+			&& in_array($product->getType(), $dropdownTypes, true)
+		)
+		{
+			foreach ($dropdownTypes as $dropdownType)
+			{
+				$title = ProductTable::getTradingEntityNameByType($dropdownType);
+				if ($title !== null)
+				{
+					$result[$dropdownType] = $this->formatProductTypeName($title);
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	private function getDisabledHtmlControls(): array
+	{
+		return [
+			'Code',
+			'Quote',
+		];
+	}
+
+	private function formatProductTypeName(string $productTypeName): string
+	{
+		return mb_strtoupper(mb_substr($productTypeName, 0, 1)) . mb_substr($productTypeName, 1);
 	}
 }

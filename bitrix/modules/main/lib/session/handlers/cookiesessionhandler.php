@@ -2,6 +2,8 @@
 
 namespace Bitrix\Main\Session\Handlers;
 
+use Bitrix\Main\ArgumentException;
+use Bitrix\Main\Config\Option;
 use Bitrix\Main\Context;
 use Bitrix\Main\Request;
 use Bitrix\Main\Web\Cookie;
@@ -23,29 +25,50 @@ class CookieSessionHandler implements \SessionHandlerInterface
 		$this->lifetime = $lifetime;
 	}
 
-	public function close()
+	public function close(): bool
 	{
 		return true;
 	}
 
-	public function destroy($sessionId)
+	private function setSecureAttribute(Cookie $cookie): Cookie
+	{
+		$context = Context::getCurrent();
+		if (!$context)
+		{
+			return $cookie;
+		}
+
+		$request = $context->getRequest();
+		$secure = (Option::get('main', 'use_secure_password_cookies', 'N') === 'Y' && $request->isHttps());
+		$cookie
+			->setHttpOnly(true)
+			->setSecure($secure)
+		;
+
+		return $cookie;
+	}
+
+	public function destroy($sessionId): bool
 	{
 		$cookie = new Cookie($sessionId, null, -2628000);
+		$cookie = $this->setSecureAttribute($cookie);
+
 		$this->getResponse()->addCookie($cookie);
 
 		return true;
 	}
 
-	public function gc($maxlifetime)
+	public function gc($maxlifetime): int
+	{
+		return 0;
+	}
+
+	public function open($savePath, $name): bool
 	{
 		return true;
 	}
 
-	public function open($savePath, $name)
-	{
-		return true;
-	}
-
+	#[\ReturnTypeWillChange]
 	public function read($sessionId)
 	{
 		$value = $this->request->getCookie($sessionId) ?: '';
@@ -54,8 +77,16 @@ class CookieSessionHandler implements \SessionHandlerInterface
 			return '';
 		}
 
-		$decoded = Json::decode($value);
-		if ($decoded !== null && is_array($decoded))
+		try
+		{
+			$decoded = Json::decode($value);
+		}
+		catch (ArgumentException $exception)
+		{
+			return '';
+		}
+
+		if (is_array($decoded))
 		{
 			if (!isset($decoded['expires']))
 			{
@@ -70,7 +101,7 @@ class CookieSessionHandler implements \SessionHandlerInterface
 		return '';
 	}
 
-	public function write($sessionId, $sessionData)
+	public function write($sessionId, $sessionData): bool
 	{
 		$expires = $this->lifetime ? (time() + $this->lifetime) : 0;
 
@@ -81,6 +112,8 @@ class CookieSessionHandler implements \SessionHandlerInterface
 		]);
 
 		$cookie = new CryptoCookie($sessionId, $value, $expires);
+		$cookie = $this->setSecureAttribute($cookie);
+
 		$this->getResponse()->addCookie($cookie);
 
 		return true;

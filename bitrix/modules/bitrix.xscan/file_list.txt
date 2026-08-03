@@ -1,0 +1,7 @@
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/bitrix/modules/socialservices/lang/en/classes/general/google.php	[662] function return as a function
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/bitrix/modules/kda.exportexcel/include.php	[661] array member as a function
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/bitrix/modules/kda.exportexcel/install/index.php	[661] array member as a function
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/bitrix/modules/kda.exportexcel/classes/general/export.php	[303] create_function
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/bitrix/modules/kda.exportexcel/lib/PHPExcel/PHPExcel/Shared/PCLZip/pclzip.lib.php	[661] array member as a function
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/bitrix/modules/askaron.pro1c/admin/askaron_pro1c_log_view.php	[889] backticks with var
+/var/www/metplus-msk.ru/data/www/metplus-msk.ru/test/adminer.php	[630] long line <br> [663] binary data

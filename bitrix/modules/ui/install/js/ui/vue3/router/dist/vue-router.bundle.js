@@ -4,11 +4,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
   'use strict';
 
   /*!
-    * vue-router v4.0.12
-    * (c) 2021 Eduardo San Martin Morote
+    * vue-router v4.1.5
+    * (c) 2022 Eduardo San Martin Morote
     * @license MIT
     *
-    * @source: https://unpkg.com/vue-router@4.0.12/dist/vue-router.esm-browser.js
+    * @source: https://unpkg.com/vue-router@4.1.2/dist/vue-router.esm-browser.js
     */
 
   function getDevtoolsGlobalHook() {
@@ -38,57 +38,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
   } // origin-start
 
 
-  const hasSymbol = typeof Symbol === 'function' && typeof Symbol.toStringTag === 'symbol';
-
-  const PolySymbol = name => // vr = vue router
-  hasSymbol ? Symbol('[vue-router]: ' + name) : '[vue-router]: ' + name; // rvlm = Router View Location Matched
-
-  /**
-   * RouteRecord being rendered by the closest ancestor Router View. Used for
-   * `onBeforeRouteUpdate` and `onBeforeRouteLeave`. rvlm stands for Router View
-   * Location Matched
-   *
-   * @internal
-   */
-
-
-  const matchedRouteKey = /*#__PURE__*/PolySymbol('router view location matched');
-  /**
-   * Allows overriding the router view depth to control which component in
-   * `matched` is rendered. rvd stands for Router View Depth
-   *
-   * @internal
-   */
-
-  const viewDepthKey = /*#__PURE__*/PolySymbol('router view depth');
-  /**
-   * Allows overriding the router instance returned by `useRouter` in tests. r
-   * stands for router
-   *
-   * @internal
-   */
-
-  const routerKey = /*#__PURE__*/PolySymbol('router');
-  /**
-   * Allows overriding the current route returned by `useRoute` in tests. rl
-   * stands for route location
-   *
-   * @internal
-   */
-
-  const routeLocationKey = /*#__PURE__*/PolySymbol('route location');
-  /**
-   * Allows overriding the current route used by router-view. Internally this is
-   * used when the `route` prop is passed.
-   *
-   * @internal
-   */
-
-  const routerViewLocationKey = /*#__PURE__*/PolySymbol('router view location');
   const isBrowser = typeof window !== 'undefined';
 
   function isESModule(obj) {
-    return obj.__esModule || hasSymbol && obj[Symbol.toStringTag] === 'Module';
+    return obj.__esModule || obj[Symbol.toStringTag] === 'Module';
   }
 
   const assign = Object.assign;
@@ -98,13 +51,20 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
     for (const key in params) {
       const value = params[key];
-      newParams[key] = Array.isArray(value) ? value.map(fn) : fn(value);
+      newParams[key] = isArray(value) ? value.map(fn) : fn(value);
     }
 
     return newParams;
   }
 
   const noop = () => {};
+  /**
+   * Typesafe alternative to Array.isArray
+   * https://github.com/microsoft/TypeScript/pull/48228
+   */
+
+
+  const isArray = Array.isArray;
 
   function warn(msg) {
     // avoid using ...args as it breaks in older Edge builds
@@ -116,7 +76,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
   const removeTrailingSlash = path => path.replace(TRAILING_SLASH_RE, '');
   /**
-   * Transforms an URI into a normalized history location
+   * Transforms a URI into a normalized history location
    *
    * @param parseQuery
    * @param location - URI to normalize
@@ -131,9 +91,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         query = {},
         searchString = '',
         hash = ''; // Could use URL and URLSearchParams but IE 11 doesn't support it
+    // TODO: move to new URL()
 
-    const searchPos = location.indexOf('?');
-    const hashPos = location.indexOf('#', searchPos > -1 ? searchPos : 0);
+    const hashPos = location.indexOf('#');
+    let searchPos = location.indexOf('?'); // the hash appears before the search, so it's not part of the search string
+
+    if (hashPos < searchPos && hashPos >= 0) {
+      searchPos = -1;
+    }
 
     if (searchPos > -1) {
       path = location.slice(0, searchPos);
@@ -170,8 +135,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     return location.path + (query && '?') + query + (location.hash || '');
   }
   /**
-   * Strips off the base from the beginning of a location.pathname in a non
-   * case-sensitive way.
+   * Strips off the base from the beginning of a location.pathname in a non-case-sensitive way.
    *
    * @param pathname - location.pathname
    * @param base - base to strip off
@@ -225,7 +189,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
   }
 
   function isSameRouteLocationParamsValue(a, b) {
-    return Array.isArray(a) ? isEquivalentArray(a, b) : Array.isArray(b) ? isEquivalentArray(b, a) : a === b;
+    return isArray(a) ? isEquivalentArray(a, b) : isArray(b) ? isEquivalentArray(b, a) : a === b;
   }
   /**
    * Check if two arrays are the same or if an array with one single entry is the
@@ -237,7 +201,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 
   function isEquivalentArray(a, b) {
-    return Array.isArray(b) ? a.length === b.length && a.every((value, i) => value === b[i]) : a.length === 1 && a[0] === b;
+    return isArray(b) ? a.length === b.length && a.every((value, i) => value === b[i]) : a.length === 1 && a[0] === b;
   }
   /**
    * Resolves a relative path that starts with `.`.
@@ -263,14 +227,19 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     let segment;
 
     for (toPosition = 0; toPosition < toSegments.length; toPosition++) {
-      segment = toSegments[toPosition]; // can't go below zero
+      segment = toSegments[toPosition]; // we stay on the same position
 
-      if (position === 1 || segment === '.') continue;
-      if (segment === '..') position--; // found something that is not relative path
+      if (segment === '.') continue; // go up in the from array
+
+      if (segment === '..') {
+        // we can't go below zero, but we still need to increment toPosition
+        if (position > 1) position--; // continue
+      } // we reached a non-relative path, we stop here
       else break;
     }
 
-    return fromSegments.slice(0, position).join('/') + '/' + toSegments.slice(toPosition - (toPosition === toSegments.length ? 1 : 0)).join('/');
+    return fromSegments.slice(0, position).join('/') + '/' + toSegments // ensure we use at least the last element in the toSegments
+    .slice(toPosition - (toPosition === toSegments.length ? 1 : 0)).join('/');
   }
 
   var NavigationType;
@@ -519,7 +488,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     }
 
     function listen(callback) {
-      // setup the listener and prepare teardown callbacks
+      // set up the listener and prepare teardown callbacks
       listeners.push(callback);
 
       const teardown = () => {
@@ -547,7 +516,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       teardowns = [];
       window.removeEventListener('popstate', popStateHandler);
       window.removeEventListener('beforeunload', beforeUnloadListener);
-    } // setup the listeners and prepare teardown callbacks
+    } // set up the listeners and prepare teardown callbacks
 
 
     window.addEventListener('popstate', popStateHandler);
@@ -595,7 +564,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         // the length is off by one, we need to decrease it
         position: history.length - 1,
         replaced: true,
-        // don't add a scroll as the user may have an anchor and we want
+        // don't add a scroll as the user may have an anchor, and we want
         // scrollBehavior to be triggered without a saved position
         scroll: null
       }, true);
@@ -603,10 +572,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
     function changeLocation(to, state, replace) {
       /**
-       * if a base tag is provided and we are on a normal domain, we have to
+       * if a base tag is provided, and we are on a normal domain, we have to
        * respect the provided `base` attribute because pushState() will use it and
        * potentially erase anything before the `#` like at
-       * https://github.com/vuejs/vue-router-next/issues/685 where a base of
+       * https://github.com/vuejs/router/issues/685 where a base of
        * `/folder/#` but a base of `/` would erase the `/folder/` section. If
        * there is no host, the `<base>` tag makes no sense and if there isn't a
        * base tag we can just use everything after the `#`.
@@ -642,7 +611,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       // as well as saving the current position
       const currentState = assign({}, // use current history state to gracefully handle a wrong call to
       // history.replaceState
-      // https://github.com/vuejs/vue-router-next/issues/366
+      // https://github.com/vuejs/router/issues/366
       historyState.value, history.state, {
         forward: to,
         scroll: computeScrollPosition()
@@ -702,7 +671,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     return routerHistory;
   }
   /**
-   * Creates a in-memory based history. The main purpose of this history is to handle SSR. It starts in a special location that is nowhere.
+   * Creates an in-memory based history. The main purpose of this history is to handle SSR. It starts in a special location that is nowhere.
    * It's up to the user to replace that location with the starter location by either calling `router.push` or `router.replace`.
    *
    * @param base - Base applied to all urls, defaults to '/'
@@ -800,15 +769,13 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     return routerHistory;
   }
   /**
-   * Creates a hash history. Useful for web applications with no host (e.g.
-   * `file://`) or when configuring a server to handle any URL is not possible.
+   * Creates a hash history. Useful for web applications with no host (e.g. `file://`) or when configuring a server to
+   * handle any URL is not possible.
    *
-   * @param base - optional base to provide. Defaults to `location.pathname +
-   * location.search` If there is a `<base>` tag in the `head`, its value will be
-   * ignored in favor of this parameter **but note it affects all the
-   * history.pushState() calls**, meaning that if you use a `<base>` tag, it's
-   * `href` value **has to match this parameter** (ignoring anything after the
-   * `#`).
+   * @param base - optional base to provide. Defaults to `location.pathname + location.search` If there is a `<base>` tag
+   * in the `head`, its value will be ignored in favor of this parameter **but note it affects all the history.pushState()
+   * calls**, meaning that if you use a `<base>` tag, it's `href` value **has to match this parameter** (ignoring anything
+   * after the `#`).
    *
    * @example
    * ```js
@@ -877,7 +844,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     meta: {},
     redirectedFrom: undefined
   };
-  const NavigationFailureSymbol = /*#__PURE__*/PolySymbol('navigation failure');
+  const NavigationFailureSymbol = Symbol('navigation failure');
   /**
    * Enumeration with all possible types for navigation failures. Can be passed to
    * {@link isNavigationFailure} to check for specific failures.
@@ -908,7 +875,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
   const ErrorTypeMessages = {
     [1
-    /* MATCHER_NOT_FOUND */
+    /* ErrorTypes.MATCHER_NOT_FOUND */
     ]({
       location,
       currentLocation
@@ -917,7 +884,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     },
 
     [2
-    /* NAVIGATION_GUARD_REDIRECT */
+    /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
     ]({
       from,
       to
@@ -926,7 +893,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     },
 
     [4
-    /* NAVIGATION_ABORTED */
+    /* ErrorTypes.NAVIGATION_ABORTED */
     ]({
       from,
       to
@@ -935,7 +902,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     },
 
     [8
-    /* NAVIGATION_CANCELLED */
+    /* ErrorTypes.NAVIGATION_CANCELLED */
     ]({
       from,
       to
@@ -944,7 +911,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     },
 
     [16
-    /* NAVIGATION_DUPLICATED */
+    /* ErrorTypes.NAVIGATION_DUPLICATED */
     ]({
       from,
       to
@@ -980,7 +947,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     }
 
     return JSON.stringify(location, null, 2);
-  } // default pattern for a param: non greedy everything but /
+  } // default pattern for a param: non-greedy everything but /
 
 
   const BASE_PARAM_PATTERN = '[^/]+?';
@@ -1012,31 +979,31 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     for (const segment of segments) {
       // the root segment needs special treatment
       const segmentScores = segment.length ? [] : [90
-      /* Root */
+      /* PathScore.Root */
       ]; // allow trailing slash
 
       if (options.strict && !segment.length) pattern += '/';
 
       for (let tokenIndex = 0; tokenIndex < segment.length; tokenIndex++) {
-        const token = segment[tokenIndex]; // resets the score if we are inside a sub segment /:a-other-:b
+        const token = segment[tokenIndex]; // resets the score if we are inside a sub-segment /:a-other-:b
 
         let subSegmentScore = 40
-        /* Segment */
+        /* PathScore.Segment */
         + (options.sensitive ? 0.25
-        /* BonusCaseSensitive */
+        /* PathScore.BonusCaseSensitive */
         : 0);
 
         if (token.type === 0
-        /* Static */
+        /* TokenType.Static */
         ) {
           // prepend the slash if we are starting a new segment
           if (!tokenIndex) pattern += '/';
           pattern += token.value.replace(REGEX_CHARS_RE, '\\$&');
           subSegmentScore += 40
-          /* Static */
+          /* PathScore.Static */
           ;
         } else if (token.type === 1
-        /* Param */
+        /* TokenType.Param */
         ) {
           const {
             value,
@@ -1053,7 +1020,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
           if (re !== BASE_PARAM_PATTERN) {
             subSegmentScore += 10
-            /* BonusCustomRegExp */
+            /* PathScore.BonusCustomRegExp */
             ; // make sure the regexp is valid before using it
 
             try {
@@ -1071,16 +1038,16 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           if (optional) subPattern += '?';
           pattern += subPattern;
           subSegmentScore += 20
-          /* Dynamic */
+          /* PathScore.Dynamic */
           ;
           if (optional) subSegmentScore += -8
-          /* BonusOptional */
+          /* PathScore.BonusOptional */
           ;
           if (repeatable) subSegmentScore += -20
-          /* BonusRepeatable */
+          /* PathScore.BonusRepeatable */
           ;
           if (re === '.*') subSegmentScore += -50
-          /* BonusWildcard */
+          /* PathScore.BonusWildcard */
           ;
         }
 
@@ -1096,7 +1063,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     if (options.strict && options.end) {
       const i = score.length - 1;
       score[i][score[i].length - 1] += 0.7000000000000001
-      /* BonusStrict */
+      /* PathScore.BonusStrict */
       ;
     } // TODO: dev only warn double trailing slash
 
@@ -1131,11 +1098,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
         for (const token of segment) {
           if (token.type === 0
-          /* Static */
+          /* TokenType.Static */
           ) {
             path += token.value;
           } else if (token.type === 1
-          /* Param */
+          /* TokenType.Param */
           ) {
             const {
               value,
@@ -1143,13 +1110,16 @@ this.BX.Vue3 = this.BX.Vue3 || {};
               optional
             } = token;
             const param = value in params ? params[value] : '';
-            if (Array.isArray(param) && !repeatable) throw new Error(`Provided param "${value}" is an array but it is not repeatable (* or + modifiers)`);
-            const text = Array.isArray(param) ? param.join('/') : param;
+
+            if (isArray(param) && !repeatable) {
+              throw new Error(`Provided param "${value}" is an array but it is not repeatable (* or + modifiers)`);
+            }
+
+            const text = isArray(param) ? param.join('/') : param;
 
             if (!text) {
               if (optional) {
-                // if we have more than one optional param like /:a?-static we
-                // don't need to care about the optional param
+                // if we have more than one optional param like /:a?-static we don't need to care about the optional param
                 if (segment.length < 2) {
                   // remove the last slash as we could be at the end
                   if (path.endsWith('/')) path = path.slice(0, -1); // do not append a slash on the next iteration
@@ -1161,9 +1131,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
             path += text;
           }
         }
-      }
+      } // avoid empty path when we have multiple optional params
 
-      return path;
+
+      return path || '/';
     }
 
     return {
@@ -1199,15 +1170,15 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
     if (a.length < b.length) {
       return a.length === 1 && a[0] === 40
-      /* Static */
+      /* PathScore.Static */
       + 40
-      /* Segment */
+      /* PathScore.Segment */
       ? -1 : 1;
     } else if (a.length > b.length) {
       return b.length === 1 && b[0] === 40
-      /* Static */
+      /* PathScore.Static */
       + 40
-      /* Segment */
+      /* PathScore.Segment */
       ? 1 : -1;
     }
 
@@ -1232,6 +1203,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
       if (comp) return comp;
       i++;
+    }
+
+    if (Math.abs(bScore.length - aScore.length) === 1) {
+      if (isLastScoreNegative(aScore)) return 1;
+      if (isLastScoreNegative(bScore)) return -1;
     } // if a and b share the same score entries but b has more, sort b first
 
 
@@ -1242,10 +1218,22 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     //   ? -1
     //   : 0
   }
+  /**
+   * This allows detecting splats at the end of a path: /home/:id(.*)*
+   *
+   * @param score - score to check
+   * @returns true if the last entry is negative
+   */
+
+
+  function isLastScoreNegative(score) {
+    const last = score[score.length - 1];
+    return score.length > 0 && last[last.length - 1] < 0;
+  }
 
   const ROOT_TOKEN = {
     type: 0
-    /* Static */
+    /* TokenType.Static */
     ,
     value: ''
   };
@@ -1267,7 +1255,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     }
 
     let state = 0
-    /* Static */
+    /* TokenizerState.Static */
     ;
     let previousState = state;
     const tokens = []; // the segment will always be valid because we get into the initial state
@@ -1293,25 +1281,25 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       if (!buffer) return;
 
       if (state === 0
-      /* Static */
+      /* TokenizerState.Static */
       ) {
         segment.push({
           type: 0
-          /* Static */
+          /* TokenType.Static */
           ,
           value: buffer
         });
       } else if (state === 1
-      /* Param */
+      /* TokenizerState.Param */
       || state === 2
-      /* ParamRegExp */
+      /* TokenizerState.ParamRegExp */
       || state === 3
-      /* ParamRegExpEnd */
+      /* TokenizerState.ParamRegExpEnd */
       ) {
         if (segment.length > 1 && (char === '*' || char === '+')) crash(`A repeatable param (${buffer}) must be alone in its segment. eg: '/:ids+.`);
         segment.push({
           type: 1
-          /* Param */
+          /* TokenType.Param */
           ,
           value: buffer,
           regexp: customRe,
@@ -1333,18 +1321,18 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       char = path[i++];
 
       if (char === '\\' && state !== 2
-      /* ParamRegExp */
+      /* TokenizerState.ParamRegExp */
       ) {
         previousState = state;
         state = 4
-        /* EscapeNext */
+        /* TokenizerState.EscapeNext */
         ;
         continue;
       }
 
       switch (state) {
         case 0
-        /* Static */
+        /* TokenizerState.Static */
         :
           if (char === '/') {
             if (buffer) {
@@ -1355,7 +1343,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           } else if (char === ':') {
             consumeBuffer();
             state = 1
-            /* Param */
+            /* TokenizerState.Param */
             ;
           } else {
             addCharToBuffer();
@@ -1364,25 +1352,25 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           break;
 
         case 4
-        /* EscapeNext */
+        /* TokenizerState.EscapeNext */
         :
           addCharToBuffer();
           state = previousState;
           break;
 
         case 1
-        /* Param */
+        /* TokenizerState.Param */
         :
           if (char === '(') {
             state = 2
-            /* ParamRegExp */
+            /* TokenizerState.ParamRegExp */
             ;
           } else if (VALID_PARAM_RE.test(char)) {
             addCharToBuffer();
           } else {
             consumeBuffer();
             state = 0
-            /* Static */
+            /* TokenizerState.Static */
             ; // go back one character if we were not modifying
 
             if (char !== '*' && char !== '?' && char !== '+') i--;
@@ -1391,7 +1379,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           break;
 
         case 2
-        /* ParamRegExp */
+        /* TokenizerState.ParamRegExp */
         :
           // TODO: is it worth handling nested regexp? like :p(?:prefix_([^/]+)_suffix)
           // it already works by escaping the closing )
@@ -1401,7 +1389,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           if (char === ')') {
             // handle the escaped )
             if (customRe[customRe.length - 1] == '\\') customRe = customRe.slice(0, -1) + char;else state = 3
-            /* ParamRegExpEnd */
+            /* TokenizerState.ParamRegExpEnd */
             ;
           } else {
             customRe += char;
@@ -1410,12 +1398,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           break;
 
         case 3
-        /* ParamRegExpEnd */
+        /* TokenizerState.ParamRegExpEnd */
         :
           // same as finalizing a param
           consumeBuffer();
           state = 0
-          /* Static */
+          /* TokenizerState.Static */
           ; // go back one character if we were not modifying
 
           if (char !== '*' && char !== '?' && char !== '+') i--;
@@ -1429,7 +1417,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     }
 
     if (state === 2
-    /* ParamRegExp */
+    /* TokenizerState.ParamRegExp */
     ) crash(`Unfinished custom RegExp for param "${buffer}"`);
     consumeBuffer();
     finalizeSegment(); // tokenCache.set(path, tokens)
@@ -1491,7 +1479,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     function addRoute(record, parent, originalRecord) {
       // used later on to remove by name
       const isRootAdd = !originalRecord;
-      const mainNormalizedRecord = normalizeRouteRecord(record); // we might be the child of an alias
+      const mainNormalizedRecord = normalizeRouteRecord(record);
+      {
+        checkChildMissingNameWithEmptyPath(mainNormalizedRecord, parent);
+      } // we might be the child of an alias
 
       mainNormalizedRecord.aliasOf = originalRecord && originalRecord.record;
       const options = mergeOptions(globalOptions, record); // generate an array of records to correctly handle aliases
@@ -1533,11 +1524,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
         if (normalizedRecord.path === '*') {
           throw new Error('Catch all routes ("*") must now be defined using a param with a custom regexp.\n' + 'See more at https://next.router.vuejs.org/guide/migration/#removed-star-or-catch-all-routes.');
-        } // create the object before hand so it can be passed to children
+        } // create the object beforehand, so it can be passed to children
 
 
         matcher = createRouteRecordMatcher(normalizedRecord, parent, options);
-        if (parent && path[0] === '/') checkMissingParamsInAbsolutePath(matcher, parent); // if we are an alias we must tell the original record that we exist
+        if (parent && path[0] === '/') checkMissingParamsInAbsolutePath(matcher, parent); // if we are an alias we must tell the original record that we exist,
         // so we can be removed
 
         if (originalRecord) {
@@ -1554,14 +1545,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           if (isRootAdd && record.name && !isAliasRecord(matcher)) removeRoute(record.name);
         }
 
-        if ('children' in mainNormalizedRecord) {
+        if (mainNormalizedRecord.children) {
           const children = mainNormalizedRecord.children;
 
           for (let i = 0; i < children.length; i++) {
             addRoute(children[i], matcher, originalRecord && originalRecord.children[i]);
           }
         } // if there was no original record, then the first one was not an alias and all
-        // other alias (if any) need to reference this record when adding children
+        // other aliases (if any) need to reference this record when adding children
 
 
         originalRecord = originalRecord || matcher; // TODO: add normalized records for more flexibility
@@ -1605,11 +1596,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     }
 
     function insertMatcher(matcher) {
-      let i = 0; // console.log('i is', { i })
+      let i = 0;
 
-      while (i < matchers.length && comparePathParserScore(matcher, matchers[i]) >= 0) i++; // console.log('END i is', { i })
-      // while (i < matchers.length && matcher.score <= matchers[i].score) i++
-
+      while (i < matchers.length && comparePathParserScore(matcher, matchers[i]) >= 0 && ( // Adding children with empty path should still appear before the parent
+      // https://github.com/vuejs/router/issues/1124
+      matcher.record.path !== matchers[i].record.path || !isRecordChildOf(matcher, matchers[i]))) i++;
 
       matchers.splice(i, 0, matcher); // only add the original record to the name map
 
@@ -1625,15 +1616,25 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       if ('name' in location && location.name) {
         matcher = matcherMap.get(location.name);
         if (!matcher) throw createRouterError(1
-        /* MATCHER_NOT_FOUND */
+        /* ErrorTypes.MATCHER_NOT_FOUND */
         , {
           location
-        });
+        }); // warn if the user is passing invalid params so they can debug it better when they get removed
+
+        {
+          const invalidParams = Object.keys(location.params || {}).filter(paramName => !matcher.keys.find(k => k.name === paramName));
+
+          if (invalidParams.length) {
+            warn(`Discarded invalid param(s) "${invalidParams.join('", "')}" when navigating. See https://github.com/vuejs/router/blob/main/packages/router/CHANGELOG.md#414-2022-08-22 for more details.`);
+          }
+        }
         name = matcher.record.name;
         params = assign( // paramsFromLocation is a new object
         paramsFromLocation(currentLocation.params, // only keep params that exist in the resolved location
         // TODO: only keep optional params coming from a parent record
-        matcher.keys.filter(k => !k.optional).map(k => k.name)), location.params); // throws if cannot be stringified
+        matcher.keys.filter(k => !k.optional).map(k => k.name)), // discard any existing params in the current location that do not exist here
+        // #1497 this ensures better active/exact matching
+        location.params && paramsFromLocation(location.params, matcher.keys.map(k => k.name))); // throws if cannot be stringified
 
         path = matcher.stringify(params);
       } else if ('path' in location) {
@@ -1642,13 +1643,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         path = location.path;
 
         if (!path.startsWith('/')) {
-          warn(`The Matcher cannot resolve relative paths but received "${path}". Unless you directly called \`matcher.resolve("${path}")\`, this is probably a bug in vue-router. Please open an issue at https://new-issue.vuejs.org/?repo=vuejs/vue-router-next.`);
+          warn(`The Matcher cannot resolve relative paths but received "${path}". Unless you directly called \`matcher.resolve("${path}")\`, this is probably a bug in vue-router. Please open an issue at https://new-issue.vuejs.org/?repo=vuejs/router.`);
         }
 
         matcher = matchers.find(m => m.re.test(path)); // matcher should have a value after the loop
 
         if (matcher) {
-          // TODO: dev warning of unused params if provided
           // we know the matcher works because we tested the regexp
           params = matcher.parse(path);
           name = matcher.record.name;
@@ -1658,7 +1658,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         // match by name or path of current route
         matcher = currentLocation.name ? matcherMap.get(currentLocation.name) : matchers.find(m => m.re.test(currentLocation.path));
         if (!matcher) throw createRouterError(1
-        /* MATCHER_NOT_FOUND */
+        /* ErrorTypes.MATCHER_NOT_FOUND */
         , {
           location,
           currentLocation
@@ -1730,7 +1730,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       leaveGuards: new Set(),
       updateGuards: new Set(),
       enterCallbacks: {},
-      components: 'components' in record ? record.components || {} : {
+      components: 'components' in record ? record.components || null : record.component && {
         default: record.component
       }
     };
@@ -1743,7 +1743,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 
   function normalizeRecordProps(record) {
-    const propsObject = {}; // props does not exist on redirect records but we can set false directly
+    const propsObject = {}; // props does not exist on redirect records, but we can set false directly
 
     const props = record.props || false;
 
@@ -1805,18 +1805,35 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
   function checkSameParams(a, b) {
     for (const key of a.keys) {
-      if (!key.optional && !b.keys.find(isSameParam.bind(null, key))) return warn(`Alias "${b.record.path}" and the original record: "${a.record.path}" should have the exact same param named "${key.name}"`);
+      if (!key.optional && !b.keys.find(isSameParam.bind(null, key))) return warn(`Alias "${b.record.path}" and the original record: "${a.record.path}" must have the exact same param named "${key.name}"`);
     }
 
     for (const key of b.keys) {
-      if (!key.optional && !a.keys.find(isSameParam.bind(null, key))) return warn(`Alias "${b.record.path}" and the original record: "${a.record.path}" should have the exact same param named "${key.name}"`);
+      if (!key.optional && !a.keys.find(isSameParam.bind(null, key))) return warn(`Alias "${b.record.path}" and the original record: "${a.record.path}" must have the exact same param named "${key.name}"`);
+    }
+  }
+  /**
+   * A route with a name and a child with an empty path without a name should warn when adding the route
+   *
+   * @param mainNormalizedRecord - RouteRecordNormalized
+   * @param parent - RouteRecordMatcher
+   */
+
+
+  function checkChildMissingNameWithEmptyPath(mainNormalizedRecord, parent) {
+    if (parent && parent.record.name && !mainNormalizedRecord.name && !mainNormalizedRecord.path) {
+      warn(`The route named "${String(parent.record.name)}" has a child without a name and an empty path. Using that name won't render the empty path child so you probably want to move the name to the child instead. If this is intentional, add a name to the child route to remove the warning.`);
     }
   }
 
   function checkMissingParamsInAbsolutePath(record, parent) {
     for (const key of parent.keys) {
-      if (!record.keys.find(isSameParam.bind(null, key))) return warn(`Absolute path "${record.record.path}" should have the exact same param named "${key.name}" as its parent "${parent.record.path}".`);
+      if (!record.keys.find(isSameParam.bind(null, key))) return warn(`Absolute path "${record.record.path}" must have the exact same param named "${key.name}" as its parent "${parent.record.path}".`);
     }
+  }
+
+  function isRecordChildOf(record, parent) {
+    return parent.children.some(child => child === record || isRecordChildOf(record, child));
   }
   /**
    * Encoding Rules ? = Space Path: ? " < > # ? { } Query: ? " < > # & = Hash: ? "
@@ -1825,7 +1842,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
    * On top of that, the RFC3986 (https://tools.ietf.org/html/rfc3986#section-2.2)
    * defines some extra characters to be encoded. Most browsers do not encode them
    * in encodeURI https://github.com/whatwg/url/issues/369, so it may be safer to
-   * also encode `!'()*`. Leaving unencoded only ASCII alphanumeric(`a-zA-Z0-9`)
+   * also encode `!'()*`. Leaving un-encoded only ASCII alphanumeric(`a-zA-Z0-9`)
    * plus `-._~`. This extra safety should be applied to query by patching the
    * string returned by encodeURIComponent encodeURI also encodes `[\]^`. `\`
    * should be encoded to avoid ambiguity. Browsers (IE, FF, C) transform a `\`
@@ -1857,7 +1874,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
    * application/x-www-form-urlencoded
    * (https://url.spec.whatwg.org/#urlencoded-parsing) and most browsers seems lo
    * leave the plus character as is in queries. To be more flexible, we allow the
-   * plus character on the query but it can also be manually encoded by the user.
+   * plus character on the query, but it can also be manually encoded by the user.
    *
    * Resources:
    * - https://url.spec.whatwg.org/#urlencoded-parsing
@@ -2000,7 +2017,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         // an extra variable for ts types
         let currentValue = query[key];
 
-        if (!Array.isArray(currentValue)) {
+        if (!isArray(currentValue)) {
           currentValue = query[key] = [currentValue];
         }
 
@@ -2040,7 +2057,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       } // keep null values
 
 
-      const values = Array.isArray(value) ? value.map(v => v && encodeQueryValue(v)) : [value && encodeQueryValue(value)];
+      const values = isArray(value) ? value.map(v => v && encodeQueryValue(v)) : [value && encodeQueryValue(value)];
       values.forEach(value => {
         // skip undefined values in arrays as if they were not present
         // smaller code than using filter
@@ -2071,16 +2088,57 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       const value = query[key];
 
       if (value !== undefined) {
-        normalizedQuery[key] = Array.isArray(value) ? value.map(v => v == null ? null : '' + v) : value == null ? value : '' + value;
+        normalizedQuery[key] = isArray(value) ? value.map(v => v == null ? null : '' + v) : value == null ? value : '' + value;
       }
     }
 
     return normalizedQuery;
   }
   /**
-   * Create a list of callbacks that can be reset. Used to create before and after navigation guards list
+   * RouteRecord being rendered by the closest ancestor Router View. Used for
+   * `onBeforeRouteUpdate` and `onBeforeRouteLeave`. rvlm stands for Router View
+   * Location Matched
+   *
+   * @internal
    */
 
+
+  const matchedRouteKey = Symbol('router view location matched');
+  /**
+   * Allows overriding the router view depth to control which component in
+   * `matched` is rendered. rvd stands for Router View Depth
+   *
+   * @internal
+   */
+
+  const viewDepthKey = Symbol('router view depth');
+  /**
+   * Allows overriding the router instance returned by `useRouter` in tests. r
+   * stands for router
+   *
+   * @internal
+   */
+
+  const routerKey = Symbol('router');
+  /**
+   * Allows overriding the current route returned by `useRoute` in tests. rl
+   * stands for route location
+   *
+   * @internal
+   */
+
+  const routeLocationKey = Symbol('route location');
+  /**
+   * Allows overriding the current route used by router-view. Internally this is
+   * used when the `route` prop is passed.
+   *
+   * @internal
+   */
+
+  const routerViewLocationKey = Symbol('router view location');
+  /**
+   * Create a list of callbacks that can be reset. Used to create before and after navigation guards list
+   */
 
   function useCallbacks() {
     let handlers = [];
@@ -2135,7 +2193,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     {}).value;
 
     if (!activeRecord) {
-      warn('No active route record was found when calling `onBeforeRouteLeave()`. Make sure you call this function inside of a component child of <router-view>. Maybe you called it inside of App.vue?');
+      warn('No active route record was found when calling `onBeforeRouteLeave()`. Make sure you call this function inside a component child of <router-view>. Maybe you called it inside of App.vue?');
       return;
     }
 
@@ -2160,7 +2218,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     {}).value;
 
     if (!activeRecord) {
-      warn('No active route record was found when calling `onBeforeRouteUpdate()`. Make sure you call this function inside of a component child of <router-view>. Maybe you called it inside of App.vue?');
+      warn('No active route record was found when calling `onBeforeRouteUpdate()`. Make sure you call this function inside a component child of <router-view>. Maybe you called it inside of App.vue?');
       return;
     }
 
@@ -2173,23 +2231,28 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     record.enterCallbacks[name] = record.enterCallbacks[name] || []);
     return () => new Promise((resolve, reject) => {
       const next = valid => {
-        if (valid === false) reject(createRouterError(4
-        /* NAVIGATION_ABORTED */
-        , {
-          from,
-          to
-        }));else if (valid instanceof Error) {
+        if (valid === false) {
+          reject(createRouterError(4
+          /* ErrorTypes.NAVIGATION_ABORTED */
+          , {
+            from,
+            to
+          }));
+        } else if (valid instanceof Error) {
           reject(valid);
         } else if (isRouteLocation(valid)) {
           reject(createRouterError(2
-          /* NAVIGATION_GUARD_REDIRECT */
+          /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
           , {
             from: to,
             to: valid
           }));
         } else {
           if (enterCallbackArray && // since enterCallbackArray is truthy, both record and name also are
-          record.enterCallbacks[name] === enterCallbackArray && typeof valid === 'function') enterCallbackArray.push(valid);
+          record.enterCallbacks[name] === enterCallbackArray && typeof valid === 'function') {
+            enterCallbackArray.push(valid);
+          }
+
           resolve();
         }
       }; // wrapping with Promise.resolve allows it to work with both async and sync guards
@@ -2211,7 +2274,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
             }
 
             return resolvedValue;
-          }); // TODO: test me!
+          });
         } else if (guardReturn !== undefined) {
           // @ts-expect-error: _called is added at canOnlyBeCalledOnce
           if (!next._called) {
@@ -2240,6 +2303,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     const guards = [];
 
     for (const record of matched) {
+      if (!record.components && !record.children.length) {
+        warn(`Record with path "${record.path}" is either missing a "component(s)"` + ` or "children" property.`);
+      }
+
       for (const name in record.components) {
         let rawComponent = record.components[name];
         {
@@ -2281,6 +2348,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           guards.push(() => componentPromise.then(resolved => {
             if (!resolved) return Promise.reject(new Error(`Couldn't resolve component "${name}" at "${record.path}"`));
             const resolvedComponent = isESModule(resolved) ? resolved.default : resolved; // replace the function with the resolved component
+            // cannot be null or undefined because we went into the for loop
 
             record.components[name] = resolvedComponent; // __vccOpts is added by vue-class-component and contain the regular options
 
@@ -2296,6 +2364,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
   }
   /**
    * Allows differentiating lazy components from functional components and vue-class-component
+   * @internal
    *
    * @param component
    */
@@ -2303,6 +2372,31 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
   function isRouteComponent(component) {
     return typeof component === 'object' || 'displayName' in component || 'props' in component || '__vccOpts' in component;
+  }
+  /**
+   * Ensures a route is loaded, so it can be passed as o prop to `<RouterView>`.
+   *
+   * @param route - resolved route to load
+   */
+
+
+  function loadRouteLocation(route) {
+    return route.matched.every(record => record.redirect) ? Promise.reject(new Error('Cannot load a route that redirects.')) : Promise.all(route.matched.map(record => record.components && Promise.all(Object.keys(record.components).reduce((promises, name) => {
+      const rawComponent = record.components[name];
+
+      if (typeof rawComponent === 'function' && !('displayName' in rawComponent)) {
+        promises.push(rawComponent().then(resolved => {
+          if (!resolved) return Promise.reject(new Error(`Couldn't resolve component "${name}" at "${record.path}". Ensure you passed a function that returns a promise.`));
+          const resolvedComponent = isESModule(resolved) ? resolved.default : resolved; // replace the function with the resolved component
+          // cannot be null or undefined because we went into the for loop
+
+          record.components[name] = resolvedComponent;
+          return;
+        }));
+      }
+
+      return promises;
+    }, [])))).then(() => route);
   } // TODO: we could allow currentRoute as a prop to expose `isActive` and
   // `isExactActive` behavior should go through an RFC
 
@@ -2381,6 +2475,9 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
   const RouterLinkImpl = /*#__PURE__*/ui_vue3.defineComponent({
     name: 'RouterLink',
+    compatConfig: {
+      MODE: 3
+    },
     props: {
       to: {
         type: [String, Object],
@@ -2420,7 +2517,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           'aria-current': link.isExactActive ? props.ariaCurrentValue : null,
           href: link.href,
           // this would override user added attrs but Vue will still add
-          // the listener so we end up triggering both
+          // the listener, so we end up triggering both
           onClick: link.navigate,
           class: elClass.value
         }, children);
@@ -2464,7 +2561,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       if (typeof innerValue === 'string') {
         if (innerValue !== outerValue) return false;
       } else {
-        if (!Array.isArray(outerValue) || outerValue.length !== innerValue.length || innerValue.some((value, i) => value !== outerValue[i])) return false;
+        if (!isArray(outerValue) || outerValue.length !== innerValue.length || innerValue.some((value, i) => value !== outerValue[i])) return false;
       }
     }
 
@@ -2500,6 +2597,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       },
       route: Object
     },
+    // Better compat for @vue/compat users
+    // https://github.com/vuejs/router/issues/1315
+    compatConfig: {
+      MODE: 3
+    },
 
     setup(props, {
       attrs,
@@ -2508,9 +2610,24 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       warnDeprecatedUsage();
       const injectedRoute = ui_vue3.inject(routerViewLocationKey);
       const routeToDisplay = ui_vue3.computed(() => props.route || injectedRoute.value);
-      const depth = ui_vue3.inject(viewDepthKey, 0);
-      const matchedRouteRef = ui_vue3.computed(() => routeToDisplay.value.matched[depth]);
-      ui_vue3.provide(viewDepthKey, depth + 1);
+      const injectedDepth = ui_vue3.inject(viewDepthKey, 0); // The depth changes based on empty components option, which allows passthrough routes e.g. routes with children
+      // that are used to reuse the `path` property
+
+      const depth = ui_vue3.computed(() => {
+        let initialDepth = ui_vue3.unref(injectedDepth);
+        const {
+          matched
+        } = routeToDisplay.value;
+        let matchedRoute;
+
+        while ((matchedRoute = matched[initialDepth]) && !matchedRoute.components) {
+          initialDepth++;
+        }
+
+        return initialDepth;
+      });
+      const matchedRouteRef = ui_vue3.computed(() => routeToDisplay.value.matched[depth.value]);
+      ui_vue3.provide(viewDepthKey, ui_vue3.computed(() => depth.value + 1));
       ui_vue3.provide(matchedRouteKey, matchedRouteRef);
       ui_vue3.provide(routerViewLocationKey, routeToDisplay);
       const viewRef = ui_vue3.ref(); // watch at the same time the component instance, the route record we are
@@ -2521,7 +2638,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         if (to) {
           // this will update the instance for new instances as well as reused
           // instances when navigating to a new route
-          to.instances[name] = instance; // the component instance is reused for a different route or name so
+          to.instances[name] = instance; // the component instance is reused for a different route or name, so
           // we copy any saved update or leave guards. With async setup, the
           // mounting component will mount before the matchedRoute changes,
           // making instance === oldInstance, so we check if guards have been
@@ -2549,12 +2666,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         flush: 'post'
       });
       return () => {
-        const route = routeToDisplay.value;
-        const matchedRoute = matchedRouteRef.value;
-        const ViewComponent = matchedRoute && matchedRoute.components[props.name]; // we need the value at the time we render because when we unmount, we
+        const route = routeToDisplay.value; // we need the value at the time we render because when we unmount, we
         // navigated to a different location so the value is different
 
         const currentName = props.name;
+        const matchedRoute = matchedRouteRef.value;
+        const ViewComponent = matchedRoute && matchedRoute.components[currentName];
 
         if (!ViewComponent) {
           return normalizeSlot(slots.default, {
@@ -2564,7 +2681,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         } // props from route configuration
 
 
-        const routePropsOption = matchedRoute.props[props.name];
+        const routePropsOption = matchedRoute.props[currentName];
         const routeProps = routePropsOption ? routePropsOption === true ? route.params : typeof routePropsOption === 'function' ? routePropsOption(route) : routePropsOption : null;
 
         const onVnodeUnmounted = vnode => {
@@ -2582,12 +2699,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         if (isBrowser && component.ref) {
           // TODO: can display if it's an alias, its props
           const info = {
-            depth,
+            depth: depth.value,
             name: matchedRoute.name,
             path: matchedRoute.path,
             meta: matchedRoute.meta
           };
-          const internalInstances = Array.isArray(component.ref) ? component.ref.map(r => r.i) : [component.ref.i];
+          const internalInstances = isArray(component.ref) ? component.ref.map(r => r.i) : [component.ref.i];
           internalInstances.forEach(instance => {
             // @ts-expect-error
             instance.__vrv_devtools = info;
@@ -2630,6 +2747,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       warn(`<router-view> can no longer be used directly inside <transition> or <keep-alive>.\n` + `Use slot props instead:\n\n` + `<router-view v-slot="{ Component }">\n` + `  <${comp}>\n` + `  <component :is="Component" />\n` + `  </${comp}>\n` + `</router-view>`);
     }
   }
+  /**
+   * Copies a route location and removes any problematic properties that cannot be shown in devtools (e.g. Vue instances).
+   *
+   * @param routeLocation - routeLocation to format
+   * @param tooltip - optional tooltip
+   * @returns a copy of the routeLocation
+   */
+
 
   function formatRouteLocation(routeLocation, tooltip) {
     const copy = assign({}, routeLocation, {
@@ -2669,12 +2794,16 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       id: 'org.vuejs.router' + (id ? '.' + id : ''),
       label: 'Vue Router',
       packageName: 'vue-router',
-      homepage: 'https://next.router.vuejs.org/',
-      logo: 'https://vuejs.org/images/icons/favicon-96x96.png',
+      homepage: 'https://router.vuejs.org',
+      logo: 'https://router.vuejs.org/logo.png',
       componentStateTypes: ['Routing'],
       app
     }, api => {
-      // display state added by the router
+      if (typeof api.now !== 'function') {
+        console.warn('[Vue Router]: You seem to be using an outdated version of Vue Devtools. Are you still using the Beta release instead of the stable one? You can find the links at https://devtools.vuejs.org/guide/installation.html.');
+      } // display state added by the router
+
+
       api.on.inspectComponent((payload, ctx) => {
         if (payload.instanceData) {
           payload.instanceData.state.push({
@@ -2701,7 +2830,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         } // if multiple useLink are used
 
 
-        if (Array.isArray(componentInstance.__vrl_devtools)) {
+        if (isArray(componentInstance.__vrl_devtools)) {
           componentInstance.__devtoolsApi = api;
 
           componentInstance.__vrl_devtools.forEach(devtoolsData => {
@@ -2751,7 +2880,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
             title: 'Error during Navigation',
             subtitle: to.fullPath,
             logType: 'error',
-            time: Date.now(),
+            time: api.now(),
             data: {
               error
             },
@@ -2774,7 +2903,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         api.addTimelineEvent({
           layerId: navigationsLayerId,
           event: {
-            time: Date.now(),
+            time: api.now(),
             title: 'Start of navigation',
             subtitle: to.fullPath,
             data,
@@ -2810,7 +2939,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           event: {
             title: 'End of navigation',
             subtitle: to.fullPath,
-            time: Date.now(),
+            time: api.now(),
             data,
             logType: failure ? 'warning' : 'default',
             groupId: to.meta.__navigationId
@@ -2941,6 +3070,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       });
     }
 
+    if (Object.keys(route.record.meta).length) {
+      fields.push({
+        editable: false,
+        key: 'meta',
+        value: route.record.meta
+      });
+    }
+
     fields.push({
       key: 'score',
       editable: false,
@@ -3017,7 +3154,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
     if (record.redirect) {
       tags.push({
-        label: 'redirect: ' + (typeof record.redirect === 'string' ? record.redirect : 'Object'),
+        label: typeof record.redirect === 'string' ? `redirect: ${record.redirect}` : 'redirects',
         textColor: 0xffffff,
         backgroundColor: DARK
       });
@@ -3212,7 +3349,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           if (targetParams[key] == null) {
             delete targetParams[key];
           }
-        } // pass encoded values to the matcher so it can produce encoded path and fullPath
+        } // pass encoded values to the matcher, so it can produce encoded path and fullPath
 
 
         matcherLocation = assign({}, rawLocation, {
@@ -3228,7 +3365,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
       if (hash && !hash.startsWith('#')) {
         warn(`A \`hash\` should always start with the character "#". Replace "${hash}" with "#${hash}".`);
-      } // decoding them) the matcher might have merged current location params so
+      } // the matcher might have merged current location params, so
       // we need to run the decoding again
 
 
@@ -3254,7 +3391,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         // nested objects, so we keep the query as is, meaning it can contain
         // numbers at `$route.query`, but at the point, the user will have to
         // use their own type anyway.
-        // https://github.com/vuejs/vue-router-next/issues/328#issuecomment-649481567
+        // https://github.com/vuejs/router/issues/328#issuecomment-649481567
         stringifyQuery$1 === stringifyQuery ? normalizeQuery(rawLocation.query) : rawLocation.query || {}
       }, matchedRoute, {
         redirectedFrom: undefined,
@@ -3269,7 +3406,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     function checkCanceledNavigation(to, from) {
       if (pendingLocation !== to) {
         return createRouterError(8
-        /* NAVIGATION_CANCELLED */
+        /* ErrorTypes.NAVIGATION_CANCELLED */
         , {
           from,
           to
@@ -3314,7 +3451,8 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         return assign({
           query: to.query,
           hash: to.hash,
-          params: to.params
+          // avoid transferring params if the redirect has a path
+          params: 'path' in newTargetLocation ? {} : to.params
         }, newTargetLocation);
       }
     }
@@ -3328,7 +3466,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
       const replace = to.replace === true;
       const shouldRedirect = handleRedirectRecord(targetLocation);
       if (shouldRedirect) return pushWithRedirect(assign(locationAsObject(shouldRedirect), {
-        state: data,
+        state: typeof shouldRedirect === 'object' ? assign({}, data, shouldRedirect.state) : data,
         force,
         replace
       }), // keep original redirectedFrom if it exists
@@ -3340,7 +3478,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
       if (!force && isSameRouteLocation(stringifyQuery$1, from, targetLocation)) {
         failure = createRouterError(16
-        /* NAVIGATION_DUPLICATED */
+        /* ErrorTypes.NAVIGATION_DUPLICATED */
         , {
           to: toLocation,
           from
@@ -3353,11 +3491,15 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         false);
       }
 
-      return (failure ? Promise.resolve(failure) : navigate(toLocation, from)).catch(error => isNavigationFailure(error) ? error : // reject any unknown error
+      return (failure ? Promise.resolve(failure) : navigate(toLocation, from)).catch(error => isNavigationFailure(error) ? // navigation redirects still mark the router as ready
+      isNavigationFailure(error, 2
+      /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
+      ) ? error : markAsReady(error) // also returns the error
+      : // reject any unknown error
       triggerError(error, toLocation, from)).then(failure => {
         if (failure) {
           if (isNavigationFailure(failure, 2
-          /* NAVIGATION_GUARD_REDIRECT */
+          /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
           )) {
             if ( // we are redirecting to the same location we were already at
             isSameRouteLocation(stringifyQuery$1, resolve(failure.to), toLocation) && // and we have done it a couple of times
@@ -3369,10 +3511,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
             }
 
             return pushWithRedirect( // keep options
-            assign(locationAsObject(failure.to), {
-              state: data,
-              force,
+            assign({
+              // preserve an existing replacement but allow the redirect to override it
               replace
+            }, locationAsObject(failure.to), {
+              state: typeof failure.to === 'object' ? assign({}, data, failure.to.state) : data,
+              force
             }), // preserve the original redirectedFrom if any
             redirectedFrom || toLocation);
           }
@@ -3443,7 +3587,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         for (const record of to.matched) {
           // do not trigger beforeEnter on reused views
           if (record.beforeEnter && !from.matched.includes(record)) {
-            if (Array.isArray(record.beforeEnter)) {
+            if (isArray(record.beforeEnter)) {
               for (const beforeEnter of record.beforeEnter) guards.push(guardToPromiseFn(beforeEnter, to, from));
             } else {
               guards.push(guardToPromiseFn(record.beforeEnter, to, from));
@@ -3475,7 +3619,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         return runGuardQueue(guards);
       }) // catch any navigation canceled
       .catch(err => isNavigationFailure(err, 8
-      /* NAVIGATION_CANCELLED */
+      /* ErrorTypes.NAVIGATION_CANCELLED */
       ) ? err : Promise.reject(err));
     }
 
@@ -3517,8 +3661,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     let removeHistoryListener; // attach listener to history to trigger navigations
 
     function setupListeners() {
+      // avoid setting up listeners twice due to an invalid first navigation
+      if (removeHistoryListener) return;
       removeHistoryListener = routerHistory.listen((to, _from, info) => {
-        // cannot be a redirect route because it was in history
+        if (!router.listening) return; // cannot be a redirect route because it was in history
+
         const toLocation = resolve(to); // due to dynamic routing, and to hash history with manual navigation
         // (manually changing the url or calling history.hash = '#/somewhere'),
         // there could be a redirect record in history
@@ -3541,21 +3688,21 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
         navigate(toLocation, from).catch(error => {
           if (isNavigationFailure(error, 4
-          /* NAVIGATION_ABORTED */
+          /* ErrorTypes.NAVIGATION_ABORTED */
           | 8
-          /* NAVIGATION_CANCELLED */
+          /* ErrorTypes.NAVIGATION_CANCELLED */
           )) {
             return error;
           }
 
           if (isNavigationFailure(error, 2
-          /* NAVIGATION_GUARD_REDIRECT */
+          /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */
           )) {
             // Here we could call if (info.delta) routerHistory.go(-info.delta,
             // false) but this is bug prone as we have no way to wait the
             // navigation to be finished before calling pushWithRedirect. Using
-            // a setTimeout of 16ms seems to work but there is not guarantee for
-            // it to work on every browser. So Instead we do not restore the
+            // a setTimeout of 16ms seems to work but there is no guarantee for
+            // it to work on every browser. So instead we do not restore the
             // history entry and trigger a new navigation as requested by the
             // navigation guard.
             // the error is already handled by router.push we just want to avoid
@@ -3563,12 +3710,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
             pushWithRedirect(error.to, toLocation // avoid an uncaught rejection, let push call triggerError
             ).then(failure => {
               // manual change in hash history #916 ending up in the URL not
-              // changing but it was changed by the manual url change, so we
+              // changing, but it was changed by the manual url change, so we
               // need to manually change it ourselves
               if (isNavigationFailure(failure, 4
-              /* NAVIGATION_ABORTED */
+              /* ErrorTypes.NAVIGATION_ABORTED */
               | 16
-              /* NAVIGATION_DUPLICATED */
+              /* ErrorTypes.NAVIGATION_DUPLICATED */
               ) && !info.delta && info.type === NavigationType.pop) {
                 routerHistory.go(-1, false);
               }
@@ -3578,7 +3725,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           } // do not restore history on unknown direction
 
 
-          if (info.delta) routerHistory.go(-info.delta, false); // unrecognized error, transfer to the global handler
+          if (info.delta) {
+            routerHistory.go(-info.delta, false);
+          } // unrecognized error, transfer to the global handler
+
 
           return triggerError(error, toLocation, from);
         }).then(failure => {
@@ -3586,12 +3736,16 @@ this.BX.Vue3 = this.BX.Vue3 || {};
           toLocation, from, false); // revert the navigation
 
           if (failure) {
-            if (info.delta) {
+            if (info.delta && // a new navigation has been triggered, so we do not want to revert, that will change the current history
+            // entry while a different route is displayed
+            !isNavigationFailure(failure, 8
+            /* ErrorTypes.NAVIGATION_CANCELLED */
+            )) {
               routerHistory.go(-info.delta, false);
             } else if (info.type === NavigationType.pop && isNavigationFailure(failure, 4
-            /* NAVIGATION_ABORTED */
+            /* ErrorTypes.NAVIGATION_ABORTED */
             | 16
-            /* NAVIGATION_DUPLICATED */
+            /* ErrorTypes.NAVIGATION_DUPLICATED */
             )) {
               // manual change in hash history #916
               // it's like a push but lacks the information of the direction
@@ -3639,19 +3793,17 @@ this.BX.Vue3 = this.BX.Vue3 || {};
         readyHandlers.add([resolve, reject]);
       });
     }
-    /**
-     * Mark the router as ready, resolving the promised returned by isReady(). Can
-     * only be called once, otherwise does nothing.
-     * @param err - optional error
-     */
-
 
     function markAsReady(err) {
-      if (ready) return;
-      ready = true;
-      setupListeners();
-      readyHandlers.list().forEach(([resolve, reject]) => err ? reject(err) : resolve());
-      readyHandlers.reset();
+      if (!ready) {
+        // still not ready if an error happened
+        ready = !err;
+        setupListeners();
+        readyHandlers.list().forEach(([resolve, reject]) => err ? reject(err) : resolve());
+        readyHandlers.reset();
+      }
+
+      return err;
     } // Scroll behavior
 
 
@@ -3670,6 +3822,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
     const installedApps = new Set();
     const router = {
       currentRoute,
+      listening: true,
       addRoute,
       removeRoute,
       hasRoute,
@@ -3729,13 +3882,15 @@ this.BX.Vue3 = this.BX.Vue3 || {};
             // invalidate the current navigation
             pendingLocation = START_LOCATION_NORMALIZED;
             removeHistoryListener && removeHistoryListener();
+            removeHistoryListener = null;
             currentRoute.value = START_LOCATION_NORMALIZED;
             started = false;
             ready = false;
           }
 
           unmountApp();
-        };
+        }; // TODO: this probably needs to be updated so it can be used by vue-termui
+
 
         if (isBrowser) {
           addDevtools(app, router, matcher);
@@ -3804,6 +3959,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
   exports.createWebHashHistory = createWebHashHistory;
   exports.createWebHistory = createWebHistory;
   exports.isNavigationFailure = isNavigationFailure;
+  exports.loadRouteLocation = loadRouteLocation;
   exports.matchedRouteKey = matchedRouteKey;
   exports.onBeforeRouteLeave = onBeforeRouteLeave;
   exports.onBeforeRouteUpdate = onBeforeRouteUpdate;

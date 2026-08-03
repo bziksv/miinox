@@ -1,6 +1,6 @@
 import {Address as AddressWidget, AutocompleteFeature, Factory, State} from "location.widget";
 import {Address as AddressEntity, AddressStringConverter, AddressType, ControlMode, Format} from "location.core";
-import {Dom, Event, Tag, Loc} from "main.core";
+import {Dom, Event, Tag, Loc, Text} from "main.core";
 import type {EditEntryProps} from "./editentryprops";
 import {EventEmitter} from "main.core.events";
 
@@ -91,12 +91,21 @@ export class EditEntry extends EventEmitter
 			</div>
 		`;
 
+		// a workaround for bizproc conditionals; their conditionals popup seems to use the topmost <input>'s value
+		const hiddenFormattedInputValue = this.#address ? this.getRawValueForHiddenFormattedInput(this.#address) : '';
+		this.#nodes.hiddenFormattedAddressInput = Tag.render`<input type="hidden" name="${this.#fieldName}_formatted" value="${hiddenFormattedInputValue}" />`;
+
+		// a flag used to identify values set manually by the user
+		const manualEditFlagNode = Tag.render`<input type="hidden" name="${this.#fieldName}_manual_edit" value="Y">`;
+
 		this.#nodes.layout = Tag.render`
 			<div class="edit-entry-layout-wrapper ${this.getLayoutSizeClass()}">
 				<div class="address-control-mode-switch-wrapper">
 					${this.#nodes.detailsToggle}
 				</div>
+				${this.#nodes.hiddenFormattedAddressInput}
 				${this.#nodes.entryWrapper}
+				${manualEditFlagNode}
 			</div>
 		`;
 
@@ -191,6 +200,8 @@ export class EditEntry extends EventEmitter
 
 		this.#nodes.fieldValueInput.value = this.getChangedAddressFieldValue(address);
 
+		this.#nodes.hiddenFormattedAddressInput.value = this.getRawValueForHiddenFormattedInput(address);
+
 		this.emitFieldChangedEvent();
 	}
 
@@ -239,10 +250,19 @@ export class EditEntry extends EventEmitter
 	getInitialAddressFieldValue(): string
 	{
 		let inputValue =  '';
-		// for compatibility with the format used before the switch to location module's addresses
-		if (this.#address?.id === 0)
+
+		if (this.#address?.id == 0)
 		{
-			inputValue = `${this.#address.getFieldValue(AddressType.ADDRESS_LINE_2)}|${this.#address.latitude};${this.#address.longitude}`;
+			if (this.#address.location)
+			{
+				// JSON has probably been passed as the component's value; we need to create a new address
+				inputValue = Text.encode(this.#address.toJson());
+			}
+			else
+			{
+				// for compatibility with the format used before the switch to location module's addresses
+				inputValue = `${this.#address.getFieldValue(AddressType.ADDRESS_LINE_2)}|${this.#address.latitude};${this.#address.longitude}`;
+			}
 		}
 		else if (this.#address?.id > 0)
 		{
@@ -261,6 +281,11 @@ export class EditEntry extends EventEmitter
 	{
 		const format = new Format(JSON.parse(BX.message('LOCATION_WIDGET_DEFAULT_FORMAT')));
 		return address.toString(format, AddressStringConverter.STRATEGY_TYPE_TEMPLATE_COMMA) ?? '';
+	}
+
+	getRawValueForHiddenFormattedInput(address: AddressEntity): string
+	{
+		return `${this.getFormattedAddress(address)}|${address.latitude};${address.longitude}`;
 	}
 
 	onInputIconClick()

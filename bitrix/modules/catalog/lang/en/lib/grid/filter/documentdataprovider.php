@@ -1,4 +1,6 @@
 <?php
+$MESS["DOCUMENT_CONTRACTOR_CRM_COMPANY_ID_NAME"] = "Vendor: company";
+$MESS["DOCUMENT_CONTRACTOR_CRM_CONTACT_ID_NAME"] = "Vendor: contact";
 $MESS["DOCUMENT_CONTRACTOR_ID_NAME"] = "Vendor";
 $MESS["DOCUMENT_CREATED_BY_NAME"] = "Created by";
 $MESS["DOCUMENT_DATE_CREATE_NAME"] = "Created on";
@@ -13,7 +15,9 @@ $MESS["DOCUMENT_PRODUCTS_NAME"] = "Product";
 $MESS["DOCUMENT_RESPONSIBLE_ID_NAME"] = "Responsible person";
 $MESS["DOCUMENT_STATUS_BY_NAME"] = "Status modified by";
 $MESS["DOCUMENT_STATUS_NAME"] = "Status";
+$MESS["DOCUMENT_STORES_FROM_NAME"] = "Source warehouse";
 $MESS["DOCUMENT_STORES_NAME"] = "Warehouses";
+$MESS["DOCUMENT_STORES_TO_NAME"] = "Destination warehouse";
 $MESS["DOCUMENT_TITLE_NAME"] = "Name";
 $MESS["DOCUMENT_TOTAL_NAME"] = "Total";
 $MESS["DOCUMENT_TYPE_A"] = "Stock receipt";

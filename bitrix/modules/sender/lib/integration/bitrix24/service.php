@@ -172,14 +172,14 @@ class Service
 	 */
 	public static function isAdVisibleInRegion($code)
 	{
-		if (in_array(
-			$code,
-			[
-				Seo\Ads\MessageBase::CODE_ADS_VK,
-				Seo\Ads\MessageBase::CODE_ADS_YA,
-				Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_VK
-			]
-		))
+		$codes = [
+			Seo\Ads\MessageBase::CODE_ADS_VK,
+			Seo\Ads\MessageBase::CODE_ADS_YA,
+			Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_VK,
+			Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_YANDEX
+		];
+
+		if (in_array($code, $codes))
 		{
 			if (self::isCloud())
 			{
@@ -208,7 +208,23 @@ class Service
 
 		return true;
 	}
-	
+
+	/**
+	 * Return true if master yandex is available.
+	 *
+	 * @return bool
+	 */
+	public static function isMasterYandexVisibleInRegion(): bool
+	{
+		$isLanguageAcceptable = (LANGUAGE_ID ?? 'ru') === 'ru';
+
+		if (!self::isCloud())
+		{
+			return false;
+		}
+		return self::isCloudRegionRussian(true) && $isLanguageAcceptable;
+	}
+
 	/**
 	 * Return true if toloka is available.
 	 *
@@ -329,9 +345,13 @@ class Service
 			}
 		}
 
-		if (self::isCloud() && !in_array(mb_substr(BX24_HOST_NAME, -7), ['.com.br', '.com.de'])) // exclude com.br & com.de domains
+		// exclude com.br & com.de domains
+		if (
+			self::isCloud()
+			&& defined('BX24_HOST_NAME')
+			&& !in_array(mb_substr(BX24_HOST_NAME, -7), ['.com.br', '.com.de'])
+		)
 		{
-			Loader::includeModule('bitrix24');
 			$domain = BX24_HOST_NAME;
 
 			if (!\CBitrix24::isCustomDomain())
@@ -416,5 +436,10 @@ class Service
 				$state->stop();
 			}
 		}
+	}
+
+	public static function isMasterYandexAvailable(): bool
+	{
+		return static::isCloud();
 	}
 }

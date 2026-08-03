@@ -149,15 +149,21 @@ abstract class BasketItemCollection extends Internals\EntityCollection
 	 */
 	public function getItemById($id)
 	{
+		$id = (int)$id;
+
 		if ($id <= 0)
+		{
 			return null;
+		}
 
 		/** @var BasketItemBase $basketItem */
 		foreach ($this->collection as $basketItem)
 		{
 			$item = $basketItem->findItemById($id);
 			if ($item !== null)
+			{
 				return $item;
+			}
 		}
 
 		return null;
@@ -178,13 +184,13 @@ abstract class BasketItemCollection extends Internals\EntityCollection
 	 * @param int $productId
 	 * @param array|null $properties if NULL - skips checking properties,
 	 * even if they are setted in the parameters and/or the basket item.
-	 * 
+	 *
 	 * @return BasketItem[]
 	 */
 	public function getExistsItems(string $moduleId, int $productId, ?array $properties = [])
 	{
 		$result = [];
-		
+
 		foreach ($this->getBasketItems() as $basketItem)
 		{
 			if ((int)$basketItem->getField('PRODUCT_ID') === $productId && $basketItem->getField('MODULE') === $moduleId)
@@ -195,7 +201,7 @@ abstract class BasketItemCollection extends Internals\EntityCollection
 					$result[] = $basketItem;
 					continue;
 				}
-				
+
 				/** @var BasketPropertiesCollection $basketPropertyCollection */
 				$basketPropertyCollection = $basketItem->getPropertyCollection();
 				if ($properties)
@@ -211,7 +217,7 @@ abstract class BasketItemCollection extends Internals\EntityCollection
 				}
 			}
 		}
-		
+
 		return $result;
 	}
 
@@ -287,12 +293,12 @@ abstract class BasketItemCollection extends Internals\EntityCollection
 
 		return $context;
 	}
-	
+
 	/**
 	 * @deprecated the basket can contain duplicate items. Use method `getExistsItems`
-	 * 
+	 *
 	 * Get first basket item for need moduleId, productId and properties
-	 * 
+	 *
 	 * @param $moduleId
 	 * @param $productId
 	 * @param array $properties

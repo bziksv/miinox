@@ -1,6 +1,6 @@
 this.BX = this.BX || {};
 this.BX.Vue3 = this.BX.Vue3 || {};
-(function (exports,main_polyfill_intersectionobserver,ui_vue3,main_core_events) {
+(function (exports,ui_fonts_opensans,main_polyfill_intersectionobserver,ui_vue3,main_core_events) {
 	'use strict';
 
 	/**
@@ -297,6 +297,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	    audioEventRouter(eventName, event) {
 	      if (eventName === 'durationchange' || eventName === 'loadeddata' || eventName === 'loadedmetadata') {
+	        if (!this.source()) {
+	          return;
+	        }
+
 	        this.timeTotal = this.source().duration;
 	      } else if (eventName === 'abort' || eventName === 'error') {
 	        console.error('BxAudioPlayer: load failed', this.id, event);
@@ -447,5 +451,5 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	exports.AudioPlayerState = State;
 	exports.AudioPlayer = AudioPlayer;
 
-}((this.BX.Vue3.Components = this.BX.Vue3.Components || {}),BX,BX.Vue3,BX.Event));
+}((this.BX.Vue3.Components = this.BX.Vue3.Components || {}),BX,BX,BX.Vue3,BX.Event));
 //# sourceMappingURL=audioplayer.bundle.js.map

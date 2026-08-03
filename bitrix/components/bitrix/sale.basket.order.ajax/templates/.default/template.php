@@ -39,7 +39,6 @@ else
 			?>
 			<div id="delay_none" style="display:block">
 				<input type="hidden" name="display_props" id="display_props" value="<?=$display?>" />
-
 				<div id="order_props" style="display:<?=$display?>">
 					<? include($_SERVER["DOCUMENT_ROOT"].$templateFolder."/basket_person_type.php");?>
 					<? include($_SERVER["DOCUMENT_ROOT"].$templateFolder."/basket_props.php");?>

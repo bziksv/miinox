@@ -159,9 +159,10 @@ class CCloudStorageService_Yandex extends CCloudStorageService_S3
 	/**
 	 * @param array[string]string $arBucket
 	 * @param mixed $arFile
+	 * @param boolean $encoded
 	 * @return string
 	*/
-	function GetFileSRC($arBucket, $arFile)
+	function GetFileSRC($arBucket, $arFile, $encoded = true)
 	{
 		$proto = CMain::IsHTTPS()? "https": "http";
 
@@ -197,7 +198,14 @@ class CCloudStorageService_Yandex extends CCloudStorageService_S3
 			$URI = $pref."/".$URI;
 		}
 
-		return $proto."://$host/".str_replace("+", "%20", CCloudUtil::URLEncode($URI, "UTF-8"));
+		if ($encoded)
+		{
+			return $proto."://$host/".str_replace("+", "%20", CCloudUtil::URLEncode($URI, "UTF-8"));
+		}
+		else
+		{
+			return $proto."://$host/".$URI;
+		}
 	}
 	/**
 	 * @param array[string]string $arBucket

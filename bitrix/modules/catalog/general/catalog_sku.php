@@ -257,7 +257,8 @@ class CCatalogSku extends CAllCatalogSku
 				else
 				{
 					$result = $arProductIBlock;
-					unset($result['VAT_ID'], $result['YANDEX_EXPORT'], $result['SUBSCRIPTION']);
+					$result['SUBSCRIPTION'] = 'N';
+					unset($result['VAT_ID'], $result['YANDEX_EXPORT']);
 					$result['CATALOG_TYPE'] = self::TYPE_PRODUCT;
 				}
 				$result['CATALOG'] = ($boolIBlock ? 'Y' : 'N');
@@ -270,7 +271,7 @@ class CCatalogSku extends CAllCatalogSku
 		return self::$arIBlockCache[$intIBlockID];
 	}
 
-	/*
+	/**
 	* @deprecated deprecated since catalog 15.0.1
 	* @see CCatalogSKU::getExistOffers()
 	*/

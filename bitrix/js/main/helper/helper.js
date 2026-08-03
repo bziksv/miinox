@@ -51,7 +51,10 @@ BX.Helper =
 
 		BX.bind(window, 'message', BX.proxy(function(event)
 		{
-			if(!!event.origin && event.origin.indexOf('bitrix') === -1)
+			var eventOrigin = event.origin || '';
+			var frameOrigin = new URL(this.frameOpenUrl).origin;
+
+			if(eventOrigin !== frameOrigin)
 			{
 				return;
 			}
@@ -130,9 +133,15 @@ BX.Helper =
 		{
 			sliderOptions = {};
 		}
-
-		var url = this.frameOpenUrl + ((this.frameOpenUrl.indexOf("?") < 0) ? "?" : "&") +
+		
+		//compote code
+		const frameOpenUrl = this.frameOpenUrl + ((this.frameOpenUrl.indexOf("?") < 0) ? "?" : "&") +
 			(BX.type.isNotEmptyString(additionalParam) ? additionalParam : "");
+
+		let url =  new URL(frameOpenUrl);
+		url.searchParams.delete('url');
+		url.searchParams.append('url', window.location.href);
+		url = url.toString();
 
 		if (this.getFrame().src !== url)
 		{
@@ -214,7 +223,8 @@ BX.Helper =
 		this.frameNode = BX.create('iframe', {
 			attrs: {
 				className: 'helper-panel-iframe',
-				src: "about:blank"
+				src: "about:blank",
+				allowfullscreen: 'on'
 			}
 		});
 
@@ -279,6 +289,11 @@ BX.Helper =
 
 	showNotification : function(num)
 	{
+		if (!this.notifyBlock)
+		{
+			return;
+		}
+
 		if (!isNaN(parseFloat(num)) && isFinite(num) && num > 0)
 		{
 			var numBlock = '<div class="help-cl-count"><span class="help-cl-count-digit">' + (num > 99 ? '99+' : num) + '</span></div>';

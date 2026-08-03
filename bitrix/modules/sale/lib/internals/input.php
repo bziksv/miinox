@@ -251,10 +251,10 @@ class Manager
 		}
 
 		$result = [
-			'TYPE'     => array('TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('INPUT_TYPE'), 'OPTIONS' => $typeOptions, 'REQUIRED' => 'Y', 'ONCHANGE' => $reload),
+			'TYPE' => array('TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('INPUT_TYPE'), 'OPTIONS' => $typeOptions, 'REQUIRED' => 'Y', 'ONCHANGE' => $reload),
 			'REQUIRED' => array('TYPE' => 'Y/N' , 'LABEL' => Loc::getMessage('INPUT_REQUIRED')),
 			'MULTIPLE' => $multiple,
-			'VALUE'    => array('LABEL' => Loc::getMessage('INPUT_VALUE'), 'REQUIRED' => 'N') + $input,
+			'VALUE' => array('LABEL' => Loc::getMessage('INPUT_VALUE'), 'REQUIRED' => 'N') + $input,
 		];
 
 		return $result;
@@ -274,8 +274,8 @@ class Manager
 	/** Register new type.
 	 * @param string $name - type name
 	 * @param array $type - type parameters
-	 *      'CLASS' => __NAMESPACE__.'ClassName'
-	 *      'NAME' => Loc::getMessage('CLASS_LOCALIZED_NAME')
+	 * 		'CLASS' => __NAMESPACE__.'ClassName'
+	 * 		'NAME' => Loc::getMessage('CLASS_LOCALIZED_NAME')
 	 * @return void
 	 * @throws SystemException
 	 */
@@ -377,10 +377,12 @@ abstract class Base
 
 	public static function getViewHtml(array $input, $value = null)
 	{
-		if ($value === null)
+		if ($value === null && isset($input['VALUE']))
+		{
 			$value = $input['VALUE'];
+		}
 
-		if ($input['MULTIPLE'] == 'Y')
+		if (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y')
 		{
 			$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
 			[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
@@ -401,7 +403,7 @@ abstract class Base
 	public static function getViewHtmlSingle(array $input, $value)
 	{
 		$output = $valueText = htmlspecialcharsbx($value);
-		if ($input['IS_EMAIL'] == 'Y')
+		if (isset($input['IS_EMAIL']) && $input['IS_EMAIL'] === 'Y')
 		{
 			$output = '<a href="mailto:'.$valueText.'">'.$valueText.'</a>';
 		}
@@ -413,20 +415,24 @@ abstract class Base
 	{
 		$name = htmlspecialcharsbx($name);
 
-		if ($value === null)
+		$input['DISABLED'] ??= 'N';
+
+		if ($value === null && isset($input['VALUE']))
+		{
 			$value = $input['VALUE'];
+		}
 
 		$html = '';
 
-		if ($input['HIDDEN'] == 'Y')
+		if (isset($input['HIDDEN']) && ($input['HIDDEN'] === 'Y' || $input['HIDDEN'] === true))
 		{
 			$html .= static::getHiddenRecursive($name
-				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y') ? static::asMultiple($value) : static::asSingle($value)
 				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>''), false));
 		}
 		else
 		{
-			if ($input['MULTIPLE'] == 'Y')
+			if (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y')
 			{
 				$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
 				[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
@@ -455,10 +461,10 @@ abstract class Base
 			}
 		}
 
-		if ($input['ADDITIONAL_HIDDEN'] === 'Y')
+		if (isset($input['ADDITIONAL_HIDDEN']) && $input['ADDITIONAL_HIDDEN'] === 'Y')
 		{
 			$html .= static::getHiddenRecursive($name
-				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y') ? static::asMultiple($value) : static::asSingle($value)
 				, static::extractAttributes($input, array(), array('FORM'=>''), false));
 		}
 
@@ -503,10 +509,12 @@ abstract class Base
 	public static function getError(array $input, $value)
 	{
 		$errors = array();
-		if ($value === null)
+		if ($value === null && isset($input['VALUE']))
+		{
 			$value = $input['VALUE'];
+		}
 
-		if ($input['MULTIPLE'] == 'Y')
+		if (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y')
 		{
 
 			$index = -1;
@@ -536,24 +544,35 @@ abstract class Base
 	 * @param array $input
 	 * @param $value
 	 *
-	 * @return bool
+	 * @return array
 	 */
 	public static function getRequiredError(array $input, $value)
 	{
-		$errors = array();
+		$errors = [];
 
-		if ($value === null)
-			$value = $input['VALUE'];
+		$input['REQUIRED'] ??= 'N';
+		$input['MULTIPLE'] ??= 'N';
 
-		if ($input['MULTIPLE'] == 'Y')
+		if ($value === null && isset($input['VALUE']))
 		{
-			$index = -1;
-			foreach (static::asMultiple($value) as $value)
+			$value = $input['VALUE'];
+		}
+
+		$requireError = [
+			'REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'),
+		];
+
+		if ($input['MULTIPLE'] === 'Y')
+		{
+			if ($input['REQUIRED'] === 'Y')
 			{
-				if ($value === '' || $value === null)
+				foreach (static::asMultiple($value) as $value)
 				{
-					if ($input['REQUIRED'] == 'Y')
-						$errors[++$index] = array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'));
+					if ($value === '' || $value === null)
+					{
+						$errors = $requireError;
+						break;
+					}
 				}
 			}
 		}
@@ -563,9 +582,10 @@ abstract class Base
 
 			if ($value === '' || $value === null)
 			{
-				return ($input['REQUIRED'] == 'Y')
-					? array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'))
-					: array();
+				if ($input['REQUIRED'] === 'Y')
+				{
+					$errors = $requireError;
+				}
 			}
 		}
 
@@ -585,13 +605,17 @@ abstract class Base
 
 	public static function getValue(array $input, $value)
 	{
-		if ($input['DISABLED'] == 'Y')
+		if (isset($input['DISABLED']) && $input['DISABLED'] === 'Y')
+		{
 			return null; // TODO maybe??
+		}
 
 		if ($value === null)
-			$value = $input['VALUE'];
+		{
+			$value = $input['VALUE'] ?? null;
+		}
 
-		if ($input['MULTIPLE'] == 'Y')
+		if (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y')
 		{
 			$values = array();
 
@@ -696,10 +720,12 @@ abstract class Base
 				$string .= ' '.mb_strtolower($k).'="'.htmlspecialcharsbx($v).'"';
 
 		// add data attributes
-		if ($withGlobal && is_array($input['DATA']))
+		if ($withGlobal && isset($input['DATA']) && is_array($input['DATA']))
 		{
 			foreach ($input['DATA'] as $k => $v)
+			{
 				$string .= ' data-'.htmlspecialcharsbx($k).'="'.htmlspecialcharsbx($v).'"';
+			}
 		}
 
 		return $string;
@@ -723,7 +749,8 @@ class StringInput extends Base // String reserved in php 7
 
 	public static function getEditHtmlSingle($name, array $input, $value)
 	{
-		if ($input['MULTILINE'] == 'Y')
+		$input = self::prepareIntFields($input);
+		if (isset($input['MULTILINE']) && $input['MULTILINE'] === 'Y')
 		{
 			$attributes = static::extractAttributes($input,
 				array('DISABLED'=>'', 'READONLY'=>'', 'AUTOFOCUS'=>'', 'REQUIRED'=>''),
@@ -739,6 +766,21 @@ class StringInput extends Base // String reserved in php 7
 
 			return '<input type="text" name="'.$name.'" value="'.htmlspecialcharsbx($value).'"'.$attributes.'>';
 		}
+	}
+
+	private static function prepareIntFields(array $input): array
+	{
+		$intFields = ['SIZE', 'ROWS', 'COLS'];
+		foreach ($intFields as $field)
+		{
+			$input[$field] = (int)($input[$field] ?? 0);
+			if ($input[$field] <= 0)
+			{
+				unset($input[$field]);
+			}
+		}
+
+		return $input;
 	}
 
 	/**
@@ -758,18 +800,24 @@ class StringInput extends Base // String reserved in php 7
 
 		$value = trim($value);
 
-		if ($input['MINLENGTH'] && mb_strlen($value) < $input['MINLENGTH'])
-			$errors['MINLENGTH'] = Loc::getMessage('INPUT_STRING_MINLENGTH_ERROR', array("#NUM#" => $input['MINLENGTH']));
+		$minLength = isset($input['MINLENGTH']) && is_numeric($input['MINLENGTH']) ? (int)$input['MINLENGTH'] : 0;
+		if ($minLength > 0 && mb_strlen($value) < $minLength)
+		{
+			$errors['MINLENGTH'] = Loc::getMessage('INPUT_STRING_MINLENGTH_ERROR', ['#NUM#' => $minLength]);
+		}
 
-		if ($input['MAXLENGTH'] && mb_strlen($value) > $input['MAXLENGTH'])
-			$errors['MAXLENGTH'] = Loc::getMessage('INPUT_STRING_MAXLENGTH_ERROR', array("#NUM#" => $input['MAXLENGTH']));
+		$maxLength = isset($input['MAXLENGTH']) && is_numeric($input['MAXLENGTH']) ? (int)$input['MAXLENGTH'] : 0;
+		if ($maxLength > 0 && mb_strlen($value) > $maxLength)
+		{
+			$errors['MAXLENGTH'] = Loc::getMessage('INPUT_STRING_MAXLENGTH_ERROR', ['#NUM#' => $maxLength]);
+		}
 
-
-
-		if (strval(trim($input['PATTERN'])) != "")
+		$pattern = trim(
+			(string)($input['PATTERN'] ?? '')
+		);
+		if ($pattern !== "")
 		{
 			$issetDelimiter = false;
-			$pattern = trim($input['PATTERN']);
 
 			if (isset($pattern[0]) && in_array($pattern[0], static::$patternDelimiters) && mb_strrpos($pattern, $pattern[0]) !== false)
 			{
@@ -782,11 +830,22 @@ class StringInput extends Base // String reserved in php 7
 				$matchPattern = "/".$pattern."/";
 			}
 
-			if (!preg_match($matchPattern, $value))
-				$errors['PATTERN'] = Loc::getMessage('INPUT_STRING_PATTERN_ERROR');
+			$pregMatchResult = null;
+			try
+			{
+				$pregMatchResult = preg_match($matchPattern, $value);
+			}
+			catch (\Exception $e)
+			{
+			}
+			finally
+			{
+				if (!$pregMatchResult)
+				{
+					$errors['PATTERN'] = Loc::getMessage('INPUT_STRING_PATTERN_ERROR');
+				}
+			}
 		}
-
-
 
 		return $errors;
 	}
@@ -800,7 +859,7 @@ class StringInput extends Base // String reserved in php 7
 			'MULTILINE' => array('TYPE' => 'Y/N'   , 'LABEL' => Loc::getMessage('INPUT_STRING_MULTILINE'), 'ONCLICK' => $reload),
 		);
 
-		if ($input['MULTILINE'] == 'Y')
+		if (isset($input['MULTILINE']) && $input['MULTILINE'] === 'Y')
 		{
 			$settings['COLS'] = array('TYPE' => 'NUMBER', 'LABEL' => Loc::getMessage('INPUT_STRING_SIZE'), 'MIN' => 0, 'STEP' => 1);
 			$settings['ROWS'] = array('TYPE' => 'NUMBER', 'LABEL' => Loc::getMessage('INPUT_STRING_ROWS'), 'MIN' => 0, 'STEP' => 1);
@@ -820,7 +879,7 @@ class StringInput extends Base // String reserved in php 7
 	 */
 	public static function isDeletedSingle($value)
 	{
-		return is_array($value) && $value['DELETE'];
+		return is_array($value) && isset($value['DELETE']);
 	}
 
 }
@@ -841,14 +900,29 @@ class Number extends Base
 
 		$size = 5;
 
-		if (($s = mb_strlen(strval($input['MIN']))) && $s > $size)
+		$s = mb_strlen(
+			(string)($input['MIN'] ?? '')
+		);
+		if ($s > $size)
+		{
 			$size = $s;
+		}
 
-		if (($s = mb_strlen(strval($input['MAX']))) && $s > $size)
+		$s = mb_strlen(
+			(string)($input['MAX'] ?? '')
+		);
+		if ($s > $size)
+		{
 			$size = $s;
+		}
 
-		if (($s = mb_strlen(strval($input['STEP']))) && $s > $size)
+		$s = mb_strlen(
+			(string)($input['STEP'] ?? '')
+		);
+		if ($s > $size)
+		{
 			$size = $s;
+		}
 
 		$input['SIZE'] = $size;
 
@@ -884,7 +958,7 @@ class Number extends Base
 			if (!empty($input['MAX']) && $value > $input['MAX'])
 				$errors['MAX'] = Loc::getMessage('INPUT_NUMBER_MAX_ERROR', array("#NUM#" => $input['MAX']));
 
-			if ($input['STEP'])
+			if (!empty($input['STEP']))
 			{
 				$step = (double) $input['STEP'];
 
@@ -972,17 +1046,44 @@ class EitherYN extends Base
 
 	public static function getErrorSingle(array $input, $value)
 	{
-		if ($input['REQUIRED'] == 'Y' && ($value === '' || $value === null))
-			return array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'));
+		$input['REQUIRED'] ??= 'N';
+		if (
+			$input['REQUIRED'] === 'Y'
+			&& ($value === '' || $value === null)
+		)
+		{
+			return [
+				'REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'),
+			];
+		}
 
-		return ($value == 'N' || $value == 'Y')
-			? array()
-			: array('INVALID' => Loc::getMessage('INPUT_INVALID_ERROR'));
+		return
+			($value === 'N' || $value === 'Y')
+				? []
+				: ['INVALID' => Loc::getMessage('INPUT_INVALID_ERROR')]
+		;
 	}
 
 	public static function getValueSingle(array $input, $value)
 	{
 		return $value == 'Y' ? 'Y' : 'N';
+	}
+
+	public static function getRequiredError(array $input, $value)
+	{
+		$errors = parent::getRequiredError($input, $value);
+		$input['REQUIRED'] ??= 'N';
+		if (!$errors)
+		{
+			if (
+				$value === 'N'
+				&& $input['REQUIRED'] === 'Y'
+			)
+			{
+				$errors = ['REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR')];
+			}
+		}
+		return $errors;
 	}
 }
 
@@ -1017,14 +1118,16 @@ class Enum extends Base
 
 	public static function getViewHtmlSingle(array $input, $value) // TODO optimize to getViewHtml
 	{
-		$options = $input['OPTIONS'];
+		$options = $input['OPTIONS'] ?? [];
 
 		if (is_array($options))
 		{
 			$options = self::flatten($options);
 
-			if ($v = $options[$value])
-				$value = $v;
+			if (isset($options[$value]))
+			{
+				$value = $options[$value];
+			}
 		}
 
 		return htmlspecialcharsbx($value);
@@ -1048,17 +1151,19 @@ class Enum extends Base
 		if (! is_array($options))
 			return Loc::getMessage('INPUT_ENUM_OPTIONS_ERROR');
 
-		$multiple = $input['MULTIPLE'] == 'Y';
+		$multiple = isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y';
 
 		$name = htmlspecialcharsbx($name);
 
 		if ($value === null && isset($input['VALUE']))
+		{
 			$value = $input['VALUE'];
+		}
 
 		$originalValue = $value;
 		$html = '';
 
-		if ($input['HIDDEN'] == 'Y')
+		if (isset($input['HIDDEN']) && ($input['HIDDEN'] === 'Y' || $input['HIDDEN'] === true))
 		{
 			$html .= static::getHiddenRecursive($name
 				, $multiple ? static::asMultiple($value) : static::asSingle($value)
@@ -1071,7 +1176,7 @@ class Enum extends Base
 			else
 				$value = $multiple ? array_flip(static::asMultiple($value)) : array(static::asSingle($value) => true);
 
-			if ($input['MULTIELEMENT'] == 'Y')
+			if (isset($input['MULTIELEMENT']) && $input['MULTIELEMENT'] === 'Y')
 			{
 				$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
 				[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
@@ -1106,7 +1211,7 @@ class Enum extends Base
 			}
 		}
 
-		if ($input['ADDITIONAL_HIDDEN'] === 'Y')
+		if (isset($input['ADDITIONAL_HIDDEN']) && $input['ADDITIONAL_HIDDEN'] === 'Y')
 		{
 			$html .= static::getHiddenRecursive($name
 				, $multiple ? static::asMultiple($originalValue) : static::asSingle($originalValue)
@@ -1228,15 +1333,21 @@ class File extends Base
 	{
 		foreach ($files as $key => $file)
 		{
-			if (! is_array($post[$key]))
-				$post[$key] = array();
+			if (!isset($post[$key]) || !is_array($post[$key]))
+			{
+				$post[$key] = [];
+			}
 
 			foreach ($file as $property => $value)
 			{
 				if (is_array($value))
+				{
 					self::getPostWithFilesRecursive($post[$key], $value, $property);
+				}
 				else
+				{
 					$post[$key][$property] = $value;
+				}
 			}
 		}
 
@@ -1278,10 +1389,13 @@ class File extends Base
 	{
 		if (is_array($file))
 		{
-			if ($file['SRC'])
+			if (isset($file['SRC']) && $file['SRC'])
+			{
 				return $file; // already loaded
+			}
 
-			$fileId = $file['ID'];
+
+			$fileId = $file['ID'] ?? null;
 		}
 		else
 		{
@@ -1302,7 +1416,7 @@ class File extends Base
 	 */
 	static function isDeletedSingle($value)
 	{
-		return is_array($value) && $value['DELETE'];
+		return is_array($value) && isset($value['DELETE']);
 	}
 
 	/** Check if file is uploaded.
@@ -1311,7 +1425,13 @@ class File extends Base
 	 */
 	static function isUploadedSingle($value)
 	{
-		return is_array($value) && $value['error'] == UPLOAD_ERR_OK && is_uploaded_file($value['tmp_name']);
+		return
+			is_array($value)
+			&& isset($value['error'])
+			&& $value['error'] == UPLOAD_ERR_OK
+			&& isset($value['tmp_name'])
+			&& is_uploaded_file($value['tmp_name'])
+		;
 	}
 
 	// input methods ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1342,7 +1462,10 @@ class File extends Base
 		if (! is_array($value))
 			$value = array('ID' => $value);
 
-		if ($src = $value['SRC'])
+		$src = $value['SRC'] ?? null;
+		$originalName = $value['ORIGINAL_NAME'] ?? '';
+
+		if ($src)
 		{
 			$attributes = ' href="'.htmlspecialcharsbx($src).'" title="'.htmlspecialcharsbx(Loc::getMessage('INPUT_FILE_DOWNLOAD')).'"';
 
@@ -1355,19 +1478,23 @@ class File extends Base
 
 			$content = \CFile::IsImage($value['SRC'], $value['CONTENT_TYPE'])
 				? '<img src="'.$src.'" border="0" alt="" style="max-height:100px; max-width:100px">'
-				: htmlspecialcharsbx($value['ORIGINAL_NAME']);
+				: htmlspecialcharsbx($originalName);
 		}
 		else
 		{
 			$attributes = '';
-			$content = htmlspecialcharsbx($value['ORIGINAL_NAME']);
+			$content = htmlspecialcharsbx($originalName);
 		}
 
-		if (! $content)
-			$content = $value['FILE_NAME'];
+		if (!$content)
+		{
+			$content = $value['FILE_NAME'] ?? null;
+		}
 
-		if (! $content)
-			$content = $value['ID'];
+		if (!$content)
+		{
+			$content = $value['ID'] ?? null;
+		}
 
 		return "<a$attributes>$content</a>";
 	}
@@ -1390,7 +1517,7 @@ class File extends Base
 			$value = array('ID' => $value);
 		}
 
-		if ($value['DELETE'])
+		if (isset($value['DELETE']))
 		{
 			unset($value['ID']);
 		}
@@ -1413,7 +1540,7 @@ class File extends Base
 			.'<input type="file" name="'.$name.'" style="position:absolute; visibility:hidden"'.$fileAttributes.'>'
 			.'<input type="button" value="'.Loc::getMessage('INPUT_FILE_BROWSE').'" onclick="this.previousSibling.click()">'
 			.(
-			$input['NO_DELETE']
+			isset($input['NO_DELETE'])
 				? ''
 				: '<label> '.Loc::getMessage('INPUT_DELETE').' <input type="checkbox" name="'.$name.'[DELETE]" onclick="'
 
@@ -1431,15 +1558,16 @@ class File extends Base
 
 	public static function getErrorSingle(array $input, $value)
 	{
+		$input['REQUIRED'] ??= 'N';
 		if (is_array($value))
 		{
-			if ($value['DELETE'])
+			if (isset($value['DELETE']))
 			{
-				return $input['REQUIRED'] == 'Y'
+				return $input['REQUIRED'] === 'Y'
 					? array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'))
 					: array();
 			}
-			elseif (is_uploaded_file($value['tmp_name']))
+			elseif (isset($value['tmp_name'])  && is_uploaded_file($value['tmp_name']))
 			{
 				$errors = array();
 
@@ -1454,7 +1582,7 @@ class File extends Base
 
 				return $errors;
 			}
-			else
+			else if (isset($value['error']))
 			{
 				switch ($value['error'])
 				{
@@ -1467,7 +1595,7 @@ class File extends Base
 
 					case UPLOAD_ERR_NO_FILE:
 
-						return $input['REQUIRED'] == 'Y' && (! is_numeric($value['ID']) || $value['DELETE'])
+						return $input['REQUIRED'] === 'Y' && (! is_numeric($value['ID']) || isset($value['DELETE']))
 							? array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'))
 							: array();
 
@@ -1485,16 +1613,20 @@ class File extends Base
 		{
 			return array('INVALID' => Loc::getMessage('INPUT_INVALID_ERROR'));
 		}
+
+		return [];
 	}
 
 	public static function getValueSingle(array $input, $value)
 	{
 		if (is_array($value))
 		{
-			if ($value['DELETE'])
+			if (isset($value['DELETE']))
+			{
 				return null;
+			}
 
-			$value = $value['ID'];
+			$value = $value['ID'] ?? null;
 		}
 
 		return is_numeric($value) ? $value : null;
@@ -1626,15 +1758,19 @@ class Location extends Base
 	{
 		$name = htmlspecialcharsbx($name);
 
-		if ($value === null)
+		$input['DISABLED'] ??= 'N';
+
+		if ($value === null && isset($input['VALUE']))
+		{
 			$value = $input['VALUE'];
+		}
 
 		$html = '';
 
-		if ($input['HIDDEN'] == 'Y')
+		if (isset($input['HIDDEN']) && ($input['HIDDEN'] === 'Y' || $input['HIDDEN'] === true))
 		{
 			$html .= static::getHiddenRecursive($name
-				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y') ? static::asMultiple($value) : static::asSingle($value)
 				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false));
 		}
 		else
@@ -1653,7 +1789,7 @@ class Location extends Base
 				$input['JS_CALLBACK'] = null;
 			}
 
-			if ($input['MULTIPLE'] == 'Y')
+			if (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y')
 			{
 				$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
 				[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
@@ -1686,10 +1822,10 @@ class Location extends Base
 			}
 		}
 
-		if ($input['ADDITIONAL_HIDDEN'] === 'Y')
+		if (isset($input['ADDITIONAL_HIDDEN']) && $input['ADDITIONAL_HIDDEN'] === 'Y')
 		{
 			$html .= static::getHiddenRecursive($name
-				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, (isset($input['MULTIPLE']) && $input['MULTIPLE'] === 'Y') ? static::asMultiple($value) : static::asSingle($value)
 				, static::extractAttributes($input, array(), array('FORM'=>1), false));
 		}
 
@@ -1809,7 +1945,8 @@ class Address extends Base
 	 */
 	public static function getErrorSingle(array $input, $value)
 	{
-		if ($input['REQUIRED'] == 'Y')
+		$input['REQUIRED'] ??= 'N';
+		if ($input['REQUIRED'] === 'Y')
 		{
 			if (!(is_array($value) && !empty($value)))
 			{
@@ -1840,6 +1977,8 @@ class Address extends Base
 			return '';
 		}
 
+		$input['DISABLED'] ??= 'N';
+
 		\Bitrix\Main\UI\Extension::load('sale.address');
 
 		ob_start();
@@ -1852,7 +1991,7 @@ class Address extends Base
 						propsData: {
 							name: '<?=$name?>',
 							initValue: <?=(is_array($value)) ? ("'" . \Bitrix\Location\Entity\Address::fromArray($value)->toJson() . "'") : Json::encode(null)?>,
-							isLocked: <?=($input['DISABLED'] === 'Y') ? Json::encode(true) : Json::encode(false)?>,
+							isLocked: <?=($input['DISABLED'] === 'Y' ? 'true' : 'false'); ?>,
 							onChangeCallback: function () {
 								<?if (isset($input['ONCHANGE'])):?>
 								<?=$input['ONCHANGE']?>
@@ -1884,43 +2023,43 @@ if (Loader::includeModule('location'))
 class ProductCategories extends Base
 {
 
-    /**
-     * Returns an HTML block with list of selected categories to restrict
-     * @param array $input
-     * @param null $values
-     * @return string
-     */
+	/**
+	 * Returns an HTML block with list of selected categories to restrict
+	 * @param array $input
+	 * @param null $values
+	 * @return string
+	 */
 	public static function getViewHtml(array $input, $values = null) : string
 	{
 		if (!is_array($values))
-        {
-            return '';
-        }
+		{
+			return '';
+		}
 
 		$result = '<br><br>';
 		$catList = self::getCategoriesList($values);
 
 		foreach ($catList as $catName)
-        {
+		{
 			$result .= "<div> - {$catName}</div>";
 		}
 
 		return $result;
 	}
 
-    /**
-     * Returns an HTML block for editing the type
-     * @param $name
-     * @param array $input
-     * @param $values
-     * @return string
-     */
+	/**
+	 * Returns an HTML block for editing the type
+	 * @param $name
+	 * @param array $input
+	 * @param $values
+	 * @return string
+	 */
 	public static function getEditHtml($name, array $input, $values = null) : string
 	{
 		if (!is_array($values))
-        {
-            $values = [];
-        }
+		{
+			$values = [];
+		}
 
 		$addInputTranslate = Loc::getMessage('SALE_PRODUCT_CATEGORY_INP_ADD');
 		$deleteInputTranslate = Loc::getMessage('SALE_PRODUCT_CATEGORY_INP_DELETE');
@@ -1929,78 +2068,78 @@ class ProductCategories extends Base
 
 		$deprecatedSupport = isset($input['SCRIPT']) && isset($input['URL']);
 		if ($deprecatedSupport)
-        {
-            $url = $input['URL'];
-            $addCategoryScript = $input['SCRIPT'];
-            $input['ID'] = 'sale-admin-delivery-restriction-cat';
-        }
+		{
+			$url = $input['URL'];
+			$addCategoryScript = $input['SCRIPT'];
+			$input['ID'] = 'sale-admin-delivery-restriction-cat';
+		}
 		else
-        {
+		{
 			$addCategoryScript = "window.InS".md5('SECTIONS_IDS')."=function(id, name){{$input['JS_HANDLER']}.addRestrictionProductSection(id, name, '{$input['ID']}', this);};";
 			$url = 'cat_section_search.php?lang=ru&m=y&n=SECTIONS_IDS';
 		}
 
 		$editSection = "
-            <br>
-            <a 
-                class='adm-s-restriction-open-dialog-link' 
-                href='javascript:void(0);' 
-                id='{$openFilterButtonId}' 
-                onclick=\"window.open('{$url}','choose category', 'width=850, height=600');\"
-            >
-                {$addInputTranslate}
-            </a>
-            <br><br>
-            <script type='text/javascript'>
-                {$addCategoryScript}
-                BX.message({SALE_PRODUCT_CATEGORY_INP_DELETE: '{$deleteInputTranslate}'});
-            </script>
-        ";
+			<br>
+			<a
+				class='adm-s-restriction-open-dialog-link'
+				href='javascript:void(0);'
+				id='{$openFilterButtonId}'
+				onclick=\"window.open('{$url}','choose category', 'width=850, height=600');\"
+			>
+				{$addInputTranslate}
+			</a>
+			<br><br>
+			<script type='text/javascript'>
+				{$addCategoryScript}
+				BX.message({SALE_PRODUCT_CATEGORY_INP_DELETE: '{$deleteInputTranslate}'});
+			</script>
+		";
 
 		$catList = self::getCategoriesList($values);
 		$existCatHtml = "<table id='{$input['ID']}-content' width='100%'>";
 
 		foreach ($catList as $catId => $catName)
-        {
-            if ($deprecatedSupport)
-            {
-                $deleteNodeScript = "BX.Sale.Delivery.deleteRestrictionProductSection('{$catId}');";
-            }
-            else
-            {
-                $deleteNodeScript = "{$input['JS_HANDLER']}.deleteRestrictionProductSection('{$catId}', '{$input['ID']}');";
-            }
+		{
+			if ($deprecatedSupport)
+			{
+				$deleteNodeScript = "BX.Sale.Delivery.deleteRestrictionProductSection('{$catId}');";
+			}
+			else
+			{
+				$deleteNodeScript = "{$input['JS_HANDLER']}.deleteRestrictionProductSection('{$catId}', '{$input['ID']}');";
+			}
 
-            $existCatHtml .= "
-                <tr class='adm-s-product-category-restriction-delcat' id='{$input['ID']}-{$catId}'>
-                    <td>
-                        <span> - {$catName}</span>
-                        <input type='hidden' name='RESTRICTION[CATEGORIES][]' value='{$catId}'>
-                    </td>
-                    <td align='right'>
-                        &nbsp;
-                        <a 
-                            class='adm-s-bus-morelinkqhsw' 
-                            href='javascript:void(0);' 
-                            onclick=\"{$deleteNodeScript}\"
-                        >
-                            {$deleteInputTranslate}                        
-                        </a>
-                    </td>
-                </tr>
-            ";
-        }
+			$existCatHtml .= "
+				<tr class='adm-s-product-category-restriction-delcat' id='{$input['ID']}-{$catId}'>
+					<td>
+						<span> - {$catName}</span>
+						<input type='hidden' name='RESTRICTION[CATEGORIES][]' value='{$catId}'>
+					</td>
+					<td align='right'>
+						&nbsp;
+						<a
+							class='adm-s-bus-morelinkqhsw'
+							href='javascript:void(0);'
+							onclick=\"{$deleteNodeScript}\"
+						>
+							{$deleteInputTranslate}
+						</a>
+					</td>
+				</tr>
+			";
+		}
 
 		$existCatHtml .= '</table>';
 
 		return $existCatHtml.$editSection;
 	}
 
-    /**
-     * Retrieves a list of categories that already selected in restriction
-     * @param array $ids
-     * @return array
-     */
+	/**
+	 * Retrieves a list of categories that already selected in restriction
+	 * @param array $ids
+	 * @return array
+	 */
 	protected static function getCategoriesList($ids) : array
 	{
 		if(!\Bitrix\Main\Loader::includeModule('iblock'))
@@ -2042,154 +2181,160 @@ class ProductCategories extends Base
 	}
 }
 
-    Manager::register('PRODUCT_CATEGORIES', [
-	'CLASS' => __NAMESPACE__.'\ProductCategories',
-	'NAME' => Loc::getMessage('SALE_PRODUCT_CATEGORY_INP'),
-]);
+Manager::register(
+	'PRODUCT_CATEGORIES',
+	[
+		'CLASS' => __NAMESPACE__.'\ProductCategories',
+		'NAME' => Loc::getMessage('SALE_PRODUCT_CATEGORY_INP'),
+	]
+);
 
 class ConcreteProduct extends Base
 {
-    /**
-     * @param array $input
-     * @param null $values
-     * @return string
-     */
-    public static function getViewHtml(array $input, $values = null) : string
-    {
-        if (!is_array($values))
-        {
-            return '';
-        }
+	/**
+	 * @param array $input
+	 * @param $values
+	 * @return string
+	 */
+	public static function getViewHtml(array $input, $values = null) : string
+	{
+		if (!is_array($values))
+		{
+			return '';
+		}
 
-        $result = '<br><br>';
+		$result = '<br><br>';
 
-        $productList = self::getProductsList($values);
+		$productList = self::getProductsList($values);
 
-        foreach ($productList as $productName)
-        {
-            $result .= "<div> - {$productName}</div>";
-        }
+		foreach ($productList as $productName)
+		{
+			$result .= "<div> - {$productName}</div>";
+		}
 
-        return $result;
-    }
+		return $result;
+	}
 
-    /**
-     * Return HTML section for edit concreteProduct type
-     * @param $name
-     * @param array $input
-     * @param null $values
-     * @return string
-     */
-    public static function getEditHtml($name, array $input, $values = null) : string
-    {
-        if (!is_array($values))
-        {
-            $values = [];
-        }
+	/**
+	 * Return HTML section for edit concreteProduct type
+	 * @param $name
+	 * @param array $input
+	 * @param null $values
+	 * @return string
+	 */
+	public static function getEditHtml($name, array $input, $values = null) : string
+	{
+	if (!is_array($values))
+		{
+			$values = [];
+		}
 
-        $nodeId = &$input['ID'];
+		$nodeId = &$input['ID'];
 
-        $input['FORM_NAME'] = md5($input['FORM_NAME']);
-        $url = "cat_product_search.php?func_name={$input['FORM_NAME']}&new_value=Y";
-        $addProductScript = "window.".$input['FORM_NAME']."=function(id, name, url){".$input["JS_HANDLER"].".addRestrictionByConcreteProduct('".$nodeId."', id, name, this);};";
+		$input['FORM_NAME'] = md5($input['FORM_NAME']);
+		$url = "cat_product_search.php?func_name={$input['FORM_NAME']}&new_value=Y";
+		$addProductScript = "window.".$input['FORM_NAME']."=function(id, name, url){".$input["JS_HANDLER"].".addRestrictionByConcreteProduct('".$nodeId."', id, name, this);};";
 
-        $addInputTranslate = Loc::getMessage('SALE_CONCRETE_PRODUCT_INP_ADD');
-        $deleteInputTranslate = Loc::getMessage('SALE_CONCRETE_PRODUCT_INP_DELETE');
+		$addInputTranslate = Loc::getMessage('SALE_CONCRETE_PRODUCT_INP_ADD');
+		$deleteInputTranslate = Loc::getMessage('SALE_CONCRETE_PRODUCT_INP_DELETE');
 
-        $editSection = "
-            <br>
-            <a 
-                class='adm-s-restriction-open-dialog-link' 
-                href='javascript:void(0);' 
-                id='{$input["ID"]}'
-                onclick=\"window.open('{$url}', 'choose product', 'width=850,height=600');\"
-            >
-                {$addInputTranslate}
-            </a>
-            <br><br>
-            <script type='text/javascript'>
-                {$addProductScript}
-                BX.message({SALE_CONCRETE_PRODUCT_INP_DELETE: '$deleteInputTranslate'});
-            </script>";
+		$editSection = "
+			<br>
+			<a
+				class='adm-s-restriction-open-dialog-link'
+				href='javascript:void(0);'
+				id='{$input["ID"]}'
+				onclick=\"window.open('{$url}', 'choose product', 'width=850,height=600');\"
+			>
+				{$addInputTranslate}
+			</a>
+			<br><br>
+			<script type='text/javascript'>
+				{$addProductScript}
+				BX.message({SALE_CONCRETE_PRODUCT_INP_DELETE: '$deleteInputTranslate'});
+			</script>";
 
-        $productsList = self::getProductsList($values);
-        $existProductsHtml = "<table id='{$nodeId}-content' width='100%'>";
+		$productsList = self::getProductsList($values);
+		$existProductsHtml = "<table id='{$nodeId}-content' width='100%'>";
 
-        foreach ($productsList as $productId => $productName)
-        {
-            $existProductsHtml .= "
-            <tr class='adm-s-concrete-product-restriction-delprod' id='{$nodeId}-{$productId}'>
-                <td>
-                    <span> - {$productName}</span>
-                    <input type='hidden' name='RESTRICTION[PRODUCTS][]' value='{$productId}'>
-                </td>
-                <td align='right'>
-                    &nbsp;
-                    <a 
-                        class='adm-s-bus-morelinkqhsw' href='javascript:void(0);' 
-                        onclick=\"{$input["JS_HANDLER"]}.deleteRestrictionByConcreteProduct('{$nodeId}', '{$productId}');\"
-                    >
-                        {$deleteInputTranslate}
-                    </a>
-                </td>
-            </tr>
-            ";
-        }
+		foreach ($productsList as $productId => $productName)
+		{
+			$existProductsHtml .= "
+			<tr class='adm-s-concrete-product-restriction-delprod' id='{$nodeId}-{$productId}'>
+				<td>
+					<span> - {$productName}</span>
+					<input type='hidden' name='RESTRICTION[PRODUCTS][]' value='{$productId}'>
+				</td>
+				<td align='right'>
+					&nbsp;
+					<a
+						class='adm-s-bus-morelinkqhsw' href='javascript:void(0);'
+						onclick=\"{$input["JS_HANDLER"]}.deleteRestrictionByConcreteProduct('{$nodeId}', '{$productId}');\"
+					>
+						{$deleteInputTranslate}
+					</a>
+				</td>
+			</tr>
+			";
+		}
 
-        $existProductsHtml .= "</table>";
+		$existProductsHtml .= "</table>";
 
-        return $existProductsHtml.$editSection;
-    }
+		return $existProductsHtml.$editSection;
+	}
 
-    protected static function getProductsList($elementIds)
-    {
-        if (!\Bitrix\Main\Loader::includeModule('iblock'))
-        {
-            return [];
-        }
+	protected static function getProductsList($elementIds)
+	{
+		if (!\Bitrix\Main\Loader::includeModule('iblock'))
+		{
+			return [];
+		}
 
-        $productsList = [];
+		$productsList = [];
 
-        $productsListSource = \Bitrix\Iblock\ElementTable::getList([
-                'filter' => [
-                        'ID' => $elementIds,
-                ],
-                'select' => ['ID', 'NAME'],
-        ]);
+		$productsListSource = \Bitrix\Iblock\ElementTable::getList([
+			'filter' => [
+				'ID' => $elementIds,
+			],
+			'select' => [
+				'ID',
+				'NAME',
+			],
+		]);
 
-        while ($productRow = $productsListSource->fetch())
-        {
-            $productsList[$productRow['ID']] = htmlspecialcharsbx($productRow['NAME']);
-        }
+		while ($productRow = $productsListSource->fetch())
+		{
+			$productsList[$productRow['ID']] = htmlspecialcharsbx($productRow['NAME']);
+		}
 
-        return $productsList;
-    }
+		return $productsList;
+	}
 
-    public static function getValueSingle(array $input, $userValue)
-    {
-        return $userValue;
-    }
+	public static function getValueSingle(array $input, $userValue)
+	{
+		return $userValue;
+	}
 
-    public static function getError(array $input, $value)
-    {
-        return self::getErrorSingle($input, $value);
-    }
+	public static function getError(array $input, $value)
+	{
+		return self::getErrorSingle($input, $value);
+	}
 
-    public static function getErrorSingle(array $input, $value)
-    {
-        return [];
-    }
+	public static function getErrorSingle(array $input, $value)
+	{
+		return [];
+	}
 
-    public static function getSettings(array $input, $reload)
-    {
-        return [];
-    }
+	public static function getSettings(array $input, $reload)
+	{
+		return [];
+	}
 }
 
 Manager::register(
-    'CONCRETE_PRODUCT',
-    [
-        'CLASS' => __NAMESPACE__.'\\ConcreteProduct',
-        'NAME' => Loc::getMessage('SALE_CONCRETE_PRODUCT_INP')
-    ]
+	'CONCRETE_PRODUCT',
+	[
+		'CLASS' => __NAMESPACE__.'\\ConcreteProduct',
+		'NAME' => Loc::getMessage('SALE_CONCRETE_PRODUCT_INP'),
+	]
 );

@@ -2,7 +2,8 @@
 	margin-bottom: 20px;
 	min-width: 220px;
 	width: 100%;
-	font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-regular, 400);
 }
 
 .smart-filter-section { position: relative; }
@@ -18,6 +19,7 @@
 .smart-filter-parameters-box { position: relative; }
 
 .smart-filter-parameters-box-title {
+	position: relative;
 	display: inline-block;
 	padding-bottom: 7px;
 	font-size: 13px;
@@ -689,7 +691,7 @@
 }
 
 /*
-*	BTN result and reset 
+*	BTN result and reset
 *
 */
 
@@ -710,7 +712,7 @@
 	position: absolute;
 	z-index: 915;
 	display: none;
-	margin-top: -7px;
+	margin-top: -9px;
 	margin-left: 10px;
 	padding: 0 10px;
 	min-height: 37px;
@@ -740,7 +742,7 @@
 
 .smart-filter-popup-result.right { left: 97%; }
 
-.smart-filter-popup-result.left { right: 97%; }
+.smart-filter-popup-result.left { right: 103%; }
 
 .smart-filter-horizontal .smart-filter-popup-result {
 	position: relative;

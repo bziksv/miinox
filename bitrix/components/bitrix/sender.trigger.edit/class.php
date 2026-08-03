@@ -135,7 +135,7 @@ class SenderTriggerEditComponent extends Bitrix\Sender\Internals\CommonSenderCom
 		}
 
 		$this->arResult['CAMPAIGN_TILE'] = UI\TileView::create()->getTile(
-			$this->arResult['ROW']['ID'],
+			$this->arResult['ROW']['ID'] ?? null,
 			$this->arResult['ROW']['NAME']
 		);
 		$this->arResult['IS_SAVED'] = $this->request->get('IS_SAVED') == 'Y';
@@ -218,7 +218,7 @@ class SenderTriggerEditComponent extends Bitrix\Sender\Internals\CommonSenderCom
 		static $sites = null;
 		if ($sites === null)
 		{
-			$sites = \Bitrix\Main\SiteTable::getList(['select' => ['ID' => 'LID', 'NAME']])->fetchAll();
+			$sites = \Bitrix\Main\SiteTable::getList(['select' => ['ID', 'NAME']])->fetchAll();
 			foreach ($sites as $index => $site)
 			{
 				$site['SELECTED'] = $this->arResult['ROW']['SITE_ID'] === $site['ID'];

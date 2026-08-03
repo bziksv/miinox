@@ -725,15 +725,14 @@ body[style*="cursor: move;"] .landing-ui-panel-block-card-action {
 }
 
 /* xl
-   Large devices more than 992px. In editor - show always
+   Large devices more than 992px
  */
 @media (min-width: 992px) {
-	.l-d-lg-none {
-		display: block!important;
-	}
-
 	.l-d-lg-none.g-flex-centered {
 		display: flex!important;
+	}
+	.block-wrapper .l-d-lg-none {
+		display: none !important;
 	}
 }
 
@@ -901,6 +900,8 @@ main.landing-edit-mode.landing-ui-overlay::after {
 	position: relative;
 	top: -4%;
 	max-width: 400px;
+	padding-left: 15px;
+	padding-right: 15px;
 }
 
 .landing-ui-field-link-url-grid.landing-ui-disabled,
@@ -929,15 +930,6 @@ only screen and (min-resolution: 2dppx) {
 	.landing-ui-form-card-item-header {
 		border-bottom-width: .5px!important;
 	}
-}
-
-.bx-ie.bx-ie11 body {
-	overflow: hidden;
-}
-
-.bx-ie.bx-ie11 .g-upper-show,
-.bx-ie.bx-ie11 .template-bitrix24 {
-	overflow-y: auto;
 }
 
 .landing-ui-block-selectable-overlay {

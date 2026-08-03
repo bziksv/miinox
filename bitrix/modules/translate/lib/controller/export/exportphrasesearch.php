@@ -53,7 +53,7 @@ class ExportPhraseSearch
 		{
 			$path = Translate\Config::getDefaultPath();
 		}
-		if (preg_match("#(.+\/lang)(\/?\w*)#", $path, $matches))
+		if (\preg_match("#(.+\/lang)(\/?\w*)#", $path, $matches))
 		{
 			$path = $matches[1];
 		}
@@ -103,7 +103,7 @@ class ExportPhraseSearch
 	 */
 	private function runExporting(array $params)
 	{
-		$path = rtrim($params['path'], '/');
+		$path = \rtrim($params['path'], '/');
 
 		$csvFile = new Translate\IO\CsvFile($this->exportFilePath);
 		$this->configureExportCsvFile($csvFile);
@@ -120,25 +120,24 @@ class ExportPhraseSearch
 
 		foreach ($this->languages as $langId)
 		{
-			$select[] = mb_strtoupper($langId)."_LANG";
+			$select[] = \mb_strtoupper($langId)."_LANG";
 		}
-		if (!in_array($this->filter['LANGUAGE_ID'], $this->languages))
+		if (!\in_array($this->filter['LANGUAGE_ID'], $this->languages))
 		{
-			$select[] = mb_strtoupper($this->filter['LANGUAGE_ID'])."_LANG";
+			$select[] = \mb_strtoupper($this->filter['LANGUAGE_ID'])."_LANG";
 		}
 
 		/** @var Main\ORM\Query\Result $cachePathRes */
 		$phraseInxRes = Index\PhraseIndexSearch::getList(array(
 			'filter' => $phraseFilter,
-			'order' => ['TITLE' => 'ASC', 'PATH_ID' => 'ASC'],
+			'order' => ['PATH_ID' => 'ASC'],
 			'select' => $select,
-			//todo: add limit here
 		));
 
 		$processedItemCount = 0;
 
 		$prevPathId = -1;
-		$fileInxCache = array();
+		$fileInxCache = [];
 		while ($phraseInx = $phraseInxRes->fetch())
 		{
 			if ($this->instanceTimer()->hasTimeLimitReached())
@@ -172,7 +171,7 @@ class ExportPhraseSearch
 
 			if (isset($rows[$phraseInx['PHRASE_CODE']]))
 			{
-				$csvFile->put(array_values($rows[$phraseInx['PHRASE_CODE']]));
+				$csvFile->put(\array_values($rows[$phraseInx['PHRASE_CODE']]));
 				$this->exportedPhraseCount ++;
 			}
 
@@ -218,7 +217,7 @@ class ExportPhraseSearch
 		{
 			foreach ($this->filter as $key => $value)
 			{
-				if (!in_array($key, ['FILTER_ID', 'PRESET_ID', 'FILTER_APPLIED', 'FIND', 'tabId']))
+				if (!\in_array($key, ['FILTER_ID', 'PRESET_ID', 'FILTER_APPLIED', 'FIND', 'tabId']))
 				{
 					$filterOut[$key] = $value;
 				}

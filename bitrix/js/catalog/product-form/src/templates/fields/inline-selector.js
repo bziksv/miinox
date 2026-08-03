@@ -33,6 +33,7 @@ Vue.component(config.templateFieldInlineSelector,
 		EventEmitter.subscribe('BX.Catalog.ProductSelector:onProductSelect', this.onProductSelect.bind(this));
 		EventEmitter.subscribe('BX.Catalog.ProductSelector:onChange', this.onProductChange.bind(this));
 		EventEmitter.subscribe('BX.Catalog.ProductSelector:onClear', this.onProductClear.bind(this))
+		EventEmitter.subscribe(this.$root.$app, 'onChangeCompilationMode', this.changeProductSelectorImageRequire.bind(this));
 	},
 	mounted()
 	{
@@ -41,6 +42,19 @@ Vue.component(config.templateFieldInlineSelector,
 	},
 	methods:
 	{
+		changeProductSelectorImageRequire(event: BaseEvent)
+		{
+			const isCompilationMode = event.getData()?.isCompilationMode;
+			const isFacebookForm = event.getData()?.isFacebookForm;
+
+			this.productSelector.setConfig(
+				'ENABLE_EMPTY_IMAGES_ERROR',
+				isCompilationMode && isFacebookForm
+			);
+
+			this.productSelector.checkEmptyImageError();
+			this.productSelector.layoutErrors();
+		},
 		prepareSelectorParams(): Object
 		{
 			const fields = {
@@ -52,6 +66,13 @@ Vue.component(config.templateFieldInlineSelector,
 				fields.PRICE = this.getField('basePrice');
 				fields.CURRENCY = this.options.currency;
 			}
+
+			const basketItemOfferId = this.basketItem.offerId;
+			const facebookFailProducts = this.options.facebookFailProducts;
+			const hasFacebookError =
+				Type.isObject(facebookFailProducts)
+				&& facebookFailProducts.hasOwnProperty(basketItemOfferId)
+			;
 
 			const selectorOptions = {
 				iblockId: this.options.iblockId,
@@ -72,8 +93,10 @@ Vue.component(config.templateFieldInlineSelector,
 					ROW_ID: this.selectorId,
 					ENABLE_SKU_SELECTION: this.editable,
 					HIDE_UNSELECTED_ITEMS: this.options.hideUnselectedProperties,
-					URL_BUILDER_CONTEXT: this.options.urlBuilderContext
+					URL_BUILDER_CONTEXT: this.options.urlBuilderContext,
+					VIEW_FORMAT: this.options.isShortProductViewFormat ? ProductSelector.SHORT_VIEW_FORMAT : ProductSelector.FULL_VIEW_FORMAT,
 				},
+				failedProduct: hasFacebookError,
 				mode: this.editable ? ProductSelector.MODE_EDIT : ProductSelector.MODE_VIEW,
 				fields,
 			};
@@ -132,12 +155,15 @@ Vue.component(config.templateFieldInlineSelector,
 					NAME: data.fields.NAME,
 					ID: data.fields.ID,
 					PRODUCT_ID: data.fields.PRODUCT_ID,
+					TYPE: data.fields.TYPE,
 					SKU_ID: data.fields.SKU_ID,
 					PROPERTIES: data.fields.PROPERTIES,
 					URL_BUILDER_CONTEXT: this.options.urlBuilderContext,
 					CUSTOMIZED: (Type.isNil(data.fields.PRICE) || data.fields.CUSTOMIZED === 'Y') ? 'Y' : 'N',
 					MEASURE_CODE: data.fields.MEASURE_CODE,
 					MEASURE_NAME: data.fields.MEASURE_NAME,
+					MORE_PHOTO: data.morePhoto,
+					BRANDS: data.fields.BRANDS,
 					IS_NEW: data.isNew,
 				};
 

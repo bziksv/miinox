@@ -1,0 +1,47 @@
+.slider-title {
+	font-size: 48pt;
+	color: #fff;
+	font-weight: 700;
+	margin-bottom: 25px;
+}
+
+.slider-subtitle {
+	font-size: 28pt;
+	color: #fff;
+}
+
+.slider-text {
+	font-size: 12pt;
+	color: #fff;
+	margin-bottom: 25px;
+}
+
+@media (max-width: 1400px) {
+	.slider-title {
+		font-size: 36pt;
+	}
+
+	.slider-subtitle {
+		font-size: 28pt;
+	}
+}
+
+@media (max-width: 990px) {
+	.slider-title {
+		font-size: 34pt;
+	}
+
+	.slider-subtitle {
+		font-size: 28pt;
+	}
+}
+
+@media (max-width: 768px) {
+	.slider-title {
+		font-size: 24pt;
+	}
+
+	.slider-subtitle {
+		font-size: 18pt;
+	}
+}

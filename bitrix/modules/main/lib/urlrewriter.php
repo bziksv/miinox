@@ -99,19 +99,19 @@ class UrlRewriter
 			foreach ($arFilter as $keyFilter => $valueFilter)
 			{
 				$isNegative = false;
-				if (mb_substr($keyFilter, 0, 1) == "!")
+				if (mb_substr($keyFilter, 0, 1) === "!")
 				{
 					$isNegative = true;
 					$keyFilter = mb_substr($keyFilter, 1);
 				}
 
-				if ($keyFilter == 'QUERY')
+				if ($keyFilter === 'QUERY')
 					$isMatchedTmp = preg_match($arRule["CONDITION"], $valueFilter);
-				elseif ($keyFilter == 'CONDITION')
+				elseif ($keyFilter === 'CONDITION')
 					$isMatchedTmp = ($arRule["CONDITION"] == $valueFilter);
-				elseif ($keyFilter == 'ID')
-					$isMatchedTmp = ($arRule["ID"] == $valueFilter);
-				elseif ($keyFilter == 'PATH')
+				elseif ($keyFilter === 'ID')
+					$isMatchedTmp = (isset($arRule["ID"]) && ($arRule["ID"] == $valueFilter));
+				elseif ($keyFilter === 'PATH')
 					$isMatchedTmp = ($arRule["PATH"] == $valueFilter);
 				else
 					throw new ArgumentException("arFilter");
@@ -242,10 +242,10 @@ class UrlRewriter
 				"max_file_size" => $nsOld["max_file_size"]
 			);
 
-			if ($nsOld["SITE_ID"] != "")
+			if (!empty($nsOld["SITE_ID"]))
 				$ns["SITE_ID"] = $nsOld["SITE_ID"];
 		}
-		$ns["CNT"] = intval($ns["CNT"]);
+		$ns["CNT"] = intval($ns["CNT"] ?? 0);
 
 		$arSites = array();
 		$filterRootPath = "";
@@ -267,11 +267,11 @@ class UrlRewriter
 				"path" => IO\Path::combine($ar["DOC_ROOT"], $ar["DIR"])
 			);
 
-			if ($ns["SITE_ID"] != "" && $ns["SITE_ID"] == $ar["LID"])
+			if (!empty($ns["SITE_ID"]) && $ns["SITE_ID"] == $ar["LID"])
 				$filterRootPath = $ar["DOC_ROOT"];
 		}
 
-		if ($ns["SITE_ID"] != "" && !empty($filterRootPath))
+		if (!empty($ns["SITE_ID"]) && !empty($filterRootPath))
 		{
 			$arSitesTmp = array();
 			$arKeys = array_keys($arSites);
@@ -370,9 +370,10 @@ class UrlRewriter
 					continue;
 
 				//this is not first step and we had stopped here, so go on to reindex
-				if ($maxExecutionTime <= 0 || $ns["FLG"] == ''
-					|| ($ns["FLG"] <> ''
-						&& mb_substr($ns["ID"]."/", 0, mb_strlen($child->getPath()."/")) == $child->getPath()."/"))
+				if ($maxExecutionTime <= 0
+					|| $ns["FLG"] == ''
+					|| mb_substr($ns["ID"]."/", 0, mb_strlen($child->getPath()."/")) == $child->getPath()."/"
+				)
 				{
 					if (static::recursiveReindex($rootPath, mb_substr($child->getPath(), mb_strlen($rootPath)), $arSites, $maxExecutionTime, $ns) === false)
 						return false;

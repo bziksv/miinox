@@ -11,6 +11,7 @@ $MESS["CACHE_TYPE_TIP"] = "<i>Automatisch</i>: Der Cache ist gültig gemäß Def
 $MESS["CHECK_SECTION_ID_VARIABLE_TIP"] = "Wenn die Bereichs-ID oder der symbolische Code fehlen, wird der Wert der Variablen verwendet, die im Parameter \"Variable, welche die Gruppen-ID enthält\"  angegeben ist.";
 $MESS["COMPARE_PATH_TIP"] = "Gibt den Pfad zur Seite mit der Komponente des Produktvergleichs an. Wenn der Wert leer ist, wird aktuelle Seite benutzt.";
 $MESS["COMPATIBLE_MODE_TIP"] = "Nutzen Sie diese Option für angepasste Vorlagen, die für Informationsblöcke vor der Version 17.0.0. erstellt wurden. Um die Performance zu verbessern, sollten Sie die Komponentenvorlage auf das neue Format übertragen.";
+$MESS["CP_BCE_ADDITIONAL_FILTER_NAME"] = "Name des Bereichs mit Werten zum zusätzlichen Filtern des Elements";
 $MESS["CP_BCE_ADD_ELEMENT_CHAIN"] = "Elementnamen zur Breadcrumb-Navigation hinzufügen";
 $MESS["CP_BCE_ADD_PROPERTIES_TO_BASKET"] = "Eigenschaften der Produkte und Produktvarianten zum Warenkorb hinzufügen";
 $MESS["CP_BCE_ADD_SECTIONS_CHAIN"] = "Bereich in der Navigationskette anzeigen";

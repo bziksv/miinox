@@ -1,4 +1,4 @@
-<?
+<?php
 /** @global CMain $APPLICATION */
 use Bitrix\Main,
 	Bitrix\Main\Application,
@@ -58,7 +58,7 @@ while ($site = $siteIterator->fetch())
 		'ID' => $site['LID'],
 		'NAME' => $site['NAME']
 	);
-	$saleSite = (string)Option::get('sale', 'SHOP_SITE_'.$site['LID']);
+	$saleSite = Option::get('sale', 'SHOP_SITE_'.$site['LID']);
 	if ($site['LID'] == $saleSite)
 	{
 		$arSitesShop[] = array(
@@ -198,54 +198,53 @@ if (isset($_REQUEST['filter_preset_id']) && is_string($_REQUEST['filter_preset_i
 
 if (!$readOnly && $adminList->EditAction())
 {
-	if (isset($FIELDS) && is_array($FIELDS))
+	$conn = Application::getConnection();
+	foreach ($adminList->GetEditFields() as $ID => $fields)
 	{
-		$conn = Application::getConnection();
-		foreach ($FIELDS as $ID => $fields)
+		$ID = (int)$ID;
+		if ($ID <= 0)
 		{
-			$ID = (int)$ID;
-			if ($ID <= 0 || !$adminList->IsUpdated($ID))
-				continue;
-
-			if (isset($fields['ACTIVE_FROM']) && is_string($fields['ACTIVE_FROM']))
-			{
-				$fields['ACTIVE_FROM'] = trim($fields['ACTIVE_FROM']);
-				$fields['ACTIVE_FROM'] = (
-					$fields['ACTIVE_FROM'] === ''
-					? null
-					: Main\Type\DateTime::createFromUserTime($fields['ACTIVE_FROM'])
-				);
-			}
-
-			if (isset($fields['ACTIVE_TO']) && is_string($fields['ACTIVE_TO']))
-			{
-				$fields['ACTIVE_TO'] = trim($fields['ACTIVE_TO']);
-				$fields['ACTIVE_TO'] = (
-					$fields['ACTIVE_TO'] === ''
-					? null
-					: Main\Type\DateTime::createFromUserTime($fields['ACTIVE_TO'])
-				);
-			}
-
-			$conn->startTransaction();
-			$result = Sale\Internals\DiscountTable::update($ID, $fields);
-			if ($result->isSuccess())
-			{
-				$conn->commitTransaction();
-			}
-			else
-			{
-				$conn->rollbackTransaction();
-				$adminList->AddUpdateError(implode('<br>', $result->getErrorMessages()), $ID);
-			}
+			continue;
 		}
-		unset($fields, $ID);
+
+		if (isset($fields['ACTIVE_FROM']) && is_string($fields['ACTIVE_FROM']))
+		{
+			$fields['ACTIVE_FROM'] = trim($fields['ACTIVE_FROM']);
+			$fields['ACTIVE_FROM'] = (
+				$fields['ACTIVE_FROM'] === ''
+				? null
+				: Main\Type\DateTime::createFromUserTime($fields['ACTIVE_FROM'])
+			);
+		}
+
+		if (isset($fields['ACTIVE_TO']) && is_string($fields['ACTIVE_TO']))
+		{
+			$fields['ACTIVE_TO'] = trim($fields['ACTIVE_TO']);
+			$fields['ACTIVE_TO'] = (
+				$fields['ACTIVE_TO'] === ''
+				? null
+				: Main\Type\DateTime::createFromUserTime($fields['ACTIVE_TO'])
+			);
+		}
+
+		$conn->startTransaction();
+		$result = Sale\Internals\DiscountTable::update($ID, $fields);
+		if ($result->isSuccess())
+		{
+			$conn->commitTransaction();
+		}
+		else
+		{
+			$conn->rollbackTransaction();
+			$adminList->AddUpdateError(implode('<br>', $result->getErrorMessages()), $ID);
+		}
 	}
+	unset($fields, $ID);
 }
 
 if (!$readOnly && ($listID = $adminList->GroupAction()))
 {
-	if ($_REQUEST['action_target'] == 'selected')
+	if ($adminList->IsGroupActionToAll())
 	{
 		$listID = array();
 		$discountIterator = Sale\Internals\DiscountTable::getList(array(
@@ -259,14 +258,15 @@ if (!$readOnly && ($listID = $adminList->GroupAction()))
 	$listID = array_filter($listID);
 	if (!empty($listID))
 	{
-		switch ($_REQUEST['action'])
+		$action = $adminList->GetAction();
+		switch ($action)
 		{
 			case 'activate':
 			case 'deactivate':
-				$fields = array(
-					'ACTIVE' => ($_REQUEST['action'] == 'activate' ? 'Y' : 'N')
-				);
-				foreach ($listID as &$discountID)
+				$fields = [
+					'ACTIVE' => ($action === 'activate' ? 'Y' : 'N'),
+				];
+				foreach ($listID as $discountID)
 				{
 					$result = Sale\Internals\DiscountTable::update($discountID, $fields);
 					if (!$result->isSuccess())
@@ -276,7 +276,7 @@ if (!$readOnly && ($listID = $adminList->GroupAction()))
 				unset($discountID, $fields);
 				break;
 			case 'delete':
-				foreach ($listID as &$discountID)
+				foreach ($listID as $discountID)
 				{
 					$result = Sale\Internals\DiscountTable::delete($discountID);
 					if (!$result->isSuccess())
@@ -420,7 +420,8 @@ $headerList['USE_COUPONS'] = array(
 	'default' => true
 );
 
-if (Option::get('sale', 'use_sale_discount_only') !== 'Y')
+$saleDiscountOnly = Option::get('sale', 'use_sale_discount_only') === 'Y';
+if (!$saleDiscountOnly)
 {
 	unset($headerList['EXECUTE_MODULE']);
 }
@@ -430,21 +431,19 @@ $adminList->AddHeaders($headerList);
 $selectFields = array_fill_keys($adminList->GetVisibleHeaderColumns(), true);
 $selectFields['ID'] = true;
 $selectFieldsMap = array_fill_keys(array_keys($headerList), false);
+if (!$saleDiscountOnly)
+{
+	$selectFieldsMap['EXECUTE_MODULE'] = false;
+}
 
 $selectFieldsMap = array_merge($selectFieldsMap, $selectFields);
 $selectFields['ACTIVE'] = true;
 $selectFields['PRESET_ID'] = true;
 $selectFields['ACTIONS_LIST'] = true;
 
-global $by, $order;
-if (!isset($by))
-	$by = 'ID';
-if (!isset($order))
-	$order = 'ASC';
-
 $usePageNavigation = true;
 $navyParams = array();
-if (isset($_REQUEST['mode']) && $_REQUEST['mode'] == 'excel')
+if ($adminList->isExportMode())
 {
 	$usePageNavigation = false;
 }
@@ -461,10 +460,20 @@ else
 		$navyParams['SIZEN'] = (int)$navyParams['SIZEN'];
 	}
 }
+
+$by = mb_strtoupper($adminSort->getField());
+$order = mb_strtoupper($adminSort->getOrder());
+$sort = [
+	$by => $order,
+];
+if ($by !== 'ID')
+{
+	$sort['ID'] = 'ASC';
+}
 $getListParams = array(
 	'select' => array_keys($selectFields),
 	'filter' => $filter,
-	'order' => array($by => $order)
+	'order' => $sort,
 );
 if(Option::get('sale', 'use_sale_discount_only', false) === 'Y' && Loader::includeModule('catalog'))
 {
@@ -518,9 +527,9 @@ $adminList->SetNavigationParams($discountIterator, array("BASE_LINK" => $selfFol
 
 $userList = array();
 $arUserID = array();
-$nameFormat = CSite::GetNameFormat(true);
+$nameFormat = CSite::GetNameFormat();
 
-function canShowDiscountInCatalog(array $discount)
+function canShowDiscountInCatalog(array $discount): bool
 {
 	if(
 		isset($discount['USE_COUPONS']) && $discount['USE_COUPONS'] === 'N' &&
@@ -610,10 +619,13 @@ while ($discount = $discountIterator->Fetch())
 		if ($selectFieldsMap['NAME'])
 			$row->AddViewField('NAME', htmlspecialcharsbx($discount['NAME'].$catalogNamePostfix));
 	}
+	if ($selectFieldsMap['LID'])
+	{
+		$row->AddViewField('LID', $siteList[$discount['LID']]);
+	}
+
 	if (!$readOnly)
 	{
-		if ($selectFieldsMap['LID'])
-			$row->AddViewField('LID', $siteList[$discount['LID']]);
 		if ($selectFieldsMap['ACTIVE'])
 			$row->AddCheckField('ACTIVE');
 
@@ -642,8 +654,6 @@ while ($discount = $discountIterator->Fetch())
 	}
 	else
 	{
-		if ($selectFieldsMap['LID'])
-			$row->AddViewField('LID', $siteList[$discount['LID']]);
 		if ($selectFieldsMap['ACTIVE'])
 			$row->AddCheckField('ACTIVE', false);
 

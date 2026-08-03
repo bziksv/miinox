@@ -11,7 +11,7 @@ $APPLICATION->SetTitle("Статьи и полезные материалы");
                 <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array("SITE_ID" => SITE_ID),
                     false
                 );?>
-                <h1>Статьи</h1>
+                <div class="h1">Статьи</div>
             </div>
         </div>
         <!-- end inner-page_title-section -->

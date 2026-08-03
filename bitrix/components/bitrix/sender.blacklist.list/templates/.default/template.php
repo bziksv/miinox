@@ -60,12 +60,7 @@ $APPLICATION->IncludeComponent(
 $filterLayout = ob_get_clean();
 
 $APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' => array(
-	array('type' => 'filter', 'content' => $filterLayout),
 	array('type' => 'buttons', 'list' => [
-			[
-				'type' => 'settings',
-				'items' => ['import']
-			],
 		$arParams['CAN_EDIT']
 			?
 			[
@@ -76,6 +71,13 @@ $APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' 
 			]
 			:
 			null
+	]),
+	array('type' => 'filter', 'content' => $filterLayout),
+	array('type' => 'buttons', 'list' => [
+			[
+				'type' => 'settings',
+				'items' => ['import']
+			]
 	]),
 )));
 
@@ -124,7 +126,7 @@ $APPLICATION->IncludeComponent(
 
 			BX.Sender.BlacklistGrid.init(<?=Json::encode(array(
 				'actionUri' => $arResult['ACTION_URI'],
-				'messages' => $arResult['MESSAGES'],
+				'messages' => $arResult['MESSAGES'] ?? '',
 				"gridId" => $arParams['GRID_ID'],
 				'mess' => array()
 			))?>);

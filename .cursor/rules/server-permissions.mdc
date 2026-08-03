@@ -1,0 +1,35 @@
+---
+description: Права владельца на dev/prod — не root
+alwaysApply: true
+---
+
+# Права на сервере (dev / prod)
+
+После **любых** действий на сервере от root (ssh, php-скрипты, mkdir, загрузка файлов, генерация картинок, кеш) — **сразу** выставить владельца сайта, не оставлять `root:root`.
+
+## Владелец
+
+| Среда | Путь сайта | User:Group |
+|-------|------------|------------|
+| **Dev** | `/var/www/dev_miinox_r_usr/data/www/dev.miinox.ru` | `dev_miinox_r_usr:dev_miinox_r_usr` |
+| **Prod** | `/var/www/miinox_ru_usr/data/www/miinox.ru` | `miinox_ru_usr:miinox_ru_usr` |
+
+## Обязательно
+
+1. Не оставлять файлы/папки от `root` в дереве сайта (`upload/`, `bitrix/cache/`, tmp и т.д.).
+2. После скриптов от root — `chown -R user:group` на затронутые пути (минимум `upload/`).
+3. Предпочтительно: запускать php от пользователя сайта (`sudo -u dev_miinox_r_usr ...`), а не от root.
+4. Деплой через **git** на сервере — после pull/reset проверить, что новые файлы не от root; при необходимости `chown`.
+
+## Пример (dev)
+
+```bash
+SITE=/var/www/dev_miinox_r_usr/data/www/dev.miinox.ru
+chown -R dev_miinox_r_usr:dev_miinox_r_usr "$SITE/upload"
+# или всё, что создал root:
+find "$SITE" -user root -exec chown dev_miinox_r_usr:dev_miinox_r_usr {} +
+```
+
+## Почему
+
+PHP-FPM сайта пишет от пользователя сайта. Файлы `root:root` → нельзя создать WebP/кеш/загрузки → баги «на dev не работает».

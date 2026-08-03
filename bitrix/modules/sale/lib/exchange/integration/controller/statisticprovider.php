@@ -7,7 +7,7 @@ namespace Bitrix\Sale\Exchange\Integration\Controller;
 use Bitrix\Main\Engine\Action;
 use Bitrix\Main\Error;
 use Bitrix\Rest\Integration\Controller\Base;
-use Bitrix\Rest\Integration\SaleViewManager;
+use Bitrix\Sale\Rest\View\SaleViewManager;
 use Bitrix\Sale\Exchange\Integration\Entity\B24IntegrationStatProviderTable;
 use Bitrix\Sale\Result;
 use Bitrix\Main\Engine\Response\DataType\Page;
@@ -30,14 +30,14 @@ class StatisticProvider extends Base
 	 * @param array $select
 	 * @param array $filter
 	 * @param array $order
-	 * @param PageNavigation $pageNavigation
+	 * @param PageNavigation|null $pageNavigation
 	 * @return Page
 	 * @throws \Bitrix\Main\ArgumentException
 	 * @throws \Bitrix\Main\NotImplementedException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public function listAction($select=[], $filter=[], $order=[], PageNavigation $pageNavigation)
+	public function listAction($select = [], $filter = [], $order = [], PageNavigation $pageNavigation = null): Page
 	{
 		return new Page('STATISTIC_PROVIDERS',
 			$this->getList($select, $filter, $order, $pageNavigation),

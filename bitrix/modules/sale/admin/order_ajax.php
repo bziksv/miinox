@@ -252,7 +252,7 @@ class AjaxProcessor
 		if(!$this->request["formData"]) throw new ArgumentNullException("formatData");
 		//if(!$this->request["quantity"]) throw new ArgumentNullException("quantity");
 		if(!$this->request["productId"]) throw new ArgumentNullException("productId");
-		$orderId = (int)$this->request["formData"]['ID'];
+		$orderId = (int)($this->request["formData"]['ID'] ?? 0);
 		$saleModulePermissions = $APPLICATION->GetGroupRight("sale");
 
 		if ($saleModulePermissions == 'P' && $orderId > 0)
@@ -1834,11 +1834,11 @@ class AjaxProcessor
 			/** @var Sale\Shipment $shipmentClass */
 			$shipmentClass = $this->registry->getShipmentClassName();
 			$resShipment = $shipmentClass::getList([
-				 'select' => ['RESPONSIBLE_ID', 'COMPANY_ID', 'STATUS_ID'],
-				 'filter' => [
-					 '=ORDER_ID' => intval($this->request["orderId"]),
-					 '=ID' => $shipmentId,
-				 ]
+				'select' => ['RESPONSIBLE_ID', 'COMPANY_ID', 'STATUS_ID'],
+				'filter' => [
+					'=ORDER_ID' => (int)$this->request["orderId"],
+					'=ID' => $shipmentId,
+				]
 			]);
 			if ($shipmentData = $resShipment->fetch())
 			{
@@ -2374,9 +2374,9 @@ class AjaxProcessor
 
 		if ($formData["ID"] > 0)
 		{
-			if ((int)$formData["USER_ID"] > 0)
+			if (isset($formData["USER_ID"]) && (int)$formData["USER_ID"] > 0)
 				$currentUserId = (int)$formData["USER_ID"];
-			if ((int)$formData["OLD_USER_ID"] > 0)
+			if (isset($formData["USER_ID"]) && (int)$formData["OLD_USER_ID"] > 0)
 				$oldUserId = (int)$formData["OLD_USER_ID"];
 		}
 		else
@@ -2655,11 +2655,14 @@ class AjaxProcessor
 				$shipmentClass = $this->registry->getShipmentClassName();
 
 				$resShipment = $shipmentClass::getList([
-					 'filter' => [
-						 '=ORDER_ID' => intval($this->request["orderId"]),
-						 '=ID' => intval($this->request["shipmentId"]),
-					 ],
-					 'select' => ['RESPONSIBLE_ID', 'COMPANY_ID']
+					'filter' => [
+						'=ORDER_ID' => (int)$this->request["orderId"],
+						'=ID' => (int)$this->request["shipmentId"],
+					],
+					'select' => [
+						'RESPONSIBLE_ID',
+						'COMPANY_ID',
+					]
 				]);
 				if ($shipmentData = $resShipment->fetch())
 				{

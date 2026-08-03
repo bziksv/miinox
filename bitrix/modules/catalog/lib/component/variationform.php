@@ -2,10 +2,12 @@
 
 namespace Bitrix\Catalog\Component;
 
+use Bitrix\Catalog\Config\State;
 use Bitrix\Catalog\v2\Property\Property;
 use Bitrix\Currency\CurrencyManager;
 use Bitrix\Main\Component\ParameterSigner;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog;
 
 class VariationForm extends BaseForm
 {
@@ -108,6 +110,11 @@ class VariationForm extends BaseForm
 		);
 	}
 
+	protected function getCardSettingsItems(): array
+	{
+		return GridVariationForm::getGridCardSettingsItems();
+	}
+
 	protected function showCatalogProductFields(): bool
 	{
 		return true;
@@ -128,26 +135,10 @@ class VariationForm extends BaseForm
 		);
 	}
 
-	protected function buildIblockPropertiesDescriptions(): array
-	{
-		$propertyDescriptions = [];
-
-		foreach ($this->entity->getPropertyCollection() as $property)
-		{
-			if ($property->getUserType() === \CIBlockPropertySKU::USER_TYPE)
-			{
-				continue;
-			}
-			$propertyDescriptions[] = $this->getPropertyDescription($property);
-		}
-
-		return $propertyDescriptions;
-	}
-
 	protected function getPriceDescriptions(): array
 	{
 		$descriptions = [];
-		$priceTypeList = \CCatalogGroup::GetListArray();
+		$priceTypeList = Catalog\GroupTable::getTypeList();
 
 		if (!empty($priceTypeList))
 		{
@@ -167,13 +158,23 @@ class VariationForm extends BaseForm
 		}
 
 		$purchasingPriceFieldName = static::formatFieldName('PURCHASING_PRICE');
-		$descriptions[] = $this->preparePriceDescription([
-			'NAME' => $purchasingPriceFieldName.'_FIELD',
-			'TYPE_ID' => 'PURCHASING_PRICE',
-			'TITLE' => Loc::getMessage('CATALOG_C_F_VARIATION_SETTINGS_PURCHASING_PRICE_FIELD_TITLE'),
-			'PRICE_FIELD' => $purchasingPriceFieldName,
-			'CURRENCY_FIELD' => static::formatFieldName('PURCHASING_CURRENCY'),
-		]);
+		if ($this->isPurchasingPriceAllowed())
+		{
+			$purchasingPriceDescription = $this->preparePriceDescription([
+				'NAME' => $purchasingPriceFieldName.'_FIELD',
+				'TYPE_ID' => 'PURCHASING_PRICE',
+				'TITLE' => Loc::getMessage('CATALOG_C_F_VARIATION_SETTINGS_PURCHASING_PRICE_FIELD_TITLE'),
+				'PRICE_FIELD' => $purchasingPriceFieldName,
+				'CURRENCY_FIELD' => static::formatFieldName('PURCHASING_CURRENCY'),
+			]);
+
+			if (State::isUsedInventoryManagement())
+			{
+				$purchasingPriceDescription['editable'] = false;
+			}
+
+			$descriptions[] = $purchasingPriceDescription;
+		}
 
 		return $descriptions;
 	}
@@ -186,7 +187,7 @@ class VariationForm extends BaseForm
 			'type' => 'money',
 			'entity' => 'money',
 			'priceTypeId' => $fields['TYPE_ID'],
-			'editable' => true,
+			'editable' => $this->isPricesEditable(),
 			'data' => [
 				'affectedFields' => [
 					$fields['PRICE_FIELD'],
@@ -211,7 +212,7 @@ class VariationForm extends BaseForm
 				'name' => static::formatFieldName('MEASURE_RATIO'),
 				'title' => Loc::getMessage('CATALOG_C_F_VARIATION_SETTINGS_MEASURE_RATIO_TITLE'),
 				'type' => 'number',
-				'editable' => true,
+				'editable' => $this->isAllowedEditFields(),
 				'required' => false,
 				'defaultValue' => 1,
 			],

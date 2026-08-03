@@ -29,11 +29,15 @@ export class MenuForm extends BaseForm
 
 		this.draggable = new Draggable({
 			container: this.getBody(),
+			context: parent.window,
 			draggable: '.landing-ui-form-menuitem',
 			dragElement: '.landing-ui-form-header-drag-button',
 			type: Draggable.DROP_PREVIEW,
 			depth: {
 				margin: 20,
+			},
+			offset: {
+				y: -65,
 			},
 		});
 
@@ -118,16 +122,16 @@ export class MenuForm extends BaseForm
 		};
 
 		const allowedTypes = [
-			BX.Landing.UI.Field.LinkURL.TYPE_BLOCK,
-			BX.Landing.UI.Field.LinkURL.TYPE_PAGE,
-			BX.Landing.UI.Field.LinkURL.TYPE_CRM_FORM,
-			BX.Landing.UI.Field.LinkURL.TYPE_CRM_PHONE,
+			BX.Landing.UI.Field.LinkUrl.TYPE_BLOCK,
+			BX.Landing.UI.Field.LinkUrl.TYPE_PAGE,
+			BX.Landing.UI.Field.LinkUrl.TYPE_CRM_FORM,
+			BX.Landing.UI.Field.LinkUrl.TYPE_CRM_PHONE,
 		];
 
 		if (pageType === 'STORE')
 		{
 			allowedTypes.push(
-				BX.Landing.UI.Field.LinkURL.TYPE_CATALOG,
+				BX.Landing.UI.Field.LinkUrl.TYPE_CATALOG,
 			);
 		}
 

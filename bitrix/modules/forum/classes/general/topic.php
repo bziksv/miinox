@@ -412,13 +412,14 @@ class CAllForumTopic
 
 	public static function Delete($ID)
 	{
+		$arTopic = [];
 		if ($topic = \Bitrix\Forum\Topic::getById($ID))
 		{
+			$arTopic = $topic->getData();
 			$topic->remove();
 		}
 		unset($GLOBALS["FORUM_CACHE"]["TOPIC"][$ID]);
 		unset($GLOBALS["FORUM_CACHE"]["TOPIC_FILTER"][$ID]);
-
 
 /***************** Event onAfterTopicDelete ************************/
 		foreach(GetModuleEvents("forum", "onAfterTopicDelete", true) as $arEvent)
@@ -433,7 +434,7 @@ class CAllForumTopic
 
 		if (mb_strlen($ID) < 1) return False;
 
-		$NoFilter = ($arAddParams["NoFilter"] == true || COption::GetOptionString("forum", "FILTER", "Y") != "Y" ? true : false);
+		$NoFilter = (isset($arAddParams["NoFilter"]) && $arAddParams["NoFilter"] == true) || COption::GetOptionString("forum", "FILTER", "Y") != "Y" ? true : false;
 
 		if ($NoFilter && isset($GLOBALS["FORUM_CACHE"]["TOPIC"][$ID]) && is_array($GLOBALS["FORUM_CACHE"]["TOPIC"][$ID]) && is_set($GLOBALS["FORUM_CACHE"]["TOPIC"][$ID], "ID"))
 		{

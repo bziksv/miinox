@@ -6,7 +6,7 @@
 		&& typeof this.BX.Vue3.Pinia !== 'undefined'
 	)
 	{
-		var currentVersion = '2.0.11';
+		var currentVersion = '2.0.22';
 
 		if (this.BX.Vue3.Pinia.version !== currentVersion)
 		{
@@ -22,14 +22,13 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	'use strict';
 
 	/**
-	 * pinia v2.0.11
+	 * pinia v2.0.22
 	 * (c) 2022 Eduardo San Martin Morote
 	 * @license MIT
 	 *
 	 * @source: https://unpkg.com/pinia@2.0.11/dist/pinia.esm-browser.js
 	 * @source: https://github.com/vueuse/vue-demi/blob/master/lib/v3/index.cjs
 	 */
-	const environmentMode = ui_vue3.BitrixVue.developerMode ? 'development' : 'production';
 	const isVue2 = false;
 
 	function set(object, key, value) {
@@ -99,9 +98,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	const getActivePinia = () => ui_vue3.getCurrentInstance() && ui_vue3.inject(piniaSymbol) || activePinia;
 
-	const piniaSymbol = environmentMode !== 'production' ? Symbol('pinia') :
-	/* istanbul ignore next */
-	Symbol();
+	const piniaSymbol = Symbol('pinia');
 
 	function isPlainObject( // eslint-disable-next-line @typescript-eslint/no-explicit-any
 	o) {
@@ -142,6 +139,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	})(exports.MutationType || (exports.MutationType = {}));
 
 	const IS_CLIENT = typeof window !== 'undefined';
+	/**
+	 * Should we add the devtools plugins.
+	 * - only if dev mode or forced through the prod devtools flag
+	 * - not in test
+	 * - only if window exists (could change in the future)
+	 */
+
+	const USE_DEVTOOLS = IS_CLIENT;
 	/*
 	 * FileSaver.js A saveAs() FileSaver implementation.
 	 *
@@ -604,6 +609,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    componentStateTypes,
 	    app
 	  }, api => {
+	    if (typeof api.now !== 'function') {
+	      toastMessage('You seem to be using an outdated version of Vue Devtools. Are you still using the Beta release instead of the stable one? You can find the links at https://devtools.vuejs.org/guide/installation.html.');
+	    }
+
 	    api.addTimelineLayer({
 	      id: MUTATIONS_LAYER_ID,
 	      label: `Pinia`,
@@ -642,6 +651,22 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	          api.sendInspectorState(INSPECTOR_ID);
 	        },
 	        tooltip: 'Import the state from a JSON file'
+	      }],
+	      nodeActions: [{
+	        icon: 'restore',
+	        tooltip: 'Reset the state (option store only)',
+	        action: nodeId => {
+	          const store = pinia._s.get(nodeId);
+
+	          if (!store) {
+	            toastMessage(`Cannot reset "${nodeId}" store because it wasn't found.`, 'warn');
+	          } else if (!store._isOptionsAPI) {
+	            toastMessage(`Cannot reset "${nodeId}" store because it's a setup store.`, 'warn');
+	          } else {
+	            store.$reset();
+	            toastMessage(`Store "${nodeId}" reset.`);
+	          }
+	        }
 	      }]
 	    });
 	    api.on.inspectComponent((payload, ctx) => {
@@ -656,14 +681,18 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	            editable: true,
 	            value: store._isOptionsAPI ? {
 	              _custom: {
-	                value: store.$state,
+	                value: ui_vue3.toRaw(store.$state),
 	                actions: [{
 	                  icon: 'restore',
 	                  tooltip: 'Reset the state of this store',
 	                  action: () => store.$reset()
 	                }]
 	              }
-	            } : store.$state
+	            } : // NOTE: workaround to unwrap transferred refs
+	            Object.keys(store.$state).reduce((state, key) => {
+	              state[key] = store.$state[key];
+	              return state;
+	            }, {})
 	          });
 
 	          if (store._getters && store._getters.length) {
@@ -672,7 +701,13 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	              key: 'getters',
 	              editable: false,
 	              value: store._getters.reduce((getters, key) => {
-	                getters[key] = store[key];
+	                try {
+	                  getters[key] = store[key];
+	                } catch (error) {
+	                  // @ts-expect-error: we just want to show it in devtools
+	                  getters[key] = error;
+	                }
+
 	                return getters;
 	              }, {})
 	            });
@@ -771,13 +806,21 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    homepage: 'https://pinia.vuejs.org',
 	    componentStateTypes,
 	    app,
-	    settings: {// useEmojis: {
+	    settings: {
+	      logStoreChanges: {
+	        label: 'Notify about new/deleted stores',
+	        type: 'boolean',
+	        defaultValue: true
+	      } // useEmojis: {
 	      //   label: 'Use emojis in messages',
 	      //   type: 'boolean',
 	      //   defaultValue: true,
 	      // },
+
 	    }
 	  }, api => {
+	    // gracefully handle errors
+	    const now = typeof api.now === 'function' ? api.now.bind(api) : Date.now;
 	    store.$onAction(({
 	      after,
 	      onError,
@@ -788,7 +831,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      api.addTimelineEvent({
 	        layerId: MUTATIONS_LAYER_ID,
 	        event: {
-	          time: Date.now(),
+	          time: now(),
 	          title: 'Start ' + name,
 	          subtitle: 'start',
 	          data: {
@@ -804,7 +847,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	        api.addTimelineEvent({
 	          layerId: MUTATIONS_LAYER_ID,
 	          event: {
-	            time: Date.now(),
+	            time: now(),
 	            title: 'End ' + name,
 	            subtitle: 'end',
 	            data: {
@@ -822,7 +865,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	        api.addTimelineEvent({
 	          layerId: MUTATIONS_LAYER_ID,
 	          event: {
-	            time: Date.now(),
+	            time: now(),
 	            logType: 'error',
 	            title: 'Error ' + name,
 	            subtitle: 'end',
@@ -847,7 +890,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	          api.addTimelineEvent({
 	            layerId: MUTATIONS_LAYER_ID,
 	            event: {
-	              time: Date.now(),
+	              time: now(),
 	              title: 'Change',
 	              subtitle: name,
 	              data: {
@@ -872,7 +915,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      if (!isTimelineActive) return; // rootStore.state[store.id] = state
 
 	      const eventData = {
-	        time: Date.now(),
+	        time: now(),
 	        title: formatMutationType(type),
 	        data: {
 	          store: formatDisplay(store.$id),
@@ -916,8 +959,8 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      api.addTimelineEvent({
 	        layerId: MUTATIONS_LAYER_ID,
 	        event: {
-	          time: Date.now(),
-	          title: 'Update ' + store.$id,
+	          time: now(),
+	          title: 'Hot update ' + store.$id,
 	          subtitle: 'HMR update',
 	          data: {
 	            store: formatDisplay(store.$id),
@@ -939,14 +982,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      api.notifyComponentUpdate();
 	      api.sendInspectorTree(INSPECTOR_ID);
 	      api.sendInspectorState(INSPECTOR_ID);
-	      toastMessage(`Disposed "${store.$id}" store`);
+	      api.getSettings().logStoreChanges && toastMessage(`Disposed "${store.$id}" store`);
 	    }; // trigger an update so it can display new registered stores
 
 
 	    api.notifyComponentUpdate();
 	    api.sendInspectorTree(INSPECTOR_ID);
 	    api.sendInspectorState(INSPECTOR_ID);
-	    toastMessage(`"${store.$id}" store installed`);
+	    api.getSettings().logStoreChanges && toastMessage(`"${store.$id}" store installed`);
 	  });
 	}
 
@@ -1051,7 +1094,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	        app.config.globalProperties.$pinia = pinia;
 	        /* istanbul ignore else */
 
-	        if (environmentMode !== 'production' && IS_CLIENT) {
+	        if (USE_DEVTOOLS) {
 	          registerPiniaDevtools(app, pinia);
 	        }
 
@@ -1078,9 +1121,9 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    _s: new Map(),
 	    state
 	  }); // pinia devtools rely on dev only features so they cannot be forced unless
-	  // the dev build of Vue is used
+	  // the dev build of Vue is used. Avoid old browsers like IE11.
 
-	  if (environmentMode !== 'production' && IS_CLIENT) {
+	  if (USE_DEVTOOLS && typeof Proxy !== 'undefined') {
 	    pinia.use(devtoolsPlugin);
 	  }
 
@@ -1176,7 +1219,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	        const existingStore = pinia._s.get(id);
 
 	        if (!existingStore) {
-	          console.log(`skipping hmr because store doesn't exist yet`);
+	          console.log(`[Pinia]: skipping hmr because store doesn't exist yet`);
 	          return;
 	        }
 
@@ -1214,12 +1257,26 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	}
 
 	function mergeReactiveObjects(target, patchToApply) {
-	  // no need to go through symbols because they cannot be serialized anyway
+	  // Handle Map instances
+	  if (target instanceof Map && patchToApply instanceof Map) {
+	    patchToApply.forEach((value, key) => target.set(key, value));
+	  } // Handle Set instances
+
+
+	  if (target instanceof Set && patchToApply instanceof Set) {
+	    patchToApply.forEach(target.add, target);
+	  } // no need to go through symbols because they cannot be serialized anyway
+
+
 	  for (const key in patchToApply) {
+	    if (!patchToApply.hasOwnProperty(key)) continue;
 	    const subPatch = patchToApply[key];
 	    const targetValue = target[key];
 
-	    if (isPlainObject(targetValue) && isPlainObject(subPatch) && !ui_vue3.isRef(subPatch) && !ui_vue3.isReactive(subPatch)) {
+	    if (isPlainObject(targetValue) && isPlainObject(subPatch) && target.hasOwnProperty(key) && !ui_vue3.isRef(subPatch) && !ui_vue3.isReactive(subPatch)) {
+	      // NOTE: here I wanted to warn about inconsistent types but it's not possible because in setup stores one might
+	      // start the value of a property as a certain type e.g. a Map, and then for some reason, during SSR, change that
+	      // to `undefined`. When trying to hydrate, we want to override the Map with `undefined`.
 	      target[key] = mergeReactiveObjects(targetValue, subPatch);
 	    } else {
 	      // @ts-expect-error: subPatch is a valid value
@@ -1230,9 +1287,14 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  return target;
 	}
 
-	const skipHydrateSymbol = environmentMode !== 'production' ? Symbol('pinia:skipHydration') :
-	/* istanbul ignore next */
-	Symbol();
+	const skipHydrateSymbol = Symbol('pinia:skipHydration');
+	/**
+	 * Tells Pinia to skip the hydration process of a given object. This is useful in setup stores (only) when you return a
+	 * stateful object in the store but it isn't really state. e.g. returning a router instance in a setup store.
+	 *
+	 * @param obj - target object
+	 * @returns obj
+	 */
 
 	function skipHydrate(obj) {
 	  return Object.defineProperty(obj, skipHydrateSymbol, {});
@@ -1260,7 +1322,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  let store;
 
 	  function setup() {
-	    if (!initialState && (!(environmentMode !== 'production') || !hot)) {
+	    if (!initialState && !hot) {
 	      /* istanbul ignore if */
 	      {
 	        pinia.state.value[id] = state ? state() : {};
@@ -1268,9 +1330,13 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    } // avoid creating a state in pinia.state.value
 
 
-	    const localState = environmentMode !== 'production' && hot ? // use ref() to unwrap refs inside state TODO: check if this is still necessary
+	    const localState = hot ? // use ref() to unwrap refs inside state TODO: check if this is still necessary
 	    ui_vue3.toRefs(ui_vue3.ref(state ? state() : {}).value) : ui_vue3.toRefs(pinia.state.value[id]);
 	    return assign(localState, actions, Object.keys(getters || {}).reduce((computedGetters, name) => {
+	      if (name in localState) {
+	        console.warn(`[Pinia]: A getter cannot have the same name as another state property. Rename one of them. Found with "${name}" in store "${id}".`);
+	      }
+
 	      computedGetters[name] = ui_vue3.markRaw(ui_vue3.computed(() => {
 	        setActivePinia(pinia); // it was created just before
 
@@ -1284,7 +1350,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    }, {}));
 	  }
 
-	  store = createSetupStore(id, setup, options, pinia, hot);
+	  store = createSetupStore(id, setup, options, pinia, hot, true);
 
 	  store.$reset = function $reset() {
 	    const newState = state ? state() : {}; // we use a patch to group all changes into one single subscription
@@ -1297,15 +1363,15 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  return store;
 	}
 
-	function createSetupStore($id, setup, options = {}, pinia, hot) {
+	function createSetupStore($id, setup, options = {}, pinia, hot, isOptionsStore) {
 	  let scope;
-	  const buildState = options.state;
 	  const optionsForPlugin = assign({
 	    actions: {}
 	  }, options);
 	  /* istanbul ignore if */
+	  // @ts-expect-error: active is an internal property
 
-	  if (environmentMode !== 'production' && !pinia._e.active) {
+	  if (!pinia._e.active) {
 	    throw new Error('Pinia destroyed');
 	  } // watcher options for $subscribe
 
@@ -1316,7 +1382,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  };
 	  /* istanbul ignore else */
 
-	  if (environmentMode !== 'production' && !isVue2) {
+	  {
 	    $subscribeOptions.onTrigger = event => {
 	      /* istanbul ignore else */
 	      if (isListening) {
@@ -1342,17 +1408,20 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  let subscriptions = ui_vue3.markRaw([]);
 	  let actionSubscriptions = ui_vue3.markRaw([]);
 	  let debuggerEvents;
-	  const initialState = pinia.state.value[$id]; // avoid setting the state for option stores are it is set
+	  const initialState = pinia.state.value[$id]; // avoid setting the state for option stores if it is set
 	  // by the setup
 
-	  if (!buildState && !initialState && (!(environmentMode !== 'production') || !hot)) {
+	  if (!isOptionsStore && !initialState && !hot) {
 	    /* istanbul ignore if */
 	    {
 	      pinia.state.value[$id] = {};
 	    }
 	  }
 
-	  const hotState = ui_vue3.ref({});
+	  const hotState = ui_vue3.ref({}); // avoid triggering too many listeners
+	  // https://github.com/vuejs/pinia/issues/1129
+
+	  let activeListener;
 
 	  function $patch(partialStateOrMutator) {
 	    let subscriptionMutation;
@@ -1360,7 +1429,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	    /* istanbul ignore else */
 
-	    if (environmentMode !== 'production') {
+	    {
 	      debuggerEvents = [];
 	    }
 
@@ -1381,8 +1450,11 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      };
 	    }
 
+	    const myListenerId = activeListener = Symbol();
 	    ui_vue3.nextTick().then(() => {
-	      isListening = true;
+	      if (activeListener === myListenerId) {
+	        isListening = true;
+	      }
 	    });
 	    isSyncListening = true; // because we paused the watcher, we need to manually call the subscriptions
 
@@ -1391,9 +1463,9 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  /* istanbul ignore next */
 
 
-	  const $reset = environmentMode !== 'production' ? () => {
-	    throw new Error(`Pinia: Store "${$id}" is build using the setup syntax and does not implement $reset().`);
-	  } : noop;
+	  const $reset = () => {
+	    throw new Error(`Pinia: Store "${$id}" is built using the setup syntax and does not implement $reset().`);
+	  };
 
 	  function $dispose() {
 	    scope.stop();
@@ -1491,7 +1563,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    $dispose
 	  };
 
-	  const store = ui_vue3.reactive(assign(environmentMode !== 'production' && IS_CLIENT ? // devtools custom properties
+	  const store = ui_vue3.reactive(assign(IS_CLIENT ? // devtools custom properties
 	  {
 	    _customProperties: ui_vue3.markRaw(new Set()),
 	    _hmrPayload
@@ -1514,10 +1586,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	    if (ui_vue3.isRef(prop) && !isComputed(prop) || ui_vue3.isReactive(prop)) {
 	      // mark it as a piece of state to be serialized
-	      if (environmentMode !== 'production' && hot) {
+	      if (hot) {
 	        set(hotState.value, key, ui_vue3.toRef(setupStore, key)); // createOptionStore directly sets the state in pinia.state.value so we
 	        // can just skip that
-	      } else if (!buildState) {
+	      } else if (!isOptionsStore) {
 	        // in setup stores we must hydrate the state and sync pinia state tree with the refs the user just created
 	        if (initialState && shouldHydrate(prop)) {
 	          if (ui_vue3.isRef(prop)) {
@@ -1538,13 +1610,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      /* istanbul ignore else */
 
 
-	      if (environmentMode !== 'production') {
+	      {
 	        _hmrPayload.state.push(key);
 	      } // action
-
 	    } else if (typeof prop === 'function') {
 	      // @ts-expect-error: we are overriding the function we avoid wrapping if
-	      const actionValue = environmentMode !== 'production' && hot ? prop : wrapAction(key, prop); // this a hot module replacement store because the hotUpdate method needs
+	      const actionValue = hot ? prop : wrapAction(key, prop); // this a hot module replacement store because the hotUpdate method needs
 	      // to do it with the right context
 
 	      /* istanbul ignore if */
@@ -1556,17 +1627,16 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      /* istanbul ignore else */
 
 
-	      if (environmentMode !== 'production') {
+	      {
 	        _hmrPayload.actions[key] = prop;
 	      } // list actions so they can be used in plugins
 	      // @ts-expect-error
 
-
 	      optionsForPlugin.actions[key] = prop;
-	    } else if (environmentMode !== 'production') {
+	    } else {
 	      // add getters for devtools
 	      if (isComputed(prop)) {
-	        _hmrPayload.getters[key] = buildState ? // @ts-expect-error
+	        _hmrPayload.getters[key] = isOptionsStore ? // @ts-expect-error
 	        options.getters[key] : prop;
 
 	        if (IS_CLIENT) {
@@ -1592,10 +1662,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 
 	  Object.defineProperty(store, '$state', {
-	    get: () => environmentMode !== 'production' && hot ? hotState.value : pinia.state.value[$id],
+	    get: () => hot ? hotState.value : pinia.state.value[$id],
 	    set: state => {
 	      /* istanbul ignore if */
-	      if (environmentMode !== 'production' && hot) {
+	      if (hot) {
 	        throw new Error('cannot set hotState');
 	      }
 
@@ -1607,7 +1677,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	  /* istanbul ignore else */
 
-	  if (environmentMode !== 'production') {
+	  {
 	    store._hotUpdate = ui_vue3.markRaw(newStore => {
 	      store._hotUpdating = true;
 
@@ -1652,7 +1722,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	      for (const getterName in newStore._hmrPayload.getters) {
 	        const getter = newStore._hmrPayload.getters[getterName];
-	        const getterValue = buildState ? // special handling of options api
+	        const getterValue = isOptionsStore ? // special handling of options api
 	        ui_vue3.computed(() => {
 	          setActivePinia(pinia);
 	          return getter.call(store, store);
@@ -1697,7 +1767,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	  pinia._p.forEach(extender => {
 	    /* istanbul ignore else */
-	    if (environmentMode !== 'production' && IS_CLIENT) {
+	    if (IS_CLIENT) {
 	      const extensions = scope.run(() => extender({
 	        store,
 	        app: pinia._a,
@@ -1716,12 +1786,12 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    }
 	  });
 
-	  if (environmentMode !== 'production' && store.$state && typeof store.$state === 'object' && typeof store.$state.constructor === 'function' && !store.$state.constructor.toString().includes('[native code]')) {
+	  if (store.$state && typeof store.$state === 'object' && typeof store.$state.constructor === 'function' && !store.$state.constructor.toString().includes('[native code]')) {
 	    console.warn(`[Pinia]: The "state" must be a plain object. It cannot be\n` + `\tstate: () => new MyClass()\n` + `Found in store "${store.$id}".`);
 	  } // only apply hydrate to option stores with an initial state in pinia
 
 
-	  if (initialState && buildState && options.hydrate) {
+	  if (initialState && isOptionsStore && options.hydrate) {
 	    options.hydrate(store.$state, initialState);
 	  }
 
@@ -1749,10 +1819,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    const currentInstance = ui_vue3.getCurrentInstance();
 	    pinia = // in test mode, ignore the argument provided as we can always retrieve a
 	    // pinia instance with getActivePinia()
-	    (environmentMode === 'test' && activePinia && activePinia._testing ? null : pinia) || currentInstance && ui_vue3.inject(piniaSymbol);
+	    pinia || currentInstance && ui_vue3.inject(piniaSymbol);
 	    if (pinia) setActivePinia(pinia);
 
-	    if (environmentMode !== 'production' && !activePinia) {
+	    if (!activePinia) {
 	      throw new Error(`[Pinia]: getActivePinia was called with no active Pinia. Did you forget to install pinia?\n` + `\tconst pinia = createPinia()\n` + `\tapp.use(pinia)\n` + `This will fail in production.`);
 	    }
 
@@ -1768,7 +1838,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      /* istanbul ignore else */
 
 
-	      if (environmentMode !== 'production') {
+	      {
 	        // @ts-expect-error: not the right inferred type
 	        useStore._pinia = pinia;
 	      }
@@ -1776,7 +1846,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 	    const store = pinia._s.get(id);
 
-	    if (environmentMode !== 'production' && hot) {
+	    if (hot) {
 	      const hotId = '__hot:' + id;
 	      const newStore = isSetupStore ? createSetupStore(hotId, setup, options, pinia, true) : createOptionsStore(hotId, assign({}, options), pinia, true);
 
@@ -1789,7 +1859,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	    } // save stores in instances to access them devtools
 
 
-	    if (environmentMode !== 'production' && IS_CLIENT && currentInstance && currentInstance.proxy && // avoid adding stores that are just built for hot module replacement
+	    if (IS_CLIENT && currentInstance && currentInstance.proxy && // avoid adding stores that are just built for hot module replacement
 	    !hot) {
 	      const vm = currentInstance.proxy;
 	      const cache = '_pStores' in vm ? vm._pStores : vm._pStores = {};
@@ -1808,7 +1878,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	/**
 	 * Changes the suffix added by `mapStores()`. Can be set to an empty string.
 	 * Defaults to `"Store"`. Make sure to extend the MapStoresCustomization
-	 * interface if you need are using TypeScript.
+	 * interface if you are using TypeScript.
 	 *
 	 * @param suffix - new suffix
 	 */
@@ -1842,7 +1912,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 
 	function mapStores(...stores) {
-	  if (environmentMode !== 'production' && Array.isArray(stores[0])) {
+	  if (Array.isArray(stores[0])) {
 	    console.warn(`[Pinia]: Directly pass all stores to "mapStores()" without putting them in an array:\n` + `Replace\n` + `\tmapStores([useAuthStore, useCartStore])\n` + `with\n` + `\tmapStores(useAuthStore, useCartStore)\n` + `This will fail in production if not fixed.`);
 	    stores = stores[0];
 	  }
@@ -1971,20 +2041,24 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 
 
 	function storeToRefs(store) {
-	  store = ui_vue3.toRaw(store);
-	  const refs = {};
+	  // See https://github.com/vuejs/pinia/issues/852
+	  // It's easier to just use toRefs() even if it includes more stuff
+	  {
+	    store = ui_vue3.toRaw(store);
+	    const refs = {};
 
-	  for (const key in store) {
-	    const value = store[key];
+	    for (const key in store) {
+	      const value = store[key];
 
-	    if (ui_vue3.isRef(value) || ui_vue3.isReactive(value)) {
-	      // @ts-expect-error: the key is state or getter
-	      refs[key] = // ---
-	      ui_vue3.toRef(store, key);
+	      if (ui_vue3.isRef(value) || ui_vue3.isReactive(value)) {
+	        // @ts-expect-error: the key is state or getter
+	        refs[key] = // ---
+	        ui_vue3.toRef(store, key);
+	      }
 	    }
-	  }
 
-	  return refs;
+	    return refs;
+	  }
 	}
 	/**
 	 * Vue 2 Plugin that must be installed for pinia to work. Note **you don't need
@@ -2018,7 +2092,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	      const options = this.$options;
 
 	      if (options.pinia) {
-	        const pinia = options.pinia; // HACK: taken from provide(): https://github.com/vuejs/composition-api/blob/master/src/apis/inject.ts#L30
+	        const pinia = options.pinia; // HACK: taken from provide(): https://github.com/vuejs/composition-api/blob/main/src/apis/inject.ts#L31
 
 	        /* istanbul ignore else */
 
@@ -2045,10 +2119,10 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	          // this allows calling useStore() outside of a component setup after
 	          // installing pinia's plugin
 	          setActivePinia(pinia);
+	        }
 
-	          if (environmentMode !== 'production') {
-	            registerPiniaDevtools(pinia._a, pinia);
-	          }
+	        if (USE_DEVTOOLS) {
+	          registerPiniaDevtools(pinia._a, pinia);
 	        }
 	      } else if (!this.$pinia && options.parent && options.parent.$pinia) {
 	        this.$pinia = options.parent.$pinia;
@@ -2062,7 +2136,7 @@ this.BX.Vue3 = this.BX.Vue3 || {};
 	  });
 	};
 
-	const version = '2.0.11';
+	const version = '2.0.22';
 
 	exports.PiniaVuePlugin = PiniaVuePlugin;
 	exports.acceptHMRUpdate = acceptHMRUpdate;

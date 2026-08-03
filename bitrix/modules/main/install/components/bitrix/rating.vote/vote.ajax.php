@@ -6,7 +6,7 @@ const NO_AGENT_STATISTIC = "Y";
 const NO_AGENT_CHECK = true;
 const DisableEventsCheck = true;
 
-use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Application;
 use Bitrix\Main\Rating\Internal\Action;
 
 /** @global CMain $APPLICATION */
@@ -14,18 +14,34 @@ use Bitrix\Main\Rating\Internal\Action;
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
-if (
-	(string)$_POST['RATING_VOTE_TYPE_ID'] !== ''
-	&& (int)$_POST['RATING_VOTE_ENTITY_ID'] > 0
-	&& check_bitrix_sessid()
-)
-{
-	$entityTypeId = $_POST['RATING_VOTE_TYPE_ID'];
-	$entityId = (int)$_POST['RATING_VOTE_ENTITY_ID'];
+$signedKey = (string) ($_POST['RATING_VOTE_KEY_SIGNED'] ?? '');
+$entityId = (int) ($_POST['RATING_VOTE_ENTITY_ID'] ?? 0);
+$entityTypeId = (string) ($_POST['RATING_VOTE_TYPE_ID'] ?? '');
 
+if ($entityId && $entityTypeId !== '')
+{
+	$payloadValue = $entityTypeId . '-' . $entityId;
+
+	$signer = new \Bitrix\Main\Security\Sign\TimeSigner();
+
+	$isAccess = ($signedKey !== '' && $signer->unsign($signedKey, 'main.rating.vote') === $payloadValue);
+}
+else
+{
+	$isAccess = false;
+}
+
+if ($isAccess && check_bitrix_sessid())
+{
 	$currentUserId = ($USER->isAuthorized() ? (int)$USER->getId() : 0);
 
-	if ($_POST['RATING_VOTE_LIST'] === 'Y')
+	$key = 'rating.lock.'.$currentUserId;
+	if (!Application::getConnection()->lock($key))
+	{
+		CMain::FinalActions();
+	}
+
+	if (isset($_POST['RATING_VOTE_LIST']) && $_POST['RATING_VOTE_LIST'] === 'Y')
 	{
 		$APPLICATION->RestartBuffer();
 
@@ -47,6 +63,7 @@ if (
 					: '/people/user/#USER_ID#/'
 			),
 			'CURRENT_USER_ID' => $currentUserId,
+			'CHECK_RIGHTS' => 'Y',
 		];
 
 		$voteList = Action::list($params);
@@ -54,7 +71,7 @@ if (
 		Header('Content-Type: application/x-javascript; charset=' . LANG_CHARSET);
 		echo CUtil::PhpToJsObject($voteList);
 	}
-	else if ($_POST['RATING_VOTE'] === 'Y')
+	else if (isset($_POST['RATING_VOTE']) && $_POST['RATING_VOTE'] === 'Y')
 	{
 		$params = [
 			'ENTITY_TYPE_ID' => $entityTypeId,
@@ -68,6 +85,7 @@ if (
 			'RATING_RESULT' => ($_POST['RATING_RESULT'] === 'Y' ? $_POST['RATING_RESULT'] : 'N'),
 			'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
 			'CURRENT_USER_ID' => $currentUserId,
+			'CHECK_RIGHTS' => 'Y',
 		];
 
 		$ratingVoteResult = CRatings::getRatingVoteResult($params['ENTITY_TYPE_ID'], $params['ENTITY_ID']);
@@ -97,11 +115,13 @@ if (
 			echo CUtil::PhpToJsObject($voteList);
 		}
 	}
-	else if ($_POST['RATING_RESULT'] === 'Y')
+	else if (isset($_POST['RATING_RESULT']) && $_POST['RATING_RESULT'] === 'Y')
 	{
 		Header('Content-Type: application/x-javascript; charset=' . LANG_CHARSET);
 		echo CUtil::PhpToJsObject(Action::getVoteResult($entityTypeId, $entityId));
 	}
+
+	Application::getConnection()->unlock($key);
 }
 
 CMain::FinalActions();

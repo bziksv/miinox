@@ -33,7 +33,11 @@ $this->setFrameMode(true);
 
                                 <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">
                                     <span class="menu-icon <?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["PARAMS"]["ICON_MENU"]?>"></span>
-                                    <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
+									<? if($arResult["IS_HIDDEN_MENU"]): ?>
+										<span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
+									<? else: ?>
+										<span><?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?></span>
+									<? endif; ?>
                                 </a>
                             <?if (is_array($arLevel_3) && count($arLevel_3) > 0):?>
                             <div class="dropdown-submenu-content">
@@ -41,7 +45,11 @@ $this->setFrameMode(true);
                                     <?foreach($arLevel_3 as $itemIdLevel_3):?>
                                         <li>
                                             <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["LINK"]?>">
-                                                <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?>"></span>
+                                                <? if($arResult["IS_HIDDEN_MENU"]): ?>
+													<span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?>"></span>
+												<? else: ?>
+													<span><?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?></span>
+												<? endif; ?>
                                             </a>
                                         </li>
                                     <?endforeach;?>

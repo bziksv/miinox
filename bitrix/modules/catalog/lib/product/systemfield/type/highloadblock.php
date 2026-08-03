@@ -271,7 +271,7 @@ class HighloadBlock extends Base
 
 		if (!empty($block['TITLES']) && is_array($block['TITLES']))
 		{
-			Highload\HighloadBlockLangTable::delete($block['ID']);
+			self::deleteStorageTitle($block);
 			foreach ($block['TITLES'] as $languageId => $title)
 			{
 				Highload\HighloadBlockLangTable::add([
@@ -281,6 +281,29 @@ class HighloadBlock extends Base
 				]);
 			}
 		}
+	}
+
+	private static function deleteStorageTitle(array $block): void
+	{
+		// because HighloadBlockLangTable primary key list was changed
+		$entity = Highload\HighloadBlockLangTable::getEntity();
+		if (in_array('LID', $entity->getPrimaryArray(), true))
+		{
+			foreach (array_keys($block['TITLES']) as $languageId)
+			{
+				Highload\HighloadBlockLangTable::delete([
+					'ID' => $block['ID'],
+					'LID' => $languageId,
+				]);
+			}
+		}
+		else
+		{
+			Highload\HighloadBlockLangTable::delete([
+				'ID' => $block['ID'],
+			]);
+		}
+		unset($entity);
 	}
 
 	/**
@@ -549,43 +572,33 @@ class HighloadBlock extends Base
 
 	protected static function internalGridAction(array $config): ?array
 	{
+		if (empty($config['USER_FIELD']) || !is_array($config['USER_FIELD']))
+		{
+			return null;
+		}
 		$userField = $config['USER_FIELD'];
 
-		$list = [];
-
+		$itemsConfig = [
+			'RESULT' => [
+				'NAME_WITH_ID' => 'Y',
+			],
+		];
 		if (
-			$config['USER_FIELD']['MANDATORY'] === 'N'
-			&& $config['USER_FIELD']['MULTIPLE'] === 'N'
+			!empty($config['ADDITIONAL_VALUES'])
+			&& is_array($config['ADDITIONAL_VALUES'])
 		)
 		{
-			$list[] = [
-				'VALUE' => '0',
-				'NAME' => Loc::getMessage('BX_CATALOG_PRODUCT_SYSTEMFIELD_HIGHLOADBLOCK_MESS_EMPTY_VALUE')
-			];
+			$itemsConfig['ADDITIONAL_VALUES'] = $config['ADDITIONAL_VALUES'];
 		}
 
-		$entity = Highload\HighloadBlockTable::compileEntity($userField['SETTINGS']['HLBLOCK_ID']);
-		$entityDataClass = $entity->getDataClass();
-		$iterator = $entityDataClass::getList([
-			'select' => ['*'],
-			'order' => ['UF_NAME' => 'ASC'],
-		]);
-		while ($value = $iterator->fetch())
-		{
-			$list[] = [
-				'VALUE' => $value['ID'],
-				'NAME' => $value['UF_NAME'],
-			];
-		}
-		unset($value, $iterator);
-
-		if (empty($list))
+		$list = static::getItems($userField, $itemsConfig);
+		if ($list === null)
 		{
 			return null;
 		}
 
 		$emptyText =
-			$config['USER_FIELD']['MULTIPLE'] === 'Y'
+			$userField['MULTIPLE'] === 'Y'
 			? Loc::getMessage('BX_CATALOG_PRODUCT_SYSTEMFIELD_HIGHLOADBLOCK_MESS_EMPTY_VALUE')
 			: ''
 		;
@@ -602,7 +615,7 @@ class HighloadBlock extends Base
 					'ID' => $config['VISUAL']['LIST']['ID'],
 					'NAME' => $config['VISUAL']['LIST']['NAME'],
 					'ITEMS' => $list,
-					'MULTIPLE' => $config['USER_FIELD']['MULTIPLE'],
+					'MULTIPLE' => $userField['MULTIPLE'],
 					'EMPTY_TEXT' => $emptyText,
 				],
 			],
@@ -632,22 +645,27 @@ class HighloadBlock extends Base
 			return $result;
 		}
 		$entity = Highload\HighloadBlockTable::compileEntity($hlblock);
-		$entityDataClass = $entity->getDataClass();
-		$iterator = $entityDataClass::getList([
-			'select' => [
-				'ID',
-				'UF_XML_ID',
-			],
-			'filter' => [
-				'@UF_XML_ID' => $xmlIds,
-			],
-		]);
-		while ($value = $iterator->fetch())
+		$fieldsList = $entity->getFields();
+		if (isset($fieldsList['ID']) && isset($fieldsList['UF_XML_ID']))
 		{
-			$result[$value['UF_XML_ID']] = (int)$value['ID'];
+			$entityDataClass = $entity->getDataClass();
+			$iterator = $entityDataClass::getList([
+				'select' => [
+					'ID',
+					'UF_XML_ID',
+				],
+				'filter' => [
+					'@UF_XML_ID' => $xmlIds,
+				],
+			]);
+			while ($value = $iterator->fetch())
+			{
+				$result[$value['UF_XML_ID']] = (int)$value['ID'];
+			}
+			unset($value, $iterator);
+			unset($entityDataClass);
 		}
-		unset($value, $iterator);
-		unset($entityDataClass, $entity);
+		unset($fieldsList, $entity);
 
 		return $result;
 	}
@@ -666,23 +684,119 @@ class HighloadBlock extends Base
 			return $result;
 		}
 		$entity = Highload\HighloadBlockTable::compileEntity($hlblock);
+		$fieldsList = $entity->getFields();
+		if (isset($fieldsList['ID']) && isset($fieldsList['UF_XML_ID']))
+		{
+			$entityDataClass = $entity->getDataClass();
+			$iterator = $entityDataClass::getList([
+				'select' => [
+					'ID',
+					'UF_XML_ID',
+				],
+				'filter' => [
+					'@ID' => $ids,
+				],
+			]);
+			while ($value = $iterator->fetch())
+			{
+				$result[$value['ID']] = $value['UF_XML_ID'];
+			}
+			unset($value, $iterator);
+			unset($entityDataClass);
+		}
+		unset($fieldsList, $entity);
+
+		return $result;
+	}
+
+	public static function getItems(array $userField, array $config = []): ?array
+	{
+		if (empty($userField['SETTINGS']) || !is_array($userField['SETTINGS']))
+		{
+			return null;
+		}
+		if (!isset($userField['SETTINGS']['HLBLOCK_ID']))
+		{
+			return null;
+		}
+
+		$hlblock = Highload\HighloadBlockTable::resolveHighloadblock($userField['SETTINGS']['HLBLOCK_ID']);
+		if ($hlblock === null)
+		{
+			return null;
+		}
+		$entity = Highload\HighloadBlockTable::compileEntity($hlblock);
+		$fieldsList = $entity->getFields();
+		if (!isset($fieldsList['ID']) || !isset($fieldsList['UF_NAME']))
+		{
+			return null;
+		}
+
+		$useIdKey = false;
+		$nameWithId = false;
+		if (!empty($config['RESULT']) && is_array($config['RESULT']))
+		{
+			$useIdKey = isset($config['RESULT']['RETURN_FIELD_ID']) && $config['RESULT']['RETURN_FIELD_ID'] === 'Y';
+			$nameWithId = isset($config['RESULT']['NAME_WITH_ID']) && $config['RESULT']['NAME_WITH_ID'] === 'Y';
+		}
+
+		$items = [];
+		if (
+			$userField['MANDATORY'] === 'N'
+			&& $userField['MULTIPLE'] === 'N'
+		)
+		{
+			$row = [
+				'VALUE' => '0',
+				'NAME' => Loc::getMessage('BX_CATALOG_PRODUCT_SYSTEMFIELD_HIGHLOADBLOCK_MESS_EMPTY_VALUE'),
+			];
+			if ($useIdKey)
+			{
+				$row['ID'] = '0';
+			}
+			$items[] = $row;
+		}
+
+		if (
+			!empty($config['ADDITIONAL_ITEMS']['LIST'])
+			&& is_array($config['ADDITIONAL_ITEMS']['LIST'])
+		)
+		{
+			$items = array_merge(
+				$items,
+				$config['ADDITIONAL_ITEMS']['LIST']
+			);
+		}
+
 		$entityDataClass = $entity->getDataClass();
 		$iterator = $entityDataClass::getList([
 			'select' => [
 				'ID',
-				'UF_XML_ID',
+				'UF_NAME',
 			],
-			'filter' => [
-				'@ID' => $ids,
+			'order' => [
+				'UF_NAME' => 'ASC',
 			],
 		]);
 		while ($value = $iterator->fetch())
 		{
-			$result[$value['ID']] = $value['UF_XML_ID'];
+			$row = [
+				'ID' =>  $value['ID'],
+				'VALUE' => $value['ID'],
+				'NAME' => ($nameWithId
+					? $value['UF_NAME'] . ' [' .$value['ID'] . ']'
+					: $value['UF_NAME']
+				),
+			];
+			if ($useIdKey)
+			{
+				$row['ID'] = $value['ID'];
+			}
+			$items[] = $row;
 		}
 		unset($value, $iterator);
 		unset($entityDataClass, $entity);
 
-		return $result;
+		return $items;
 	}
 }

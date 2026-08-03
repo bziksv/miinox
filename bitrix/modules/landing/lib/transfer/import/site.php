@@ -1,8 +1,12 @@
 <?php
 namespace Bitrix\Landing\Transfer\Import;
 
+use Bitrix\Landing\Hook\Page\Copyright;
+use Bitrix\Landing\Hook\Page\B24button;
+use Bitrix\Landing\Rights;
 use \Bitrix\Landing\Site as SiteCore;
 use \Bitrix\Landing\Landing as LandingCore;
+use Bitrix\Landing\Site\Type;
 use \Bitrix\Landing\Transfer\AppConfiguration;
 use \Bitrix\Landing\Block;
 use \Bitrix\Landing\File;
@@ -163,35 +167,45 @@ class Site
 
 		if ($userId)
 		{
-			\Bitrix\Landing\Rights::setContextUserId($userId);
+			Rights::setContextUserId($userId);
 		}
 
-		$data = $content['~DATA'];
-
-		// if created page in exists site
-		$isPageImport = false;
+		// if all import - add page in current site
+		$isPageImport = $return['RATIO']['IS_PAGE_IMPORT'] ?? false;
+		// if only current step add page
+		$isPageStep = false;
 		if (isset($ratio[$code]['SITE_ID']) && (int)$ratio[$code]['SITE_ID'] > 0)
 		{
-			$isPageImport = true;
+			$isPageStep = true;
 		}
 		elseif ($additional && (int)$additional['siteId'] > 0)
 		{
-			$isPageImport = true;
+			$isPageStep = true;
 			$return['RATIO']['SITE_ID'] = (int)$additional['siteId'];
+			if (!isset($return['RATIO']['IS_PAGE_IMPORT']))
+			{
+				$isPageImport = true;
+			}
+		}
+
+		$return['RATIO']['IS_PAGE_IMPORT'] = $isPageImport;
+
+		// common ratio params
+		$data = self::prepareData($content['~DATA']);
+		$data = self::prepareAdditionalFields($data, $additional);
+		if (!isset($return['RATIO']['SPECIAL_PAGES']))
+		{
+			$return['RATIO']['SPECIAL_PAGES'] = [
+				'LANDING_ID_INDEX' => isset($data['LANDING_ID_INDEX']) ? (int)$data['LANDING_ID_INDEX'] : 0,
+				'LANDING_ID_404' => isset($data['LANDING_ID_404']) ? (int)$data['LANDING_ID_404'] : 0,
+				'LANDING_ID_503' => isset($data['LANDING_ID_503']) ? (int)$data['LANDING_ID_503'] : 0
+			];
 		}
 
 		// site import
-		if (!$isPageImport)
+		if (!$isPageStep)
 		{
-			if (!isset($data['TYPE']))
-			{
-				$data['TYPE'] = 'PAGE';
-			}
-			\Bitrix\Landing\Site\Type::setScope($data['TYPE']);
-			if ($additional)
-			{
-				$data = self::prepareAdditionalFields($data, $additional);
-			}
+			Type::setScope($data['TYPE']);
 			$res = self::importSite($data, $structure);
 			if ($res->isSuccess())
 			{
@@ -204,11 +218,7 @@ class Site
 				$return['RATIO']['TYPE'] = $data['TYPE'];
 				$return['RATIO']['FOLDERS_NEW'] = $data['FOLDERS_NEW'] ?? [];
 				$return['RATIO']['SYS_PAGES'] = $data['SYS_PAGES'];
-				$return['RATIO']['SPECIAL_PAGES'] = [
-					'LANDING_ID_INDEX' => isset($data['LANDING_ID_INDEX']) ? (int)$data['LANDING_ID_INDEX'] : 0,
-					'LANDING_ID_404' => isset($data['LANDING_ID_404']) ? (int)$data['LANDING_ID_404'] : 0,
-					'LANDING_ID_503' => isset($data['LANDING_ID_INDEX']) ? (int)$data['LANDING_ID_503'] : 0
-				];
+
 				if (isset($data['TEMPLATES']) && is_array($data['TEMPLATES']))
 				{
 					$return['RATIO']['TEMPLATES'] = $data['TEMPLATES'];
@@ -231,14 +241,14 @@ class Site
 		}
 
 		// something went wrong, site was not created
-		if (!$isPageImport && !isset($return['RATIO']['SITE_ID']))
+		if (!isset($return['RATIO']['SITE_ID']))
 		{
 			$return['ERROR_EXCEPTION'][] = Loc::getMessage('LANDING_IMPORT_ERROR_SITE_ID_NOT_FOUND');
 			return $return;
 		}
 
 		// skip import site step if import page in existing site
-		if ($isPageImport && !isset($data['SITE_ID']))
+		if (!isset($data['SITE_ID']))
 		{
 			return $return;
 		}
@@ -248,27 +258,68 @@ class Site
 	}
 
 	/**
-	 * Prepare hooks and settings by additional fields
-	 * @param $data - base params
-	 * @param $additional - additional data
+	 * Prepare site data, set some fields to default values
+	 * @param array $data
 	 * @return array
 	 */
-	protected static function prepareAdditionalFields(array $data, array $additional): array
+	protected static function prepareData(array $data): array
 	{
-		if ($color = $additional['theme'])
+		if (!isset($data['TYPE']))
 		{
+			$data['TYPE'] = 'PAGE';
+		}
+
+		$data['LANG'] = Manager::getZone();
+
+		return $data;
+	}
+
+	/**
+	 * Prepare hooks and settings by additional fields
+	 * @param array $data - base params
+	 * @param array|null $additional - additional data
+	 * @return array
+	 */
+	protected static function prepareAdditionalFields(array $data, ?array $additional): array
+	{
+		if ($additional && $additional['theme'])
+		{
+			$color = $additional['theme'];
 			if ($color[0] !== '#')
 			{
-				$color = '#'.$color;
+				$color = '#' . $color;
 			}
 			$data['ADDITIONAL_FIELDS']['THEME_COLOR'] = $color;
 			unset($data['ADDITIONAL_FIELDS']['THEME_CODE']);
 			$data['ADDITIONAL_FIELDS']['THEME_USE'] = 'Y';
 		}
 
-		if ($additional['title'])
+		if ($additional && $additional['title'])
 		{
 			$data['TITLE'] = $additional['title'];
+		}
+
+		//default widget value
+		$buttons = B24button::getButtons();
+		$buttonKeys = array_keys($buttons);
+		if (!empty($buttonKeys))
+		{
+			$data['ADDITIONAL_FIELDS']['B24BUTTON_CODE'] = $buttonKeys[0];
+		}
+		else
+		{
+			$data['ADDITIONAL_FIELDS']['B24BUTTON_CODE'] = 'N';
+		}
+		//default site boost
+		$data['ADDITIONAL_FIELDS']['SPEED_USE_WEBPACK'] = 'Y';
+		$data['ADDITIONAL_FIELDS']['SPEED_USE_LAZY'] = 'Y';
+		//default powered by b24
+		$data['ADDITIONAL_FIELDS']['COPYRIGHT_SHOW'] = 'Y';
+		$data['ADDITIONAL_FIELDS']['COPYRIGHT_CODE'] = Copyright::getRandomPhraseId();
+		//default cookie
+		if (in_array(Manager::getZone(), ['es', 'de', 'fr', 'it', 'pl', 'uk']))
+		{
+			$data['ADDITIONAL_FIELDS']['COOKIES_USE'] = 'Y';
 		}
 
 		return $data;
@@ -409,12 +460,12 @@ class Site
 
 		if ($userId)
 		{
-			\Bitrix\Landing\Rights::setContextUserId($userId);
+			Rights::setContextUserId($userId);
 		}
 
 		if (isset($ratio['LANDING']))
 		{
-			\Bitrix\Landing\Rights::setGlobalOff();
+			Rights::setGlobalOff();
 			$siteType = $ratio['LANDING']['TYPE'];
 			$siteId = $ratio['LANDING']['SITE_ID'];
 			$blocks = $ratio['LANDING']['BLOCKS'];
@@ -454,7 +505,7 @@ class Site
 				}
 			}
 
-				\Bitrix\Landing\Site\Type::setScope($siteType);
+			Type::setScope($siteType);
 			if ($blocksPending)
 			{
 				self::linkingPendingBlocks($blocksPending, [
@@ -605,17 +656,17 @@ class Site
 				}
 			}
 
-			// set Title and Description to mainpage
-			if (!empty($additional))
+			//set default additional fields for page
+			if ($mainPageId)
 			{
 				self::setAdditionalPageFields($mainPageId, $additional);
 			}
 
-			\Bitrix\Landing\Rights::setGlobalOn();
+			Rights::setGlobalOn();
 
 			// link for "go to site" button
 			$linkAttrs = [
-				'class' => 'ui-btn ui-btn-lg ui-btn-primary',
+				'class' => 'ui-btn ui-btn-md ui-btn-success ui-btn-round',
 				'data-is-site' => 'Y',
 				'data-site-id' => $siteId,
 				'href' => '#' . $siteId,
@@ -626,12 +677,14 @@ class Site
 				$linkAttrs['data-is-landing'] = 'Y';
 				$linkAttrs['data-landing-id'] = $mainPageId;
 			}
+			$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_SITE');
 			if ($siteType === 'KNOWLEDGE')
 			{
 				$linkAttrs['href'] = \Bitrix\Landing\Site::getPublicUrl($siteId);
 			}
 			elseif ($siteType === 'PAGE' && empty($additional))
 			{
+				$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_PAGE');
 				$url = Manager::getOption('tmp_last_show_url', '');
 				if ($url === '' && ModuleManager::isModuleInstalled('bitrix24'))
 				{
@@ -658,7 +711,7 @@ class Site
 					'TAG' => 'a',
 					'DATA' => [
 						'attrs' => $linkAttrs,
-						'text' => Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_SITE')
+						'text' => $linkText,
 					]
 				]
 			];
@@ -684,7 +737,7 @@ class Site
 			];
 		}
 
-		\Bitrix\Landing\Rights::setGlobalOn();
+		Rights::setGlobalOn();
 
 		return [];
 	}
@@ -692,23 +745,26 @@ class Site
 	protected static function setAdditionalPageFields($landingId, $additional)
 	{
 		$additionalFields = [];
-		if ($additional['title'])
-		{
-			$additionalFields['METAMAIN_TITLE'] = $additional['title'];
-			$additionalFields['METAOG_TITLE'] = $additional['title'];
 
-			LandingCore::update($landingId, [
-				'TITLE' => $additional['title']
-			]);
-		}
-		if ($additional['description'])
+		// set Title and Description to mainpage
+		if (!empty($additional))
 		{
-			$additionalFields['METAMAIN_DESCRIPTION'] = $additional['description'];
-			$additionalFields['METAOG_DESCRIPTION'] = $additional['description'];
+			if ($additional['title'])
+			{
+				$additionalFields['METAMAIN_TITLE'] = $additional['title'];
+				$additionalFields['METAOG_TITLE'] = $additional['title'];
+
+				LandingCore::update($landingId, [
+					'TITLE' => $additional['title']
+				]);
+			}
+			if ($additional['description'])
+			{
+				$additionalFields['METAMAIN_DESCRIPTION'] = $additional['description'];
+				$additionalFields['METAOG_DESCRIPTION'] = $additional['description'];
+			}
 		}
-		if (!empty($additionalFields))
-		{
-			LandingCore::saveAdditionalFields($landingId, $additionalFields);
-		}
+
+		LandingCore::saveAdditionalFields($landingId, $additionalFields);
 	}
 }

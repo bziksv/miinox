@@ -2,8 +2,11 @@
 /** @global CMain $APPLICATION */
 /** @global $DB CDatabase */
 /** @global CUserTypeManager $USER_FIELD_MANAGER */
+
 use Bitrix\Main,
 	Bitrix\Main\Loader,
+	Bitrix\Catalog\Access\ActionDictionary,
+	Bitrix\Catalog\Access\AccessController,
 	Bitrix\Iblock,
 	Bitrix\Iblock\Grid\ActionType,
 	Bitrix\Catalog;
@@ -70,6 +73,12 @@ if ($urlBuilder === null)
 	die();
 }
 $urlBuilderId = $urlBuilder->getId();
+//TODO: hack fo compensation BX.adminSidePanel.prototype.checkActionByUrl where remove IFRAME=Y&IFRAME_TYPE=SIDE_SLIDER from url
+if ($urlBuilderId === 'INVENTORY')
+{
+	$urlBuilder->setSliderMode(true);
+}
+// end hack
 $urlBuilder->setIblockId($IBLOCK_ID);
 $urlBuilder->setUrlParams(array());
 
@@ -78,6 +87,8 @@ $pageConfig = array(
 	'CHECK_NEW_CARD' => false,
 	'USE_NEW_CARD' => false,
 	'CATALOG' => false,
+	'PUBLIC_CRM_CATALOG' => false,
+	'PUBLIC_MODE' => false,
 
 	'LIST_ID_PREFIX' => '',
 	'LIST_ID' => $type.'.'.$IBLOCK_ID,
@@ -94,9 +105,14 @@ switch ($urlBuilderId)
 		$pageConfig['LIST_ID_PREFIX'] = 'tbl_catalog_section_';
 		$pageConfig['CHECK_NEW_CARD'] = true;
 		$pageConfig['SHOW_NAVCHAIN'] = false;
-		$pageConfig['CONTEXT_PATH'] = '/shop/settings/cat_section_admin.php'; // TODO: temporary hack
+		$pageConfig['CONTEXT_PATH'] = '/shop/settings/cat_section_admin.php?' . $urlBuilder->getUrlBuilderIdParam(); // TODO: temporary hack
 		$pageConfig['CATALOG'] = true;
 		$pageConfig['ALLOW_USER_EDIT'] = false;
+		if (Loader::includeModule('crm'))
+		{
+			$pageConfig['PUBLIC_CRM_CATALOG'] = \Bitrix\Crm\Product\Catalog::getDefaultId() === $IBLOCK_ID;
+		}
+		$pageConfig['PUBLIC_MODE'] = true;
 		break;
 	case 'CATALOG':
 		$pageConfig['LIST_ID_PREFIX'] = 'tbl_catalog_section_';
@@ -148,27 +164,23 @@ $catalog = false;
 if ($catalogIncluded)
 {
 	$catalog = CCatalogSKU::GetInfoByIBlock($arIBlock["ID"]);
-	if (empty($catalog))
+	if (empty($catalog) || !AccessController::getCurrent()->check(ActionDictionary::ACTION_PRICE_EDIT))
 	{
 		$useCatalog = false;
 	}
-	else
-	{
-		if (!$USER->CanDoOperation('catalog_price'))
-			$useCatalog = false;
-	}
 }
 
+$oSort = new CAdminUiSorting($sTableID, "timestamp_x", "desc");
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 if ($useTree)
 {
 	$by = "left_margin";
 	$order = "asc";
 }
-
-$oSort = new CAdminUiSorting($sTableID, "timestamp_x", "desc");
-global $by, $order;
-$arOrder = (mb_strtoupper($by) === "ID"? array($by => $order): array($by => $order, "ID" => "ASC"));
+$arOrder = ($by === "ID"? array($by => $order): array($by => $order, "ID" => "ASC"));
 $lAdmin = new CAdminUiList($sTableID, $oSort);
+$lAdmin->setPublicModeState($pageConfig['PUBLIC_MODE']);
 
 $groupParams = array(
 	'ENTITY_ID' => $sTableID,
@@ -188,6 +200,8 @@ if ($useTree)
 {
 	$lAdmin->AddVisibleHeaderColumn("DEPTH_LEVEL");
 }
+
+// region Filter definitions
 
 $sectionItems = array(
 	"" => GetMessage("IBLOCK_ALL"),
@@ -226,32 +240,26 @@ $filterFields = array(
 		"filterable" => ""
 	)
 );
-if ($canViewUserList)
-{
-	$filterFields[] = array(
-		"id" => "MODIFIED_BY",
-		"name" => GetMessage("IBSEC_A_MODIFIED_BY"),
-		"type" => "custom_entity",
-		"selector" => array("type" => "user"),
-		"filterable" => ""
-	);
-}
+$filterFields[] = array(
+	"id" => "MODIFIED_BY",
+	"name" => GetMessage("IBSEC_A_MODIFIED_BY"),
+	"type" => "custom_entity",
+	"selector" => array("type" => "user"),
+	"filterable" => ""
+);
 $filterFields[] = array(
 	"id" => "DATE_CREATE",
 	"name" => GetMessage("IBSEC_A_DATE_CREATE"),
 	"type" => "date",
 	"filterable" => ""
 );
-if ($canViewUserList)
-{
-	$filterFields[] = array(
-		"id" => "CREATED_BY",
-		"name" => GetMessage("IBSEC_A_CREATED_BY"),
-		"type" => "custom_entity",
-		"selector" => array("type" => "user"),
-		"filterable" => ""
-	);
-}
+$filterFields[] = array(
+	"id" => "CREATED_BY",
+	"name" => GetMessage("IBSEC_A_CREATED_BY"),
+	"type" => "custom_entity",
+	"selector" => array("type" => "user"),
+	"filterable" => ""
+);
 $filterFields[] = array(
 	"id" => "ACTIVE",
 	"name" => GetMessage("IBSEC_A_ACTIVE"),
@@ -276,6 +284,8 @@ $filterFields[] = array(
 
 global $USER_FIELD_MANAGER;
 $USER_FIELD_MANAGER->AdminListAddFilterFieldsV2($entity_id, $filterFields);
+
+// endregion
 
 //We have to handle current section in a special way
 $parent_section_id = $find_section_section === '' || $find_section_section === null ? '' : (int)$find_section_section;
@@ -303,9 +313,19 @@ if (isset($arFilter["SECTION_ID"]))
 }
 else
 {
-	$isDifferences = array_diff($baseFilter, array_diff($arFilter, array_map(function ($field) {
-		return $field["id"];
-	}, $filterFields)));
+	$isDifferences = array_diff(
+		$baseFilter,
+		array_diff(
+			$arFilter,
+			array_map(
+				function ($field)
+				{
+					return $field["id"];
+				},
+				$filterFields
+			)
+		)
+	);
 	if ($isDifferences)
 	{
 		$arFilter["SECTION_ID"] = $find_section_section;
@@ -543,6 +563,7 @@ if ($arID = $lAdmin->GroupAction())
 	}
 }
 
+// region Columns definition
 // list header
 $arHeaders = array(
 	array(
@@ -650,6 +671,8 @@ if ($useTree)
 		if (isset($arHeader["sort"]))
 			unset($arHeaders[$i]["sort"]);
 }
+
+// endregion
 
 $lAdmin->AddHeaders($arHeaders);
 
@@ -1000,7 +1023,7 @@ if (CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, $find_section_section, "sec
 				'from' => 'iblock_section_admin',
 			)
 		),
-		"PUBLIC" => $pageConfig['USE_NEW_CARD'],
+		"PUBLIC" => $pageConfig['PUBLIC_MODE'],
 		"SHOW_TITLE" => true,
 		"TITLE" => GetMessage("IBSEC_A_SECTADD_PRESS")
 	);
@@ -1068,9 +1091,6 @@ if ($urlBuilderId === Iblock\Url\AdminPage\IblockBuilder::TYPE_ID)
 		);
 }
 
-// TODO: hack for psevdo-excel export in crm (\CAdminUiList::GetSystemContextMenu)
-$_GET['urlBuilderId'] = $urlBuilderId;
-// TODO end
 $lAdmin->setContextSettings(array("pagePath" => $pageConfig['CONTEXT_PATH']));
 $contextConfig = array();
 $excelExport = (Main\Config\Option::get("iblock", "excel_export_rights") == "Y"

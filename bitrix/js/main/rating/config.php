@@ -32,6 +32,9 @@ return [
 		'RATING_LIKE_EMOTION_FACEPALM_CALC' => CUtil::JSEscape(\CRatingsComponentsMain::getRatingLikeMessage('FACEPALM')),
 	],
 	'rel' => [
-		'ajax', 'popup'
+		'ui.design-tokens',
+		'ui.lottie',
+		'ajax',
+		'popup'
 	],
 ];

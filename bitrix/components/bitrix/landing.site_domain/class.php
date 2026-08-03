@@ -254,11 +254,14 @@ class LandingSiteDomainComponent extends LandingBaseComponent
 			$this->arResult['DOMAIN_PROVIDER'] = $currentSite['DOMAIN_PROVIDER'];
 			$this->arResult['~DOMAIN_NAME'] = $currentSite['DOMAIN_NAME'];
 			$this->arResult['DOMAIN_NAME'] = $puny->decode($currentSite['DOMAIN_NAME']);
-			$this->arResult['B24_DOMAIN_NAME'] = Domain::getBitrix24Subdomain($currentSite['DOMAIN_NAME']);
 			$this->arResult['DOMAIN_ID'] = $currentSite['DOMAIN_ID'];
 			$this->arResult['IP_FOR_DNS'] = $this->getIpForDNS();
 			$this->arResult['POSTFIX'] = $this->getPostFix();
 			$this->arResult['CNAME'] = 'lb' . $this->arResult['POSTFIX'] . '.';
+
+			$this->arResult['B24_DOMAIN_NAME'] = Domain::getBitrix24Subdomain(
+				$currentSite['DOMAIN_NAME']
+			);
 
 			$this->arResult['FEATURE_FREE_AVAILABLE'] = Restriction\Manager::isAllowed(
 				'limit_free_domen'

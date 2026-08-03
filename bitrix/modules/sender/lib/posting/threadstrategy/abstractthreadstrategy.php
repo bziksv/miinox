@@ -97,7 +97,7 @@ abstract class AbstractThreadStrategy implements IThreadStrategy
 
 	protected function setFilter() : void
 	{
-		$this->filter = ['IS_UNSUB' => 'N'];
+		$this->filter = ['=IS_UNSUB' => 'N'];
 	}
 	protected function setSelect(): void
 	{
@@ -167,11 +167,6 @@ abstract class AbstractThreadStrategy implements IThreadStrategy
 	 */
 	public function checkThreads(): ?int
 	{
-		if(!static::checkLock())
-		{
-			return self::THREAD_LOCKED;
-		}
-
 		$thread = PostingThreadTable::getList(
 			[
 				"select" => ["THREAD_ID"],

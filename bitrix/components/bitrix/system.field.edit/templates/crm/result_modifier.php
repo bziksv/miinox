@@ -225,16 +225,16 @@ if (in_array('LEAD', $arParams['ENTITY_TYPE'], true))
 		{
 			$description = CCrmLead::PrepareFormattedName(
 				array(
-					'HONORIFIC' => isset($arRes['HONORIFIC']) ? $arRes['HONORIFIC'] : '',
-					'NAME' => isset($arRes['NAME']) ? $arRes['NAME'] : '',
-					'SECOND_NAME' => isset($arRes['SECOND_NAME']) ? $arRes['SECOND_NAME'] : '',
-					'LAST_NAME' => isset($arRes['LAST_NAME']) ? $arRes['LAST_NAME'] : ''
+					'HONORIFIC' => $arRes['HONORIFIC'] ?? '',
+					'NAME' => $arRes['NAME'] ?? '',
+					'SECOND_NAME' => $arRes['SECOND_NAME'] ?? '',
+					'LAST_NAME' => $arRes['LAST_NAME'] ?? ''
 				)
 			);
 		}
 		else
 		{
-			$description = isset($arRes['FULL_NAME']) ? $arRes['FULL_NAME'] : '';
+			$description = $arRes['FULL_NAME'] ?? '';
 		}
 
 		$arResult['ELEMENT'][] = Array(
@@ -322,16 +322,16 @@ if (in_array('CONTACT', $arParams['ENTITY_TYPE'], true))
 		{
 			$title = CCrmContact::PrepareFormattedName(
 				array(
-					'HONORIFIC' => isset($arRes['HONORIFIC']) ? $arRes['HONORIFIC'] : '',
-					'NAME' => isset($arRes['NAME']) ? $arRes['NAME'] : '',
-					'SECOND_NAME' => isset($arRes['SECOND_NAME']) ? $arRes['SECOND_NAME'] : '',
-					'LAST_NAME' => isset($arRes['LAST_NAME']) ? $arRes['LAST_NAME'] : ''
+					'HONORIFIC' => $arRes['HONORIFIC'] ?? '',
+					'NAME' => $arRes['NAME'] ?? '',
+					'SECOND_NAME' => $arRes['SECOND_NAME'] ?? '',
+					'LAST_NAME' => $arRes['LAST_NAME'] ?? ''
 				)
 			);
 		}
 		else
 		{
-			$title = isset($arRes['FULL_NAME']) ? $arRes['FULL_NAME'] : '';
+			$title = $arRes['FULL_NAME'] ?? '';
 		}
 
 		$arResult['ELEMENT'][] = Array(
@@ -675,11 +675,8 @@ if (in_array('ORDER', $arParams['ENTITY_TYPE'], true))
 			'title' => $arRes['ACCOUNT_NUMBER'],
 			'desc' => $arRes['ACCOUNT_NUMBER'],
 			'id' => $arRes['SID'],
-			'url' => CComponentEngine::MakePathFromTemplate(COption::GetOptionString('crm', 'path_to_order_details'),
-				array(
-					'order_id' => $arRes['ID']
-				)
-			),
+			'url' => Bitrix\Crm\Service\Sale\EntityLinkBuilder\EntityLinkBuilder::getInstance()
+				->getOrderDetailsLink($arRes['ID']),
 			'type'  => 'order',
 			'selected' => $sSelected
 		);
@@ -738,16 +735,16 @@ if (!empty($arResult['SELECTED']))
 			{
 				$description = CCrmLead::PrepareFormattedName(
 					array(
-						'HONORIFIC' => isset($arRes['HONORIFIC']) ? $arRes['HONORIFIC'] : '',
-						'NAME' => isset($arRes['NAME']) ? $arRes['NAME'] : '',
-						'SECOND_NAME' => isset($arRes['SECOND_NAME']) ? $arRes['SECOND_NAME'] : '',
-						'LAST_NAME' => isset($arRes['LAST_NAME']) ? $arRes['LAST_NAME'] : ''
+						'HONORIFIC' => $arRes['HONORIFIC'] ?? '',
+						'NAME' => $arRes['NAME'] ?? '',
+						'SECOND_NAME' => $arRes['SECOND_NAME'] ?? '',
+						'LAST_NAME' => $arRes['LAST_NAME'] ?? ''
 					)
 				);
 			}
 			else
 			{
-				$description = isset($arRes['FULL_NAME']) ? $arRes['FULL_NAME'] : '';
+				$description = $arRes['FULL_NAME'] ?? '';
 			}
 
 			$ar[] = Array(
@@ -814,16 +811,16 @@ if (!empty($arResult['SELECTED']))
 			{
 				$title = CCrmContact::PrepareFormattedName(
 					array(
-						'HONORIFIC' => isset($arRes['HONORIFIC']) ? $arRes['HONORIFIC'] : '',
-						'NAME' => isset($arRes['NAME']) ? $arRes['NAME'] : '',
-						'SECOND_NAME' => isset($arRes['SECOND_NAME']) ? $arRes['SECOND_NAME'] : '',
-						'LAST_NAME' => isset($arRes['LAST_NAME']) ? $arRes['LAST_NAME'] : ''
+						'HONORIFIC' => $arRes['HONORIFIC'] ?? '',
+						'NAME' => $arRes['NAME'] ?? '',
+						'SECOND_NAME' => $arRes['SECOND_NAME'] ?? '',
+						'LAST_NAME' => $arRes['LAST_NAME'] ?? ''
 					)
 				);
 			}
 			else
 			{
-				$title = isset($arRes['FULL_NAME']) ? $arRes['FULL_NAME'] : '';
+				$title = $arRes['FULL_NAME'] ?? '';
 			}
 
 			$ar[] = Array(
@@ -982,11 +979,8 @@ if (!empty($arResult['SELECTED']))
 				'title' => (str_replace(array(';', ','), ' ', $arRes['ACCOUNT_NUMBER'])),
 				'desc' => $arRes['ACCOUNT_NUMBER'],
 				'id' => $arRes['SID'],
-				'url' => CComponentEngine::MakePathFromTemplate(COption::GetOptionString('crm', 'path_to_order_details'),
-					array(
-						'order_id' => $arRes['ID']
-					)
-				),
+				'url' => Bitrix\Crm\Service\Sale\EntityLinkBuilder\EntityLinkBuilder::getInstance()
+					->getOrderDetailsLink($arRes['ID']),
 				'type'  => 'order',
 				'selected' => $sSelected
 			);

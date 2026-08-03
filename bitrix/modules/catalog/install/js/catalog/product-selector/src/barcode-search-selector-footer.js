@@ -1,4 +1,4 @@
-import {Loc, Tag, Dom} from 'main.core';
+import {Loc, Tag, Dom, Type} from 'main.core';
 import {BaseEvent} from "main.core.events";
 import ProductSearchSelectorFooter from "./product-search-selector-footer";
 
@@ -8,14 +8,14 @@ export class BarcodeSearchSelectorFooter extends ProductSearchSelectorFooter
 	{
 		super(id, options);
 		this.isEmptyBarcode = options.isEmptyBarcode;
+		this.getDialog().subscribe('SearchTab:onLoad', this.handleOnSearchLoad.bind(this));
 	}
 
 	getContent(): HTMLElement
 	{
-		this.barcodeContent =  super.getContent();
+		this.barcodeContent = super.getContent();
 		this.scannerContent = this.getScannerContent();
 		Dom.style(this.barcodeContent, 'display', 'none');
-		Dom.style(this.scannerContent, 'display', 'none');
 
 		return Tag.render`
 			<div class="catalog-footers-container">
@@ -23,6 +23,11 @@ export class BarcodeSearchSelectorFooter extends ProductSearchSelectorFooter
 				${this.scannerContent}
 			</div>
 		`;
+	}
+
+	isViewEditButton(): boolean
+	{
+		return !this.isEmptyBarcode && super.isViewEditButton();
 	}
 
 	getScannerContent(): HTMLElement
@@ -79,42 +84,35 @@ export class BarcodeSearchSelectorFooter extends ProductSearchSelectorFooter
 	{
 		const { query } = event.getData();
 
-		if (this.isEmptyBarcode)
+		if (!Type.isStringFilled(query))
 		{
-			if (query === '')
-			{
-				this.show();
-				Dom.style(this.scannerContent, 'display', '');
-			}
-			else
-			{
-				this.hide();
-			}
+			this.show();
+			Dom.style(this.scannerContent, 'display', '');
+			Dom.style(this.barcodeContent, 'display', 'none');
+		}
+		else if (this.options.currentValue === query)
+		{
+			this.hide();
 		}
 		else
 		{
-			if (query === '')
-			{
-				this.show();
-				Dom.style(this.barcodeContent, 'display', 'none');
-				Dom.style(this.scannerContent, 'display', '');
-			}
-			else if (this.options.currentValue === query)
+			this.show();
+			Dom.style(this.barcodeContent, 'display', '');
+			Dom.style(this.scannerContent, 'display', 'none');
+		}
+
+		this.getQueryContainer().textContent = " " + query;
+		this.getScannerQueryContainer().textContent = " " + query;
+	}
+
+	handleOnSearchLoad(event: BaseEvent): void
+	{
+		const {searchTab} = event.getData();
+		this.getDialog().getItems().forEach(item => {
+			if (item.getCustomData().get('BARCODE') === searchTab.getLastSearchQuery().getQuery())
 			{
 				this.hide();
 			}
-			else
-			{
-				this.show();
-				Dom.style(this.barcodeContent, 'display', '');
-				Dom.style(this.scannerContent, 'display', 'none');
-			}
-		}
-
-		if (this.options.allowCreateItem !== false)
-		{
-			this.getQueryContainer().textContent = query;
-			this.getScannerQueryContainer().textContent = query;
-		}
+		});
 	}
 }

@@ -179,7 +179,7 @@ class Site extends \Bitrix\Landing\Internals\BaseTable
 			],
 			'filter' => [
 				'ID' => $siteId
-			]
+			],
 		]);
 		if ($row = $res->fetch())
 		{
@@ -1252,9 +1252,10 @@ class Site extends \Bitrix\Landing\Internals\BaseTable
 	 * Moves folder.
 	 * @param int $folderId Current folder id.
 	 * @param int|null $toFolderId Destination folder id (or null for root folder of current folder's site).
+	 * @param int|null $toSiteId Destination site id (if different from current).
 	 * @return \Bitrix\Main\Result
 	 */
-	public static function moveFolder(int $folderId, ?int $toFolderId): \Bitrix\Main\Result
+	public static function moveFolder(int $folderId, ?int $toFolderId, ?int $toSiteId = null): \Bitrix\Main\Result
 	{
 		$returnError = function()
 		{
@@ -1273,6 +1274,46 @@ class Site extends \Bitrix\Landing\Internals\BaseTable
 		])->fetch();
 		if ($folder)
 		{
+			// move to another site
+			if ($toSiteId && (int)$folder['SITE_ID'] !== $toSiteId)
+			{
+				// check access to another site
+				$hasRightFrom = Rights::hasAccessForSite($folder['SITE_ID'], Rights::ACCESS_TYPES['delete']);
+				$hasRightTo = Rights::hasAccessForSite($toSiteId, Rights::ACCESS_TYPES['edit']);
+				if (!$hasRightFrom || !$hasRightTo)
+				{
+					return $returnError();
+				}
+
+				// check another site folder if specified
+				$toFolder = null;
+				if ($toFolderId)
+				{
+					$toFolder = Folder::getList([
+						'filter' => [
+							'ID' => $toFolderId,
+							'SITE_ID' => $toSiteId
+						]
+					])->fetch();
+					if (!$toFolder)
+					{
+						return $returnError();
+					}
+				}
+
+				// move folder
+				$res = Folder::update($folderId, [
+					'SITE_ID' => $toSiteId,
+					'PARENT_ID' => $toFolder['ID'] ?? null
+				]);
+				if ($res->isSuccess())
+				{
+					Folder::changeSiteIdRecursive($folderId, $toSiteId);
+				}
+
+				return $res;
+			}
+
 			$willBeRoot = !$toFolderId;
 
 			// check destination folder
@@ -1398,6 +1439,24 @@ class Site extends \Bitrix\Landing\Internals\BaseTable
 			$result->addError(new \Bitrix\Main\Error(
 				Loc::getMessage('LANDING_COPY_ERROR_FOLDER_NOT_FOUND'),
 				'ACCESS_DENIED'
+			));
+			return $result;
+		}
+
+		// disable delete if folder (or aby sub folders) contains area
+		$res = Landing::getList([
+			'select' => ['ID'],
+			'filter' => [
+				'FOLDER_ID' => [$id, ...Folder::getSubFolderIds($id)],
+				'!==AREAS.ID' => null,
+			],
+		]);
+		if ($res->fetch())
+		{
+			$result = new \Bitrix\Main\Entity\AddResult;
+			$result->addError(new \Bitrix\Main\Error(
+				Loc::getMessage('LANDING_DELETE_FOLDER_ERROR_CONTAINS_AREAS'),
+				'FOLDER_CONTAINS_AREAS'
 			));
 			return $result;
 		}
@@ -1557,13 +1616,28 @@ class Site extends \Bitrix\Landing\Internals\BaseTable
 	{
 		$return = new \Bitrix\Main\Result;
 
+		if ($mark)
+		{
+			$verificationError = new Error();
+			if (!Mutator::checkSiteVerification($id, $verificationError))
+			{
+				$return->addError($verificationError->getFirstError());
+				return $return;
+			}
+		}
+
 		// work with pages
 		$res = Landing::getList([
 			'select' => [
 				'ID', 'ACTIVE', 'PUBLIC'
 			],
 			'filter' => [
-				'SITE_ID' => $id
+				'SITE_ID' => $id,
+				[
+					'LOGIC' => 'OR',
+					['FOLDER_ID' => null],
+					['!FOLDER_ID' => Folder::getFolderIdsForSite($id, ['=DELETED' => 'Y']) ?: [-1]]
+				]
 			]
 		]);
 		while ($row = $res->fetch())

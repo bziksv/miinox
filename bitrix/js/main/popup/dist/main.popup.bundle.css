@@ -3,7 +3,7 @@
 	-webkit-box-shadow: 0 7px 21px rgba(83, 92, 105, .12), 0 -1px 6px 0 rgba(83, 92, 105, .06);
 	        box-shadow: 0 7px 21px rgba(83, 92, 105, .12), 0 -1px 6px 0 rgba(83, 92, 105, .06);
 	padding: 10px;
-	font: 13px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 13px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	-webkit-box-sizing: border-box;
 	        box-sizing: border-box;
 	display: -webkit-box;
@@ -17,6 +17,15 @@
 	    -ms-flex-pack: stretch;
 	        justify-content: stretch;
 	border-radius: var(--popup-window-border-radius);
+	will-change: opacity;
+}
+
+.popup-window-disable-scroll {
+	overflow: hidden;
+}
+
+.popup-window.--fixed {
+	position: fixed !important;
 }
 
 /* A super hack for legacy code which directly reads and writes popupContainer.style.display */
@@ -24,10 +33,6 @@
 	display: -webkit-box !important;
 	display: -ms-flexbox !important;
 	display: flex !important;
-}
-
-.bx-ie .popup-window[style*="block"] {
-	display: block !important;
 }
 
 .popup-window.popup-window-with-titlebar {
@@ -70,7 +75,7 @@
 	background: #fff;
 	color: #b1b6bc;
 	font-size: 10px;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 	text-transform: uppercase;
 	white-space: nowrap;
 	overflow-x: hidden;
@@ -96,9 +101,9 @@
 	border-radius: var(--popup-window-button-border-radius, 2px);
 	cursor: pointer;
 	color: #7a818a;
-	font-family: "OpenSans-Bold", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-bold, 700);
 	font-size: 12px;
-	font-weight: normal;
 	outline: none;
 	padding: 0 18px;
 	vertical-align: middle;
@@ -160,7 +165,7 @@
 	display: block !important;
 	content: '_' !important;
 	font-size: 10px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	line-height: 10px;
 	height: 21px;
 	top: 10px;
@@ -313,11 +318,11 @@
 	color: #80868e;
 	display: inline-block;
 	font-size: 14px;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 	max-width: 100%;
 	line-height: 49px;
 	overflow: hidden;
-	padding: 0 30px 0 10px;
+	padding: 0 30px 0 4px;
 	-o-text-overflow: ellipsis;
 	   text-overflow: ellipsis;
 	white-space: nowrap;
@@ -383,8 +388,8 @@
 	outline: none;
 	opacity: 0.5;
 	position: absolute;
-	right: 0;
-	top: 0;
+	right: 3px;
+	top: 5px;
 	width: 27px;
 	-webkit-transition: opacity 0.2s linear;
 	-o-transition: opacity 0.2s linear;
@@ -400,15 +405,27 @@
 	        transform: translate3d(-50%, -50%, 0);
 	width: 10px;
 	height: 10px;
-	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7.787 1L5 3.787 2.213 1 1 2.213 3.787 5 1 7.787 2.213 9 5 6.213 7.787 9 9 7.787 6.213 5 9 2.213' fill='%23999' fill-rule='evenodd'/%3E%3C/svg%3E");
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8.666.621a.5.5 0 00-.707 0L5.002 3.58 2.044.62a.5.5 0 00-.707 0l-.714.714a.5.5 0 000 .707L3.581 5 .623 7.957a.5.5 0 000 .708l.714.713a.5.5 0 00.707 0L5.002 6.42l2.957 2.958a.5.5 0 00.708 0l.713-.714a.5.5 0 000-.707L6.422 5 9.38 2.042a.5.5 0 000-.707L8.666.62z' fill='%23828b95'/%3E%3C/svg%3E");
 	background-repeat: no-repeat;
 	background-size: cover;
 	content: "";
 }
 
-.popup-window-titlebar-close-icon {
-	top: 12px;
+.popup-window-close-icon.--large:after {
+	width: 12px;
+	height: 12px;
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='12' height='12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M7.664 6l3.89 3.891a.6.6 0 010 .848l-.813.815a.6.6 0 01-.85 0l-3.89-3.89-3.89 3.89a.6.6 0 01-.849 0l-.814-.815a.6.6 0 010-.848l3.89-3.89L.448 2.11a.6.6 0 010-.849l.814-.814a.6.6 0 01.849 0L6 4.337l3.89-3.89a.6.6 0 01.85 0l.814.814a.6.6 0 010 .849L7.665 6z' fill='%23828b95'/%3E%3C/svg%3E");
+}
+
+.popup-window-close-icon.--large {
+	top: 10px;
 	right: 10px;
+}
+
+.popup-window-close-icon.popup-window-titlebar-close-icon.--large,
+.popup-window-titlebar-close-icon {
+	top: 10px;
+	right: 7px;
 }
 
 .popup-window-close-icon:hover {
@@ -529,7 +546,7 @@
 	padding: 0 0 0 4px;
 	color: #4c4c4c;
 	white-space: nowrap;
-	font: normal normal normal 12px/normal Arial, Helvetica, sans-serif;
+	font: normal normal normal 12px/normal var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 }
 
 .menu-popup .menu-popup-item {
@@ -579,7 +596,7 @@
 	-webkit-box-flex: 1;
 	    -ms-flex: 1;
 	        flex: 1;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #525c68;
 	line-height: 36px;
 	padding: 0 15px 0 9px;
@@ -722,7 +739,7 @@
 /* ========Popup Window Darken==========*/
 .popup-window-dark {
 	background-color: rgba(0, 0, 0, 0.8);
-	border-radius: 4px;
+	border-radius: var(--popup-window-border-radius, 4px);
 	-webkit-box-shadow: 0 19px 24px rgba(88, 112, 118, 0.17);
 	        box-shadow: 0 19px 24px rgba(88, 112, 118, 0.17);
 }
@@ -742,7 +759,11 @@
 }
 
 .popup-window-dark .popup-window-close-icon:after {
-	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7.787 1L5 3.787 2.213 1 1 2.213 3.787 5 1 7.787 2.213 9 5 6.213 7.787 9 9 7.787 6.213 5 9 2.213' fill='%23FFF' fill-rule='evenodd'/%3E%3C/svg%3E");
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8.666.621a.5.5 0 00-.707 0L5.002 3.58 2.044.62a.5.5 0 00-.707 0l-.714.714a.5.5 0 000 .707L3.581 5 .623 7.957a.5.5 0 000 .708l.714.713a.5.5 0 00.707 0L5.002 6.42l2.957 2.958a.5.5 0 00.708 0l.713-.714a.5.5 0 000-.707L6.422 5 9.38 2.042a.5.5 0 000-.707L8.666.62z' fill='%23FFF'/%3E%3C/svg%3E");
+}
+
+.popup-window-dark .popup-window-close-icon.--large:after {
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='12' height='12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M7.664 6l3.89 3.891a.6.6 0 010 .848l-.813.815a.6.6 0 01-.85 0l-3.89-3.89-3.89 3.89a.6.6 0 01-.849 0l-.814-.815a.6.6 0 010-.848l3.89-3.89L.448 2.11a.6.6 0 010-.849l.814-.814a.6.6 0 01.849 0L6 4.337l3.89-3.89a.6.6 0 01.85 0l.814.814a.6.6 0 010 .849L7.665 6z' fill='%23FFF'/%3E%3C/svg%3E");
 }
 
 /*===========TABS==========*/
@@ -767,8 +788,8 @@
 	border: none;
 	vertical-align: top;
 	font-size: 14px;
-	font-weight: bold;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-weight: var(--ui-font-weight-bold);
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	line-height: 41px;
 	color: #535c69;
 	background-color: #ecf2f3;

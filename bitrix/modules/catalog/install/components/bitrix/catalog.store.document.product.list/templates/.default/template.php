@@ -16,7 +16,14 @@ use Bitrix\Main\Web\Json;
 $settings = $arResult['SETTINGS'];
 $currency = $settings['CURRENCY'];
 
-\Bitrix\Main\UI\Extension::load(['ui.design-tokens', 'ui.fonts.opensans']);
+$productListConfig = $arResult['GRID_EDITOR_CONFIG'];
+$productListConfig['hiddenFields'] = $arResult['HIDDEN_FIELDS'];
+
+\Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
+	'ui.hint',
+]);
 
 ?>
 <div class="catalog-document-product-list-wrapper" id="<?=$arResult['GRID_EDITOR_CONFIG']['containerId']?>">
@@ -47,7 +54,20 @@ $currency = $settings['CURRENCY'];
 					<?=Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_ADD_PRODUCT')?>
 				</a>
 				<?php
-				if (!empty($createUrl))
+				if (!$component->isAllowedProductCreation())
+				{
+					?>
+					<div
+						class="ui-btn ui-btn-light-border ui-btn-icon-lock ui-btn-disabled"
+						tabindex="-1"
+						data-hint="<?=Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_ACCESS_DENIED_PRODUCT_CREATION_HINT')?>"
+						data-hint-no-icon
+					>
+						<?=Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_CREATE_PRODUCT')?>
+					</div>
+					<?php
+				}
+				elseif (!empty($createUrl))
 				{
 					?>
 					<a class="ui-btn ui-btn-light-border"
@@ -104,7 +124,20 @@ $currency = $settings['CURRENCY'];
 					<?=Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_ADD_PRODUCT')?>
 				</a>
 				<?php
-				if (!empty($createUrl))
+				if (!$component->isAllowedProductCreation())
+				{
+					?>
+					<div
+						class="ui-btn ui-btn-light-border ui-btn-icon-lock ui-btn-disabled"
+						tabindex="-1"
+						data-hint="<?=Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_ACCESS_DENIED_PRODUCT_CREATION_HINT')?>"
+						data-hint-no-icon
+					>
+						<?=Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_CREATE_PRODUCT')?>
+					</div>
+					<?php
+				}
+				elseif (!empty($createUrl))
 				{
 					?>
 					<a class="ui-btn ui-btn-light-border"
@@ -141,19 +174,24 @@ $currency = $settings['CURRENCY'];
 					<td class="catalog-document-product-list-result-grid-total-big">
 						<?=Loc::getMessage('CATALOG_PRODUCT_SUM_TOTAL')?>:
 					</td>
-					<td class="catalog-document-product-list-result-grid-total-big">
-						<span data-total="totalCost">
-							<?=\CCurrencyLang::CurrencyFormat($arResult['TOTAL_SUM'], $currency['ID'], false)?>
-						</span>
-						<span data-role="currency-wrapper" class="catalog-document-product-list-result-grid-item-currency-symbol"><?=$currency['TEXT']?></span>
+					<td class="catalog-document-product-list-result-grid-total catalog-document-product-list-result-grid-total-big">
+					<?php
+						$formattedValue =
+							'<span data-total="totalCost" class="catalog-document-product-list-result-grid-total-sum">'
+							. \CCurrencyLang::CurrencyFormat($arResult['TOTAL_SUM'],  $currency['ID'], false)
+							. '</span>'
+						;
+
+						echo \CCurrencyLang::getPriceControl($formattedValue, $currency['ID']);
+					?>
 					</td>
 				</tr>
 			</table>
 		</div>
 	</div>
-	<input type="hidden" name="<?=htmlspecialcharsbx($arResult['PRODUCT_DATA_FIELD_NAME'])?>" value="" />
+	<input type="hidden" name="<?=htmlspecialcharsbx($arParams['PRODUCT_DATA_FIELD_NAME'])?>" value="" />
 	<input type="hidden"
-			name="<?=htmlspecialcharsbx($arResult['PRODUCT_DATA_FIELD_NAME'].'_SETTINGS')?>"
+			name="<?=htmlspecialcharsbx($arParams['PRODUCT_DATA_FIELD_NAME'].'_SETTINGS')?>"
 			value="" />
 </div>
 <script>
@@ -170,7 +208,7 @@ $currency = $settings['CURRENCY'];
 			BX.Catalog.Store.ProductList.Instance = new BX.Catalog.Store.ProductList.Editor('<?=$arResult['ID']?>');
 		}
 
-		BX.Catalog.Store.ProductList.Instance.init(<?=Json::encode($arResult['GRID_EDITOR_CONFIG'])?>);
-		BX.Catalog["<?=$arResult['GRID_EDITOR_CONFIG']['jsEventsManagerId']?>"] = BX.Catalog.Store.ProductList.Instance.getPageEventsManager();
+		BX.Catalog.Store.ProductList.Instance.init(<?=Json::encode($productListConfig)?>);
+		BX.Catalog["<?=$productListConfig['jsEventsManagerId']?>"] = BX.Catalog.Store.ProductList.Instance.getPageEventsManager();
 	});
 </script>

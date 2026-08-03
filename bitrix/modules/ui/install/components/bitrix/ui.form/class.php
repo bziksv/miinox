@@ -41,7 +41,7 @@ class UIFormComponent extends \CBitrixComponent
 		$this->initialize();
 		$this->emitOnUIFormInitializeEvent();
 
-		if (!$this->arParams['SKIP_TEMPLATE'])
+		if (!isset($this->arParams['SKIP_TEMPLATE']) || !$this->arParams['SKIP_TEMPLATE'])
 		{
 			$this->includeComponentTemplate();
 		}
@@ -132,6 +132,7 @@ class UIFormComponent extends \CBitrixComponent
 			],
 			'SCOPE' => null,
 			'SCOPE_PREFIX' => '',
+			'DISABLED_HTML_CONTROLS' => [],
 		];
 	}
 
@@ -409,6 +410,7 @@ class UIFormComponent extends \CBitrixComponent
 		$requiredFields = [];
 		$hasEmptyRequiredFields = false;
 		$htmlFieldNames = [];
+		$bbFieldNames = [];
 		foreach($entityFields as $field)
 		{
 			$name = $field['name'] ?? '';
@@ -421,6 +423,10 @@ class UIFormComponent extends \CBitrixComponent
 			if($fieldType === 'html')
 			{
 				$htmlFieldNames[] = $name;
+			}
+			if ($fieldType === 'bb')
+			{
+				$bbFieldNames[] = $name;
 			}
 
 			$availableFields[$name] = $field;
@@ -458,6 +464,7 @@ class UIFormComponent extends \CBitrixComponent
 			'required' => $requiredFields,
 			'hasEmptyRequiredFields' => $hasEmptyRequiredFields,
 			'html' => $htmlFieldNames,
+			'bb' => $bbFieldNames,
 		];
 	}
 
@@ -523,7 +530,7 @@ class UIFormComponent extends \CBitrixComponent
 						continue;
 					}
 
-					$schemeElement = $availableFields[$name];
+					$schemeElement = $availableFields[$name] ?? [];
 					$fieldType = $schemeElement['type'] ?? '';
 
 					//User fields in common scope must have original names.
@@ -670,6 +677,8 @@ class UIFormComponent extends \CBitrixComponent
 
 		$this->arResult['ENTITY_AVAILABLE_FIELDS'] = array_values($fieldsInfo['available']);
 		$this->arResult['ENTITY_HTML_FIELD_NAMES'] = $fieldsInfo['html'];
+		$this->arResult['ENTITY_BB_FIELD_NAMES'] = $fieldsInfo['bb'];
+		$this->arResult['DISABLED_HTML_CONTROLS'] = $this->arParams['DISABLED_HTML_CONTROLS'] ?? [];
 	}
 
 	protected function loadLanguages(): array

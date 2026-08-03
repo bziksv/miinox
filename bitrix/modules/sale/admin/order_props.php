@@ -20,6 +20,9 @@ $sTableID = "tbl_sale_order_props";
 $oSort = new CAdminSorting($sTableID, "ID", "asc");
 $lAdmin = new CAdminList($sTableID, $oSort);
 
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
+
 $arFilterFields = array(
 	"filter_person_type_id",
 	"filter_type",
@@ -44,14 +47,16 @@ if ($filter_util <> '') $arFilter["UTIL"] = Trim($filter_util);
 
 if ($lAdmin->EditAction() && $saleModulePermissions >= "W")
 {
-	foreach ($FIELDS as $ID => $arFields)
+	foreach ($lAdmin->GetEditFields() as $ID => $arFields)
 	{
-		$DB->StartTransaction();
 		$ID = intval($ID);
 
 		if (!$lAdmin->IsUpdated($ID))
 			continue;
 
+		$DB->StartTransaction();
+
+		$arFields = CSaleOrderPropsAdapter::convertNewToOld($arFields);
 		if (!CSaleOrderProps::Update($ID, $arFields))
 		{
 			if ($ex = $APPLICATION->GetException())
@@ -61,15 +66,17 @@ if ($lAdmin->EditAction() && $saleModulePermissions >= "W")
 
 			$DB->Rollback();
 		}
-
-		$DB->Commit();
+		else
+		{
+			$DB->Commit();
+		}
 	}
 }
 
 
 if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 {
-	if ($_REQUEST['action_target']=='selected')
+	if ($lAdmin->IsGroupActionToAll())
 	{
 		$arID = Array();
 		$dbResultList = CSaleOrderProps::GetList(
@@ -88,7 +95,7 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 		if ($ID == '')
 			continue;
 
-		switch ($_REQUEST['action'])
+		switch ($lAdmin->GetAction())
 		{
 			case "delete":
 				@set_time_limit(0);
@@ -106,6 +113,7 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 							\Bitrix\Crm\Order\Matcher\Internals\OrderPropsMatchTable::delete($property['ID']);
 						}
 					}
+					$DB->Commit();
 				}
 				else
 				{
@@ -116,8 +124,6 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 					else
 						$lAdmin->AddGroupError(GetMessage("SOPAN_ERROR_DELETE"), $ID);
 				}
-
-				$DB->Commit();
 
 				break;
 		}
@@ -159,23 +165,26 @@ while ($arPersonType = $dbPersonType->Fetch())
 $arVisibleColumns = $lAdmin->GetVisibleHeaderColumns();
 while ($arOrderProp = $dbResultList->NavNext(true, "f_"))
 {
-	$editUrl = "sale_order_props_edit.php?ID=".$f_ID."&lang=".LANG.GetFilterParams("filter_");
+	$editUrl = "sale_order_props_edit.php?ID=".$f_ID."&lang=" . LANGUAGE_ID . GetFilterParams("filter_");
 	$row =& $lAdmin->AddRow($f_ID, $arOrderProp, $editUrl, GetMessage("SALE_EDIT_DESCR"));
 	$row->AddField("ID", "<b><a href='".$editUrl."' title='".GetMessage("SALE_EDIT_DESCR")."'>".$f_ID."</a>");
 
 	$fieldValue = "";
 	if (in_array("PERSON_TYPE_ID", $arVisibleColumns))
 	{
-		$fieldValue  = "[".$arPersonTypeList[$f_PERSON_TYPE_ID]["ID"]."] ";
-		$fieldValue .= $arPersonTypeList[$f_PERSON_TYPE_ID]["NAME"]." ";
-		$fieldValue .= "(".htmlspecialcharsEx($arPersonTypeList[$f_PERSON_TYPE_ID]["LID"]).")";
+		$fieldValue = "[" . $f_PERSON_TYPE_ID . "] ";
+		if (isset($arPersonTypeList[$f_PERSON_TYPE_ID]))
+		{
+			$fieldValue .= $arPersonTypeList[$f_PERSON_TYPE_ID]["NAME"]." ";
+			$fieldValue .= "(".htmlspecialcharsEx($arPersonTypeList[$f_PERSON_TYPE_ID]["LID"]).")";
+		}
 	}
 	$row->AddField("PERSON_TYPE_ID", $fieldValue);
 
 	$row->AddInputField("NAME");
 	$row->AddInputField("SORT");
 	$row->AddInputField("CODE");
-	$row->AddField('TYPE', "[$f_TYPE] ".$inputTypes[$f_TYPE]['NAME']);
+	$row->AddField('TYPE', "[$f_TYPE] ". ($inputTypes[$f_TYPE]['NAME'] ?? ''));
 	$row->AddCheckField("ACTIVE");
 	$row->AddCheckField("REQUIRED");
 	$row->AddCheckField("MULTIPLE");
@@ -237,7 +246,7 @@ if ($saleModulePermissions == "W")
 	{
 		$arDDMenu[] = array(
 			"TEXT" => "[".$arRes["ID"]."] ".$arRes["NAME"]." (".$arRes["LID"].")",
-			"ACTION" => "window.location = 'sale_order_props_edit.php?lang=".LANG."&PERSON_TYPE_ID=".$arRes["ID"].GetFilterParams("filter_")."';"
+			"ACTION" => "window.location = 'sale_order_props_edit.php?lang=" . LANGUAGE_ID . "&PERSON_TYPE_ID=".$arRes["ID"].GetFilterParams("filter_")."';"
 		);
 	}
 

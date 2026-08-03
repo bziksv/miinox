@@ -29,6 +29,11 @@ class AuthAdapter
 	public function __construct($type)
 	{
 		$this->type = $type;
+
+		if($type === \Bitrix\Seo\Retargeting\Service::TYPE_YANDEX)
+		{
+			$this->parameters['URL_PARAMETERS']['force_confirm'] = 'yes';
+		}
 	}
 
 	/**
@@ -96,8 +101,10 @@ class AuthAdapter
 
 	protected function getAuthData($isUseCache = true)
 	{
-		return ($this->canUseMultipleClients() ?
-			$this->getAuthDataMultiple() : $this->getAuthDataSingle($isUseCache));
+		return ($this->canUseMultipleClients()
+			? $this->getAuthDataMultiple()
+			: $this->getAuthDataSingle($isUseCache))
+		;
 	}
 
 	protected function getAuthDataMultiple()
@@ -143,7 +150,6 @@ class AuthAdapter
 	{
 		if ($this->service)
 		{
-
 			return $this->service::getEngineCode($this->type);
 		}
 

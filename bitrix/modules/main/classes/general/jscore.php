@@ -76,7 +76,7 @@ class CJSCore
 		$bReturn = ($bReturn === true); // prevent syntax mistake
 
 		$bNeedCore = false;
-		if (count($arExt) > 0)
+		if (!empty($arExt))
 		{
 			foreach ($arExt as $ext)
 			{
@@ -123,8 +123,7 @@ class CJSCore
 
 			if (is_array($config['rel']))
             {
-                $return = true;
-                $relativities .= self::init($config['rel'], $return);
+                $relativities .= self::init($config['rel'], true);
             }
 
 			$coreLang = self::_loadLang($config['lang'], true);
@@ -245,7 +244,8 @@ class CJSCore
 			$autoTimeZone = "N";
 			if (is_object($USER))
 			{
-				$autoTimeZone = trim($USER->GetParam("AUTO_TIME_ZONE"));
+				$autoTimeZone = $USER->GetParam("AUTO_TIME_ZONE");
+				$autoTimeZone = $autoTimeZone ? trim($USER->GetParam("AUTO_TIME_ZONE")) : null;
 				if ($USER->GetID() > 0)
 				{
 					$userId = $USER->GetID();
@@ -255,7 +255,7 @@ class CJSCore
 			$arMessages["USER_ID"] = $userId;
 			$arMessages["SERVER_TIME"] = time();
 			$arMessages["USER_TZ_OFFSET"] = CTimeZone::GetOffset();
-			$arMessages["USER_TZ_AUTO"] = $autoTimeZone == "N" ? "N": "Y";
+			$arMessages["USER_TZ_AUTO"] = $autoTimeZone === "N" ? "N": "Y";
 			$arMessages["bitrix_sessid"] = bitrix_sessid();
 		}
 
@@ -294,6 +294,18 @@ class CJSCore
 			{
 				cl += " bx-ios";
 			}
+			else if (/Windows/i.test(ua))
+			{
+				cl += ' bx-win';
+			}
+			else if (/Macintosh/i.test(ua))
+			{
+				cl += " bx-mac";
+			}
+			else if (/Linux/i.test(ua) && !/Android/i.test(ua))
+			{
+				cl += " bx-linux";
+			}
 			else if (/Android/i.test(ua))
 			{
 				cl += " bx-android";
@@ -310,89 +322,16 @@ class CJSCore
 			{
 				cl += " bx-chrome";
 			}
-			else if ((ieVersion = getIeVersion()) > 0)
-			{
-				cl += " bx-ie bx-ie" + ieVersion;
-				if (ieVersion > 7 && ieVersion < 10 && !isDoctype())
-				{
-					cl += " bx-quirks";
-				}
-			}
 			else if (/Opera/.test(ua))
 			{
 				cl += " bx-opera";
 			}
-			else if (/Gecko/.test(ua))
+			else if (/Firefox/.test(ua))
 			{
 				cl += " bx-firefox";
 			}
 
-			if (/Macintosh/i.test(ua))
-			{
-				cl += " bx-mac";
-			}
-
 			ht.className = htc ? htc + " " + cl : cl;
-
-			function isDoctype()
-			{
-				if (d.compatMode)
-				{
-					return d.compatMode == "CSS1Compat";
-				}
-
-				return d.documentElement && d.documentElement.clientHeight;
-			}
-
-			function getIeVersion()
-			{
-				if (/Opera/i.test(ua) || /Webkit/i.test(ua) || /Firefox/i.test(ua) || /Chrome/i.test(ua))
-				{
-					return -1;
-				}
-
-				var rv = -1;
-				if (!!(w.MSStream) && !(w.ActiveXObject) && ("ActiveXObject" in w))
-				{
-					rv = 11;
-				}
-				else if (!!d.documentMode && d.documentMode >= 10)
-				{
-					rv = 10;
-				}
-				else if (!!d.documentMode && d.documentMode >= 9)
-				{
-					rv = 9;
-				}
-				else if (d.attachEvent && !/Opera/.test(ua))
-				{
-					rv = 8;
-				}
-
-				if (rv == -1 || rv == 8)
-				{
-					var re;
-					if (n.appName == "Microsoft Internet Explorer")
-					{
-						re = new RegExp("MSIE ([0-9]+[\.0-9]*)");
-						if (re.exec(ua) != null)
-						{
-							rv = parseFloat(RegExp.$1);
-						}
-					}
-					else if (n.appName == "Netscape")
-					{
-						rv = 11;
-						re = new RegExp("Trident/.*rv:([0-9]+[\.0-9]*)");
-						if (re.exec(ua) != null)
-						{
-							rv = parseFloat(RegExp.$1);
-						}
-					}
-				}
-
-				return rv;
-			}
 
 		})(window, document, navigator);
 JS;
@@ -515,7 +454,7 @@ JS;
 		if (isset(self::$arRegisteredExt[$ext]['lang']) || isset(self::$arRegisteredExt[$ext]['lang_additional']))
 		{
 			$ret .= self::_loadLang(
-				isset(self::$arRegisteredExt[$ext]['lang']) ? self::$arRegisteredExt[$ext]['lang'] : null,
+				self::$arRegisteredExt[$ext]['lang'] ?? null,
 				$bReturn,
 				!empty(self::$arRegisteredExt[$ext]['lang_additional'])? self::$arRegisteredExt[$ext]['lang_additional']: false
 			);
@@ -566,7 +505,7 @@ JS;
 
 	public static function getExtInfo($ext)
 	{
-		return self::$arRegisteredExt[$ext];
+		return self::$arRegisteredExt[$ext] ?? null;
 	}
 
 	private static function _RegisterStandardExt()
@@ -692,7 +631,7 @@ JS;
 	 */
 	private static function loadSettings($extension, $settings, $bReturn = false)
 	{
-		if (is_array($settings) && count($settings) > 0)
+		if (is_array($settings) && !empty($settings))
 		{
 			$encodedSettings = Main\Web\Json::encode($settings);
 			$result = '<script type="extension/settings" data-extension="'.$extension.'">';

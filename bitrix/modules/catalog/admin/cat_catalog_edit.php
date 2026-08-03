@@ -1,4 +1,7 @@
 <?
+
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Iblock\PropertyTable;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
@@ -21,9 +24,16 @@ $IBLOCK_ID = intval($_REQUEST["IBLOCK_ID"]);
 
 $arIBlock = CIBlock::GetArrayByID($IBLOCK_ID);
 if($arIBlock)
-	$bBadBlock = !CIBlockRights::UserHasRightTo($IBLOCK_ID, $IBLOCK_ID, "iblock_edit");
+{
+	$bBadBlock = !(
+		CIBlockRights::UserHasRightTo($IBLOCK_ID, $IBLOCK_ID, "iblock_edit")
+		|| AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_SETTINGS_ACCESS)
+	);
+}
 else
+{
 	$bBadBlock = true;
+}
 
 if($bBadBlock)
 {
@@ -244,12 +254,13 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					$arHidden[$arProp["ID"]] = $arProp["NAME"];
 					$arShadow[$arProp["ID"]] = $arProp["NAME"];
 				}
+				$linkExists = is_array($arLink);
 				$fileProperty = $arProp['PROPERTY_TYPE'] == PropertyTable::TYPE_FILE;
 			?>
-			<tr id="tr_SECTION_PROPERTY_<?echo $arProp["ID"]?>" <?if(!is_array($arLink)) echo 'style="display:none"';?>>
+			<tr id="tr_SECTION_PROPERTY_<?echo $arProp["ID"]?>" <?if(!$linkExists) echo 'style="display:none"';?>>
 				<td style="text-align: left;">
-					<?if(!is_array($arLink) || $arLink["INHERITED"] == "N"):?>
-					<input type="hidden" name="SECTION_PROPERTY[<?echo $arProp["ID"]?>][SHOW]" id="hidden_SECTION_PROPERTY_<?echo $arProp["ID"]?>" value="<?echo is_array($arLink)? "Y": "N";?>">
+					<?if(!$linkExists || $arLink["INHERITED"] == "N"):?>
+					<input type="hidden" name="SECTION_PROPERTY[<?echo $arProp["ID"]?>][SHOW]" id="hidden_SECTION_PROPERTY_<?echo $arProp["ID"]?>" value="<?echo $linkExists ? "Y": "N";?>">
 					<?endif?>
 					<?echo htmlspecialcharsbx($arProp["NAME"])?>
 				</td>
@@ -272,7 +283,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 						echo GetMessage("IBLOCK_PROP_S");
 				?></td>
 				<td style="text-align:center"><?
-					echo '<input type="checkbox" value="Y" '.((is_array($arLink) && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][SMART_FILTER]" '.($arLink["SMART_FILTER"] == "Y"? 'checked="checked"': '').'>';
+					echo '<input type="checkbox" value="Y" '.(($linkExists && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][SMART_FILTER]" '.($linkExists && $arLink["SMART_FILTER"] == "Y"? 'checked="checked"': '').'>';
 				?></td>
 				<td style="text-align: left;">
 					<?
@@ -282,7 +293,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 						echo SelectBoxFromArray('SECTION_PROPERTY['.$arProp['ID'].'][DISPLAY_TYPE]', array(
 							"REFERENCE_ID" => array_keys($displayTypes),
 							"REFERENCE" => array_values($displayTypes),
-						), $arLink["DISPLAY_TYPE"], '', '');
+						), $linkExists ? $arLink["DISPLAY_TYPE"] : '', '', '');
 					}
 					else
 					{
@@ -291,7 +302,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					?>
 				</td>
 				<td style="text-align:center"><?
-					echo '<input type="checkbox" value="Y" '.((is_array($arLink) && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][DISPLAY_EXPANDED]" '.($arLink["DISPLAY_EXPANDED"] == "Y"? 'checked="checked"': '').'>';
+					echo '<input type="checkbox" value="Y" '.(($linkExists && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][DISPLAY_EXPANDED]" '.($linkExists && $arLink["DISPLAY_EXPANDED"] == "Y"? 'checked="checked"': '').'>';
 				?></td>
 				<td>
 				<?
@@ -299,12 +310,12 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					{
 						echo '&nbsp;';
 					}
-					elseif (!is_array($arLink) || $arLink["INHERITED"] == "N")
+					elseif (!$linkExists || $arLink["INHERITED"] == "N")
 					{
-						$filterHint = (is_array($arLink) ? (string)$arLink['FILTER_HINT'] : '');
+						$filterHint = ($linkExists ? (string)$arLink['FILTER_HINT'] : '');
 						echo $editor->getControlHtml('SECTION_PROPERTY['.$arProp['ID'].'][FILTER_HINT]', $filterHint, 255);
 					}
-					elseif ($arLink['FILTER_HINT'] <> '')
+					elseif ($linkExists && $arLink['FILTER_HINT'] <> '')
 					{
 						echo CTextParser::closeTags($arLink['FILTER_HINT']);
 					}
@@ -314,7 +325,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					}
 				?></td>
 				<td style="text-align: left;"><?
-					if(!is_array($arLink) || $arLink["INHERITED"] == "N")
+					if(!$linkExists || $arLink["INHERITED"] == "N")
 						echo '<a class="bx-action-href" href="javascript:deleteSectionProperty('.$arProp['ID'].', \'select_SECTION_PROPERTY\', \'shadow_SECTION_PROPERTY\', \'table_SECTION_PROPERTY\')">'.GetMessage("CAT_CEDIT_PROP_TABLE_ACTION_HIDE").'</a>';
 					else
 						echo '&nbsp;';
@@ -543,12 +554,13 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					$arHidden[$arProp["ID"]] = $arProp["NAME"];
 					$arShadow[$arProp["ID"]] = $arProp["NAME"];
 				}
+				$linkExists = is_array($arLink);
 				$fileProperty = $arProp['PROPERTY_TYPE'] == PropertyTable::TYPE_FILE;
 			?>
-			<tr id="tr_SECTION_PROPERTY_<?echo $arProp["ID"]?>" <?if(!is_array($arLink)) echo 'style="display:none"';?>>
+			<tr id="tr_SECTION_PROPERTY_<?echo $arProp["ID"]?>" <?if(!$linkExists) echo 'style="display:none"';?>>
 				<td style="text-align: left;">
-					<?if(!is_array($arLink) || $arLink["INHERITED"] == "N"):?>
-					<input type="hidden" name="SECTION_PROPERTY[<?echo $arProp["ID"]?>][SHOW]" id="hidden_SECTION_PROPERTY_<?echo $arProp["ID"]?>" value="<?echo is_array($arLink)? "Y": "N";?>">
+					<?if(!$linkExists || $arLink["INHERITED"] == "N"):?>
+					<input type="hidden" name="SECTION_PROPERTY[<?echo $arProp["ID"]?>][SHOW]" id="hidden_SECTION_PROPERTY_<?echo $arProp["ID"]?>" value="<?echo $linkExists ? "Y": "N";?>">
 					<?endif?>
 					<?echo htmlspecialcharsbx($arProp["NAME"])?>
 				</td>
@@ -571,7 +583,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 						echo GetMessage("IBLOCK_PROP_S");
 				?></td>
 				<td style="text-align:center"><?
-					echo '<input type="checkbox" value="Y" '.((is_array($arLink) && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][SMART_FILTER]" '.($arLink["SMART_FILTER"] == "Y"? 'checked="checked"': '').'>';
+					echo '<input type="checkbox" value="Y" '.(($linkExists && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][SMART_FILTER]" '.($linkExists && $arLink["SMART_FILTER"] == "Y"? 'checked="checked"': '').'>';
 				?></td>
 				<td style="text-align: left;">
 					<?
@@ -581,7 +593,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 						echo SelectBoxFromArray('SECTION_PROPERTY['.$arProp['ID'].'][DISPLAY_TYPE]', array(
 							"REFERENCE_ID" => array_keys($displayTypes),
 							"REFERENCE" => array_values($displayTypes),
-						), $arLink["DISPLAY_TYPE"], '', '');
+						), $linkExists ? $arLink["DISPLAY_TYPE"] : '', '', '');
 					}
 					else
 					{
@@ -590,7 +602,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					?>
 				</td>
 				<td style="text-align:center"><?
-					echo '<input type="checkbox" value="Y" '.((is_array($arLink) && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][DISPLAY_EXPANDED]" '.($arLink["DISPLAY_EXPANDED"] == "Y"? 'checked="checked"': '').'>';
+					echo '<input type="checkbox" value="Y" '.(($linkExists && $arLink["INHERITED"] == "Y") || $fileProperty ? 'disabled="disabled"': '').' name="SECTION_PROPERTY['.$arProp['ID'].'][DISPLAY_EXPANDED]" '.($linkExists && $arLink["DISPLAY_EXPANDED"] == "Y"? 'checked="checked"': '').'>';
 				?></td>
 				<td>
 				<?
@@ -598,12 +610,12 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					{
 						echo '&nbsp;';
 					}
-					elseif (!is_array($arLink) || $arLink["INHERITED"] == "N")
+					elseif (!$linkExists || $arLink["INHERITED"] == "N")
 					{
-						$filterHint = (is_array($arLink) ? (string)$arLink['FILTER_HINT'] : '');
+						$filterHint = ($linkExists ? (string)$arLink['FILTER_HINT'] : '');
 						echo $editor->getControlHtml('SECTION_PROPERTY['.$arProp['ID'].'][FILTER_HINT]', $filterHint, 255);
 					}
-					elseif ($arLink['FILTER_HINT'] <> '')
+					elseif ($linkExists && $arLink['FILTER_HINT'] <> '')
 					{
 						echo CTextParser::closeTags($arLink['FILTER_HINT']);
 					}
@@ -613,7 +625,7 @@ $tabControl->BeginCustomField("SECTION_PROPERTY", GetMessage("CAT_CEDIT_SECTION_
 					}
 				?></td>
 				<td style="text-align: left;"><?
-					if(!is_array($arLink) || $arLink["INHERITED"] == "N")
+					if(!$linkExists || $arLink["INHERITED"] == "N")
 						echo '<a class="bx-action-href" href="javascript:deleteSectionProperty('.$arProp['ID'].', \'select_SKU_SECTION_PROPERTY\', \'shadow_SKU_SECTION_PROPERTY\', \'table_SKU_SECTION_PROPERTY\')">'.GetMessage("CAT_CEDIT_PROP_TABLE_ACTION_HIDE").'</a>';
 					else
 						echo '&nbsp;';

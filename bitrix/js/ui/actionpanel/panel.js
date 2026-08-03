@@ -136,6 +136,10 @@ BX.UI.ActionPanel.prototype =
 		{
 			this.appendMoreBlock();
 		}
+		else if (this.layout.more)
+		{
+			this.removeMoreBlock()
+		}
 	},
 
 	buildItem: function(options)
@@ -683,6 +687,8 @@ BX.UI.ActionPanel.prototype =
 
 		this.layout.container.style.setProperty('height', parentContainerParam.height + 'px');
 
+		BX.addClass(document.body, 'ui-action-panel-shown');
+
 		setTimeout(function() {
 			BX.removeClass(this.layout.container, "ui-action-panel-show-animate");
 		}.bind(this), 300)
@@ -708,6 +714,8 @@ BX.UI.ActionPanel.prototype =
 		BX.removeClass(this.layout.container, "ui-action-panel-show");
 		BX.removeClass(this.layout.container, "ui-action-panel-show-animate");
 		BX.addClass(this.layout.container, "ui-action-panel-hide-animate");
+
+		BX.removeClass(document.body, 'ui-action-panel-shown');
 
 		setTimeout(function() {
 			BX.removeClass(this.layout.container, "ui-action-panel-hide-animate");

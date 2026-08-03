@@ -3,24 +3,31 @@
 /** @global CDatabase $DB */
 /** @global CUser $USER */
 /** @global CAdminSidePanelHelper $adminSidePanelHelper */
-/** @global string $type */
 
 use Bitrix\Main;
+use Bitrix\Main\Context;
 use Bitrix\Main\Loader;
 use Bitrix\Iblock;
+use Bitrix\Iblock\Template;
+use Bitrix\Iblock\InheritedProperty;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 Loader::includeModule('iblock');
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/prolog.php");
 IncludeModuleLangFile(__FILE__);
 
-$ID = (isset($_REQUEST['ID']) ? (int)$_REQUEST['ID'] : 0);
+$request = Context::getCurrent()->getRequest();
+
+$ID = (int)$request->get('ID');
+
 if (!CIBlockRights::UserHasRightTo($ID, $ID, "iblock_edit"))
+{
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+}
 
 Main\Page\Asset::getInstance()->addJs('/bitrix/js/iblock/iblock_edit.js');
 
-const CATALOG_NEW_OFFERS_IBLOCK_NEED = '-1';
+const CATALOG_NEW_OFFERS_IBLOCK_NEED = -1;
 const PROPERTY_EMPTY_ROW_SIZE = 5;
 $strPREFIX_OF_PROPERTY = 'OF_PROPERTY_';
 $strPREFIX_IB_PROPERTY = 'IB_PROPERTY_';
@@ -220,24 +227,28 @@ function GetPropertyInfo($strPrefix, $ID, $boolUnpack = true, $arHiddenPropField
 				'USER_TYPE' => false,
 			);
 
-			if (isset($_POST[$strPrefix.$ID."_PROPERTY_TYPE"]))
+			if (isset($_POST[$strPrefix . $ID . '_PROPERTY_TYPE']))
 			{
-				if (false !== mb_strpos($_POST[$strPrefix.$ID."_PROPERTY_TYPE"], ":"))
+				if (false !== mb_strpos($_POST[$strPrefix . $ID . '_PROPERTY_TYPE'], ':'))
 				{
-					list($arResult["PROPERTY_TYPE"], $arResult["USER_TYPE"]) = explode(':', $_POST[$strPrefix.$ID."_PROPERTY_TYPE"], 2);
+					[$arResult['PROPERTY_TYPE'], $arResult['USER_TYPE']] = explode(
+						':',
+						$_POST[$strPrefix . $ID . '_PROPERTY_TYPE'],
+						2
+					);
 				}
 				else
 				{
-					$arResult["PROPERTY_TYPE"] = $_POST[$strPrefix.$ID."_PROPERTY_TYPE"];
+					$arResult['PROPERTY_TYPE'] = $_POST[$strPrefix . $ID . '_PROPERTY_TYPE'];
 				}
 			}
 
 			if ($boolUnpack)
 			{
 				$arPropInfo = unserialize($strPropInfo, ['allowed_classes' => false]);
-				foreach ($arHiddenPropFields as &$strFieldKey)
+				foreach ($arHiddenPropFields as $strFieldKey)
 				{
-					$arResult[$strFieldKey] = (isset($arPropInfo[$strFieldKey]) ? $arPropInfo[$strFieldKey] : $arDefPropInfo[$strFieldKey]);
+					$arResult[$strFieldKey] = ($arPropInfo[$strFieldKey] ?? $arDefPropInfo[$strFieldKey]);
 				}
 				$arResult['ROW_COUNT'] = (int)$arResult['ROW_COUNT'];
 				if (0 >= $arResult['ROW_COUNT'])
@@ -452,12 +463,12 @@ function __AddPropCellCode($intOFPropID,$strPrefix,$arPropInfo)
 	return $strResult;
 }
 
-function __AddPropCellDetail($intOFPropID,$strPrefix,$arPropInfo)
+function __AddPropCellDetail($intOFPropID,$strPrefix,$arPropInfo): string
 {
 	return '<input type="button" title="'.GetMessage("IB_E_PROP_EDIT_TITLE").'" name="'.$strPrefix.$intOFPropID.'_BTN" id="'.$strPrefix.$intOFPropID.'_BTN" value="..." data-propid="'.$intOFPropID.'">';
 }
 
-function __AddPropCellDelete($intOFPropID,$strPrefix,$arPropInfo)
+function __AddPropCellDelete($intOFPropID,$strPrefix,$arPropInfo): string
 {
 	$strResult = '&nbsp;';
 	if (isset($arPropInfo['SHOW_DEL']) && $arPropInfo['SHOW_DEL'] == 'Y')
@@ -465,7 +476,7 @@ function __AddPropCellDelete($intOFPropID,$strPrefix,$arPropInfo)
 	return $strResult;
 }
 
-function __AddPropRow($intOFPropID,$strPrefix,$arPropInfo)
+function __AddPropRow($intOFPropID,$strPrefix,$arPropInfo): string
 {
 	$strResult = '<tr id="'.$strPrefix.$intOFPropID.'">
 	<td style="vertical-align:middle;">'.__AddPropCellID($intOFPropID,$strPrefix,$arPropInfo).'</td>
@@ -498,111 +509,256 @@ $arCellTemplates[] = CUtil::JSEscape(__AddPropCellDelete('tmp_xxx','PREFIX',$arN
 
 $arCellAttr = array(4,5,6,9,10);
 
+$returnUrl = trim((string)$request->get('return_url'));
+$isAdminUrl = $request->get('admin') === 'Y' ? 'Y' : 'N';
+
 $bBizproc = Loader::includeModule('bizproc');
 $bCatalog = Loader::includeModule('catalog');
 
+$canUseYandexMarket = $bCatalog && \Bitrix\Catalog\Config\Feature::isCanUseYandexExport();
+
+$type = (string)$request->get('type');
 $arIBTYPE = CIBlockType::GetByIDLang($type, LANGUAGE_ID);
 
-if($arIBTYPE!==false):
+if ($arIBTYPE === false)
+{
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	ShowError(GetMessage("IBLOCK_BAD_BLOCK_TYPE_ID"));
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	die();
+}
 
-$strWarning="";
+$strWarning = '';
 $bVarsFromForm = false;
+$defaultIblockValues = [
+	'LID' => [], // need check
+	'CODE' => '',
+	'API_CODE' => '',
+	'REST_ON' => '',
+	'NAME' => '',
+	'ACTIVE' => '',
+	'SORT' => 500,
+	'LIST_PAGE_URL' => '',
+	'DETAIL_PAGE_URL' => '',
+	'SECTION_PAGE_URL' => '',
+	'CANONICAL_PAGE_URL' => '',
+	'PICTURE' => null, // need check
+	'DESCRIPTION' => '',
+	'DESCRIPTION_TYPE' => 'text',
+	'RSS_TTL' => 24,
+	'RSS_ACTIVE' => 'Y',
+	'RSS_FILE_ACTIVE' => 'N',
+	'RSS_FILE_LIMIT' => 0,
+	'RSS_FILE_DAYS' => 0,
+	'RSS_YANDEX_ACTIVE' => 'N',
+	'XML_ID' => '',
+	'INDEX_ELEMENT' => 'Y',
+	'INDEX_SECTION' => 'N',
+	'WORKFLOW' => 'Y',
+	'BIZPROC' => 'N',
+	'SECTION_CHOOSER' => '', // need check
+	'LIST_MODE' => '', // need check
+	'RIGHTS_MODE' => Iblock\IblockTable::RIGHTS_SIMPLE,
+	'VERSION' =>  Iblock\IblockTable::PROPERTY_STORAGE_COMMON,
+	'EDIT_FILE_BEFORE' => '',
+	'EDIT_FILE_AFTER' => '',
+	'SECTIONS_NAME' => '',
+	'SECTION_NAME' => '',
+	'ELEMENTS_NAME' => '',
+	'ELEMENT_NAME' => '',
+];
+$defaultCatalogValues = [
+	'IS_CATALOG' => 'N',
+	'SUBSCRIPTION' => 'N',
+	'YANDEX_EXPORT' => 'N',
+	'VAT_ID' => 0,
+	'USED_SKU' => 'N',
+	'OF_IBLOCK_ID' => 0,
+	'OF_IBLOCK_TYPE_ID' => '',
+	'OF_NEW_IBLOCK_TYPE_ID' => '',
+	'OF_CREATE_IBLOCK_TYPE_ID' => 'N',
+	'OFFERS_PROPERTY_COUNT' => 0,
+	'OF_IBLOCK_NAME' => '',
+];
+$formFields = [];
 
-if(
-	$_SERVER["REQUEST_METHOD"] == "POST"
+if (
+	$request->isPost()
 	&& check_bitrix_sessid()
-	&& CIBlockRights::UserHasRightTo($ID, $ID, "iblock_edit")
-	&& $_POST["Update"] <> ''
-	&& !isset($_POST["propedit"])
+	&& CIBlockRights::UserHasRightTo($ID, $ID, 'iblock_edit')
+	&& $request->getPost('Update') === 'Y'
+	&& $request->getPost('propedit') === null
 )
 {
 	$adminSidePanelHelper->decodeUriComponent();
 
 	$DB->StartTransaction();
 
-	$arPICTURE = $_FILES["PICTURE"];
-	$arPICTURE["del"] = ${"PICTURE_del"};
+	$arPICTURE = $_FILES["PICTURE"] ?? [];
+	$arPICTURE["del"] = (string)$request->getPost('PICTURE_del');
 	$arPICTURE["MODULE_ID"] = "iblock";
 
-	if ($VERSION != 2) $VERSION = 1;
-	if ($RSS_ACTIVE != "Y") $RSS_ACTIVE = "N";
-	if ($RSS_FILE_ACTIVE != "Y") $RSS_FILE_ACTIVE = "N";
-	if ($RSS_YANDEX_ACTIVE != "Y") $RSS_YANDEX_ACTIVE = "N";
+	$VERSION = (int)$request->getPost('VERSION');
+	if ($VERSION !== Iblock\IblockTable::PROPERTY_STORAGE_SEPARATE)
+	{
+		$VERSION = Iblock\IblockTable::PROPERTY_STORAGE_COMMON;
+	}
+	$RSS_ACTIVE = (string)$request->getPost('RSS_ACTIVE');
+	if ($RSS_ACTIVE !== 'Y')
+	{
+		$RSS_ACTIVE = 'N';
+	}
+	$RSS_FILE_ACTIVE = (string)$request->getPost('RSS_FILE_ACTIVE');
+	if ($RSS_FILE_ACTIVE !== 'Y')
+	{
+		$RSS_FILE_ACTIVE = 'N';
+	}
+	$RSS_YANDEX_ACTIVE = (string)$request->getPost('RSS_YANDEX_ACTIVE');
+	if ($RSS_YANDEX_ACTIVE !== 'Y')
+	{
+		$RSS_YANDEX_ACTIVE = 'N';
+	}
 
 	$ib = new CIBlock();
-	$arFields = array(
-		"ACTIVE"=>$ACTIVE,
-		"NAME"=>$NAME,
-		"CODE"=>$CODE,
-		"API_CODE"=>$API_CODE,
-		"REST_ON"=>$REST_ON,
-		"LIST_PAGE_URL"=>$LIST_PAGE_URL,
-		"DETAIL_PAGE_URL"=>$DETAIL_PAGE_URL,
-		"CANONICAL_PAGE_URL"=>$CANONICAL_PAGE_URL,
-		"INDEX_ELEMENT"=>$INDEX_ELEMENT,
-		"IBLOCK_TYPE_ID"=>$type,
-		"LID"=>$LID,
-		"SORT"=>$_POST['SORT'],
-		"PICTURE"=>$arPICTURE,
-		"DESCRIPTION"=>$DESCRIPTION,
-		"DESCRIPTION_TYPE"=>$DESCRIPTION_TYPE,
-		"EDIT_FILE_BEFORE"=>$EDIT_FILE_BEFORE,
-		"EDIT_FILE_AFTER"=>$EDIT_FILE_AFTER,
-		"WORKFLOW"=>$WF_TYPE=="WF"? "Y": "N",
-		"BIZPROC"=>$WF_TYPE=="BP"? "Y": "N",
-		"SECTION_CHOOSER"=>$SECTION_CHOOSER,
-		"LIST_MODE"=>$LIST_MODE,
-		"FIELDS" => $_REQUEST["FIELDS"],
-		//MESSAGES
-		"ELEMENTS_NAME"=>$ELEMENTS_NAME,
-		"ELEMENT_NAME"=>$ELEMENT_NAME,
-		"ELEMENT_ADD"=>$ELEMENT_ADD,
-		"ELEMENT_EDIT"=>$ELEMENT_EDIT,
-		"ELEMENT_DELETE"=>$ELEMENT_DELETE,
-	);
 
-	if($arIBTYPE["SECTIONS"]=="Y")
+	$formFields['IBLOCK_TYPE_ID'] = $type;
+	$formFields['PICTURE'] = $arPICTURE;
+
+	$stringList = [
+		'NAME',
+		'CODE',
+		'API_CODE',
+		'LIST_PAGE_URL',
+		'DETAIL_PAGE_URL',
+		'CANONICAL_PAGE_URL',
+		'DESCRIPTION',
+		'DESCRIPTION_TYPE',
+		'EDIT_FILE_BEFORE',
+		'EDIT_FILE_AFTER',
+		'SECTION_CHOOSER',
+		'LIST_MODE',
+		'ELEMENTS_NAME',
+		'ELEMENT_NAME',
+		'ELEMENT_ADD',
+		'ELEMENT_EDIT',
+		'ELEMENT_DELETE',
+	];
+	if (Main\Config\Option::get('iblock', 'show_xml_id') === 'Y')
 	{
-		$arFields["SECTION_PAGE_URL"]=$SECTION_PAGE_URL;
-		$arFields["INDEX_SECTION"]=$INDEX_SECTION;
-		//MESSAGES
-		$arFields["SECTIONS_NAME"]=$SECTIONS_NAME;
-		$arFields["SECTION_NAME"]=$SECTION_NAME;
-		$arFields["SECTION_ADD"]=$SECTION_ADD;
-		$arFields["SECTION_EDIT"]=$SECTION_EDIT;
-		$arFields["SECTION_DELETE"]=$SECTION_DELETE;
+		$stringList[] = 'XML_ID';
 	}
-
-	if(COption::GetOptionString("iblock", "show_xml_id", "N")=="Y" && is_set($_POST, "XML_ID"))
-		$arFields["XML_ID"] = $_POST["XML_ID"];
-
-	if($arIBTYPE["IN_RSS"]=="Y")
+	if ($arIBTYPE['SECTIONS'] == 'Y')
 	{
-		$arFields = array_merge($arFields, array(
-			"RSS_ACTIVE"=>$RSS_ACTIVE,
-			"RSS_FILE_ACTIVE"=>$RSS_FILE_ACTIVE,
-			"RSS_YANDEX_ACTIVE"=>$RSS_YANDEX_ACTIVE,
-			"RSS_FILE_LIMIT"=>$RSS_FILE_LIMIT,
-			"RSS_FILE_DAYS"=>$RSS_FILE_DAYS,
-			"RSS_TTL"=>$RSS_TTL)
-			);
+		$stringList[] = 'SECTION_PAGE_URL';
+		$stringList[] = 'SECTIONS_NAME';
+		$stringList[] = 'SECTION_NAME';
+		$stringList[] = 'SECTION_ADD';
+		$stringList[] = 'SECTION_EDIT';
+		$stringList[] = 'SECTION_DELETE';
 	}
-
-	if(CIBlockRights::UserHasRightTo($ID, $ID, "iblock_rights_edit"))
+	if (CIBlockRights::UserHasRightTo($ID, $ID, 'iblock_rights_edit'))
 	{
-		$arFields["RIGHTS_MODE"] = $RIGHTS_MODE;
-		if($arFields["RIGHTS_MODE"] == "E")
+		$stringList[] = 'RIGHTS_MODE';
+	}
+	foreach ($stringList as $fieldId)
+	{
+		$value = $request->getPost($fieldId);
+		if (is_string($value))
 		{
-			if(is_array($_POST["RIGHTS"]))
-				$arFields["RIGHTS"] = CIBlockRights::Post2Array($_POST["RIGHTS"]);
-			elseif(is_array($_POST["GROUP"]))
-				$arFields["GROUP_ID"] = $_POST["GROUP"];
+			$formFields[$fieldId] = $value;
+		}
+	}
+
+	$booleanList = [
+		'ACTIVE',
+		'REST_ON',
+		'INDEX_ELEMENT',
+	];
+	if ($arIBTYPE['SECTIONS'] == 'Y')
+	{
+		$booleanList[] = 'INDEX_SECTION';
+	}
+	if ($arIBTYPE['IN_RSS'] === 'Y')
+	{
+		$booleanList[] = 'RSS_ACTIVE';
+		$booleanList[] = 'RSS_FILE_ACTIVE';
+		$booleanList[] = 'RSS_YANDEX_ACTIVE';
+	}
+	foreach ($booleanList as $fieldId)
+	{
+		$value = $request->getPost($fieldId);
+		if ($value === 'Y' || $value === 'N')
+		{
+			$formFields[$fieldId] = $value;
+		}
+	}
+
+	$arrayList = [
+		'LID',
+		'FIELDS',
+	];
+	foreach ($arrayList as $fieldId)
+	{
+		$value = $request->getPost($fieldId);
+		if (!empty($value) && is_array($value))
+		{
+			$formFields[$fieldId] = $value;
+		}
+	}
+
+	$intList = [
+		'SORT',
+	];
+	if ($arIBTYPE['IN_RSS'] === 'Y')
+	{
+		$intList[] = 'RSS_FILE_LIMIT';
+		$intList[] = 'RSS_FILE_DAYS';
+		$intList[] = 'RSS_TTL';
+	}
+	foreach ($intList as $fieldId)
+	{
+		$value = $request->getPost($fieldId);
+		if (is_string($value))
+		{
+			$value = (int)$value;
+			if ($value > 0)
+			{
+				$formFields[$fieldId] = $value;
+			}
+		}
+	}
+
+	$value = $request->getPost('WF_TYPE');
+	$formFields['WORKFLOW'] = $value === 'WF' ? 'Y' : 'N';
+	$formFields['BIZPROC'] = $value === 'BP' ? 'Y' : 'N';
+
+	$arFields = $formFields;
+
+	if (CIBlockRights::UserHasRightTo($ID, $ID, "iblock_rights_edit"))
+	{
+		if (isset($arFields["RIGHTS_MODE"]) && $arFields["RIGHTS_MODE"] === Iblock\IblockTable::RIGHTS_EXTENDED)
+		{
+			$extendedRights = $request->getPost('RIGHTS');
+			$groupRights = $request->getPost('GROUP');
+			if (is_array($extendedRights))
+			{
+				$arFields["RIGHTS"] = CIBlockRights::Post2Array($extendedRights);
+			}
+			elseif (is_array($groupRights))
+			{
+				$arFields["GROUP_ID"] = $groupRights;
+			}
 			else
-				$arFields["RIGHTS"] = array();
+			{
+				$arFields["RIGHTS"] = [];
+			}
+			unset($groupRights, $extendedRights);
 		}
 		else
 		{
-			$arFields["GROUP_ID"] = $GROUP;
+			$groupRights = $request->getPost('GROUP');
+			$arFields['GROUP_ID'] = is_array($groupRights) ? $groupRights : [];
+			unset($groupRights);
 		}
 	}
 
@@ -634,8 +790,8 @@ if(
 		}
 	}
 
-	$intPropCount = intval($_POST['IBLOCK_PROPERTY_COUNT']);
-	for($i=0; $i<$intPropCount; $i++)
+	$intPropCount = (int)($_POST['IBLOCK_PROPERTY_COUNT'] ?? 0);
+	for ($i = 0; $i < $intPropCount; $i++)
 	{
 		$arProperty = GetPropertyInfo($strPREFIX_IB_PROPERTY, 'n'.$i, true, $arHiddenPropFields);
 		if (!is_array($arProperty))
@@ -688,43 +844,70 @@ if(
 	unset($arDublicateCodes);
 	unset($bDublicate);
 
-	if (is_array($_POST["IPROPERTY_TEMPLATES"]))
+	$ipropertyTemplates = $request->getPost('IPROPERTY_TEMPLATES');
+	if (is_array($ipropertyTemplates))
 	{
-		$SECTION_PICTURE_FILE_NAME = \Bitrix\Iblock\Template\Helper::convertArrayToModifiers($_POST["IPROPERTY_TEMPLATES"]["SECTION_PICTURE_FILE_NAME"]);
-		$SECTION_DETAIL_PICTURE_FILE_NAME = \Bitrix\Iblock\Template\Helper::convertArrayToModifiers($_POST["IPROPERTY_TEMPLATES"]["SECTION_DETAIL_PICTURE_FILE_NAME"]);
-		$ELEMENT_PREVIEW_PICTURE_FILE_NAME = \Bitrix\Iblock\Template\Helper::convertArrayToModifiers($_POST["IPROPERTY_TEMPLATES"]["ELEMENT_PREVIEW_PICTURE_FILE_NAME"]);
-		$ELEMENT_DETAIL_PICTURE_FILE_NAME = \Bitrix\Iblock\Template\Helper::convertArrayToModifiers($_POST["IPROPERTY_TEMPLATES"]["ELEMENT_DETAIL_PICTURE_FILE_NAME"]);
+		$arFields['IPROPERTY_TEMPLATES'] = [];
 
-		$arFields["IPROPERTY_TEMPLATES"] = array(
-			"SECTION_META_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_META_TITLE"]["TEMPLATE"],
-			"SECTION_META_KEYWORDS" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_META_KEYWORDS"]["TEMPLATE"],
-			"SECTION_META_DESCRIPTION" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_META_DESCRIPTION"]["TEMPLATE"],
-			"SECTION_PAGE_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_PAGE_TITLE"]["TEMPLATE"],
-			"ELEMENT_META_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_META_TITLE"]["TEMPLATE"],
-			"ELEMENT_META_KEYWORDS" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_META_KEYWORDS"]["TEMPLATE"],
-			"ELEMENT_META_DESCRIPTION" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_META_DESCRIPTION"]["TEMPLATE"],
-			"ELEMENT_PAGE_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_PAGE_TITLE"]["TEMPLATE"],
-			"SECTION_PICTURE_FILE_ALT" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_PICTURE_FILE_ALT"]["TEMPLATE"],
-			"SECTION_PICTURE_FILE_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_PICTURE_FILE_TITLE"]["TEMPLATE"],
-			"SECTION_PICTURE_FILE_NAME" => $SECTION_PICTURE_FILE_NAME,
-			"SECTION_DETAIL_PICTURE_FILE_ALT" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_DETAIL_PICTURE_FILE_ALT"]["TEMPLATE"],
-			"SECTION_DETAIL_PICTURE_FILE_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["SECTION_DETAIL_PICTURE_FILE_TITLE"]["TEMPLATE"],
-			"SECTION_DETAIL_PICTURE_FILE_NAME" => $SECTION_DETAIL_PICTURE_FILE_NAME,
-			"ELEMENT_PREVIEW_PICTURE_FILE_ALT" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_PREVIEW_PICTURE_FILE_ALT"]["TEMPLATE"],
-			"ELEMENT_PREVIEW_PICTURE_FILE_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_PREVIEW_PICTURE_FILE_TITLE"]["TEMPLATE"],
-			"ELEMENT_PREVIEW_PICTURE_FILE_NAME" => $ELEMENT_PREVIEW_PICTURE_FILE_NAME,
-			"ELEMENT_DETAIL_PICTURE_FILE_ALT" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_DETAIL_PICTURE_FILE_ALT"]["TEMPLATE"],
-			"ELEMENT_DETAIL_PICTURE_FILE_TITLE" => $_POST["IPROPERTY_TEMPLATES"]["ELEMENT_DETAIL_PICTURE_FILE_TITLE"]["TEMPLATE"],
-			"ELEMENT_DETAIL_PICTURE_FILE_NAME" => $ELEMENT_DETAIL_PICTURE_FILE_NAME,
-		);
+		$simpleTemplateNameList = [
+			'SECTION_META_TITLE',
+			'SECTION_META_KEYWORDS',
+			'SECTION_META_DESCRIPTION',
+			'SECTION_PAGE_TITLE',
+			'ELEMENT_META_TITLE',
+			'ELEMENT_META_KEYWORDS',
+			'ELEMENT_META_DESCRIPTION',
+			'ELEMENT_PAGE_TITLE',
+			'SECTION_PICTURE_FILE_ALT',
+			'SECTION_PICTURE_FILE_TITLE',
+			'SECTION_DETAIL_PICTURE_FILE_ALT',
+			'SECTION_DETAIL_PICTURE_FILE_TITLE',
+			'ELEMENT_PREVIEW_PICTURE_FILE_ALT',
+			'ELEMENT_PREVIEW_PICTURE_FILE_TITLE',
+			'ELEMENT_DETAIL_PICTURE_FILE_ALT',
+			'ELEMENT_DETAIL_PICTURE_FILE_TITLE',
+		];
+		foreach ($simpleTemplateNameList as $templateName)
+		{
+			if (isset($ipropertyTemplates[$templateName]['TEMPLATE']) && is_string($ipropertyTemplates[$templateName]['TEMPLATE']))
+			{
+				$arFields['IPROPERTY_TEMPLATES'][$templateName] = $ipropertyTemplates[$templateName]['TEMPLATE'];
+			}
+		}
+		unset($templateName, $simpleTemplateNameList);
+
+		$fileNameTemplateList = [
+			'SECTION_PICTURE_FILE_NAME',
+			'SECTION_DETAIL_PICTURE_FILE_NAME',
+			'ELEMENT_PREVIEW_PICTURE_FILE_NAME',
+			'ELEMENT_DETAIL_PICTURE_FILE_NAME',
+		];
+		foreach ($fileNameTemplateList as $templateName)
+		{
+			if (isset($ipropertyTemplates[$templateName]) && is_array($ipropertyTemplates[$templateName]))
+			{
+				$arFields['IPROPERTY_TEMPLATES'][$templateName] = Template\Helper::convertArrayToModifiers(
+					$ipropertyTemplates[$templateName]
+				);
+			}
+		}
+		unset($templateName, $fileNameTemplateList);
+
+		if (empty($arFields['IPROPERTY_TEMPLATES']))
+		{
+			unset($arFields['IPROPERTY_TEMPLATES']);
+		}
 	}
+	unset($ipropertyTemplates);
 
 	$bCreateRecord = $ID <= 0;
 
-	if(!$bVarsFromForm)
+	if (!$bVarsFromForm)
 	{
-		$res_log["NAME"] = $NAME;
-		if($ID>0)
+		$res_log = [
+			'NAME' => ($arFields['NAME'] ?? ''),
+		];
+		if ($ID > 0)
 		{
 			$res = $ib->Update($ID, $arFields);
 			if(COption::GetOptionString("iblock", "event_log_iblock", "N") === "Y" && $res)
@@ -738,7 +921,7 @@ if(
 		}
 		else
 		{
-			$arFields["VERSION"]=$VERSION;
+			$arFields["VERSION"] = $VERSION;
 			$ID = $ib->Add($arFields);
 			$res = ($ID>0);
 			if(COption::GetOptionString("iblock", "event_log_iblock", "N") === "Y" && $res)
@@ -750,8 +933,9 @@ if(
 					serialize($res_log)
 				);
 		}
+		unset($res_log);
 
-		if(!$res)
+		if (!$res)
 		{
 			$strWarning .= $ib->LAST_ERROR."<br>";
 			$bVarsFromForm = true;
@@ -759,34 +943,43 @@ if(
 		else
 		{
 			// RSS agent creation
-			if ($RSS_FILE_ACTIVE == "Y")
+			$agentPeriod = ($arFields['RSS_TTL'] ?? $defaultIblockValues['RSS_TTL']) * 36000;
+
+			CAgent::RemoveAgent('CIBlockRSS::PreGenerateRSS(' . $ID . ', false);', 'iblock');
+			if (($arFields['RSS_FILE_ACTIVE'] ?? $defaultIblockValues['RSS_FILE_ACTIVE']) === 'Y')
 			{
-				CAgent::RemoveAgent("CIBlockRSS::PreGenerateRSS(".$ID.", false);", "iblock");
-				CAgent::AddAgent("CIBlockRSS::PreGenerateRSS(".$ID.", false);", "iblock", "N", intval($RSS_TTL)*60*60, "", "Y");
-			}
-			else
-			{
-				CAgent::RemoveAgent("CIBlockRSS::PreGenerateRSS(".$ID.", false);", "iblock");
+				CAgent::AddAgent(
+					'CIBlockRSS::PreGenerateRSS(' . $ID . ', false);',
+					'iblock',
+					'N',
+					$agentPeriod,
+					'',
+					'Y'
+				);
 			}
 
-			if ($RSS_YANDEX_ACTIVE == "Y")
+			CAgent::RemoveAgent('CIBlockRSS::PreGenerateRSS(' . $ID . ', true);', 'iblock');
+			if (($arFields['RSS_YANDEX_ACTIVE'] ?? $defaultIblockValues['RSS_YANDEX_ACTIVE']) === 'Y')
 			{
-				CAgent::RemoveAgent("CIBlockRSS::PreGenerateRSS(".$ID.", true);", "iblock");
-				CAgent::AddAgent("CIBlockRSS::PreGenerateRSS(".$ID.", true);", "iblock", "N", intval($RSS_TTL)*60*60, "", "Y");
-			}
-			else
-			{
-				CAgent::RemoveAgent("CIBlockRSS::PreGenerateRSS(".$ID.", true);", "iblock");
+				CAgent::AddAgent(
+					'CIBlockRSS::PreGenerateRSS(' . $ID . ', true);',
+					'iblock',
+					'N',
+					$agentPeriod,
+					'',
+					'Y'
+				);
 			}
 
-			if ($_POST["IPROPERTY_CLEAR_VALUES"] === "Y")
+			if ($request->getPost('IPROPERTY_CLEAR_VALUES') === 'Y')
 			{
-				$ipropValues = new \Bitrix\Iblock\InheritedProperty\IblockValues($ID);
+				$ipropValues = new InheritedProperty\IblockValues($ID);
 				$ipropValues->clearValues();
+				unset($ipropValues);
 			}
 
 			/********************/
-			\CIBlock::disableClearTagCache();
+			CIBlock::disableClearTagCache();
 			$ibp = new CIBlockProperty();
 			foreach($arProperties as $property_id => $arProperty)
 			{
@@ -822,35 +1015,41 @@ if(
 					}
 				}
 			}
-			\CIBlock::enableClearTagCache();
+			CIBlock::enableClearTagCache();
 			if (!$bVarsFromForm)
-				\CIBlock::clearIblockTagCache($ID);
+			{
+				CIBlock::clearIblockTagCache($ID);
+			}
 			/*******************************************/
 
-			if(!$bVarsFromForm && $arIBTYPE["IN_RSS"]=="Y")
+			if (!$bVarsFromForm && $arIBTYPE['IN_RSS'] === 'Y')
 			{
 				CIBlockRSS::Delete($ID);
 				$arNodesRSS = CIBlockRSS::GetRSSNodes();
-				foreach($arNodesRSS as $key => $val)
+				foreach ($arNodesRSS as $key => $val)
 				{
-					if(${"RSS_NODE_VALUE_".$key} <> '')
-						CIBlockRSS::Add($ID, $val, ${"RSS_NODE_VALUE_".$key});
+					$formNodeValue = (string)$request->getPost('RSS_NODE_VALUE_' . $key);
+					if ($formNodeValue !== '')
+					{
+						CIBlockRSS::Add($ID, $val, $formNodeValue);
+					}
 				}
 			}
 
-			if(!$bVarsFromForm && !$bCreateRecord && $bBizproc)
+			if (!$bVarsFromForm && !$bCreateRecord && $bBizproc)
 			{
 				$arWorkflowTemplates = CBPDocument::GetWorkflowTemplatesForDocumentType(array("iblock", "CIBlockDocument", "iblock_".$ID));
 				foreach ($arWorkflowTemplates as $t)
 				{
-					$create_bizproc = (array_key_exists("create_bizproc_".$t["ID"], $_REQUEST) && $_REQUEST["create_bizproc_".$t["ID"]] == "Y");
-					$edit_bizproc = (array_key_exists("edit_bizproc_".$t["ID"], $_REQUEST) && $_REQUEST["edit_bizproc_".$t["ID"]] == "Y");
+					$create_bizproc = $request->getPost('create_bizproc_' . $t['ID']) === 'Y';
+					$edit_bizproc = $request->getPost('edit_bizproc_' . $t['ID']) === 'Y';
 
 					$create_bizproc1 = (($t["AUTO_EXECUTE"] & 1) != 0);
 					$edit_bizproc1 = (($t["AUTO_EXECUTE"] & 2) != 0);
 
-					if ($create_bizproc != $create_bizproc1 || $edit_bizproc != $edit_bizproc1)
+					if ($create_bizproc !== $create_bizproc1 || $edit_bizproc !== $edit_bizproc1)
 					{
+						$arErrorsTmp = [];
 						CBPDocument::UpdateWorkflowTemplate(
 							$t["ID"],
 							array("iblock", "CIBlockDocument", "iblock_".$ID),
@@ -863,54 +1062,70 @@ if(
 				}
 			}
 
+			$boolNeedAgent = false;
 			if (!$bVarsFromForm && $bCatalog)
 			{
-				$boolNeedAgent = false;
 				$boolFlag = true;
 				$obCatalog = new CCatalog();
-				$arCatalog = $obCatalog->GetByIDExt($ID);
+				$arCatalog = CCatalog::GetByIDExt($ID);
 
 				if (!isset($IS_CATALOG) || ('Y' != $IS_CATALOG && 'N' != $IS_CATALOG))
 				{
 					$bVarsFromForm = true;
-					$strWarning .= GetMessage('IB_E_OF_ERR_IS_CATALOG').'<br>';
+					$strWarning .= GetMessage('IB_E_OF_ERR_IS_CATALOG') . '<br>';
 				}
 				if (!isset($SUBSCRIPTION) || ('Y' != $SUBSCRIPTION && 'N' != $SUBSCRIPTION))
 				{
 					$bVarsFromForm = true;
-					$strWarning .= GetMessage('IB_E_OF_ERR_SUBSCRIPTION').'<br>';
+					$strWarning .= GetMessage('IB_E_OF_ERR_SUBSCRIPTION') . '<br>';
 				}
 
 				if (!$bVarsFromForm)
 				{
 					if (('Y' == $IS_CATALOG) || ('Y' == $SUBSCRIPTION))
 					{
-						if (!isset($YANDEX_EXPORT) || ('Y' != $YANDEX_EXPORT && 'N' != $YANDEX_EXPORT))
+						if ($canUseYandexMarket)
 						{
-							$bVarsFromForm = true;
-							$strWarning .= GetMessage('IB_E_OF_ERR_YANDEX_EXPORT').'<br>';
+							if (!isset($YANDEX_EXPORT) || ('Y' != $YANDEX_EXPORT && 'N' != $YANDEX_EXPORT))
+							{
+								$bVarsFromForm = true;
+								$strWarning .= GetMessage('IB_E_OF_ERR_YANDEX_EXPORT') . '<br>';
+							}
 						}
 						if (!isset($VAT_ID))
 						{
 							$bVarsFromForm = true;
-							$strWarning .= GetMessage('IB_E_OF_ERR_VAT_ID').'<br>';
+							$strWarning .= GetMessage('IB_E_OF_ERR_VAT_ID') . '<br>';
 						}
 					}
 				}
 				if (!isset($USED_SKU) || ('Y' != $USED_SKU && 'N' != $USED_SKU))
 				{
 					$bVarsFromForm = true;
-					$strWarning .= GetMessage('IB_E_OF_ERR_USED_SKU').'<br>';
+					$strWarning .= GetMessage('IB_E_OF_ERR_USED_SKU') . '<br>';
 				}
 
 				if (!$bVarsFromForm)
 				{
-					$IS_CATALOG = ('Y' == $IS_CATALOG ? 'Y' : 'N');
-					$SUBSCRIPTION = ('Y' == $SUBSCRIPTION ? 'Y' : 'N');
+					$IS_CATALOG = ($request->getPost('IS_CATALOG') === 'Y' ? 'Y' : 'N');
+					$SUBSCRIPTION = ($request->getPost('SUBSCRIPTION') === 'Y' ? 'Y' : 'N');
 					if (!(CBXFeatures::IsFeatureEnabled('SaleRecurring')))
+					{
 						$SUBSCRIPTION = 'N';
-					$YANDEX_EXPORT = ('Y' == $YANDEX_EXPORT ? 'Y' : 'N');
-					$VAT_ID = (0 < intval($VAT_ID) ? intval($VAT_ID) : 0);
+					}
+					$YANDEX_EXPORT = ($request->getPost('YANDEX_EXPORT') === 'Y' ? 'Y' : 'N');
+					if ($IS_CATALOG === 'Y')
+					{
+						$VAT_ID = (int)($request->getPost('VAT_ID') ?? 0);
+						if ($VAT_ID < 0)
+						{
+							$VAT_ID = 0;
+						}
+					}
+					else
+					{
+						$VAT_ID = 0;
+					}
 
 					//$SKU_RIGHTS = ('Y' == $SKU_RIGHTS ? 'Y' : 'N');
 					$SKU_RIGHTS = 'N';
@@ -928,9 +1143,10 @@ if(
 						if (!$boolFlag)
 						{
 							$bVarsFromForm = true;
-							if ($ex = $APPLICATION->GetException())
+							$ex = $APPLICATION->GetException();
+							if ($ex)
 							{
-								$strWarning .= $ex->GetString()."<br>";
+								$strWarning .= $ex->GetString() . '<br>';
 							}
 						}
 						else
@@ -954,13 +1170,15 @@ if(
 								$boolFlag = $obCatalog->Add($arOffersFields);
 							}
 							if ($boolFlag && $arOffersFields['YANDEX_EXPORT'] == 'Y')
+							{
 								$boolNeedAgent = true;
+							}
 						}
 						else
 						{
 							if ($IS_CATALOG == 'Y' || $SUBSCRIPTION == 'Y')
 							{
-								$boolFlag = $obCatalog->Update($ID,$arOffersFields);
+								$boolFlag = $obCatalog->Update($ID, $arOffersFields);
 								if ($boolFlag)
 									$boolNeedAgent = ($YANDEX_EXPORT != $arCatalog['YANDEX_EXPORT']);
 							}
@@ -974,9 +1192,10 @@ if(
 						if (!$boolFlag)
 						{
 							$bVarsFromForm = true;
-							if($ex = $APPLICATION->GetException())
+							$ex = $APPLICATION->GetException();
+							if ($ex)
 							{
-								$strWarning .= $ex->GetString()."<br>";
+								$strWarning .= $ex->GetString() . '<br>';
 							}
 						}
 						if (!$bVarsFromForm)
@@ -987,7 +1206,7 @@ if(
 								if (0 == $OF_IBLOCK_ID)
 								{
 									$bVarsFromForm = true;
-									$strWarning .= GetMessage('IB_E_OF_ERR_OFFERS_IS_ABSENT').'<br>';
+									$strWarning .= GetMessage('IB_E_OF_ERR_OFFERS_IS_ABSENT') . '<br>';
 								}
 								elseif (CATALOG_NEW_OFFERS_IBLOCK_NEED == $OF_IBLOCK_ID)
 								{
@@ -995,14 +1214,14 @@ if(
 									if (!$arCheckIBlockType)
 									{
 										$bVarsFromForm = true;
-										$strWarning .= GetMessage('IB_E_OF_ERR_IBLOCK_TYPE_UNKNOWN_ERR').'<br>';
+										$strWarning .= GetMessage('IB_E_OF_ERR_IBLOCK_TYPE_UNKNOWN_ERR') . '<br>';
 									}
 									else
 									{
-										if ('ERROR' == $arCheckIBlockType['RESULT'])
+										if ($arCheckIBlockType['RESULT'] === 'ERROR')
 										{
 											$bVarsFromForm = true;
-											$strWarning .= $arCheckIBlockType['MESSAGE'].'<br>';
+											$strWarning .= $arCheckIBlockType['MESSAGE'] . '<br>';
 										}
 										else
 										{
@@ -1018,13 +1237,18 @@ if(
 										$arOfPropList = array();
 										for ($i = 0; $i < $intCountOFProp; $i++)
 										{
-											$arOFProperty = GetPropertyInfo($strPREFIX_OF_PROPERTY, 'n'.$i, true, $arHiddenPropFields);
-											if (false !== $arOFProperty)
+											$arOFProperty = GetPropertyInfo(
+												$strPREFIX_OF_PROPERTY,
+												'n' . $i,
+												true,
+												$arHiddenPropFields
+											);
+											if ($arOFProperty !== false)
 											{
 												$res = $ibp->CheckFields($arOFProperty, false, true);
-												if(!$res)
+												if (!$res)
 												{
-													$strWarning .= GetMessage("IB_E_PROPERTY_ERROR").": ".$ibp->LAST_ERROR."<br>";
+													$strWarning .= GetMessage('IB_E_PROPERTY_ERROR') . ': ' . $ibp->LAST_ERROR . '<br>';
 													$bVarsFromForm = true;
 												}
 												$arOfPropList[] = $arOFProperty;
@@ -1060,8 +1284,13 @@ if(
 											{
 												$arGroup = $_POST["GROUP"];
 												foreach ($arGroup as &$value)
-												if ('U' == $value)
-													$value = 'W';
+												{
+													if ($value === 'U')
+													{
+														$value = 'W';
+													}
+												}
+												unset($value);
 
 												$arOffersFields["GROUP_ID"] = $arGroup;
 											}
@@ -1074,8 +1303,13 @@ if(
 										{
 											$arGroup = $GROUP;
 											foreach ($arGroup as &$value)
-												if ('U' == $value)
+											{
+												if ($value === 'U')
+												{
 													$value = 'W';
+												}
+											}
+											unset($value);
 
 											$arOffersFields["GROUP_ID"] = $arGroup;
 										}
@@ -1093,9 +1327,9 @@ if(
 
 										$obIBlock = new CIBlock();
 										$mxOffersID = $obIBlock->Add($arOffersFields);
-										if (false == $mxOffersID)
+										if (!$mxOffersID)
 										{
-											$strWarning .= $obIBlock->LAST_ERROR."<br>";
+											$strWarning .= $obIBlock->LAST_ERROR . '<br>';
 											$bVarsFromForm = true;
 										}
 										else
@@ -1153,8 +1387,13 @@ if(
 												{
 													$arGroup = $_POST["GROUP"];
 													foreach ($arGroup as &$value)
-													if ('U' == $value)
-														$value = 'W';
+													{
+														if ($value === 'U')
+														{
+															$value = 'W';
+														}
+													}
+													unset($value);
 
 													$arOffersFields["GROUP_ID"] = $arGroup;
 												}
@@ -1167,8 +1406,13 @@ if(
 											{
 												$arGroup = $GROUP;
 												foreach ($arGroup as &$value)
-													if ('U' == $value)
+												{
+													if ($value === 'U')
+													{
 														$value = 'W';
+													}
+												}
+												unset($value);
 
 												$arOffersFields["GROUP_ID"] = $arGroup;
 											}
@@ -1215,7 +1459,14 @@ if(
 									}
 									else
 									{
-										$strWarning .= str_replace(array('#ID#'),array($OF_IBLOCK_ID),GetMessage('IB_E_RIGHTS_IBLOCK_ACCESS_DENIED')).'<br>';
+										$strWarning .=
+											str_replace(
+												'#ID#',
+												$catalogFields['OF_IBLOCK_ID'],
+												GetMessage('IB_E_RIGHTS_IBLOCK_ACCESS_DENIED')
+											)
+											. '<br>'
+										;
 										$bVarsFromForm = true;
 									}
 								}
@@ -1257,9 +1508,10 @@ if(
 											$boolFlag = $obCatalog->Add($arOffersFields);
 										}
 									}
-									if($ex = $APPLICATION->GetException())
+									$ex = $APPLICATION->GetException();
+									if ($ex)
 									{
-										$strWarning .= $ex->GetString()."<br>";
+										$strWarning .= $ex->GetString() . '<br>';
 										$bVarsFromForm = true;
 									}
 								}
@@ -1273,9 +1525,9 @@ if(
 									{
 										$bVarsFromForm = true;
 										$ex = $APPLICATION->GetException();
-										if (true == is_object($ex))
+										if ($ex)
 										{
-											$strWarning .= $ex->GetString()."<br>";
+											$strWarning .= $ex->GetString() . '<br>';
 										}
 									}
 								}
@@ -1286,9 +1538,10 @@ if(
 
 				if (!$boolFlag)
 				{
-					if($ex = $APPLICATION->GetException())
+					$ex = $APPLICATION->GetException();
+					if ($ex)
 					{
-						$strWarning .= $ex->GetString()."<br>";
+						$strWarning .= $ex->GetString() . '<br>';
 						$bVarsFromForm = true;
 					}
 				}
@@ -1316,7 +1569,7 @@ if(
 
 				if ($bCatalog)
 				{
-					if (isset($boolNeedAgent) && $boolNeedAgent == true)
+					if ($boolNeedAgent)
 					{
 						$intYandexExport = CCatalog::GetList(array(),array('YANDEX_EXPORT' => 'Y'),array());
 						CAgent::RemoveAgent("CCatalog::PreGenerateXML(\"yandex\");", "catalog");
@@ -1325,21 +1578,42 @@ if(
 					}
 				}
 
-				$reloadUrl = "/bitrix/admin/iblock_edit.php?type=".$type."&tabControl_active_tab=".urlencode($tabControl_active_tab)."&lang=".LANGUAGE_ID."&ID=".$ID."&admin=".($_REQUEST["admin"]=="Y"? "Y": "N").($_REQUEST["return_url"] <> ''? "&return_url=".urlencode($_REQUEST["return_url"]): "");
+				$reloadUrl =
+					'/bitrix/admin/iblock_edit.php?type=' . $type
+					. '&tabControl_active_tab=' . urlencode((string)$request->get('tabControl_active_tab'))
+					. '&lang=' . LANGUAGE_ID
+					. '&ID=' . $ID
+					. '&admin=' . urlencode($isAdminUrl)
+					. ($returnUrl !== '' ? '&return_url=' . urlencode($returnUrl) : '')
+				;
 				if ($adminSidePanelHelper->isAjaxRequest())
 				{
-					$reloadUrl .= "&IFRAME=Y&IFRAME_TYPE=SIDE_SLIDER";
-					$adminSidePanelHelper->sendSuccessResponse("apply", array("ID" => $ID, "reloadUrl" => $reloadUrl));
+					$reloadUrl .= '&IFRAME=Y&IFRAME_TYPE=SIDE_SLIDER';
+					$adminSidePanelHelper->sendSuccessResponse(
+						'apply',
+						[
+							'ID' => $ID,
+							'reloadUrl' => $reloadUrl,
+						]
+					);
 				}
 				else
 				{
 					$ob = new CAutoSave();
-					if($apply == '')
+					if ($request->getPost('apply') === null)
 					{
-						if($_REQUEST["return_url"] <> '')
-							LocalRedirect($_REQUEST["return_url"]);
+						if ($returnUrl !== '')
+						{
+							LocalRedirect($returnUrl);
+						}
 						else
-							LocalRedirect("/bitrix/admin/iblock_admin.php?type=".$type."&lang=".LANGUAGE_ID."&admin=".($_REQUEST["admin"]=="Y"? "Y": "N"));
+						{
+							LocalRedirect(
+								'/bitrix/admin/iblock_admin.php?type=' . urlencode($type)
+								. '&lang=' . LANGUAGE_ID
+								. '&admin=' . urlencode($isAdminUrl)
+							);
+						}
 					}
 					LocalRedirect($reloadUrl);
 				}
@@ -1350,15 +1624,15 @@ if(
 	$DB->Rollback();
 }
 
-if(
+if (
 	check_bitrix_sessid()
-	&& $_SERVER["REQUEST_METHOD"] ==="GET"
+	&& $request->getRequestMethod() === 'GET'
 	&& intval($_REQUEST["delete_bizproc_template"]) > 0
 	&& $bBizproc
 	&& CIBlockRights::UserHasRightTo($ID, $ID, "iblock_edit")
 )
 {
-	$arErrorTmp = array();
+	$arErrorTmp = [];
 	CBPDocument::DeleteWorkflowTemplate($_REQUEST["delete_bizproc_template"], array("iblock", "CIBlockDocument", "iblock_".$ID), $arErrorTmp);
 	if (!empty($arErrorTmp))
 	{
@@ -1367,7 +1641,7 @@ if(
 	}
 	else
 	{
-		LocalRedirect($APPLICATION->GetCurPageParam("", Array("delete_bizproc_template", "sessid")));
+		LocalRedirect($APPLICATION->GetCurPageParam("", ["delete_bizproc_template", "sessid"]));
 	}
 }
 
@@ -1384,7 +1658,12 @@ else
 
 
 ClearVars("str_");
+$str_LID = [];
 $str_ACTIVE="Y";
+$str_CODE = '';
+$str_API_CODE = '';
+$str_REST_ON = '';
+$str_NAME = '';
 $str_WORKFLOW="N";
 $str_BIZPROC="N";
 $str_SECTION_CHOOSER="L";
@@ -1404,11 +1683,16 @@ $str_RSS_FILE_ACTIVE="N";
 $str_RSS_FILE_LIMIT="10";
 $str_RSS_FILE_DAYS="7";
 $str_RSS_YANDEX_ACTIVE="N";
+$str_PICTURE = '';
+$str_DESCRIPTION = '';
+$str_DESCRIPTION_TYPE = '';
 
-$str_IS_CATALOG = 'N';
-$str_SUBSCRIPTION = 'N';
-$str_YANDEX_EXPORT = 'N';
-$str_VAT_ID = 0;
+$str_RIGHTS_MODE = Iblock\IblockTable::RIGHTS_SIMPLE;
+
+$str_IS_CATALOG = $defaultCatalogValues['IS_CATALOG'];
+$str_SUBSCRIPTION = $defaultCatalogValues['SUBSCRIPTION'];
+$str_YANDEX_EXPORT = $defaultCatalogValues['YANDEX_EXPORT'];
+$str_VAT_ID = $defaultCatalogValues['VAT_ID'];
 $str_USED_SKU = 'N';
 $str_CATALOG_TYPE = '';
 
@@ -1428,6 +1712,9 @@ $str_IPROPERTY_TEMPLATES = array();
 
 $str_SKU_RIGHTS = 'N';
 
+$str_EDIT_FILE_BEFORE = '';
+$str_EDIT_FILE_AFTER = '';
+
 $boolRecurringError = false;
 
 $bCurrentBPDisabled = true;
@@ -1441,17 +1728,20 @@ else
 {
 	$bCurrentBPDisabled = ($str_BIZPROC!='Y');
 
-	$str_LID = Array();
+	$str_LID = [];
 	$db_LID = CIBlock::GetSite($ID);
 	while($ar_LID = $db_LID->Fetch())
+	{
 		$str_LID[] = $ar_LID["LID"];
+	}
+	unset($ar_LID, $db_LID);
 
 	$ipropTemlates = new \Bitrix\Iblock\InheritedProperty\IblockTemplates($ID);
 	$str_IPROPERTY_TEMPLATES = $ipropTemlates->findTemplates();
-	$str_IPROPERTY_TEMPLATES["SECTION_PICTURE_FILE_NAME"] = \Bitrix\Iblock\Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["SECTION_PICTURE_FILE_NAME"]);
-	$str_IPROPERTY_TEMPLATES["SECTION_DETAIL_PICTURE_FILE_NAME"] = \Bitrix\Iblock\Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["SECTION_DETAIL_PICTURE_FILE_NAME"]);
-	$str_IPROPERTY_TEMPLATES["ELEMENT_PREVIEW_PICTURE_FILE_NAME"] = \Bitrix\Iblock\Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["ELEMENT_PREVIEW_PICTURE_FILE_NAME"]);
-	$str_IPROPERTY_TEMPLATES["ELEMENT_DETAIL_PICTURE_FILE_NAME"] = \Bitrix\Iblock\Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["ELEMENT_DETAIL_PICTURE_FILE_NAME"]);
+	$str_IPROPERTY_TEMPLATES["SECTION_PICTURE_FILE_NAME"] = Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["SECTION_PICTURE_FILE_NAME"] ?? null);
+	$str_IPROPERTY_TEMPLATES["SECTION_DETAIL_PICTURE_FILE_NAME"] = Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["SECTION_DETAIL_PICTURE_FILE_NAME"] ?? null);
+	$str_IPROPERTY_TEMPLATES["ELEMENT_PREVIEW_PICTURE_FILE_NAME"] = Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["ELEMENT_PREVIEW_PICTURE_FILE_NAME"] ?? null);
+	$str_IPROPERTY_TEMPLATES["ELEMENT_DETAIL_PICTURE_FILE_NAME"] = Template\Helper::convertModifiersToArray($str_IPROPERTY_TEMPLATES["ELEMENT_DETAIL_PICTURE_FILE_NAME"] ?? null);
 
 	if ($bCatalog)
 	{
@@ -1490,11 +1780,7 @@ else
 	}
 }
 
-endif; //$arIBTYPE!==false
-
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
-
-if($arIBTYPE!==false):
 
 if($bVarsFromForm)
 {
@@ -1537,9 +1823,12 @@ if($bVarsFromForm)
 if(CIBlockRights::UserHasRightTo($ID, $ID, "iblock_edit")):
 	$aMenu = array(
 		array(
-			"TEXT"=>GetMessage("IBLOCK_BACK_TO_ADMIN"),
-			"LINK"=>'/bitrix/admin/iblock_admin.php?lang='.LANGUAGE_ID.'&type='.urlencode($type).'&admin='.($_REQUEST["admin"]=="Y"? "Y": "N"),
-			"ICON"=>"btn_list",
+			"TEXT" => GetMessage("IBLOCK_BACK_TO_ADMIN"),
+			"LINK" => '/bitrix/admin/iblock_admin.php?lang=' . LANGUAGE_ID
+				. '&type=' . urlencode($type)
+				. '&admin=' . urlencode($isAdminUrl)
+			,
+			"ICON" => "btn_list",
 		)
 	);
 
@@ -1645,18 +1934,18 @@ var CellTPL = [],
 <?
 foreach ($arCellTemplates as $key => $value)
 {
-	?>CellTPL[<? echo $key; ?>] = '<? echo $value; ?>';
+	?>CellTPL[<?= $key; ?>] = '<?= $value; ?>';
 <?
 }
 foreach ($arCellAttr as $key => $value)
 {
-	?>CellAttr[<? echo $key; ?>] = '<? echo $value; ?>';
+	?>CellAttr[<?= $key; ?>] = '<?= $value; ?>';
 <?
 }
 ?>
 </script>
 
-<form method="POST" name="frm" id="frm" action="/bitrix/admin/iblock_edit.php?type=<?echo htmlspecialcharsbx($type)?>&amp;lang=<?echo LANG?>&amp;admin=<?echo ($_REQUEST["admin"]=="Y"? "Y": "N")?>"  ENCTYPE="multipart/form-data">
+<form method="POST" name="frm" id="frm" action="/bitrix/admin/iblock_edit.php?type=<?echo htmlspecialcharsbx($type)?>&amp;lang=<?echo LANGUAGE_ID?>&amp;admin=<?echo htmlspecialcharsbx($isAdminUrl)?>"  ENCTYPE="multipart/form-data">
 <?=bitrix_sessid_post()?>
 <?echo GetFilterHiddens("find_");?>
 <?if($bBizproc && $bCurrentBPDisabled):?>
@@ -1664,9 +1953,14 @@ foreach ($arCellAttr as $key => $value)
 <?endif?>
 <input type="hidden" name="Update" value="Y">
 <input type="hidden" name="ID" value="<?echo $ID?>">
-<?if($_REQUEST["return_url"] <> ''):?><input type="hidden" name="return_url" value="<?=htmlspecialcharsbx($_REQUEST["return_url"])?>"><?endif?>
-<?CAdminMessage::ShowOldStyleError($strWarning);?>
-<?
+<?php
+if ($returnUrl !== ''):?>
+	<input type="hidden" name="return_url" value="<?=htmlspecialcharsbx($returnUrl); ?>">
+<?php
+endif;
+
+CAdminMessage::ShowOldStyleError($strWarning);
+
 $bTab3 = ($arIBTYPE["IN_RSS"]=="Y");
 $bWorkflow = Loader::includeModule("workflow");
 $bBizprocTab = $bBizproc && $str_BIZPROC == "Y";
@@ -2182,10 +2476,14 @@ $tabControl->BeginNextTab();
 			$arFields = CIBlock::GetFields($ID);
 		$arDefFields = CIBlock::GetFieldsDefaults();
 		foreach($arDefFields as $FIELD_ID => $arField):
-			if ($arField["VISIBLE"] == "N")
+			if ($arField["VISIBLE"] === "N")
+			{
 				continue;
-			if(preg_match("/^(SECTION_|LOG_)/", $FIELD_ID))
+			}
+			if (preg_match("/^(SECTION_|LOG_)/", $FIELD_ID))
+			{
 				continue;
+			}
 			?>
 		<tr <?
 			if (
@@ -2301,6 +2599,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][FROM_DETAIL]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][FROM_DETAIL]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][FROM_DETAIL]"
@@ -2329,6 +2633,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UPDATE_WITH_DETAIL]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UPDATE_WITH_DETAIL]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UPDATE_WITH_DETAIL]"
@@ -2348,6 +2658,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][DELETE_WITH_DETAIL]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][DELETE_WITH_DETAIL]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][DELETE_WITH_DETAIL]"
@@ -2366,6 +2682,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -2415,6 +2737,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
@@ -2438,6 +2766,12 @@ $tabControl->BeginNextTab();
 					?>"
 				>
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value=""
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]"
+						>
 						<input
 							type="checkbox"
 							value="resample"
@@ -2473,6 +2807,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -2550,6 +2890,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -2684,6 +3030,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]"
@@ -2732,6 +3084,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
@@ -2755,6 +3113,12 @@ $tabControl->BeginNextTab();
 					?>"
 				>
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value=""
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]"
+						>
 						<input
 							type="checkbox"
 							value="resample"
@@ -2790,6 +3154,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -2867,6 +3237,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -3001,6 +3377,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UNIQUE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UNIQUE]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UNIQUE]"
@@ -3019,6 +3401,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][TRANSLITERATION]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][TRANSLITERATION]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -3138,6 +3526,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_GOOGLE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_GOOGLE]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_GOOGLE]"
@@ -3238,10 +3632,10 @@ $tabControl->BeginNextTab();
 						if(array_key_exists($arProp["ID"], $arPropLinks))
 						{
 							$arProp["SECTION_PROPERTY"] = "Y";
-							$arProp["SMART_FILTER"] = $arPropLinks[$arProp["ID"]]["SMART_FILTER"];
-							$arProp["DISPLAY_TYPE"] = $arPropLinks[$arProp["ID"]]["DISPLAY_TYPE"];
-							$arProp["DISPLAY_EXPANDED"] = $arPropLinks[$arProp["ID"]]["DISPLAY_EXPANDED"];
-							$arProp["FILTER_HINT"] = $arPropLinks[$arProp["ID"]]["FILTER_HINT"];
+							$arProp["SMART_FILTER"] = ($arPropLinks[$arProp["ID"]]["SMART_FILTER"] ?? 'N');
+							$arProp["DISPLAY_TYPE"] = ($arPropLinks[$arProp["ID"]]["DISPLAY_TYPE"] ?? '');
+							$arProp["DISPLAY_EXPANDED"] = ($arPropLinks[$arProp["ID"]]["DISPLAY_EXPANDED"] ?? 'N');
+							$arProp["FILTER_HINT"] = ($arPropLinks[$arProp["ID"]]["FILTER_HINT"] ?? '');
 						}
 						else
 						{
@@ -3253,6 +3647,7 @@ $tabControl->BeginNextTab();
 						}
 
 						ConvProp($arProp,$arHiddenPropFields);
+
 						if ($bVarsFromForm)
 						{
 							$intPropID = $arProp['ID'];
@@ -3266,9 +3661,15 @@ $tabControl->BeginNextTab();
 						$arPropList[$arProp['ID']] = $arProp;
 					}
 				}
-				$intPropCount = intval($_POST['IBLOCK_PROPERTY_COUNT']);
-				if (0 >= $intPropCount)
+				$intPropCount = 0;
+				if ($_SERVER["REQUEST_METHOD"] === "POST")
+				{
+					$intPropCount = (int)($_POST['IBLOCK_PROPERTY_COUNT'] ?? 0);
+				}
+				if ($intPropCount <= 0)
+				{
 					$intPropCount = PROPERTY_EMPTY_ROW_SIZE;
+				}
 				$intPropNumber = 0;
 				for ($i = 0; $i < $intPropCount; $i++)
 				{
@@ -3316,9 +3717,14 @@ $tabControl->BeginNextTab();
 			$arFields = CIBlock::GetFields($ID);
 		$arDefFields = CIBlock::GetFieldsDefaults();
 		foreach($arDefFields as $FIELD_ID => $arField):
-			if ($arField["VISIBLE"] == "N")
+			if ($arField["VISIBLE"] === "N")
+			{
 				continue;
-			if(!preg_match("/^SECTION_/", $FIELD_ID)) continue;
+			}
+			if (!preg_match("/^SECTION_/", $FIELD_ID))
+			{
+				continue;
+			}
 			?>
 		<tr <?
 			if (
@@ -3390,6 +3796,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][FROM_DETAIL]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][FROM_DETAIL]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][FROM_DETAIL]"
@@ -3418,6 +3830,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UPDATE_WITH_DETAIL]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UPDATE_WITH_DETAIL]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UPDATE_WITH_DETAIL]"
@@ -3437,6 +3855,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][DELETE_WITH_DETAIL]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][DELETE_WITH_DETAIL]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][DELETE_WITH_DETAIL]"
@@ -3455,6 +3879,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -3504,6 +3934,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
@@ -3527,6 +3963,12 @@ $tabControl->BeginNextTab();
 					?>"
 				>
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value=""
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]"
+						>
 						<input
 							type="checkbox"
 							value="resample"
@@ -3562,6 +4004,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -3639,6 +4087,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -3773,6 +4227,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][SCALE]"
@@ -3821,6 +4281,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][IGNORE_ERRORS]"
@@ -3844,6 +4310,12 @@ $tabControl->BeginNextTab();
 					?>"
 				>
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value=""
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][METHOD]"
+						>
 						<input
 							type="checkbox"
 							value="resample"
@@ -3879,6 +4351,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_FILE]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -3956,6 +4434,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_WATERMARK_TEXT]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -4090,6 +4574,12 @@ $tabControl->BeginNextTab();
 				<div class="adm-list-item">
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UNIQUE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UNIQUE]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][UNIQUE]"
@@ -4108,6 +4598,12 @@ $tabControl->BeginNextTab();
 				</div>
 				<div class="adm-list-item">
 					<div class="adm-list-control">
+						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][TRANSLITERATION]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][TRANSLITERATION]"
+						>
 						<input
 							type="checkbox"
 							value="Y"
@@ -4227,6 +4723,12 @@ $tabControl->BeginNextTab();
 				>
 					<div class="adm-list-control">
 						<input
+							type="hidden"
+							value="N"
+							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_GOOGLE]_hidden"
+							name="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_GOOGLE]"
+						>
+						<input
 							type="checkbox"
 							value="Y"
 							id="FIELDS[<?echo $FIELD_ID?>][DEFAULT_VALUE][USE_GOOGLE]"
@@ -4293,13 +4795,22 @@ if($bTab3):
 			<input type="text" name="RSS_FILE_DAYS"  size="20" maxlength="40" value="<?echo $str_RSS_FILE_DAYS?>">
 		</td>
 	</tr>
-	<tr>
-		<td><label for="RSS_YANDEX_ACTIVE"><?echo GetMessage("IB_E_RSS_YANDEX_ACTIVE")?></label></td>
-		<td>
-			<input type="hidden" name="RSS_YANDEX_ACTIVE" value="N">
-			<input type="checkbox" id="RSS_YANDEX_ACTIVE" name="RSS_YANDEX_ACTIVE" value="Y"<?if($str_RSS_YANDEX_ACTIVE=="Y")echo " checked"?>>
-		</td>
-	</tr>
+
+	<?php
+	if ($canUseYandexMarket)
+	{
+		?>
+		<tr>
+			<td><label for="RSS_YANDEX_ACTIVE"><?echo GetMessage("IB_E_RSS_YANDEX_ACTIVE")?></label></td>
+			<td>
+				<input type="hidden" name="RSS_YANDEX_ACTIVE" value="N">
+				<input type="checkbox" id="RSS_YANDEX_ACTIVE" name="RSS_YANDEX_ACTIVE" value="Y"<?if($str_RSS_YANDEX_ACTIVE=="Y")echo " checked"?>>
+			</td>
+		</tr>
+		<?php
+	}
+	?>
+
 	<tr class="heading">
 		<td colspan="2"><?echo GetMessage("IB_E_RSS_TITLE")?>:</td>
 	</tr>
@@ -4315,13 +4826,15 @@ if($bTab3):
 				$arNodesRSS = CIBlockRSS::GetRSSNodes();
 				foreach($arNodesRSS as $key => $val):
 					if($bVarsFromForm)
-						$DB->InitTableVarsForEdit("b_iblock_rss", "RSS_", "str_RSS_", "_".$key);
+					{
+						$DB->InitTableVarsForEdit("b_iblock_rss", "RSS_", "str_RSS_", "_" . $key);
+					}
 					?>
 					<tr>
 						<td>
 							<input type="text" size="20" readonly maxlength="50" name="RSS_NODE_<?echo $key?>" value="<?echo $val?>">
 						</td>
-						<td><input type="text" size="20" name="RSS_NODE_VALUE_<?echo $key?>" value="<?echo $arCurNodesRSS[$val]?>"></td>
+						<td><input type="text" size="20" name="RSS_NODE_VALUE_<?echo $key?>" value="<?echo ($arCurNodesRSS[$val] ?? '');?>"></td>
 					</tr>
 				<?endforeach;?>
 			</table>
@@ -4448,13 +4961,22 @@ if ($bCatalog)
 	{
 		?><input type="hidden" id="IS_CONTENT_N" name="SUBSCRIPTION" value="N"><?
 	}
-	?><tr>
-		<td  width="40%"><label for="YANDEX_EXPORT_Y"><?echo GetMessage("IB_E_YANDEX_EXPORT")?></label></td>
-		<td width="60%">
-			<input type="hidden" id="YANDEX_EXPORT_N" name="YANDEX_EXPORT" value="N">
-			<input type="checkbox" id="YANDEX_EXPORT_Y" name="YANDEX_EXPORT" value="Y"<?if('Y' == $str_YANDEX_EXPORT)echo " checked"?> <? if ('Y' != $str_IS_CATALOG) echo 'disabled="disabled"'; ?>>
-		</td>
-	</tr>
+	?>
+
+	<?php
+	if ($canUseYandexMarket)
+	{
+		?>
+		<tr>
+			<td  width="40%"><label for="YANDEX_EXPORT_Y"><?echo GetMessage("IB_E_YANDEX_EXPORT")?></label></td>
+			<td width="60%">
+				<input type="hidden" id="YANDEX_EXPORT_N" name="YANDEX_EXPORT" value="N">
+				<input type="checkbox" id="YANDEX_EXPORT_Y" name="YANDEX_EXPORT" value="Y"<?if('Y' == $str_YANDEX_EXPORT)echo " checked"?> <? if ('Y' != $str_IS_CATALOG) echo 'disabled="disabled"'; ?>>
+			</td>
+		</tr>
+		<?php
+	}
+	?>
 	<tr>
 		<td  width="40%"><label for="VAT_ID"><?echo GetMessage("IB_E_VAT_ID")?></label></td>
 		<td width="60%"><?
@@ -4593,9 +5115,15 @@ if ($bCatalog)
 					}
 				}
 
-				$intPropCount = intval($_POST['OFFERS_PROPERTY_COUNT']);
-				if (0 >= $intPropCount)
+				$intPropCount = 0;
+				if ($_SERVER["REQUEST_METHOD"] === "POST")
+				{
+					$intPropCount = (int)($_POST['OFFERS_PROPERTY_COUNT'] ?? 0);
+				}
+				if ($intPropCount <= 0)
+				{
 					$intPropCount = PROPERTY_EMPTY_ROW_SIZE;
+				}
 				$intPropNumber = 0;
 				for ($i = 0; $i < $intPropCount; $i++)
 				{
@@ -4802,10 +5330,14 @@ if(CIBlockRights::UserHasRightTo($ID, $ID, "iblock_rights_edit"))
 
 					<select name="GROUP[2]" id="group_2">
 					<?
-					if($bVarsFromForm)
-						$strSelected = $GROUP[2];
+					if ($bVarsFromForm)
+					{
+						$strSelected = $GROUP[2] ?? '';
+					}
 					else
-						$strSelected = $perm[2];
+					{
+						$strSelected = $perm[2] ?? '';
+					}
 					foreach($arPermType as $key => $val):
 					?>
 						<option value="<?echo $key?>"<?if($strSelected == $key)echo " selected"?>><?echo htmlspecialcharsex($val)?></option>
@@ -4836,10 +5368,14 @@ if(CIBlockRights::UserHasRightTo($ID, $ID, "iblock_rights_edit"))
 		<?
 		$groups = CGroup::GetList("sort", "asc", Array("ID"=>"~2"));
 		while($r = $groups->GetNext()):
-			if($bVarsFromForm)
-				$strSelected = $GROUP[$r["ID"]];
+			if ($bVarsFromForm)
+			{
+				$strSelected = $GROUP[$r["ID"]] ?? '';
+			}
 			else
-				$strSelected = $perm[$r["ID"]];
+			{
+				$strSelected = $perm[$r["ID"]] ?? '';
+			}
 
 			if($strSelected=="U" && !$bWorkflow && !$bBizproc)
 				$strSelected="R";
@@ -5008,10 +5544,14 @@ $tabControl->BeginNextTab();
 		$arFields = CIBlock::GetFields($ID);
 	$arDefFields = CIBlock::GetFieldsDefaults();
 	foreach($arDefFields as $FIELD_ID => $arField):
-		if ($arField["VISIBLE"] == "N")
+		if ($arField["VISIBLE"] === "N")
+		{
 			continue;
-		if(!preg_match("/^LOG_/", $FIELD_ID))
+		}
+		if (!preg_match("/^LOG_/", $FIELD_ID))
+		{
 			continue;
+		}
 		?>
 		<tr>
 			<td width="40%"><label for="FIELDS[<?echo $FIELD_ID?>][IS_REQUIRED]"><?echo GetMessage("IB_E_".$FIELD_ID)?></label>:</td>
@@ -5022,11 +5562,14 @@ $tabControl->BeginNextTab();
 		</tr>
 	<?endforeach;
 
-	$backUrl = '';
-	if (isset($_REQUEST['return_url']) && is_string($_REQUEST['return_url']))
-		$backUrl = trim($_REQUEST['return_url']);
+	$backUrl = $returnUrl;
 	if ($backUrl === '')
-		$backUrl = 'iblock_admin.php?lang='.LANGUAGE_ID.'&type='.urlencode($type).'&admin='.($_REQUEST["admin"]=="Y"? "Y": "N");
+	{
+		$backUrl = 'iblock_admin.php?lang=' . LANGUAGE_ID
+			. '&type=' . urlencode($type)
+			. '&admin=' . urlencode($isAdminUrl)
+		;
+	}
 	$tabControl->Buttons(array("disabled"=>false, "back_url"=>$backUrl));
 	$tabControl->End();
 	unset($backUrl);
@@ -5037,11 +5580,5 @@ $tabControl->BeginNextTab();
 <?
 	ShowError(GetMessage("IBLOCK_BAD_IBLOCK"));
 endif;
-
-else: //if($arIBTYPE!==false):?>
-<br>
-<?
-	ShowError(GetMessage("IBLOCK_BAD_BLOCK_TYPE_ID"));
-endif;// if($arIBTYPE!==false):
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

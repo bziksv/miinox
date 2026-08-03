@@ -33,12 +33,13 @@ class CBitrixLocationSelectorStepsComponent extends CBitrixLocationSelectorSearc
 	{
 		$arParams = parent::onPrepareComponentParams($arParams);
 
-		self::tryParseInt($arParams['EXCLUDE_SUBTREE']);
-
 		self::tryParseBoolean($arParams['PRESELECT_TREE_TRUNK']);
 
 		// about preloading
 		self::tryParseBoolean($arParams['PRECACHE_LAST_LEVEL']);
+
+		$arParams['INITIALIZE_BY_GLOBAL_EVENT'] ??= null;
+		$arParams['GLOBAL_EVENT_SCOPE'] ??= null;
 
 		return $arParams;
 	}
@@ -134,13 +135,14 @@ class CBitrixLocationSelectorStepsComponent extends CBitrixLocationSelectorSearc
 		}
 
 		// filter through site link, if needed
-		foreach($this->dbResult['PRECACHED_POOL'] as $parent => &$items)
+		foreach($this->dbResult['PRECACHED_POOL'] as &$items)
 		{
 			if(is_array($items))
 			{
 				$this->identifyLinkType($items);
 				foreach($items as $k => &$item)
 				{
+					$item['IS_UNCHOOSABLE'] = false;
 					if(isset($item['LINK_TYPE']))
 					{
 						if($item['LINK_TYPE'] != Location\SiteLocationTable::LSTAT_IS_CONNECTOR && $item['LINK_TYPE'] != Location\SiteLocationTable::LSTAT_BELOW_CONNECTOR)
@@ -235,6 +237,7 @@ class CBitrixLocationSelectorStepsComponent extends CBitrixLocationSelectorSearc
 			$this->identifyLinkType($this->dbResult['PATH']);
 			foreach($this->dbResult['PATH'] as &$item)
 			{
+				$item['IS_UNCHOOSABLE'] = false;
 				if(isset($item['LINK_TYPE']))
 				{
 					if($item['LINK_TYPE'] != Location\SiteLocationTable::LSTAT_IS_CONNECTOR && $item['LINK_TYPE'] != Location\SiteLocationTable::LSTAT_BELOW_CONNECTOR)
@@ -490,11 +493,11 @@ class CBitrixLocationSelectorStepsComponent extends CBitrixLocationSelectorSearc
 	protected static function getPathToNodes($list)
 	{
 		$res = Location\LocationTable::getPathToMultipleNodes(
-			$list, 
+			$list,
 			array(
 				'select' => (
-					!!$_REQUEST['BEHAVIOUR']['PREFORMAT'] ? 
-					array('ID', 'VALUE' => 'ID', 'DISPLAY' => 'NAME.NAME', 'CODE') : 
+					!!$_REQUEST['BEHAVIOUR']['PREFORMAT'] ?
+					array('ID', 'VALUE' => 'ID', 'DISPLAY' => 'NAME.NAME', 'CODE') :
 					array('ID', 'LNAME' => 'NAME.NAME', 'CODE')
 				),
 				'filter' => array('=NAME.LANGUAGE_ID' => LANGUAGE_ID)

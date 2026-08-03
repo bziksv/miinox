@@ -35,6 +35,7 @@ CREATE TABLE b_language
 	CHARSET varchar(255) null,
 	DIRECTION char(1) null,
 	CULTURE_ID int,
+	CODE varchar(35),
 	PRIMARY KEY (LID)
 );
 
@@ -353,7 +354,8 @@ CREATE TABLE b_agent
 	PRIMARY KEY (ID),
 	INDEX ix_act_next_exec(ACTIVE, NEXT_EXEC),
 	INDEX ix_agent_user_id(USER_ID),
-	INDEX ix_agent_name(NAME(100))
+	INDEX ix_agent_name(NAME(100)),
+	INDEX ix_agent_act_period_next_exec(ACTIVE, IS_PERIOD, NEXT_EXEC)
 );
 
 CREATE TABLE b_file
@@ -392,6 +394,15 @@ CREATE TABLE b_file_hash
 	FILE_HASH varchar(50) not null,
 	primary key (FILE_ID),
 	index ix_file_hash_size_hash(FILE_SIZE, FILE_HASH)
+);
+
+CREATE TABLE b_file_version
+(
+	ORIGINAL_ID int not null,
+	VERSION_ID int not null,
+	META text null,
+	primary key (ORIGINAL_ID),
+	unique index ux_file_version_version(VERSION_ID)
 );
 
 CREATE TABLE b_file_preview
@@ -966,6 +977,7 @@ CREATE TABLE b_user_access_check
 
 CREATE TABLE b_user_counter
 (
+	ID bigint unsigned not null auto_increment,
 	USER_ID int not null,
 	SITE_ID char(2) not null default '**',
 	CODE varchar(50) not null,
@@ -975,7 +987,8 @@ CREATE TABLE b_user_counter
 	TAG varchar(255),
 	PARAMS text,
 	SENT char(1) null default '0',
-	PRIMARY KEY (USER_ID, SITE_ID, CODE),
+	PRIMARY KEY (ID),
+	UNIQUE index ux_user_counter_user_site_code(USER_ID, SITE_ID, CODE),
 	INDEX ix_buc_tag (TAG),
 	INDEX ix_buc_code (CODE),
 	INDEX ix_buc_ts (TIMESTAMP_X),
@@ -1430,7 +1443,9 @@ CREATE TABLE `b_numerator`
 	`CREATED_BY` INT NULL DEFAULT NULL,
 	`UPDATED_AT` DATETIME NULL DEFAULT NULL,
 	`UPDATED_BY` INT NULL DEFAULT NULL,
-	PRIMARY KEY (`ID`)
+	`CODE` VARCHAR(255) NULL DEFAULT NULL,
+	PRIMARY KEY (`ID`),
+	INDEX ix_numerator_code (`CODE`)
 );
 
 CREATE TABLE `b_numerator_sequence`
@@ -1526,4 +1541,43 @@ CREATE TABLE b_sm_version_history
 	DATE_INSERT datetime,
 	VERSIONS text,
 	PRIMARY KEY (ID)
+);
+
+CREATE TABLE b_user_device
+(
+	ID bigint unsigned not null auto_increment,
+	USER_ID bigint unsigned not null,
+	DEVICE_UID varchar(50) not null,
+	DEVICE_TYPE int unsigned not null default 0,
+	BROWSER varchar(100),
+	PLATFORM varchar(25),
+	USER_AGENT varchar(1000),
+	COOKABLE char(1) not null default 'N',
+	PRIMARY KEY(ID),
+	INDEX ix_user_device_user(USER_ID, DEVICE_UID)
+);
+
+CREATE TABLE b_user_device_login
+(
+	ID bigint unsigned not null auto_increment,
+	DEVICE_ID bigint unsigned not null,
+	LOGIN_DATE datetime,
+	IP varchar(20),
+	CITY_GEOID bigint,
+	REGION_GEOID bigint,
+	COUNTRY_ISO_CODE varchar(10),
+	APP_PASSWORD_ID bigint unsigned,
+	STORED_AUTH_ID bigint unsigned,
+	HIT_AUTH_ID bigint unsigned,
+	PRIMARY KEY(ID),
+	INDEX ix_user_device_login_device(DEVICE_ID),
+	INDEX ix_user_device_login_date(LOGIN_DATE)
+);
+
+CREATE TABLE b_geoname
+(
+	ID bigint unsigned not null,
+	LANGUAGE_CODE varchar(35),
+	NAME varchar(600),
+	PRIMARY KEY(ID, LANGUAGE_CODE)
 );

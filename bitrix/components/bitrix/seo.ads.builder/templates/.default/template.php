@@ -8,6 +8,8 @@ use Bitrix\Main\UI\Extension;
 
 Extension::load(
 	[
+		'ui.design-tokens',
+		'ui.fonts.opensans',
 		"ui.hint",
 		"ui.icons",
 		"ui.forms",
@@ -22,7 +24,6 @@ Extension::load(
 		"seo.seoadbuilder",
 		'ui.entity-selector',
 		'seo.ads.login',
-		'ui.design-tokens',
 	]
 );
 $provider = $arParams['PROVIDER'];
@@ -73,8 +74,8 @@ $APPLICATION->IncludeComponent('bitrix:ui.image.input', '', [
 		<div class="crm-ads-new-campaign-item-block">
 			<div class="crm-ads-new-campaign-item-header">
 				<span class="crm-ads-new-campaign-item-title"><?=Loc::getMessage('CRM_ADS_RTG_LOG_ON')?></span>
-				<a href="javascript:top.BX.Helper.show('redirect=detail&code=13065408')"
-					target="_blank" class="ui-link ui-link-dashed crm-ads-new-campaign-item-link">
+				<a href="#" onclick="top.BX.Helper.show('redirect=detail&code=13065408')"
+					class="ui-link ui-link-dashed crm-ads-new-campaign-item-link">
 					<?=Loc::getMessage('CRM_ADS_RTG_NEED_HELP')?>
 				</a>
 				<span class="crm-ads-new-campaign-item-arrow"></span>
@@ -544,9 +545,10 @@ $APPLICATION->IncludeComponent('bitrix:ui.image.input', '', [
 								<div class="crm-ads-new-campaign-item-total-item">
 									<span class="crm-ads-new-campaign-item-total-label"><?=Loc::getMessage('CRM_ADS_RTG_BUDGET_AND_PAYMENT');?></span>
 									<div class="crm-ads-new-campaign-item-total-content">
-										<a class="ui-link ui-link-dashed"
-											href="javascript:top.BX.Helper.show('redirect=detail&code=13065422')"
-											target="_blank" ><?=Loc::getMessage('CRM_ADS_RTG_AD_ARTICLE');?></a>
+										<a href = "#"
+										   class="ui-link ui-link-dashed"
+											onclick="top.BX.Helper.show('redirect=detail&code=13065422')"
+											><?=Loc::getMessage('CRM_ADS_RTG_AD_ARTICLE');?></a>
 										<a class="ui-link ui-link-dashed"
 											href="https://www.facebook.com/ads/manager/accounts"
 											target="_blank"><?=Loc::getMessage('CRM_ADS_RTG_AD_CABINET');?></a>

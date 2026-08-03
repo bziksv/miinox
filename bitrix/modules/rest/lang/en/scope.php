@@ -1,4 +1,5 @@
 <?php
+$MESS["REST_SCOPE_BICONNECTOR"] = "BI analytics connector";
 $MESS["REST_SCOPE_BIZPROC"] = "Business Processes";
 $MESS["REST_SCOPE_BIZPROC_DESCRIPTION"] = "full access: view, create, edit and delete workflow actions, automation rules and triggers; view task list; run workflows";
 $MESS["REST_SCOPE_CALENDAR"] = "Calendar";
@@ -39,8 +40,8 @@ $MESS["REST_SCOPE_LANDING"] = "Sites";
 $MESS["REST_SCOPE_LANDING_DESCRIPTION"] = "full access: view, create, edit and delete sites, blocks, site and block templates; publish and unpublish sites and site pages";
 $MESS["REST_SCOPE_LISTS"] = "Lists";
 $MESS["REST_SCOPE_LISTS_DESCRIPTION"] = "full access: view, create, edit and delete lists, sections, items and item fields";
-$MESS["REST_SCOPE_LOG"] = "Activity Stream";
-$MESS["REST_SCOPE_LOG_DESCRIPTION"] = "full access: view, create, edit and delete Activity Stream posts and comments";
+$MESS["REST_SCOPE_LOG_DESCRIPTION_MSGVER_1"] = "full access: view, create, edit and delete Feed posts and comments";
+$MESS["REST_SCOPE_LOG_MSGVER_1"] = "Feed";
 $MESS["REST_SCOPE_MAILSERVICE"] = "E-mail services";
 $MESS["REST_SCOPE_MAILSERVICE_DESCRIPTION"] = "full access: view, create, edit and delete email service descriptions";
 $MESS["REST_SCOPE_MESSAGESERVICE"] = "Messaging service";

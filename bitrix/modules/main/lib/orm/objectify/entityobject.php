@@ -1036,6 +1036,12 @@ abstract class EntityObject implements ArrayAccess
 					return $this->$personalMethodName(...array_slice($arguments, 1));
 				}
 
+				// runtime fields
+				if (array_key_exists($fieldName, $this->_runtimeValues))
+				{
+					return true;
+				}
+
 				// hard field check
 				$this->entity->getField($fieldName);
 			}
@@ -1242,7 +1248,7 @@ abstract class EntityObject implements ArrayAccess
 			// check if field exists
 			if ($this->entity->hasField($fieldName))
 			{
-				return $this->_actualValues[$fieldName];
+				return $this->_actualValues[$fieldName] ?? null;
 			}
 		}
 
@@ -1409,7 +1415,7 @@ abstract class EntityObject implements ArrayAccess
 	 */
 	public function sysGetRuntime($name)
 	{
-		return $this->_runtimeValues[$name];
+		return $this->_runtimeValues[$name] ?? null;
 	}
 
 	/**
@@ -1517,9 +1523,7 @@ abstract class EntityObject implements ArrayAccess
 				));
 			}
 
-			return isset($this->_actualValues[$fieldName])
-				? $this->_actualValues[$fieldName]
-				: null;
+			return $this->_actualValues[$fieldName] ?? null;
 		}
 	}
 
@@ -1571,7 +1575,9 @@ abstract class EntityObject implements ArrayAccess
 				if (!($value instanceof $remoteObjectClass))
 				{
 					throw new ArgumentException(sprintf(
-						'Expected instance of `%s`, got `%s` instead', $remoteObjectClass, get_class($value)
+						'Expected instance of `%s`, got `%s` instead',
+						$remoteObjectClass,
+						is_object($value) ? get_class($value) : gettype($value)
 					));
 				}
 			}

@@ -12,6 +12,8 @@ export type ProductOption = {
 	saveableFields: [],
 	fields: {},
 	storeMap: {},
+	isStoreCollectable: boolean,
 	skuTree: {},
 	imageInfo: {},
+	productType?: number,
 }

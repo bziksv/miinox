@@ -33,7 +33,7 @@ return [
 	],
 	'style' => [
 		'block' => [
-			'type' => ['block-default'],
+			'type' => ['block-default', 'container'],
 		],
 		'nodes' => [
 			'.landing-block-title' => [
@@ -51,6 +51,14 @@ return [
 			'.landing-block-faq-hidden' => [
 				'name' => Loc::getMessage('LANDING_BLOCK_FAQ_5_TEXT'),
 				'type' => ['typo'],
+			],
+			'.landing-block-card' => [
+				'name' => Loc::getMessage('LANDING_BLOCK_FAQ_5_COLUMN'),
+				'type' => ['columns'],
+			],
+			'.landing-block-faq-icons' => [
+				'name' => Loc::getMessage('LANDING_BLOCK_FAQ_5_ICON'),
+				'type' => ['background'],
 			],
 		],
 	],

@@ -7,14 +7,18 @@ use Bitrix\Catalog\Component\Preset\Factory;
 use Bitrix\Catalog\Config\State;
 use Bitrix\Catalog\ProductTable;
 use Bitrix\Main\Application;
+use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Engine\CurrentUser;
+use Bitrix\Main\EventManager;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Crm\Order\TradingPlatform;
 use Bitrix\Crm\Component\EntityDetails\ProductList;
+use Bitrix\Crm\Order\Internals\ShipmentRealizationTable;
 use Bitrix\Crm\Settings\LeadSettings;
+use Bitrix\Sale\Internals\ShipmentTable;
 
 Loc::loadMessages(__FILE__);
 
@@ -88,37 +92,79 @@ final class UseStore
 		return Option::get('catalog', 'show_catalog_tab_with_offers') === 'Y';
 	}
 
-	public static function enable(): bool
+	protected static function checkEnablingConditions(): bool
 	{
-		if (!self::isCrmExists())
-		{
-			return false;
-		}
-		if (\CCrmSaleHelper::isWithOrdersMode())
-		{
-			return false;
-		}
+		return (
+			self::isCrmExists()
+			&& !\CCrmSaleHelper::isWithOrdersMode()
+			&& !LeadSettings::isEnabled()
+			&& !self::isUsedOneC()
+		);
+	}
 
-		if (LeadSettings::isEnabled())
-		{
-			return false;
-		}
-
-		if(self::isUsedOneC())
-		{
-			return false;
-		}
-
+	protected static function enableOptions(): void
+	{
 		Option::set('catalog', 'default_quantity_trace', 'Y');
 		Option::set('catalog', 'default_can_buy_zero', 'Y');
 		Option::set('catalog', 'allow_negative_amount', 'Y');
-
-		self::resetQuantity();
-
 		Option::set('catalog', 'default_use_store_control', 'Y');
 		Option::set('catalog', 'enable_reservation', 'Y');
+	}
 
+	/**
+	 * Enables inventory management and resets all the reserves and quantities
+	 * @return bool
+	 */
+	public static function enable(): bool
+	{
+		if (!self::checkEnablingConditions())
+		{
+			return false;
+		}
+
+		self::enableOptions();
+
+		self::resetQuantity();
+		self::resetQuantityTrace();
 		self::resetSaleReserve();
+		self::resetCrmReserve();
+
+		self::installRealizationDocumentTradingPlatform();
+
+		self::registerEventsHandlers();
+
+		self::showEntityProductGridColumns();
+		self::setNeedShowSlider(false);
+
+		return true;
+	}
+
+	protected static function registerEventsHandlers()
+	{
+		$eventManager = EventManager::getInstance();
+
+		$eventManager->registerEventHandler('sale', 'onBeforeSaleShipmentSetField', 'crm', '\Bitrix\Crm\Order\EventsHandler\Shipment', 'onBeforeSetField');
+	}
+
+	protected static function unRegisterEventsHandlers()
+	{
+		$eventManager = EventManager::getInstance();
+
+		$eventManager->unRegisterEventHandler('sale', 'onBeforeSaleShipmentSetField', 'crm', '\Bitrix\Crm\Order\EventsHandler\Shipment', 'onBeforeSetField');
+	}
+
+	/**
+	 * Enables inventory management without resetting any reserves or quantities
+	 * @return bool
+	 */
+	public static function enableWithoutResetting(): bool
+	{
+		if (!self::checkEnablingConditions())
+		{
+			return false;
+		}
+
+		self::enableOptions();
 
 		self::installRealizationDocumentTradingPlatform();
 
@@ -130,7 +176,7 @@ final class UseStore
 
 	public static function installCatalogStores()
 	{
-		if (self::hasDefaultCatalogStore() === false)
+		if (!self::hasDefaultCatalogStore())
 		{
 			$storeId = self::getFirstCatalogStore();
 			if ($storeId > 0)
@@ -143,7 +189,7 @@ final class UseStore
 			}
 		}
 
-		if (self::isBitrixSiteManagement() === false)
+		if (!self::isBitrixSiteManagement())
 		{
 			self::createCatalogStores();
 		}
@@ -156,22 +202,20 @@ final class UseStore
 
 	protected static function getFirstCatalogStore(): int
 	{
-		$iterator = Catalog\StoreTable::getList([
+		$row = Catalog\StoreTable::getRow([
 			'select' => [
 				'ID',
+				'SORT',
 			],
 			'filter' => [
 				'=ACTIVE' => 'Y',
 				'=SITE_ID' => '',
 			],
-			'limit' => 1,
 			'order' => [
 				'SORT' => 'ASC',
 				'ID' => 'ASC',
 			],
 		]);
-		$row = $iterator->fetch();
-		unset($iterator);
 
 		return (!empty($row) ? (int)$row['ID'] : 0);
 	}
@@ -194,6 +238,7 @@ final class UseStore
 		$r = Catalog\StoreTable::add([
 			'TITLE' => $title,
 			'ADDRESS' => $title,
+			'IS_DEFAULT' => 'Y',
 		]);
 
 		return $r->isSuccess();
@@ -202,10 +247,6 @@ final class UseStore
 	public static function disable(): bool
 	{
 		if (!self::isCrmExists())
-		{
-			return false;
-		}
-		if (self::conductedDocumentsExist())
 		{
 			return false;
 		}
@@ -223,6 +264,8 @@ final class UseStore
 
 		self::clearNeedShowSlider();
 		self::deactivateRealizationDocumentTradingPlatform();
+
+		self::unRegisterEventsHandlers();
 
 		if (Loader::includeModule('pull'))
 		{
@@ -242,9 +285,12 @@ final class UseStore
 	{
 		$conn = Application::getConnection();
 		$conn->queryExecute('truncate table b_catalog_store_product');
-		$conn->queryExecute('delete from b_catalog_store_barcode where ORDER_ID is null');
+		$conn->queryExecute('delete from b_catalog_store_barcode where ORDER_ID is null and STORE_ID > 0');
 		unset($conn);
+	}
 
+	protected static function resetQuantityTrace(): void
+	{
 		self::resetQuantityTraceMainTypes();
 		self::resetQuantityTraceSku();
 		self::resetQuantityTraceEmptySku();
@@ -264,13 +310,14 @@ final class UseStore
 
 		Application::getConnection()->queryExecute("
 			update b_catalog_product
-			set 
+			set
 				QUANTITY = 0,
+				QUANTITY_RESERVED = 0,
 				QUANTITY_TRACE = '" . ProductTable::STATUS_DEFAULT . "',
 				CAN_BUY_ZERO = '" . ProductTable::STATUS_DEFAULT . "',
 				NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_DEFAULT . "',
 				AVAILABLE = '" . ProductTable::STATUS_YES . "'
-			where 
+			where
 				TYPE in (" . $mainTypes . ")
 		");
 	}
@@ -283,6 +330,7 @@ final class UseStore
 				update b_catalog_product
 				set
 					QUANTITY = 0,
+					QUANTITY_RESERVED = 0,
 					QUANTITY_TRACE = '" . ProductTable::STATUS_DEFAULT . "',
 					CAN_BUY_ZERO = '" . ProductTable::STATUS_DEFAULT . "',
 					NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_DEFAULT . "',
@@ -297,6 +345,7 @@ final class UseStore
 				update b_catalog_product
 				set
 					QUANTITY = 0,
+					QUANTITY_RESERVED = 0,
 					QUANTITY_TRACE = '" . ProductTable::STATUS_NO . "',
 					CAN_BUY_ZERO = '" . ProductTable::STATUS_YES . "',
 					NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_YES . "',
@@ -315,14 +364,14 @@ final class UseStore
 		}
 		Application::getConnection()->queryExecute("
 			update b_catalog_product
-			set 
+			set
 				QUANTITY = 0,
 				QUANTITY_TRACE = '" . ProductTable::STATUS_YES . "',
 				CAN_BUY_ZERO = '" . ProductTable::STATUS_NO . "',
 				NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_NO . "',
 				AVAILABLE = '" . ProductTable::STATUS_NO . "',
 				TYPE = " . ProductTable::TYPE_PRODUCT . "
-			where 
+			where
 				TYPE = " . ProductTable::TYPE_EMPTY_SKU
 		);
 	}
@@ -330,14 +379,14 @@ final class UseStore
 	protected static function resetQuantityTraceSets(): void
 	{
 		Application::getConnection()->queryExecute("
-			update b_catalog_product 
-			set 
+			update b_catalog_product
+			set
 				QUANTITY = 0,
 				QUANTITY_TRACE = '" . ProductTable::STATUS_NO . "',
 				CAN_BUY_ZERO = '" . ProductTable::STATUS_YES . "',
 				NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_YES . "',
 				AVAILABLE = '" . ProductTable::STATUS_YES . "'
-			where 
+			where
 				TYPE = " . ProductTable::TYPE_SET
 		);
 	}
@@ -350,7 +399,81 @@ final class UseStore
 
 			$conn->queryExecute("update b_sale_order_dlv_basket set RESERVED_QUANTITY = 0 where 1 = 1");
 			$conn->queryExecute("update b_sale_order_delivery set RESERVED='N' where 1 = 1");
+
+			$conn->queryExecute("truncate table b_sale_basket_reservation_history");
+			$conn->queryExecute("truncate table b_sale_basket_reservation");
 		}
+	}
+
+	private static function resetCrmReserve(): void
+	{
+		if (Loader::includeModule('crm'))
+		{
+			$conn = Application::getConnection();
+			$conn->queryExecute("truncate table b_crm_product_row_reservation");
+			$conn->queryExecute("truncate table b_crm_product_reservation_map");
+		}
+	}
+
+	/**
+	 * Delete all shipments a.k.a. realizations and linked entries.
+	 *
+	 * @return void
+	 */
+	private static function resetCrmRealizations(): void
+	{
+		if (Loader::includeModule('crm'))
+		{
+			$realizations = ShipmentRealizationTable::getList([
+				'filter' => [
+					'=IS_REALIZATION' => 'Y',
+				],
+			]);
+			foreach ($realizations as $realization)
+			{
+				ShipmentRealizationTable::delete($realization['ID']);
+				ShipmentTable::deleteWithItems($realization['SHIPMENT_ID']);
+			}
+		}
+	}
+
+	/**
+	 * Delete all catalog store documents  and linked entries.
+	 *
+	 * @return void
+	 */
+	private static function resetStoreDocuments(): void
+	{
+		$fileIds = Catalog\StoreDocumentFileTable::getList(['select' => ['FILE_ID']])->fetchAll();
+		$fileIds = array_column($fileIds, 'FILE_ID');
+
+		foreach ($fileIds as $fileId)
+		{
+			\CFile::Delete($fileId);
+		}
+
+		$conn = Application::getConnection();
+
+		$conn->queryExecute('truncate table b_catalog_store_docs');
+		$conn->queryExecute('truncate table b_catalog_docs_element');
+		$conn->queryExecute('truncate table b_catalog_docs_barcode');
+		$conn->queryExecute('truncate table b_catalog_store_document_file');
+
+		if (Loader::includeModule('crm'))
+		{
+			\Bitrix\Crm\Timeline\TimelineEntry::deleteByAssociatedEntityType(\CCrmOwnerType::StoreDocument);
+		}
+	}
+
+	/**
+	 * Delete all warehouse documents.
+	 *
+	 * @return void
+	 */
+	public static function resetDocuments(): void
+	{
+		self::resetStoreDocuments();
+		self::resetCrmRealizations();
 	}
 
 	protected static function disableQuantityTraceMainTypes(): void
@@ -366,12 +489,12 @@ final class UseStore
 
 		Application::getConnection()->queryExecute("
 			update b_catalog_product
-			set 
+			set
 				QUANTITY_TRACE = '" . ProductTable::STATUS_DEFAULT . "',
 				CAN_BUY_ZERO = '" . ProductTable::STATUS_DEFAULT . "',
 				NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_DEFAULT . "',
 				AVAILABLE = '" . ProductTable::STATUS_YES . "'
-			where 
+			where
 				TYPE in (" . $mainTypes . ")
 		");
 	}
@@ -398,13 +521,13 @@ final class UseStore
 		}
 		Application::getConnection()->queryExecute("
 			update b_catalog_product
-			set 
+			set
 				QUANTITY = 0,
 				QUANTITY_TRACE = '" . ProductTable::STATUS_YES . "',
 				CAN_BUY_ZERO = '" . ProductTable::STATUS_NO . "',
 				NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_NO . "',
 				AVAILABLE = '" . ProductTable::STATUS_NO . "'
-			where 
+			where
 				TYPE = " . ProductTable::TYPE_EMPTY_SKU
 		);
 	}
@@ -412,15 +535,56 @@ final class UseStore
 	protected static function disableQuantityTraceSets(): void
 	{
 		Application::getConnection()->queryExecute("
-			update b_catalog_product 
-			set 
+			update b_catalog_product
+			set
 				QUANTITY_TRACE = '" . ProductTable::STATUS_NO . "',
 				CAN_BUY_ZERO = '" . ProductTable::STATUS_YES . "',
 				NEGATIVE_AMOUNT_TRACE = '" . ProductTable::STATUS_YES . "',
 				AVAILABLE = '" . ProductTable::STATUS_YES . "'
-			where 
+			where
 				TYPE = " . ProductTable::TYPE_SET
 		);
+	}
+
+	/**
+	 * Checks for:
+	 * - products with inconsistencies between their QUANTITY field and their actual amount between stores
+	 * - products that are not in any store but have something in their QUANTITY field
+	 * @return bool
+	 */
+	public static function isQuantityInconsistent(): bool
+	{
+		$connection = Application::getConnection();
+
+		$productTypes = new SqlExpression('(?i, ?i)', ProductTable::TYPE_PRODUCT, ProductTable::TYPE_OFFER);
+		$query = $connection->query("
+			select cp.ID, (cp.QUANTITY - (sum(csp.AMOUNT) - sum(csp.QUANTITY_RESERVED))) as QUANTITY_DIFFERENCE from b_catalog_product cp
+			inner join b_catalog_store_product csp on cp.ID = csp.PRODUCT_ID
+			inner join b_catalog_store cs on cs.ID = csp.STORE_ID
+			where cp.TYPE in {$productTypes} and (cs.ACTIVE = 'Y')
+			group by cp.ID
+			having QUANTITY_DIFFERENCE != 0
+			limit 1
+		");
+
+		if ($query->fetch())
+		{
+			return true;
+		}
+
+		$query = $connection->query("
+			select cp.ID, cp.QUANTITY from b_catalog_product cp
+			left outer join b_catalog_store_product csp on cp.ID = csp.PRODUCT_ID
+			where cp.TYPE in {$productTypes} and csp.PRODUCT_ID is null and cp.QUANTITY != 0
+			limit 1
+		");
+
+		if ($query->fetch())
+		{
+			return true;
+		}
+
+		return false;
 	}
 
 	public static function conductedDocumentsExist(): bool
@@ -491,48 +655,47 @@ final class UseStore
 
 	public static function getCodesStoreByZone() :array
 	{
-		$result = [];
-
-		$portalZone = self::getPortalZone();
-
-		if ($portalZone === 'ru')
+		switch (self::getPortalZone())
 		{
-			$result = [
-				self::STORE_ALIEXPRESS,
-				self::STORE_OZON,
-				self::STORE_SBERMEGAMARKET,
-				self::STORE_WILDBERRIES,
-			];
+			case 'ru':
+				$result = [
+					self::STORE_ALIEXPRESS,
+					self::STORE_OZON,
+					self::STORE_SBERMEGAMARKET,
+					self::STORE_WILDBERRIES,
+				];
+				break;
+			case 'by':
+				$result = [
+					self::STORE_ALIEXPRESS,
+					self::STORE_OZON,
+					self::STORE_WILDBERRIES,
+				];
+				break;
+			case 'ua':
+				$result = [
+					self::STORE_ALIEXPRESS,
+				];
+				break;
+			default:
+				$result = [];
+				break;
 		}
-		else if ($portalZone === 'by')
-		{
-			$result = [
-				self::STORE_ALIEXPRESS,
-				self::STORE_OZON,
-				self::STORE_WILDBERRIES,
-			];
-		}
-		else if ($portalZone === 'ua')
-		{
-			$result = [
-				self::STORE_ALIEXPRESS,
-			];
-	}
 
 		return $result;
 	}
 
 	private static function createCatalogStores(): void
 	{
-		$codes = self::getCodesStoreByZone();
+		$codeList = self::getCodesStoreByZone();
 
-		if (!empty($codes))
+		if (!empty($codeList))
 		{
-			foreach ($codes as $code)
+			foreach ($codeList as $code)
 			{
 				$title = Loc::getMessage('CATALOG_USE_STORE_' . $code);
 
-				$iterator = Catalog\StoreTable::getList([
+				$row = Catalog\StoreTable::getRow([
 					'select' => [
 						'CODE',
 					],
@@ -540,8 +703,6 @@ final class UseStore
 						'=CODE' => $code,
 					],
 				]);
-				$row = $iterator->fetch();
-				unset($iterator);
 				if (empty($row))
 				{
 					Catalog\StoreTable::add([
@@ -745,7 +906,7 @@ final class UseStore
 		return !self::isCloud() && !self::isPortal();
 	}
 
-	static public function installPreset($list)
+	static public function installPreset(array $list)
 	{
 		foreach (Catalog\Component\Preset\Enum::getAllType() as $type)
 		{
@@ -761,5 +922,40 @@ final class UseStore
 		{
 			Factory::create($type)->disable();
 		}
+	}
+
+	/**
+	 * Scenario switch-on inventory-management + Install preset
+	 * check Plan
+	 * check CRM-module included
+	 * check CRM-mode (order or deal)
+	 * check Lead-mode
+	 * check integration with 1C
+	 * Quantity trace set - Y
+	 * Can buy zero set - Y
+	 * Allow negative amount set - Y
+	 * Use store control set - Y
+	 * Enable reservation set - Y
+	 * Reset sale reserve
+	 * Installation trading platform
+	 * Set main.interface.grid
+	 * Set user options for inventory-management slider
+	 *
+	 * @param array $preset
+	 * @return bool
+	 */
+	public static function enableWithPreset(array $preset): bool
+	{
+		if (self::isPlanRestricted())
+		{
+			return false;
+		}
+
+		if (self::enable())
+		{
+			self::installPreset($preset);
+		}
+
+		return true;
 	}
 }

@@ -1,5 +1,5 @@
 this.BX = this.BX || {};
-(function (exports,main_core) {
+(function (exports,ui_fonts_opensans,main_core) {
 	'use strict';
 
 	/**
@@ -10,6 +10,7 @@ this.BX = this.BX || {};
 	};
 
 	babelHelpers.defineProperty(CounterColor, "DANGER", "ui-counter-danger");
+	babelHelpers.defineProperty(CounterColor, "WARNING", "ui-counter-warning");
 	babelHelpers.defineProperty(CounterColor, "SUCCESS", "ui-counter-success");
 	babelHelpers.defineProperty(CounterColor, "PRIMARY", "ui-counter-primary");
 	babelHelpers.defineProperty(CounterColor, "GRAY", "ui-counter-gray");
@@ -31,9 +32,20 @@ this.BX = this.BX || {};
 
 	var _templateObject, _templateObject2;
 
+	function _classPrivateMethodInitSpec(obj, privateSet) { _checkPrivateRedeclaration(obj, privateSet); privateSet.add(obj); }
+
+	function _checkPrivateRedeclaration(obj, privateCollection) { if (privateCollection.has(obj)) { throw new TypeError("Cannot initialize the same private elements twice on an object"); } }
+
+	function _classPrivateMethodGet(receiver, privateSet, fn) { if (!privateSet.has(receiver)) { throw new TypeError("attempted to get private field on non-instance"); } return fn; }
+
+	var _getBorderClassname = /*#__PURE__*/new WeakSet();
+
 	var Counter = /*#__PURE__*/function () {
 	  function Counter(options) {
 	    babelHelpers.classCallCheck(this, Counter);
+
+	    _classPrivateMethodInitSpec(this, _getBorderClassname);
+
 	    this.options = main_core.Type.isPlainObject(options) ? options : {};
 	    this.container = null;
 	    this.counterContainer = null;
@@ -42,6 +54,7 @@ this.BX = this.BX || {};
 	    this.maxValue = main_core.Type.isNumber(this.options.maxValue) ? this.options.maxValue : 99;
 	    this.size = main_core.Type.isString(this.options.size) ? this.options.size : BX.UI.Counter.Size.MEDIUM;
 	    this.color = main_core.Type.isString(this.options.color) ? this.options.color : BX.UI.Counter.Color.PRIMARY;
+	    this.border = main_core.Type.isBoolean(this.options.border) ? this.options.border : false;
 	  } //region Parameters
 
 
@@ -57,7 +70,7 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "getValue",
 	    value: function getValue() {
-	      if (this.value < this.maxValue) {
+	      if (this.value <= this.maxValue) {
 	        return this.value;
 	      } else {
 	        return this.maxValue + "+";
@@ -76,6 +89,11 @@ this.BX = this.BX || {};
 	    key: "getMaxValue",
 	    value: function getMaxValue() {
 	      return this.maxValue;
+	    }
+	  }, {
+	    key: "isBorder",
+	    value: function isBorder() {
+	      return this.border;
 	    }
 	  }, {
 	    key: "setColor",
@@ -111,11 +129,31 @@ this.BX = this.BX || {};
 	      }
 
 	      return this;
-	    } //endregion
-	    // region Counter
+	    }
+	  }, {
+	    key: "setBorder",
+	    value: function setBorder(border) {
+	      if (!main_core.Type.isBoolean(border)) {
+	        console.warn('Parameter "border" is not boolean');
+	        return this;
+	      }
 
+	      this.border = border;
+
+	      var borderedCounterClassname = _classPrivateMethodGet(this, _getBorderClassname, _getBorderClassname2).call(this, border);
+
+	      if (border) {
+	        main_core.Dom.addClass(this.container, borderedCounterClassname);
+	      } else {
+	        main_core.Dom.removeClass(this.container, borderedCounterClassname);
+	      }
+
+	      return this;
+	    }
 	  }, {
 	    key: "update",
+	    //endregion
+	    // region Counter
 	    value: function update(value) {
 	      if (this.container === null) {
 	        this.createContainer();
@@ -178,7 +216,7 @@ this.BX = this.BX || {};
 	    key: "getCounterContainer",
 	    value: function getCounterContainer() {
 	      if (this.counterContainer === null) {
-	        this.counterContainer = main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-counter-inner\">", "</div>\n\t\t\t"])), this.value);
+	        this.counterContainer = main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-counter-inner\">", "</div>\n\t\t\t"])), this.getValue());
 	      }
 
 	      return this.counterContainer;
@@ -190,6 +228,7 @@ this.BX = this.BX || {};
 	        this.container = main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-counter\">", "</div>\n\t\t\t"])), this.getCounterContainer());
 	        this.setSize(this.size);
 	        this.setColor(this.color);
+	        this.setBorder(this.border);
 	      }
 
 	      return this.container;
@@ -236,10 +275,18 @@ this.BX = this.BX || {};
 	  return Counter;
 	}();
 
+	function _getBorderClassname2(border) {
+	  if (border) {
+	    return 'ui-counter-border';
+	  } else {
+	    return '';
+	  }
+	}
+
 	babelHelpers.defineProperty(Counter, "Color", CounterColor);
 	babelHelpers.defineProperty(Counter, "Size", CounterSize);
 
 	exports.Counter = Counter;
 
-}((this.BX.UI = this.BX.UI || {}),BX));
+}((this.BX.UI = this.BX.UI || {}),BX,BX));
 //# sourceMappingURL=cnt.bundle.js.map

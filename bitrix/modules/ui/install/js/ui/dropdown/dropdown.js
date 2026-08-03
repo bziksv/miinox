@@ -292,8 +292,6 @@
 						this.setItems(this.getDefaultItems());
 						BX.cleanNode(this.popupAlertContainer);
 						this.newAlertContainer = null;
-
-						return;
 					}
 					else
 					{
@@ -342,9 +340,11 @@
 				}
 
 				var searchQuery = this.targetElement.value.trim();
-				var isRequestsFlowAllowed = this.autocompleteDelay === 0
-					? true
-					: this.isLastSearchComplete !== false;
+				var isRequestsFlowAllowed =
+					this.autocompleteDelay === 0
+						? true
+						: this.isLastSearchComplete !== false
+				;
 				var loader = this.getItemsListContainer();
 
 				if(!searchQuery)
@@ -359,11 +359,9 @@
 				}
 				else if(
 					searchQuery.length >= this.minSearchStringLength
-					&& searchQuery != this.previousSearchQuery
+					&& searchQuery !== this.previousSearchQuery
 					&& isRequestsFlowAllowed
 				) {
-					this.isLastSearchComplete = false;
-
 					BX.onCustomEvent(this, "BX.UI.Dropdown:onBeforeSearchStart", [this, searchQuery]);
 					clearTimeout(this.ajaxRequestTimer);
 					this.ajaxRequestTimer = setTimeout(this.searchItemsByStrDelayed.bind(this), this.autocompleteDelay);
@@ -373,6 +371,7 @@
 			},
 			searchItemsByStrDelayed: function()
 			{
+				this.isLastSearchComplete = false;
 				var loader = this.getItemsListContainer();
 				var searchQuery = this.targetElement.value.trim();
 				var eventData = {

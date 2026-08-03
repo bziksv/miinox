@@ -3,7 +3,7 @@ namespace Bitrix\MessageService;
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ArgumentTypeException;
-use Bitrix\Main\Entity\AddResult;
+use Bitrix\Main\ORM\Data\AddResult;
 use Bitrix\Main\Error;
 use Bitrix\Main;
 use Bitrix\Main\Type\DateTime;
@@ -37,6 +37,8 @@ class Message
 
 	protected $statusId;
 	protected $externalStatus;
+
+	protected ?Error $error = null;
 
 	/**
 	 * Message constructor.
@@ -81,7 +83,7 @@ class Message
 	 * @param Sender\Base|null $sender
 	 * @return Message
 	 */
-	public static function createFromFields(array $fields, Sender\Base $sender = null)
+	public static function createFromFields(array $fields, Sender\Base $sender = null): Message
 	{
 		$message = new static($sender);
 		$message->setFields($fields);
@@ -100,7 +102,7 @@ class Message
 	 * @return Message
 	 * @throws ArgumentTypeException
 	 */
-	public function setType($type)
+	public function setType(string $type): Message
 	{
 		if (!MessageType::isSupported($type))
 		{
@@ -114,7 +116,7 @@ class Message
 	/**
 	 * @return string
 	 */
-	public function getType()
+	public function getType(): string
 	{
 		return $this->type;
 	}
@@ -147,10 +149,12 @@ class Message
 	}
 
 	/**
-	 * @return \Bitrix\Main\Entity\AddResult Created Message result.
+	 * @return AddResult Created Message result.
 	 */
-	public function send()
+	public function send(): AddResult
 	{
+		global $USER;
+
 		$checkResult = $this->checkFields();
 
 		if (!$checkResult->isSuccess())
@@ -163,7 +167,7 @@ class Message
 		$sender = $this->getSender();
 		$headers = $this->getHeaders();
 
-		$result = Internal\Entity\MessageTable::add(array(
+		$result = Internal\Entity\MessageTable::add([
 			'TYPE' => $this->getType(),
 			'SENDER_ID' => $sender->getId(),
 			'AUTHOR_ID' => $this->getAuthorId(),
@@ -171,10 +175,16 @@ class Message
 			'MESSAGE_TO' => $this->getTo(),
 			'MESSAGE_HEADERS' => count($headers) > 0 ? $headers : null,
 			'MESSAGE_BODY' => $this->getBody(),
-		));
+			'CLUSTER_GROUP' => defined('BX_CLUSTER_GROUP') ? BX_CLUSTER_GROUP : null
+		]);
 		if ($result->isSuccess())
 		{
 			$this->id = $result->getId();
+			if (Main\Config\Option::get('messageservice', 'event_log_message_send', 'N') === 'Y')
+			{
+				$userId = is_object($USER) ? $USER->getId() : 0;
+				\CEventLog::Log('INFO', 'MESSAGE_SEND', 'messageservice', $userId, $this->getTo());
+			}
 		}
 
 		return $result;
@@ -182,6 +192,8 @@ class Message
 
 	public function sendDirectly(): Result\SendMessage
 	{
+		global $USER;
+
 		$checkResult = $this->checkFields();
 
 		if (!$checkResult->isSuccess())
@@ -210,36 +222,43 @@ class Message
 			'MESSAGE_TO' => $this->getTo(),
 			'MESSAGE_HEADERS' => count($headers) > 0 ? $headers : null,
 			'MESSAGE_BODY' => $this->getBody(),
+			'CLUSTER_GROUP' => defined('BX_CLUSTER_GROUP') ? BX_CLUSTER_GROUP : null
 		];
+
+		$sender->setSocketTimeout(5);
+		$sender->setStreamTimeout(15);
+
+		$result = $sender->sendMessage($messageFields);
+
+		$messageFields['DATE_EXEC'] = new DateTime();
+		$messageFields['SUCCESS_EXEC'] = $result->isSuccess() ? 'Y' : 'N';
+
+		if ($result->getExternalId() !== null)
+		{
+			$messageFields['EXTERNAL_ID'] = $result->getExternalId();
+		}
+		if ($result->getStatus() !== null)
+		{
+			$messageFields['STATUS_ID'] = $result->getStatus();
+		}
 
 		$addResult = Internal\Entity\MessageTable::add($messageFields);
 		if (!$addResult->isSuccess())
 		{
-			$result = new Result\SendMessage();
 			$result->addErrors($addResult->getErrors());
 			$result->setStatus(MessageStatus::ERROR);
 
 			return $result;
 		}
-		$this->id = $addResult->getId();
-		$messageFields['ID'] = $this->id;
 
-		$result = $sender->sendMessage($messageFields);
+		$this->id = $addResult->getId();
 		$result->setId($this->id);
 
-		$updateFields = [
-			'DATE_EXEC' => new DateTime(),
-			'SUCCESS_EXEC' => $result->isSuccess() ? 'Y' : 'N',
-		];
-		if ($result->getExternalId() !== null)
+		if (Main\Config\Option::get('messageservice', 'event_log_message_send', 'N') === 'Y')
 		{
-			$updateFields['EXTERNAL_ID'] = $result->getExternalId();
+			$userId = is_object($USER) ? $USER->getId() : 0;
+			\CEventLog::Log('INFO', 'MESSAGE_SEND', 'messageservice', $userId, $this->getTo());
 		}
-		if ($result->getStatus() !== null)
-		{
-			$updateFields['STATUS_ID'] = $result->getStatus();
-		}
-		Internal\Entity\MessageTable::update($this->id, $updateFields);
 
 		return $result;
 	}
@@ -256,7 +275,7 @@ class Message
 	 * @param mixed $from
 	 * @return $this
 	 */
-	public function setFrom($from)
+	public function setFrom($from): Message
 	{
 		$this->from = (string)$from;
 		return $this;
@@ -274,7 +293,7 @@ class Message
 	 * @param mixed $body
 	 * @return $this
 	 */
-	public function setBody($body)
+	public function setBody($body): Message
 	{
 		$this->body = (string)$body;
 		return $this;
@@ -292,7 +311,7 @@ class Message
 	 * @param mixed $to
 	 * @return $this
 	 */
-	public function setTo($to)
+	public function setTo($to): Message
 	{
 		$this->to = (string)$to;
 		return $this;
@@ -301,7 +320,7 @@ class Message
 	/**
 	 * @return Sender\Base|null
 	 */
-	public function getSender()
+	public function getSender(): ?Sender\Base
 	{
 		return $this->sender;
 	}
@@ -320,7 +339,7 @@ class Message
 	 * @param array $headers
 	 * @return Message
 	 */
-	public function setHeaders(array $headers)
+	public function setHeaders(array $headers): Message
 	{
 		$this->headers = $headers;
 		return $this;
@@ -338,9 +357,9 @@ class Message
 	 * @param int $authorId
 	 * @return Message
 	 */
-	public function setAuthorId($authorId)
+	public function setAuthorId(int $authorId): Message
 	{
-		$this->authorId = (int)$authorId;
+		$this->authorId = $authorId;
 		return $this;
 	}
 
@@ -352,7 +371,31 @@ class Message
 		return $this->authorId;
 	}
 
-	public function update(array $fields)
+	/**
+	 * @return Error|null
+	 */
+	public function getError(): ?Error
+	{
+		return $this->error;
+	}
+
+	/**
+	 * @param Error $error
+	 * @return Message
+	 */
+	public function setError(Error $error): self
+	{
+		$this->error = $error;
+
+		return $this;
+	}
+
+	public function getStatusId()
+	{
+		return $this->statusId;
+	}
+
+	public function update(array $fields): bool
 	{
 		$updateResult = MessageTable::update($this->id, $fields);
 		if (!$updateResult->isSuccess())
@@ -374,7 +417,7 @@ class Message
 		return true;
 	}
 
-	public function updateWithSendResult(Result\SendMessage $result, DateTime $nextExec)
+	public function updateWithSendResult(Result\SendMessage $result, DateTime $nextExec): void
 	{
 		$toUpdate = ['SUCCESS_EXEC' => 'E', 'DATE_EXEC' => new DateTime()];
 		if ($result->isSuccess())
@@ -411,12 +454,34 @@ class Message
 		$this->update($toUpdate);
 	}
 
-	public function updateStatusByExternalStatus(string $externalStatus)
+	public function updateStatusByExternalStatus(string $externalStatus): bool
 	{
-		return $this->update([
-			'EXTERNAL_STATUS' => $externalStatus,
-			'STATUS_ID' => $this->sender->resolveStatus($externalStatus),
-		]);
+
+		$newInternalStatus = $this->sender::resolveStatus($externalStatus);
+
+		$isUpdateSuccess = MessageTable::updateMessageStatuses(
+			$this->id,
+			$newInternalStatus,
+			$externalStatus
+		);
+
+		if (!$isUpdateSuccess)
+		{
+			return false;
+		}
+
+		$this->statusId = $newInternalStatus;
+
+		// events
+		$eventFields = ['ID' => $this->id, 'STATUS_ID' => $this->statusId];
+		Main\EventManager::getInstance()->send(new Main\Event(
+				'messageservice',
+				static::EVENT_MESSAGE_UPDATED,
+				$eventFields)
+		);
+		Pull::onMessagesUpdate([$eventFields]);
+
+		return true;
 	}
 
 	public function updateStatus(int $newStatusId): bool
@@ -441,7 +506,7 @@ class Message
 		return true;
 	}
 
-	private function setFields(array $fields)
+	private function setFields(array $fields): void
 	{
 		if (!$this->sender && isset($fields['SENDER_ID']))
 		{
@@ -452,32 +517,53 @@ class Message
 			}
 		}
 		if (isset($fields['ID']))
+		{
 			$this->id = (int)$fields['ID'];
+		}
 		if (isset($fields['TYPE']))
+		{
 			$this->setType($fields['TYPE']);
+		}
 		if (isset($fields['AUTHOR_ID']))
-			$this->setAuthorId($fields['AUTHOR_ID']);
+		{
+			$this->setAuthorId((int)$fields['AUTHOR_ID']);
+		}
 		if (isset($fields['MESSAGE_FROM']))
+		{
 			$this->setFrom($fields['MESSAGE_FROM']);
+		}
 		if (isset($fields['MESSAGE_TO']))
+		{
 			$this->setTo($fields['MESSAGE_TO']);
-		if (isset($fields['MESSAGE_TEMPLATE']) && $sender->isConfigurable() && $sender->isTemplatesBased())
+		}
+		if (
+			isset($fields['MESSAGE_TEMPLATE'])
+			&& $this->sender->isConfigurable()
+			&& $this->sender->isTemplatesBased()
+		)
 		{
 			$fields['MESSAGE_HEADERS'] = is_array($fields['MESSAGE_HEADERS']) ? $fields['MESSAGE_HEADERS'] : [];
-			$fields['MESSAGE_HEADERS']['template'] = $sender->prepareTemplate($fields['MESSAGE_TEMPLATE']);
+			$fields['MESSAGE_HEADERS']['template'] = $this->sender->prepareTemplate($fields['MESSAGE_TEMPLATE']);
 		}
 		if (isset($fields['MESSAGE_HEADERS']) && is_array($fields['MESSAGE_HEADERS']))
+		{
 			$this->setHeaders($fields['MESSAGE_HEADERS']);
+		}
 		if (isset($fields['MESSAGE_BODY']))
 		{
-			$messageBody = $sender
-				? $sender->prepareMessageBodyForSave($fields['MESSAGE_BODY'])
-				: $fields['MESSAGE_BODY'];
+			$messageBody = $this->sender
+				? $this->sender->prepareMessageBodyForSave($fields['MESSAGE_BODY'])
+				: $fields['MESSAGE_BODY']
+			;
 			$this->setBody($messageBody);
 		}
 		if (isset($fields['STATUS_ID']))
+		{
 			$this->statusId = $fields['STATUS_ID'];
+		}
 		if (isset($fields['EXTERNAL_STATUS']))
-			$this->statusId = $fields['EXTERNAL_STATUS'];
+		{
+			$this->externalStatus = $fields['EXTERNAL_STATUS'];
+		}
 	}
 }

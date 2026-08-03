@@ -619,6 +619,7 @@ this.BX = this.BX || {};
 	babelHelpers.defineProperty(ButtonIcon, "DOWNLOAD", 'ui-btn-icon-download');
 	babelHelpers.defineProperty(ButtonIcon, "DOTS", 'ui-btn-icon-ui-btn-icon-dots');
 	babelHelpers.defineProperty(ButtonIcon, "DONE", 'ui-btn-icon-done');
+	babelHelpers.defineProperty(ButtonIcon, "CANCEL", 'ui-btn-icon-cancel');
 	babelHelpers.defineProperty(ButtonIcon, "DISK", 'ui-btn-icon-disk');
 	babelHelpers.defineProperty(ButtonIcon, "LOCK", 'ui-btn-icon-lock');
 	babelHelpers.defineProperty(ButtonIcon, "MAIL", 'ui-btn-icon-mail');
@@ -642,6 +643,13 @@ this.BX = this.BX || {};
 	babelHelpers.defineProperty(ButtonIcon, "LOW_BATTERY", 'ui-btn-icon-low-battery');
 	babelHelpers.defineProperty(ButtonIcon, "CRIT_BATTERY", 'ui-btn-icon-crit-battery');
 	babelHelpers.defineProperty(ButtonIcon, "DEMO", 'ui-btn-icon-demo');
+	babelHelpers.defineProperty(ButtonIcon, "ROBOTS", 'ui-btn-icon-robots');
+	babelHelpers.defineProperty(ButtonIcon, "NOTE", 'ui-btn-icon-note');
+	babelHelpers.defineProperty(ButtonIcon, "SCRIPT", 'ui-btn-icon-script');
+	babelHelpers.defineProperty(ButtonIcon, "PRINT2", 'ui-btn-icon-print-2');
+	babelHelpers.defineProperty(ButtonIcon, "FUNNEL", 'ui-btn-icon-funnel');
+	babelHelpers.defineProperty(ButtonIcon, "FORWARD", 'ui-btn-icon-forward');
+	babelHelpers.defineProperty(ButtonIcon, "COPY", 'ui-btn-icon-copy');
 
 	/**
 	 * @namespace {BX.UI}
@@ -667,6 +675,7 @@ this.BX = this.BX || {};
 	babelHelpers.defineProperty(ButtonStyle, "ROUND", 'ui-btn-round');
 	babelHelpers.defineProperty(ButtonStyle, "DROPDOWN", 'ui-btn-dropdown');
 	babelHelpers.defineProperty(ButtonStyle, "COLLAPSED", 'ui-btn-collapsed');
+	babelHelpers.defineProperty(ButtonStyle, "DEPEND_ON_THEME", 'ui-btn-themes');
 
 	function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
 
@@ -685,6 +694,7 @@ this.BX = this.BX || {};
 	    options = main_core.Type.isPlainObject(options) ? options : {};
 	    options.baseClass = main_core.Type.isStringFilled(options.baseClass) ? options.baseClass : Button.BASE_CLASS;
 	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Button).call(this, options));
+	    _this.isDependOnTheme = null;
 	    _this.size = null;
 	    _this.color = null;
 	    _this.icon = null;
@@ -694,6 +704,8 @@ this.BX = this.BX || {};
 	    _this.menuWindow = null;
 	    _this.handleMenuClick = _this.handleMenuClick.bind(babelHelpers.assertThisInitialized(_this));
 	    _this.handleMenuClose = _this.handleMenuClose.bind(babelHelpers.assertThisInitialized(_this));
+
+	    _this.setDependOnTheme(_this.options.dependOnTheme);
 
 	    _this.setSize(_this.options.size);
 
@@ -862,6 +874,39 @@ this.BX = this.BX || {};
 	    key: "isRound",
 	    value: function isRound() {
 	      return main_core.Dom.hasClass(this.getContainer(), ButtonStyle.ROUND);
+	    }
+	    /**
+	     * @public
+	     * @param {boolean} [flag=true]
+	     * @return {this}
+	     */
+
+	  }, {
+	    key: "setDependOnTheme",
+	    value: function setDependOnTheme(flag) {
+	      if (flag === true) {
+	        main_core.Dom.addClass(this.getContainer(), ButtonStyle.DEPEND_ON_THEME);
+	      } else if (flag === false) {
+	        main_core.Dom.removeClass(this.getContainer(), ButtonStyle.DEPEND_ON_THEME);
+	      }
+
+	      return this;
+	    }
+	    /**
+	     *
+	     * @return {boolean}
+	     */
+
+	  }, {
+	    key: "isDependOnTheme",
+	    value: function isDependOnTheme() {
+	      if (flag === false) {
+	        main_core.Dom.removeClass(this.getContainer(), ButtonStyle.DEPEND_ON_THEME);
+	      } else {
+	        main_core.Dom.addClass(this.getContainer(), ButtonStyle.DEPEND_ON_THEME);
+	      }
+
+	      return this;
 	    }
 	    /**
 	     *

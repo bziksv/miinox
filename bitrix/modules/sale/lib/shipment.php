@@ -48,21 +48,6 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 		return Registry::ENTITY_SHIPMENT;
 	}
 
-	protected function __construct(array $fields = [])
-	{
-		$priceFields = ['BASE_PRICE_DELIVERY', 'PRICE_DELIVERY', 'DISCOUNT_PRICE'];
-
-		foreach ($priceFields as $code)
-		{
-			if (isset($fields[$code]))
-			{
-				$fields[$code] = PriceMaths::roundPrecision($fields[$code]);
-			}
-		}
-
-		parent::__construct($fields);
-	}
-
 	/**
 	 * @return int
 	 */
@@ -747,7 +732,13 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 
 		if (!$this->isSystem())
 		{
-			$this->setField('PRICE_DELIVERY', 0);
+			$this->setField('BASE_PRICE_DELIVERY', 0);
+
+			if ($this->getFields()->isMarkedCustom('PRICE_DELIVERY'))
+			{
+				$this->setField('PRICE_DELIVERY', 0);
+			}
+
 			$this->disallowDelivery();
 		}
 
@@ -767,6 +758,24 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 		Requests\Manager::onBeforeShipmentDelete($this);
 	}
 
+	protected function normalizeValue($name, $value)
+	{
+		if ($this->isPriceField($name))
+		{
+			$value = PriceMaths::roundPrecision($value);
+		}
+		elseif ($name === 'REASON_MARKED')
+		{
+			$value = (string)$value;
+			if (mb_strlen($value) > 255)
+			{
+				$value = mb_substr($value, 0, 255);
+			}
+		}
+
+		return parent::normalizeValue($name, $value);
+	}
+
 	/**
 	 * Sets new value to specified field of shipment item
 	 *
@@ -782,21 +791,6 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 		if ($this->isSystem())
 		{
 			throw new Main\NotSupportedException();
-		}
-
-		if ($name === "REASON_MARKED" && mb_strlen($value) > 255)
-		{
-			$value = mb_substr($value, 0, 255);
-		}
-
-		$priceFields = [
-			'BASE_PRICE_DELIVERY' => 'BASE_PRICE_DELIVERY',
-			'PRICE_DELIVERY' => 'PRICE_DELIVERY',
-			'DISCOUNT_PRICE' => 'DISCOUNT_PRICE',
-		];
-		if (isset($priceFields[$name]))
-		{
-			$value = PriceMaths::roundPrecision($value);
 		}
 
 		if ($name === 'CUSTOM_PRICE_DELIVERY')
@@ -868,16 +862,6 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 	 */
 	public function setFieldNoDemand($name, $value)
 	{
-		$priceFields = [
-			'BASE_PRICE_DELIVERY' => 'BASE_PRICE_DELIVERY',
-			'PRICE_DELIVERY' => 'PRICE_DELIVERY',
-			'DISCOUNT_PRICE' => 'DISCOUNT_PRICE',
-		];
-		if (isset($priceFields[$name]))
-		{
-			$value = PriceMaths::roundPrecision($value);
-		}
-
 		if ($name === 'CUSTOM_PRICE_DELIVERY')
 		{
 			if ($value === 'Y')
@@ -1292,6 +1276,15 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 	public function isCustomPrice()
 	{
 		return $this->isMarkedFieldCustom('PRICE_DELIVERY');
+	}
+
+	protected function isPriceField(string $name) : bool
+	{
+		return
+			$name === 'BASE_PRICE_DELIVERY'
+			|| $name === 'PRICE_DELIVERY'
+			|| $name === 'DISCOUNT_PRICE'
+		;
 	}
 
 	/**
@@ -2304,7 +2297,7 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 	public function setAccountNumber($id)
 	{
 		$result = new Result();
-		$accountNumber = null;
+
 		$id = intval($id);
 		if ($id <= 0)
 		{
@@ -2341,7 +2334,7 @@ class Shipment extends Internals\CollectableEntity implements IBusinessValueProv
 	{
 		$providerInstance = null;
 
-		if (is_array($mapping))
+		if (is_array($mapping) && isset($mapping['PROVIDER_KEY']))
 		{
 			switch ($mapping['PROVIDER_KEY'])
 			{

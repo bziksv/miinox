@@ -28,7 +28,6 @@
 	 * @param {boolean} arParams.ALLOW_PIN_HEADER
 	 * @param {boolean} arParams.SHOW_ACTION_PANEL
 	 * @param {boolean} arParams.PRESERVE_HISTORY
-	 * @param {boolean} arParams.BACKEND_URL
 	 * @param {boolean} arParams.ALLOW_CONTEXT_MENU
 	 * @param {object} arParams.DEFAULT_COLUMNS
 	 * @param {boolean} arParams.ENABLE_COLLAPSIBLE_ROWS
@@ -102,11 +101,6 @@
 			editorTypes,
 			messageTypes
 		);
-	};
-
-	BX.Main.grid.isNeedResourcesReady = function(container)
-	{
-		return BX.hasClass(container, 'main-grid-load-animation');
 	};
 
 	BX.Main.grid.prototype = {
@@ -547,6 +541,8 @@
 
 						self.getRows().reset();
 						var bodyRows = this.getBodyRows();
+
+						self.getUpdater().updateContainer(this.getContainer());
 						self.getUpdater().updateHeadRows(this.getHeadRows());
 						self.getUpdater().updateBodyRows(bodyRows);
 						self.getUpdater().updateFootRows(this.getFootRows());
@@ -856,6 +852,8 @@
 				BX.onCustomEvent(window, 'BX.Main.Grid:onBeforeReload', [self]);
 				self.getRows().reset();
 				bodyRows = this.getBodyRows();
+
+				self.getUpdater().updateContainer(this.getContainer());
 				self.getUpdater().updateHeadRows(this.getHeadRows());
 				self.getUpdater().updateBodyRows(bodyRows);
 				self.getUpdater().updateFootRows(this.getFootRows());

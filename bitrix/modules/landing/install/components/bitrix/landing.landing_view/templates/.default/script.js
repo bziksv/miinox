@@ -44,6 +44,8 @@
 			BX.Landing.UI.Panel.StylePanel.getInstance();
 			rootWindow.BX.Landing.UI.Panel.Top.instance = null;
 			BX.Landing.UI.Panel.Top.getInstance();
+
+			editorWindow.BX.onCustomEvent('Landing.Editor:load')
 		});
 	};
 
@@ -72,6 +74,7 @@
 			this.helperFrameOpenUrl = options.helperFrameOpenUrl || null;
 			this.helpCodes = options.helpCodes || {};
 			this.sliderConditions = options.sliderConditions || [];
+			this.sliderFullConditions = options.sliderFullConditions || [];
 			top.window.autoPublicationEnabled = !!options.autoPublicationEnabled;
 			if (!this.rights.public)
 			{
@@ -196,19 +199,19 @@
 				return;
 			}
 
-			var conditions = [];
-
-			for (var i = 0, c = this.sliderConditions.length; i < c; i++)
+			const conditions = [];
+			for (let i = 0, c = this.sliderConditions.length; i < c; i++)
 			{
 				conditions.push(this.sliderConditions[i]);
 			}
+			const conditionsFull = this.sliderFullConditions;
 
-			if (conditions.length <= 0)
+			if (conditions.length <= 0 && conditionsFull.length <= 0)
 			{
 				return;
 			}
 
-			var sliderOptions = top.BX.clone({
+			const sliderOptions = top.BX.clone({
 				rules: [
 					{
 						condition: conditions,
@@ -223,8 +226,21 @@
 					}
 				]
 			});
-
 			BX.SidePanel.Instance.bindAnchors(sliderOptions);
+
+			const sliderFullOptions = top.BX.clone({
+				rules: [
+					{
+						condition: conditionsFull,
+						options: {
+							allowChangeHistory: false,
+							customLeftBoundary: 0,
+							cacheable: false,
+						}
+					}
+				]
+			});
+			BX.SidePanel.Instance.bindAnchors(sliderFullOptions);
 		},
 
 		/**
@@ -323,16 +339,16 @@
 		 */
 		onRequiredLinkClick: function(element)
 		{
-			var href = element.getAttribute('href');
+			const href = element.getAttribute('href');
 
 			if (href.substr(0, 1) !== '#')
 			{
 				window.open(href, '_top');
 			}
 
-			var linkTpl = href.substr(1);
-			var urlParams = {};
-			var linkTplAnchor = '';
+			let linkTpl = href.substr(1);
+			const urlParams = {};
+			let linkTplAnchor = '';
 
 			if (linkTpl.indexOf('@') > 0)
 			{
@@ -341,20 +357,17 @@
 			}
 			linkTpl = linkTpl.toUpperCase();
 
-			if (linkTpl === 'PAGE_URL_CATALOG_EDIT')
-			{
-				linkTpl = 'PAGE_URL_SITE_EDIT';
-				urlParams.tpl = 'catalog';
-			}
+			const pageUrl = 'PAGE_URL_LANDING_SETTINGS';
+			urlParams.PAGE = linkTpl.replace('PAGE_URL_', '');
 
 			if (
-				typeof landingParams[linkTpl] !== 'undefined' &&
+				typeof landingParams[pageUrl] !== 'undefined' &&
 				typeof BX.SidePanel !== 'undefined'
 			)
 			{
 				BX.SidePanel.Instance.open(
 					BX.util.add_url_param(
-						landingParams[linkTpl],
+						landingParams[pageUrl],
 						urlParams
 					) +
 					(linkTplAnchor ? '#' + linkTplAnchor : ''),
@@ -388,9 +401,6 @@
 			{
 				var oPopupPublication = null;
 				var oPopupError = null;
-				var landingBtnClass = (!this.rights.public) ?
-					"landing-popup-publication-content-autopub-btn ui-btn ui-btn-round ui-btn-no-caps ui-btn-shadow ui-btn-icon-lock ui-btn-light landing-popup-btn-disabled " :
-					"landing-popup-publication-content-autopub-btn ui-btn ui-btn-round ui-btn-no-caps ui-btn-shadow ui-btn-success";
 				BX('landing-popup-publication-btn').addEventListener(
 					'click',
 					function()
@@ -398,14 +408,17 @@
 						var landingId = this.id,
 							popupPublicationContent;
 
-						if (this.getErrorMessageBlock())
+						const errorMsgBlock = this.getErrorMessageBlock();
+
+						if (errorMsgBlock)
 						{
+							const errorCode = BX('landing-popup-publication-error-area').getAttribute('data-error');
+							const clickHandler = this.getErrorClickHandler(errorCode);
+
 							popupPublicationContent = BX.create('div', {
 								props: { className: 'landing-popup-publication-content 1' },
 								children: [
-
-									this.getErrorMessageBlock(),
-
+									errorMsgBlock,
 									BX.create('form', {
 										props: { className: 'landing-popup-publication-content-block-gray landing-popup-publication-content-center landing-popup-publication-content-block-gray-disabled' },
 										attrs: {
@@ -421,13 +434,32 @@
 													value: BX.message('bitrix_sessid')
 												}
 											}),
-											BX.create('button', {
-												props: { className: "landing-popup-publication-content-autopub-btn ui-btn ui-btn-round ui-btn-no-caps ui-btn-shadow ui-btn-icon-lock ui-btn-light landing-popup-btn-disabled " },
-												attrs: {
-													type: 'submit',
-													disabled: true,
+											BX.create('div', {
+												props: {
+													className: "landing-popup-publication-content-autopub-btn-container"
 												},
-												text: BX.message('LANDING_PUBLICATION_SUBMIT')
+												children: [
+													BX.create('button', {
+														props: {
+															className: "landing-popup-publication-content-autopub-btn ui-btn ui-btn-round ui-btn-no-caps ui-btn-shadow ui-btn-icon-lock ui-btn-light landing-popup-btn-disabled"
+														},
+														attrs: {
+															type: 'submit',
+															disabled: true,
+														},
+														text: BX.message('LANDING_PUBLICATION_SUBMIT')
+													}),
+													BX.create('div', {
+														props: {
+															className: "landing-popup-publication-content-autopub-btn-clicker"
+														},
+														events:
+															clickHandler
+																? {click: clickHandler}
+																: null
+														,
+													})
+												],
 											})
 										]
 									}),
@@ -484,16 +516,19 @@
 																		actionType: 'json'
 																	},
 																	dataType: 'json',
-																	onsuccess: function(data)
-																	{
+																	onsuccess: data => {
 																		BX.removeClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-error");
 																		if (this.checked)
 																		{
 																			BX.addClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-auto");
+																			BX.addClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-loader");
 																			BX.addClass(document.body.querySelector(".landing-popup-publication-content-autopub-icon"), "landing-ui-panel-top-pub-btn-auto");
 																			BX.Landing.Backend.getInstance()
 																				.action('Landing::publication', {
 																					lid: landingId
+																				})
+																				.then(() => {
+																					BX.removeClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-loader");
 																				})
 																		}
 																		else
@@ -501,7 +536,7 @@
 																			BX.removeClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-auto");
 																			BX.removeClass(document.body.querySelector(".landing-popup-publication-content-autopub-icon"), "landing-ui-panel-top-pub-btn-auto");
 																		}
-																	}.bind(this)
+																	}
 																});
 															}
 														}
@@ -547,7 +582,7 @@
 														}
 													}),
 													BX.create('button', {
-														props: { className: "landing-popup-publication-content-autopub-btn ui-btn ui-btn-round ui-btn-no-caps ui-btn-shadow ui-btn-light" },
+														props: { className: "landing-popup-publication-content-preview-btn ui-btn ui-btn-round ui-btn-no-caps ui-btn-shadow ui-btn-light" },
 														attrs: {
 															type: 'submit',
 														},
@@ -639,16 +674,24 @@
 						{
 							if (top.window.autoPublicationEnabled)
 							{
+								const backend = BX.Landing.Backend.getInstance();
 								if (this.storeEnabled)
 								{
-									BX.Landing.Backend.getInstance()
-										.action('Site::publication', {
-											id: this.siteId
-										});
+									backend
+										.action('Landing::publication', {
+											lid: this.id
+										})
+										.then(() => {
+											return backend
+												.action('Site::publication', {
+													id: this.siteId
+												});
+										})
+									;
 								}
 								else
 								{
-									BX.Landing.Backend.getInstance()
+									backend
 										.action('Landing::publication', {
 											lid: this.id
 										});
@@ -782,7 +825,31 @@
 							window.removeEventListener('blur', listener);
 						});
 
-						oPopupPreview.toggle();
+						var formVerificationRequired = BX.data(BX('landing-popup-preview-btn'), 'form-verification-required') === '1';
+						if (formVerificationRequired && top.BX.Bitrix24 && BX.Type.isObject(BX.Bitrix24.PhoneVerify))
+						{
+							var formId = BX.data(BX('landing-popup-preview-btn'), 'form-verification-entity');
+							BX.Bitrix24.PhoneVerify
+								.getInstance()
+								.setEntityType('crm_webform')
+								.setEntityId(formId)
+								.startVerify({
+									sliderTitle: BX.Loc.getMessage('LANDING_OPEN_FORM_PHONE_VERIFY_CUSTOM_SLIDER_TITLE'),
+									title: BX.Loc.getMessage('LANDING_OPEN_FORM_PHONE_VERIFY_CUSTOM_TITLE'),
+									description: BX.Loc.getMessage('LANDING_OPEN_FORM_PHONE_VERIFY_CUSTOM_DESCRIPTION'),
+									callback: function (verified) {
+										if (verified)
+										{
+											oPopupPreview.toggle();
+										}
+									}
+								});
+						}
+						else
+						{
+							oPopupPreview.toggle();
+						}
+
 						BX.PreventDefault();
 					}.bind(this)
 				);
@@ -909,6 +976,7 @@
 
 																					checkFormNode();
 																				});
+																			scrollToBlock(formBlock);
 																		}
 																		else
 																		{
@@ -1095,8 +1163,11 @@
 
 			if (!this.formSharePopup)
 			{
+				var phoneVerified = BX.data(document.querySelector('#landing-popup-preview-btn'), 'form-verification-required') !== '1';
+
 				this.formSharePopup = new BX.Landing.Form.SharePopup({
 					bindElement: event.currentTarget,
+					phoneVerified: phoneVerified,
 				});
 			}
 
@@ -1129,6 +1200,25 @@
 				return function() {
 					BX.UI.InfoHelper.show('limit_sites_confirm_email');
 				};
+			}
+			else if (errorCode === 'PHONE_NOT_CONFIRMED' && top.BX.Bitrix24 && BX.Type.isObject(top.BX.Bitrix24.PhoneVerify))
+			{
+				return function() {
+					top.BX.Bitrix24.PhoneVerify
+						.getInstance()
+						.setEntityType('landing_site')
+						.setEntityId(this.siteId)
+						.startVerify({
+							mandatory: false,
+							callback: function (verified) {
+								if (verified)
+								{
+									top.window.location.reload();
+								}
+							}
+						})
+					;
+				}.bind(this);
 			}
 			else if (
 				errorCode === 'PUBLIC_PAGE_REACHED' ||
@@ -1175,7 +1265,10 @@
 			{
 				return BX.message('LANDING_PUBLICATION_GOTO_BLOCK');
 			}
-			else if (errorCode === 'EMAIL_NOT_CONFIRMED')
+			else if (
+				errorCode === 'EMAIL_NOT_CONFIRMED' ||
+				errorCode === 'PHONE_NOT_CONFIRMED'
+			)
 			{
 				return BX.message('LANDING_PUBLICATION_CONFIRM_EMAIL');
 			}
@@ -1416,21 +1509,18 @@
 			if (this.blockId || this.fullPublication)
 			{
 				setTimeout(function() {
-					var action = (this.fullPublication || this.pageIsUnActive) ? 'Landing::publication' : 'Block::publication';
+					BX.addClass(this.getStatusArea(), "landing-ui-panel-top-pub-btn-loader")
+					const action = (this.fullPublication || this.pageIsUnActive) ? 'Landing::publication' : 'Block::publication';
 					BX.Landing.Backend.getInstance()
 						.action(action, {
 							block: this.blockId,
 							lid: this.landingId
 						})
 
-						.then(function(response) {
-							BX.addClass(this.getStatusArea(), "landing-ui-panel-top-pub-btn-loader")
+						.then(response => {
 							this.pageIsUnActive = false ;
-							setTimeout(function(){
-								this.setSuccess();
-							}.bind(this), 1000);
-
-						}.bind(this))
+							this.setSuccess();
+						})
 
 						.catch(function(response) {
 							if (

@@ -39,8 +39,9 @@ abstract class ProductList extends \CBitrixComponent
 			$fields['OFFERS_IBLOCK_ID'] = 0;
 			$fields['SKU_TREE'] = [];
 			$fields['DETAIL_URL'] = $this->getElementDetailUrl($product->getIblockId(), $product->getId());
+			$fields['TYPE'] = (int)$fields['TYPE'];
 
-			$measure = $this->measures[$sku->getField('MEASURE')];
+			$measure = $this->measures[$sku->getField('MEASURE')] ?? null;
 			if (!$measure)
 			{
 				$measure = $this->getDefaultMeasure();
@@ -129,18 +130,6 @@ abstract class ProductList extends \CBitrixComponent
 	 */
 	protected function getDefaultMeasure(): array
 	{
-		if (empty($this->measures))
-		{
-			$this->loadMeasures();
-		}
-		foreach ($this->measures as $measure)
-		{
-			if ($measure['IS_DEFAULT'] === 'Y')
-			{
-				return $measure;
-			}
-		}
-
-		return [];
+		return \CCatalogMeasure::getDefaultMeasure(true);
 	}
 }

@@ -30,6 +30,15 @@ export class BaseField extends EventEmitter
 		`;
 	}
 
+	static createError(text: string): HTMLDivElement
+	{
+		return Tag.render`
+			<div class="landing-ui-field-description landing-ui-error">
+				<span class="fa fa-info-circle"> </span> ${text}
+			</div>
+		`;
+	}
+
 	static currentField: ?BaseField = null;
 
 	constructor(options: {[key: string]: any} = {})
@@ -69,7 +78,7 @@ export class BaseField extends EventEmitter
 		Dom.append(this.input, this.layout);
 
 		Dom.attr(this.layout, 'data-selector', this.selector);
-		Dom.attr(this.input, 'data-placeholder', this.placeholder);
+		this.input.setAttribute('data-placeholder', this.placeholder);
 
 		if (Type.isArrayLike(this.className))
 		{
@@ -83,13 +92,22 @@ export class BaseField extends EventEmitter
 			this.disable();
 		}
 
-		Event.bind(this.input, 'paste', this.onPaste);
+		if (options.skipPasteControl !== true)
+		{
+			Event.bind(this.input, 'paste', this.onPaste);
+		}
 
 		this.init();
 
 		if (this.data.help)
 		{
-			BX.Dom.append(top.BX.UI.Hint.createNode(this.data.help), this.header);
+			const hintNode = document.createElement('span');
+
+			hintNode.setAttribute('data-hint', this.data.help);
+			hintNode.setAttribute('data-hint-html', 'y');
+			top.BX.UI.Hint.initNode(hintNode);
+			BX.Dom.append(hintNode, this.header);
+
 			top.BX.UI.Hint.init(BX.Landing.UI.Panel.StylePanel.getInstance().layout);
 		}
 	}

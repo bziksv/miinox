@@ -4,6 +4,8 @@ require_once($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/classes/general/u
 
 class CUserCounter extends CAllUserCounter
 {
+	private static $isLiveFeedJobOn = false;
+
 	public static function Set($user_id, $code, $value, $site_id = SITE_ID, $tag = '', $sendPull = true)
 	{
 		global $DB, $CACHE_MANAGER;
@@ -56,7 +58,7 @@ class CUserCounter extends CAllUserCounter
 			", true);
 		}
 
-		if (self::$counters && self::$counters[$user_id])
+		if (self::$counters && isset(self::$counters[$user_id]))
 		{
 			if ($site_id === self::ALL_SITES)
 			{
@@ -235,7 +237,7 @@ class CUserCounter extends CAllUserCounter
 			)
 			{
 				$strSQL = "
-					INSERT INTO b_user_counter (USER_ID, CNT, SITE_ID, CODE, SENT, TAG".(is_array($arParams) && isset($arParams["SET_TIMESTAMP"]) ? ", TIMESTAMP_X" : "").") (".$sub_select.")
+					INSERT INTO b_user_counter (USER_ID, CNT, SITE_ID, CODE, SENT, TAG".(isset($arParams["SET_TIMESTAMP"]) ? ", TIMESTAMP_X" : "").") (".$sub_select.")
 					ON DUPLICATE KEY UPDATE CNT = CNT + VALUES(CNT), SENT = VALUES(SENT), TAG = '".$DB->ForSQL($arParams["TAG_SET"])."'
 				";
 			}
@@ -245,7 +247,7 @@ class CUserCounter extends CAllUserCounter
 			)
 			{
 				$strSQL = "
-					INSERT INTO b_user_counter (USER_ID, CNT, SITE_ID, CODE, SENT".(is_array($arParams) && isset($arParams["SET_TIMESTAMP"]) ? ", TIMESTAMP_X" : "").") (".$sub_select.")
+					INSERT INTO b_user_counter (USER_ID, CNT, SITE_ID, CODE, SENT".(isset($arParams["SET_TIMESTAMP"]) ? ", TIMESTAMP_X" : "").") (".$sub_select.")
 					ON DUPLICATE KEY UPDATE CNT = CASE
 						WHEN
 							TAG = '".$DB->ForSQL($arParams["TAG_CHECK"])."'
@@ -286,7 +288,7 @@ class CUserCounter extends CAllUserCounter
 				)
 			)
 			{
-				self::$counters = false;
+				self::$counters = [];
 				$CACHE_MANAGER->CleanDir("user_counter");
 			}
 
@@ -312,9 +314,8 @@ class CUserCounter extends CAllUserCounter
 						$helper = $connection->getSqlHelper();
 
 						$strSQL = "
-							SELECT pc.CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
+							SELECT uc.USER_ID as CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
 							FROM b_user_counter uc
-							INNER JOIN b_pull_channel pc ON pc.USER_ID = uc.USER_ID
 							INNER JOIN b_user u ON u.ID = uc.USER_ID AND (CASE WHEN u.EXTERNAL_AUTH_ID IN ('" . implode("', '", \Bitrix\Main\UserTable::getExternalUserTypes())."') THEN 'Y' ELSE 'N' END) = 'N' AND u.LAST_ACTIVITY_DATE > " . $helper->addSecondsToDateTime('(-3600)')."
 							WHERE uc.SENT = '0' AND uc.USER_ID IN (" . implode(", ", $arParams["USERS_TO_PUSH"]) . ")
 						";
@@ -398,10 +399,10 @@ class CUserCounter extends CAllUserCounter
 					WHERE
 						USER_ID = ".$user_id."
 						".(
-							count($site_id) == 1
-								? " AND SITE_ID = '".$site_id[0]."' "
-								: " AND SITE_ID IN (".$siteToDelete.") "
-						)."
+					count($site_id) == 1
+						? " AND SITE_ID = '".$site_id[0]."' "
+						: " AND SITE_ID IN (".$siteToDelete.") "
+					)."
 						AND CODE LIKE '".$DB->ForSQL($code)."L%'
 					";
 
@@ -479,6 +480,33 @@ class CUserCounter extends CAllUserCounter
 
 		$connection = \Bitrix\Main\Application::getConnection();
 
+		$isLiveFeed = (
+			mb_strpos($code, self::LIVEFEED_CODE) === 0
+			&& $code !== self::LIVEFEED_CODE
+		);
+
+		if ($isLiveFeed)
+		{
+			$DB->Query(
+				"DELETE FROM b_user_counter WHERE CODE = '".$code."'",
+				false,
+				"FILE: " . __FILE__ . "<br> LINE: " . __LINE__
+			);
+
+			self::$counters = [];
+			$CACHE_MANAGER->CleanDir("user_counter");
+
+			if (self::$isLiveFeedJobOn === false && self::CheckLiveMode())
+			{
+				$application = \Bitrix\Main\Application::getInstance();
+				$application && $application->addBackgroundJob([__CLASS__, 'sendLiveFeedPull']);
+
+				self::$isLiveFeedJobOn = true;
+			}
+
+			return true;
+		}
+
 		if (
 			self::CheckLiveMode()
 			&& $connection->lock('pull')
@@ -495,35 +523,24 @@ class CUserCounter extends CAllUserCounter
 				$arSites[] = $row['ID'];
 			}
 
-			$isLF = (
-				mb_strpos($code, self::LIVEFEED_CODE) === 0
-				&& $code !== self::LIVEFEED_CODE
-			);
-
 			$helper = $connection->getSqlHelper();
 			$strSQL = "
-				SELECT pc.CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
+				SELECT uc.USER_ID as CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
 				FROM b_user_counter uc
-				INNER JOIN b_pull_channel pc ON pc.USER_ID = uc.USER_ID
 				INNER JOIN b_user u ON u.ID = uc.USER_ID AND (CASE WHEN u.EXTERNAL_AUTH_ID IN ('" . implode("', '", \Bitrix\Main\UserTable::getExternalUserTypes()) . "') THEN 'Y' ELSE 'N' END) = 'N' AND u.LAST_ACTIVITY_DATE > ".$helper->addSecondsToDateTime('(-3600)')."
-				WHERE uc.CODE ".($isLF ? " LIKE '" . self::LIVEFEED_CODE . "%'" : " = '" . $code . "'");
+				WHERE uc.CODE = '" . $code . "'";
 
 			$res = $DB->Query($strSQL, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 
 			while($row = $res->Fetch())
 			{
-				if ($isLF && $row["CODE"] == $code)
-				{
-					continue;
-				}
-
 				self::addValueToPullMessage($row, $arSites, $pullMessage);
 			}
 		}
 
 		$DB->Query("DELETE FROM b_user_counter WHERE CODE = '".$code."'", false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 
-		self::$counters = false;
+		self::$counters = [];
 		$CACHE_MANAGER->CleanDir("user_counter");
 
 		if ($bPullEnabled)
@@ -556,6 +573,56 @@ class CUserCounter extends CAllUserCounter
 	public static function ClearByUser($user_id, $site_id = SITE_ID, $code = self::ALL_SITES, $bMultiple = false, $sendPull = true)
 	{
 		return self::Clear($user_id, $code, $site_id, $sendPull, $bMultiple);
+	}
+
+	public static function sendLiveFeedPull()
+	{
+		global $DB;
+
+		$pullMessage = [];
+
+		$connection = \Bitrix\Main\Application::getConnection();
+
+		$connection->lock('pull');
+
+		$sites = [];
+		$by = '';
+		$order = '';
+		$queryObject = CSite::getList($by, $order, ['ACTIVE' => 'Y']);
+		while ($row = $queryObject->fetch())
+		{
+			$sites[] = $row['ID'];
+		}
+
+		$helper = $connection->getSqlHelper();
+
+		$strSQL = "
+			SELECT uc.USER_ID as CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
+			FROM b_user_counter uc
+			INNER JOIN b_user u ON u.ID = uc.USER_ID AND (CASE WHEN u.EXTERNAL_AUTH_ID IN ('"
+			. implode("', '", \Bitrix\Main\UserTable::getExternalUserTypes())
+			. "') THEN 'Y' ELSE 'N' END) = 'N' AND u.LAST_ACTIVITY_DATE > "
+			.$helper->addSecondsToDateTime('(-3600)')."
+			WHERE uc.CODE LIKE '" . self::LIVEFEED_CODE . "%'
+		";
+
+		$queryObject = $DB->Query($strSQL, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+		while($row = $queryObject->fetch())
+		{
+			self::addValueToPullMessage($row, $sites, $pullMessage);
+		}
+
+		$connection->unlock('pull');
+
+		foreach ($pullMessage as $channelId => $arMessage)
+		{
+			\Bitrix\Pull\Event::add($channelId, [
+				'module_id' => 'main',
+				'command' => 'user_counter',
+				'expiry' => 3600,
+				'params' => $arMessage,
+			]);
+		}
 	}
 }
 
@@ -615,9 +682,8 @@ class CUserCounterPage extends CAllUserCounterPage
 			$helper = $connection->getSqlHelper();
 
 			$strSQL = "
-				SELECT pc.CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
+				SELECT uc.USER_ID as CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
 				FROM b_user_counter uc
-				INNER JOIN b_pull_channel pc ON pc.USER_ID = uc.USER_ID
 				INNER JOIN b_user u ON u.ID = uc.USER_ID AND (CASE WHEN u.EXTERNAL_AUTH_ID IN ('" . implode("', '", \Bitrix\Main\UserTable::getExternalUserTypes()) . "') THEN 'Y' ELSE 'N' END) = 'N' AND u.LAST_ACTIVITY_DATE > " . $helper->addSecondsToDateTime('(-3600)')."
 				WHERE uc.USER_ID IN (".$userString.") AND uc.CODE NOT LIKE '" . CUserCounter::LIVEFEED_CODE . "L%' AND uc.SENT = '0'
 			";
@@ -629,9 +695,8 @@ class CUserCounterPage extends CAllUserCounterPage
 			}
 
 			$strSQL = "
-				SELECT pc.CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
+				SELECT uc.USER_ID as CHANNEL_ID, uc.USER_ID, uc.SITE_ID, uc.CODE, uc.CNT
 				FROM b_user_counter uc
-				INNER JOIN b_pull_channel pc ON pc.USER_ID = uc.USER_ID
 				INNER JOIN b_user u ON u.ID = uc.USER_ID AND (CASE WHEN u.EXTERNAL_AUTH_ID IN ('" . implode("', '", \Bitrix\Main\UserTable::getExternalUserTypes()) . "') THEN 'Y' ELSE 'N' END) = 'N' AND u.LAST_ACTIVITY_DATE > " . $helper->addSecondsToDateTime('(-3600)')."
 				WHERE uc.USER_ID IN (" . $userString . ") AND uc.CODE LIKE '" . CUserCounter::LIVEFEED_CODE . "L%'
 			";

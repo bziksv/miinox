@@ -57,7 +57,7 @@
                             <a href="/"><img data-src="<?=SITE_TEMPLATE_PATH?>/img/static/logo.png" alt="alt"></a>
                         </div>
                         <div class="head_phone-box tablet-small_hidden">
-                            <a href="tel:+74951140102" class="head_phone-number">+7 (495) 114-01-02</a>
+                            <a href="tel:+74732475555" class="head_phone-number">+7 (473) 247-55-55</a>
                             <!--<div class="head_callback-btn">
                                 <a href="#callback" data-toggle="modal">
                                     <span class="glipf-call-answer"></span>
@@ -153,7 +153,16 @@
         </div>
         <nav class="head-nav">
             <div class="container">
-                <?$APPLICATION->IncludeComponent("bitrix:menu", "top.menu", Array(
+                <?
+					$IS_HIDDEN_MENU = true;
+					$curDir = $APPLICATION->GetCurDir();
+					$show_catalog_menu = \Bitrix\Main\Config\Option::get("grain.customsettings", "show_catalog_menu");
+					$links_show_catalog_menu_arr = preg_split("/[\s,]+/", $show_catalog_menu);
+					
+					if(in_array($curDir, $links_show_catalog_menu_arr))
+						$IS_HIDDEN_MENU = false;
+				
+					$APPLICATION->IncludeComponent("bitrix:menu", "top.menu", Array(
                     "ROOT_MENU_TYPE" => "top",	// Тип меню для первого уровня
                     "MENU_CACHE_TYPE" => "A",	// Тип кеширования
                     "MENU_CACHE_TIME" => "36000000",	// Время кеширования (сек.)
@@ -167,7 +176,8 @@
                     "USE_EXT" => "Y",	// Подключать файлы с именами вида .тип_меню.menu_ext.php
                     "DELAY" => "N",	// Откладывать выполнение шаблона меню
                     "ALLOW_MULTI_SELECT" => "N",	// Разрешить несколько активных пунктов одновременно
-                    "COMPONENT_TEMPLATE" => "catalog_horizontal"
+                    "COMPONENT_TEMPLATE" => "catalog_horizontal",
+					"IS_HIDDEN_MENU" => $IS_HIDDEN_MENU,
                 ),
                     false
                 );?>

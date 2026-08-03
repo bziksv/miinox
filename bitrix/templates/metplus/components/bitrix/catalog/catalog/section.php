@@ -75,7 +75,8 @@ if($arCurSection['IBLOCK_SECTION_ID']){
     $dbResStock = CIBlockSection::GetList(array(), ["IBLOCK_ID" => $arParams["IBLOCK_ID"], "ID" => $arCurSection['IBLOCK_SECTION_ID']], true, array(
         "ID",
         "NAME",
-        "UF_IN_STOCK"
+        "UF_IN_STOCK",
+        "UF_PRELOADER",
     ));
     if ($arStockSection = $dbResStock->Fetch())
         $arCurSection['UF_IN_STOCK'] = $arStockSection['UF_IN_STOCK'];
@@ -126,7 +127,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                 <div class="catalog_right-column <?=(!$arCurSection['UF_IN_STOCK']) ? 'to-order' : null?>">
 
                         <?
-                        if(!$arCurSection['UF_IN_STOCK']){
+                        if(!$arCurSection['UF_IN_STOCK'] && empty($arCurSection['UF_PRELOADER'])){
                             $APPLICATION->IncludeFile($templateFolder . "/include/to_order.php", [
                                 "ID" => $arCurSection['ID']
                             ], Array(

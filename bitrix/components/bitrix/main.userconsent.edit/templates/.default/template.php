@@ -4,6 +4,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
+use Bitrix\Main\Web\Uri;
 
 /** @var CMain $APPLICATION */
 /** @var array $arParams */
@@ -30,7 +31,10 @@ $APPLICATION->IncludeComponent('bitrix:ui.sidepanel.wrappermenu', '', [
 	'VIEW_TARGET' => 'left-panel-consent-edit'
 ]);
 
-$formAction = CHTTP::urlAddParams($APPLICATION->getCurPageParam(), ['save' => 'y']);
+$formAction = (new Uri($APPLICATION->getCurPageParam()))
+	->addParams(['save' => 'y'])
+	->getUri()
+;
 ?>
 
 <div class="main-user-consent-errors">
@@ -122,7 +126,7 @@ $formAction = CHTTP::urlAddParams($APPLICATION->getCurPageParam(), ['save' => 'y
 		</div>
 
 		<div id="<?=$listDomIds['fieldProviderId']?>" style="<?=
-			(count($arResult['DATA_PROVIDER_LIST']) == 0 ? 'display: none;' : '')?>">
+			(empty($arResult['DATA_PROVIDER_LIST']) ? 'display: none;' : '')?>">
 			<div data-bx-data-provider="" class="main-user-consent-edit-raw" style="<?=($isCurrentSupportDataProvider ? '' : 'display: none;')?>">
 				<div class="main-user-consent-edit-title">
 					<?=Loc::getMessage('MAIN_USER_CONSENT_EDIT_TMPL_DATA_PROVIDER')?>:

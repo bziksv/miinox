@@ -1,7 +1,7 @@
-<?
-use Bitrix\Main,
-	Bitrix\Main\Loader,
-	Bitrix\Iblock;
+<?php
+use Bitrix\Main;
+use Bitrix\Main\Loader;
+use Bitrix\Iblock;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -542,7 +542,7 @@ function _ShowUserPropertyField($name, $property_fields, $values, $bInitDef = fa
 		|| ($bVarsFromForm && !$bMultiple && count($values) == 0) //Was not displayed
 	)
 	{
-		$bDefaultValue = is_array($property_fields["DEFAULT_VALUE"]) || mb_strlen($property_fields["DEFAULT_VALUE"]);
+		$bDefaultValue = is_array($property_fields["DEFAULT_VALUE"]) || (string)$property_fields["DEFAULT_VALUE"] !== '';
 
 		if($property_fields["MULTIPLE"]=="Y")
 		{
@@ -813,13 +813,14 @@ function IBlockShowRights($entity_type, $iblock_id, $id, $section_title, $variab
 
 			foreach($arActualRights as $RIGHT_ID => $arRightSet)
 			{
-				if($bForceInherited || $arRightSet["IS_INHERITED"] == "Y")
+				if($bForceInherited || $arRightSet["IS_INHERITED"] === "Y")
 				{
+					$arRightSet["IS_OVERWRITED"] ??= null;
 					?>
-					<tr class="<?echo $html_var_name?>_row_for_<?echo htmlspecialcharsbx($arRightSet["GROUP_CODE"])?><?if($arRightSet["IS_OVERWRITED"] == "Y") echo " iblock-strike-out";?>">
+					<tr class="<?echo $html_var_name?>_row_for_<?echo htmlspecialcharsbx($arRightSet["GROUP_CODE"])?><?if($arRightSet["IS_OVERWRITED"] === "Y") echo " iblock-strike-out";?>">
 						<td style="width:40%!important; text-align:right"><?echo htmlspecialcharsex($arNames[$arRightSet["GROUP_CODE"]]["provider"]." ".$arNames[$arRightSet["GROUP_CODE"]]["name"])?>:</td>
 						<td align="left">
-							<?if($arRightSet["IS_OVERWRITED"] != "Y"):?>
+							<?if($arRightSet["IS_OVERWRITED"] !== "Y"):?>
 							<input type="hidden" name="<?echo $html_var_name?>[][RIGHT_ID]" value="<?echo htmlspecialcharsbx($RIGHT_ID)?>">
 							<input type="hidden" name="<?echo $html_var_name?>[][GROUP_CODE]" value="<?echo htmlspecialcharsbx($arRightSet["GROUP_CODE"])?>">
 							<input type="hidden" name="<?echo $html_var_name?>[][TASK_ID]" value="<?echo htmlspecialcharsbx($arRightSet["TASK_ID"])?>">
@@ -970,9 +971,10 @@ function IBlockGetWatermarkPositions()
 	return $rs;
 }
 
-function IBlockInheritedPropertyInput($iblock_id, $id, $data, $type, $checkboxLabel = "")
+function IBlockInheritedPropertyInput($iblock_id, $id, $data, $type, $checkboxLabel = ""): string
 {
-	$inherited = ($data[$id]["INHERITED"] !== "N") && ($checkboxLabel !== "");
+	$inheritedValue = (string)($data[$id]["INHERITED"] ?? 'Y');
+	$inherited = ($inheritedValue !== "N") && ($checkboxLabel !== "");
 	$inputId = "IPROPERTY_TEMPLATES_".$id;
 	$inputName = "IPROPERTY_TEMPLATES[".$id."][TEMPLATE]";
 	$menuId = "mnu_IPROPERTY_TEMPLATES_".$id;
@@ -984,6 +986,7 @@ function IBlockInheritedPropertyInput($iblock_id, $id, $data, $type, $checkboxLa
 	else
 		$menuItems= CIBlockParameters::GetInheritedPropertyTemplateElementMenuItems($iblock_id, "InheritedPropertiesTemplates.insertIntoInheritedPropertiesTemplate", $menuId, $inputId);
 
+	$templateValue = (string)($data[$id]["TEMPLATE"] ?? '');
 	$u = new CAdminPopupEx($menuId, $menuItems, array("zIndex" => 2000));
 	$result = $u->Show(true)
 		.'<script>
@@ -994,9 +997,9 @@ function IBlockInheritedPropertyInput($iblock_id, $id, $data, $type, $checkboxLa
 			"TEMPLATE": ""
 			};
 		</script>'
-		.'<input type="hidden" name="'.$inputName.'" value="'.htmlspecialcharsbx($data[$id]["TEMPLATE"]).'" />'
+		.'<input type="hidden" name="'.$inputName.'" value="'.htmlspecialcharsbx($templateValue).'" />'
 		.'<textarea onclick="InheritedPropertiesTemplates.enableTextArea(\''.$inputId.'\')" name="'.$inputName.'" id="'.$inputId.'" '.($inherited? 'readonly="readonly"': '').' cols="55" rows="1" style="width:90%">'
-		.htmlspecialcharsbx($data[$id]["TEMPLATE"])
+		.htmlspecialcharsbx($templateValue)
 		.'</textarea>'
 		.'<input style="float:right" type="button" id="'.$menuId.'" '.($inherited? 'disabled="disabled"': '').' value="...">'
 		.'<br>'
@@ -1013,15 +1016,15 @@ function IBlockInheritedPropertyInput($iblock_id, $id, $data, $type, $checkboxLa
 	{
 		$result .= '<input type="hidden" name="IPROPERTY_TEMPLATES['.$id.'][LOWER]" value="N">'
 			.'<input type="checkbox" name="IPROPERTY_TEMPLATES['.$id.'][LOWER]" id="lower_'.$id.'" value="Y" '
-			.'onclick="InheritedPropertiesTemplates.enableTextArea(\''.$inputId.'\');InheritedPropertiesTemplates.updateInheritedPropertiesValues(false, true)" '.($data[$id]["LOWER"] !== "Y"? '': 'checked="checked"').'>'
+			.'onclick="InheritedPropertiesTemplates.enableTextArea(\''.$inputId.'\');InheritedPropertiesTemplates.updateInheritedPropertiesValues(false, true)" '.(($data[$id]["LOWER"] ?? 'N') !== "Y"? '': 'checked="checked"').'>'
 			.'<label for="lower_'.$id.'">'.GetMessage("IBLOCK_AT_FILE_NAME_LOWER").'</label><br>'
 		;
 		$result .= '<input type="hidden" name="IPROPERTY_TEMPLATES['.$id.'][TRANSLIT]" value="N">'
 			.'<input type="checkbox" name="IPROPERTY_TEMPLATES['.$id.'][TRANSLIT]" id="translit_'.$id.'" value="Y" '
-			.'onclick="InheritedPropertiesTemplates.enableTextArea(\''.$inputId.'\');InheritedPropertiesTemplates.updateInheritedPropertiesValues(false, true)" '.($data[$id]["TRANSLIT"] !== "Y"? '': 'checked="checked"').'>'
+			.'onclick="InheritedPropertiesTemplates.enableTextArea(\''.$inputId.'\');InheritedPropertiesTemplates.updateInheritedPropertiesValues(false, true)" '.(($data[$id]["TRANSLIT"] ?? 'N') !== "Y"? '': 'checked="checked"').'>'
 			.'<label for="translit_'.$id.'">'.GetMessage("IBLOCK_AT_FILE_NAME_TRANSLIT").'</label><br>'
 		;
-		$result .= '<input size="2" maxlength="1" type="text" name="IPROPERTY_TEMPLATES['.$id.'][SPACE]" id="space_'.$id.'" value="'.htmlspecialcharsbx($data[$id]["SPACE"]).'" '
+		$result .= '<input size="2" maxlength="1" type="text" name="IPROPERTY_TEMPLATES['.$id.'][SPACE]" id="space_'.$id.'" value="'.htmlspecialcharsbx((string)($data[$id]["SPACE"] ?? '')).'" '
 			.'onchange="InheritedPropertiesTemplates.updateInheritedPropertiesValues(false, true)">'.GetMessage("IBLOCK_AT_FILE_NAME_SPACE").'<br>'
 		;
 	}
@@ -1030,16 +1033,18 @@ function IBlockInheritedPropertyInput($iblock_id, $id, $data, $type, $checkboxLa
 	return $result;
 }
 
-function IBlockInheritedPropertyHidden($iblock_id, $id, $data, $type, $checkboxLabel = "")
+function IBlockInheritedPropertyHidden($iblock_id, $id, $data, $type, $checkboxLabel = ""): string
 {
-	$inherited = ($data[$id]["INHERITED"] !== "N") && ($checkboxLabel !== "");
+	$inheritedValue = (string)($data[$id]["INHERITED"] ?? 'Y');
+	$inherited = ($inheritedValue !== "N") && ($checkboxLabel !== "");
 	$inputId = "IPROPERTY_TEMPLATES_".$id;
 	$inputName = "IPROPERTY_TEMPLATES[".$id."][TEMPLATE]";
 	$menuId = "mnu_IPROPERTY_TEMPLATES_".$id;
 	$resultId = "result_IPROPERTY_TEMPLATES_".$id;
 	$checkboxId = "ck_IPROPERTY_TEMPLATES_".$id;
 
-	$result = '<input type="hidden" name="'.$inputName.'" value="'.htmlspecialcharsbx($data[$id]["TEMPLATE"]).'" />';
+	$templateValue = (string)($data[$id]["TEMPLATE"] ?? '');
+	$result = '<input type="hidden" name="'.$inputName.'" value="'.htmlspecialcharsbx($templateValue).'" />';
 
 	if ($checkboxLabel != "")
 	{

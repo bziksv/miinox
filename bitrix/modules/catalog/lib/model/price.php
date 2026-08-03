@@ -1,11 +1,12 @@
 <?php
 namespace Bitrix\Catalog\Model;
 
-use Bitrix\Main;
-use Bitrix\Main\ORM;
-use Bitrix\Main\Localization\Loc;
 use Bitrix\Catalog;
 use Bitrix\Currency;
+use Bitrix\Main;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM;
+use Bitrix\Iblock;
 
 Loc::loadMessages(__FILE__);
 
@@ -21,6 +22,11 @@ class Price extends Entity
 	private static $priceTypes = null;
 
 	private static $extraList = null;
+
+	private static $productList = [];
+
+	/** @var string Query for update element timestamp */
+	private static $queryElementDate;
 
 	/**
 	 * Returns price tablet name.
@@ -489,6 +495,13 @@ class Price extends Entity
 	 */
 	protected static function runAddExternalActions($id, array $data): void
 	{
+		if ((int)$data['fields']['CATALOG_GROUP_ID'] === self::$basePriceType)
+		{
+			if (isset(self::$productPrices[$data['fields']['PRODUCT_ID']]))
+			{
+				unset(self::$productPrices[$data['fields']['PRODUCT_ID']]);
+			}
+		}
 		if (isset($data['actions']['RECOUNT_PRICES']))
 		{
 			self::recountPricesFromBase($id);
@@ -502,6 +515,7 @@ class Price extends Entity
 				[0 => $data['fields']['CATALOG_GROUP_ID']]
 			);
 		}
+		self::updateProductModificationTime($data['fields']['PRODUCT_ID']);
 	}
 
 	/**
@@ -514,6 +528,13 @@ class Price extends Entity
 	protected static function runUpdateExternalActions($id, array $data): void
 	{
 		$price = self::getCacheItem($id);
+		if ((int)$price['CATALOG_GROUP_ID'] === self::$basePriceType)
+		{
+			if (isset(self::$productPrices[$price['PRODUCT_ID']]))
+			{
+				unset(self::$productPrices[$price['PRODUCT_ID']]);
+			}
+		}
 		if (isset($data['actions']['RECOUNT_PRICES']))
 		{
 			self::recountPricesFromBase($id);
@@ -534,6 +555,14 @@ class Price extends Entity
 			)
 				Catalog\Product\Sku::calculatePrice($price[self::PREFIX_OLD.'PRODUCT_ID'], null, null, $priceTypes);
 			unset($priceTypes);
+		}
+		self::updateProductModificationTime($price['PRODUCT_ID']);
+		if (
+			isset($price[self::PREFIX_OLD.'PRODUCT_ID'])
+			&& $price[self::PREFIX_OLD.'PRODUCT_ID'] != $price['PRODUCT_ID']
+		)
+		{
+			self::updateProductModificationTime($price[self::PREFIX_OLD.'PRODUCT_ID']);
 		}
 		unset($price);
 	}
@@ -556,6 +585,10 @@ class Price extends Entity
 				Catalog\ProductTable::TYPE_OFFER,
 				[0 => $price[self::PREFIX_OLD.'CATALOG_GROUP_ID']]
 			);
+		}
+		if (!empty($product))
+		{
+			self::updateProductModificationTime($price[self::PREFIX_OLD.'PRODUCT_ID']);
 		}
 		unset($product, $price);
 	}
@@ -732,5 +765,22 @@ class Price extends Entity
 		self::$basePriceType = null;
 		self::$priceTypes = null;
 		self::$extraList = null;
+	}
+
+	private static function updateProductModificationTime(int $productId): void
+	{
+		if (!isset(self::$productList[$productId]))
+		{
+			self::$productList[$productId] = true;
+			$conn = Main\Application::getConnection();
+			if (self::$queryElementDate === null)
+			{
+				$helper = $conn->getSqlHelper();
+				self::$queryElementDate = 'update ' . $helper->quote(Iblock\ElementTable::getTableName())
+					. ' set '.$helper->quote('TIMESTAMP_X') . ' = '.$helper->getCurrentDateTimeFunction()
+					. ' where '.$helper->quote('ID') . '=';
+			}
+			$conn->queryExecute(self::$queryElementDate . $productId);
+		}
 	}
 }

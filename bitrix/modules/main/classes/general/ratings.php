@@ -386,7 +386,7 @@ class CAllRatings
 				if ($sRatingWeightType === 'auto')
 				{
 					$voteWeight = COption::GetOptionString("main", "rating_vote_weight", 1);
-					$arRes['CONFIG']['COEFFICIENT'] = $arRes['CONFIG']['COEFFICIENT']*$voteWeight;
+					$arRes['CONFIG']['COEFFICIENT'] = ($arRes['CONFIG']['COEFFICIENT'] ?? 1) * $voteWeight;
 				}
 				if ($arRes['EXCEPTION_METHOD'] <> '')
 				{
@@ -671,7 +671,7 @@ class CAllRatings
 			$arResult[$entityId]['USER_HAS_VOTED'] = 'Y';
 		}
 
-		return isset($arResult[$entityId])? $arResult[$entityId]: Array();
+		return $arResult[$entityId] ?? array();
 	}
 
 	public static function GetRatingResult($ID, $entityId)
@@ -1329,7 +1329,7 @@ class CAllRatings
 			$CACHE_MANAGER->Set($cache_id, $arResult);
 		}
 
-		return isset($arResult[$entityId])? $arResult[$entityId]: $arDefaultResult;
+		return $arResult[$entityId] ?? $arDefaultResult;
 	}
 
 	public static function GetAuthorityRating()
@@ -1578,7 +1578,7 @@ class CAllRatings
 		global $DB;
 		$err_mess = (CRatings::err_mess())."<br>Function: OnAfterUserRegister<br>Line: ";
 
-		if (in_array($arFields['EXTERNAL_AUTH_ID'], \Bitrix\Main\UserTable::getExternalUserTypes(), true))
+		if (isset($arFields['EXTERNAL_AUTH_ID']) && in_array($arFields['EXTERNAL_AUTH_ID'], \Bitrix\Main\UserTable::getExternalUserTypes(), true))
 		{
 			return false;
 		}
@@ -1871,7 +1871,7 @@ class CAllRatings
 
 			if (
 				$bExtended
-				&& count($arUserID) > 0
+				&& !empty($arUserID)
 			)
 			{
 				$arUserListParams = array();
@@ -1936,7 +1936,8 @@ class CAllRatings
 			'items_all' => $cnt,
 			'items_page' => count($arVoteList),
 			'items' => $arVoteList,
-			'reactions' => $cntReactions
+			'reactions' => $cntReactions,
+			'list_page' => isset($arParam['LIST_PAGE']) ? (int)$arParam['LIST_PAGE'] : 0,
 		);
 	}
 

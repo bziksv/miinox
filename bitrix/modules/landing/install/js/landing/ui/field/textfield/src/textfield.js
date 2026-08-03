@@ -93,6 +93,11 @@ export class TextField extends BaseField
 		return this.textOnly;
 	}
 
+	isContentEditable()
+	{
+		return this.contentEditable !== false;
+	}
+
 	onDocumentClick()
 	{
 		if (this.isEditable() && !this.fromInput)
@@ -127,7 +132,6 @@ export class TextField extends BaseField
 		this.enableEdit();
 
 		BX.Landing.UI.Tool.ColorPicker.hideAll();
-		BX.Landing.UI.Button.FontAction.hideAll();
 
 		requestAnimationFrame(() => {
 			if (event.target.nodeName === 'A')
@@ -169,6 +173,11 @@ export class TextField extends BaseField
 			{
 				BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
 				this.input.contentEditable = true;
+			}
+
+			if (!this.isContentEditable())
+			{
+				this.input.contentEditable = false;
 			}
 		}
 	}

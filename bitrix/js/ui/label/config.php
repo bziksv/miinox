@@ -9,6 +9,8 @@ return [
 	'js' => 'dist/label.bundle.js',
 	'rel' => [
 		'main.core',
+		'ui.fonts.opensans',
+		'ui.design-tokens',
 	],
 	'skip_core' => false,
 ];

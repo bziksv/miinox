@@ -17,7 +17,7 @@ use Bitrix\UI\Toolbar\Facade\Toolbar;
 
 $this->setFrameMode(true);
 
-\Bitrix\Main\UI\Extension::load('ui.design-tokens');
+\Bitrix\Main\UI\Extension::load(['ui.design-tokens', 'ui.fonts.opensans']);
 
 $filter = Toolbar::getFilter();
 $afterTitleButtons = Toolbar::renderAfterTitleButtons();
@@ -26,6 +26,7 @@ $filterButtons = Toolbar::renderAfterFilterButtons();
 $beforeTitleHtml = Toolbar::getBeforeTitleHtml();
 $afterTitleHtml = Toolbar::getAfterTitleHtml();
 $rightCustomHtml = Toolbar::getRightCustomHtml();
+$underTitleHtml = Toolbar::getUnderTitleHtml();
 
 $favoriteTitleTemplate = (!empty($arParams['~FAVORITES_TITLE_TEMPLATE']) ? $arParams['~FAVORITES_TITLE_TEMPLATE'] : '');
 if (mb_strlen($favoriteTitleTemplate) <= 0)
@@ -71,10 +72,11 @@ $titleStyles = !empty($titleProps) ? ' style="'.$titleProps.'"' : "";
 				<?= $favoriteStar ?>
 			</div><?php
 			?>
-			<div style="display: none" class="ui-toolbar-subtitle">
-				<span class="ui-toolbar-subtitle-item"></span>
-				<span class="ui-toolbar-subtitle-control"></span>
-			</div>
+			<?php
+			if (!empty($underTitleHtml)):
+				?><div class="ui-toolbar-subtitle"><?=$underTitleHtml?></div><?
+			endif;
+			?>
 		</div>
 		<?php
 	?></div>

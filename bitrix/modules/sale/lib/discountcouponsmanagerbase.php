@@ -1,63 +1,62 @@
 <?php
 namespace Bitrix\Sale;
 
-use Bitrix\Main,
-	Bitrix\Main\Config\Option,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Main\Application,
-	Bitrix\Sale,
-	Bitrix\Sale\Internals;
-
-Loc::loadMessages(__FILE__);
+use Bitrix\Main;
+use Bitrix\Main\Application;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Session\Session;
+use Bitrix\Sale;
+use Bitrix\Sale\Internals;
 
 class DiscountCouponsManagerBase
 {
-	const MODE_CLIENT = 0x0001;
-	const MODE_MANAGER = 0x0002;
-	const MODE_ORDER = 0x0004;
-	const MODE_SYSTEM = 0x0008;
-	const MODE_EXTERNAL = 0x0010;
+	public const MODE_CLIENT = 0x0001;
+	public const MODE_MANAGER = 0x0002;
+	public const MODE_ORDER = 0x0004;
+	public const MODE_SYSTEM = 0x0008;
+	public const MODE_EXTERNAL = 0x0010;
 
-	const STATUS_NOT_FOUND = 0x0001;
-	const STATUS_ENTERED = 0x0002;
-	const STATUS_APPLYED = 0x0004;
-	const STATUS_NOT_APPLYED = 0x0008;
-	const STATUS_FREEZE = 0x0010;
+	public const STATUS_NOT_FOUND = 0x0001;
+	public const STATUS_ENTERED = 0x0002;
+	public const STATUS_APPLYED = 0x0004;
+	public const STATUS_NOT_APPLYED = 0x0008;
+	public const STATUS_FREEZE = 0x0010;
 
-	const COUPON_CHECK_OK = 0x0000;
-	const COUPON_CHECK_NOT_FOUND = 0x0001;
-	const COUPON_CHECK_NO_ACTIVE = 0x0002;
-	const COUPON_CHECK_RANGE_ACTIVE_FROM = 0x0004;
-	const COUPON_CHECK_RANGE_ACTIVE_TO = 0x0008;
-	const COUPON_CHECK_NO_ACTIVE_DISCOUNT = 0x0010;
-	const COUPON_CHECK_RANGE_ACTIVE_FROM_DISCOUNT = 0x0020;
-	const COUPON_CHECK_RANGE_ACTIVE_TO_DISCOUNT = 0x0040;
-	const COUPON_CHECK_BAD_USER_ID = 0x0080;
-	const COUPON_CHECK_ALREADY_MAX_USED = 0x0100;
-	const COUPON_CHECK_UNKNOWN_TYPE = 0x0200;
-	const COUPON_CHECK_CORRUPT_DATA = 0x0400;
-	const COUPON_CHECK_NOT_APPLIED = 0x0800;
+	public const COUPON_CHECK_OK = 0x0000;
+	public const COUPON_CHECK_NOT_FOUND = 0x0001;
+	public const COUPON_CHECK_NO_ACTIVE = 0x0002;
+	public const COUPON_CHECK_RANGE_ACTIVE_FROM = 0x0004;
+	public const COUPON_CHECK_RANGE_ACTIVE_TO = 0x0008;
+	public const COUPON_CHECK_NO_ACTIVE_DISCOUNT = 0x0010;
+	public const COUPON_CHECK_RANGE_ACTIVE_FROM_DISCOUNT = 0x0020;
+	public const COUPON_CHECK_RANGE_ACTIVE_TO_DISCOUNT = 0x0040;
+	public const COUPON_CHECK_BAD_USER_ID = 0x0080;
+	public const COUPON_CHECK_ALREADY_MAX_USED = 0x0100;
+	public const COUPON_CHECK_UNKNOWN_TYPE = 0x0200;
+	public const COUPON_CHECK_CORRUPT_DATA = 0x0400;
+	public const COUPON_CHECK_NOT_APPLIED = 0x0800;
 
-	const COUPON_MODE_SIMPLE = 0x0001;
-	const COUPON_MODE_FULL = 0x0002;
+	public const COUPON_MODE_SIMPLE = 0x0001;
+	public const COUPON_MODE_FULL = 0x0002;
 
-	const EVENT_ON_BUILD_COUPON_PROVIDES = 'onBuildCouponProviders';
-	const EVENT_ON_SAVE_APPLIED_COUPONS = 'onManagerSaveApplied';
-	const EVENT_ON_COUPON_ADD = 'onManagerCouponAdd';
-	const EVENT_ON_COUPON_DELETE = 'onManagerCouponDelete';
-	const EVENT_ON_COUPON_APPLY_PRODUCT = 'onManagerCouponApplyByProduct';
-	const EVENT_ON_COUPON_APPLY = 'onManagerCouponApply';
+	public const EVENT_ON_BUILD_COUPON_PROVIDES = 'onBuildCouponProviders';
+	public const EVENT_ON_SAVE_APPLIED_COUPONS = 'onManagerSaveApplied';
+	public const EVENT_ON_COUPON_ADD = 'onManagerCouponAdd';
+	public const EVENT_ON_COUPON_DELETE = 'onManagerCouponDelete';
+	public const EVENT_ON_COUPON_APPLY_PRODUCT = 'onManagerCouponApplyByProduct';
+	public const EVENT_ON_COUPON_APPLY = 'onManagerCouponApply';
 
-	const STORAGE_MANAGER_COUPONS = 'CATALOG_MANAGE_COUPONS';
-	const STORAGE_CLIENT_COUPONS = 'CATALOG_USER_COUPONS';
+	public const STORAGE_MANAGER_COUPONS = 'CATALOG_MANAGE_COUPONS';
+	public const STORAGE_CLIENT_COUPONS = 'CATALOG_USER_COUPONS';
 
-	protected static $coupons = array();
+	protected static array $coupons = [];
 	protected static $init = false;
 	protected static $useMode = self::MODE_CLIENT;
-	protected static $errors = array();
+	protected static array $errors = [];
 	protected static $onlySaleDiscount = null;
 	protected static $userId = null;
-	protected static $couponProviders = array();
+	protected static array $couponProviders = array();
 	protected static $couponTypes = array();
 	protected static $couponIndex = 0;
 	protected static $orderId = null;
@@ -65,15 +64,21 @@ class DiscountCouponsManagerBase
 	protected static $checkActivity = true;
 	protected static $useOrderCoupons = true;
 
-	protected static $clearFields = array(
-		'STATUS', 'CHECK_CODE',
-		'DISCOUNT_NAME', 'DISCOUNT_ACTIVE',
+	protected static array $clearFields = [
+		'STATUS',
+		'CHECK_CODE',
+		'DISCOUNT_NAME',
+		'DISCOUNT_ACTIVE',
 		'SAVED',
-		'BASKET', 'DELIVERY'
-	);
-	protected static $timeFields = array(
-		'DISCOUNT_ACTIVE_FROM', 'DISCOUNT_ACTIVE_TO', 'ACTIVE_FROM', 'ACTIVE_TO'
-	);
+		'BASKET',
+		'DELIVERY',
+	];
+	protected static array $timeFields = [
+		'DISCOUNT_ACTIVE_FROM',
+		'DISCOUNT_ACTIVE_TO',
+		'ACTIVE_FROM',
+		'ACTIVE_TO',
+	];
 
 	protected static $allowCouponStorage = 0;
 
@@ -232,6 +237,27 @@ class DiscountCouponsManagerBase
 	public static function getOrderId()
 	{
 		return self::$orderId;
+	}
+
+	/**
+	 * Session object.
+	 *
+	 * If session is not accessible, returns null and add error.
+	 *
+	 * @return Session|null
+	 */
+	protected static function getSession(): ?Session
+	{
+		/** @var Session $session */
+		$session = Application::getInstance()->getSession();
+		if (!$session->isAccessible())
+		{
+			self::$errors[] = Loc::getMessage('BX_SALE_DCM_ERR_SESSION_NOT_ACCESSIBLE');
+
+			return null;
+		}
+
+		return $session;
 	}
 
 	/**
@@ -434,23 +460,29 @@ class DiscountCouponsManagerBase
 			return;
 		if (self::$useMode != self::MODE_SYSTEM)
 		{
+			$session = self::getSession();
+			if (!$session)
+			{
+				return;
+			}
+
 			self::clear($clearStorage);
 			$couponsList = array();
 			switch (self::$useMode)
 			{
 				case self::MODE_CLIENT:
 				case self::MODE_EXTERNAL:
-					if (!empty($_SESSION[self::STORAGE_CLIENT_COUPONS]) && is_array($_SESSION[self::STORAGE_CLIENT_COUPONS]))
-						$couponsList = $_SESSION[self::STORAGE_CLIENT_COUPONS];
+					if (!empty($session[self::STORAGE_CLIENT_COUPONS]) && is_array($session[self::STORAGE_CLIENT_COUPONS]))
+						$couponsList = $session[self::STORAGE_CLIENT_COUPONS];
 					break;
 				case self::MODE_MANAGER:
-					if (!empty($_SESSION[self::STORAGE_MANAGER_COUPONS]) && !empty($_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId]) && is_array($_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId]))
-						$couponsList = $_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId];
+					if (!empty($session[self::STORAGE_MANAGER_COUPONS]) && !empty($session[self::STORAGE_MANAGER_COUPONS][self::$userId]) && is_array($session[self::STORAGE_MANAGER_COUPONS][self::$userId]))
+						$couponsList = $session[self::STORAGE_MANAGER_COUPONS][self::$userId];
 					break;
 				case self::MODE_ORDER:
 					self::load();
-					if (!empty($_SESSION[self::STORAGE_MANAGER_COUPONS]) && !empty($_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId]) && is_array($_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId]))
-						$couponsList = $_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId];
+					if (!empty($session[self::STORAGE_MANAGER_COUPONS]) && !empty($session[self::STORAGE_MANAGER_COUPONS][self::$userId]) && is_array($session[self::STORAGE_MANAGER_COUPONS][self::$userId]))
+						$couponsList = $session[self::STORAGE_MANAGER_COUPONS][self::$userId];
 					break;
 			}
 			if (!empty($couponsList))
@@ -650,19 +682,39 @@ class DiscountCouponsManagerBase
 	public static function migrateStorage($oldUser)
 	{
 		if (self::$useMode != self::MODE_MANAGER && self::$useMode != self::MODE_ORDER || self::$userId === null)
+		{
 			return;
+		}
+
 		$oldUser = (int)$oldUser;
 		if ($oldUser < 0)
-			return;
-		if (empty($_SESSION[self::STORAGE_MANAGER_COUPONS]))
-			$_SESSION[self::STORAGE_MANAGER_COUPONS] = array();
-		if (empty($_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId]) || !is_array($_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId]))
-			$_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId] = array();
-		if (!empty($_SESSION[self::STORAGE_MANAGER_COUPONS][$oldUser]))
 		{
-			if (is_array($_SESSION[self::STORAGE_MANAGER_COUPONS][$oldUser]))
-				$_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId] = $_SESSION[self::STORAGE_MANAGER_COUPONS][$oldUser];
-			unset($_SESSION[self::STORAGE_MANAGER_COUPONS][$oldUser]);
+			return;
+		}
+
+		$session = self::getSession();
+		if (!$session)
+		{
+			return;
+		}
+
+		if (empty($session[self::STORAGE_MANAGER_COUPONS]))
+		{
+			$session[self::STORAGE_MANAGER_COUPONS] = [];
+		}
+
+		if (empty($session[self::STORAGE_MANAGER_COUPONS][self::$userId]) || !is_array($session[self::STORAGE_MANAGER_COUPONS][self::$userId]))
+		{
+			$session[self::STORAGE_MANAGER_COUPONS][self::$userId] = [];
+		}
+
+		if (!empty($session[self::STORAGE_MANAGER_COUPONS][$oldUser]))
+		{
+			if (is_array($session[self::STORAGE_MANAGER_COUPONS][$oldUser]))
+			{
+				$session[self::STORAGE_MANAGER_COUPONS][self::$userId] = $session[self::STORAGE_MANAGER_COUPONS][$oldUser];
+			}
+			unset($session[self::STORAGE_MANAGER_COUPONS][$oldUser]);
 		}
 	}
 
@@ -1500,7 +1552,7 @@ class DiscountCouponsManagerBase
 	 * Reload discount coupons providers.
 	 * @internal
 	 *
-	 * @param bool $mode		true, if use only sale discounts.
+	 * @param bool $mode true, if need use only sale discounts.
 	 * @return void
 	 */
 	public static function setUseOnlySaleDiscounts($mode)
@@ -1616,7 +1668,7 @@ class DiscountCouponsManagerBase
 	 * @param int $currentTimestamp		Current time.
 	 * @return int
 	 */
-	protected static function checkFullData(&$data, $mode = self::COUPON_MODE_FULL, $checkCode = self::COUPON_CHECK_OK, $currentTimestamp)
+	protected static function checkFullData(&$data, $mode, $checkCode, $currentTimestamp)
 	{
 		$mode = ((int)$mode != self::COUPON_MODE_SIMPLE ? self::COUPON_MODE_FULL : self::COUPON_MODE_SIMPLE);
 
@@ -1749,22 +1801,33 @@ class DiscountCouponsManagerBase
 	{
 		if (self::isSuccess())
 		{
+			$session = self::getSession();
+			if (!$session)
+			{
+				return;
+			}
+
 			$couponsList = array();
 			if (!empty(self::$coupons))
 			{
 				$couponsList = array_filter(self::$coupons, '\Bitrix\Sale\DiscountCouponsManager::clearSavedCoupons');
 				if (!empty($couponsList))
+				{
 					$couponsList = array_keys($couponsList);
+				}
 			}
+
 			if (self::usedByManager())
 			{
-				if (!isset($_SESSION[self::STORAGE_MANAGER_COUPONS]) || !is_array($_SESSION[self::STORAGE_MANAGER_COUPONS]))
-					$_SESSION[self::STORAGE_MANAGER_COUPONS] = array();
-				$_SESSION[self::STORAGE_MANAGER_COUPONS][self::$userId] = $couponsList;
+				if (!isset($session[self::STORAGE_MANAGER_COUPONS]) || !is_array($session[self::STORAGE_MANAGER_COUPONS]))
+				{
+					$session[self::STORAGE_MANAGER_COUPONS] = array();
+				}
+				$session[self::STORAGE_MANAGER_COUPONS][self::$userId] = $couponsList;
 			}
 			else
 			{
-				$_SESSION[self::STORAGE_CLIENT_COUPONS] = $couponsList;
+				$session[self::STORAGE_CLIENT_COUPONS] = $couponsList;
 			}
 			unset($couponsList);
 		}

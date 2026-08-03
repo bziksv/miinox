@@ -1,4 +1,4 @@
-<?
+<?php
 class CSaleProxyAdminResult extends CAdminResult
 {
 	private $parameters = array();
@@ -19,8 +19,10 @@ class CSaleProxyAdminResult extends CAdminResult
 			$nPageSize = array();
 
 		$nPageSize["nPageSize"] = $nSize;
-		if($_REQUEST["mode"] == "excel")
+		if (isset($_REQUEST["mode"]) && $_REQUEST["mode"] === "excel")
+		{
 			$nPageSize["NavShowAll"] = true;
+		}
 
 		$this->nInitialSize = $nPageSize["nPageSize"];
 
@@ -32,11 +34,19 @@ class CSaleProxyAdminResult extends CAdminResult
 		// force to db resource type, although we got empty array on input
 		$en = $this->entityName;
 
-		$runtime = is_array($this->parameters['runtime']) ? $this->parameters['runtime'] : array();
-		$filter = is_array($this->parameters['filter']) ? $this->parameters['filter'] : array();
+		$runtime = $this->parameters['runtime'] ?? [];
+		if (!is_array($runtime))
+		{
+			$runtime = [];
+		}
+		$filter = $this->parameters['filter'] ?? [];
+		if (!is_array($filter))
+		{
+			$filter = [];
+		}
 
 		// to increase perfomance, have to throw away unused (in filter) runtimes
-		foreach($runtime as $fld => $desc)
+		foreach ($runtime as $fld => $desc)
 		{
 			$found = false;
 			foreach($filter as $condition => $value)
@@ -48,8 +58,10 @@ class CSaleProxyAdminResult extends CAdminResult
 				}
 			}
 
-			if(!$found)
+			if (!$found)
+			{
 				unset($runtime[$fld]);
+			}
 		}
 
 		$count = $en::getList(array(
@@ -76,7 +88,7 @@ class CSaleProxyAdminResult extends CAdminResult
 			$this->NavPageCount++;
 
 		//page number to display. start with 1
-		$this->NavPageNomer = ($this->PAGEN < 1 || $this->PAGEN > $this->NavPageCount? ($_SESSION[$this->SESS_PAGEN] < 1 || $_SESSION[$this->SESS_PAGEN] > $this->NavPageCount? 1:$_SESSION[$this->SESS_PAGEN]):$this->PAGEN);
+		$this->calculatePageNumber();
 
 		$parameters = $this->parameters;
 		$parameters['limit'] = $this->NavPageSize;
@@ -108,8 +120,10 @@ class CSaleProxyAdminUiResult extends CAdminUiResult
 			$nPageSize = array();
 
 		$nPageSize["nPageSize"] = $nSize;
-		if($_REQUEST["mode"] == "excel")
+		if (isset($_REQUEST["mode"]) && $_REQUEST["mode"] === "excel")
+		{
 			$nPageSize["NavShowAll"] = true;
+		}
 
 		$this->nInitialSize = $nPageSize["nPageSize"];
 
@@ -121,8 +135,16 @@ class CSaleProxyAdminUiResult extends CAdminUiResult
 		// force to db resource type, although we got empty array on input
 		$en = $this->entityName;
 
-		$runtime = is_array($this->parameters['runtime']) ? $this->parameters['runtime'] : array();
-		$filter = is_array($this->parameters['filter']) ? $this->parameters['filter'] : array();
+		$runtime = $this->parameters['runtime'] ?? [];
+		if (!is_array($runtime))
+		{
+			$runtime = [];
+		}
+		$filter = $this->parameters['filter'] ?? [];
+		if (!is_array($filter))
+		{
+			$filter = [];
+		}
 
 		// to increase perfomance, have to throw away unused (in filter) runtimes
 		foreach($runtime as $fld => $desc)
@@ -165,7 +187,7 @@ class CSaleProxyAdminUiResult extends CAdminUiResult
 			$this->NavPageCount++;
 
 		//page number to display. start with 1
-		$this->NavPageNomer = ($this->PAGEN < 1 || $this->PAGEN > $this->NavPageCount? ($_SESSION[$this->SESS_PAGEN] < 1 || $_SESSION[$this->SESS_PAGEN] > $this->NavPageCount? 1:$_SESSION[$this->SESS_PAGEN]):$this->PAGEN);
+		$this->calculatePageNumber();
 
 		$parameters = $this->parameters;
 		$parameters['limit'] = $this->NavPageSize;

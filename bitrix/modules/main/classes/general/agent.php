@@ -11,6 +11,8 @@ Loc::loadMessages(__FILE__);
 
 class CAllAgent
 {
+	protected const LOCK_TIME = 600;
+
 	public static function AddAgent(
 		$name, // PHP function name
 		$module = "", // module
@@ -55,16 +57,19 @@ class CAllAgent
 			if (!$existError)
 				return $agent['ID'];
 
-			$e = new CAdminException(array(
-				array(
-					"id" => "agent_exist",
-					"text" => ($user_id
-						? Loc::getMessage("MAIN_AGENT_ERROR_EXIST_FOR_USER", array('#AGENT#' => $name, '#USER_ID#' => $user_id))
-						: Loc::getMessage("MAIN_AGENT_ERROR_EXIST_EXT", array('#AGENT#' => $name))
+			if ($APPLICATION instanceof CMain)
+			{
+				$e = new CAdminException(array(
+					array(
+						"id" => "agent_exist",
+						"text" => ($user_id
+							? Loc::getMessage("MAIN_AGENT_ERROR_EXIST_FOR_USER", array('#AGENT#' => $name, '#USER_ID#' => $user_id))
+							: Loc::getMessage("MAIN_AGENT_ERROR_EXIST_EXT", array('#AGENT#' => $name))
+						)
 					)
-				)
-			));
-			$APPLICATION->throwException($e);
+				));
+				$APPLICATION->throwException($e);
+			}
 			return false;
 		}
 	}
@@ -254,9 +259,9 @@ class CAllAgent
 			if (isset($arOFields[$by]))
 			{
 				if ($order != "ASC")
+				{
 					$order = "DESC";
-				else
-					$order = "ASC";
+				}
 				$arSqlOrder[] = $arOFields[$by]." ".$order;
 			}
 		}
@@ -268,8 +273,8 @@ class CAllAgent
 			$DB->DateToCharFunction("A.DATE_CHECK")." as DATE_CHECK, ".
 			"A.AGENT_INTERVAL, A.IS_PERIOD, A.RETRY_COUNT ".
 			"FROM b_agent A LEFT JOIN b_user B ON(A.USER_ID = B.ID)";
-		$strSql .= (count($arSqlSearch)>0) ? " WHERE ".implode(" AND ", $arSqlSearch) : "";
-		$strSql .= (count($arSqlOrder)>0) ? " ORDER BY ".implode(", ", $arSqlOrder) : "";
+		$strSql .= !empty($arSqlSearch) ? " WHERE ".implode(" AND ", $arSqlSearch) : "";
+		$strSql .= !empty($arSqlOrder) ? " ORDER BY ".implode(", ", $arSqlOrder) : "";
 
 		$res = $DB->Query($strSql, false, $err_mess.__LINE__);
 
@@ -316,8 +321,11 @@ class CAllAgent
 
 		if(!empty($errMsg))
 		{
-			$e = new CAdminException($errMsg);
-			$APPLICATION->ThrowException($e);
+			if ($APPLICATION instanceof CMain)
+			{
+				$e = new CAdminException($errMsg);
+				$APPLICATION->ThrowException($e);
+			}
 			return false;
 		}
 		return true;

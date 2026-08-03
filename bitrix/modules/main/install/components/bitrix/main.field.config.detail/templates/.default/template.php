@@ -7,6 +7,8 @@ if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use Bitrix\Main\Localization\Loc;
 
 \Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
 	'ui.forms',
 	'ui.dialogs.messagebox',
 	'main.loader',
@@ -14,7 +16,6 @@ use Bitrix\Main\Localization\Loc;
 	'ui.buttons',
 	'ui.alerts',
 	'date',
-	'ui.design-tokens',
 ]);
 
 \Bitrix\Main\Page\Asset::getInstance()->addJs('/bitrix/js/main/dd.js');
@@ -142,7 +143,7 @@ if(!$hasErrors) {
 			<?php endif; ?>
 		</div>
 		<?php foreach($arResult['form']['editFormLabel'] as $label):
-			if(!$label['language']['isCurrent'])
+			if(empty($label['language']['isCurrent']))
 			{
 				continue;
 			}
@@ -238,7 +239,7 @@ if(!$hasErrors) {
 							type="text"
 							class="ui-ctl-element"
 							name="EDIT_FORM_LABEL[<?= htmlspecialcharsbx($label['language']['id']); ?>]"
-							value="<?= htmlspecialcharsbx($arResult['field']['EDIT_FORM_LABEL'][$label['language']['id']]); ?>"
+							value="<?= htmlspecialcharsbx($arResult['field']['EDIT_FORM_LABEL'][$label['language']['id']] ?? ''); ?>"
 							data-role="main-user-field-editFormLabel-<?= htmlspecialcharsbx($label['language']['id']); ?>"
 					>
 				</div>

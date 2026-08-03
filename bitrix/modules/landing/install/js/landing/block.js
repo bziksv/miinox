@@ -111,31 +111,98 @@
 
 	function getTypeSettings(prop)
 	{
-		var lp = BX.Landing.Main.getInstance();
-		var type = lp.options.style["bitrix"]["style"][prop];
-		if (prop === 'background')
+		let lp = BX.Landing.Main.getInstance();
+		let namespaces = Object.keys(lp.options.style);
+
+		for (let i = 0; i < namespaces.length; i++)
 		{
-			type.items = type.items.concat(lp.options.style["bitrix"]["style"]['background-overlay'].items);
+			let namespace = namespaces[i];
+			let type = lp.options.style[namespace]["style"][prop];
+
+			if (!type)
+			{
+				continue;
+			}
+
+			type.attrKey = prop;
+
+			if (prop === "background")
+			{
+				type.items = type.items.concat(lp.options.style[namespace]["style"]["background-overlay"].items);
+			}
+
+			return type;
 		}
-		return type;
+
+		return null;
 	}
 
 	function getAttrsTypeSettings(prop)
 	{
-		var lp = BX.Landing.Main.getInstance();
-		return lp.options.attrs["bitrix"]["attrs"][prop];
+		let lp = BX.Landing.Main.getInstance();
+		let namespaces = Object.keys(lp.options.attrs);
+
+		for (let i = 0; i < namespaces.length; i++)
+		{
+			let namespace = namespaces[i];
+			let attr = lp.options.attrs[namespace]["attrs"][prop];
+
+			if (!attr)
+			{
+				continue;
+			}
+
+			attr.attrKey = prop;
+			return attr;
+		}
+
+		return {};
 	}
 
 	function isGroup(prop)
 	{
-		var lp = BX.Landing.Main.getInstance();
-		return prop in lp.options.style["bitrix"]["group"];
+		let lp = BX.Landing.Main.getInstance();
+		let namespaces = Object.keys(lp.options.style);
+
+		for (let i = 0; i < namespaces.length; i++)
+		{
+			let namespace = namespaces[i];
+
+			if (!lp.options.style[namespace]["group"])
+			{
+				continue;
+			}
+
+			if (prop in lp.options.style[namespace]["group"])
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	function getGroupTypes(group)
 	{
-		var lp = BX.Landing.Main.getInstance();
-		return lp.options.style["bitrix"]["group"][group];
+		let lp = BX.Landing.Main.getInstance();
+		let namespaces = Object.keys(lp.options.style);
+
+		for (let i = 0; i < namespaces.length; i++)
+		{
+			let namespace = namespaces[i];
+
+			if (!lp.options.style[namespace]["group"])
+			{
+				continue;
+			}
+
+			if (lp.options.style[namespace]["group"][group])
+			{
+				return lp.options.style[namespace]["group"][group];
+			}
+		}
+
+		return [];
 	}
 
 
@@ -237,6 +304,7 @@
 		this.savedAnchor = options.anchor;
 		this.requiredUserActionOptions = options.requiredUserAction;
 		this.dynamicParams = options.dynamicParams || {};
+		this.sections = options.sections ? options.sections.split(',') : [];
 
 		// Make entities collections
 		this.nodes = new NodeCollection();
@@ -444,6 +512,11 @@
 					}
 
 					var columnsSettings = getTypeSettings("columns");
+
+					if (columnsSettings === null)
+					{
+						return;
+					}
 
 					needAdjust.forEach(function(selector) {
 						var styleNode = this.styles.get(selector);
@@ -757,6 +830,24 @@
 			}
 		},
 
+		showFeedbackForm: function() {
+			BX.Landing.Main.getInstance().showSliderFeedbackForm({
+				blockName: this.manifest.block.name,
+				blockCode: this.manifest.code,
+				blockSection: this.manifest.block.section,
+				landingId: BX.Landing.Main.getInstance().id,
+				target: "blockActions"
+			});
+			if (this.blockActionsMenu)
+			{
+				this.blockActionsMenu.close();
+			}
+			if (this.sidebarActionsMenu)
+			{
+				this.sidebarActionsMenu.close();
+			}
+		},
+
 		onShowSidebarActionsClick: function(event)
 		{
 			var bindElement = (
@@ -815,7 +906,7 @@
 								return new BX.Main.MenuItem({
 									id: "designblock",
 									text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
-									className: (this.access < ACCESS_W || this.php || this.isCrmFormBlock()) ? "landing-ui-disabled" : "",
+									className: !this.isDesignBlockAllowed() ? "landing-ui-disabled" : "",
 									onclick: function() {
 										this.onDesignerBlockClick();
 										this.sidebarActionsMenu.close();
@@ -918,7 +1009,7 @@
 						new BX.Main.MenuItem({
 							id: "show_hide",
 							text: BX.Landing.Loc.getMessage(this.isEnabled() ? "ACTION_BUTTON_HIDE" : "ACTION_BUTTON_SHOW"),
-							className: this.access < ACCESS_W ? "landing-ui-disabled" : "",
+							className: !this.isChangeStateBlockAllowed() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								this.onStateChange();
 								this.sidebarActionsMenu.close();
@@ -929,7 +1020,7 @@
 						}),
 						new BX.Main.MenuItem({
 							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_CUT"),
-							className: this.access < ACCESS_X ? "landing-ui-disabled" : "",
+							className: !this.isRemoveBlockAllowed() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								BX.Landing.Main.getInstance().onCutBlock.bind(BX.Landing.Main.getInstance(), this)();
 								this.sidebarActionsMenu.close();
@@ -946,7 +1037,7 @@
 							id: "block_paste",
 							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_PASTE"),
 							title: window.localStorage.landingBlockName,
-							className: window.localStorage.landingBlockId ? "": "landing-ui-disabled",
+							className: this.isPasteBlockAllowed() ? "": "landing-ui-disabled",
 							onclick: function() {
 								BX.Landing.Main.getInstance().onPasteBlock.bind(BX.Landing.Main.getInstance(), this)();
 								this.sidebarActionsMenu.close();
@@ -957,19 +1048,11 @@
 						}),
 						new BX.Main.MenuItem({
 							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
-							onclick: function() {
-								BX.Landing.Main.getInstance().showSliderFeedbackForm({
-									blockName: this.manifest.block.name,
-									blockCode: this.manifest.code,
-									blockSection: this.manifest.block.section,
-									landingId: BX.Landing.Main.getInstance().id,
-									target: "blockActions"
-								});
-								this.sidebarActionsMenu.close();
-							}.bind(this)
+							onclick: this.showFeedbackForm.bind(this)
 						}),
 						new BX.Main.MenuItem({
-							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON"),
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"),
+							className: !this.isSaveBlockInLibraryAllowed() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								this.saveBlock();
 								this.sidebarActionsMenu.close();
@@ -985,7 +1068,7 @@
 								this.deleteBlock();
 								this.sidebarActionsMenu.close();
 							}.bind(this),
-							className: this.access < ACCESS_X ? "landing-ui-disabled" : ""
+							className: !this.isRemoveBlockAllowed() ? "landing-ui-disabled" : ""
 						})
 					]
 				});
@@ -1041,7 +1124,7 @@
 							new ActionButton("designblock", {
 								text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
 								onClick: this.onDesignerBlockClick.bind(this),
-								disabled: this.access < ACCESS_W || this.php || (this.isCrmFormPage() && this.isCrmFormBlock()),
+								disabled: !this.isDesignBlockAllowed(),
 								attrs: { title: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK") },
 								separate: true,
 							})
@@ -1051,7 +1134,7 @@
 							new ActionButton("style", {
 								text: BX.Landing.Loc.getMessage("ACTION_BUTTON_STYLE"),
 								onClick: this.onStyleShow.bind(this),
-								disabled: this.access < ACCESS_V || isEmpty(this.manifest.style),
+								disabled: !this.isStyleModifyAllowed(),
 								attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_DESIGN")},
 								separate: true,
 							})
@@ -1140,6 +1223,7 @@
 					var blockDisplay = new ActionButton("block_display_info", {
 						html: "&nbsp;",
 						separate: true,
+						onClick: this.onStyleShow.bind(this),
 					});
 
 					bind(blockDisplay.layout, "mouseenter", this.onBlockDisplayMouseenter.bind(this));
@@ -1207,7 +1291,7 @@
 				blockPanel.addButton(
 					new ActionButton("remove", {
 						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_REMOVE"),
-						disabled: this.access < ACCESS_X || (this.isCrmFormBlock() && this.isDefaultCrmFormBlock()),
+						disabled: !this.isRemoveBlockAllowed(),
 						onClick: this.deleteBlock.bind(this),
 						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE")}
 					})
@@ -1338,7 +1422,8 @@
 				.replace("__site_show__", this.siteId)
 				.replace("__landing_edit__", this.lid)
 				+ "&code=" + this.manifest.code
-				+ "&designed=" + (this.designed ? "Y" : "N");
+				+ "&designed=" + (this.designed ? "Y" : "N")
+				+ "&deviceCode=" + BX.Landing.Main.getInstance().getDeviceCode();
 			BX.SidePanel.Instance.open(
 				sliderUrl,
 				{
@@ -1361,16 +1446,11 @@
 									var newContent = response.content;
 									if (oldContent !== newContent)
 									{
-										BX.Landing.History.getInstance().push(
-											new BX.Landing.History.Entry({
-												block: this.id,
-												selector: "#block" + this.id,
-												command: "updateContent",
-												undo: oldContent,
-												redo: newContent
-											})
-										);
-										void this.reload();
+										BX.Landing.History.getInstance().push();
+										this.reload().then(function()
+										{
+											fireCustomEvent("BX.Landing.Block:onDesignerBlockSave", [this.id]);
+										}.bind(this));
 										// analytic label on close
 										var metrika = new BX.Landing.Metrika(true);
 										metrika.sendLabel(
@@ -1391,6 +1471,41 @@
 			{
 				this.blockPlacementsActionsMenu.close();
 			}
+		},
+
+		isDesignBlockAllowed: function()
+		{
+			return !(this.access < ACCESS_W || this.php || (this.isCrmFormPage() && this.isCrmFormBlock()));
+		},
+
+		isStyleModifyAllowed:function()
+		{
+			return !(this.access < ACCESS_V || isEmpty(this.manifest.style));
+		},
+
+		isEditBlockAllowed: function()
+		{
+			return this.access >= ACCESS_W;
+		},
+
+		isRemoveBlockAllowed: function()
+		{
+			return !(this.access < ACCESS_X || (this.isCrmFormBlock() && this.isDefaultCrmFormBlock()));
+		},
+
+		isPasteBlockAllowed: function()
+		{
+			return window.localStorage.landingBlockId && !this.isDefaultCrmFormBlock();
+		},
+
+		isSaveBlockInLibraryAllowed: function()
+		{
+			return !this.isDefaultCrmFormBlock();
+		},
+
+		isChangeStateBlockAllowed: function()
+		{
+			return !((this.access < ACCESS_W) || this.isDefaultCrmFormBlock());
 		},
 
 		saveBlock: function()
@@ -1585,7 +1700,7 @@
 						new BX.Main.MenuItem({
 							id: "show_hide",
 							text: BX.Landing.Loc.getMessage(this.isEnabled() ? "ACTION_BUTTON_HIDE" : "ACTION_BUTTON_SHOW"),
-							className: (this.access < ACCESS_W) || this.isDefaultCrmFormBlock() ? "landing-ui-disabled" : "",
+							className: !this.isChangeStateBlockAllowed() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								this.onStateChange();
 								this.blockActionsMenu.close();
@@ -1593,7 +1708,7 @@
 						}),
 						new BX.Main.MenuItem({
 							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_CUT"),
-							className: (this.access < ACCESS_X) || this.isDefaultCrmFormBlock() ? "landing-ui-disabled" : "",
+							className: !this.isRemoveBlockAllowed() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								landing.onCutBlock.bind(landing, this)();
 								this.blockActionsMenu.close();
@@ -1611,7 +1726,7 @@
 							id: "block_paste",
 							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_PASTE"),
 							title: window.localStorage.landingBlockName,
-							className: window.localStorage.landingBlockId && !this.isDefaultCrmFormBlock() ? "": "landing-ui-disabled",
+							className: this.isPasteBlockAllowed() ? "": "landing-ui-disabled",
 							onclick: function() {
 								landing.onPasteBlock.bind(landing, this)();
 								this.blockActionsMenu.close();
@@ -1619,22 +1734,14 @@
 						}),
 						new BX.Main.MenuItem({
 							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
-							onclick: function() {
-								BX.Landing.Main.getInstance().showSliderFeedbackForm({
-									blockName: this.manifest.block.name,
-									blockCode: this.manifest.code,
-									blockSection: this.manifest.block.section,
-									landingId: BX.Landing.Main.getInstance().id,
-									target: "blockActions"
-								});
-								this.blockActionsMenu.close();
-							}.bind(this)
+							onclick: this.showFeedbackForm.bind(this)
 						}),
 						new BX.Main.MenuItem({
 							delimiter: true,
 						}),
 						new BX.Main.MenuItem({
-							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON"),
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"),
+							className: !this.isSaveBlockInLibraryAllowed() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								this.saveBlock();
 								this.blockActionsMenu.close();
@@ -1651,7 +1758,7 @@
 
 		/**
 		 * Moves the block up one position
-		 * @param {boolean} [preventHistory = false] - Add this action to history or not. No by default
+		 * @param {boolean} [preventHistory = false] - Add this action to history or not. By default - add
 		 */
 		moveUp: function(preventHistory)
 		{
@@ -1672,30 +1779,24 @@
 
 					if (!preventHistory || typeof preventHistory === "object")
 					{
-						BX.Landing.History.getInstance().push(
-							new BX.Landing.History.Entry({
-								block: this.id,
-								selector: "#block"+this.id,
-								command: "sortBlock",
-								undo: "moveDown",
-								redo: "moveUp"
-							})
-						);
+						BX.Landing.Backend.getInstance()
+							.action(
+								"Landing::upBlock",
+								{block: this.id, lid: this.lid, siteId: this.siteId},
+								{code: this.manifest.code}
+							)
+							.then(() => {
+								BX.Landing.History.getInstance().push();
+							});
 					}
 				}.bind(this));
-
-				BX.Landing.Backend.getInstance().action(
-					"Landing::upBlock",
-					{block: this.id, lid: this.lid, siteId: this.siteId},
-					{code: this.manifest.code}
-				);
 			}
 		},
 
 
 		/**
 		 * Moves the block down one position
-		 * @param {boolean} [preventHistory = false] - Add this action to history or not. No by default
+		 * @param {boolean} [preventHistory = false] - Add this action to history or not. By default - add
 		 */
 		moveDown: function(preventHistory)
 		{
@@ -1716,23 +1817,17 @@
 
 					if (!preventHistory || typeof preventHistory === "object")
 					{
-						BX.Landing.History.getInstance().push(
-							new BX.Landing.History.Entry({
-								block: this.id,
-								selector: "#block"+this.id,
-								command: "sortBlock",
-								undo: "moveUp",
-								redo: "moveDown"
-							})
-						);
+						BX.Landing.Backend.getInstance()
+							.action(
+								"Landing::downBlock",
+								{block: this.id, lid: this.lid, siteId: this.siteId},
+								{code: this.manifest.code}
+							)
+							.then(() => {
+								BX.Landing.History.getInstance().push();
+							});
 					}
 				}.bind(this));
-
-				BX.Landing.Backend.getInstance().action(
-					"Landing::downBlock",
-					{block: this.id, lid: this.lid, siteId: this.siteId},
-					{code: this.manifest.code}
-				);
 			}
 		},
 
@@ -1750,7 +1845,15 @@
 
 				if (!target)
 				{
-					append(panel.layout, this.node);
+					if (panel.id === 'content_edit' && window.parent)
+					{
+						let topWindow = BX.Landing.PageObject.getRootWindow();
+						append(panel.layout, topWindow.document.body);
+					}
+					else
+					{
+						append(panel.layout, this.node);
+					}
 				}
 				else
 				{
@@ -1968,8 +2071,14 @@
 			this.active = true;
 			removeClass(this.node, "landing-block-disabled");
 
-			var menu = (this.blockActionsMenu || this.sidebarActionsMenu);
-			setTextContent(menu.getMenuItem("show_hide").getLayout().text, BX.Landing.Loc.getMessage("ACTION_BUTTON_HIDE"));
+			let menu = (this.blockActionsMenu || this.sidebarActionsMenu);
+			if (menu)
+			{
+				setTextContent(menu.getMenuItem("show_hide").getLayout().text, BX.Landing.Loc.getMessage("ACTION_BUTTON_HIDE"));
+			}
+
+			fireCustomEvent("BX.Landing.Block:changeState", [this.id, true]);
+
 			BX.Landing.Backend.getInstance().action(
 				"Landing::showBlock",
 				{block: this.id, lid: this.lid, siteId: this.siteId},
@@ -1985,8 +2094,15 @@
 		{
 			this.active = false;
 			addClass(this.node, "landing-block-disabled");
-			var menu = (this.blockActionsMenu || this.sidebarActionsMenu);
-			setTextContent(menu.getMenuItem("show_hide").getLayout().text, BX.Landing.Loc.getMessage("ACTION_BUTTON_SHOW"));
+
+			let menu = (this.blockActionsMenu || this.sidebarActionsMenu);
+			if (menu)
+			{
+				setTextContent(menu.getMenuItem("show_hide").getLayout().text, BX.Landing.Loc.getMessage("ACTION_BUTTON_SHOW"));
+			}
+
+			fireCustomEvent("BX.Landing.Block:changeState", [this.id, false]);
+
 			BX.Landing.Backend.getInstance().action(
 				"Landing::hideBlock",
 				{block: this.id, lid: this.lid, siteId: this.siteId},
@@ -2203,7 +2319,7 @@
 		/**
 		 * Clones Card.
 		 * @param {string} selector - Selector of Card, which want clone.
-		 * @param {boolean} [preventHistory]
+		 * @param {?boolean} [preventHistory = false]
 		 * @return {Promise}
 		 */
 		cloneCard: function(selector, preventHistory)
@@ -2216,9 +2332,20 @@
 
 			showButtonLoader(cloneButton);
 
-			return BX.Landing.Backend.getInstance()
-				.action("Landing\\Block::cloneCard", requestData, queryParams)
-				// Before clone
+			let clonePromise = Promise.resolve();
+			if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+			{
+				requestData.preventHistory = 0;
+				clonePromise = BX.Landing.Backend.getInstance()
+					.action("Landing\\Block::cloneCard", requestData, queryParams)
+					.then(result => {
+						BX.Landing.History.getInstance().push();
+
+						return result;
+					});
+			}
+
+			return clonePromise
 				.then(function() {
 					fireCustomEvent("BX.Landing.Block:Card:beforeAdd", [
 						self.createEvent({card: card.node})
@@ -2243,29 +2370,6 @@
 
 					self.initEntities();
 					self.initStyles();
-
-					if (!preventHistory)
-					{
-						var containerSelector = getCSSSelector(clonedCard.parentNode);
-						var clonedCardEntity = self.cards.getByNode(clonedCard);
-
-						BX.Landing.History.getInstance().push(
-							new BX.Landing.History.Entry({
-								block: self.id,
-								selector: clonedCardEntity.selector,
-								command: "addCard",
-								undo: {
-									container: containerSelector,
-									selector: clonedCardEntity.selector
-								},
-								redo: {
-									container: containerSelector,
-									index: card.getIndex(),
-									html: clonedCard.outerHTML
-								}
-							})
-						);
-					}
 				})
 
 				// Handle errors
@@ -2279,7 +2383,7 @@
 		/**
 		 * Removes Card.
 		 * @param {String} selector - Selector of Card, which want remove.
-		 * @param {boolean} [preventHistory]
+		 * @param {?boolean} [preventHistory = false]
 		 * @return {Promise}
 		 */
 		removeCard: function(selector, preventHistory)
@@ -2292,37 +2396,27 @@
 
 			showButtonLoader(removeButton);
 
-			return BX.Landing.Backend.getInstance()
-				.action("Landing\\Block::removeCard", requestData, queryParams)
+			let removePromise = Promise.resolve();
+			if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+			{
+				requestData.preventHistory = 0;
+				removePromise = BX.Landing.Backend.getInstance()
+					.action("Landing\\Block::removeCard", requestData, queryParams)
+					.then(result => {
+						BX.Landing.History.getInstance().push();
+
+						return result;
+					});
+			}
+
+			return removePromise
 				// Before remove
 				.then(function() {
 					fireCustomEvent("BX.Landing.Block:Card:beforeRemove", [
 						self.createEvent({card: card.node})
 					]);
 
-					if (!preventHistory)
-					{
-						var containerSelector = getCSSSelector(card.node.parentElement);
-
-						removePanels(card.node);
-
-						BX.Landing.History.getInstance().push(
-							new BX.Landing.History.Entry({
-								block: self.id,
-								selector: card.selector,
-								command: "removeCard",
-								undo: {
-									container: containerSelector,
-									index: card.getIndex(),
-									html: card.node.outerHTML
-								},
-								redo: {
-									container: containerSelector,
-									selector: card.selector
-								}
-							})
-						);
-					}
+					removePanels(card.node);
 				})
 				// Remove
 				.then(function() {
@@ -2387,9 +2481,10 @@
 		/**
 		 * Adds card
 		 * @param {{[index]: !int, container: !HTMLElement, content: string, selector: string}} settings
+		 * @param {boolean} [preventHistory]
 		 * @return {Promise}
 		 */
-		addCard: function(settings)
+		addCard: function(settings, preventHistory)
 		{
 			var selector = settings.selector.split("@")[0] + (settings.index > 0 ? "@"+(settings.index-1) : "");
 
@@ -2398,15 +2493,27 @@
 				content: settings.content,
 				selector: selector,
 				lid: this.lid,
-				siteId: this.siteId
+				siteId: this.siteId,
 			};
 			var queryParams = {code: this.manifest.code};
 			var container = settings.container;
 			var card = create("div", {html: settings.content}).firstElementChild;
 			var self = this;
 
-			return BX.Landing.Backend.getInstance()
-				.action("Landing\\Block::addCard", requestData, queryParams)
+			let addPromise = Promise.resolve();
+			if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+			{
+				requestData.preventHistory = 0;
+				addPromise = BX.Landing.Backend.getInstance()
+					.action("Landing\\Block::addCard", requestData, queryParams)
+					.then(result => {
+						BX.Landing.History.getInstance().push();
+
+						return result;
+					});
+			}
+
+			return addPromise
 				.then(function() {
 					fireCustomEvent("BX.Landing.Block:Card:beforeAdd", [
 						self.createEvent({card: card})
@@ -2491,6 +2598,8 @@
 					var presetNode = element.closest('[data-card-preset]');
 					var manifest = clone(this.manifest.nodes[selector]);
 					var disallowField = false;
+
+					manifest.sections = this.sections;
 
 					if (presetNode)
 					{
@@ -2769,15 +2878,27 @@
 		/**
 		 * Updates block's content.
 		 * @param {string} content
+		 * @param {boolean} [preventHistory = false] - Add this action to history or not. By default - add
 		 */
-		updateContent: function(content)
+		updateContent: function(content, preventHistory)
 		{
-			var updatePromise = BX.Landing.Backend.getInstance().action(
-				"Block::updateContent",
-				{lid: this.lid, block: this.id, content: content.replaceAll(' style="', ' bxstyle="')},
-				{code: this.manifest.code}
-			);
-			var reloadPromise = this.reload();
+			let updatePromise = Promise.resolve();
+			if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+			{
+				updatePromise = BX.Landing.Backend.getInstance().action(
+					"Block::updateContent",
+					{
+						lid: this.lid,
+						block: this.id,
+						content: content.replaceAll(' style="', ' bxstyle="'),
+						preventHistory: 0,
+					},
+					{code: this.manifest.code}
+				);
+			}
+
+			const reloadPromise = this.reload();
+
 			return Promise.all([updatePromise, reloadPromise]);
 		},
 
@@ -2804,7 +2925,9 @@
 				.then(this.applyCardsChanges.bind(this))
 				.then(this.applyAttributeChanges.bind(this))
 				.then(this.applySettingsChanges.bind(this))
-				.then(this.saveChanges.bind(this))
+				.then(data => {
+					return this.saveChanges.bind(this)(data, preventHistory);
+				})
 				// Reload only blocks with component
 				.then(this.reload.bind(this))
 				.catch(console.warn);
@@ -2972,6 +3095,10 @@
 
 				type.forEach(function(type) {
 					var typeSettings = getTypeSettings(type);
+					if (typeSettings === null)
+					{
+						return;
+					}
 					var styleNode = this.styles.get(selector);
 					var field = styleFactory.createField({
 						block: this,
@@ -2982,6 +3109,7 @@
 						style: type,
 						pseudoElement: typeSettings["pseudo-element"],
 						pseudoClass: typeSettings["pseudo-class"],
+						attrKey: typeSettings.attrKey,
 						type: typeSettings.type,
 						subtype: typeSettings.subtype,
 						title: typeSettings.name,
@@ -2991,21 +3119,14 @@
 						onReset: onReset.bind(this)
 					});
 
-					function saveHistory(selector, oldValue, newValue) {
-						BX.Landing.History.getInstance().push(
-							new BX.Landing.History.Entry({
-								block: this.id,
-								command: "updateStyle",
-								selector: selector,
-								undo: oldValue,
-								redo: newValue
-							})
-						);
-					}
-					saveHistory = debounce(saveHistory, 500, this);
-
 					// when field changed
 					function onChange(value, items, postfix, affect) {
+						// false handler by some fields events
+						if (value instanceof  BX.Event.BaseEvent)
+						{
+							return;
+						}
+
 						var exclude = !!typeSettings.exclude ? getTypeSettings(typeSettings.exclude) : null;
 
 						if (exclude)
@@ -3018,10 +3139,7 @@
 							});
 						}
 
-						// todo: now use just node[0]. Need get node by "group select" and save position in history
-						var oldValue = styleNode.getValueForHistory();
-
-						var event = this.createEvent({
+						const event = this.createEvent({
 							data: {
 								selector: selector,
 								value: value,
@@ -3033,30 +3151,18 @@
 						});
 
 						fireCustomEvent(window, "BX.Landing.Block:beforeApplyStyleChanges", [event]);
-
 						styleNode.setValue(value, items, postfix, affect, exclude);
 
-						var newValue = styleNode.getValueForHistory();
-						try
-						{
-							if (JSON.stringify(oldValue) !== JSON.stringify(newValue))
-							{
-								saveHistory(selector, oldValue, newValue);
-							}
-						}
-						catch(err) {}
-
-						var data = {node: styleNode.getNode(), data: styleNode.getValue()};
+						const data = {node: styleNode.getNode(), data: styleNode.getValue()};
 						fireCustomEvent("BX.Landing.Block:updateStyleWithoutDebounce", [
 							this.createEvent(data)
 						]);
-						this.onStyleInputWithDebounce(data);
+						this.onStyleInputWithDebounce(data, false);
 					}
 
 					// when field reset
 					function onReset(items, postfix, affect) {
 						// todo: add cache for backend
-						// todo: save history?
 						BX.Landing.Backend.getInstance()
 							.action("Landing\\Block::getContentFromRepository", {
 								code: this.manifest.code
@@ -3130,13 +3236,15 @@
 						}
 						else
 						{
-							styleValue.classList.forEach(function (className) {
-								if (typeSettings.items.some(function (item) {return item.value === className;}))
+							styleValue.classList.forEach(className => {
+								if (typeSettings.items.some(item => item.value === className))
 								{
-									if (field.property !== "display")
+									// buttons group set value via onFrameLoad
+									if (!!field.buttons && field.multiple === true)
 									{
-										field.setValue(className, preventEvent);
+										return;
 									}
+									field.setValue(className, preventEvent);
 								}
 							});
 						}
@@ -3236,10 +3344,11 @@
 
 		/**
 		 * Saves block style changes
+		 * @param {boolean} [preventHistory = false] - Add this action to history or not. By default - add
 		 */
-		saveStyles: function()
+		saveStyles: function(preventHistory)
 		{
-			var styles = this.styles.fetchChanges();
+			const styles = this.styles.fetchChanges();
 
 			if (styles.length)
 			{
@@ -3260,13 +3369,19 @@
 					}
 				}, this);
 
-				var post = styles.fetchValues();
-				BX.Landing.Backend.getInstance()
-					.action(
-					"Landing\\Block::updateStyles",
-					{block: this.id, data: post, lid: this.lid, siteId: this.siteId},
-					{code: this.manifest.code}
-				);
+				if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+				{
+					const post = styles.fetchValues();
+					BX.Landing.Backend.getInstance()
+						.action(
+							"Landing\\Block::updateStyles",
+							{block: this.id, data: post, lid: this.lid, siteId: this.siteId, preventHistory: 0},
+							{code: this.manifest.code},
+						)
+						.then(() => {
+							BX.Landing.History.getInstance().push();
+						});
+				}
 			}
 		},
 
@@ -3280,9 +3395,11 @@
 			var formMode = (
 				FormSettingsPanel
 				&& FormSettingsPanel.getInstance().isShown()
+				|| BX.Landing.Main.getInstance().isControlsExternal()
 			);
 			var isBlock = this.isBlockSelector(selector);
 			var options = this.getStyleOptions(selector);
+			this.isMultiselection = this.content.querySelectorAll(selector).length > 1;
 
 			BX.Landing.PageObject.getInstance().design()
 				.then(function(stylePanel) {
@@ -3324,6 +3441,8 @@
 				.then(function(result) {
 					var stylePanel = result[0];
 					var formStyleAdapter = result[1];
+
+					stylePanel.prepareFooter(this.isMultiselection);
 
 					if (formStyleAdapter)
 					{
@@ -3443,7 +3562,11 @@
 			else
 			{
 				options.attrsType.forEach((atr) => {
-					attrsSet.push(getAttrsTypeSettings(atr));
+					let attrSetItem = getAttrsTypeSettings(atr);
+					if (attrSetItem)
+					{
+						attrsSet.push(attrSetItem);
+					}
 				})
 			}
 			attrsSet.forEach(function(attrOptions) {
@@ -3789,13 +3912,24 @@
 				window.localStorage.removeItem("landingBlockId");
 			}
 
-			BX.Landing.Backend.getInstance()
-				.action(
-					"Landing::markDeletedBlock",
-					{block: this.id, lid: this.lid, siteId: this.siteId},
-					{code: this.manifest.code}
-				)
-				.then(function() {
+			let removePromise = Promise.resolve();
+			if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+			{
+				removePromise = BX.Landing.Backend.getInstance()
+					.action(
+						"Landing::markDeletedBlock",
+						{block: this.id, lid: this.lid, siteId: this.siteId, preventHistory: 0},
+						{code: this.manifest.code}
+					)
+					.then(result => {
+						// Change history steps
+						BX.Landing.History.getInstance().push();
+
+						return result;
+					});
+			}
+			removePromise
+				.then(() => {
 					button.loader.hide();
 					removeClass(button.text, "landing-ui-hide-icon");
 
@@ -3803,33 +3937,12 @@
 					fireCustomEvent("BX.Landing.Block:remove", [event]);
 
 					slice(this.node.querySelectorAll(".landing-ui-panel")).forEach(remove);
-					if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
-					{
-						var prevBlock = BX.Landing.PageObject.getBlocks().getByNode(
-							BX.findPreviousSibling(this.node, {className: "block-wrapper"})
-						);
-
-						BX.Landing.History.getInstance().push(
-							new BX.Landing.History.Entry({
-								block: this.id,
-								selector: "#block"+this.id,
-								command: "removeBlock",
-								undo: {
-									currentBlock: prevBlock ? prevBlock.id : null,
-									lid: this.lid,
-									code: this.manifest.code,
-									insertBefore: prevBlock ? false : true
-								},
-								redo: ""
-							})
-						);
-					}
 
 					BX.Landing.PageObject.getBlocks().remove(this);
 					remove(this.node);
 					fireCustomEvent("Landing.Block:onAfterDelete", [this]);
 					fireCustomEvent("BX.Landing.Block:afterRemove", [event]);
-				}.bind(this), function() {
+				}, () => {
 					button.loader.hide();
 					removeClass(button.text, "landing-ui-hide-icon");
 				});
@@ -3949,10 +4062,11 @@
 		/**
 		 * Handles node content change event
 		 * @param {BX.Landing.Block.Node} node
+		 * @param {?boolean} [preventHistory = false]
 		 */
-		onNodeChange: function(node)
+		onNodeChange: function(node, preventHistory)
 		{
-			var event = this.createEvent({node: node.node});
+			const event = this.createEvent({node: node.node});
 			fireCustomEvent("BX.Landing.Block:Node:update", [event]);
 
 			if (!node.isSavePrevented())
@@ -3960,22 +4074,25 @@
 				clearTimeout(this.changeTimeout);
 				this.changedNodes.add(node);
 
-				this.changeTimeout = setTimeout(function() {
-					BX.Landing.Backend.getInstance()
-						.action(
-							"Landing\\Block::updateNodes",
-							{
-								block: this.id,
-								data: this.changedNodes.fetchValues(),
-								additional: this.changedNodes.fetchAdditionalValues(),
-								lid: this.lid,
-								siteId: this.siteId
-							},
-							{code: this.manifest.code}
-						);
-
+				this.changeTimeout = setTimeout(() => {
+					if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+					{
+						BX.Landing.Backend.getInstance()
+							.action(
+								"Landing\\Block::updateNodes",
+								{
+									block: this.id,
+									data: this.changedNodes.fetchValues(),
+									additional: this.changedNodes.fetchAdditionalValues(),
+									lid: this.lid,
+									siteId: this.siteId,
+									preventHistory: 0,
+								},
+								{code: this.manifest.code}
+							);
+					}
 					this.changedNodes.clear();
-				}.bind(this), 100);
+				}, 300);
 			}
 		},
 
@@ -4198,11 +4315,17 @@
 							.forEach(function(index) {
 								source[index] = {value: 0, type: "card"};
 
-								if (!isEmpty(presets) && !isEmpty(presets[index]) && !oldCards[indexes[index]])
+								if (!isEmpty(presets) && !isEmpty(presets[index]))
 								{
-									source[index].type = "preset";
-									source[index].value = presets[index];
-									return;
+									if (
+										!oldCards[indexes[index]]
+										|| !BX.type.isString(indexes[index])
+									)
+									{
+										source[index].type = "preset";
+										source[index].value = presets[index];
+										return;
+									}
 								}
 
 								if (oldCards[indexes[index]])
@@ -4423,7 +4546,7 @@
 		 * @param {Object} data
 		 * @return {Promise<Object>}
 		 */
-		saveChanges: function(data)
+		saveChanges: function(data, preventHistory)
 		{
 			if (!isPlainObject(data))
 			{
@@ -4516,16 +4639,17 @@
 					delete data.cardsFirst;
 				}
 
-				return BX.Landing.Backend.getInstance()
-					.batch("Landing\\Block::updateNodes", batch, updateNodeParams)
-					.then(function() {
-						return Promise.resolve(data);
-					});
+				if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
+				{
+					return BX.Landing.Backend.getInstance()
+						.batch("Landing\\Block::updateNodes", batch, updateNodeParams)
+						.then(function() {
+							return Promise.resolve(data);
+						});
+				}
 			}
-			else
-			{
-				return Promise.resolve(data);
-			}
+
+			return Promise.resolve(data);
 		},
 
 
@@ -4697,7 +4821,7 @@
 
 					BX.Landing.Main.getInstance().currentBlock = self;
 					BX.Landing.Main.getInstance().currentArea = self.parent;
-					return BX.Landing.Main.getInstance().addBlock(response, true, true);
+					return BX.Landing.Main.getInstance().addBlock(response, true);
 				}.bind(this))
 				.then(function(block) {
 					self.node = block;
@@ -4727,6 +4851,7 @@
 
 				this.fetchRequestData(contentPanel)
 					.then(function(requestData) {
+						fireCustomEvent("BX.Landing.Block:onContentSave", [this.id]);
 						return Object.assign(
 							{},
 							requestData,
@@ -4734,7 +4859,7 @@
 								cardsFirst: true
 							}
 						);
-					})
+					}.bind(this))
 					.then(this.updateBlockState.bind(this));
 			}
 		},
@@ -4763,12 +4888,16 @@
 			return join(allCards, allCardsChild);
 		},
 
-
-		onStyleInput: function(event)
+		/**
+		 * Style change handler
+		 * @param event
+		 * @param {boolean} [preventHistory = false] - Add this action to history or not. By default - add
+		 */
+		onStyleInput: function(event, preventHistory)
 		{
-			this.saveStyles();
+			this.saveStyles(preventHistory);
 
-			var styleEvent = this.createEvent(event);
+			const styleEvent = this.createEvent(event);
 			fireCustomEvent("BX.Landing.Block:updateStyle", [styleEvent]);
 		},
 
@@ -5544,6 +5673,21 @@
 		{
 			var contentPanel = this.panels.get("content_edit");
 			var isDynamicEnabled = !!event.state;
+
+			let restrictMessage = this.content.parentElement.querySelector('.landing-html-lock');
+			if (restrictMessage)
+			{
+				if (!isDynamicEnabled)
+				{
+					this.content.style.display = 'flex';
+					restrictMessage.style.display = 'none';
+				}
+				else
+				{
+					this.content.style.display = 'none';
+					restrictMessage.style.display = 'flex';
+				}
+			}
 
 			if (isDynamicEnabled)
 			{

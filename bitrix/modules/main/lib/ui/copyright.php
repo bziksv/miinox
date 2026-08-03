@@ -3,7 +3,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2020 Bitrix
+ * @copyright 2001-2022 Bitrix
  */
 
 namespace Bitrix\Main\UI;
@@ -457,9 +457,9 @@ Thanks!
 				->setLicenceUrl("https://github.com/twbs/bootstrap/blob/main/LICENSE"),
 
 			// main/install/fonts
-			(new static("Font Awesome 4"))
+			(new static("Font Awesome 6"))
 				->setProductUrl("http://fontawesome.io")
-				->setCopyright("by @davegandy")
+				->setCopyright("Fonticons, Inc.")
 				->setLicence("Font: SIL OFL 1.1, CSS: MIT License")
 				->setLicenceUrl("http://fontawesome.io/license"),
 
@@ -509,6 +509,27 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
 				->setCopyright("Copyright (c) 2012 PHP Framework Interoperability Group")
 				->setLicence(static::LICENCE_MIT)
 				->setLicenceUrl("https://github.com/php-fig/log/blob/master/LICENSE"),
+
+			// main/vendor/psr/http-message
+			(new static("PSR HTTP Message"))
+				->setProductUrl("https://github.com/php-fig/http-message")
+				->setCopyright("Copyright (c) 2014 PHP Framework Interoperability Group")
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl("https://github.com/php-fig/http-message/blob/master/LICENSE"),
+
+			// main/vendor/psr/http-client
+			(new static("PSR HTTP Client"))
+				->setProductUrl("https://github.com/php-fig/http-client")
+				->setCopyright("Copyright (c) 2017 PHP Framework Interoperability Group")
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl("https://github.com/php-fig/http-client/blob/master/LICENSE"),
+
+			// main/vendor/php-http/promise
+			(new static("php-http/promise"))
+				->setProductUrl("https://github.com/php-http/promise")
+				->setCopyright("Copyright (c) 2015-2016 PHP HTTP Team <team@php-http.org>")
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl("https://github.com/php-http/promise/blob/master/LICENSE"),
 
 			// main/install/js/main/d3js
 			(new static("D3.js"))
@@ -609,9 +630,9 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 				->setLicenceText("Unsplash grants you an irrevocable, nonexclusive, worldwide copyright license to download, copy, modify, distribute, perform, and use photos from Unsplash for free, including for commercial purposes, without permission from or attributing the photographer or Unsplash. This license does not include the right to compile photos from Unsplash to replicate a similar or competing service."),
 
 			// ui/install/js/ui/dexie
-			(new static("Dexie.js - a minimalistic wrapper for IndexedDB v2.0.4"))
-				->setCopyright("by David Fahlander, david.fahlander@gmail.com, Fri May 25 2018")
-				->setProductUrl("http://dexie.org")
+			(new static("Dexie.js - a minimalistic wrapper for IndexedDB v3.2.2"))
+				->setCopyright("David Fahlander, david.fahlander@gmail.com")
+				->setProductUrl("https://dexie.org")
 				->setLicence(static::LICENCE_APACHE2)
 				->setLicenceUrl("http://www.apache.org/licenses/"),
 
@@ -635,7 +656,7 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 				->setLicence(static::LICENCE_MIT),
 
 			// ui/install/js/ui/vue/router
-			(new static("Vue-router v3.5.3"))
+			(new static("Vue-router v3.6.5"))
 				->setCopyright("Copyright 2021, Evan You")
 				->setProductUrl("https://v3.router.vuejs.org/")
 				->setLicence(static::LICENCE_MIT),
@@ -647,9 +668,15 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 				->setLicence(static::LICENCE_MIT),
 
 			// ui/install/js/ui/vue3/vue
-			(new static("Vue v3.2.31"))
+			(new static("Vue v3.2.40"))
 				->setCopyright("Copyright 2014-2022 Evan You")
 				->setProductUrl("https://vuejs.org/")
+				->setLicence(static::LICENCE_MIT),
+
+			// ui/install/js/ui/vue3/vue/dev/src/vueuse.js
+			(new static("Utilities from VueUse collection"))
+				->setCopyright("Copyright 2019-2022 Anthony Fu")
+				->setProductUrl("https://vueuse.org/")
 				->setLicence(static::LICENCE_MIT),
 
 			// ui/install/js/ui/vue3/vuex
@@ -658,15 +685,14 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 				->setProductUrl("https://vuex.vuejs.org/")
 				->setLicence(static::LICENCE_MIT),
 
-
 			// ui/install/js/ui/vue3/router
-			(new static("Vue-router v4.0.12"))
-				->setCopyright("Copyright 2021 Eduardo San Martin Morote")
+			(new static("Vue-router v4.1.5"))
+				->setCopyright("Copyright 2022 Eduardo San Martin Morote")
 				->setProductUrl("https://router.vuejs.org/")
 				->setLicence(static::LICENCE_MIT),
 
 			// ui/install/js/ui/vue3/pinia
-			(new static("Pinia v2.0.11"))
+			(new static("Pinia v2.0.22"))
 				->setCopyright("Copyright 2022 Eduardo San Martin Morote")
 				->setProductUrl("https://pinia.vuejs.org/")
 				->setLicence(static::LICENCE_MIT),
@@ -807,6 +833,37 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 			(new static("Smoother"))
 				->setCopyright("Copyright 2014 Martin Tschirsich")
 				->setLicence(static::LICENCE_MIT),
+
+			// ui/install/js/ui/fonts/comforter-brush
+			(new static("Font Comforter Brush"))
+				->setCopyright("Copyright 2015 The Comforter Brush Project Authors")
+				->setProductUrl('https://github.com/googlefonts/comforter-brush')
+				->setLicence(static::LICENCE_OFL),
+
+			// main/vendor/geoip2
+			// main/vendor/maxmind-db
+			(new static("GeoIP2 PHP API"))
+				->setCopyright("Copyright (c) 2013-2020 by MaxMind, Inc.")
+				->setProductUrl('https://github.com/maxmind/GeoIP2-php')
+				->setLicence(static::LICENCE_APACHE2),
+
+			// main/install/js/main/rating
+			(new static("Lottie-web"))
+				->setCopyright("Copyright (c) 2015 Bodymovin")
+				->setProductUrl('https://github.com/airbnb/lottie-web')
+				->setLicence(static::LICENCE_MIT),
+
+			// mobileapp/mobile/extensions/bitrix/utils/url/punycode.js
+			(new static("Punycode.js"))
+				->setCopyright("Copyright Mathias Bynens <https://mathiasbynens.be/>")
+				->setProductUrl('https://github.com/mathiasbynens/punycode.js')
+				->setLicence(static::LICENCE_MIT),
+
+			// voximplant/install/js/voximplant/voximplant.min.js
+			(new static("Voximplant Web SDK"))
+				->setCopyright("Copyright Voximplant <https://voximplant.com/>")
+				->setProductUrl('https://www.npmjs.com/package/voximplant-websdk')
+				->setLicence(static::LICENCE_COMMERCIAL),
 		];
 	}
 }

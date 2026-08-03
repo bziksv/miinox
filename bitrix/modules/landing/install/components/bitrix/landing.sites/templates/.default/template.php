@@ -34,6 +34,24 @@ else
 	$lastPage = true;
 }
 
+$urlAdd = '';
+if ($arResult['ACCESS_SITE_NEW'] === 'Y' && !$arResult['IS_DELETED'])
+{
+	$urlAdd = ($arParams['TYPE'] === 'STORE')
+		? $component->getUrlAdd(true, ['super' => 'Y'])
+		: $component->getUrlAdd()
+	;
+}
+
+$urlAddCondition = '';
+if ($arResult['ACCESS_SITE_NEW'] === 'Y' && !$arResult['IS_DELETED'])
+{
+	$urlAddCondition = ($arParams['TYPE'] === 'STORE')
+		? $component->getUrlAddSidepanelCondition(true, ['super' => 'Y'])
+		: $component->getUrlAddSidepanelCondition()
+	;
+}
+
 // errors title
 Manager::setPageTitle($component->getMessageType('LANDING_TPL_TITLE'));
 if ($arResult['ERRORS'])
@@ -75,17 +93,33 @@ if ($arParams['TYPE'] == \Bitrix\Landing\Site\Type::SCOPE_CODE_GROUP)
 // feedback form
 if (
 	$lastPage && !$arResult['IS_DELETED'] &&
-	($arParams['TYPE'] === 'PAGE' || $arParams['TYPE'] === 'KNOWLEDGE') &&
-	(!isset($arResult['LICENSE']) || $arResult['LICENSE'] != 'nfr')
+	($arParams['TYPE'] === 'PAGE' || $arParams['TYPE'] === 'KNOWLEDGE'  || $arParams['TYPE'] === 'STORE') &&
+	(!isset($arResult['LICENSE']) || $arResult['LICENSE'] !== 'nfr')
 )
 {
-	$formCode = ($arParams['TYPE'] === 'KNOWLEDGE') ? 'knowledge' : 'developer';
+	if ($arParams['TYPE'] === 'KNOWLEDGE')
+	{
+		$formCode = 'knowledge';
+	}
+	else if ($arParams['TYPE'] === 'PAGE')
+	{
+		$formCode = 'developer';
+	}
+	else
+	{
+		$formCode = 'store';
+	}
+	$params = $component->getFeedbackParameters($formCode);
+	if (is_array($params))
+	{
+		$params['TITLE'] = Loc::getMessage('LANDING_TPL_FEEDBACK_FORM_TITLE');
+	}
 	?>
 	<div style="display: none">
 		<?$APPLICATION->includeComponent(
 			'bitrix:ui.feedback.form',
 			'',
-			$component->getFeedbackParameters($formCode)
+			$params
 		);?>
 	</div>
 	<?
@@ -127,8 +161,39 @@ if ($arResult['EXPORT_DISABLED'] === 'Y')
 								sitePath = sitePath.replace(replace[0], replace[1]);
 							});
 
+							if (
+								event.data.from !== undefined
+								&& typeof BX.Landing.Metrika !== 'undefined'
+							)
+							{
+								var dataFrom = event.data.from.split('|');
+								var appCode = dataFrom[1];
+								var title = dataFrom[2];
+								var previewId = dataFrom[3];
+								if (
+									appCode !== null
+									&& title !== null
+									&& previewId !== null
+								)
+								{
+									var metrikaValue =
+										sitePath
+										+ '?action=templateCreated&app_code='
+										+ appCode
+										+ '&title='
+										+ title
+										+ '&preview_id='
+										+ previewId;
+									var metrika = new BX.Landing.Metrika(true);
+									metrika.sendLabel(
+										null,
+										'templateCreated',
+										metrikaValue
+									);
+								}
+							}
 							gotoSiteButton.setAttribute('href', sitePath);
-							window.location.href = sitePath;
+							setTimeout(() => {window.location.href = sitePath}, 3000);
 						}
 					}
 				}
@@ -141,7 +206,7 @@ if ($arResult['EXPORT_DISABLED'] === 'Y')
 <?endif?>
 
 <?
-if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N') !== 'Y'))
+if ($arParams['TYPE'] !== 'KNOWLEDGE' && $arParams['TYPE'] !== 'GROUP' && $isCrm && (($arParams['OLD_TILE'] ?? 'N') !== 'Y'))
 {
 	if ($arParams['TYPE'] === 'STORE')
 	{
@@ -242,9 +307,6 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 				'access' => 'settings',
 				'sidepanel' => true
 			],
-			[
-				'delimiter' => true
-			],
 			$arResult['EXPORT_DISABLED'] === 'Y'
 			? [
 				'text' => $component->getMessageType('LANDING_TPL_ACTION_EXPORT'),
@@ -254,12 +316,6 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 			: [
 				'text' => $component->getMessageType('LANDING_TPL_ACTION_EXPORT'),
 				'href' => $arParams['~PAGE_URL_SITE_EXPORT'],
-				'sidepanel' => true
-			],
-			[
-				'text' => $component->getMessageType('LANDING_TPL_ACTION_IMPORT'),
-				'href' => \Bitrix\Landing\Transfer\Import\Site::getUrl($arParams['TYPE']),
-				'access' => 'site_new',
 				'sidepanel' => true
 			],
 			[
@@ -280,7 +336,7 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 			],
 			[
 				'text' => 'Cookies',
-				'href' => $arParams['~PAGE_URL_SITE_EDIT'] . '#cookies',
+				'href' => $arParams['~PAGE_URL_SITE_SETTINGS'] . '#cookies',
 				'bottom' => true,
 				'code' => 'cookies'
 			],
@@ -299,25 +355,6 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 		];
 	}
 
-	if ($arResult['ACCESS_SITE_NEW'] === 'Y' && !$arResult['IS_DELETED'])
-	{
-		if ($arParams['TYPE'] === 'STORE')
-		{
-			$urlAdd = $component->getPageParam(
-				str_replace('#site_edit#', 0, $arParams['~PAGE_URL_SITE_EDIT']),
-				['super' => 'Y']
-			);
-		}
-		else
-		{
-			$urlAdd = str_replace('#site_edit#', 0, $arParams['~PAGE_URL_SITE_EDIT']);
-		}
-	}
-	else
-	{
-		$urlAdd = '';
-	}
-
 	$APPLICATION->includeComponent(
 		'bitrix:landing.site_tile',
 		'.default',
@@ -330,7 +367,7 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 			'PAGE_URL_DOMAIN' => $arParams['~PAGE_URL_SITE_DOMAIN'],
 			'PAGE_URL_CONTACTS' => $arParams['~PAGE_URL_SITE_CONTACTS'],
 			'PAGE_URL_SITE_DOMAIN_SWITCH' => $arParams['~PAGE_URL_SITE_DOMAIN_SWITCH'],
-			'PAGE_URL_CRM_ORDERS' => $ordersLink,
+			'PAGE_URL_CRM_ORDERS' => $ordersLink ?? '',
 			'MENU_ITEMS' => $menuItems,
 			'AGREEMENT' => $arResult['AGREEMENT'],
 			'DELETE_LOCKED' => $arResult['DELETE_LOCKED'],
@@ -394,8 +431,7 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 		<?php foreach ($arResult['SITES'] as $item):
 
 			// actions / urls
-			$urlEdit = str_replace('#site_edit#', $item['ID'], $arParams['~PAGE_URL_SITE_EDIT']);
-			$urlEditDesign = str_replace('#site_edit#', $item['ID'], $arParams['~PAGE_URL_SITE_DESIGN']);
+			$urlSettings = str_replace('#site_edit#', $item['ID'], $arParams['~PAGE_URL_SITE_SETTINGS']);
 			$urlCreatePage = str_replace(array('#site_show#', '#landing_edit#'), array($item['ID'], 0), $arParams['~PAGE_URL_LANDING_EDIT']);
 			$urlView = str_replace('#site_show#', $item['ID'], $arParams['~PAGE_URL_SITE']);
 			$urlSwitchDomain = str_replace('#site_edit#', $item['ID'], $arParams['~PAGE_URL_SITE_DOMAIN_SWITCH']);
@@ -425,8 +461,7 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 									createPage: '<?= htmlspecialcharsbx(CUtil::jsEscape($urlCreatePage)) ?>',
 									switchDomainPage: '<?= htmlspecialcharsbx(CUtil::jsEscape($urlSwitchDomain)) ?>',
 									deleteSite: '#',
-									editSite: '<?= htmlspecialcharsbx(CUtil::jsEscape($urlEdit)) ?>',
-									editSiteDesign: '<?= htmlspecialcharsbx(CUtil::jsEscape($urlEditDesign)) ?>',
+									editSite: '<?= htmlspecialcharsbx(CUtil::jsEscape($urlSettings)) ?>',
 								 	exportSite: '<?= htmlspecialcharsbx(CUtil::jsEscape($item['EXPORT_URI'])) ?>',
 								 	isExportSiteDisabled: <?= ($item['ACCESS_EXPORT'] !== 'Y') ? 'true' : 'false' ?>,
 									publicPage: '#',
@@ -509,7 +544,6 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 									 switchDomainPage: '',
 									 deleteSite: '',
 									 editSite: '/bitrix/admin/site_edit.php?lang=<?= LANGUAGE_ID;?>&amp;LID=<?= $item['LID'] ?>',
-									 editSiteDesign: '/bitrix/admin/site_edit.php?lang=<?= LANGUAGE_ID;?>&amp;LID=<?= $item['LID'] ?>',
 									 exportSite: '',
 									 publicPage: '',
 									 isActive: <?= ($item['ACTIVE'] == 'Y') ? 'true' : 'false' ?>,
@@ -601,15 +635,16 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 	)
 	{
 		var condition = [];
-		<?php if ($arParams['PAGE_URL_SITE_EDIT']):?>
-		condition.push('<?= str_replace(['#site_edit#', '?'], ['(\\\d+)', '\\\?'], CUtil::jsEscape($arParams['PAGE_URL_SITE_EDIT']));?>');
+		<?php if ($arParams['PAGE_URL_SITE_SETTINGS']): ?>
+		condition.push('<?= str_replace(['#site_edit#', '?'], ['(\\\d+)', '\\\?'], CUtil::jsEscape($arParams['PAGE_URL_SITE_SETTINGS']))?>');
 		<?php endif; ?>
-		<?php if ($arParams['PAGE_URL_SITE_DESIGN']):?>
-		condition.push('<?= str_replace(['#site_edit#', '?'], ['(\\\d+)', '\\\?'], CUtil::jsEscape($arParams['PAGE_URL_SITE_DESIGN']))?>');
-		<?php endif; ?>
-		<?if ($arParams['PAGE_URL_LANDING_EDIT']):?>
+		<?php if ($arParams['PAGE_URL_LANDING_EDIT']): ?>
 		condition.push('<?= str_replace(['#site_show#', '#landing_edit#', '?'], ['(\\\d+)', '(\\\d+)', '\\\?'], CUtil::jsEscape($arParams['PAGE_URL_LANDING_EDIT'])) ?>');
 		<?php endif; ?>
+		<?php if ($urlAddCondition <> ''): ?>
+		condition.push('<?= $urlAddCondition ?>');
+		<?php endif; ?>
+
 		if (condition)
 		{
 			BX.SidePanel.Instance.bindAnchors(
@@ -763,16 +798,6 @@ if ($arParams['TYPE'] !== 'KNOWLEDGE' && $isCrm && (($arParams['OLD_TILE'] ?? 'N
 				{
 					text: '<?= CUtil::jsEscape($component->getMessageType('LANDING_TPL_ACTION_EDIT'));?>',
 					href: params.editSite,
-					target: '_blank',
-					disabled: params.isDeleted || params.isSettingsDisabled,
-					onclick: function()
-					{
-						this.popupWindow.close();
-					}
-				},
-				{
-					text: '<?= CUtil::jsEscape($component->getMessageType('LANDING_TPL_ACTION_EDIT_DESIGN_2'))?>',
-					href: params.editSiteDesign,
 					target: '_blank',
 					disabled: params.isDeleted || params.isSettingsDisabled,
 					onclick: function()

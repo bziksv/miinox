@@ -4,6 +4,7 @@ use Bitrix\Catalog;
 use Bitrix\Catalog\Component\UseStore;
 use Bitrix\Catalog\Integration\PullManager;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog\v2\Contractor;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -394,6 +395,12 @@ class CAllCatalogDocs
 		Catalog\StoreDocumentElementTable::deleteByDocument($id);
 		Catalog\StoreDocumentBarcodeTable::deleteByDocument($id);
 
+		$contractorsProvider = Contractor\Provider\Manager::getActiveProvider();
+		if ($contractorsProvider)
+		{
+			$contractorsProvider::onAfterDocumentDelete($id);
+		}
+
 		// First and second event - only for compatibility. Attention - order cannot change
 		$eventList = [
 			'OnDocumentBarcodeDelete',
@@ -469,7 +476,7 @@ class CAllCatalogDocs
 		}
 		if ($action == 'ADD' || array_key_exists('STATUS', $arFields))
 		{
-			$arFields['STATUS'] = ('Y' == $arFields['STATUS'] ? 'Y' : 'N');
+			$arFields['STATUS'] = (isset($arFields['STATUS']) && 'Y' === $arFields['STATUS'] ? 'Y' : 'N');
 		}
 		if(isset($arFields["STATUS"]))
 		{

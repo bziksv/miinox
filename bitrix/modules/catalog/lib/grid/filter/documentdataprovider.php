@@ -3,40 +3,96 @@
 namespace Bitrix\Catalog\Grid\Filter;
 
 use Bitrix\Catalog\StoreDocumentTable;
+use Bitrix\Catalog\v2\Contractor\Provider\IProvider;
 use Bitrix\Main\Grid\Column;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog\v2\Contractor\Provider\Manager;
+use Bitrix\Main\Filter\EntityDataProvider;
 
 \CBitrixComponent::includeComponentClass('bitrix:catalog.store.document.list');
 
-class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
+class DocumentDataProvider extends EntityDataProvider
 {
 	private $mode;
 
 	private static $fieldsOrder = [
 		\CatalogStoreDocumentListComponent::ARRIVAL_MODE => [
-			'ID', 'TITLE', 'DOC_NUMBER', 'DOC_TYPE', 'DATE_DOCUMENT', 'STATUS', 'DATE_CREATE',
-			'DATE_MODIFY', 'DATE_STATUS', 'STATUS_BY', 'RESPONSIBLE_ID', 'CREATED_BY', 'MODIFIED_BY', 'CONTRACTOR_ID',
-			'TOTAL', 'STORES',
+			'ID',
+			'TITLE',
+			'DOC_NUMBER',
+			'DOC_TYPE',
+			'DATE_DOCUMENT',
+			'STATUS',
+			'DATE_CREATE',
+			'DATE_MODIFY',
+			'DATE_STATUS',
+			'STATUS_BY',
+			'RESPONSIBLE_ID',
+			'CREATED_BY',
+			'MODIFIED_BY',
+			'CONTRACTOR_ID',
+			'TOTAL',
+			'STORES',
 		],
 		\CatalogStoreDocumentListComponent::MOVING_MODE => [
-			'ID', 'TITLE', 'DOC_NUMBER', 'DOC_TYPE', 'DATE_DOCUMENT', 'STATUS', 'DATE_CREATE',
-			'DATE_MODIFY', 'DATE_STATUS', 'STATUS_BY', 'RESPONSIBLE_ID', 'CREATED_BY', 'MODIFIED_BY', 'TOTAL', 'STORES',
+			'ID',
+			'TITLE',
+			'DOC_NUMBER',
+			'DOC_TYPE',
+			'DATE_DOCUMENT',
+			'STATUS',
+			'DATE_CREATE',
+			'DATE_MODIFY',
+			'DATE_STATUS',
+			'STATUS_BY',
+			'RESPONSIBLE_ID',
+			'CREATED_BY',
+			'MODIFIED_BY',
+			'TOTAL',
+			'STORES_FROM',
+			'STORES_TO',
 		],
 		\CatalogStoreDocumentListComponent::DEDUCT_MODE => [
-			'ID', 'TITLE', 'DOC_NUMBER', 'DOC_TYPE', 'DATE_DOCUMENT', 'STATUS', 'DATE_CREATE',
-			'DATE_MODIFY', 'DATE_STATUS', 'STATUS_BY', 'RESPONSIBLE_ID', 'CREATED_BY', 'MODIFIED_BY', 'TOTAL', 'STORES',
+			'ID',
+			'TITLE',
+			'DOC_NUMBER',
+			'DOC_TYPE',
+			'DATE_DOCUMENT',
+			'STATUS',
+			'DATE_CREATE',
+			'DATE_MODIFY',
+			'DATE_STATUS',
+			'STATUS_BY',
+			'RESPONSIBLE_ID',
+			'CREATED_BY',
+			'MODIFIED_BY',
+			'TOTAL',
+			'STORES',
 		],
 		\CatalogStoreDocumentListComponent::OTHER_MODE => [
-			'ID', 'TITLE', 'DATE_DOCUMENT', 'STATUS', 'DATE_CREATE',
-			'DATE_MODIFY', 'DATE_STATUS', 'STATUS_BY', 'CREATED_BY', 'MODIFIED_BY',
+			'ID',
+			'TITLE',
+			'DATE_DOCUMENT',
+			'STATUS',
+			'DATE_CREATE',
+			'DATE_MODIFY',
+			'DATE_STATUS',
+			'STATUS_BY',
+			'CREATED_BY',
+			'MODIFIED_BY',
 		],
 	];
 
 	private static $fields;
 
+	/** @var IProvider|null */
+	private ?IProvider $contractorsProvider;
+
 	public function __construct($mode)
 	{
+		$this->contractorsProvider = Manager::getActiveProvider();
+
 		$this->mode = $mode;
 		self::$fields = [
 			'ID' => [
@@ -139,6 +195,20 @@ class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
 				'sort' => false,
 				'type' => Column\Type::LABELS,
 			],
+			'STORES_FROM' => [
+				'id' => 'STORES_FROM',
+				'name' => Loc::getMessage('DOCUMENT_STORES_FROM_NAME'),
+				'default' => true,
+				'sort' => false,
+				'type' => Column\Type::LABELS,
+			],
+			'STORES_TO' => [
+				'id' => 'STORES_TO',
+				'name' => Loc::getMessage('DOCUMENT_STORES_TO_NAME'),
+				'default' => true,
+				'sort' => false,
+				'type' => Column\Type::LABELS,
+			],
 		];
 	}
 
@@ -204,18 +274,51 @@ class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
 		if ($this->mode !== \CatalogStoreDocumentListComponent::OTHER_MODE)
 		{
 			$fields['DOC_NUMBER'] = $this->createField('DOC_NUMBER');
-			$fields['STORES'] = $this->createField('STORES', [
-				'partial' => true,
-				'type' => 'entity_selector',
-			]);
+
+			if ($this->mode === \CatalogStoreDocumentListComponent::MOVING_MODE)
+			{
+				$fields['STORES_FROM'] = $this->createField('STORES_FROM', [
+					'partial' => true,
+					'default' => true,
+					'type' => 'entity_selector',
+				]);
+				$fields['STORES_TO'] = $this->createField('STORES_TO', [
+					'partial' => true,
+					'default' => true,
+					'type' => 'entity_selector',
+				]);
+			}
+			else
+			{
+				$fields['STORES'] = $this->createField('STORES', [
+					'partial' => true,
+					'type' => 'entity_selector',
+				]);
+			}
 		}
 
 		if ($this->mode === \CatalogStoreDocumentListComponent::ARRIVAL_MODE)
 		{
-			$fields['CONTRACTOR_ID'] = $this->createField('CONTRACTOR_ID', [
-				'partial' => true,
-				'type' => 'entity_selector',
-			]);
+			if ($this->contractorsProvider)
+			{
+				$contractorsFields = $this->contractorsProvider::getDocumentsGridFilterFields();
+				foreach ($contractorsFields as $contractorsField)
+				{
+					$fields[$contractorsField['CODE']] = $this->createField(
+						$contractorsField['CODE'],
+						$contractorsField['PARAMS']
+					);
+				}
+			}
+			else
+			{
+				$fields['CONTRACTOR_ID'] = $this->createField('CONTRACTOR_ID', [
+					'partial' => true,
+					'type' => 'entity_selector',
+					'default' => true,
+				]);
+			}
+
 			$fields['DOC_TYPE'] = $this->createField('DOC_TYPE', [
 				'default' => true,
 				'type' => 'list',
@@ -231,6 +334,9 @@ class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
 		return Loc::getMessage("DOCUMENT_{$fieldID}_NAME");
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function prepareFieldData($fieldID)
 	{
 		if ($fieldID === 'STATUS')
@@ -265,7 +371,7 @@ class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
 			return $this->getUserEntitySelectorParams($this->mode . '_' . $fieldID . '_filter', ['fieldName' => $fieldID]);
 		}
 
-		if ($fieldID === 'STORES')
+		if (in_array($fieldID, ['STORES', 'STORES_FROM', 'STORES_TO'], true))
 		{
 			return [
 				'params' => [
@@ -307,6 +413,14 @@ class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
 			];
 		}
 
+		if (
+			$this->contractorsProvider
+			&& $this->contractorsProvider::isDocumentsGridFilterFieldSupported($fieldID)
+		)
+		{
+			return $this->contractorsProvider::getDocumentsGridFilterFieldData($fieldID);
+		}
+
 		if ($fieldID === 'PRODUCTS')
 		{
 			return [
@@ -329,6 +443,8 @@ class DocumentDataProvider extends \Bitrix\Main\Filter\EntityDataProvider
 				],
 			];
 		}
+
+		return null;
 	}
 
 	public function getGridColumns()

@@ -1,6 +1,7 @@
 <?php
 
 use Bitrix\Main;
+use Bitrix\Main\Web\Uri;
 use Bitrix\Main\Type\Collection;
 
 /**
@@ -107,7 +108,7 @@ class CAdminList
 
 		$aOptions = CUserOptions::GetOption("list", $this->table_id, array());
 
-		$aColsTmp = explode(",", $aOptions["columns"]);
+		$aColsTmp = explode(",", $aOptions["columns"] ?? '');
 		$aCols = array();
 		$userColumns = array();
 		foreach ($aColsTmp as $col)
@@ -124,11 +125,12 @@ class CAdminList
 		$userVisibleColumns = array();
 		foreach ($aParams as $param)
 		{
+			$param['default'] = (bool)($param['default'] ?? false);
 			$param["__sort"] = -1;
 			$this->aHeaders[$param["id"]] = $param;
 			if (
 				$showAll
-				|| ($bEmptyCols && $param["default"] == true)
+				|| ($bEmptyCols && $param["default"])
 				|| isset($userColumns[$param["id"]])
 			)
 			{
@@ -217,15 +219,19 @@ class CAdminList
 		global $APPLICATION;
 
 		$queryString = DeleteParam([self::MODE_FIELD_NAME]);
+		if ($queryString !== '')
+		{
+			$queryString = '&' . $queryString;
+		}
 		$link = $APPLICATION->GetCurPage();
 		if (isset($config['settings']))
 		{
 			$result[] = [
 				"TEXT" => GetMessage("admin_lib_context_sett"),
 				"TITLE" => GetMessage("admin_lib_context_sett_title"),
-				"ONCLICK" => $this->table_id.".ShowSettings('".CUtil::JSEscape(
-					$link."?mode=settings".($queryString <> ""? "&".$queryString : "")
-				)."')",
+				"ONCLICK" => $this->table_id . ".ShowSettings('" . CUtil::JSEscape(
+					$link . "?" . static::getModeConfigUrlParam() . $queryString
+				) . "')",
 				"GLOBAL_ICON" => "adm-menu-setting",
 			];
 		}
@@ -234,9 +240,9 @@ class CAdminList
 			$result[] = [
 				"TEXT" => "Excel",
 				"TITLE" => GetMessage("admin_lib_excel"),
-				"ONCLICK"=>"location.href='".htmlspecialcharsbx(
-					$link."?mode=excel".($queryString <> ""? "&".$queryString : "")
-				)."'",
+				"ONCLICK"=>"location.href='" . htmlspecialcharsbx(
+					$link . "?" . static::getModeExportUrlParam() . $queryString
+				) . "'",
 				"GLOBAL_ICON"=>"adm-menu-excel",
 			];
 		}
@@ -277,20 +283,24 @@ class CAdminList
 							return true;
 						unset($f_old[$k][$k2]);
 					}
-					if(count($f_old[$k]) > 0)
+					if(!empty($f_old[$k]))
 						return true;
 				}
 			}
 			else
 			{
-				if(is_array($f_old[$k]))
+				if(isset($f_old[$k]) && is_array($f_old[$k]))
+				{
 					return true;
-				elseif($f_old[$k] !== $v)
+				}
+				elseif(!isset($f_old[$k]) || $f_old[$k] !== $v)
+				{
 					return true;
+				}
 			}
 			unset($f_old[$k]);
 		}
-		if(count($f_old) > 0)
+		if(!empty($f_old))
 			return true;
 
 		return false;
@@ -549,7 +559,7 @@ class CAdminList
 		if ($this->isPublicMode)
 		{
 			$selfFolderUrl = (defined("SELF_FOLDER_URL") ? SELF_FOLDER_URL : "/bitrix/admin/");
-			if (mb_strpos($url,$selfFolderUrl) === false)
+			if (strpos($url,$selfFolderUrl) === false)
 			{
 				$url = $selfFolderUrl.$url;
 			}
@@ -742,6 +752,16 @@ class CAdminList
 		foreach(GetModuleEvents("main", "OnAdminListDisplay", true) as $arEvent)
 			ExecuteModuleEventEx($arEvent, array(&$this));
 
+		// Check after event handlers
+		if (!is_array($this->arActions))
+		{
+			$this->arActions = [];
+		}
+		if (!is_array($this->arActionsParams))
+		{
+			$this->arActionsParams = [];
+		}
+
 		$errmsg = '';
 		foreach ($this->arFilterErrors as $err)
 			$errmsg .= ($errmsg<>''? '<br>': '').$err;
@@ -763,7 +783,7 @@ class CAdminList
 		if($this->sContent===false)
 		{
 ?>
-<div class="adm-list-table-wrap<?=$this->context ? '' : ' adm-list-table-without-header'?><?=count($this->arActions)<=0 && !$this->bCanBeEdited ? ' adm-list-table-without-footer' : ''?>">
+<div class="adm-list-table-wrap<?=$this->context ? '' : ' adm-list-table-without-header'?><?= empty($this->arActions) && !$this->bCanBeEdited ? ' adm-list-table-without-footer' : ''?>">
 <?
 		}
 
@@ -804,7 +824,7 @@ class CAdminList
 			return;
 		}
 
-		$bShowSelectAll = (count($this->arActions)>0 || $this->bCanBeEdited);
+		$bShowSelectAll = (!empty($this->arActions) || $this->bCanBeEdited);
 		$this->bShowActions = false;
 		foreach($this->aRows as $row)
 		{
@@ -841,6 +861,7 @@ class CAdminList
 
 		foreach($this->aVisibleHeaders as $header):
 			$bSort = $this->sort && !empty($header["sort"]);
+			$header['title'] = (string)($header['title'] ?? '');
 
 			if ($bSort)
 				$attrs = $this->sort->Show($header["content"], $header["sort"], $header["title"], "adm-list-table-cell");
@@ -934,13 +955,23 @@ class CAdminList
 							$val = htmlspecialcharsex(GetMessage("admin_lib_list_no"));
 						break;
 					case "select":
-						if($field["edit"]["values"][$val])
+						if (isset($field["edit"]["values"][$val]))
+						{
 							$val = htmlspecialcharsex($field["edit"]["values"][$val]);
+						}
+						elseif (isset($field["view"]["values"][$val]))
+						{
+							$val = htmlspecialcharsex($field["view"]["values"][$val]);
+						}
+						else
+						{
+							$val = htmlspecialcharsex($val);
+						}
 						break;
 					case "file":
 						$arFile = CFile::GetFileArray($val);
 						if(is_array($arFile))
-							$val = htmlspecialcharsex(CHTTP::URN2URI($arFile["SRC"]));
+							$val = htmlspecialcharsex((new Uri($arFile["SRC"]))->toAbsolute()->getUri());
 						else
 							$val = "";
 						break;
@@ -972,6 +1003,14 @@ class CAdminList
 
 	public function AddGroupActionTable($arActions, $arParams=array())
 	{
+		if (!is_array($arActions))
+		{
+			$arActions = [];
+		}
+		if (!is_array($arParams))
+		{
+			$arParams = [];
+		}
 		//array("action"=>"text", ...)
 		//OR array(array("action" => "custom JS", "value" => "action", "type" => "button", "title" => "", "name" => ""), ...)
 		$this->arActions = $arActions;
@@ -990,7 +1029,7 @@ class CAdminList
 		if($this->bEditMode || !empty($this->arUpdateErrorIDs)):
 			$this->DisplayEditButtons();
 		else: //($this->bEditMode || count($this->arUpdateErrorIDs)>0)
-			if($this->arActionsParams["disable_action_target"] <> true):
+			if (!isset($this->arActionsParams["disable_action_target"]) || $this->arActionsParams["disable_action_target"] !== true):
 ?>
 	<span class="adm-selectall-wrap"><input type="checkbox" class="adm-checkbox adm-designed-checkbox" name="action_target" value="selected" id="action_target" onclick="if(this.checked && !confirm('<?=CUtil::JSEscape(GetMessage("admin_lib_list_edit_for_all_warn"))?>')) {this.checked=false;} <?=$this->table_id?>.EnableActions();" title="<?=GetMessage("admin_lib_list_edit_for_all")?>" /><label for="action_target" class="adm-checkbox adm-designed-checkbox-label"></label><label title="<?=GetMessage("admin_lib_list_edit_for_all")?>" for="action_target" class="adm-checkbox-label"><?=GetMessage("admin_lib_list_for_all");?></label></span>
 <?
@@ -1121,6 +1160,12 @@ class CAdminList
 		}
 
 		$aUserOpt = CUserOptions::GetOption("global", "settings");
+		if (!is_array($aUserOpt))
+		{
+			$aUserOpt = [];
+		}
+		$aUserOpt['context_ctrl'] = (string)($aUserOpt['context_ctrl'] ?? 'N');
+		$aUserOpt['context_menu'] = (string)($aUserOpt['context_menu'] ?? 'Y');
 
 		if (!is_array($arParams))
 			$arParams = array();
@@ -1130,9 +1175,9 @@ class CAdminList
 		if (!isset($arParams['FIX_FOOTER']))
 			$arParams['FIX_FOOTER'] = true;
 		if (!isset($arParams['context_ctrl']))
-			$arParams['context_ctrl'] = ($aUserOpt["context_ctrl"] == "Y");
+			$arParams['context_ctrl'] = ($aUserOpt["context_ctrl"] === "Y");
 		if (!isset($arParams['context_menu']))
-			$arParams['context_menu'] = ($aUserOpt["context_menu"] <> "N");
+			$arParams['context_menu'] = ($aUserOpt["context_menu"] !== "N");
 
 		$tbl = CUtil::JSEscape($this->table_id);
 ?>
@@ -1326,6 +1371,16 @@ topWindow.BX.ajax.UpdatePageData({});
 		return static::getModeUrlParam(self::MODE_ACTION);
 	}
 
+	protected static function getModeConfigUrlParam(): string
+	{
+		return static::getModeUrlParam(self::MODE_CONFIG);
+	}
+
+	protected static function getModeExportUrlParam(): string
+	{
+		return static::getModeUrlParam(self::MODE_EXPORT);
+	}
+
 	protected static function getModeParam(string $mode): array
 	{
 		return [self::MODE_FIELD_NAME => $mode];
@@ -1455,8 +1510,9 @@ class CAdminListRow
 	 */
 	function AddInputField($id, $arAttributes = Array())
 	{
-		if($arAttributes!==false)
+		if ($arAttributes !== false)
 		{
+			$arAttributes['size'] = (int)($arAttributes['size'] ?? 0);
 			$this->aFields[$id]["edit"] = Array("type"=>"input", "attributes"=>$arAttributes);
 			$this->pList->bCanBeEdited = true;
 		}
@@ -1470,8 +1526,9 @@ class CAdminListRow
 	 */
 	function AddCalendarField($id, $arAttributes = Array(), $useTime = false)
 	{
-		if($arAttributes!==false)
+		if ($arAttributes!==false)
 		{
+			$arAttributes['size'] = (int)($arAttributes['size'] ?? 0);
 			$this->aFields[$id]["edit"] = array("type"=>"calendar", "attributes"=>$arAttributes, "useTime" => $useTime);
 			$this->pList->bCanBeEdited = true;
 		}
@@ -1566,6 +1623,12 @@ class CAdminListRow
 
 	function Display()
 	{
+		// Check after grid event handlers
+		if (!is_array($this->aActions))
+		{
+			$this->aActions = [];
+		}
+
 		$sDefAction = $sDefTitle = "";
 
 		if(!$this->bEditMode)
@@ -1579,7 +1642,7 @@ class CAdminListRow
 			{
 				foreach($this->aActions as $action)
 				{
-					if($action["DEFAULT"] == true)
+					if (isset($action["DEFAULT"]) && $action["DEFAULT"] == true)
 					{
 						$sDefAction = $this->getActionsItemLink($action);
 						$sDefTitle = (!empty($action["TITLE"])? $action["TITLE"] : $action["TEXT"]);
@@ -1599,7 +1662,7 @@ class CAdminListRow
 <tr class="adm-list-table-row<?=(isset($this->aFeatures["footer"]) && $this->aFeatures["footer"] == true? ' footer':'')?><?=$this->bEditMode?' adm-table-row-active' : ''?>"<?=($sMenuItems <> ""? ' oncontextmenu="return '.$sMenuItems.';"':'');?><?=($sDefAction <> ""? ' ondblclick="'.$sDefAction.'"'.(!empty($sDefTitle)? ' title="'.GetMessage("admin_lib_list_double_click").' '.$sDefTitle.'"':''):'')?>>
 <?
 
-		if(count($this->pList->arActions)>0 || $this->pList->bCanBeEdited):
+		if (!empty($this->pList->arActions) || $this->pList->bCanBeEdited):
 			$check_id = RandString(5);
 ?>
 	<td class="adm-list-table-cell adm-list-table-checkbox adm-list-table-checkbox-hover<?=$this->bReadOnly? ' adm-list-table-checkbox-disabled':''?>"><input type="checkbox" class="adm-checkbox adm-designed-checkbox" name="ID[]" id="<?=$this->table_id."_".$this->id."_".$check_id;?>" value="<?=$this->id?>" autocomplete="off" title="<?=GetMessage("admin_lib_list_check")?>"<?=$this->bReadOnly? ' disabled="disabled"':''?><?=$this->bEditMode ? ' checked="checked" disabled="disabled"' : ''?> /><label class="adm-designed-checkbox-label adm-checkbox" for="<?=$this->table_id."_".$this->id."_".$check_id;?>"></label></td>
@@ -1625,15 +1688,19 @@ class CAdminListRow
 		$bVarsFromForm = ($this->bEditMode && is_array($this->pList->arUpdateErrorIDs) && in_array($this->id, $this->pList->arUpdateErrorIDs));
 		foreach($this->pList->aVisibleHeaders as $id=>$header_props)
 		{
-			$field = $this->aFields[$id];
-			if($this->bEditMode && isset($field["edit"]))
+			$field = $this->aFields[$id] ?? [];
+			if ($this->bEditMode && isset($field["edit"]))
 			{
-				if($bVarsFromForm && $_REQUEST["FIELDS"])
-					$val = $_REQUEST["FIELDS"][$this->id][$id];
+				if ($bVarsFromForm && isset($_REQUEST["FIELDS"]))
+				{
+					$val = $_REQUEST["FIELDS"][$this->id][$id] ?? '';
+				}
 				else
-					$val = $this->arRes[$id];
+				{
+					$val = $this->arRes[$id] ?? '';
+				}
 
-				$val_old = $this->arRes[$id];
+				$val_old = $this->arRes[$id] ?? '';
 
 				echo '<td class="adm-list-table-cell',
 					(isset($header_props['align']) && $header_props['align']? ' align-'.$header_props['align']: ''),
@@ -1693,10 +1760,11 @@ class CAdminListRow
 			}
 			else
 			{
-				if(is_string($this->arRes[$id]))
-					$val = trim($this->arRes[$id]);
-				else
-					$val = $this->arRes[$id];
+				$val = $this->arRes[$id] ?? '';
+				if (is_string($val))
+				{
+					$val = trim($val);
+				}
 
 				if(isset($field["view"]))
 				{
@@ -1709,10 +1777,18 @@ class CAdminListRow
 								$val = htmlspecialcharsex(GetMessage("admin_lib_list_no"));
 							break;
 						case "select":
-							if($field["edit"]["values"][$val])
+							if (isset($field["edit"]["values"][$val]))
+							{
 								$val = htmlspecialcharsex($field["edit"]["values"][$val]);
+							}
+							elseif (isset($field["view"]["values"][$val]))
+							{
+								$val = htmlspecialcharsex($field["view"]["values"][$val]);
+							}
 							else
+							{
 								$val = htmlspecialcharsex($val);
+							}
 							break;
 						case "file":
 							if ($val > 0)

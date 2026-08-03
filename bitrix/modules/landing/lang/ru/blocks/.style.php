@@ -1,5 +1,9 @@
-<?
+<?php
 $MESS["LANDING_BLOCK_STYLE_TEXT_ALIGN"] = "Выравнивание текста";
+$MESS["LANDING_BLOCK_STYLE_WORD_BREAK"] = "Перенос текста на новую строку";
+$MESS["LANDING_BLOCK_STYLE_WORD_BREAK_HELP"] = "<li> Переносить слова полностью — перенос целого слова на следующую строку, если оно не помещается на текущей<li> Разделять слова на части — перенос части слова на следующую строку при достижении границ редактора";
+$MESS["LANDING_BLOCK_STYLE_WORD_BREAK_NORMAL"] = "Переносить слова полностью";
+$MESS["LANDING_BLOCK_STYLE_WORD_BREAK_BREAK_ALL"] = "Разделять слова на части";
 $MESS["LANDING_BLOCK_STYLE_TEXT_ALIGN_SHORT"] = "Выравнивание";
 $MESS["LANDING_BLOCK_STYLE_ROW_ALIGN"] = "Выравнивание элементов";
 $MESS["LANDING_BLOCK_STYLE_TEXT_COLOR"] = "Цвет текста";
@@ -80,11 +84,11 @@ $MESS["LANDING_BLOCK_STYLE_NAVBAR_COLLAPSE_BG"] = "Фон раскрывающе
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_OPEN_TYPE"] = "Тип раскрытия";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_MODAL"] = "Поверх всех";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_NO_MODAL"] = "Обычное раскрытие";
-$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE"] = "Размер гамбургера";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MSGVER_1"] = "Размер гамбургера";
 $MESS["LANDING_BLOCK_STYLE_HAMBURGER_ANIMATION"] = "Анимация гамбургера";
 $MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_SM"] = "Маленький";
 $MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MD"] = "Стандартный";
-$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_LG"] = "Увеличинный";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_LG"] = "Увеличенный";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_MARKER"] = "Маркер списка";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_MARKER_ARROW"] = "Стрелка";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_MARKER_NO"] = "Без маркера";
@@ -130,3 +134,10 @@ $MESS["LANDING_BLOCK_BUTTON_STYLE_OUTLINE_DOUBLE"] = "Контурная с дв
 
 $MESS["LANDING_BLOCK_TITLE_STYLE"] = "Стиль заголовка";
 
+$MESS["LANDING_BLOCK_STYLE_ORIENT_VIDEO"] = "Пропорции видео";
+$MESS["LANDING_BLOCK_STYLE_ORIENT_VIDEO_H"] = "Горизонтальное";
+$MESS["LANDING_BLOCK_STYLE_ORIENT_VIDEO_V"] = "Вертикальное";
+$MESS["LANDING_BLOCK_STYLE_ORIENT_VIDEO_S"] = "Квадратное";
+
+$MESS["LANDING_BLOCK_STYLE_SCALE_VIDEO"] = "Масштаб видео";
+$MESS["LANDING_BLOCK_STYLE_ASPECT_RATIO"] = "Соотношение сторон";

@@ -15,13 +15,15 @@
 
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Authentication\Policy;
+use Bitrix\Main\Authentication\Device;
+use Bitrix\Main\Application;
 
 IncludeModuleLangFile(__FILE__);
 
 if(!$USER->CanDoOperation('view_other_settings') && !$USER->CanDoOperation('edit_other_settings'))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-$mid = $_REQUEST["mid"];
+$mid = $_REQUEST["mid"] ?? 'main';
 
 $arGROUPS = array();
 $groups = array();
@@ -36,7 +38,7 @@ while($zr = $z->Fetch())
 	$groups[$zr["ID"]] = $zr["NAME"]." [".$zr["ID"]."]";
 }
 
-if($_SERVER["REQUEST_METHOD"] == "GET" && $USER->IsAdmin() && $_REQUEST["RestoreDefaults"] <> '' && check_bitrix_sessid())
+if($_SERVER["REQUEST_METHOD"] == "GET" && $USER->IsAdmin() && isset($_REQUEST["RestoreDefaults"]) && $_REQUEST["RestoreDefaults"] <> '' && check_bitrix_sessid())
 {
 	$aSaveVal = array(
 		array("NAME"=>"admin_passwordh", "DEF"=>""),
@@ -57,7 +59,7 @@ if($_SERVER["REQUEST_METHOD"] == "GET" && $USER->IsAdmin() && $_REQUEST["Restore
 		$APPLICATION->DelGroupRight("main", array($value["ID"]));
 }
 
-if($_SERVER["REQUEST_METHOD"] == "GET" && $USER->CanDoOperation('edit_other_settings') && $_REQUEST["GenKey"] <> '' && check_bitrix_sessid())
+if($_SERVER["REQUEST_METHOD"] == "GET" && $USER->CanDoOperation('edit_other_settings') && isset($_REQUEST["GenKey"]) && $_REQUEST["GenKey"] <> '' && check_bitrix_sessid())
 {
 	$sec = new CRsaSecurity();
 	$arKeys = $sec->Keygen();
@@ -193,6 +195,9 @@ $arAllOptions = array(
 		array("use_time_zones", GetMessage("MAIN_OPT_USE_TIMEZONES"), "N", array("checkbox", "Y", 'onclick="this.form.default_time_zone.disabled = this.form.auto_time_zone.disabled = !this.checked;"')),
 		array("default_time_zone", GetMessage("MAIN_OPT_TIME_ZONE_DEF"), "", array("selectbox", $aZones)),
 		array("auto_time_zone", GetMessage("MAIN_OPT_TIME_ZONE_AUTO"), "N", array("checkbox", "Y")),
+
+		GetMessage('main_options_geo'),
+		array("collect_geonames", GetMessage('main_options_geo_collect_names'), "N", array("checkbox", "Y")),
 	),
 	"mail" => array(
 		GetMessage("main_options_mail"),
@@ -204,7 +209,7 @@ $arAllOptions = array(
 		Array("convert_mail_header", GetMessage("MAIN_OPTION_CONVERT_8BIT"), "Y", Array("checkbox", "Y")),
 		Array("attach_images", GetMessage("MAIN_OPTION_ATTACH_IMAGES"), "N", array("checkbox", "Y")),
 		Array("mail_gen_text_version", GetMessage("MAIN_OPTION_MAIL_GEN_TEXT_VERSION"), "Y", array("checkbox", "Y")),
-		Array("max_file_size", GetMessage("MAIN_OPTION_MAX_FILE_SIZE"), "0", Array("text", 10)),
+		Array("max_file_size", GetMessage("MAIN_OPTION_MAX_FILE_SIZE"), "20000000", Array("text", 10)),
 		Array("mail_event_period", GetMessage("main_option_mail_period"), "14", Array("text", 10)),
 		Array("mail_event_bulk", GetMessage("main_option_mail_bulk"), "5", Array("text", 10)),
 		Array("mail_additional_parameters", GetMessage("MAIN_OPTION_MAIL_ADDITIONAL_PARAMETERS"), "", Array("text", 30)),
@@ -259,6 +264,13 @@ $arAllOptions = array(
 		GetMessage("MAIN_OPT_PROFILE"),
 		Array("user_profile_history", GetMessage("MAIN_OPT_PROFILE_HYSTORY"), "N", Array("checkbox", "Y")),
 		Array("profile_history_cleanup_days", GetMessage("MAIN_OPT_HISTORY_DAYS"), "0", Array("text", 5)),
+
+		GetMessage('main_options_device_history_title'),
+		Array('user_device_history', GetMessage('main_options_device_history'), 'N', ['checkbox', 'Y']),
+		Array('device_history_cleanup_days', GetMessage('main_options_device_history_days'), '180', ['text', 5]),
+		Array('user_device_geodata', GetMessage('main_options_device_geoip'), 'N', ['checkbox', 'Y']),
+		Array('user_device_notify', GetMessage('main_options_device_history_notify', ['#EMAIL_TEMPLATES_URL#' => '/bitrix/admin/message_admin.php?lang=' . LANGUAGE_ID . '&amp;set_filter=Y&amp;find_type_id=' . Device::EMAIL_EVENT]), 'N', ['checkbox', 'Y']),
+		Array('note' => GetMessage('main_options_device_history_note')),
 	),
 	"update" => Array(
 		Array("update_devsrv", GetMessage("MAIN_OPTIONS_UPDATE_DEVSRV"), "N", Array("checkbox", "Y")),
@@ -574,9 +586,9 @@ $aTabs = array(
 $tabControl = new CAdminTabControl("tabControl", $aTabs);
 
 $SET_LICENSE_KEY = "";
-if($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["Update"] <> '' && ($USER->CanDoOperation('edit_other_settings') && $USER->CanDoOperation('edit_groups')) && check_bitrix_sessid())
+if($_SERVER["REQUEST_METHOD"]=="POST" && !empty($_POST["Update"]) && ($USER->CanDoOperation('edit_other_settings') && $USER->CanDoOperation('edit_groups')) && check_bitrix_sessid())
 {
-	if(LICENSE_KEY !== $_POST["SET_LICENSE_KEY"])
+	if (Application::getInstance()->getLicense()->getKey() !== $_POST["SET_LICENSE_KEY"])
 	{
 		$SET_LICENSE_KEY = preg_replace("/[^A-Za-z0-9_.-]/", "", $_POST["SET_LICENSE_KEY"]);
 
@@ -593,10 +605,10 @@ if($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["Update"] <> '' && ($USER->CanDo
 			__AdmSettingsSaveOption("main", $option);
 		}
 	}
-	COption::SetOptionString("main", "admin_lid", $_POST["admin_lid"]);
-	COption::SetOptionString("main", "show_panel_for_users", serialize($_POST["show_panel_for_users"]));
-	COption::SetOptionString("main", "hide_panel_for_users", serialize($_POST["hide_panel_for_users"]));
-	COption::SetOptionString("main", "imageeditor_proxy_white_list", serialize($_POST["imageeditor_proxy_white_list"]));
+	COption::SetOptionString("main", "admin_lid", $_POST["admin_lid"] ?? '');
+	COption::SetOptionString("main", "show_panel_for_users", serialize($_POST["show_panel_for_users"] ?? ''));
+	COption::SetOptionString("main", "hide_panel_for_users", serialize($_POST["hide_panel_for_users"] ?? ''));
+	COption::SetOptionString("main", "imageeditor_proxy_white_list", serialize($_POST["imageeditor_proxy_white_list"] ?? ''));
 
 	$module_id = "main";
 	COption::SetOptionString($module_id, "GROUP_DEFAULT_TASK", $GROUP_DEFAULT_TASK, "Task for groups by default");
@@ -608,7 +620,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["Update"] <> '' && ($USER->CanDo
 	$arTasksInModule = Array();
 	foreach($arGROUPS as $value)
 	{
-		$tid = ${"TASKS_".$value["ID"]};
+		$tid = ${"TASKS_".$value["ID"]} ?? null;
 		$arTasksInModule[$value["ID"]] = Array('ID' => $tid);
 
 		$subOrdGr = false;
@@ -627,22 +639,24 @@ if($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["Update"] <> '' && ($USER->CanDo
 
 	CGroup::SetTasksForModule($module_id, $arTasksInModule);
 
-	if($_REQUEST["back_url_settings"] <> "" && $_REQUEST["Apply"] == "")
+	if(!empty($_REQUEST["back_url_settings"]) && empty($_REQUEST["Apply"]))
 		LocalRedirect($_REQUEST["back_url_settings"]);
 	else
-		LocalRedirect("/bitrix/admin/settings.php?lang=".LANGUAGE_ID."&mid=".urlencode($mid)."&tabControl_active_tab=".urlencode($_REQUEST["tabControl_active_tab"])."&back_url_settings=".urlencode($_REQUEST["back_url_settings"]));
+		LocalRedirect("/bitrix/admin/settings.php?lang=".LANGUAGE_ID."&mid=".urlencode($mid)."&tabControl_active_tab=".urlencode($_REQUEST["tabControl_active_tab"] ?? '')."&back_url_settings=".urlencode($_REQUEST["back_url_settings"] ?? ''));
 }
 
 if($SET_LICENSE_KEY == "")
-	$SET_LICENSE_KEY = LICENSE_KEY;
+{
+	$SET_LICENSE_KEY = Application::getInstance()->getLicense()->getKey();
+}
 
-if ($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["stop_site"]=="Y" && $USER->CanDoOperation('edit_other_settings') && check_bitrix_sessid())
+if ($_SERVER["REQUEST_METHOD"]=="POST" && isset($_POST["stop_site"]) && $_POST["stop_site"]=="Y" && $USER->CanDoOperation('edit_other_settings') && check_bitrix_sessid())
 {
 	COption::SetOptionString("main", "site_stopped", "Y");
 	CAdminMessage::ShowNote(GetMessage("MAIN_OPTION_PUBL_CLOSES"));
 }
 
-if ($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["start_site"]=="Y" && $USER->CanDoOperation('edit_other_settings') && check_bitrix_sessid())
+if ($_SERVER["REQUEST_METHOD"]=="POST" && isset($_POST["start_site"]) && $_POST["start_site"]=="Y" && $USER->CanDoOperation('edit_other_settings') && check_bitrix_sessid())
 {
 	COption::SetOptionString("main", "site_stopped", "N");
 	CAdminMessage::ShowNote(GetMessage("MAIN_OPTION_PUBL_OPENED"));
@@ -770,7 +784,7 @@ if ($GROUP_DEFAULT_TASK == '')
 $arUsedGroups = array();
 $arTaskInModule = CGroup::GetTasksForModule('main');
 foreach($arGROUPS as $value):
-	$v = (isset($arTaskInModule[$value["ID"]]['ID'])? $arTaskInModule[$value["ID"]]['ID'] : false);
+	$v = ($arTaskInModule[$value["ID"]]['ID'] ?? false);
 	if($v == false)
 		continue;
 	$arUsedGroups[$value["ID"]] = true;
@@ -808,7 +822,7 @@ if(count($arGROUPS) > count($arUsedGroups)):
 		<option value=""><?echo GetMessage("group_rights_select")?></option>
 <?
 foreach($arGROUPS as $group):
-	if($arUsedGroups[$group["ID"]] == true)
+	if(isset($arUsedGroups[$group["ID"]]) && $arUsedGroups[$group["ID"]])
 		continue;
 ?>
 		<option value="<?=$group["ID"]?>"><?=$group["NAME"]." [".$group["ID"]."]"?></option>
@@ -934,11 +948,11 @@ BX.ready(
 );
 
 </script>
-<?if($_REQUEST["back_url_settings"] <> ""):?>
+<?if (!empty($_REQUEST["back_url_settings"])):?>
 <input <?if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> type="submit" name="Save" value="<?echo GetMessage("MAIN_SAVE")?>" title="<?echo GetMessage("MAIN_OPT_SAVE_TITLE")?>" class="adm-btn-save">
 <?endif?>
 <input <?if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> type="submit" name="Apply" value="<?echo GetMessage("MAIN_OPT_APPLY")?>" title="<?echo GetMessage("MAIN_OPT_APPLY_TITLE")?>"<?if($_REQUEST["back_url_settings"] == ""):?>  class="adm-btn-save"<?endif?>>
-<?if($_REQUEST["back_url_settings"] <> ""):?>
+<?if (!empty($_REQUEST["back_url_settings"])):?>
 <input type="button" name="" value="<?echo GetMessage("MAIN_OPT_CANCEL")?>" title="<?echo GetMessage("MAIN_OPT_CANCEL_TITLE")?>" onclick="window.location='<?echo htmlspecialcharsbx(CUtil::JSEscape($_REQUEST["back_url_settings"]))?>'">
 <?endif?>
 <input <?if (!$USER->IsAdmin()) echo "disabled" ?> type="button" title="<?echo GetMessage("MAIN_HINT_RESTORE_DEFAULTS")?>" OnClick="RestoreDefaults();" value="<?echo GetMessage("MAIN_RESTORE_DEFAULTS")?>">
@@ -973,7 +987,7 @@ if(
 	&& COption::GetOptionString("main", "controller_member", "N") != "Y"
 )
 {
-	if($_POST["controller_url"] <> '')
+	if (!empty($_POST["controller_url"]))
 	{
 		if($_POST["controller_login"] == '' || $_POST["controller_password"] == '')
 		{
@@ -1014,7 +1028,7 @@ if(
 	{
 		if(!CControllerClient::RemoveFromController($_POST["controller_login"], $_POST["controller_password"]))
 		{
-			if($_REQUEST['remove_anywhere'] == 'Y')
+			if (isset($_REQUEST['remove_anywhere']) && $_REQUEST['remove_anywhere'] == 'Y')
 			{
 				CControllerClient::Unlink();
 			}
@@ -1088,7 +1102,7 @@ $tabControl->Begin();
 <?$tabControl->BeginNextTab();?>
 <?
 if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
-	if($site_url == '')
+	if(!isset($site_url) || $site_url == '')
 		$site_url = ($APPLICATION->IsHTTPS()?"https://":"http://").$_SERVER['HTTP_HOST'];
 ?>
 	<script>
@@ -1104,26 +1118,26 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	</script>
 	<tr class="adm-detail-required-field">
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_URL")?></td>
-		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_url"]);?>" name="controller_url" id="controller_url"></td>
+		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_url"] ?? '');?>" name="controller_url" id="controller_url"></td>
 	</tr>
 	<tr class="heading">
 		<td colspan="2"><b><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADDIT_SECT")?></b></td>
 	</tr>
 	<tr>
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_LOGIN")?></td>
-		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_login"]);?>" name="controller_login" id="controller_login"></td>
+		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_login"] ?? '');?>" name="controller_login" id="controller_login"></td>
 	</tr>
 	<tr>
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_PASSWORD")?></td>
-		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_password"]);?>" name="controller_password" id="controller_password"></td>
+		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_password"] ?? '');?>" name="controller_password" id="controller_password"></td>
 	</tr>
 	<tr>
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_SITENAME")?></td>
-		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["site_name"]);?>" name="site_name" id="site_name"></td>
+		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["site_name"] ?? '');?>" name="site_name" id="site_name"></td>
 	</tr>
 	<tr>
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_SITEURL")?></td>
-		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["site_url"]);?>" name="site_url" id="site_url"></td>
+		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["site_url"] ?? '');?>" name="site_url" id="site_url"></td>
 	</tr>
 	<tr>
 		<td>&nbsp;</td>
@@ -1161,11 +1175,11 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	</tr>
 	<tr>
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_LOGIN")?></td>
-		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_login"]);?>" name="controller_login" id="controller_login"></td>
+		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_login"] ?? '');?>" name="controller_login" id="controller_login"></td>
 	</tr>
 	<tr>
 		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_PASSWORD")?></td>
-		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_password"]);?>" name="controller_password" id="controller_password"></td>
+		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_password"] ?? '');?>" name="controller_password" id="controller_password"></td>
 	</tr>
 <?endif; //if(COption::GetOptionString("main", "controller_member", "N")!="Y"?>
 	<tr class="heading">
@@ -1223,7 +1237,7 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 		}
 		$res["size"] = (float)$res["size"];
 		$res["status"] = (($res["status"] == "d") && (intval(time() - $res["time"]) < 86400)) ? "done" : ($res["status"] == "c" ? "c" : "");
-		$res["size_in_per"] = ($diskSpace > 0) ? round(($res["size"]/$diskSpace), 2) : 0;
+		$res["size_in_per"] = round(($res["size"]/$diskSpace), 2);
 		$arParam[$name] = $res;
 		$usedSpace += $res["size"];
 	endforeach;

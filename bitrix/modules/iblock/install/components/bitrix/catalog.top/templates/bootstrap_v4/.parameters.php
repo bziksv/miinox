@@ -57,7 +57,11 @@ if (!empty($viewModeValue))
 		'yellow' => GetMessage('CP_BCT_TPL_THEME_YELLOW'),
 	);
 
-	$dir = trim(preg_replace("'[\\\\/]+'", "/", dirname(__FILE__).'/'.ToLower($arCurrentValues['VIEW_MODE']).'/themes/'));
+	$dir = trim(preg_replace(
+		"'[\\\\/]+'",
+		"/",
+		__DIR__.'/'.ToLower($arCurrentValues['VIEW_MODE'] ?? 'SECTION').'/themes/'
+	));
 	if (is_dir($dir))
 	{
 		foreach ($arThemesList as $themeID => $themeName)
@@ -378,7 +382,7 @@ if ($boolCatalog)
 			);
 		}
 	}
-	
+
 	$arTemplateParameters['ADD_TO_BASKET_ACTION'] = array(
 		'PARENT' => 'BASKET',
 		'NAME' => GetMessage('CP_BCT_TPL_ADD_TO_BASKET_ACTION'),
@@ -445,8 +449,8 @@ if ($viewModeValue === 'SECTION')
 		);
 	}
 
-	$lineElementCount = (int)$arCurrentValues['LINE_ELEMENT_COUNT'] ?: 3;
-	$pageElementCount = (int)$arCurrentValues['ELEMENT_COUNT'] ?: 9;
+	$lineElementCount = (int)($arCurrentValues['LINE_ELEMENT_COUNT'] ?? 3);
+	$pageElementCount = (int)($arCurrentValues['ELEMENT_COUNT'] ?? 9);
 
 	$arTemplateParameters['PRODUCT_ROW_VARIANTS'] = array(
 		'PARENT' => 'VISUAL',
@@ -605,3 +609,9 @@ $arTemplateParameters['MESS_NOT_AVAILABLE'] = array(
 	'TYPE' => 'STRING',
 	'DEFAULT' => GetMessage('CP_BCT_TPL_MESS_NOT_AVAILABLE_DEFAULT')
 );
+$arTemplateParameters['MESS_NOT_AVAILABLE_SERVICE'] = [
+	'PARENT' => 'VISUAL',
+	'NAME' => GetMessage('CP_BCT_TPL_MESS_NOT_AVAILABLE_SERVICE'),
+	'TYPE' => 'STRING',
+	'DEFAULT' => GetMessage('CP_BCT_TPL_MESS_NOT_AVAILABLE_SERVICE_DEFAULT'),
+];

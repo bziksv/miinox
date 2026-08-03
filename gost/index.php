@@ -1,7 +1,8 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
+$APPLICATION->SetPageProperty("description", "ГОСТЫ И ТУ на металлопрокат");
 $APPLICATION->SetPageProperty("title", "ГОСТЫ И ТУ");
-$APPLICATION->SetTitle("ГОСТЫ И ТУ");
+$APPLICATION->SetTitle("ГОСТЫ И ТУ | Металлопрокат | МеталлИнвест");
 ?>
     <main class="main-content">
         <div class="inner-page_title-section">

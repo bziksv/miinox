@@ -20,14 +20,14 @@ if((!$USER->CanDoOperation('edit_other_settings') && !$USER->CanDoOperation('vie
 
 $ID = str_replace("\\", "", $_REQUEST["ID"]);
 $ID = str_replace("/", "", $ID);
-$bUseCompression = True;
+$bUseCompression = true;
 if(!extension_loaded('zlib') || !function_exists("gzcompress"))
-	$bUseCompression = False;
+	$bUseCompression = false;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/tar_gz.php");
 
 CheckDirPath($_SERVER['DOCUMENT_ROOT'].BX_PERSONAL_ROOT."/tmp/templates/");
-$tmpfname = $_SERVER['DOCUMENT_ROOT'].BX_PERSONAL_ROOT."/tmp/templates/".md5(uniqid(rand(), true).".tar.gz");
+$tmpfname = $_SERVER['DOCUMENT_ROOT'].BX_PERSONAL_ROOT."/tmp/templates/".\Bitrix\Main\Security\Random::getString(32).".tar.gz";
 
 $HTTP_ACCEPT_ENCODING = "";
 
@@ -41,7 +41,7 @@ if(is_dir($_SERVER["DOCUMENT_ROOT"].$path))
 	{
 		$strError = "Archiver error";
 		$arErrors = &$oArchiver->GetErrors();
-		if(count($arErrors)>0)
+		if(!empty($arErrors))
 		{
 			$strError .= ":<br>";
 			foreach ($arErrors as $value)

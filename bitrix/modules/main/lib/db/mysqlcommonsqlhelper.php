@@ -160,12 +160,12 @@ abstract class MysqlCommonSqlHelper extends SqlHelper
 
 		$format = str_replace($search, $replace, $format);
 
-		if (mb_strpos($format, '%H') === false)
+		if (strpos($format, '%H') === false)
 		{
 			$format = str_replace("H", "%h", $format);
 		}
 
-		if (mb_strpos($format, '%M') === false)
+		if (strpos($format, '%M') === false)
 		{
 			$format = str_replace("M", "%b", $format);
 		}
@@ -191,12 +191,11 @@ abstract class MysqlCommonSqlHelper extends SqlHelper
 	 */
 	public function getConcatFunction()
 	{
-		$str = "";
-		$ar = func_get_args();
-		if (is_array($ar))
-			$str .= implode(", ", $ar);
-		if ($str <> '')
+		$str = implode(", ", func_get_args());
+		if ($str != '')
+		{
 			$str = "CONCAT(".$str.")";
+		}
 		return $str;
 	}
 
@@ -517,5 +516,17 @@ abstract class MysqlCommonSqlHelper extends SqlHelper
 		return array(
 			$sql
 		);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getConditionalAssignment(string $field, string $value): string
+	{
+		$field = $this->quote($field);
+		$value = $this->convertToDbString($value);
+		$hash = $this->convertToDbString(sha1($value));
+
+		return "IF(SHA1({$field}) = {$hash}, {$field}, {$value})";
 	}
 }

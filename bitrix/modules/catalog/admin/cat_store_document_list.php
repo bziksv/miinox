@@ -3,6 +3,8 @@
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Catalog;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Access\AccessController;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
@@ -20,10 +22,24 @@ global $adminSidePanelHelper;
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if(!$USER->CanDoOperation('catalog_store'))
-	$APPLICATION->AuthForm(Loc::getMessage('ACCESS_DENIED'));
 Loader::includeModule('catalog');
-$bReadOnly = !$USER->CanDoOperation('catalog_store');
+if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_STORE_VIEW))
+{
+	$APPLICATION->AuthForm(Loc::getMessage('ACCESS_DENIED'));
+}
+
+if (
+	!$publicMode
+	&& Loader::includeModule('sale')
+	&& Catalog\v2\Contractor\Provider\Manager::getActiveProvider()
+)
+{
+	$APPLICATION->SetTitle(Loc::getMessage("CAT_DOCS"));
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	$APPLICATION->IncludeComponent("bitrix:sale.admin.page.stub", "");
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	die();
+}
 
 if($ex = $APPLICATION->GetException())
 {
@@ -38,8 +54,11 @@ if($ex = $APPLICATION->GetException())
 
 $sTableID = "b_catalog_store_docs";
 
-$oSort = new CAdminUiSorting($sTableID, "ID", "DESC");
+$oSort = new CAdminUiSorting($sTableID, "DATE_MODIFY", "DESC");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
+
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $errorMessage = "";
 
@@ -226,19 +245,6 @@ if (isset($arFilter['STATUS']))
 	unset($statusFilter);
 }
 
-global $by, $order;
-if (!isset($by))
-{
-	$by = 'DATE_MODIFY';
-}
-$by = mb_strtoupper($by);
-
-if (!isset($order))
-{
-	$order = 'DESC';
-}
-$order = mb_strtoupper($order);
-
 switch ($by)
 {
 	case 'STATUS':
@@ -255,7 +261,7 @@ switch ($by)
 		];
 }
 
-if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
+if ($arID = $lAdmin->GroupAction())
 {
 	if ($_REQUEST['action_target'] == 'selected')
 	{
@@ -268,7 +274,6 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 		}
 		$query = Catalog\StoreDocumentTable::query()
 			->setFilter($arFilter)
-			->setOrder($docsOrder)
 			->setSelect(['ID']);
 		if ($filteredProduct > 0)
 		{
@@ -622,6 +627,7 @@ $dbResultList = new CAdminUiResult($dbResultList, $sTableID);
 $dbResultList->NavStart();
 $lAdmin->SetNavigationParams($dbResultList, array("BASE_LINK" => $selfFolderUrl."cat_store_document_list.php"));
 
+$arUserID = [];
 while($arRes = $dbResultList->Fetch())
 {
 	$arRes['ID'] = (int)$arRes['ID'];
@@ -723,40 +729,37 @@ while($arRes = $dbResultList->Fetch())
 		"DEFAULT" => true
 	);
 
-	if (!$bReadOnly)
+	if ($bAllowForEdit)
 	{
-		if ($bAllowForEdit)
-		{
-			$arActions[] = array(
-				"ICON" => "pack",
-				"TEXT" => Loc::getMessage("CAT_DOC_CONDUCT"),
-				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "conduct")
-			);
-			$arActions[] = array(
-				"ICON" => "copy",
-				"TEXT" => Loc::getMessage("CAT_DOC_COPY"),
-				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "copy")
-			);
-			$arActions[] = array(
-				"ICON" => "delete",
-				"TEXT" => Loc::getMessage("CAT_DOC_DELETE"),
-				"ACTION" => "if(confirm('".CUtil::JSEscape(Loc::getMessage('CAT_DOC_DELETE_CONFIRM'))."')) ".
-					$lAdmin->ActionDoGroup($arRes['ID'], "delete")
-			);
-		}
-		else
-		{
-			$arActions[] = array(
-				"ICON" => "unpack",
-				"TEXT" => Loc::getMessage("CAT_DOC_CANCELLATION"),
-				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "cancellation")
-			);
-			$arActions[] = array(
-				"ICON" => "copy",
-				"TEXT" => Loc::getMessage("CAT_DOC_COPY"),
-				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "copy")
-			);
-		}
+		$arActions[] = array(
+			"ICON" => "pack",
+			"TEXT" => Loc::getMessage("CAT_DOC_CONDUCT"),
+			"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "conduct")
+		);
+		$arActions[] = array(
+			"ICON" => "copy",
+			"TEXT" => Loc::getMessage("CAT_DOC_COPY"),
+			"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "copy")
+		);
+		$arActions[] = array(
+			"ICON" => "delete",
+			"TEXT" => Loc::getMessage("CAT_DOC_DELETE"),
+			"ACTION" => "if(confirm('".CUtil::JSEscape(Loc::getMessage('CAT_DOC_DELETE_CONFIRM'))."')) ".
+				$lAdmin->ActionDoGroup($arRes['ID'], "delete")
+		);
+	}
+	else
+	{
+		$arActions[] = array(
+			"ICON" => "unpack",
+			"TEXT" => Loc::getMessage("CAT_DOC_CANCELLATION"),
+			"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "cancellation")
+		);
+		$arActions[] = array(
+			"ICON" => "copy",
+			"TEXT" => Loc::getMessage("CAT_DOC_COPY"),
+			"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "copy")
+		);
 	}
 
 	$row->AddActions($arActions);
@@ -811,18 +814,15 @@ if($arSelectFieldsMap['CREATED_BY'] || $arSelectFieldsMap['MODIFIED_BY'])
 		unset($row);
 }
 
-if (!$bReadOnly)
-{
-	$actionList = array();
-	if ($showConduct)
-		$actionList['conduct'] = Loc::getMessage('CAT_DOC_CONDUCT');
-	if ($showCancel)
-		$actionList['cancellation'] = Loc::getMessage('CAT_DOC_CANCELLATION');
-	$actionList['copy'] = Loc::getMessage('CAT_DOC_COPY');
-	if ($showDelete)
-		$actionList['delete'] = Loc::getMessage('MAIN_ADMIN_LIST_DELETE');
-	$lAdmin->AddGroupActionTable($actionList);
-}
+$actionList = array();
+if ($showConduct)
+	$actionList['conduct'] = Loc::getMessage('CAT_DOC_CONDUCT');
+if ($showCancel)
+	$actionList['cancellation'] = Loc::getMessage('CAT_DOC_CANCELLATION');
+$actionList['copy'] = Loc::getMessage('CAT_DOC_COPY');
+if ($showDelete)
+	$actionList['delete'] = Loc::getMessage('MAIN_ADMIN_LIST_DELETE');
+$lAdmin->AddGroupActionTable($actionList);
 
 $lAdmin->CheckListMode();
 

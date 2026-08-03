@@ -1,6 +1,12 @@
 <?
 /** @global CUser $USER */
 /** @global int $IBLOCK_ID */
+
+use Bitrix\Main;
+use Bitrix\Iblock;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 CModule::IncludeModule("iblock");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/prolog.php");
@@ -51,7 +57,7 @@ if (0 < $intSubIBlockID)
 	$arSubIBlock = CIBlock::GetArrayByID($intSubIBlockID);
 	if ($arSubIBlock)
 	{
-		$bBadBlock = !CIBlockRights::UserHasRightTo($intSubIBlockID, $intSubIBlockID, "iblock_admin_display");;
+		$bBadBlock = !CIBlockRights::UserHasRightTo($intSubIBlockID, $intSubIBlockID, "iblock_admin_display");
 	}
 }
 
@@ -85,8 +91,15 @@ if ($bCatalog)
 	{
 		die();
 	}
-	if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_price')))
+	if (
+		!(
+			AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ)
+			|| AccessController::getCurrent()->check(ActionDictionary::ACTION_PRICE_EDIT)
+		)
+	)
+	{
 		$boolSubCatalog = false;
+	}
 }
 else
 {
@@ -103,11 +116,52 @@ if (0 >= $intSubPropValue)
 		die();
 	}
 }
+
+$request = Main\Context::getCurrent()->getRequest();
+$urlBuilderManager = Iblock\Url\AdminPage\BuilderManager::getInstance();
+$urlBuilder = null;
+$urlBuilderId = (string)$request->get('urlBuilderId') ;
+if ($urlBuilderId !== '')
+{
+	$urlBuilder = $urlBuilderManager->getBuilder($urlBuilderId);
+}
+if ($urlBuilder === null)
+{
+	$urlBuilder = $urlBuilderManager->getBuilder();
+}
+unset($urlBuilderManager);
+if ($urlBuilder === null)
+{
+	$APPLICATION->SetTitle($arSubIBlockType["NAME"]);
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	ShowError(GetMessage("IBEL_ERR_BUILDER_ADSENT"));
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	die();
+}
+$urlBuilderId = $urlBuilder->getId();
+//TODO:: temporary hack for open subelements in public inventory section
+if (in_array(
+	$urlBuilderId,
+	[
+		'SHOP',
+		'CRM',
+		'INVENTORY',
+	]
+))
+{
+	if (!defined('SELF_FOLDER_URL'))
+	{
+		define('SELF_FOLDER_URL', '/shop/settings/');
+	}
+}
+
 $additionalParams = (defined("SELF_FOLDER_URL") ? "&public=y" : "");
 $strSubElementAjaxPath = '/bitrix/tools/iblock/iblock_subelement_admin.php?WF=Y&IBLOCK_ID=' . $intSubIBlockID
 	. '&type=' . urlencode($strSubIBlockType) .'&lang=' . LANGUAGE_ID
 	. '&find_section_section=0&find_el_property_' . $arSubCatalog['SKU_PROPERTY_ID'] . '=' . $intSubPropValue
-	. '&TMP_ID=' . urlencode($strSubTMP_ID) .$additionalParams
+	. '&TMP_ID=' . urlencode($strSubTMP_ID)
+	. '&urlBuilderId=' . urlencode($urlBuilderId)
+	. $additionalParams
 ;
 require($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/iblock/admin/templates/iblock_subelement_list.php');
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_popup_admin.php");

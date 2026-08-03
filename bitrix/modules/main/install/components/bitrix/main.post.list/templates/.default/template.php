@@ -18,6 +18,7 @@ use Bitrix\Main\Page\Asset;
 use \Bitrix\Main\UI;
 
 UI\Extension::load([
+	'ui.design-tokens',
 	'ui.animations',
 	'main.rating',
 	'ui.tooltip',
@@ -345,7 +346,7 @@ BX.ready(function(){
 		nodeFormHolder : BX('record-<?=$prefixNode?>-form-holder'),
 
 		order : '<?=($arParams["PREORDER"] == "N" ? "DESC" : "ASC")?>',
-		mid : <?= (int)$arParams["LAST_RECORD"]["ID"] ?>,
+		mid : <?= (int)($arParams["LAST_RECORD"]["ID"] ?? 0) ?>,
 		rights : {
 				MODERATE : '<?=$arParams["RIGHTS"]["MODERATE"]?>',
 				EDIT : '<?=$arParams["RIGHTS"]["EDIT"]?>',
@@ -357,11 +358,11 @@ BX.ready(function(){
 		ajax : <?=CUtil::PhpToJSObject($ajaxParams)?>
 		},
 		{
-			VIEW_URL : '<?=CUtil::JSEscape($arParams["~VIEW_URL"])?>',
-			EDIT_URL : '<?=CUtil::JSEscape($arParams["~EDIT_URL"])?>',
-			MODERATE_URL : '<?=CUtil::JSEscape($arParams["~MODERATE_URL"])?>',
-			DELETE_URL : '<?=CUtil::JSEscape($arParams["~DELETE_URL"])?>',
-			AUTHOR_URL : '<?=CUtil::JSEscape($arParams["~AUTHOR_URL"])?>',
+			VIEW_URL : '<?=CUtil::JSEscape($arParams["~VIEW_URL"] ?? '')?>',
+			EDIT_URL : '<?=CUtil::JSEscape($arParams["~EDIT_URL"] ?? '')?>',
+			MODERATE_URL : '<?=CUtil::JSEscape($arParams["~MODERATE_URL"] ?? '')?>',
+			DELETE_URL : '<?=CUtil::JSEscape($arParams["~DELETE_URL"] ?? '')?>',
+			AUTHOR_URL : '<?=CUtil::JSEscape($arParams["~AUTHOR_URL"] ?? '')?>',
 			AUTHOR_URL_PARAMS: <?=(isset($arParams["AUTHOR_URL_PARAMS"]) ? CUtil::PhpToJSObject($arParams["AUTHOR_URL_PARAMS"]) : '{}')?>,
 
 			AVATAR_SIZE : '<?=CUtil::JSEscape($arParams["AVATAR_SIZE"])?>',
@@ -414,7 +415,7 @@ if ($arParams["SHOW_POST_FORM"] == "Y")
 		<div class="ui-icon ui-icon-common-user feed-com-avatar feed-com-avatar-<?= ($AUTHOR_AVATAR === '/bitrix/images/1.gif' ? "N" : "Y") ?>"><?php
 			?>
 			<i></i>
-			<img width="37" height="37" src="<?= $AUTHOR_AVATAR ?>">
+			<img width="37" height="37" src="<?= \Bitrix\Main\Web\Uri::urnEncode($AUTHOR_AVATAR) ?>">
 			<?php
 		?></div>
 

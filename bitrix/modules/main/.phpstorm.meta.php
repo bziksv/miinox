@@ -16,6 +16,7 @@ namespace PHPSTORM_META
 	exitPoint(\Bitrix\Main\Application::end());
 	exitPoint(\Bitrix\Main\Application::terminate());
 	exitPoint(\CAllMain::FinalActions());
+	exitPoint(\LocalRedirect());
 
 	registerArgumentsSet(
 		'bitrix_main_modules_list',
@@ -49,6 +50,7 @@ namespace PHPSTORM_META
 		'controller',
 		'conversion',
 		'crm',
+		'crmmobile',
 		'currency',
 		'dav',
 		'disk',
@@ -68,6 +70,7 @@ namespace PHPSTORM_META
 		'imconnector',
 		'imconnectorserver',
 		'imopenlines',
+		'immobile',
 		'intranet',
 		'landing',
 		'ldap',
@@ -118,6 +121,7 @@ namespace PHPSTORM_META
 		'subscribe',
 		'support',
 		'tasks',
+		'tasksmobile',
 		'timeman',
 		'transformer',
 		'transformercontroller',

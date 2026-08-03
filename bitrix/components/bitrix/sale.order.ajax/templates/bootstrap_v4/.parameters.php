@@ -1,5 +1,7 @@
-<?
+<?php
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+
+/** @var array $arCurrentValues */
 
 use Bitrix\Main\Loader;
 use Bitrix\Catalog;
@@ -106,14 +108,12 @@ $arTemplateParameters = array(
 	"DELIVERY_FADE_EXTRA_SERVICES" => array(
 		"NAME" => GetMessage("DELIVERY_FADE_EXTRA_SERVICES"),
 		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
 		"DEFAULT" => "N",
 		"PARENT" => "VISUAL",
 	),
 	"SHOW_NEAREST_PICKUP" => array(
 		"NAME" => GetMessage("SHOW_NEAREST_PICKUP"),
 		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
 		"DEFAULT" => "N",
 		"PARENT" => "VISUAL",
 	),
@@ -141,7 +141,6 @@ $arTemplateParameters = array(
 	"SHOW_PICKUP_MAP" => array(
 		"NAME" => GetMessage("SHOW_PICKUP_MAP"),
 		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
 		"DEFAULT" => "Y",
 		"PARENT" => "VISUAL",
 	),
@@ -197,14 +196,18 @@ $arTemplateParameters = array(
 		"TYPE" => "CHECKBOX",
 		"DEFAULT" => "N",
 		"REFRESH" => "Y",
-		"PARENT" => "BASE"
+		"PARENT" => "BASE",
 	),
 	"ALLOW_NEW_PROFILE" => array(
 		"NAME" => GetMessage("ALLOW_NEW_PROFILE"),
 		"TYPE" => "CHECKBOX",
 		"DEFAULT" => "N",
-		"HIDDEN" => $arCurrentValues['ALLOW_USER_PROFILES'] !== 'Y' ? 'Y' : 'N',
-		"PARENT" => "BASE"
+		"HIDDEN" =>
+			(isset($arCurrentValues['ALLOW_USER_PROFILES']) && $arCurrentValues['ALLOW_USER_PROFILES'] === 'Y')
+				? 'N'
+				: 'Y'
+		,
+		"PARENT" => "BASE",
 	),
 	"SHOW_COUPONS" => array(
 		"NAME" => GetMessage("SHOW_COUPONS"),
@@ -248,7 +251,7 @@ if (!isset($arCurrentValues['SHOW_COUPONS']) || $arCurrentValues['SHOW_COUPONS']
 	];
 }
 
-if ($arCurrentValues['USE_YM_GOALS'] == 'Y')
+if (isset($arCurrentValues['USE_YM_GOALS']) && $arCurrentValues['USE_YM_GOALS'] === 'Y')
 {
 	$arTemplateParameters["YM_GOALS_COUNTER"] = array(
 		"NAME" => GetMessage("YM_GOALS_COUNTER"),
@@ -449,7 +452,7 @@ if (isset($arCurrentValues['USE_ENHANCED_ECOMMERCE']) && $arCurrentValues['USE_E
 	}
 }
 
-if ($arCurrentValues['SHOW_MAP_IN_PROPS'] == 'Y')
+if (isset($arCurrentValues['SHOW_MAP_IN_PROPS']) && $arCurrentValues['SHOW_MAP_IN_PROPS'] === 'Y')
 {
 	$arDelivery = array();
 	$services = Bitrix\Sale\Delivery\Services\Manager::getActiveList();
@@ -519,7 +522,7 @@ $arTemplateParameters["USE_CUSTOM_MAIN_MESSAGES"] =  array(
 	"PARENT" => "MAIN_MESSAGE_SETTINGS"
 );
 
-if ($arCurrentValues['USE_CUSTOM_MAIN_MESSAGES'] == 'Y')
+if (isset($arCurrentValues['USE_CUSTOM_MAIN_MESSAGES']) && $arCurrentValues['USE_CUSTOM_MAIN_MESSAGES'] === 'Y')
 {
 	$arTemplateParameters["MESS_AUTH_BLOCK_NAME"] =  array(
 		"NAME" => GetMessage("AUTH_BLOCK_NAME"),
@@ -621,7 +624,7 @@ $arTemplateParameters["USE_CUSTOM_ADDITIONAL_MESSAGES"] =  array(
 	"PARENT" => "ADDITIONAL_MESSAGE_SETTINGS"
 );
 
-if ($arCurrentValues['USE_CUSTOM_ADDITIONAL_MESSAGES'] == 'Y')
+if (isset($arCurrentValues['USE_CUSTOM_ADDITIONAL_MESSAGES']) && $arCurrentValues['USE_CUSTOM_ADDITIONAL_MESSAGES'] === 'Y')
 {
 	$arTemplateParameters["MESS_PRICE_FREE"] =  array(
 		"NAME" => GetMessage("PRICE_FREE"),
@@ -741,7 +744,7 @@ $arTemplateParameters["USE_CUSTOM_ERROR_MESSAGES"] =  array(
 	"PARENT" => "ERROR_MESSAGE_SETTINGS"
 );
 
-if ($arCurrentValues['USE_CUSTOM_ERROR_MESSAGES'] == 'Y')
+if (isset($arCurrentValues['USE_CUSTOM_ERROR_MESSAGES']) && $arCurrentValues['USE_CUSTOM_ERROR_MESSAGES'] === 'Y')
 {
 	$arTemplateParameters["MESS_SUCCESS_PRELOAD_TEXT"] =  array(
 		"NAME" => GetMessage("SUCCESS_PRELOAD_TEXT"),

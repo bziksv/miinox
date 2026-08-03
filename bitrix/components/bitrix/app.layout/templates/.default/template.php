@@ -14,6 +14,7 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
  * @global CMain $APPLICATION
  * @global CUser $USER
  */
+\Bitrix\Main\UI\Extension::load(['ui.design-tokens']);
 
 if($arParams['IS_SLIDER'])
 {
@@ -68,7 +69,11 @@ $frameStyle = array();
 
 if(
 	!empty($arResult['PRESET_OPTIONS'])
-	|| (is_array($arParams['PARAM']) && !empty($arParams['PARAM']))
+	|| (
+		isset($arParams['PARAM'])
+		&& is_array($arParams['PARAM'])
+		&& !empty($arParams['PARAM'])
+	)
 )
 {
 	if ((int)$arResult['PRESET_OPTIONS']['height'] > 0)
@@ -85,7 +90,7 @@ if(
 		$frameStyle[] = 'width:' . $arParams['PARAM']['FRAME_WIDTH'];
 	}
 }
-elseif($arParams['MOBILE'] == 'Y')
+elseif(isset($arParams['MOBILE']) && $arParams['MOBILE'] == 'Y')
 {
 	$frameStyle[] = 'width: 100%';
 	//$frameStyle[] = 'height: 100%';
@@ -128,7 +133,7 @@ if($arParams['PLACEMENT'] !== \Bitrix\Rest\PlacementTable::PLACEMENT_DEFAULT)
 	class="app-frame-layout<?=($arParams['PLACEMENT'] === \Bitrix\Rest\PlacementTable::PLACEMENT_DEFAULT) ? ' app-frame-layout-default' : ''?>"
 >
 	<iframe id="appframe_<?=$arResult['APP_SID']?>" name="<?=htmlspecialcharsbx($frameName)?>" frameborder="0" class="app-frame app-loading" allow="geolocation *; microphone *; camera *; autoplay *;"></iframe>
-	<div id="appframe_loading_<?=$arResult['APP_SID']?>" class="app-loading-msg" <?if($arParams['SHOW_LOADER'] === 'N'):?> style="display: none;"<?endif;?>>
+	<div id="appframe_loading_<?=$arResult['APP_SID']?>" class="app-loading-msg" <?php if (isset($arParams['SHOW_LOADER']) && $arParams['SHOW_LOADER'] === 'N'): ?> style="display: none;"<?endif;?>>
 		<?=GetMessage('REST_LOADING', array('#APP_NAME#' =>  htmlspecialcharsbx($arResult['APP_NAME'])))?>
 	</div>
 </div>
@@ -146,13 +151,14 @@ BX.rest.AppLayout.set(
 		ajaxUrl: '/bitrix/components/bitrix/app.layout/lazyload.ajax.php',
 		controlUrl: '/bitrix/tools/rest_control.php',
 		appHost: '<?=$arResult['APP_HOST']?>',
+		appPort: '<?=$arResult['APP_PORT']?>',
 		appProto: '<?=$arResult['APP_PROTO']?>',
 		proto: <?=$arResult['CURRENT_HOST_SECURE']?1:0?>,
 		restPath: '<?=$arResult['REST_PATH']?>',
 		id: '<?=$arResult['ID']?>',
 		appId: '<?=$arResult['APP_ID']?>',
 		appV: '<?=$arResult['APP_VERSION']?>',
-		appI: <?=$arResult['INSTALL'] ? 'true' : 'false'?>,
+		appI: <?= ($arResult['INSTALL'] ?? null) ? 'true' : 'false'?>,
 		memberId: '<?=$arResult['MEMBER_ID']?>',
 		authId: '<?=$arResult['AUTH']['access_token']?>',
 		authExpires: '<?=$arResult['AUTH']['expires_in']?>',
@@ -161,7 +167,7 @@ BX.rest.AppLayout.set(
 		staticHtml: <?=$arResult['APP_STATIC'] ? 'true' : 'false'?>,
 		appOptions: <?=\CUtil::PhpToJsObject($arResult['APP_OPTIONS'])?>,
 		userOptions: <?=\CUtil::PhpToJsObject($arResult['USER_OPTIONS'])?>,
-		placementId: '<?=($arParams['PLACEMENT_ID'] > 0) ? intVal($arParams['PLACEMENT_ID']) : 0; ?>',
+		placementId: '<?=(isset($arParams['PLACEMENT_ID']) && $arParams['PLACEMENT_ID'] > 0) ? intVal($arParams['PLACEMENT_ID']) : 0; ?>',
 		placementOptions: <?=\CUtil::PhpToJsObject($arParams['PLACEMENT_OPTIONS'])?>
 
 	}

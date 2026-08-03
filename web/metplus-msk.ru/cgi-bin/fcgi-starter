@@ -1,0 +1,7 @@
+#!/bin/sh
+PHPRC=/usr/local/lib
+export PHPRC
+export PHP_FCGI_MAX_REQUESTS=500
+export PHP_FCGI_CHILDREN=10
+exec  /usr/bin/php73-cgi
+

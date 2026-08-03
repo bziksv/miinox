@@ -1,6 +1,9 @@
-<?
+<?php
+
 namespace Bitrix\Main\Update;
-use Bitrix\Main\HttpApplication;
+
+use \Bitrix\Main;
+use \Bitrix\Main\HttpApplication;
 use \Bitrix\Main\Web\Json;
 use \Bitrix\Main\Config\Option;
 use \Bitrix\Main\Context;
@@ -163,7 +166,8 @@ HTML;
 			$res = new \ReflectionClass($updater);
 			self::$filesToUnlink[] = $res->getFileName();
 		}
-		Option::delete("main.stepper.".$updater->getModuleId(), array("name" => $className));
+		Option::delete('main.stepper.'.$updater->getModuleId(), ['name' => $className]);
+		Option::delete('main.stepper.'.$updater->getModuleId(), ['name' => '\\'.$className]);
 
 		return '';
 	}
@@ -313,7 +317,7 @@ HTML;
 					1,
 					"",
 					"Y",
-					\ConvertTimeStamp(time() + $delay, "FULL"),
+					date(Main\Type\Date::convertFormatToPhp(\CSite::GetDateFormat("FULL")), time() + $delay),
 					100,
 					false,
 					false
@@ -324,10 +328,18 @@ HTML;
 		else
 		{
 			global $DB;
-			$name = $DB->ForSql($className.'::execAgent('.(empty($withArguments) ? '' : call_user_func_array([$className, "makeArguments"], [$withArguments])).');', 2000);
+			$arguments = '';
+			if (!empty($withArguments))
+			{
+				$arguments = class_exists($className)
+					? call_user_func_array([$className, "makeArguments"], [$withArguments])
+						: self::makeArguments($withArguments)
+				;
+			}
+			$name = $DB->ForSql($className.'::execAgent('.$arguments.');', 2000);
 			$className = $DB->ForSql($className);
 			$moduleId = $DB->ForSql($moduleId);
-			if (!(($agent = $DB->Query("SELECT ID FROM b_agent WHERE MODULE_ID='".$moduleId."' AND NAME = '".$name."' AND USER_ID IS NULL")->Fetch()) && $agent))
+			if (!($DB->Query("SELECT ID FROM b_agent WHERE MODULE_ID='".$moduleId."' AND NAME = '".$name."' AND USER_ID IS NULL")->Fetch()))
 			{
 				$DB->Query("INSERT INTO b_agent (MODULE_ID, SORT, NAME, ACTIVE, AGENT_INTERVAL, IS_PERIOD, NEXT_EXEC) VALUES ('".$moduleId."', 100, '".$name."', 'Y', 1, 'Y', ".($delay > 0 ? "DATE_ADD(now(), INTERVAL ".$delay." SECOND)" : $DB->GetNowFunction()).")");
 				$DB->Query("INSERT INTO b_option (`MODULE_ID`, `NAME`, `VALUE`)".

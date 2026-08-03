@@ -21,6 +21,7 @@
 			this.id = params.id;
 			this.importByProcessId = params.importByProcessId;
 			this.signedParameters = params.signedParameters;
+			this.from = params.from;
 			this.next = '';
 			this.section = [];
 			this.progressDescriptionContainer = BX.findChildByClassName( BX(this.id), 'rest-configuration-info');
@@ -263,7 +264,7 @@
 		setDescription: function (code, step)
 		{
 			code = 'REST_CONFIGURATION_IMPORT_INSTALL_STEP_'+code;
-			var mess = BX.message[code]? BX.message(code): BX.message('REST_CONFIGURATION_IMPORT_INSTALL_STEP');
+			var mess = BX.message[code]? BX.message(code): BX.message('REST_CONFIGURATION_IMPORT_INSTALL_STEP_MSGVER_1');
 
 			if (this.loaderPointCount > 0 && BX.type.isInteger(step))
 			{
@@ -285,14 +286,14 @@
 
 		showFinish: function (result)
 		{
-			this.setDescription('FINISH');
+			//this.setDescription('FINISH');
 			var barContainer = BX.findChildByClassName(BX(this.id), 'rest-configuration-start-icon-main');
 			BX.removeClass(barContainer, 'rest-configuration-start-icon-main-loading');
 
 			var text = '';
 			if (this.errors.length === 0)
 			{
-				text = BX.message('REST_CONFIGURATION_IMPORT_FINISH_DESCRIPTION');
+				text = BX.message('REST_CONFIGURATION_IMPORT_FINISH_DESCRIPTION_MSGVER_1');
 				BX.addClass(barContainer, 'rest-configuration-start-icon-main-success');
 			}
 			else
@@ -420,6 +421,7 @@
 							finishResponse: result,
 							errors: this.errors,
 							elementList: elementList,
+							from: this.from,
 						},
 					}
 				)
@@ -566,7 +568,7 @@
 		start: function ()
 		{
 			this.showLoader();
-			this.setDescription('START');
+			//this.setDescription('START');
 			this.sendAjax(
 				'start',
 				{},
@@ -696,7 +698,7 @@
 			}
 			else
 			{
-				this.setDescription('CLEAR');
+				//this.setDescription('CLEAR');
 				this.sendAjax(
 					'clear',
 					{
@@ -745,7 +747,7 @@
 						step++;
 						if(!response.data.errors)
 						{
-							this.setDescription(this.section[section]);
+							//this.setDescription(this.section[section]);
 						}
 						if(response.data.result === true)
 						{
@@ -811,7 +813,11 @@
 				{
 					mode: 'class',
 					signedParameters: this.signedParameters,
-					data: data
+					data: data,
+					analyticsLabel: {
+						from: this.from,
+						hasErrors: this.errors.length !== 0
+					}
 				}
 			).then(
 				BX.delegate(

@@ -37,11 +37,11 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 */
 	public function __construct($param = null)
 	{
-		if (is_array($param))
+		if (\is_array($param))
 		{
 			$this->params = $param;
 		}
-		elseif (is_int($param) && (int)$param > 0)
+		elseif (\is_int($param) && (int)$param > 0)
 		{
 			$this->restore((int)$param);
 		}
@@ -99,7 +99,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 		if (isset($this->params[$code]))
 		{
 			unset($this->params[$code]);
-			$this->iterateCodes = array_keys($this->params);
+			$this->iterateCodes = \array_keys($this->params);
 		}
 	}
 
@@ -112,6 +112,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return string|null
 	 */
+	#[\ReturnTypeWillChange]
 	public function current()
 	{
 		$code = $this->iterateCodes[$this->iteratePosition];
@@ -124,7 +125,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return void
 	 */
-	public function next()
+	public function next(): void
 	{
 		++ $this->iteratePosition;
 	}
@@ -134,6 +135,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return int|null
 	 */
+	#[\ReturnTypeWillChange]
 	public function key()
 	{
 		return $this->iterateCodes[$this->iteratePosition] ?: null;
@@ -142,9 +144,9 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	/**
 	 * Checks if current position is valid.
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
-	public function valid()
+	public function valid(): bool
 	{
 		return isset($this->iterateCodes[$this->iteratePosition], $this->params[$this->iterateCodes[$this->iteratePosition]]);
 	}
@@ -154,10 +156,10 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return void
 	 */
-	public function rewind()
+	public function rewind(): void
 	{
 		$this->iteratePosition = 0;
-		$this->iterateCodes = array_keys($this->params);
+		$this->iterateCodes = \array_keys($this->params);
 	}
 
 	//endregion
@@ -170,7 +172,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 */
 	public function serialize()
 	{
-		return serialize($this->params);
+		return \serialize($this->params);
 	}
 
 	/**
@@ -181,8 +183,8 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	{
 		if (!empty($data))
 		{
-			$deserialized = unserialize($data, ['allowed_classes' => false]);
-			if (is_array($deserialized))
+			$deserialized = \unserialize($data, ['allowed_classes' => false]);
+			if (\is_array($deserialized))
 			{
 				$this->params = $deserialized;
 			}
@@ -255,9 +257,9 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @param string $code Phrase code.
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
-	public function offsetExists($code)
+	public function offsetExists($code): bool
 	{
 		return isset($this->params[$code]);
 	}
@@ -269,6 +271,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return mixed|null
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetGet($code)
 	{
 		if (isset($this->params[$code]))
@@ -287,7 +290,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return void
 	 */
-	public function offsetSet($code, $param)
+	public function offsetSet($code, $param): void
 	{
 		$this->params[$code] = $param;
 	}
@@ -299,7 +302,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return void
 	 */
-	public function offsetUnset($code)
+	public function offsetUnset($code): void
 	{
 		if (isset($this->params[$code]))
 		{
@@ -316,9 +319,9 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return int
 	 */
-	public function count()
+	public function count(): int
 	{
-		return is_array($this->params) ? count($this->params) : 0;
+		return \is_array($this->params) ? \count($this->params) : 0;
 	}
 
 	//endregion

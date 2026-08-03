@@ -1,4 +1,5 @@
-import {ajax, Cache, Dom, Event, Loc, Reflection, Runtime, Tag, Text, Type} from 'main.core';
+import {ajax, Cache, Dom, Event, Extension, Loc, Reflection, Runtime, Tag, Text, Type} from 'main.core';
+import 'ui.design-tokens';
 import 'ui.forms';
 import 'fileinput';
 import 'ui.notification';
@@ -6,7 +7,7 @@ import {EventEmitter} from 'main.core.events';
 import {SkuTree} from 'catalog.sku-tree';
 import {ProductSearchInput} from "./product-search-input";
 import {ProductImageInput} from "./product-image-input";
-import {ProductModel} from "catalog.product-model";
+import {ProductModel, RightActionDictionary} from "catalog.product-model";
 import './component.css';
 import {BarcodeSearchInput} from "./barcode-search-input";
 import {SelectorErrorCode} from "./selector-error-code";
@@ -18,10 +19,13 @@ export class ProductSelector extends EventEmitter
 {
 	static MODE_VIEW = 'view';
 	static MODE_EDIT = 'edit';
+	static SHORT_VIEW_FORMAT = 'short';
+	static FULL_VIEW_FORMAT = 'full';
 	static INPUT_FIELD_NAME = 'NAME';
 	static INPUT_FIELD_BARCODE = 'BARCODE';
 
 	static ErrorCodes = SelectorErrorCode;
+	static UIInputRequest = null;
 	#inAjaxProcess = false;
 	mode: ProductSelector.MODE_EDIT | ProductSelector.MODE_VIEW = ProductSelector.MODE_EDIT;
 	cache = new Cache.MemoryCache();
@@ -35,6 +39,7 @@ export class ProductSelector extends EventEmitter
 	onSaveImageHandler = this.onSaveImage.bind(this);
 	onChangeFieldsHandler = Runtime.debounce(this.onChangeFields, 500, this);
 	onUploaderIsInitedHandler = this.onUploaderIsInited.bind(this);
+	onNameChangeFieldHandler = Runtime.debounce(this.onNameChange, 500, this);
 
 	static getById(id: string): ?ProductSelector
 	{
@@ -49,6 +54,7 @@ export class ProductSelector extends EventEmitter
 		this.id = id || Text.getRandom();
 		options.inputFieldName = options.inputFieldName || ProductSelector.INPUT_FIELD_NAME;
 		this.options = options || {};
+		this.settings = Extension.getSettings('catalog.product-selector');
 
 		this.type = this.options.type || ProductSelector.INPUT_FIELD_NAME;
 
@@ -95,7 +101,7 @@ export class ProductSelector extends EventEmitter
 		{
 			this.model.getErrorCollection().setError(
 				SelectorErrorCode.NOT_SELECTED_PRODUCT,
-				Loc.getMessage('CATALOG_SELECTOR_SELECTED_PRODUCT_TITLE')
+				this.getEmptySelectErrorMessage()
 			);
 		}
 
@@ -120,9 +126,7 @@ export class ProductSelector extends EventEmitter
 			this.setMobileScannerToken(options.scannerToken);
 		}
 
-		EventEmitter.subscribe('ProductList::onChangeFields', this.onChangeFieldsHandler);
-		EventEmitter.subscribe('Catalog.ImageInput::save', this.onSaveImageHandler);
-		EventEmitter.subscribe('onUploaderIsInited', this.onUploaderIsInitedHandler);
+		this.subscribeEvents();
 
 		instances.set(this.id, this);
 	}
@@ -150,6 +154,11 @@ export class ProductSelector extends EventEmitter
 		return this.mode === ProductSelector.MODE_VIEW;
 	}
 
+	isShortViewFormat(): boolean
+	{
+		return this.getConfig('VIEW_FORMAT', ProductSelector.FULL_VIEW_FORMAT) === ProductSelector.SHORT_VIEW_FORMAT;
+	}
+
 	isSaveable(): boolean
 	{
 		return !this.isViewMode() && this.model.isSaveable();
@@ -165,9 +174,33 @@ export class ProductSelector extends EventEmitter
 		return !this.isViewMode() && this.getConfig('ENABLE_MOBILE_SCANNING', true);
 	}
 
+	getEmptySelectErrorMessage()
+	{
+		return this.checkProductAddRights()
+			? Loc.getMessage('CATALOG_SELECTOR_SELECTED_PRODUCT_TITLE')
+			: Loc.getMessage('CATALOG_SELECTOR_SELECT_PRODUCT_TITLE')
+		;
+	}
+
+
 	getMobileScannerToken(): string
 	{
 		return this.mobileScannerToken || Text.getRandom(16);
+	}
+
+	checkProductViewRights(): boolean
+	{
+		return this.model.checkAccess(RightActionDictionary.ACTION_PRODUCT_VIEW) ?? true;
+	}
+
+	checkProductEditRights(): boolean
+	{
+		return this.model.checkAccess(RightActionDictionary.ACTION_PRODUCT_EDIT) ?? false;
+	}
+
+	checkProductAddRights(): boolean
+	{
+		return this.model.checkAccess(RightActionDictionary.ACTION_PRODUCT_ADD) ?? false;
 	}
 
 	setMobileScannerToken(token: string): void
@@ -225,7 +258,10 @@ export class ProductSelector extends EventEmitter
 
 	isProductSearchEnabled(): boolean
 	{
-		return this.getConfig('ENABLE_SEARCH', false) && this.model.getIblockId() > 0;
+		return this.getConfig('ENABLE_SEARCH', false)
+			&& this.model.getIblockId() > 0
+			&& this.checkProductViewRights()
+		;
 	}
 
 	isSkuTreeEnabled(): boolean
@@ -269,7 +305,10 @@ export class ProductSelector extends EventEmitter
 
 	isInputDetailLinkEnabled(): boolean
 	{
-		return this.getConfig('ENABLE_INPUT_DETAIL_LINK', false) && Type.isStringFilled(this.model.getDetailPath());
+		return this.getConfig('ENABLE_INPUT_DETAIL_LINK', false)
+			&& Type.isStringFilled(this.model.getDetailPath())
+			&& this.checkProductViewRights()
+		;
 	}
 
 	getWrapper(): HTMLElement
@@ -299,6 +338,7 @@ export class ProductSelector extends EventEmitter
 
 		this.defineWrapperClass(wrapper);
 		wrapper.innerHTML = '';
+
 		const block = Tag.render`<div class="catalog-product-field-inner"></div>`;
 		Dom.append(this.layoutNameBlock(), block);
 
@@ -318,15 +358,28 @@ export class ProductSelector extends EventEmitter
 		{
 			if (!Reflection.getClass('BX.UI.ImageInput'))
 			{
-				ajax
-					.runAction(	'catalog.productSelector.getFileInput', {
-						json:{
-							iblockId: this.getModel().getIblockId()
-						}
-					})
-					.then(() => {
+				if (ProductSelector.UIInputRequest instanceof Promise)
+				{
+					ProductSelector.UIInputRequest.then(() => {
 						this.layoutImage();
 					});
+				}
+				else
+				{
+					ProductSelector.UIInputRequest = new Promise(resolve => {
+						ajax
+							.runAction(	'catalog.productSelector.getFileInput', {
+								json:{
+									iblockId: this.getModel().getIblockId()
+								}
+							})
+							.then(() => {
+								this.layoutImage();
+								ProductSelector.UIInputRequest = null;
+								resolve();
+							});
+					});
+				}
 			}
 			else
 			{
@@ -335,9 +388,10 @@ export class ProductSelector extends EventEmitter
 
 			Dom.append(this.getImageContainer(), wrapper);
 		}
-		else
+
+		if (this.isViewMode())
 		{
-			Dom.addClass(wrapper, 'catalog-product-field-no-image');
+			Dom.append(block, wrapper);
 		}
 
 		if (this.isViewMode())
@@ -389,6 +443,11 @@ export class ProductSelector extends EventEmitter
 		const errors = this.model.getErrorCollection().getErrors();
 		for (const code in errors)
 		{
+			if (!ProductSelector.ErrorCodes.getCodes().includes(code))
+			{
+				continue;
+			}
+
 			if (code === 'EMPTY_IMAGE')
 			{
 				this.setImageErrorBorder();
@@ -482,6 +541,14 @@ export class ProductSelector extends EventEmitter
 		this.unsubscribeToVariationChange();
 	}
 
+	subscribeEvents()
+	{
+		EventEmitter.subscribe('ProductList::onChangeFields', this.onChangeFieldsHandler);
+		EventEmitter.subscribe('ProductSelector::onNameChange', this.onNameChangeFieldHandler);
+		EventEmitter.subscribe('Catalog.ImageInput::save', this.onSaveImageHandler);
+		EventEmitter.subscribe('onUploaderIsInited', this.onUploaderIsInitedHandler);
+	}
+
 	unsubscribeEvents()
 	{
 		this.unsubscribeToVariationChange();
@@ -489,6 +556,8 @@ export class ProductSelector extends EventEmitter
 		EventEmitter.unsubscribe('Catalog.ImageInput::save', this.onSaveImageHandler);
 		EventEmitter.unsubscribe('ProductList::onChangeFields', this.onChangeFieldsHandler);
 		EventEmitter.unsubscribe('onUploaderIsInited', this.onUploaderIsInitedHandler);
+		EventEmitter.unsubscribe('onUploaderIsInited', this.onUploaderIsInitedHandler);
+		EventEmitter.unsubscribe('ProductSelector::onNameChange', this.onNameChangeFieldHandler);
 	}
 
 	defineWrapperClass(wrapper)
@@ -497,6 +566,11 @@ export class ProductSelector extends EventEmitter
 		{
 			Dom.addClass(wrapper, 'catalog-product-view');
 			Dom.removeClass(wrapper, 'catalog-product-edit');
+
+			if (this.isShortViewFormat())
+			{
+				Dom.addClass(wrapper, '--short-format');
+			}
 		}
 		else
 		{
@@ -615,7 +689,7 @@ export class ProductSelector extends EventEmitter
 			}
 		});
 	}
-	
+
 	getSkuTreeInstance(): SkuTree
 	{
 		if (this.isSkuTreeEnabled() && this.getModel()?.getSkuTree() && !this.skuTreeInstance)
@@ -624,6 +698,7 @@ export class ProductSelector extends EventEmitter
 				skuTree: this.getModel().getSkuTree(),
 				selectable: this.getConfig('ENABLE_SKU_SELECTION', true),
 				hideUnselected: this.getConfig('HIDE_UNSELECTED_ITEMS', false),
+				isShortView: this.isViewMode() && this.isShortViewFormat(),
 			});
 		}
 
@@ -713,6 +788,27 @@ export class ProductSelector extends EventEmitter
 			});
 	}
 
+	onNameChange(event)
+	{
+		const eventData = event.getData();
+
+		if (eventData.rowId !== this.getRowId() || !this.isEnabledAutosave())
+		{
+			return;
+		}
+
+		const fields = eventData.fields;
+		this.getModel().setFields(fields);
+		this.getModel().save().then(() => {
+			BX.UI.Notification.Center.notify({
+				id: 'saving_field_notify_name',
+				closeButton: false,
+				content: Tag.render`<div>${Loc.getMessage('CATALOG_SELECTOR_SAVING_NOTIFICATION_NAME_CHANGED')}</div>`,
+				autoHide: true,
+			});
+		});
+	}
+
 	onSaveImage(event)
 	{
 		const [, inputId, response] = event.getData();
@@ -789,15 +885,26 @@ export class ProductSelector extends EventEmitter
 		const data = response?.data || null;
 		this.#inAjaxProcess = false;
 
+		const fields = data?.fields || [];
+		if (Type.isArray(config.immutableFields))
+		{
+			config.immutableFields.forEach((field) => {
+				fields[field] = this.getModel().getField(field);
+			});
+
+			data.fields = fields;
+		}
+
+		if (isProductAction)
+		{
+			this.clearState();
+		}
+
 		if (data)
 		{
 			this.changeSelectedElement(data, config);
 		}
-		else if (isProductAction)
-		{
-			this.clearState();
-		}
-		else
+		else if (!isProductAction)
 		{
 			this.productSelectAjaxAction(this.getModel().getProductId());
 		}
@@ -810,19 +917,12 @@ export class ProductSelector extends EventEmitter
 			this.layout();
 		}
 
-		const fields = data?.fields || null;
-		if (Type.isArray(config.immutableFields))
-		{
-			config.immutableFields.forEach((field) => {
-				fields[field] = this.getModel().getField(field);
-			});
-		}
-
 		this.emit('onChange', {
 			selectorId: this.id,
 			rowId: this.getRowId(),
 			isNew: config.isNew || false,
-			fields
+			fields,
+			morePhoto: this.getModel().getImageCollection().getMorePhotoValues(),
 		});
 	}
 
@@ -837,20 +937,6 @@ export class ProductSelector extends EventEmitter
 			this.getModel().setOption('skuId', Text.toInteger(data.skuId));
 			this.getModel().setOption('isSimpleModel', false);
 			this.getModel().setOption('isNew', config.isNew);
-		}
-
-		if (Type.isArray(this.options.immutableFields))
-		{
-			this.options.immutableFields.forEach((field) => {
-				data.fields[field] = this.getModel().getField(field);
-			});
-		}
-
-		if (Type.isArray(config.immutableFields))
-		{
-			config.immutableFields.forEach((field) => {
-				data.fields[field] = this.getModel().getField(field);
-			});
 		}
 
 		this.getModel().initFields(data.fields);

@@ -1,4 +1,4 @@
-import {ajax, Loc, Tag, Text, Type} from 'main.core';
+import {ajax, Extension, Loc, Tag, Text, Type} from 'main.core';
 import {EventEmitter} from "main.core.events";
 import {ErrorCollection} from "./error-collection";
 import {ImageCollection} from "./image-collection";
@@ -6,15 +6,17 @@ import {ProductOption} from "./product-option";
 import {DiscountType, ProductCalculator, TaxForPriceStrategy} from "catalog.product-calculator";
 import {FieldCollection} from "./field-collection";
 import {StoreCollection} from "./store-collection";
+import {RightActionDictionary} from "./right-action-dictionary";
 
 const instances = new Map();
 
-export class ProductModel
+class ProductModel
 {
 	#fieldCollection = null;
 	#errorCollection = null;
 	#imageCollection = null;
 	#storeCollection = null;
+	#productRights = null;
 	#calculator = null;
 	#offerId = null;
 	#skuTree = null;
@@ -36,18 +38,24 @@ export class ProductModel
 		this.#fieldCollection = new FieldCollection(this);
 		this.#storeCollection = new StoreCollection(this);
 
+		const settings = Extension.getSettings('catalog.product-model');
+		this.#productRights = settings.get('catalogProductRights');
+
 		if (Type.isObject(options.fields))
 		{
 			this.initFields(options.fields, false);
 		}
 
-		if (Type.isNil(options.storeMap))
+		if (this.#isStoreCollectionEnabled())
 		{
-			this.#storeCollection.refresh();
-		}
-		else
-		{
-			this.#storeCollection.init(options.storeMap);
+			if (Type.isNil(options.storeMap))
+			{
+				this.#storeCollection.refresh();
+			}
+			else
+			{
+				this.#storeCollection.init(options.storeMap);
+			}
 		}
 
 		if (Type.isObject(options.skuTree))
@@ -93,9 +101,14 @@ export class ProductModel
 		};
 	}
 
+	checkAccess(action: RightActionDictionary): boolean
+	{
+		return Text.toBoolean(this.#productRights[action] ?? false);
+	}
+
 	getOption(name: string, defaultValue: any = null): any
 	{
-		return this.options[name] || defaultValue
+		return this.options[name] ?? defaultValue
 	}
 
 	setOption(name: string, value: any = null): this
@@ -166,7 +179,7 @@ export class ProductModel
 		)
 		{
 			this.#offerId = this.getSkuId();
-			if (this.#offerId > 0)
+			if (this.#offerId > 0 && this.#isStoreCollectionEnabled())
 			{
 				this.#storeCollection.refresh();
 			}
@@ -188,7 +201,7 @@ export class ProductModel
 	{
 		this.#fieldCollection.initFields(fields);
 		this.#offerId = this.getSkuId();
-		if (refreshStoreInfo)
+		if (refreshStoreInfo && this.#isStoreCollectionEnabled())
 		{
 			this.#storeCollection.refresh();
 		}
@@ -211,6 +224,11 @@ export class ProductModel
 	isNew(): boolean
 	{
 		return this.getOption('isNew', false);
+	}
+	
+	#isStoreCollectionEnabled(): boolean
+	{
+		return this.getOption('isStoreCollectable', true);
 	}
 
 	getSkuId(): ?number
@@ -235,7 +253,7 @@ export class ProductModel
 
 	isSimple(): boolean
 	{
-		return this.getOption('isSimpleModel', null);
+		return this.getOption('isSimpleModel', false);
 	}
 
 	getIblockId(): boolean
@@ -261,6 +279,12 @@ export class ProductModel
 	setDetailPath(value: string): void
 	{
 		this.options['detailPath'] = value || '';
+	}
+
+	isService(): boolean
+	{
+		const type = parseInt(this.getField('TYPE'));
+		return type === 7; // \Bitrix\Catalog\ProductTable::TYPE_SERVICE
 	}
 
 	showSaveNotifier(id: string, options: {})
@@ -372,9 +396,17 @@ export class ProductModel
 		});
 	}
 
-	isSaveable()
+	isSaveable(): boolean
 	{
-		return this.getOption('isSaveable', true) && !this.isEmpty();
+		if (!this.getOption('isSaveable', true) || this.isEmpty())
+		{
+			return false;
+		}
+
+		return this.isSimple()
+			? this.checkAccess(RightActionDictionary.ACTION_PRODUCT_ADD)
+			: this.checkAccess(RightActionDictionary.ACTION_PRODUCT_EDIT)
+		;
 	}
 
 	onErrorCollectionChange()
@@ -389,9 +421,24 @@ export class ProductModel
 
 	#updateProduct(savingFieldNames: [])
 	{
-		if (this.getIblockId() <= 0 || !this.#fieldCollection.isChanged())
+		if (this.getIblockId() <= 0)
 		{
-			return;
+			return Promise.reject({
+				status: 'error',
+				errors: [
+					'The iblock id is not set for the model.'
+				],
+			});
+		}
+
+		if (!this.#fieldCollection.isChanged())
+		{
+			return Promise.resolve({
+				status: 'success',
+				data: {
+					id: this.getSkuId(),
+				},
+			});
 		}
 
 		let savedFields = {};
@@ -469,3 +516,5 @@ export class ProductModel
 		)
 	}
 }
+
+export {ProductModel, RightActionDictionary}

@@ -28,7 +28,7 @@ class RedisConnectionConfigurator
 	{
 		$servers = $config['servers'] ?? [];
 
-		if (isset($config['host'], $config['port']))
+		if (empty($servers) && isset($config['host'], $config['port']))
 		{
 			array_unshift($servers, [
 				'host' => $config['host'],
@@ -40,7 +40,7 @@ class RedisConnectionConfigurator
 		{
 			$this->servers[] = [
 				'host' => $server['host'] ?? 'localhost',
-				'port' => $server['port'] ?? '11211',
+				'port' => $server['port'] ?? '6379',
 			];
 		}
 

@@ -215,10 +215,14 @@ class RestClient
 			return $result;
 		}
 
-		if($jsonResult["error"])
+		if (!empty($jsonResult["error"]))
+		{
 			$result->addError(new Error($jsonResult["error"], static::ERROR_WRONG_LICENSE));
+		}
 		else
+		{
 			$result->addData($jsonResult);
+		}
 
 		return $result;
 	}
@@ -343,15 +347,17 @@ class RestClient
 
 		$data = "";
 
-		if(!$reset)
+		if (!$reset)
 		{
 			$alreadySetted = true;
 			$last = static::getLastUnSuccessCallInfo();
 
-			$data = serialize(array(
-					'COUNT' => intval($last['COUNT']) > 0 ? intval($last['COUNT'])+1 : 1,
-					'TIMESTAMP' => time()
-			));
+			$lastCount = (int)($last['COUNT'] ?? 0);
+
+			$data = serialize([
+				'COUNT' => $lastCount > 0 ? $lastCount + 1 : 1,
+				'TIMESTAMP' => time()
+			]);
 		}
 
 		Option::set('sale', static::UNSUCCESSFUL_CALL_OPTION, $data);
@@ -384,6 +390,8 @@ class RestClient
 	protected function getLastUnSuccessCount()
 	{
 		$last = static::getLastUnSuccessCallInfo();
-		return intval($last['COUNT']) > 0 ? intval($last['COUNT']) : 0;
+		$count = (int)($last['COUNT'] ?? 0);
+
+		return max(0, $count);
 	}
 }

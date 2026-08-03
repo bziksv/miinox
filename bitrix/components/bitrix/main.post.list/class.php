@@ -10,6 +10,7 @@ use Bitrix\Main\Security\Sign\Signer;
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\Loader;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Web\Uri;
 
 Loc::loadMessages(__FILE__);
 
@@ -142,7 +143,7 @@ HTML;
 		{
 			if ($arParams["PUSH&PULL"]["ACTION"] != "DELETE")
 			{
-				if (($res = $arParams["RECORDS"][$arParams["PUSH&PULL"]["ID"]]) && $res)
+				if (($res = $arParams["RECORDS"][$arParams["PUSH&PULL"]["ID"]]))
 				{
 					$comment = array_merge($res, $res["WEB"]);
 					unset($comment["WEB"]);
@@ -150,7 +151,7 @@ HTML;
 					$comment["ACTION"] = $arParams["PUSH&PULL"]["ACTION"];
 					$comment["POST_CONTENT_TYPE_ID"] = (!empty($arParams["POST_CONTENT_TYPE_ID"]) ? $arParams["POST_CONTENT_TYPE_ID"] : '');
 					$comment["COMMENT_CONTENT_TYPE_ID"] = (!empty($arParams["COMMENT_CONTENT_TYPE_ID"]) ? $arParams["COMMENT_CONTENT_TYPE_ID"] : '');
-					$comment["USER_ID"] = (isset($arParams["PUSH&PULL"]) && isset($arParams["PUSH&PULL"]["AUTHOR_ID"]) && intval($arParams["PUSH&PULL"]["AUTHOR_ID"]) > 0 ? intval($arParams["PUSH&PULL"]["AUTHOR_ID"]) : $this->getUserId());
+					$comment["USER_ID"] = (isset($arParams["PUSH&PULL"]["AUTHOR_ID"]) && intval($arParams["PUSH&PULL"]["AUTHOR_ID"]) > 0 ? intval($arParams["PUSH&PULL"]["AUTHOR_ID"]) : $this->getUserId());
 					$comment["EXEMPLAR_ID"] = $this->exemplarId;
 					$comment["OPERATION_ID"] = $this->request->get("OPERATION_ID") ?: $this->exemplarId;
 					if ($this->request->getPost("COMMENT_EXEMPLAR_ID") !== null)
@@ -378,27 +379,28 @@ HTML;
 			"ENTITY_XML_ID" => $arParams["ENTITY_XML_ID"], // string
 			"FULL_ID" => array($arParams["ENTITY_XML_ID"], $res["ID"]),
 			"NEW" => $res["NEW"], //"Y" | "N"
-			"COLLAPSED" => $res["COLLAPSED"] === "Y" ? "Y" : "N",
-			"AUX" => (isset($res["AUX"]) ? $res["AUX"] : ''),
-			"AUX_LIVE_PARAMS" => (isset($res["AUX_LIVE_PARAMS"]) ? $res["AUX_LIVE_PARAMS"] : array()),
-			"CAN_DELETE" => (isset($res["CAN_DELETE"]) ? $res["CAN_DELETE"] : 'Y'),
+			"COLLAPSED" => isset($res["COLLAPSED"]) && $res["COLLAPSED"] === "Y" ? "Y" : "N",
+			"AUX" => $res["AUX"] ?? '',
+			"AUX_LIVE_PARAMS" => $res["AUX_LIVE_PARAMS"] ?? [],
+			"CAN_DELETE" => $res["CAN_DELETE"] ?? 'Y',
 			"APPROVED" => $res["APPROVED"], //"Y" | "N"
 			"POST_TIMESTAMP" => ($res["POST_TIMESTAMP"] - CTimeZone::GetOffset()),
 			"~POST_MESSAGE_TEXT" => $res["~POST_MESSAGE_TEXT"],
-			"AUTHOR" => $this->buildUser($res["AUTHOR_ID"] ?: $res["AUTHOR"]),
+			"AUTHOR" => $this->buildUser(isset($res["AUTHOR_ID"]) && $res["AUTHOR_ID"] ? $res["AUTHOR_ID"] : $res["AUTHOR"]),
 			"RATING" => array_key_exists("RATING", $res) ? $res["RATING"] : false,
+			"CLASSNAME" => '',
 			"WEB" => array(), // html
 			"MOBILE" => array() // html
 		);
 
 		foreach (array("WEB", "MOBILE") as $key)
 		{
-			$val = ($res[$key] ?: $res);
+			$val = (isset($res[$key]) && $res[$key] ? $res[$key] : $res);
 
 			$defaultDateTime = \CComponentUtil::getDateTimeFormatted(array(
 				'TIMESTAMP' => $res["POST_TIMESTAMP"],
 				'DATETIME_FORMAT' => $arParams["DATE_TIME_FORMAT"],
-				'DATETIME_FORMAT_WITHOUT_YEAR' => (isset($arParams["DATE_TIME_FORMAT_WITHOUT_YEAR"]) ? $arParams["DATE_TIME_FORMAT_WITHOUT_YEAR"] : false),
+				'DATETIME_FORMAT_WITHOUT_YEAR' => ($arParams["DATE_TIME_FORMAT_WITHOUT_YEAR"] ?? false),
 				'TZ_OFFSET' => CTimeZone::GetOffset(),
 				'HIDE_TODAY' => true
 			));
@@ -414,8 +416,8 @@ HTML;
 			}
 
 			$result[$key] = array(
-				"POST_TIME" => (isset($val["POST_TIME"]) ? $val["POST_TIME"] : $defaultDateTime),
-				"POST_DATE" => (isset($val["POST_DATE"]) ? $val["POST_DATE"] : $defaultDateTime),
+				"POST_TIME" => ($val["POST_TIME"] ?? $defaultDateTime),
+				"POST_DATE" => ($val["POST_DATE"] ?? $defaultDateTime),
 				"POST_DATE_AGO" => FormatDate(array(
 					"s" => "sshort",
 					"i" => "ishort",
@@ -433,16 +435,16 @@ HTML;
 					"Y" => "Yago"
 				), $res["POST_TIMESTAMP"], time() + CTimeZone::getOffset()),
 				"CLASSNAME" => implode(' ', $classNameList),
-				"POST_MESSAGE_TEXT" => $val["POST_MESSAGE_TEXT"],
-				"BEFORE_HEADER" => $val["BEFORE_HEADER"].$this->getApplication()->GetViewContent($templateId.'BEFORE_HEADER'),
-				"BEFORE_ACTIONS" => $val["BEFORE_ACTIONS"].$this->getApplication()->GetViewContent($templateId.'BEFORE_ACTIONS'),
-				"AFTER_ACTIONS" => $val["AFTER_ACTIONS"].$this->getApplication()->GetViewContent($templateId.'AFTER_ACTIONS'),
-				"AFTER_HEADER" => $val["AFTER_HEADER"].$this->getApplication()->GetViewContent($templateId.'AFTER_HEADER'),
-				"BEFORE" => $val["BEFORE"].$this->getApplication()->GetViewContent($templateId.'BEFORE'),
-				"AFTER" => $val["AFTER"].$this->getApplication()->GetViewContent($templateId.'AFTER'),
-				"BEFORE_RECORD" => $val["BEFORE_RECORD"].$this->getApplication()->GetViewContent($templateId.'BEFORE_RECORD'),
-				"AFTER_RECORD" => $val["AFTER_RECORD"].$this->getApplication()->GetViewContent($templateId.'AFTER_RECORD'),
-				"LIKE_REACT" => $val["LIKE_REACT"].$this->getApplication()->GetViewContent($templateId.'LIKE_REACT'),
+				"POST_MESSAGE_TEXT" => $val["POST_MESSAGE_TEXT"] ?? '',
+				"BEFORE_HEADER" => ($val["BEFORE_HEADER"] ?? '').$this->getApplication()->GetViewContent($templateId.'BEFORE_HEADER'),
+				"BEFORE_ACTIONS" => ($val["BEFORE_ACTIONS"] ?? '').$this->getApplication()->GetViewContent($templateId.'BEFORE_ACTIONS'),
+				"AFTER_ACTIONS" => ($val["AFTER_ACTIONS"] ?? '').$this->getApplication()->GetViewContent($templateId.'AFTER_ACTIONS'),
+				"AFTER_HEADER" => ($val["AFTER_HEADER"] ?? '').$this->getApplication()->GetViewContent($templateId.'AFTER_HEADER'),
+				"BEFORE" => ($val["BEFORE"] ?? '').$this->getApplication()->GetViewContent($templateId.'BEFORE'),
+				"AFTER" => ($val["AFTER"] ?? '').$this->getApplication()->GetViewContent($templateId.'AFTER'),
+				"BEFORE_RECORD" => ($val["BEFORE_RECORD"] ?? '').$this->getApplication()->GetViewContent($templateId.'BEFORE_RECORD'),
+				"AFTER_RECORD" => ($val["AFTER_RECORD"] ?? '').$this->getApplication()->GetViewContent($templateId.'AFTER_RECORD'),
+				"LIKE_REACT" => ($val["LIKE_REACT"] ?? '') . $this->getApplication()->GetViewContent($templateId.'LIKE_REACT'),
 			);
 		}
 
@@ -452,10 +454,7 @@ HTML;
 				&& $res["RATING_USER_HAS_VOTED"] == "Y"
 			)
 			|| (
-				isset($this->arParams["RATING_RESULTS"])
-				&& isset($this->arParams["RATING_RESULTS"])
-				&& isset($this->arParams["RATING_RESULTS"][$result["ID"]])
-				&& isset($this->arParams["RATING_RESULTS"][$result["ID"]]["USER_HAS_VOTED"])
+				isset($this->arParams["RATING_RESULTS"][$result["ID"]]["USER_HAS_VOTED"])
 				&& $this->arParams["RATING_RESULTS"][$result["ID"]]["USER_HAS_VOTED"] == 'Y'
 			)
 		);
@@ -549,7 +548,7 @@ HTML;
 			$result["MOBILE"]["LIKE_REACT"] .= ob_get_clean();
 		}
 
-		if (is_array($res["FILES"]))
+		if (isset($res["FILES"]) && is_array($res["FILES"]))
 		{
 			$images = array();
 			$files = array();
@@ -661,7 +660,7 @@ HTML;
 		if (is_array($res["UF"]))
 		{
 			ob_start();
-			$uf = (isset($res["WEB"]['UF']) ? $res["WEB"]['UF'] : $res['UF']);
+			$uf = ($res["WEB"]['UF'] ?? $res['UF']);
 			foreach ($uf as $arPostField)
 			{
 				if(!empty($arPostField["VALUE"]))
@@ -684,7 +683,7 @@ HTML;
 
 			ob_start();
 
-			$uf = (isset($res["MOBILE"]['UF']) ? $res["MOBILE"]['UF'] : $res['UF']);
+			$uf = ($res["MOBILE"]['UF'] ?? $res['UF']);
 			foreach ($uf as $arPostField)
 			{
 				if(!empty($arPostField["VALUE"]))
@@ -781,7 +780,7 @@ HTML;
 					$strParams .= ($i > 0 ? '&' : '').urlencode($key).'='.urlencode($value);
 					$i++;
 				}
-				$authorUrl .= (mb_strpos($authorUrl, '?') === false ? '?' : '&').$strParams;
+				$authorUrl .= (strpos($authorUrl, '?') === false ? '?' : '&').$strParams;
 			}
 		}
 
@@ -869,6 +868,7 @@ HTML;
 			),
 			"#CREATESUBTASK_SHOW#" => (
 				empty($res['AUX'])
+				&& isset($arParams['RIGHTS']['CREATESUBTASK'])
 				&& $arParams['RIGHTS']['CREATESUBTASK'] === 'Y'
 					? 'Y'
 					: 'N'
@@ -890,19 +890,19 @@ HTML;
 				(empty($res["AUTHOR"]["AVATAR"]) ? "N" : "Y"),
 			"#AUTHOR_AVATAR#" => (
 				!empty($res["AUTHOR"]["AVATAR"])
-					? $res['AUTHOR']['AVATAR']
+					? Uri::urnEncode($res['AUTHOR']['AVATAR'])
 					: (
 						!empty($arParams["AVATAR_DEFAULT"])
-							? \CHTTP::urnEncode($arParams["AVATAR_DEFAULT"])
+							? Uri::urnEncode($arParams["AVATAR_DEFAULT"])
 							: ""
 					)
 			),
 			"#AUTHOR_AVATAR_BG#" => (
 				!empty($res["AUTHOR"]["AVATAR"])
-					? "background-image:url('" . $res["AUTHOR"]["AVATAR"] . "')"
+					? "background-image:url('" . Uri::urnEncode($res["AUTHOR"]["AVATAR"]) . "')"
 					: (
 						!empty($arParams["AVATAR_DEFAULT"])
-							? "background-image:url('" . $arParams["AVATAR_DEFAULT"] . "')"
+							? "background-image:url('" . Uri::urnEncode($arParams["AVATAR_DEFAULT"]) . "')"
 							: ""
 					)
 				),
@@ -965,8 +965,8 @@ HTML;
 		/*@param int $arParams["RESULT"] contains id of new record for cutting out and sending back*/
 		$arParams["RESULT"] = intval($arParams["RESULT"] ?: $this->request->getPost("MID"));
 		/*@param array $arParams["PUSH&PULL"] contains record id to pushing other clients */
-		$arParams["PUSH&PULL"] = (isset($arParams["~PUSH&PULL"]) ? $arParams["~PUSH&PULL"] : $arParams["PUSH&PULL"]);
-		$arParams["MODE"] = (is_array($arParams["PUSH&PULL"]) && $arParams["PUSH&PULL"]["ID"] > 0 && $arParams["MODE"] == "PULL_MESSAGE" ? "PULL_MESSAGE" : "PLAIN");
+		$arParams["PUSH&PULL"] = ($arParams["~PUSH&PULL"] ?? $arParams["PUSH&PULL"]);
+		$arParams["MODE"] = (is_array($arParams["PUSH&PULL"]) && $arParams["PUSH&PULL"]["ID"] > 0 && isset($arParams["MODE"]) && $arParams["MODE"] == "PULL_MESSAGE" ? "PULL_MESSAGE" : "PLAIN");
 
 		/*@param string $arParams["NOTIFY_TAG"] params for bottom notifier */
 		$arParams["NOTIFY_TAG"] = trim($arParams["NOTIFY_TAG"]);
@@ -980,19 +980,19 @@ HTML;
 		//$arParams["IMAGE_SIZE"] = ($arParams["IMAGE_SIZE"] > 0 ? $arParams["IMAGE_SIZE"] : 30);
 		$arParams['SHOW_MINIMIZED'] = ($arParams['SHOW_MINIMIZED'] == "Y" ? "Y" : "N");
 
-		$arParams["NAME_TEMPLATE"] = (!!$_REQUEST["NAME_TEMPLATE"] ? $_REQUEST["NAME_TEMPLATE"] : (!!$arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : \CSite::GetNameFormat()));
-		$arParams["SHOW_LOGIN"] = ($_REQUEST["SHOW_LOGIN"] == "Y" ? "Y" : ($arParams["SHOW_LOGIN"] == "Y" ? "Y" : "N"));
+		$arParams["NAME_TEMPLATE"] = (isset($_REQUEST["NAME_TEMPLATE"]) && $_REQUEST["NAME_TEMPLATE"] ? $_REQUEST["NAME_TEMPLATE"] : (isset ($arParams["NAME_TEMPLATE"]) && $arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : \CSite::GetNameFormat()));
+		$arParams["SHOW_LOGIN"] = (isset($_REQUEST["SHOW_LOGIN"]) && $_REQUEST["SHOW_LOGIN"] == "Y" ? "Y" : (isset($arParams["SHOW_LOGIN"]) && $arParams["SHOW_LOGIN"] == "Y" ? "Y" : "N"));
 		$arParams["DATE_TIME_FORMAT"] = trim($arParams["DATE_TIME_FORMAT"]);
 		$arParams["FORM_ID"] = trim($arParams["FORM_ID"]);
 		$arParams["SHOW_POST_FORM"] = ($arParams["SHOW_POST_FORM"] == "Y" || $arParams["FORM_ID"] <> '' ? "Y" : "N");
-		$arParams["BIND_VIEWER"] = ($arParams["BIND_VIEWER"] == "N" ? "N" : "Y");
+		$arParams["BIND_VIEWER"] = (isset($arParams["BIND_VIEWER"]) && $arParams["BIND_VIEWER"] == "N" ? "N" : "Y");
 		$arParams["SIGN"] = $this->sign->sign($arParams["ENTITY_XML_ID"], "main.post.list");
 
-		$arParams["VIEW_URL"] = trim($arParams["VIEW_URL"]);
-		$arParams["EDIT_URL"] = trim($arParams["EDIT_URL"]);
-		$arParams["MODERATE_URL"] = trim($arParams["MODERATE_URL"]);
-		$arParams["DELETE_URL"] = trim($arParams["DELETE_URL"]);
-		$arParams["AUTHOR_URL"] = trim($arParams["PATH_TO_USER"] ?: $arParams["AUTHOR_URL"]);
+		$arParams["VIEW_URL"] = trim($arParams["VIEW_URL"] ?? '');
+		$arParams["EDIT_URL"] = trim($arParams["EDIT_URL"] ?? '');
+		$arParams["MODERATE_URL"] = trim($arParams["MODERATE_URL"] ?? '');
+		$arParams["DELETE_URL"] = trim($arParams["DELETE_URL"] ?? '');
+		$arParams["AUTHOR_URL"] = trim(($arParams["PATH_TO_USER"] ?? '') ?: $arParams["AUTHOR_URL"]);
 
 		if ($arParams["VISIBLE_RECORDS_COUNT"] > 0)
 		{
@@ -1023,7 +1023,7 @@ HTML;
 					$path .= ($arParams["NAV_RESULT"]->NavPageNomer - 1);
 				else
 					$path .= ($arParams["NAV_RESULT"]->NavPageNomer + 1);
-				$arParams["NAV_STRING"] .= (mb_strpos($arParams["NAV_STRING"], "?") === false ? "?" : "&").$path;
+				$arParams["NAV_STRING"] .= (strpos($arParams["NAV_STRING"], "?") === false ? "?" : "&").$path;
 			}
 		}
 		if (!empty($arParams["RECORDS"]))
@@ -1287,7 +1287,7 @@ HTML;
 				unset($res["WEB"]);
 				unset($res["MOBILE"]);
 
-				if (!!$res["FILES"] && (
+				if (isset($res["FILES"]) && is_array($res["FILES"]) && !empty($res["FILES"]) && (
 						$this->arParams["RIGHTS"]["EDIT"] == "ALL" ||
 						$this->arParams["RIGHTS"]["EDIT"] == "Y" ||
 						$this->arParams["RIGHTS"]["EDIT"] == "OWN" && $res["AUTHOR"]["ID"] == $this->getUserId()
@@ -1330,8 +1330,8 @@ HTML;
 			$JSResult += array(
 				'warningCode' => ($arParams["WARNING_CODE"] ?? ''),
 				'warningMessage' => ($arParams["~WARNING_MESSAGE"] ?? ''),
-				'errorMessage' => (isset($arParams["~ERROR_MESSAGE"]) ? $arParams["~ERROR_MESSAGE"] : (isset($arParams["ERROR_MESSAGE"]) ? $arParams["ERROR_MESSAGE"] : '')),
-				'okMessage' => (isset($arParams["~OK_MESSAGE"]) ? $arParams["~OK_MESSAGE"] : (isset($arParams["OK_MESSAGE"]) ? $arParams["OK_MESSAGE"] : '')),
+				'errorMessage' => ($arParams["~ERROR_MESSAGE"] ?? ($arParams["ERROR_MESSAGE"] ?? '')),
+				'okMessage' => ($arParams["~OK_MESSAGE"] ?? ($arParams["OK_MESSAGE"] ?? '')),
 				'status' => "success",
 			);
 			if ($mode === "RECORDS")
@@ -1378,8 +1378,8 @@ HTML;
 	{
 		return \CComponentUtil::getDateTimeFormatted(array(
 			'TIMESTAMP' => $timestamp,
-			'DATETIME_FORMAT' => (isset($arFormatParams["DATE_TIME_FORMAT"]) ? $arFormatParams["DATE_TIME_FORMAT"] : false),
-			'DATETIME_FORMAT_WITHOUT_YEAR' => (isset($arFormatParams["DATE_TIME_FORMAT_WITHOUT_YEAR"]) ? $arFormatParams["DATE_TIME_FORMAT_WITHOUT_YEAR"] : false)
+			'DATETIME_FORMAT' => ($arFormatParams["DATE_TIME_FORMAT"] ?? false),
+			'DATETIME_FORMAT_WITHOUT_YEAR' => ($arFormatParams["DATE_TIME_FORMAT_WITHOUT_YEAR"] ?? false)
 		));
 	}
 }

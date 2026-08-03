@@ -5,6 +5,7 @@ namespace Bitrix\Catalog\RestView;
 use Bitrix\Rest\Integration\View\Attributes;
 use Bitrix\Rest\Integration\View\DataType;
 use Bitrix\Rest\Integration\View\Base;
+use Bitrix\Catalog\v2\Contractor\Provider\Manager;
 
 final class Document extends Base
 {
@@ -15,7 +16,7 @@ final class Document extends Base
 	 */
 	public function getFields()
 	{
-		return [
+		$result = [
 			'ID' => [
 				'TYPE' => DataType::TYPE_INT,
 				'ATTRIBUTES' => [
@@ -26,18 +27,16 @@ final class Document extends Base
 				'TYPE' => DataType::TYPE_CHAR,
 				'ATTRIBUTES' => [
 					Attributes::IMMUTABLE,
+					Attributes::REQUIRED,
 				],
 			],
 			'SITE_ID' => [
 				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'CONTRACTOR_ID' => [
-				'TYPE' => DataType::TYPE_INT,
-			],
 			'RESPONSIBLE_ID' => [
 				'TYPE' => DataType::TYPE_INT,
 				'ATTRIBUTES' => [
-					Attributes::REQUIRED,
+					Attributes::REQUIRED_ADD,
 				],
 			],
 			'DATE_MODIFY' => [
@@ -62,6 +61,7 @@ final class Document extends Base
 				'TYPE' => DataType::TYPE_CHAR,
 				'ATTRIBUTES' => [
 					Attributes::REQUIRED,
+					Attributes::IMMUTABLE,
 				],
 			],
 			'STATUS' => [
@@ -91,6 +91,47 @@ final class Document extends Base
 			'TITLE' => [
 				'TYPE' => DataType::TYPE_STRING,
 			],
+			'DOC_NUMBER' => [
+				'TYPE' => DataType::TYPE_STRING,
+			],
 		];
+
+		if (!Manager::getActiveProvider())
+		{
+			$result['CONTRACTOR_ID'] = [
+				'TYPE' => DataType::TYPE_INT,
+			];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function internalizeArguments($name, $arguments): array
+	{
+		$name = mb_strtolower($name);
+		if (!in_array($name, ['fields', 'conductlist', 'cancellist', 'deletelist', 'confirm', 'unconfirm', 'conduct', 'cancel'], true))
+		{
+			return parent::internalizeArguments($name, $arguments);
+		}
+
+		return $arguments;
+	}
+
+
+	/**
+	 * @inheritDoc
+	 */
+	public function externalizeResult($name, $fields): array
+	{
+		$name = mb_strtolower($name);
+		if (!in_array($name, ['fields', 'conductlist', 'cancellist', 'deletelist', 'confirm', 'unconfirm', 'conduct', 'cancel'], true))
+		{
+			return parent::externalizeResult($name, $fields);
+		}
+
+		return $fields;
 	}
 }

@@ -1,11 +1,15 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2014 Bitrix
+ * @copyright 2001-2021 Bitrix
  */
+
 namespace Bitrix\Main\Web;
+
+use Psr\Http\Message\UriInterface;
 
 class IpAddress
 {
@@ -32,12 +36,12 @@ class IpAddress
 	}
 
 	/**
-	 * Creates the object by an Uri.
+	 * Creates the object by a Uri.
 	 *
-	 * @param Uri $uri
+	 * @param UriInterface $uri
 	 * @return static
 	 */
-	public static function createByUri(Uri $uri)
+	public static function createByUri(UriInterface $uri)
 	{
 		return static::createByName($uri->getHost());
 	}
@@ -50,6 +54,16 @@ class IpAddress
 	public function get()
 	{
 		return $this->ip;
+	}
+
+	/**
+	 * Returns address's value.
+	 *
+	 * @return string
+	 */
+	public function __toString()
+	{
+		return $this->get();
 	}
 
 	/**
@@ -81,5 +95,23 @@ class IpAddress
 		}
 
 		return (ip2long($this->ip) & ~((1 << (32 - $mask)) - 1)) === ip2long($subnet);
+	}
+
+	/**
+	 * Formats IP as an unsigned int and returns it as a sting.
+	 * @return string
+	 */
+	public function toUnsigned()
+	{
+		return sprintf('%u', ip2long($this->ip));
+	}
+
+	/**
+	 * Formats IP as a range (192.168.0.0/24).
+	 * @return string
+	 */
+	public function toRange(int $prefixLen)
+	{
+		return long2ip(ip2long($this->ip) & ~((1 << (32 - $prefixLen)) - 1)) . '/' . $prefixLen;
 	}
 }

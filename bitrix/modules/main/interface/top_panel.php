@@ -1,8 +1,17 @@
-<?
+<?php
+/**
+ * @global \CUser $USER
+ * @global \CMain $APPLICATION
+ * @global \CDatabase $DB
+ */
+
+use Bitrix\Main\Web\Uri;
+
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+
 IncludeModuleLangFile(__FILE__);
 
-if($_GET["back_url_pub"] <> "" && !is_array($_GET["back_url_pub"]) && mb_strpos($_GET["back_url_pub"], "/") === 0)
+if(isset($_GET["back_url_pub"]) && !is_array($_GET["back_url_pub"]) && mb_strpos($_GET["back_url_pub"], "/") === 0)
 	\Bitrix\Main\Application::getInstance()->getSession()["BACK_URL_PUB"] = $_GET["back_url_pub"];
 
 $params = DeleteParam(array("logout", "back_url_pub", "sessid"));
@@ -14,15 +23,15 @@ function _showTopPanelButtonsSection($arPanelButtons, $hkInstance, $section = nu
 	global $USER;
 
 	foreach ($arPanelButtons as $item):
-		if($item["SEPARATOR"] == true)
+		if (isset($item["SEPARATOR"]) && $item["SEPARATOR"])
 			continue;
 		if ($section == null && isset($item['SECTION']))
 			continue;
-		if ($section != null && $item['SECTION'] != $section)
+		if ($section != null && (!isset($item['SECTION']) || $item['SECTION'] != $section))
 			continue;
 
-		$id = isset($item['ID']) ? $item['ID'] : 'bx_top_panel_button_'.RandString();
-		$bHasMenu = (is_array($item["MENU"]) && !empty($item["MENU"]));
+		$id = $item['ID'] ?? 'bx_top_panel_button_'.RandString();
+		$bHasMenu = (isset($item["MENU"]) && is_array($item["MENU"]) && !empty($item["MENU"]));
 
 		if($USER->IsAuthorized())
 			echo $hkInstance->PrintTPButton($item);
@@ -37,11 +46,11 @@ function _showTopPanelButtonsSection($arPanelButtons, $hkInstance, $section = nu
 
 		endif;
 
-		if ($bHasMenu || $item['TOOLTIP'] && $item['TOOLTIP_ID']):
+		if ($bHasMenu || (isset($item['TOOLTIP']) && $item['TOOLTIP'] && $item['TOOLTIP_ID'])):
 ?><script type="text/javascript"><?
 
-			if ($item['TOOLTIP']):
-				if ($item['TOOLTIP_ID']):
+			if (isset($item['TOOLTIP']) && $item['TOOLTIP']):
+				if (isset($item['TOOLTIP_ID']) && $item['TOOLTIP_ID']):
 
 ?>
 BX.ready(function() {BX.hint(BX('<?=CUtil::JSEscape($id)?>'), '<?=CUtil::JSEscape($item["TITLE"])?>', '<?=CUtil::JSEscape($item['TOOLTIP'])?>', '<?=CUtil::JSEscape($item['TOOLTIP_ID'])?>')});
@@ -81,7 +90,7 @@ if($USER->IsAuthorized())
 
 	//Help
 	$module = (defined("ADMIN_MODULE_NAME")? ADMIN_MODULE_NAME: "main");
-	$page = (defined("HELP_FILE") && mb_strpos(HELP_FILE, '/') === false? HELP_FILE : basename($APPLICATION->GetCurPage()));
+	$page = (defined("HELP_FILE") && strpos(HELP_FILE, '/') === false? HELP_FILE : basename($APPLICATION->GetCurPage()));
 
 	$aActiveSection = $adminMenu->ActiveSection();
 	$section = $aActiveSection["help_section"]."/";
@@ -128,7 +137,7 @@ if (count($arLangMenu) > 1)
 $arPanelButtons[] = $arLangButton;
 
 $sPubUrl = (\Bitrix\Main\Application::getInstance()->getSession()["BACK_URL_PUB"] <> ""?
-	htmlspecialcharsbx(\Bitrix\Main\Application::getInstance()->getSession()["BACK_URL_PUB"]).(mb_strpos(\Bitrix\Main\Application::getInstance()->getSession()["BACK_URL_PUB"], "?") !== false? "&amp;":"?") : '/?').
+	htmlspecialcharsbx(\Bitrix\Main\Application::getInstance()->getSession()["BACK_URL_PUB"]).(strpos(\Bitrix\Main\Application::getInstance()->getSession()["BACK_URL_PUB"], "?") !== false? "&amp;":"?") : '/?').
 	'back_url_admin='.urlencode($APPLICATION->GetCurPage().($params<>""? "?".$params:""));
 
 $aUserOptGlobal = CUserOptions::GetOption("global", "settings");
@@ -383,7 +392,7 @@ if ($USER->IsAuthorized()):
  */
 
 	$ssoSwitcher = $adminPage->getSSOSwitcherButton();
-	$bShowSSO = is_array($ssoSwitcher) && count($ssoSwitcher) > 0;
+	$bShowSSO = is_array($ssoSwitcher) && !empty($ssoSwitcher);
 
 	$userName = $USER->GetFormattedName();
 	if($bShowSSO)
@@ -427,26 +436,25 @@ if ($USER->IsAuthorized()):
 
 	$aUserOpt = CUserOptions::GetOption("admin_panel", "settings");
 
-?><a hidefocus="true" href="javascript:void(0)" id="bx-panel-pin" class="adm-header-pin" onclick="BX.adminPanel.Fix(this)" title="<?=GetMessage('top_panel_pin_'.($aUserOpt['fix'] == 'on' ? 'off' : 'on'))?>"></a><?
+?><a hidefocus="true" href="javascript:void(0)" id="bx-panel-pin" class="adm-header-pin" onclick="BX.adminPanel.Fix(this)" title="<?=GetMessage('top_panel_pin_'.(isset($aUserOpt['fix']) && $aUserOpt['fix'] == 'on' ? 'off' : 'on'))?>"></a><?
 
 	if(LANGUAGE_ID == "ru")
 	{
 		CJSCore::Init(array('helper'));
-		$helpUrl = CHTTP::urlAddParams('https://helpdesk.bitrix24.ru/widget2/dev/', array(
-				"url" => urlencode("https://".$_SERVER["HTTP_HOST"].$APPLICATION->GetCurPageParam()),
-				"user_id" => $USER->GetID(),
-				"is_admin" => $USER->IsAdmin() ? 1 : 0,
-				"help_url" => urlencode("http://dev.1c-bitrix.ru/user_help/".$section.(defined("HELP_FILE") && mb_strpos(HELP_FILE, '/') !== false?  HELP_FILE : $module."/".$page))
-			)
-		);
-		$frameOpenUrl = CHTTP::urlAddParams($helpUrl, array(
-				"action" => "open",
-			)
-		);
-		$frameCloseUrl = CHTTP::urlAddParams($helpUrl, array(
-				"action" => "close",
-			)
-		);
+		$helpUrl = (new Uri('https://helpdesk.bitrix24.ru/widget2/dev/'))->addParams([
+			"url" => "https://".$_SERVER["HTTP_HOST"].$APPLICATION->GetCurPageParam(),
+			"user_id" => $USER->GetID(),
+			"is_admin" => $USER->IsAdmin() ? 1 : 0,
+			"help_url" => "http://dev.1c-bitrix.ru/user_help/".$section.(defined("HELP_FILE") && strpos(HELP_FILE, '/') !== false?  HELP_FILE : $module."/".$page),
+		]);
+
+		$frameOpenUrl = (clone $helpUrl)->addParams([
+			"action" => "open",
+		])->getUri();
+
+		$frameCloseUrl = (clone $helpUrl)->addParams([
+			"action" => "close",
+		])->getUri();
 		?>
 		<span class="adm-header-help-btn" id="bx_top_panel_button_helper" <?if (!isset($helperHeroOption["show"])):?>onclick="BX.userOptions.save('main', 'helper_hero_admin',  'show', 'Y');"<?endif?>>
 		   <span class="adm-header-help-btn-icon"></span>
@@ -487,5 +495,4 @@ if ($USER->IsAdmin())
 
 ?></div><?
 
-echo $GLOBALS["adminPage"]->ShowSound();
-?>
+echo CAdminPage::ShowSound();

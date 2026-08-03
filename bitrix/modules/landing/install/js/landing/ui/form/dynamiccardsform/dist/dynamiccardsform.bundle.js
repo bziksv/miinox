@@ -105,14 +105,14 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	        content = this.dynamicParams.settings.detailPage;
 	      }
 
-	      return new BX.Landing.UI.Field.Link({
+	      return new parent.BX.Landing.UI.Field.Link({
 	        selector: 'detailPage',
 	        title: landing_loc.Loc.getMessage('LANDING_CARDS__DETAIL_PAGE_FIELD_TITLE'),
 	        textOnly: true,
 	        disableCustomURL: true,
 	        disableBlocks: true,
 	        disallowType: true,
-	        allowedTypes: [BX.Landing.UI.Field.LinkURL.TYPE_PAGE],
+	        allowedTypes: [BX.Landing.UI.Field.LinkUrl.TYPE_HREF_PAGE],
 	        detailPageMode: true,
 	        sourceField: this.fields.find(function (field) {
 	          return field.selector === 'source';

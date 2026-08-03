@@ -32,6 +32,9 @@
 		{
 			this.node.setAttribute("title", BX.Landing.Loc.getMessage("LANDING_TITLE_OF_LINK_NODE"));
 		}
+
+		this.onChange = BX.Runtime.debounce(this.onChange, 500);
+		this.onContentUpdate = BX.Runtime.debounce(this.onContentUpdate, 500);
 	};
 
 
@@ -41,23 +44,7 @@
 
 		onContentUpdate: function()
 		{
-			var blockId = this.getBlock().id;
-
-			clearTimeout(this.contentEditTimeout);
-			this.contentEditTimeout = setTimeout(function() {
-				BX.Landing.History.getInstance().push(
-					new BX.Landing.History.Entry({
-						block: blockId,
-						selector: this.selector,
-						command: "editLink",
-						undo: this.startValue,
-						redo: this.getValue()
-					})
-				);
-
-				this.startValue = null;
-			}.bind(this), 400);
-
+			BX.Landing.History.getInstance().push();
 			this.getField().setValue(this.getValue());
 		},
 
@@ -81,7 +68,6 @@
 
 			if (this.isAllowInlineEdit())
 			{
-				BX.Landing.UI.Button.FontAction.hideAll();
 				BX.Landing.UI.Button.ColorAction.hideAll();
 
 				if (!BX.Landing.UI.Panel.StylePanel.getInstance().isShown())
@@ -156,7 +142,7 @@
 				this.node.removeAttribute("data-embed");
 			}
 
-			this.onChange();
+			this.onChange(preventHistory);
 
 			if (!preventHistory)
 			{
@@ -210,6 +196,10 @@
 				delete value.text;
 			}
 
+			if (value.href && value.href.startsWith('selectActions:'))
+			{
+				value.href = '#';
+			}
 			return value;
 		},
 
@@ -227,20 +217,20 @@
 			if (!this.field)
 			{
 				var allowedTypes = [
-					BX.Landing.UI.Field.LinkURL.TYPE_BLOCK,
-					BX.Landing.UI.Field.LinkURL.TYPE_PAGE,
-					BX.Landing.UI.Field.LinkURL.TYPE_CRM_FORM,
-					BX.Landing.UI.Field.LinkURL.TYPE_CRM_PHONE
+					BX.Landing.UI.Field.LinkUrl.TYPE_BLOCK,
+					BX.Landing.UI.Field.LinkUrl.TYPE_PAGE,
+					BX.Landing.UI.Field.LinkUrl.TYPE_CRM_FORM,
+					BX.Landing.UI.Field.LinkUrl.TYPE_CRM_PHONE
 				];
 
 				if (BX.Landing.Main.getInstance().options.params.type === BX.Landing.Main.TYPE_STORE)
 				{
-					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_CATALOG);
+					allowedTypes.push(BX.Landing.UI.Field.LinkUrl.TYPE_CATALOG);
 				}
 
 				if (BX.Landing.Main.getInstance().options.features.includes('diskFile'))
 				{
-					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_DISK_FILE);
+					allowedTypes.push(BX.Landing.UI.Field.LinkUrl.TYPE_DISK_FILE);
 				}
 
 				this.field = new BX.Landing.UI.Field.Link({

@@ -5,12 +5,14 @@ use Bitrix\Main\Localization\Loc;
 $bodyClass = $APPLICATION->GetPageProperty("BodyClass");
 $APPLICATION->SetPageProperty("BodyClass", ($bodyClass ? $bodyClass." " : "") . "no-all-paddings no-background");
 \Bitrix\Main\UI\Extension::load([
+	"ui.design-tokens",
+	"ui.fonts.opensans",
 	"ui.buttons",
 	"ui.icons",
 	"ui.forms",
 	"ui.progressbar",
 	"seo.seoadbuilder",
-	'ui.entity-selector'
+	"ui.entity-selector",
 ]);
 \CJSCore::Init("loader");
 
@@ -82,7 +84,7 @@ $type = $arParams['TYPE'];
 
 <?php
 $buttons = [];
-$buttons[] = ['TYPE' => 'apply', 'ONCLICK' => 'window.seoAudience.apply()'];
+$buttons[] = ['TYPE' => 'apply', 'ONCLICK' => 'event.stopImmediatePropagation();window.seoAudience.apply(this);', 'WAIT' => false];
 $buttons[] = ['TYPE' => 'cancel'];
 $APPLICATION->IncludeComponent(
 	"bitrix:ui.button.panel",

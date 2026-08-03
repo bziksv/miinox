@@ -1,19 +1,13 @@
-<?
+<?php
+
 namespace Bitrix\Main\UI\Uploader;
-use Bitrix\Main\AccessDeniedException;
+
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ArgumentNullException;
-use Bitrix\Main\ArgumentOutOfRangeException;
-use Bitrix\Main\DB\Exception;
 use Bitrix\Main\Error;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\HttpRequest;
 use Bitrix\Main\NotImplementedException;
-use Bitrix\Main\Result;
-use \Bitrix\Main\UI\FileInputUtility;
-use \Bitrix\Main\Web\HttpClient;
-use \Bitrix\Main\Web\Uri;
-use \Bitrix\Main\Context;
+use Bitrix\Main\Web\Uri;
+use Bitrix\Main\Context;
 
 class Package
 {
@@ -146,7 +140,7 @@ class Package
 	{
 		if (!is_string($CID))
 			throw new ArgumentNullException("CID");
-		else if (mb_strpos($CID, "/") !== false)
+		else if (strpos($CID, "/") !== false)
 			throw new ArgumentException("CID contains a forbidden symbol /");
 		$this->CID = preg_replace("/[^a-z0-9_\\-.]/i", "_", $CID);
 	}
@@ -228,13 +222,13 @@ class Package
 			$res = array();
 			foreach($data as $k => $v)
 			{
-				$k = \Bitrix\Main\Text\Encoding::convertEncoding(\CHTTP::urnDecode($k), "UTF-8", LANG_CHARSET);
+				$k = Uri::urnDecode($k, "UTF-8");
 				$res[$k] = self::unescape($v);
 			}
 		}
 		else
 		{
-			$res = \Bitrix\Main\Text\Encoding::convertEncoding(\CHTTP::urnDecode($data), "UTF-8", LANG_CHARSET);
+			$res = Uri::urnDecode($data, "UTF-8");
 		}
 
 		return $res;
@@ -267,7 +261,8 @@ class Package
 		);
 		$files = $files[Uploader::FILE_NAME];
 
-		if ($post["type"] != "brief") // If it is IE8
+		$type = $post["type"] ?? null;
+		if ($type !== "brief") // If it is IE8
 		{
 			$error = "";
 			if ($this->log["executeStatus"] != "executed")
@@ -392,7 +387,7 @@ class Package
 					break;
 				if (!array_key_exists($fileRaw["id"], $filesOnThisPack))
 				{
-					if ($fileRaw["removed"])
+					if (!empty($fileRaw["removed"]))
 					{
 						$file = new FileRemoved($this, [
 							'id' => $fileRaw['id'],
@@ -426,7 +421,7 @@ class Package
 				}
 				$result = File::checkFile($fileRaw, $file, $fileLimits + array("path" => $this->getPath()));
 				if ($result->isSuccess() && ($result = $file->saveFile($fileRaw, $this->getStorage(), $this->getCopies())) && $result->isSuccess() &&
-					$post["type"] != "brief" &&
+					$type !== "brief" &&
 					$file->isUploaded() &&
 					!$file->isExecuted()
 				)
@@ -475,7 +470,7 @@ class Package
 
 		if ($declaredFiles > 0 && $declaredFiles <= $cnt)
 		{
-			if ($post["type"] != "brief") // If it is IE8
+			if ($type !== "brief") // If it is IE8
 			{
 				$this->log["uploadStatus"] = "uploaded";
 				$error = "";

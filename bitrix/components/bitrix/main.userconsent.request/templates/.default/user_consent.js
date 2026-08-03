@@ -244,7 +244,7 @@
 					return true;
 				}
 
-				var tmplNode = document.querySelector('script[data-bx-template]');
+				var tmplNode = document.querySelector('div[data-bx-template]');
 				if (!tmplNode)
 				{
 					return false;
@@ -401,19 +401,17 @@
 			{
 				this.popup.setTitle(BX.message(this.msg.loading));
 				this.popup.show(false);
-				this.sendActionRequest(
-					'getText', sendData,
-					function (data)
-					{
-						this.cache.set(cacheHash, data.text || '');
-						this.setTextToPopup(this.cache.getData(cacheHash));
-					},
-					function ()
-					{
-						this.popup.hide();
-						alert(BX.message(this.msg.errTextLoad));
-					}
-				);
+				BX.ajax.runAction('main.agreement.get', {
+					data: sendData,
+				})
+				.then((response) => {
+					this.cache.set(cacheHash, response.data.content.html || '');
+					this.setTextToPopup(this.cache.getData(cacheHash));
+				})
+				.catch(() => {
+					this.popup.hide();
+					alert(BX.message(this.msg.errTextLoad));
+				})
 			}
 		},
 		setTextToPopup: function (text, url)

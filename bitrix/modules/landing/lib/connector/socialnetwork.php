@@ -1,14 +1,14 @@
 <?php
 namespace Bitrix\Landing\Connector;
 
+use Bitrix\Landing\Binding;
 use Bitrix\Landing\Copy\Integration\Group;
-use \Bitrix\Main\Config\Option;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Landing\Binding;
-use \Bitrix\Landing\Rights;
-use \Bitrix\Landing\Manager;
-use \Bitrix\Landing\Site;
-use \Bitrix\Landing\Restriction;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\Restriction;
+use Bitrix\Landing\Rights;
+use Bitrix\Landing\Site;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
@@ -102,21 +102,37 @@ class SocialNetwork
 		// binding exist
 		if ($bindings)
 		{
-			$link = $bindings['PUBLIC_URL'];
-			self::processTabHit($link);
+            if (self::canPerformOperation($groupId, Rights::ACCESS_TYPES['read']))
+            {
+                $link = $bindings['PUBLIC_URL'];
+                self::processTabHit($link);
+            }
 		}
 		// binding don't exist, allow to create new one
-		else if (
-			$returnCreateLink &&
-			!self::isExtranet() &&
-			self::userInGroup($groupId)
-		)
+		else if ($returnCreateLink && self::canCreateNewBinding($groupId))
 		{
 			\CJSCore::init('sidepanel');
 			$link = SITE_DIR . str_replace('#groupId#', $groupId, self::PATH_GROUP_BINDING);
 		}
 
 		return $link;
+	}
+
+	/**
+	 * Returns title knowledge of group.
+	 * @param int $groupId Group id.
+	 * @return string
+	 */
+	public static function getSocNetMenuTitle($groupId)
+	{
+		$title = '';
+		$groupId = intval($groupId);
+		$bindings = self::getBindingRow($groupId, false);
+		if ($bindings['TITLE'])
+		{
+			$title = $bindings['TITLE'];
+		}
+		return $title;
 	}
 
 	/**
@@ -132,12 +148,50 @@ class SocialNetwork
 			\Bitrix\Main\ModuleManager::isModuleInstalled('intranet')
 		)
 		{
+			$restrictedAccess = [SONET_ENTITY_GROUP => [SONET_ROLES_ALL, SONET_ROLES_AUTHORIZED]];
+
 			$socNetFeaturesSettings[self::SETTINGS_CODE] = [
 				'allowed' => [SONET_ENTITY_GROUP],
 				'title' => Loc::getMessage('LANDING_CONNECTOR_SN_TITLE'),
-				'operations' => [],
-				'minoperation' => 'view'
+				'operation_titles' => [
+					Rights::ACCESS_TYPES['read'] => Loc::getMessage('LANDING_CONNECTOR_SN_PERMS_READ'),
+					Rights::ACCESS_TYPES['edit'] => Loc::getMessage('LANDING_CONNECTOR_SN_PERMS_EDIT'),
+					Rights::ACCESS_TYPES['sett'] => Loc::getMessage('LANDING_CONNECTOR_SN_PERMS_SETT'),
+					Rights::ACCESS_TYPES['delete'] => Loc::getMessage('LANDING_CONNECTOR_SN_PERMS_DELETE'),
+				],
+				'operations' => [
+					Rights::ACCESS_TYPES['read'] => [SONET_ENTITY_GROUP => SONET_ROLES_USER],
+					Rights::ACCESS_TYPES['edit'] => [SONET_ENTITY_GROUP => SONET_ROLES_USER, 'restricted' => $restrictedAccess],
+					Rights::ACCESS_TYPES['sett'] => [SONET_ENTITY_GROUP => SONET_ROLES_USER, 'restricted' => $restrictedAccess],
+					Rights::ACCESS_TYPES['delete'] => [SONET_ENTITY_GROUP => SONET_ROLES_USER, 'restricted' => $restrictedAccess],
+				],
+				'minoperation' => ['read'],
 			];
+		}
+	}
+
+	/**
+	 * Invokes when changing §permissions of socialnetwork group is occurred.
+	 *
+	 * @param int $id Feature id.
+	 * @param array $fields Feature fields.
+	 * @return void
+	 */
+	public static function onSocNetFeaturesUpdate(int $id, array $fields): void
+	{
+		$groupId = self::getGroupIdByFeatureId($id);
+
+		if ($groupId)
+		{
+			AddEventHandler('main', 'onEpilog', function() use($groupId)
+			{
+				$siteId = Binding\Group::getSiteIdByGroupId($groupId);
+				if ($siteId)
+				{
+					$binding = new \Bitrix\Landing\Binding\Group($groupId);
+					$binding->rebindSite($siteId);
+				}
+			});
 		}
 	}
 
@@ -178,15 +232,21 @@ class SocialNetwork
 			{
 				$enable = false;
 			}
+			$title = self::getSocNetMenuTitle($result['Group']['ID']);
+			if ($title !== '')
+			{
+				$title = ' - ' . $title;
+			}
 		}
 		else
 		{
 			$url = '';
+			$title = '';
 		}
 
 		// build menu params
 		$result['CanView'][self::SETTINGS_CODE] = $enable;
-		$result['Title'][self::SETTINGS_CODE] = Loc::getMessage('LANDING_CONNECTOR_SN_TITLE');
+		$result['Title'][self::SETTINGS_CODE] = Loc::getMessage('LANDING_CONNECTOR_SN_TITLE') . $title;
 		$result['Urls'][self::SETTINGS_CODE] = $url;
 	}
 
@@ -278,17 +338,58 @@ class SocialNetwork
 	}
 
 	/**
-	 * Returns true, if current user are member of group.
+	 * Returns true, if current user is member of group.
+	 *
 	 * @param int $groupId Group id.
 	 * @return bool
 	 */
-	public static function userInGroup($groupId)
+	public static function userInGroup(int $groupId): bool
 	{
-		$groupId = (int) $groupId;
-		return \CSocNetUserToGroup::getUserRole(
-			Manager::getUserId(),
-			$groupId
-		) !== false;
+		if (\Bitrix\Main\Loader::includeModule('socialnetwork'))
+		{
+			return \CSocNetUserToGroup::getUserRole(
+				Manager::getUserId(),
+				$groupId
+			) <= SONET_ROLES_USER;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns true if current user for specified sonet group can perform specified operation.
+	 *
+	 * @param int $groupId Group id.
+	 * @param string $operation Operation code.
+	 * @see \Bitrix\Landing\Rights::ACCESS_TYPES
+	 * @return bool
+	 */
+	public static function canPerformOperation(int $groupId, string $operation): bool
+	{
+		if ($groupId && \Bitrix\Main\Loader::includeModule('socialnetwork'))
+		{
+			return \CSocNetFeaturesPerms::canPerformOperation(
+				Manager::getUserId(),
+				SONET_ENTITY_GROUP,
+				$groupId,
+				self::SETTINGS_CODE,
+				$operation
+			);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns true if current user for specified sonet group can create new binding.
+	 *
+	 * @param int $groupId Group id.
+	 * @return bool
+	 */
+	public static function canCreateNewBinding(int $groupId): bool
+	{
+		$operation = Rights::ACCESS_TYPES['edit'];
+		return self::userInGroup($groupId) && self::canPerformOperation($groupId, $operation);
 	}
 
 	/**
@@ -309,5 +410,35 @@ class SocialNetwork
 				Site::delete($binding['ENTITY_ID'], true)->isSuccess();
 			}
 		}
+	}
+
+	/**
+	 * Local tool for resolve group id by group feature id.
+	 *
+	 * @param int $featureId Feature id.
+	 * @return int|null
+	 */
+	private static function getGroupIdByFeatureId(int $featureId): ?int
+	{
+		static $featureToGroup = null;
+
+		if ($featureToGroup === null)
+		{
+			$res = \CSocNetFeatures::getList(
+				[],
+				[
+					'ENTITY_TYPE' => SONET_ENTITY_GROUP,
+					'FEATURE' => self::SETTINGS_CODE,
+				],
+				false, false,
+				['ID', 'ENTITY_ID']
+			);
+			while ($row = $res->fetch())
+			{
+				$featureToGroup[$row['ID']] = $row['ENTITY_ID'];
+			}
+		}
+
+		return $featureToGroup[$featureId] ?? null;
 	}
 }

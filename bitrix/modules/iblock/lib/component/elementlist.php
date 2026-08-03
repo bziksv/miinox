@@ -73,6 +73,10 @@ abstract class ElementList extends Base
 
 	public function onPrepareComponentParams($params)
 	{
+		if (!is_array($params))
+		{
+			$params = [];
+		}
 		$params = parent::onPrepareComponentParams($params);
 		$this->makeMagicWithPageNavigation();
 
@@ -90,31 +94,36 @@ abstract class ElementList extends Base
 			$params['PAGE_ELEMENT_COUNT'] = static::predictElementCountByVariants($params['PRODUCT_ROW_VARIANTS'], $isBigData);
 		}
 
-		$params['PAGE_ELEMENT_COUNT'] = (int)$params['PAGE_ELEMENT_COUNT'];
+		$params['PAGE_ELEMENT_COUNT'] = (int)($params['PAGE_ELEMENT_COUNT'] ?? 0);
 		$params['ELEMENT_COUNT'] = (int)($params['ELEMENT_COUNT'] ?? 0);
-		$params['LINE_ELEMENT_COUNT'] = (int)$params['LINE_ELEMENT_COUNT'];
+		$params['LINE_ELEMENT_COUNT'] = (int)($params['LINE_ELEMENT_COUNT'] ?? 3);
 
-		if (!isset($params['INCLUDE_SUBSECTIONS']) || !in_array($params['INCLUDE_SUBSECTIONS'], array('Y', 'A', 'N')))
+		$params['INCLUDE_SUBSECTIONS'] ??= '';
+		if (!in_array(
+			$params['INCLUDE_SUBSECTIONS'],
+			[
+				'Y',
+				'A',
+				'N',
+			]
+		))
 		{
 			$params['INCLUDE_SUBSECTIONS'] = 'Y';
 		}
 
-		if (
-			!isset($params['HIDE_NOT_AVAILABLE'])
-			|| ($params['HIDE_NOT_AVAILABLE'] !== 'Y' && $params['HIDE_NOT_AVAILABLE'] !== 'L')
-		)
+		$params['HIDE_NOT_AVAILABLE'] ??= '';
+		if ($params['HIDE_NOT_AVAILABLE'] !== 'Y' && $params['HIDE_NOT_AVAILABLE'] !== 'L')
 		{
 			$params['HIDE_NOT_AVAILABLE'] = 'N';
 		}
 
-		if (
-			!isset($params['HIDE_NOT_AVAILABLE_OFFERS'])
-			|| ($params['HIDE_NOT_AVAILABLE_OFFERS'] !== 'Y' && $params['HIDE_NOT_AVAILABLE_OFFERS'] !== 'L')
-		)
+		$params['HIDE_NOT_AVAILABLE_OFFERS'] ??= '';
+		if ($params['HIDE_NOT_AVAILABLE_OFFERS'] !== 'Y' && $params['HIDE_NOT_AVAILABLE_OFFERS'] !== 'L')
 		{
 			$params['HIDE_NOT_AVAILABLE_OFFERS'] = 'N';
 		}
 
+		$params['FILTER_NAME'] = trim((string)($params['FILTER_NAME'] ?? ''));
 		// ajax request doesn't have access to page $GLOBALS
 		if (isset($params['GLOBAL_FILTER']))
 		{
@@ -123,8 +132,9 @@ abstract class ElementList extends Base
 		else
 		{
 			if (
-				!empty($params['FILTER_NAME'])
+				$params['FILTER_NAME'] !== ''
 				&& preg_match(self::PARAM_TITLE_MASK, $params['FILTER_NAME'])
+				&& isset($GLOBALS[$params['FILTER_NAME']])
 				&& is_array($GLOBALS[$params['FILTER_NAME']])
 			)
 			{
@@ -140,8 +150,23 @@ abstract class ElementList extends Base
 			$this->arResult['ORIGINAL_PARAMETERS']['GLOBAL_FILTER'] = $this->globalFilter;
 		}
 
+		$productMappingFilter = [];
+		if (
+			Loader::includeModule('catalog')
+			&& Catalog\Product\SystemField\ProductMapping::isAllowed()
+		)
+		{
+			$productMappingFilter = Catalog\Product\SystemField\ProductMapping::getExtendedFilterByArea(
+				[],
+				Catalog\Product\SystemField\ProductMapping::MAP_LANDING
+			);
+		}
 		$params['CACHE_FILTER'] = isset($params['CACHE_FILTER']) && $params['CACHE_FILTER'] === 'Y';
-		if (!$params['CACHE_FILTER'] && !empty($this->globalFilter))
+		if (
+			!$params['CACHE_FILTER']
+			&& !empty($this->globalFilter)
+			&& array_diff_assoc($this->globalFilter, $productMappingFilter)
+		)
 		{
 			$params['CACHE_TIME'] = 0;
 		}
@@ -158,13 +183,20 @@ abstract class ElementList extends Base
 			['ORDER' => 'ID', 'DIRECTION' => 'desc']
 		);
 
-		if (!empty($params['PAGER_PARAMS_NAME']) && preg_match(self::PARAM_TITLE_MASK, $params['PAGER_PARAMS_NAME']))
+		$params['PAGER_BASE_LINK_ENABLE'] = (string)($params['PAGER_BASE_LINK_ENABLE'] ?? '');
+		$params['PAGER_TITLE'] = (string)($params['PAGER_TITLE'] ?? '');
+		$params['PAGER_TEMPLATE'] = (string)($params['PAGER_TEMPLATE'] ?? '');
+		$params['PAGER_PARAMS_NAME'] = trim((string)($params['PAGER_PARAMS_NAME'] ?? ''));
+		if (
+			$params['PAGER_PARAMS_NAME'] !== ''
+			&& preg_match(self::PARAM_TITLE_MASK, $params['PAGER_PARAMS_NAME'])
+		)
 		{
-			$this->pagerParameters = $GLOBALS[$params['PAGER_PARAMS_NAME']];
+			$this->pagerParameters = $GLOBALS[$params['PAGER_PARAMS_NAME']] ?? [];
 
 			if (!is_array($this->pagerParameters))
 			{
-				$this->pagerParameters = array();
+				$this->pagerParameters = [];
 			}
 		}
 
@@ -622,8 +654,11 @@ abstract class ElementList extends Base
 	protected function isEmptyStartLoad(): bool
 	{
 		return (
-			$this->arParams['LAZY_LOAD'] === 'Y'
+			isset($this->arParams['LAZY_LOAD'])
+			&& $this->arParams['LAZY_LOAD'] === 'Y'
+			&& isset($this->arParams['LOAD_ON_SCROLL'])
 			&& $this->arParams['LOAD_ON_SCROLL'] === 'Y'
+			&& isset($this->arParams['DEFERRED_LOAD'])
 			&& $this->arParams['DEFERRED_LOAD'] === 'Y'
 		);
 	}
@@ -928,9 +963,10 @@ abstract class ElementList extends Base
 								if (
 									($isArr && !empty($prop['VALUE']))
 									|| (!$isArr && (string)$prop['VALUE'] !== '')
+									|| Tools::isCheckboxProperty($prop)
 								)
 								{
-									$element['DISPLAY_PROPERTIES'][$pid] = \CIBlockFormatProperties::GetDisplayValue($element, $prop, 'catalog_out');
+									$element['DISPLAY_PROPERTIES'][$pid] = \CIBlockFormatProperties::GetDisplayValue($element, $prop);
 								}
 								unset($prop);
 							}
@@ -954,6 +990,9 @@ abstract class ElementList extends Base
 					}
 				}
 				unset($element);
+
+				\CIBlockFormatProperties::clearCache();
+				Tools::clearCache();
 			}
 		}
 	}
@@ -1363,12 +1402,6 @@ abstract class ElementList extends Base
 		parent::prepareTemplateParams();
 		$params =& $this->arParams;
 
-		if (!isset($params['LINE_ELEMENT_COUNT']))
-		{
-			$params['LINE_ELEMENT_COUNT'] = 3;
-		}
-
-		$params['LINE_ELEMENT_COUNT'] = (int)$params['LINE_ELEMENT_COUNT'];
 		if ($params['LINE_ELEMENT_COUNT'] < 2)
 		{
 			$params['LINE_ELEMENT_COUNT'] = 2;
@@ -1703,7 +1736,7 @@ abstract class ElementList extends Base
 
 		if ($this->isPaginationMode())
 		{
-			if (is_array($this->arResult['NAV_PARAM']))
+			if (isset($this->arResult['NAV_PARAM']) && is_array($this->arResult['NAV_PARAM']))
 			{
 				$this->arResult['NAV_PARAM']['TEMPLATE_THEME'] = $this->arParams['TEMPLATE_THEME'];
 			}
@@ -1751,6 +1784,7 @@ abstract class ElementList extends Base
 			$this->sortItemsByTemplateVariants();
 		}
 
+		$this->arResult['BIG_DATA'] = [];
 		if ($this->request->getRequestMethod() === 'GET')
 		{
 			$this->arResult['BIG_DATA'] = $this->getBigDataInfo();
@@ -2526,6 +2560,7 @@ abstract class ElementList extends Base
 			{
 				unset($offer['DISPLAY_PROPERTIES'][$iblockParams['OFFERS_ADD_PICT_PROP']]);
 			}
+			$offer['TREE'] = [];
 
 			$double[$offer['ID']] = true;
 			$newOffers[$offerKey] = $offer;
@@ -2544,11 +2579,6 @@ abstract class ElementList extends Base
 			{
 				if ($boolExist)
 				{
-					if (!isset($item['OFFERS'][$offerKey]['TREE']))
-					{
-						$item['OFFERS'][$offerKey]['TREE'] = array();
-					}
-
 					$propId = $this->arResult['SKU_PROPS'][$item['IBLOCK_ID']][$propCode]['ID'];
 					$value = $matrix[$offerKey][$propCode]['VALUE'];
 

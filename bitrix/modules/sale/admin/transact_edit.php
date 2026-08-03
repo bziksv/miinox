@@ -1,4 +1,9 @@
-<?
+<?php
+
+/** @global CMain $APPLICATION */
+use Bitrix\Main\Context;
+use Bitrix\Main\Loader;
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
@@ -9,16 +14,20 @@ $saleModulePermissions = $APPLICATION->GetGroupRight("sale");
 if ($saleModulePermissions == "D")
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-\Bitrix\Main\Loader::includeModule('sale');
+Loader::includeModule('sale');
 
 IncludeModuleLangFile(__FILE__);
+
+$request = Context::getCurrent()->getRequest();
 
 $errorMessage = "";
 $bVarsFromForm = false;
 
 ClearVars();
 
-if ($REQUEST_METHOD=="POST" && $Update <> '' && $saleModulePermissions >= "U" && check_bitrix_sessid())
+$ID = (int)($ID ?? 0);
+
+if ($request->isPost() && $request->getPost('Update') !== null && $saleModulePermissions >= "U" && check_bitrix_sessid())
 {
 	$adminSidePanelHelper->decodeUriComponent();
 
@@ -62,8 +71,21 @@ if ($REQUEST_METHOD=="POST" && $Update <> '' && $saleModulePermissions >= "U" &&
 }
 
 if ($bVarsFromForm)
+{
 	$DB->InitTableVarsForEdit("b_sale_user_transact", "", "str_");
+}
+else
+{
+	$columns = $DB->GetTableFieldsList("b_sale_user_transact");
+	foreach ($columns as $column)
+	{
+		${"str_{$column}"} ??= null;
+	}
 
+	$str_USER_LOGIN ??= null;
+	$str_USER_NAME ??= null;
+	$str_USER_LAST_NAME ??= null;
+}
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 
@@ -114,7 +136,7 @@ $tabControl->BeginNextTab();
 			if ($ID > 0)
 			{
 				$urlToUser = $selfFolderUrl."user_edit.php?ID=".$str_USER_ID."&lang=".LANGUAGE_ID;
-				if ($publicMode)
+				if (!empty($publicMode))
 				{
 					$urlToUser = $selfFolderUrl."sale_buyers_profile.php?USER_ID=".$str_USER_ID."&lang=".LANGUAGE_ID;
 					$urlToUser = $adminSidePanelHelper->editUrlToPublicPage($urlToUser);
@@ -167,6 +189,6 @@ $tabControl->Buttons(array("disabled" => ($saleModulePermissions < "U"), "back_u
 $tabControl->End();
 ?>
 </form>
-<?
+<?php
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
-?>
+

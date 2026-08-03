@@ -48,6 +48,7 @@ export class DesignPreview extends EventEmitter
 		this.phrase = phrase;
 		this.id = id;
 		this.options = options;
+		this.fontProxyUrl = window.fontsProxyUrl ?? 'fonts.googleapis.com';
 
 		this.initControls();
 		this.initLayout();
@@ -335,17 +336,13 @@ export class DesignPreview extends EventEmitter
 			}
 		}
 
-		let link;
-		let linkH;
 		if (textFont)
 		{
-			link = this.createLink(textFont);
-			Dom.append(link, this.form);
+			Dom.append(this.createFontLink(textFont), this.form);
 		}
 		if (hFont)
 		{
-			linkH = this.createLink(hFont);
-			Dom.append(linkH, this.form);
+			Dom.append(this.createFontLink(hFont), this.form);
 		}
 
 		css += `--design-preview-color: ${textColor};`;
@@ -381,13 +378,14 @@ export class DesignPreview extends EventEmitter
 		return css;
 	}
 
-	createLink(font)
+	createFontLink(font: string)
 	{
 		const link = document.createElement('link');
 		link.rel = 'stylesheet';
-		link.href = 'https://fonts.googleapis.com/css2?family=';
+		link.href = 'https://' + this.fontProxyUrl + '/css2?family=';
 		link.href += font.replace(' ', '+');
 		link.href += ':wght@100;200;300;400;500;600;700;800;900';
+
 		return link;
 	}
 

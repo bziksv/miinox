@@ -1,5 +1,6 @@
 <?php
 $MESS["ADD_TO_BASKET_OK"] = "Produkt wurde zum Warenkorb hinzugefügt";
+$MESS["CP_BCS_TPL_MESS_PRODUCT_NOT_AVAILABLE_SERVICE"] = "Nicht verfügbar";
 $MESS["CT_BCS_CATALOG_BASKET_UNKNOWN_ERROR"] = "Unbekannter Fehler beim Hinzufügen eines Elementes zum Warenkorb";
 $MESS["CT_BCS_CATALOG_BTN_MESSAGE_BASKET_REDIRECT"] = "Zum Warenkorb";
 $MESS["CT_BCS_CATALOG_BTN_MESSAGE_CLOSE"] = "Schließen";

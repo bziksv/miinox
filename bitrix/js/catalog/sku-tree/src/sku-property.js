@@ -63,10 +63,16 @@ export default class SkuProperty
 			nameNode = Tag.render`<span class="ui-ctl-label-text">-</span>`;
 		}
 
+		const titleItem =
+			this.parent.isShortView && Type.isStringFilled(this.property.NAME)
+				? Text.encode(this.property.NAME)
+				: propertyName
+		;
+
 		return Tag.render`
 			<label 	class="ui-ctl ui-ctl-radio-selector"
 					onclick="${this.skuSelectHandler}"
-					title="${propertyName}"
+					title="${titleItem}"
 					data-property-id="${this.getId()}"
 					data-property-value="${propertyValue.ID}">
 				<input type="radio"
@@ -84,11 +90,16 @@ export default class SkuProperty
 	renderTextSku(propertyValue, uniqueId)
 	{
 		const propertyName = Type.isStringFilled(propertyValue.NAME) ? Text.encode(propertyValue.NAME) : '-';
+		const titleItem =
+			this.parent.isShortView && Type.isStringFilled(this.property.NAME)
+				? Text.encode(this.property.NAME)
+				: propertyName
+		;
 
 		return Tag.render`
 			<label 	class="ui-ctl ui-ctl-radio-selector"
 					onclick="${this.skuSelectHandler}"
-					title="${propertyName}"
+					title="${titleItem}"
 					data-property-id="${this.getId()}"
 					data-property-value="${propertyValue.ID}">
 				<input type="radio"
@@ -112,9 +123,14 @@ export default class SkuProperty
 		this.skuList = this.renderProperties();
 		this.toggleSkuPropertyValues();
 
+		const title = !this.parent.isShortView
+			? Tag.render`<div class="product-item-detail-info-container-title">${Text.encode(this.property.NAME)}</div>`
+			: ''
+		;
+
 		return Tag.render`
 			<div class="product-item-detail-info-container">
-				<div class="product-item-detail-info-container-title">${Text.encode(this.property.NAME)}</div>
+				${title}
 				<div class="product-item-scu-container">
 					${this.skuList}
 				</div>
@@ -198,13 +214,9 @@ export default class SkuProperty
 
 		const propertyId = Text.toNumber(selectedSkuProperty.getAttribute('data-property-id'));
 		const propertyValue = Text.toNumber(selectedSkuProperty.getAttribute('data-property-value'));
-		const innerText = selectedSkuProperty.querySelector('.ui-ctl-inner');
-		Dom.addClass(innerText, ['ui-ctl-before','ui-ctl-icon-loader']);
-
 		this.parent.setSelectedProperty(propertyId, propertyValue);
 
 		this.parent.getSelectedSku().then((selectedSkuData) => {
-			Dom.removeClass(innerText, ['ui-ctl-before','ui-ctl-icon-loader']);
 			EventEmitter.emit('SkuProperty::onChange', [selectedSkuData, this.property]);
 			if (this.parent)
 			{

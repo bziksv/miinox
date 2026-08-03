@@ -6,9 +6,21 @@ return [
 			'defaultNamespace' => '\\Bitrix\\Catalog\\Controller',
 			'restIntegration' => [
 				'enabled' => true,
+				'eventBind' => [
+					'\\Bitrix\\Catalog\\Controller\\Price',
+					'\\Bitrix\\Catalog\\Controller\\Product',
+					'\\Bitrix\\Catalog\\Controller\\Measure',
+					'\\Bitrix\\Catalog\\Controller\\RoundingRule',
+					'\\Bitrix\\Catalog\\Controller\\PriceType',
+				]
 			],
 		],
 		'readonly' => true,
+	],
+	'userField' => [
+		'value' => [
+			'access' => '\\Bitrix\\Catalog\\UserField\\UserFieldAccess',
+		],
 	],
 	'ui.entity-selector' => [
 		'value' => [
@@ -35,10 +47,31 @@ return [
 					],
 				],
 				[
+					'entityId' => 'variation',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\VariationProvider',
+					],
+				],
+				[
 					'entityId' => 'section',
 					'provider' => [
 						'moduleId' => 'catalog',
 						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\SectionProvider',
+					],
+				],
+				[
+					'entityId' => 'iblock-element',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\IblockElementProvider',
+					],
+				],
+				[
+					'entityId' => 'iblock-element-xml',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\IblockElementXmlProvider',
 					],
 				],
 				[
@@ -64,6 +97,12 @@ return [
 				],
 			],
 			'extensions' => ['catalog.entity-selector'],
+		],
+		'readonly' => true,
+	],
+	'ui.uploader' => [
+		'value' => [
+			'allowUseControllers' => true,
 		],
 		'readonly' => true,
 	],

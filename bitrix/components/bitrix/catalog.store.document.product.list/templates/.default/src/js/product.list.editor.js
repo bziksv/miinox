@@ -5,12 +5,32 @@ import {PageEventsManager} from './page.events.manager';
 import SettingsPopup from './settings.button';
 import {CurrencyCore} from 'currency.currency-core';
 import {ProductSelector} from 'catalog.product-selector';
+import {StoreSelector} from "catalog.store-selector";
 import HintPopup from './hint.popup';
 import ProductListController from "catalog.document-card";
 import {ProductModel} from "catalog.product-model";
+import {FieldHintManager} from "./field.hint.manager";
+import {Guide} from "ui.tour";
+import {UI} from 'ui.notification';
+import "ui.hint";
 
 const GRID_TEMPLATE_ROW = 'template_0';
 const DEFAULT_PRECISION: number = 2;
+
+const isEmptyObject = function(obj): boolean
+{
+	if (!Type.isPlainObject(obj))
+	{
+		return false;
+	}
+
+	for (const key in obj)
+	{
+		return false;
+	}
+
+	return true;
+};
 
 export class Editor
 {
@@ -23,6 +43,8 @@ export class Editor
 	productsWasInitiated = false;
 	pageEventsManager: PageEventsManager;
 	cache = new Cache.MemoryCache();
+
+	#fieldHintManager: FieldHintManager;
 
 	actions = {
 		productChange: 'productChange',
@@ -40,6 +62,7 @@ export class Editor
 
 	onSaveHandler = this.handleOnSave.bind(this);
 	onEditorSubmit = this.handleEditorSubmit.bind(this);
+	onFocusToProductList = this.handleProductListFocus.bind(this);
 	onBeforeGridRequestHandler = this.handleOnBeforeGridRequest.bind(this);
 	onGridUpdatedHandler = this.handleOnGridUpdated.bind(this);
 	onGridRowMovedHandler = this.handleOnGridRowMoved.bind(this);
@@ -50,6 +73,7 @@ export class Editor
 	onScanEmitHandler = this.handleMobileScanEvent.bind(this);
 
 	changeProductFieldHandler = this.handleFieldChange.bind(this);
+	blurProductFieldHandler = this.handleFieldBlur.bind(this);
 	updateTotalDataDelayedHandler = Runtime.debounce(this.updateTotalDataDelayed, 100, this);
 
 	constructor(id)
@@ -73,11 +97,22 @@ export class Editor
 		this.initGridData();
 		this.paintColumns();
 
+		this.#fieldHintManager = new FieldHintManager(this.getContainer(), this.getGrid.bind(this));
+
 		EventEmitter.emit( 'DocumentProductListController', [this]);
 
 		this.#initSupportCustomRowActions();
 		this.subscribeDomEvents();
 		this.subscribeCustomEvents();
+
+		this
+			.getContainer()
+			.querySelectorAll('.catalog-document-product-list-add-block')
+			.forEach((buttonBlock) => {
+				BX.UI.Hint.init(buttonBlock);
+			})
+		;
+
 	}
 
 	subscribeDomEvents()
@@ -94,13 +129,16 @@ export class Editor
 				);
 			});
 
-			container.querySelectorAll('[data-role="product-list-create-button"]').forEach((addButton) => {
-				Event.bind(
-					addButton,
-					'click',
-					this.productRowCreateHandler
-				);
-			});
+			if (this.getSettingValue('enabledCreateProductButton', true))
+			{
+				container.querySelectorAll('[data-role="product-list-create-button"]').forEach((addButton) => {
+					Event.bind(
+						addButton,
+						'click',
+						this.productRowCreateHandler
+					);
+				});
+			}
 
 			container.querySelectorAll('[data-role="product-list-settings-button"]').forEach((configButton) => {
 				Event.bind(
@@ -164,6 +202,7 @@ export class Editor
 	{
 		EventEmitter.subscribe('BX.UI.EntityEditor:onSave', this.onSaveHandler);
 		EventEmitter.subscribe('BX.UI.EntityEditorAjax:onSubmit', this.onEditorSubmit);
+		EventEmitter.subscribe('onFocusToProductList', this.onFocusToProductList);
 		EventEmitter.subscribe('Grid::beforeRequest', this.onBeforeGridRequestHandler);
 		EventEmitter.subscribe('Grid::updated', this.onGridUpdatedHandler);
 		EventEmitter.subscribe('Grid::rowMoved', this.onGridRowMovedHandler);
@@ -178,6 +217,7 @@ export class Editor
 	{
 		EventEmitter.unsubscribe('BX.UI.EntityEditor:onSave', this.onSaveHandler);
 		EventEmitter.unsubscribe('BX.UI.EntityEditorAjax:onSubmit', this.onEditorSubmit);
+		EventEmitter.unsubscribe('onFocusToProductList', this.onFocusToProductList);
 		EventEmitter.unsubscribe('Grid::beforeRequest', this.onBeforeGridRequestHandler);
 		EventEmitter.unsubscribe('Grid::updated', this.onGridUpdatedHandler);
 		EventEmitter.unsubscribe('Grid::rowMoved', this.onGridRowMovedHandler);
@@ -196,7 +236,7 @@ export class Editor
 			return;
 		}
 
-		for (let product of this.products)
+		for (const product of this.products)
 		{
 			if (product.getBarcodeSelector()?.searchInput?.getNameInput() === document.activeElement)
 			{
@@ -206,7 +246,7 @@ export class Editor
 			}
 		}
 
-		for (let product of this.products)
+		for (const product of this.products)
 		{
 			if (
 				product.getBarcodeSelector()?.searchInput?.getNameInput().value === ''
@@ -266,6 +306,31 @@ export class Editor
 
 	handleEditorSubmit(event: BaseEvent)
 	{
+	}
+
+	handleProductListFocus(event: BaseEvent)
+	{
+		if (this.isReadOnly())
+		{
+			return;
+		}
+
+		let listHaveEmptyRows = false;
+
+		for (const product of this.products)
+		{
+			if (product.isEmptyRow())
+			{
+				listHaveEmptyRows = true;
+				this.focusProductSelector(product.fields['ROW_ID']);
+				break;
+			}
+		}
+
+		if (!listHaveEmptyRows)
+		{
+			this.handleProductRowAdd();
+		}
 	}
 
 	onInnerCancel()
@@ -333,7 +398,7 @@ export class Editor
 			...eventArgs.data,
 			useProductsFromRequest,
 			signedParameters: this.getSignedParameters(),
-			products: useProductsFromRequest ? this.getProductsFields() : null,
+			products: useProductsFromRequest ? this.getProductsFields(Editor.#getAjaxFields()) : null,
 		};
 
 		let isDeletingRequest = false;
@@ -421,7 +486,11 @@ export class Editor
 		// Cannot use editSelected because checkboxes have been removed
 		const rows = this.getGrid().getRows().getRows();
 		rows.forEach((current) => {
-			if (!current.isHeadChild() && !current.isTemplate())
+			if (
+				!current.isHeadChild()
+				&& !current.isTemplate()
+				&& !isEmptyObject(current.getEditData())
+			)
 			{
 				current.edit();
 			}
@@ -588,6 +657,13 @@ export class Editor
 		return CurrencyCore.loadCurrencyFormat(currencyId);
 	}
 
+	isSalesOrdersDocument(): boolean
+	{
+		const salesOrdersDocumentTypeCodes = ['REALIZATION', 'W'];
+
+		return salesOrdersDocumentTypeCodes.includes(this.settings.documentType);
+	}
+	
 	changeCurrencyId(currencyId): void
 	{
 		const oldCurrencyId = this.getCurrencyId();
@@ -663,8 +739,16 @@ export class Editor
 		const totalBlock = BX(this.getSettingValue('totalBlockContainerId', null));
 		if (Type.isElementNode(totalBlock))
 		{
-			totalBlock.querySelectorAll('[data-role="currency-wrapper"]').forEach((row) => {
-				row.innerHTML = this.getCurrencyText();
+			const totalsList = ['totalCost'];
+			totalBlock.querySelectorAll('.catalog-document-product-list-result-grid-total').forEach((row) => {
+				for (const totalId of totalsList)
+				{
+					const valueElement = row.querySelector('[data-total="' + totalId + '"]');
+					if (valueElement)
+					{
+						row.innerHTML = CurrencyCore.getPriceControl(valueElement, this.getCurrencyId());
+					}
+				}
 			});
 		}
 	}
@@ -991,6 +1075,26 @@ export class Editor
 		});
 	}
 
+	getGridColumnIndexes()
+	{
+		return this.cache.remember('getGridColumnIndexes', () => {
+			let result = {};
+
+			const columns = this.getGrid().getHead().querySelectorAll('.main-grid-cell-head');
+			for (let i = 0; i < columns.length; i++) {
+				const node = columns[i];
+				const columnName = node.dataset.name;
+
+				if (columnName)
+				{
+					result[columnName] = i;
+				}
+			}
+
+			return result;
+		});
+	}
+
 	initGridData()
 	{
 		const gridEditData = this.getSettingValue('templateGridEditData', null);
@@ -1079,6 +1183,28 @@ export class Editor
 					product.updateFieldByEvent(fieldCode, event);
 				}
 			}
+		}
+	}
+
+	handleFieldBlur(event)
+	{
+		const row = event.target.closest('tr');
+		const value = event.target.value;
+		let fieldCode = event.target.getAttribute('data-name');
+		if (!Type.isStringFilled(fieldCode))
+		{
+			const cell = event.target.closest('td');
+			fieldCode = this.getFieldCodeByGridCell(row, cell);
+		}
+
+		if (this.isSalesOrdersDocument() && fieldCode === 'AMOUNT' && value <= 0)
+		{
+			event.target.value = 1;
+			this.handleFieldChange(event);
+			BX.UI.Notification.Center.notify({
+				width: 'auto',
+				content: Loc.getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_INVALID_AMOUNT_REALIZATION'),
+			});
 		}
 	}
 
@@ -1303,6 +1429,28 @@ export class Editor
 			};
 		}
 
+		if (Type.isNil(anchorProduct) && this.products.length > 0)
+		{
+			const previousRow =
+				this.getSettingValue('newRowPosition') === 'bottom'
+					? this.products[this.products.length - 1]
+					: this.products[0]
+			;
+			const stores = this.getSettingValue('stores', {});
+			const storeFields = previousRow.getSettingValue('storeHeaderMap', {});
+			Object.values(storeFields).forEach((field) => {
+				const previousStoreValue = previousRow.getField(field);
+				if (Type.isNil(stores[previousStoreValue]))
+				{
+					return;
+				}
+
+				fields[field] = previousRow.getField(field);
+				const titleName = field + '_TITLE';
+				fields[titleName] = previousRow.getField(titleName);
+			});
+		}
+
 		const rowId = this.getRowIdPrefix() + newId;
 		fields.ID = newId;
 		fields.ROW_ID = newId;
@@ -1387,7 +1535,14 @@ export class Editor
 			productRow.updateProductStoreValues();
 
 			productRow.initHandlersForSelectors();
+			productRow.layoutStoreSelector(productRow.getSettingValue('storeHeaderMap', {}));
+			productRow.layoutBarcode();
 			productRow.executeExternalActions();
+
+			if (this.isSalesOrdersDocument())
+			{
+				productRow.changeAmount(productRow.getAmount() > 0 ? productRow.getAmount() : 1);
+			}
 			this.getGrid().tableUnfade();
 		}
 		else
@@ -1480,6 +1635,28 @@ export class Editor
 			'BARCODE',
 			'STORE_TO',
 			'STORE_FROM',
+			'BASE_PRICE_ID',
+			'BASKET_ID',
+			'DOC_ID',
+			'ELEMENT_ID',
+			'IBLOCK_ID',
+			'MEASURE_CODE',
+			'MEASURE_NAME',
+			'NAME',
+			'OFFERS_IBLOCK_ID',
+			'PARENT_PRODUCT_ID',
+			'PRODUCT_ID',
+			'ROW_ID',
+			'STORE_FROM_AMOUNT',
+			'STORE_FROM_AVAILABLE_AMOUNT',
+			'STORE_FROM_RESERVED',
+			'STORE_FROM_TITLE',
+			'STORE_TO_AMOUNT',
+			'STORE_TO_AVAILABLE_AMOUNT',
+			'STORE_TO_RESERVED',
+			'STORE_TO_TITLE',
+			'TOTAL_PRICE',
+			'TYPE',
 		];
 	}
 
@@ -1783,7 +1960,7 @@ export class Editor
 
 	handleOnTabShow(): void
 	{
-		EventEmitter.emit('onDemandRecalculateWrapper');
+		EventEmitter.emit('onDemandRecalculateWrapper', [this]);
 	}
 
 	closeBarcodeSpotlights(): void
@@ -1804,6 +1981,15 @@ export class Editor
 		this.setSettingValue('showBarcodeQrAuth',false);
 	}
 
+	enableSendBarcodeMobilePush(): void
+	{
+		this.products.forEach((product) => {
+			product.getBarcodeSelector()?.setConfig('IS_INSTALLED_MOBILE_APP', true);
+		})
+
+		this.setSettingValue('isInstalledMobileApp', true);
+	}
+
 	validate(): Array
 	{
 		if (this.getProductCount() === 0)
@@ -1818,5 +2004,113 @@ export class Editor
 		});
 
 		return errorsArray;
+	}
+
+	showFieldTourHint(fieldName: string, tourData: Object, endTourHandler: Function, addictedFields: Array<string> = [], rowId: string = ''): void
+	{
+		if (this.products.length > 0)
+		{
+			let productNode = this.products[0].getNode();
+			if (this.getProductByRowId(rowId))
+			{
+				productNode = this.getProductByRowId(rowId).getNode();
+			}
+
+			const addictedNodes = [];
+			for (const fieldName of addictedFields)
+			{
+				const fieldNode = productNode.querySelector(`[data-name="${fieldName}"]`);
+				if (fieldNode !== null)
+				{
+					addictedNodes.push(fieldNode);
+				}
+			}
+
+			const fieldNode = productNode.querySelector(`[data-name="${fieldName}"]`);
+
+			if (fieldNode !== null)
+			{
+				this.#fieldHintManager.processFieldTour(fieldNode, tourData, endTourHandler, addictedNodes);
+			}
+		}
+	}
+
+	getActiveHint(): Guide|null
+	{
+		return this.#fieldHintManager.getActiveHint();
+	}
+
+	getRestrictedProductTypes(): Array
+	{
+		return this.getSettingValue('restrictedProductTypes', []);
+	}
+
+	processApplyActionButtonClick(actionId: string): void
+	{
+		if (actionId === 'STORE_FROM_INFO' || actionId === 'STORE_TO_INFO')
+		{
+			this.#processSetStoryAction(actionId);
+		}
+	}
+
+	#processSetStoryAction(actionId)
+	{
+		const actionPanel = this.getGrid()?.getActionsPanel();
+		const actionValues = actionPanel?.getValues();
+		const actionStoreId = actionValues[actionId];
+		if (!actionValues || Type.isUndefined(actionStoreId))
+		{
+			return;
+		}
+
+		const selectedRows  = this.getGrid().getRows().getSelected();
+		if (selectedRows.length === 0)
+		{
+			return;
+		}
+
+		const stores = this.getSettingValue('stores', {});
+		const actionStore = stores[actionStoreId];
+		if (!Type.isNil(actionStore))
+		{
+			const actionStoreName = actionStore?.TITLE || '';
+
+			selectedRows.forEach((row) => {
+				const selectedItem = this.products.find(product => product.getField('ID') === row.getId());
+				if (selectedItem)
+				{
+					const storeSelector = StoreSelector.getById(selectedItem.getId() + '_' + actionId);
+					if (storeSelector)
+					{
+						storeSelector.onStoreSelect(actionStoreId, actionStoreName);
+					}
+				}
+			});
+
+			const documentTypeMoving = 'M';
+			const messageId =
+				this.settings.documentType !== documentTypeMoving
+					? 'CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_STORE_CHANGED_HINT'
+					: 'CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_' + actionId + '_CHANGED_HINT'
+			;
+
+			UI.Notification.Center.notify({
+				content: Loc.getMessage(messageId, {'#STORE_NAME#': Text.encode(actionStoreName)}),
+				autoHide: true,
+				autoHideDelay: 4000,
+			});
+		}
+
+		const dropdown = actionPanel.getDropdowns().find(dropdown => dropdown.id === 'actionListId_control');
+		if (dropdown)
+		{
+			actionPanel.removeItemsRelativeCurrent(dropdown.parentNode);
+			Dom.attr(dropdown, 'data-value', null);
+			const innerWrapper = dropdown.querySelector('.main-dropdown-inner');
+			if (innerWrapper)
+			{
+				innerWrapper.innerText = Loc.getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_DEFAULT');
+			}
+		}
 	}
 }

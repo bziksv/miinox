@@ -4,15 +4,24 @@
  * @global CDatabase $DB
  * @global CUser $USER
  */
+
 use Bitrix\Main;
 use Bitrix\Catalog;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Access\AccessController;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
-if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_discount')))
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+
 Main\Loader::includeModule('catalog');
-$bReadOnly = !$USER->CanDoOperation('catalog_discount');
+
+$accessController = AccessController::getCurrent();
+if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $accessController->check(ActionDictionary::ACTION_PRODUCT_DISCOUNT_SET)))
+{
+	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+}
+
+$bReadOnly = !$accessController->check(ActionDictionary::ACTION_PRODUCT_DISCOUNT_SET);
 
 if ($ex = $APPLICATION->GetException())
 {
@@ -29,8 +38,11 @@ IncludeModuleLangFile(__FILE__);
 
 $sTableID = "tbl_catalog_discount_coupon";
 
-$oSort = new CAdminSorting($sTableID, "ID", "asc");
+$oSort = new CAdminSorting($sTableID, "ID", "ASC");
 $lAdmin = new CAdminList($sTableID, $oSort);
+
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $arFilterFields = array(
 	"filter_id_start",
@@ -100,7 +112,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 	{
 		$arID = array();
 		$dbResultList = CCatalogDiscountCoupon::GetList(
-			array($by => $order),
+			array(),
 			$arFilter,
 			false,
 			false,

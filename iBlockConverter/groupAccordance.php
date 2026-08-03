@@ -437,7 +437,7 @@ $accordances = [
 	[
         'idDon' => '79',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
+        'secCode' => 'bronzovyy-prutok-krug-cm',
         'Бронзовый пруток круг'
     ],
 	[
@@ -456,6 +456,12 @@ $accordances = [
         'idDon' => '82',
         'idSecondPrice' => '',
         'secCode' => 'tsvetmet-shtuchnyy',
+        'Цветмет штучный'
+    ],		
+         	[
+        'idDon' => '92',
+        'idSecondPrice' => '',
+        'secCode' => 'prokat-tolstolistovoy-povyshennoy-prochnosti-gost-19281-gost-14632',
         'Цветмет штучный'
     ],
 

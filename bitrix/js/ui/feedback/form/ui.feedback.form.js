@@ -129,7 +129,11 @@
 		{
 			this.formNode = document.createElement('div');
 			var titleNode = document.createElement('div');
-			titleNode.style = 'margin-bottom: 25px; font: 26px/26px "OpenSans-Light", Helvetica, Arial, sans-serif;';
+			titleNode.style = `
+				margin-bottom: 25px; 
+				font: 26px/26px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
+				color: var(--ui-color-text-primary);
+			`;
 			titleNode.textContent = this.title;
 			var slider = event.getSlider();
 
@@ -169,15 +173,22 @@
 				this.appendPresets(form.presets);
 			}
 
+			const objectId = 'b24form' + this.id;
+
 			(function(w,d,u,b){
 				w['Bitrix24FormObject']=b;w[b] = w[b] || function(){arguments[0].ref=u;
 					(w[b].forms=w[b].forms||[]).push(arguments[0])}; if(w[b]['forms']) return;
 				var s=d.createElement('script');
 				var r=1*new Date(); s.async=1;s.src=u+'?'+r;
 				var h=d.getElementsByTagName('script')[0];h.parentNode.insertBefore(s,h);
-			})(top,top.document, this.portal + '/bitrix/js/crm/form_loader.js','b24form');
+			})(top,top.document, this.portal + '/bitrix/js/crm/form_loader.js', objectId);
 
-			top.b24form({
+			top.addEventListener('b24:form:init', (event) => {
+				const form = event.detail.object;
+				form.design.setFont('var(--ui-font-family-primary),var(--ui-font-family-helvetica)');
+			});
+
+			top[objectId]({
 				"id": form.id,
 				"lang": form.lang,
 				"sec": form.sec,

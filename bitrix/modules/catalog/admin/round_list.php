@@ -1,10 +1,13 @@
-<?
+<?php
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
 /** @global array $FIELDS */
+
 use Bitrix\Main,
 	Bitrix\Main\Loader,
 	Bitrix\Main\Localization\Loc,
+	Bitrix\Catalog\Access\AccessController,
+	Bitrix\Catalog\Access\ActionDictionary,
 	Bitrix\Catalog;
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
@@ -20,10 +23,15 @@ global $adminSidePanelHelper;
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_group')))
-	$APPLICATION->AuthForm('');
 Loader::includeModule('catalog');
-$readOnly = !$USER->CanDoOperation('catalog_group');
+
+$accessController = AccessController::getCurrent();
+if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $accessController->check(ActionDictionary::ACTION_PRICE_GROUP_EDIT)))
+{
+	$APPLICATION->AuthForm('');
+}
+
+$readOnly = !$accessController->check(ActionDictionary::ACTION_PRICE_GROUP_EDIT);
 
 $canViewUserList = (
 	$USER->CanDoOperation('view_subordinate_users')
@@ -38,6 +46,9 @@ $adminListTableID = 'tbl_catalog_round_rules';
 
 $adminSort = new CAdminUiSorting($adminListTableID, 'ID', 'ASC');
 $adminList = new CAdminUiList($adminListTableID, $adminSort);
+
+$by = mb_strtoupper($adminSort->getField());
+$order = mb_strtoupper($adminSort->getOrder());
 
 $listType = array('' => Loc::getMessage('PRICE_ROUND_LIST_FILTER_PRICE_TYPE_ANY'));
 foreach (Catalog\Helpers\Admin\Tools::getPriceTypeList(false) as $id => $title)
@@ -241,12 +252,6 @@ $selectFields['CATALOG_GROUP_ID'] = true;
 $selectFieldsMap = array_fill_keys(array_keys($headerList), false);
 $selectFieldsMap = array_merge($selectFieldsMap, $selectFields);
 
-global $by, $order;
-if (!isset($by))
-	$by = 'ID';
-if (!isset($order))
-	$order = 'ASC';
-
 $userList = array();
 $userIds = array();
 $nameFormat = CSite::GetNameFormat(true);
@@ -258,7 +263,7 @@ $rowList = array();
 
 $usePageNavigation = true;
 $navyParams = array();
-if ($request['mode'] == 'excel')
+if ($adminList->isExportMode())
 {
 	$usePageNavigation = false;
 }

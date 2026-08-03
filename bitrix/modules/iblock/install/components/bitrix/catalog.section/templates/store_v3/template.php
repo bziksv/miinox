@@ -1,6 +1,7 @@
 <?php
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog\ProductTable;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
@@ -95,7 +96,8 @@ if (!empty($arResult['CURRENCIES']))
 $templateData = [
 	'TEMPLATE_LIBRARY' => $templateLibrary,
 	'CURRENCIES' => $currencyList,
-	'NAV_PARAMS' => $navParams
+	'NAV_PARAMS' => $navParams,
+	'USE_PAGINATION_CONTAINER' => $showTopPager || $showBottomPager,
 ];
 unset($currencyList, $templateLibrary);
 
@@ -121,62 +123,22 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 	}
 }
 
-$arParams['~MESS_BTN_BUY'] = $arParams['~MESS_BTN_BUY'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_BUY');
-$arParams['~MESS_BTN_DETAIL'] = $arParams['~MESS_BTN_DETAIL'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_DETAIL');
-$arParams['~MESS_BTN_COMPARE'] = $arParams['~MESS_BTN_COMPARE'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_COMPARE');
-$arParams['~MESS_BTN_SUBSCRIBE'] = $arParams['~MESS_BTN_SUBSCRIBE'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_SUBSCRIBE');
-$arParams['~MESS_BTN_ADD_TO_BASKET'] = $arParams['~MESS_BTN_ADD_TO_BASKET'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_ADD_TO_BASKET');
-$arParams['~MESS_NOT_AVAILABLE'] = $arParams['~MESS_NOT_AVAILABLE'] ?: Loc::getMessage('CT_BCS_TPL_MESS_PRODUCT_NOT_AVAILABLE');
-$arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] = $arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CONTINUE_SHOPPING');
-$arParams['~BTN_MESSAGE_CREATE_ORDER'] = $arParams['~BTN_MESSAGE_CREATE_ORDER'] ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CREATE_ORDER');
-$arParams['~MESS_SHOW_MAX_QUANTITY'] = $arParams['~MESS_SHOW_MAX_QUANTITY'] ?: Loc::getMessage('CT_BCS_CATALOG_SHOW_MAX_QUANTITY');
-$arParams['~MESS_RELATIVE_QUANTITY_MANY'] = $arParams['~MESS_RELATIVE_QUANTITY_MANY'] ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_MANY');
-$arParams['MESS_RELATIVE_QUANTITY_MANY'] = $arParams['MESS_RELATIVE_QUANTITY_MANY'] ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_MANY');
-$arParams['~MESS_RELATIVE_QUANTITY_FEW'] = $arParams['~MESS_RELATIVE_QUANTITY_FEW'] ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_FEW');
-$arParams['MESS_RELATIVE_QUANTITY_FEW'] = $arParams['MESS_RELATIVE_QUANTITY_FEW'] ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_FEW');
+$arParams['~MESS_BTN_BUY'] = ($arParams['~MESS_BTN_BUY'] ?? '') ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_BUY');
+$arParams['~MESS_BTN_DETAIL'] = ($arParams['~MESS_BTN_DETAIL'] ?? '') ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_DETAIL');
+$arParams['~MESS_BTN_COMPARE'] = ($arParams['~MESS_BTN_COMPARE'] ?? '') ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_COMPARE');
+$arParams['~MESS_BTN_SUBSCRIBE'] = ($arParams['~MESS_BTN_SUBSCRIBE'] ?? '') ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_SUBSCRIBE');
+$arParams['~MESS_BTN_ADD_TO_BASKET'] = ($arParams['~MESS_BTN_ADD_TO_BASKET'] ?? '') ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_ADD_TO_BASKET');
+$arParams['~MESS_NOT_AVAILABLE'] = ($arParams['~MESS_NOT_AVAILABLE'] ?? '') ?: Loc::getMessage('CT_BCS_TPL_MESS_PRODUCT_NOT_AVAILABLE');
+$arParams['~MESS_NOT_AVAILABLE_SERVICE'] = ($arParams['~MESS_NOT_AVAILABLE_SERVICE'] ?? '') ?: Loc::getMessage('CP_BCS_TPL_MESS_PRODUCT_NOT_AVAILABLE_SERVICE');
+$arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] = ($arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CONTINUE_SHOPPING');
+$arParams['~BTN_MESSAGE_CREATE_ORDER'] = ($arParams['~BTN_MESSAGE_CREATE_ORDER'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CREATE_ORDER');
+$arParams['~MESS_SHOW_MAX_QUANTITY'] = ($arParams['~MESS_SHOW_MAX_QUANTITY'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_SHOW_MAX_QUANTITY');
+$arParams['~MESS_RELATIVE_QUANTITY_MANY'] = ($arParams['~MESS_RELATIVE_QUANTITY_MANY'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_MANY');
+$arParams['MESS_RELATIVE_QUANTITY_MANY'] = ($arParams['MESS_RELATIVE_QUANTITY_MANY'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_MANY');
+$arParams['~MESS_RELATIVE_QUANTITY_FEW'] = ($arParams['~MESS_RELATIVE_QUANTITY_FEW'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_FEW');
+$arParams['MESS_RELATIVE_QUANTITY_FEW'] = ($arParams['MESS_RELATIVE_QUANTITY_FEW'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_FEW');
 
-$arParams['MESS_BTN_LAZY_LOAD'] = $arParams['MESS_BTN_LAZY_LOAD'] ?: Loc::getMessage('CT_BCS_CATALOG_MESS_BTN_LAZY_LOAD');
-
-$generalParams = [
-	'PRODUCT_DISPLAY_MODE' => $arParams['PRODUCT_DISPLAY_MODE'],
-	'SHOW_MAX_QUANTITY' => $arParams['SHOW_MAX_QUANTITY'],
-	'RELATIVE_QUANTITY_FACTOR' => $arParams['RELATIVE_QUANTITY_FACTOR'],
-	'MESS_SHOW_MAX_QUANTITY' => $arParams['~MESS_SHOW_MAX_QUANTITY'],
-	'MESS_RELATIVE_QUANTITY_MANY' => $arParams['~MESS_RELATIVE_QUANTITY_MANY'],
-	'MESS_RELATIVE_QUANTITY_FEW' => $arParams['~MESS_RELATIVE_QUANTITY_FEW'],
-	'SHOW_OLD_PRICE' => $arParams['SHOW_OLD_PRICE'],
-	'USE_PRODUCT_QUANTITY' => $arParams['USE_PRODUCT_QUANTITY'],
-	'PRODUCT_QUANTITY_VARIABLE' => $arParams['PRODUCT_QUANTITY_VARIABLE'],
-	'ADD_TO_BASKET_ACTION' => $arParams['ADD_TO_BASKET_ACTION'],
-	'ADD_PROPERTIES_TO_BASKET' => $arParams['ADD_PROPERTIES_TO_BASKET'],
-	'PRODUCT_PROPS_VARIABLE' => $arParams['PRODUCT_PROPS_VARIABLE'],
-	'SHOW_CLOSE_POPUP' => $arParams['SHOW_CLOSE_POPUP'],
-	'DISPLAY_COMPARE' => $arParams['DISPLAY_COMPARE'],
-	'COMPARE_PATH' => $arParams['COMPARE_PATH'],
-	'COMPARE_NAME' => $arParams['COMPARE_NAME'],
-	'PRODUCT_SUBSCRIPTION' => $arParams['PRODUCT_SUBSCRIPTION'],
-	'PRODUCT_BLOCKS_ORDER' => $arParams['PRODUCT_BLOCKS_ORDER'],
-	'LABEL_POSITION_CLASS' => $labelPositionClass,
-	'~BASKET_URL' => $arParams['~BASKET_URL'],
-	'~ADD_URL_TEMPLATE' => $arResult['~ADD_URL_TEMPLATE'],
-	'~BUY_URL_TEMPLATE' => $arResult['~BUY_URL_TEMPLATE'],
-	'~COMPARE_URL_TEMPLATE' => $arResult['~COMPARE_URL_TEMPLATE'],
-	'~COMPARE_DELETE_URL_TEMPLATE' => $arResult['~COMPARE_DELETE_URL_TEMPLATE'],
-	'TEMPLATE_THEME' => $arParams['TEMPLATE_THEME'],
-	'USE_ENHANCED_ECOMMERCE' => $arParams['USE_ENHANCED_ECOMMERCE'],
-	'DATA_LAYER_NAME' => $arParams['DATA_LAYER_NAME'],
-	'BRAND_PROPERTY' => $arParams['BRAND_PROPERTY'],
-	'MESS_BTN_BUY' => $arParams['~MESS_BTN_BUY'],
-	'MESS_BTN_DETAIL' => $arParams['~MESS_BTN_DETAIL'],
-	'MESS_BTN_COMPARE' => $arParams['~MESS_BTN_COMPARE'],
-	'MESS_BTN_SUBSCRIBE' => $arParams['~MESS_BTN_SUBSCRIBE'],
-	'MESS_BTN_ADD_TO_BASKET' => $arParams['~MESS_BTN_ADD_TO_BASKET'],
-	'BTN_MESSAGE_CONTINUE_SHOPPING' => $arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'],
-	'BTN_MESSAGE_CREATE_ORDER' => $arParams['~BTN_MESSAGE_CREATE_ORDER'],
-	'MESS_NOT_AVAILABLE' => $arParams['~MESS_NOT_AVAILABLE'],
-	'USE_OFFER_NAME' => $arParams['USE_OFFER_NAME'],
-	'CUSTOM_SITE_ID' => $component->getSiteId(),
-];
+$arParams['MESS_BTN_LAZY_LOAD'] = ($arParams['MESS_BTN_LAZY_LOAD'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_MESS_BTN_LAZY_LOAD');
 
 $obName = 'ob'.preg_replace('/[^a-zA-Z0-9_]/', 'x', $this->GetEditAreaId($navParams['NavNum']));
 $containerName = 'container-'.$navParams['NavNum'];
@@ -189,13 +151,54 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 		<?php
 		if (!empty($arResult['ITEMS']))
 		{
+			$generalParams = [
+				'PRODUCT_DISPLAY_MODE' => $arParams['PRODUCT_DISPLAY_MODE'],
+				'SHOW_MAX_QUANTITY' => $arParams['SHOW_MAX_QUANTITY'],
+				'RELATIVE_QUANTITY_FACTOR' => $arParams['RELATIVE_QUANTITY_FACTOR'],
+				'MESS_SHOW_MAX_QUANTITY' => $arParams['~MESS_SHOW_MAX_QUANTITY'],
+				'MESS_RELATIVE_QUANTITY_MANY' => $arParams['~MESS_RELATIVE_QUANTITY_MANY'],
+				'MESS_RELATIVE_QUANTITY_FEW' => $arParams['~MESS_RELATIVE_QUANTITY_FEW'],
+				'SHOW_OLD_PRICE' => $arParams['SHOW_OLD_PRICE'],
+				'USE_PRODUCT_QUANTITY' => $arParams['USE_PRODUCT_QUANTITY'],
+				'PRODUCT_QUANTITY_VARIABLE' => $arParams['PRODUCT_QUANTITY_VARIABLE'],
+				'ADD_TO_BASKET_ACTION' => $arParams['ADD_TO_BASKET_ACTION'],
+				'ADD_PROPERTIES_TO_BASKET' => $arParams['ADD_PROPERTIES_TO_BASKET'],
+				'PRODUCT_PROPS_VARIABLE' => $arParams['PRODUCT_PROPS_VARIABLE'],
+				'SHOW_CLOSE_POPUP' => $arParams['SHOW_CLOSE_POPUP'],
+				'DISPLAY_COMPARE' => $arParams['DISPLAY_COMPARE'],
+				'COMPARE_PATH' => $arParams['COMPARE_PATH'],
+				'COMPARE_NAME' => $arParams['COMPARE_NAME'],
+				'PRODUCT_SUBSCRIPTION' => $arParams['PRODUCT_SUBSCRIPTION'],
+				'PRODUCT_BLOCKS_ORDER' => $arParams['PRODUCT_BLOCKS_ORDER'],
+				'LABEL_POSITION_CLASS' => $labelPositionClass,
+				'~BASKET_URL' => $arParams['~BASKET_URL'],
+				'~ADD_URL_TEMPLATE' => $arResult['~ADD_URL_TEMPLATE'],
+				'~BUY_URL_TEMPLATE' => $arResult['~BUY_URL_TEMPLATE'],
+				'~COMPARE_URL_TEMPLATE' => $arResult['~COMPARE_URL_TEMPLATE'],
+				'~COMPARE_DELETE_URL_TEMPLATE' => $arResult['~COMPARE_DELETE_URL_TEMPLATE'],
+				'TEMPLATE_THEME' => $arParams['TEMPLATE_THEME'],
+				'USE_ENHANCED_ECOMMERCE' => $arParams['USE_ENHANCED_ECOMMERCE'],
+				'DATA_LAYER_NAME' => $arParams['DATA_LAYER_NAME'],
+				'BRAND_PROPERTY' => $arParams['BRAND_PROPERTY'],
+				'MESS_BTN_BUY' => $arParams['~MESS_BTN_BUY'],
+				'MESS_BTN_DETAIL' => $arParams['~MESS_BTN_DETAIL'],
+				'MESS_BTN_COMPARE' => $arParams['~MESS_BTN_COMPARE'],
+				'MESS_BTN_SUBSCRIBE' => $arParams['~MESS_BTN_SUBSCRIBE'],
+				'MESS_BTN_ADD_TO_BASKET' => $arParams['~MESS_BTN_ADD_TO_BASKET'],
+				'BTN_MESSAGE_CONTINUE_SHOPPING' => $arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'],
+				'BTN_MESSAGE_CREATE_ORDER' => $arParams['~BTN_MESSAGE_CREATE_ORDER'],
+				'USE_OFFER_NAME' => $arParams['USE_OFFER_NAME'],
+				'CUSTOM_SITE_ID' => $component->getSiteId(),
+			];
+
+			$itemParameters = [];
 			foreach ($arResult['ITEMS'] as $item)
 			{
 				$uniqueId = $item['ID'].'_'.md5($this->randString().$component->getAction()).$arResult['AREA_ID_ADDITIONAL_SALT'];
 				$this->addEditAction($uniqueId, $item['EDIT_LINK'], $elementEdit);
 				$this->addDeleteAction($uniqueId, $item['DELETE_LINK'], $elementDelete, $elementDeleteParams);
 
-			?><div class="catalog-section-item-wrapper col-12 col-sm-6 d-flex align-items-stretch"><?
+			?><div class="catalog-section-item-wrapper col-12 col-sm-6 d-flex align-items-stretch"><?php
 				$APPLICATION->IncludeComponent(
 					'bitrix:catalog.item',
 					'store_v3',
@@ -206,6 +209,10 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 						],
 						'PARAMS' => $generalParams + [
 								'SKU_PROPS' => $arResult['SKU_PROPS'][$item['IBLOCK_ID']],
+								'MESS_NOT_AVAILABLE' => ($arResult['MODULES']['catalog'] && $item['PRODUCT']['TYPE'] === ProductTable::TYPE_SERVICE
+									? $arParams['~MESS_NOT_AVAILABLE_SERVICE']
+									: $arParams['~MESS_NOT_AVAILABLE']
+								),
 							],
 					],
 					$component,
@@ -213,40 +220,44 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 						'HIDE_ICONS' => 'Y',
 					]
 				);
-			?></div><?
+			?></div><?php
 			}
+			unset($generalParams);
 
-			$APPLICATION->IncludeComponent(
-				'bitrix:catalog.section.list',
-				'store_v3',
-				[
-					'ADD_SECTIONS_CHAIN' => 'N',
-					'CACHE_FILTER' => $arParams['CACHE_FILTER'],
-					'CACHE_GROUPS' => $arParams['CACHE_GROUPS'],
-					'CACHE_TIME' => $arParams['CACHE_TIME'],
-					'CACHE_TYPE' => $arParams['CACHE_TYPE'],
-					'COUNT_ELEMENTS' => 'Y',
-					'COUNT_ELEMENTS_FILTER' => 'CNT_AVAILABLE', // it's no use
-					'FILTER_NAME' => $arParams['SECTIONS_FILTER_NAME'],
-					'IBLOCK_ID' => $arParams['IBLOCK_ID'],
-					'IBLOCK_TYPE' => $arParams['IBLOCK_TYPE'],
-					'SECTION_CODE' => $arParams['SECTIONS_SECTION_CODE'],
-					'SECTION_FIELDS' => array("",""),
-					'SECTION_ID' => $arParams['SECTIONS_SECTION_ID'],
-					'SECTION_URL' => $arParams['SECTION_URL'],
-					'SECTION_USER_FIELDS' => array("",""),  // check and replace to $arParams['SECTION_USER_FIELDS']
-					'SHOW_TITLE' => 'N',
-					'TOP_DEPTH' => $arParams['SECTIONS_TOP_DEPTH'],
-					'OFFSET_MODE' => $arParams['SECTIONS_OFFSET_MODE'],
-					'OFFSET_VALUE' => $arParams['SECTIONS_OFFSET_VALUE'],
-					'OFFSET_VARIABLE' => $arParams['SECTIONS_OFFSET_VARIABLE'],
-					'AREA_ID' => $arResult['AREA_ID_ADDITIONAL_SALT']
-				],
-				$component,
-				[
-					'HIDE_ICONS' => 'Y',
-				]
-			);
+			if ($arParams['SHOW_SECTIONS'] === 'Y')
+			{
+				$APPLICATION->IncludeComponent(
+					'bitrix:catalog.section.list',
+					'store_v3',
+					[
+						'ADD_SECTIONS_CHAIN' => 'N',
+						'CACHE_FILTER' => $arParams['CACHE_FILTER'],
+						'CACHE_GROUPS' => $arParams['CACHE_GROUPS'],
+						'CACHE_TIME' => $arParams['CACHE_TIME'],
+						'CACHE_TYPE' => $arParams['CACHE_TYPE'],
+						'COUNT_ELEMENTS' => 'Y',
+						'COUNT_ELEMENTS_FILTER' => 'CNT_AVAILABLE', // it's no use
+						'FILTER_NAME' => $arParams['SECTIONS_FILTER_NAME'],
+						'IBLOCK_ID' => $arParams['IBLOCK_ID'],
+						'IBLOCK_TYPE' => $arParams['IBLOCK_TYPE'],
+						'SECTION_CODE' => $arParams['SECTIONS_SECTION_CODE'],
+						'SECTION_FIELDS' => ["", ""],
+						'SECTION_ID' => $arParams['SECTIONS_SECTION_ID'],
+						'SECTION_URL' => $arParams['SECTION_URL'],
+						'SECTION_USER_FIELDS' => ["", ""],  // check and replace to $arParams['SECTION_USER_FIELDS']
+						'SHOW_TITLE' => 'N',
+						'TOP_DEPTH' => $arParams['SECTIONS_TOP_DEPTH'],
+						'OFFSET_MODE' => $arParams['SECTIONS_OFFSET_MODE'],
+						'OFFSET_VALUE' => $arParams['SECTIONS_OFFSET_VALUE'],
+						'OFFSET_VARIABLE' => $arParams['SECTIONS_OFFSET_VARIABLE'],
+						'AREA_ID' => $arResult['AREA_ID_ADDITIONAL_SALT']
+					],
+					$component,
+					[
+						'HIDE_ICONS' => 'Y',
+					]
+				);
+			}
 		}
 		else
 		{

@@ -9,27 +9,39 @@ class FileSystemHelper
 	 * Return list full path of folders.
 	 *
 	 * @param string $path Path to check.
-	 * @param string $mask Filter pattern.
 	 *
 	 * @return string[]
 	 */
-	public static function getFolderList($path, $mask = '*')
+	public static function getFolderList($path)
 	{
-		$path = Translate\IO\Path::tidy(rtrim($path, '/'));
-		return glob($path.'/{,.}'.$mask, GLOB_BRACE | GLOB_ONLYDIR);
+		$path = Translate\IO\Path::tidy(\rtrim($path, '/'));
+		if (defined('GLOB_BRACE'))
+		{
+			return \glob($path.'/{,.}*', \GLOB_BRACE | \GLOB_ONLYDIR);
+		}
+		return array_merge(
+			\glob($path.'/.*', \GLOB_ONLYDIR),
+			\glob($path.'/*', \GLOB_ONLYDIR)
+		);
 	}
 
 	/**
 	 * Return list full path of folders.
 	 *
 	 * @param string $path Path to check.
-	 * @param string $mask Filter pattern.
 	 *
 	 * @return string[]
 	 */
-	public static function getFileList($path, $mask = '*.php')
+	public static function getFileList($path)
 	{
-		$path = Translate\IO\Path::tidy(rtrim($path, '/'));
-		return glob($path.'/{,.}'.$mask, GLOB_BRACE);
+		$path = Translate\IO\Path::tidy(\rtrim($path, '/'));
+		if (defined('GLOB_BRACE'))
+		{
+			return \glob($path.'/{,.}*.php', \GLOB_BRACE);
+		}
+		return array_merge(
+			\glob($path.'/.*.php'),
+			\glob($path.'/*.php')
+		);
 	}
 }

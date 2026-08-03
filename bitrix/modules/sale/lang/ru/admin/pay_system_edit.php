@@ -107,7 +107,7 @@ $MESS["SALE_RDL_RESTRICTION"] = "Ограничение";
 $MESS["SALE_PSE_BIS_VAL_SETTINGS"] = "Настройка обработчика ПС";
 $MESS["SALE_PSE_ERROR_HANDLER_TYPE"] = "Обработчик не найден";
 $MESS["SALE_PSE_ERROR_SET_BIZVAL_MAP"] = "Ошибка при сохранении БС";
-$MESS["SALE_PSE_ERROR_RSRT_CURRENCY_SAVE"] = "Ошибка при сохранении ограничения по валютам";
+$MESS["SALE_PSE_ERROR_DEFAULT_RSRT_APPLY_MSGVER_1"] = "Ошибка при применении стандартных ограничений";
 $MESS["SALE_PSE_ERROR_NO_ACTION_FILE"] = "Не выбран обработчик ПС";
 $MESS["SALE_PS_TARIFF"] = "Тарифы";
 $MESS["SALE_PSE_RETURN"] = "Настройка возвратов";
@@ -122,4 +122,4 @@ $MESS["SPS_FISCALIZATION_TAB"] = "Фискализация";
 $MESS["SPS_FISCALIZATION_TAB_TITLE"] = "Настройка кассы";
 $MESS["SPS_FISCALIZATION_TAB_CASHBOXROBOKASSA"] = "Робочеки";
 $MESS["SPS_FISCALIZATION_TAB_TITLE_CASHBOXROBOKASSA"] = "Настройка Робочеков";
-?>
+$MESS['SPSN_NOT_FOUND_PAYSYSTEM'] = 'Платежная система не найдена';

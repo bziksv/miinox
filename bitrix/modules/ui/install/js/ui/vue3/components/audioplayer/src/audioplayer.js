@@ -7,6 +7,7 @@
  * @copyright 2001-2021 Bitrix
  */
 
+import 'ui.fonts.opensans';
 import "./audioplayer.css";
 import 'main.polyfill.intersectionobserver';
 
@@ -337,6 +338,10 @@ export const AudioPlayer = BitrixVue.mutableComponent('ui-audioplayer',
 				|| eventName === 'loadedmetadata'
 			)
 			{
+				if (!this.source())
+				{
+					return;
+				}
 				this.timeTotal = this.source().duration;
 			}
 			else if (

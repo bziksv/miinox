@@ -109,8 +109,6 @@
 	transition: 220ms ease all;
 }
 
-.bx-ie .basket-coupon-alert .close-link { color: #006cc0; }
-
 .basket-coupon-alert .close-link:hover { border-color: transparent; }
 
 @media (max-width: 991px) {
@@ -252,7 +250,7 @@
 
 .basket-btn-checkout {
 	border-radius: 2px;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 	font-size: 16px;
 }
 
@@ -394,7 +392,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font: bold 15px/18px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 15px/18px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	transition: 300ms all ease;
 	-webkit-box-flex: 1;
 	-ms-flex: 1;
@@ -418,19 +416,15 @@
 	border-bottom: 1px dotted;
 	color: var(--primary);
 	text-decoration: none;
-	font: bold 13px/14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 13px/14px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	cursor: pointer;
 	transition: 220ms ease;
 }
-
-.bx-ie .basket-items-list-header-filter-item { color: #006cc0; }
 
 .basket-items-list-header-filter-item:hover {
 	color: var(--theme-color-second);
 	text-decoration: none;
 }
-
-.bx-ie .basket-items-list-header-filter-item:hover { color: #006cc0; }
 
 .basket-items-list-header-filter-item.active {
 	border-bottom: none;
@@ -461,7 +455,7 @@
 	background: none;
 	color: #777;
 	vertical-align: middle;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 	font-size: 18px;
 	line-height: 18px;
 	cursor: pointer;
@@ -720,7 +714,7 @@
 .basket-item-label-text span {
 	padding: 2px 5px;
 	vertical-align: middle;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 }
 
 .basket-item-label-text.basket-item-label-small span {
@@ -759,7 +753,7 @@
 .basket-item-label-ring {
 	box-sizing: border-box;
 	border-radius: 50%;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 }
 
 .basket-item-label-ring.basket-item-label-small {
@@ -996,7 +990,7 @@ h2.basket-item-info-name {
 .basket-item-property-value,
 .basket-item-property-custom-value {
 	color: #4a4a4a;
-	font: bold 12px/16px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 12px/16px "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 /*region Custom Column*/
@@ -1092,10 +1086,6 @@ h2.basket-item-info-name {
 .basket-item-scu-item.selected,
 .basket-item-scu-item.not-available:hover { border-color: var(--primary); }
 
-.bx-ie .basket-item-scu-item:hover,
-.bx-ie .basket-item-scu-item.selected,
-.bx-ie .basket-item-scu-item.not-available:hover { border-color: #006cc0; }
-
 .basket-item-scu-item.selected:hover { cursor: default }
 
 .basket-item-scu-item.not-available:after {
@@ -1139,12 +1129,12 @@ h2.basket-item-info-name {
 	padding: 3px 5px;
 	min-width: 30px;
 	text-align: center;
-	font: bold 14px/17px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 14px/17px "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 .basket-items-list-wrapper-compact .basket-item-property-scu-text .basket-item-scu-item-inner {
 	padding: 1px 2px;
-	font: bold 12px/14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 12px/14px "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 @media (max-width: 768px) {
@@ -1168,7 +1158,7 @@ h2.basket-item-info-name {
 		padding: 2px 3px;
 		min-width: 25px;
 		text-align: center;
-		font: bold 11px/15px "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font: var(--ui-font-weight-bold) 11px/15px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	}
 }
 
@@ -1214,7 +1204,7 @@ h2.basket-item-info-name {
 	border-radius: 1px;
 	vertical-align: middle;
 	text-align: center;
-	font: bold 18px/27px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 18px/27px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	transition: 300ms all ease;
 }
 
@@ -1222,9 +1212,6 @@ h2.basket-item-info-name {
 
 .basket-item-amount-filed:hover,
 .basket-item-amount-filed:focus { border-color: var(--primary); }
-
-.bx-ie .basket-item-amount-filed:hover,
-.bx-ie .basket-item-amount-filed:focus { border-color: #006cc0; }
 
 .basket-item-amount-filed::-webkit-outer-spin-button,
 .basket-item-amount-filed::-webkit-inner-spin-button {
@@ -1708,7 +1695,7 @@ h2.basket-item-info-name {
 .basket-items-list-item-removed-anchor {
 	border-bottom: 1px dashed;
 	color: #333;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 }
 
 .basket-items-list-item-clear-btn {
@@ -1800,7 +1787,7 @@ h2.basket-item-info-name {
 	padding: 12px 17px;
 	background-color: #fceb9f;
 	color: #5b5848;
-	font: bold 15px/18px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 15px/18px "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 .basket-item-gifts-list { padding: 15px; }
@@ -1894,7 +1881,7 @@ h2.basket-item-info-name {
 	color: #525c69;
 	text-align: center;
 	text-transform: uppercase;
-	font: bold 9px/12px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 9px/12px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	-webkit-box-align: center;
 	align-items: center;
 }
@@ -1922,7 +1909,7 @@ h2.basket-item-info-name {
 	padding: 18px 25px 20px;
 	border-bottom: 1px solid #e2dfdf;
 	background: #f2f2f2;
-	font: bold 15px/18px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 15px/18px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	transition: 300ms all ease;
 }
 
@@ -2076,13 +2063,11 @@ h2.basket-item-info-name {
 	transition: 190ms all ease;
 }
 
-.bx-ie .basket-gift-item-select-btn-radio { background: #006cc0; }
-
 .basket-gift-item-select-input:checked + .basket-gift-item-select-btn-radio { border-width: 5px; }
 
 .basket-gift-item-select-btn-text {
 	text-transform: lowercase;
-	font: bold 12px/14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: var(--ui-font-weight-bold) 12px/14px "Helvetica Neue", Helvetica, Arial, sans-serif;
 	cursor: pointer;
 }
 
@@ -2136,9 +2121,6 @@ h2.basket-item-info-name {
 	background-color: var(--primary);
 	opacity: 1;
 }
-
-.bx-ie .basket-gift-item-select-input:checked + .basket-gift-item-select-btn-checkbox:after,
-.bx-ie .basket-gift-item-select-input:checked + .basket-gift-item-select-btn-checkbox:before { background-color: #006cc0; }
 
 @media (max-width: 797px) {
 	.basket-gift-item-select-btn-container {
@@ -2222,7 +2204,7 @@ h2.basket-item-info-name {
 
 .catalog-block-header{
 	font-size:14px;
-	font-weight: bold;
+	font-weight: var(--ui-font-weight-bold);
 	text-align: left;
 	margin:5px 0;
 	padding:5px 15px;

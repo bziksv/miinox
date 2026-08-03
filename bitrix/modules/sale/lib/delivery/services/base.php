@@ -115,7 +115,11 @@ abstract class Base
 		if(isset($initParams["RESTRICTED"]))
 			$this->restricted = $initParams["RESTRICTED"];
 
-		$this->trackingParams = is_array($initParams["TRACKING_PARAMS"]) ? $initParams["TRACKING_PARAMS"] : array();
+		$this->trackingParams =
+			isset($initParams["TRACKING_PARAMS"]) && is_array($initParams["TRACKING_PARAMS"])
+				? $initParams["TRACKING_PARAMS"]
+				: []
+		;
 
 		if(isset($initParams["EXTRA_SERVICES"]))
 			$this->extraServices = new \Bitrix\Sale\Delivery\ExtraServices\Manager($initParams["EXTRA_SERVICES"], $this->currency);
@@ -153,39 +157,45 @@ abstract class Base
 
 	/**
 	 * Calculates delivery price
-	 * @param \Bitrix\Sale\Shipment $shipment.
-	 * @param array $extraServices.
+	 *
+	 * @param Shipment|null $shipment .
+	 * @param array $extraServices .
 	 * @return \Bitrix\Sale\Delivery\CalculationResult
 	 */
 	public function calculate(\Bitrix\Sale\Shipment $shipment = null, $extraServices = array()) // null for compability with old configurable services api
 	{
-		if($shipment && !$shipment->getCollection())
+		$result = new Delivery\CalculationResult();
+
+		if ($shipment && !$shipment->getCollection())
 		{
-			$result = new Delivery\CalculationResult();
 			$result->addError(new Error('\Bitrix\Sale\Delivery\Services\Base::calculate() can\'t calculate empty shipment!'));
 			return $result;
 		}
 
-		$result = $this->calculateConcrete($shipment);
-
-		if($shipment)
+		if ($shipment)
 		{
-			if(empty($extraServices))
+			$result = $this->calculateConcrete($shipment);
+
+			if (empty($extraServices))
+			{
 				$extraServices = $shipment->getExtraServices();
+			}
 
 			$this->extraServices->setValues($extraServices);
 			$this->extraServices->setOperationCurrency($shipment->getCurrency());
 			$extraServicePrice = $this->extraServices->getTotalCostShipment($shipment);
 
-			if(floatval($extraServicePrice) > 0)
+			if ((float)$extraServicePrice > 0)
+			{
 				$result->setExtraServicesPrice($extraServicePrice);
+			}
 		}
 
-		$eventParams = array(
-			"RESULT" => $result,
-			"SHIPMENT" => $shipment,
-			"DELIVERY_ID" => $this->id
-		);
+		$eventParams = [
+			'RESULT' => $result,
+			'SHIPMENT' => $shipment,
+			'DELIVERY_ID' => $this->id,
+		];
 
 		$event = new Event('sale', self::EVENT_ON_CALCULATE, $eventParams);
 		$event->send();
@@ -196,12 +206,16 @@ abstract class Base
 			foreach ($resultList as &$eventResult)
 			{
 				if ($eventResult->getType() != EventResult::SUCCESS)
+				{
 					continue;
+				}
 
 				$params = $eventResult->getParameters();
 
-				if(isset($params["RESULT"]))
-					$result = $params["RESULT"];
+				if (isset($params['RESULT']))
+				{
+					$result = $params['RESULT'];
+				}
 			}
 		}
 
@@ -303,25 +317,31 @@ abstract class Base
 		{
 			foreach($rParams["ITEMS"] as $key2 => $iParams)
 			{
-				if($iParams["TYPE"] == "DELIVERY_SECTION")
-					continue;
-
-				$errors = \Bitrix\Sale\Internals\Input\Manager::getRequiredError($iParams, $fields["CONFIG"][$key1][$key2]);
-
-				if(empty($errors))
+				if ($iParams["TYPE"] == "DELIVERY_SECTION")
 				{
-					$errors = \Bitrix\Sale\Internals\Input\Manager::getError($iParams, $fields["CONFIG"][$key1][$key2]);
+					continue;
 				}
 
-				if(!empty($errors))
+				$value = $fields["CONFIG"][$key1][$key2] ?? null;
+
+				$errors = \Bitrix\Sale\Internals\Input\Manager::getRequiredError($iParams, $value);
+
+				if (empty($errors))
+				{
+					$errors = \Bitrix\Sale\Internals\Input\Manager::getError($iParams, $value);
+				}
+
+				if (!empty($errors))
 				{
 					$strError .= Loc::getMessage("SALE_DLVR_BASE_FIELD")." \"".$iParams["NAME"]."\": ".implode("<br>\n", $errors)."<br>\n";
 				}
 			}
 		}
 
-		if($strError != "")
+		if ($strError != "")
+		{
 			throw new SystemException($strError);
+		}
 
 		if(mb_strpos($fields['CLASS_NAME'], '\\') !== 0)
 		{
@@ -847,7 +867,7 @@ abstract class Base
 				$deliveryServiceClone->extraServices = $cloneEntity[$extraServices];
 			}
 		}
-		
+
 		return $deliveryServiceClone;
 	}
 

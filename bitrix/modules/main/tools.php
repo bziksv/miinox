@@ -3,7 +3,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2020 Bitrix
+ * @copyright 2001-2022 Bitrix
  */
 
 use Bitrix\Main;
@@ -72,8 +72,8 @@ function SelectBox($strBoxName, $a,	$strDetText = "", $strSelectedVal = "", $fie
 		$strReturnBox = $strReturnBox."<option value=\"NOT_REF\">".$strDetText."</option>";
 	while (($ar = $a->Fetch()))
 	{
-		$reference_id = $ar["REFERENCE_ID"];
-		$reference = $ar["REFERENCE"];
+		$reference_id = $ar["REFERENCE_ID"] ?? '';
+		$reference = $ar["REFERENCE"] ?? '';
 		if ($reference_id == '')
 			$reference_id = $ar["reference_id"];
 		if ($reference == '')
@@ -381,7 +381,7 @@ function CheckDateTime($datetime, $format=false)
 				$month = intval(date('m', strtotime($ar["M"])));
 		}
 	}
-	$year  = intval($ar["YYYY"]);
+	$year  = intval($ar["YYYY"] ?? 0);
 	if (isset($ar["HH"]))
 	{
 		$hour  = intval($ar["HH"]);
@@ -400,7 +400,7 @@ function CheckDateTime($datetime, $format=false)
 	}
 	if (isset($ar['TT']) || isset($ar['T']))
 	{
-		$middletime = isset($ar['TT']) ? $ar['TT'] : $ar['T'];
+		$middletime = $ar['TT'] ?? $ar['T'];
 		if (strcasecmp('pm', $middletime)===0)
 		{
 			if ($hour < 12)
@@ -457,7 +457,7 @@ function MakeTimeStamp($datetime, $format=false)
 
 	$ar = ParseDateTime($datetime, $format);
 
-	$day = intval($ar["DD"]);
+	$day = intval($ar["DD"] ?? 0);
 	$hour = $month = 0;
 
 	if (isset($ar["MMMM"]))
@@ -490,7 +490,7 @@ function MakeTimeStamp($datetime, $format=false)
 				$month = intval(date('m', strtotime($ar["M"])));
 		}
 	}
-	$year  = intval($ar["YYYY"]);
+	$year  = intval($ar["YYYY"] ?? 0);
 	if (isset($ar["HH"]))
 	{
 		$hour  = intval($ar["HH"]);
@@ -509,7 +509,7 @@ function MakeTimeStamp($datetime, $format=false)
 	}
 	if (isset($ar['TT']) || isset($ar['T']))
 	{
-		$middletime = isset($ar['TT']) ? $ar['TT'] : $ar['T'];
+		$middletime = $ar['TT'] ?? $ar['T'];
 		if (strcasecmp('pm', $middletime)===0)
 		{
 			if ($hour < 12)
@@ -530,11 +530,7 @@ function MakeTimeStamp($datetime, $format=false)
 	if($hour>24 || $hour<0 || $min<0 || $min>59 || $sec<0 || $sec>59)
 		return false;
 
-	$ts = mktime($hour, $min, $sec, $month, $day, $year);
-	if($ts === false)
-		return false;
-
-	return $ts;
+	return mktime($hour, $min, $sec, $month, $day, $year);
 }
 
 /**
@@ -592,29 +588,26 @@ function AddToTimeStamp($arrAdd, $stmp=false)
 		foreach($arrAdd as $key => $value)
 		{
 			$value = intval($value);
-			if (is_int($value))
+			switch ($key)
 			{
-				switch ($key)
-				{
-					case "DD":
-						$stmp = AddTime($stmp, $value, "D");
-						break;
-					case "MM":
-						$stmp = AddTime($stmp, $value, "MN");
-						break;
-					case "YYYY":
-						$stmp = AddTime($stmp, $value, "Y");
-						break;
-					case "HH":
-						$stmp = AddTime($stmp, $value, "H");
-						break;
-					case "MI":
-						$stmp = AddTime($stmp, $value, "M");
-						break;
-					case "SS":
-						$stmp = AddTime($stmp, $value, "S");
-						break;
-				}
+				case "DD":
+					$stmp = AddTime($stmp, $value, "D");
+					break;
+				case "MM":
+					$stmp = AddTime($stmp, $value, "MN");
+					break;
+				case "YYYY":
+					$stmp = AddTime($stmp, $value, "Y");
+					break;
+				case "HH":
+					$stmp = AddTime($stmp, $value, "H");
+					break;
+				case "MI":
+					$stmp = AddTime($stmp, $value, "M");
+					break;
+				case "SS":
+					$stmp = AddTime($stmp, $value, "S");
+					break;
 			}
 		}
 	}
@@ -676,17 +669,17 @@ function IsAmPmMode($returnConst = false)
 {
 	if($returnConst)
 	{
-		if(mb_strpos(FORMAT_DATETIME, 'TT') !== false)
+		if(strpos(FORMAT_DATETIME, 'TT') !== false)
 		{
 			return AM_PM_UPPER;
 		}
-		if(mb_strpos(FORMAT_DATETIME, 'T') !== false)
+		if(strpos(FORMAT_DATETIME, 'T') !== false)
 		{
 			return AM_PM_LOWER;
 		}
 		return AM_PM_NONE;
 	}
-	return mb_strpos(FORMAT_DATETIME, 'T') !== false;
+	return strpos(FORMAT_DATETIME, 'T') !== false;
 }
 
 function convertTimeToMilitary ($strTime, $fromFormat = 'H:MI T', $toFormat = 'HH:MI')
@@ -710,7 +703,7 @@ function convertTimeToMilitary ($strTime, $fromFormat = 'H:MI T', $toFormat = 'H
 
 	if (isset($arParsedDate['TT']) || isset($arParsedDate['T']))
 	{
-		$middletime = isset($arParsedDate['TT']) ? $arParsedDate['TT'] : $arParsedDate['T'];
+		$middletime = $arParsedDate['TT'] ?? $arParsedDate['T'];
 		if (strcasecmp('pm', $middletime)===0)
 		{
 			if ($arParsedDate["HH"] < 12)
@@ -722,7 +715,7 @@ function convertTimeToMilitary ($strTime, $fromFormat = 'H:MI T', $toFormat = 'H
 		}
 	}
 
-	$ts = mktime($arParsedDate['HH'], $arParsedDate['MI'], (isset($arParsedDate['SS']) ? $arParsedDate['SS'] : 0), 3, 7, 2012);
+	$ts = mktime($arParsedDate['HH'], $arParsedDate['MI'], ($arParsedDate['SS'] ?? 0), 3, 7, 2012);
 	return FormatDate($DB->dateFormatToPHP($toFormat), $ts);
 }
 
@@ -1342,7 +1335,7 @@ function FormatDateEx($strDate, $format=false, $new_format=false)
 
 	if (isset($arParsedDate['TT']) || isset($arParsedDate['T']))
 	{
-		$middletime = isset($arParsedDate['TT']) ? $arParsedDate['TT'] : $arParsedDate['T'];
+		$middletime = $arParsedDate['TT'] ?? $arParsedDate['T'];
 		if (strcasecmp('pm', $middletime)===0)
 		{
 			if ($arParsedDate["HH"] < 12)
@@ -1363,12 +1356,12 @@ function FormatDateEx($strDate, $format=false, $new_format=false)
 	if(intval($arParsedDate["YY"])>1970 && intval($arParsedDate["YY"])<2038)
 	{
 		$ux_time = mktime(
-			intval($arParsedDate["HH"]),
-			intval($arParsedDate["MI"]),
-			intval($arParsedDate["SS"]),
-			intval($arParsedDate["MM"]),
-			intval($arParsedDate["DD"]),
-			intval($arParsedDate["YY"])
+			intval($arParsedDate["HH"] ?? 0),
+			intval($arParsedDate["MI"] ?? 0),
+			intval($arParsedDate["SS"] ?? 0),
+			intval($arParsedDate["MM"] ?? 0),
+			intval($arParsedDate["DD"] ?? 0),
+			intval($arParsedDate["YY"] ?? 0)
 		);
 
 		$new_format_l = mb_strlen($new_format);
@@ -1539,16 +1532,27 @@ function FormatDateFromDB ($date, $format = 'FULL', $phpFormat = false)
 		return FormatDate(($phpFormat ? $format : $DB->DateFormatToPHP($format)), MakeTimeStamp($date));
 }
 
-// возвращает время в формате текущего языка по заданному Unix Timestamp
+/**
+ * @deprecated Use Type\DateTime.
+ */
 function GetTime($timestamp, $type="SHORT", $site=false, $bSearchInSitesOnly = false)
 {
 	global $DB;
-	if($site===false && defined("SITE_ID"))
-		$site = SITE_ID;
-	return date($DB->DateFormatToPHP(CSite::GetDateFormat($type, $site, $bSearchInSitesOnly)), $timestamp);
+
+	if ($site === false  && ($context = Context::getCurrent()) !== null && ($culture = $context->getCulture()) !== null)
+	{
+		$format = ($type == "FULL" ? $culture->getFormatDatetime() : $culture->getFormatDate());
+	}
+	else
+	{
+		$format = CSite::GetDateFormat($type, $site, $bSearchInSitesOnly);
+	}
+	return date($DB->DateFormatToPHP($format), $timestamp);
 }
 
-// устаревшая функция
+/**
+ * @deprecated Use Type\DateTime.
+ */
 function AddTime($stmp, $add, $type="D")
 {
 	$ret = $stmp;
@@ -1688,7 +1692,7 @@ Array
 */
 function DelDuplicateSort(&$arSort)
 {
-	if (is_array($arSort) && count($arSort)>0)
+	if (is_array($arSort) && !empty($arSort))
 	{
 		$arSort2 = array();
 		foreach($arSort as $val)
@@ -1727,7 +1731,7 @@ function array_convert_name_2_value($arr)
 
 function InitBVarFromArr($arr)
 {
-	if (is_array($arr) && count($arr)>0)
+	if (is_array($arr) && !empty($arr))
 	{
 		foreach($arr as $value)
 		{
@@ -1919,7 +1923,7 @@ function convert_code_tag_for_email($text="", $arMsg=array())
 
 function PrepareTxtForEmail($text, $lang=false, $convert_url_tag=true, $convert_image_tag=true)
 {
-	$text = Trim($text);
+	$text = trim($text);
 	if($text == '')
 		return "";
 
@@ -2369,7 +2373,7 @@ function CheckDirPath($path)
 	return is_dir($path);
 }
 
-function CopyDirFiles($path_from, $path_to, $ReWrite = True, $Recursive = False, $bDeleteAfterCopy = False, $strExclude = "")
+function CopyDirFiles($path_from, $path_to, $ReWrite = true, $Recursive = false, $bDeleteAfterCopy = false, $strExclude = "")
 {
 	if (mb_strpos($path_to."/", $path_from."/") === 0 || realpath($path_to) === realpath($path_from))
 		return false;
@@ -2385,7 +2389,7 @@ function CopyDirFiles($path_from, $path_to, $ReWrite = True, $Recursive = False,
 		CheckDirPath($path_to_dir."/");
 
 		if (file_exists($path_to) && !$ReWrite)
-			return False;
+			return false;
 
 		@copy($path_from, $path_to);
 		if(is_file($path_to))
@@ -2394,11 +2398,11 @@ function CopyDirFiles($path_from, $path_to, $ReWrite = True, $Recursive = False,
 		if ($bDeleteAfterCopy)
 			@unlink($path_from);
 
-		return True;
+		return true;
 	}
 	else
 	{
-		return True;
+		return true;
 	}
 
 	if ($handle = @opendir($path_from))
@@ -2700,7 +2704,7 @@ function GetPagePath($page=false, $get_index_page=null)
 	$sPath = urldecode($sPath);
 
 	//Decoding UTF uri
-	$sPath = CUtil::ConvertToLangCharset($sPath);
+	$sPath = Text\Encoding::convertEncodingToCurrent($sPath);
 
 	if(mb_substr($sPath, -1, 1) == "/" && $get_index_page)
 	{
@@ -2961,7 +2965,7 @@ function GetLangFileName($before, $after, $lang=false)
 	if(file_exists($before."en".$after))
 		return $before."en".$after;
 
-	if(mb_strpos($before, "/bitrix/modules/") === false)
+	if(strpos($before, "/bitrix/modules/") === false)
 		return $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lang/en/tools.php";
 
 	$old_path = Rtrim($before, "/");
@@ -3115,7 +3119,7 @@ function IncludeTemplateLangFile($filepath, $lang=false)
 	);
 	foreach($dirs as $dir)
 	{
-		if(mb_strpos($filepath, $dir) !== false)
+		if(strpos($filepath, $dir) !== false)
 		{
 			$templ_path = $dir;
 			$templ_pos = mb_strlen($filepath) - mb_strpos(strrev($filepath), strrev($templ_path));
@@ -3133,7 +3137,7 @@ function IncludeTemplateLangFile($filepath, $lang=false)
 	}
 	if($templ_path == "")
 	{
-		if(mb_strpos($filepath, $module_path) !== false)
+		if(strpos($filepath, $module_path) !== false)
 		{
 			$templ_pos = mb_strlen($filepath) - mb_strpos(strrev($filepath), strrev($module_path));
 			$rel_path = mb_substr($filepath, $templ_pos);
@@ -3266,7 +3270,7 @@ function IncludeModuleLangFile($filepath, $lang=false, $bReturnArray=false)
 
 	$filepath = rtrim(preg_replace("'[\\\\/]+'", "/", $filepath), "/ ");
 	$module_path = "/modules/";
-	if(mb_strpos($filepath, $module_path) !== false)
+	if(strpos($filepath, $module_path) !== false)
 	{
 		$pos = mb_strlen($filepath) - mb_strpos(strrev($filepath), strrev($module_path));
 		$rel_path = mb_substr($filepath, $pos);
@@ -3279,7 +3283,7 @@ function IncludeModuleLangFile($filepath, $lang=false, $bReturnArray=false)
 		$BX_DOC_ROOT = rtrim(preg_replace("'[\\\\/]+'", "/", $_SERVER["DOCUMENT_ROOT"]), "/ ");
 		$module_path = $BX_DOC_ROOT.getLocalPath($module_path.$module_name);
 	}
-	elseif(mb_strpos($filepath, "/.last_version/") !== false)
+	elseif(strpos($filepath, "/.last_version/") !== false)
 	{
 		$pos = mb_strlen($filepath) - mb_strpos(strrev($filepath), strrev("/.last_version/"));
 		$rel_path = mb_substr($filepath, $pos);
@@ -3480,150 +3484,12 @@ function AddEventToStatFile($module, $action, $tag, $label, $action_type = '', $
 	}
 }
 
-/*********************************************************************
-	Quoting reverse (to be removed with 5.4.0)
-*********************************************************************/
-
-function UnQuote($str, $type, $preserve_nulls = false)
-{
-	UnQuoteEx($str, "", array("type" => $type, "preserve_nulls" => $preserve_nulls));
-	return $str;
-}
-
-function UnQuoteEx(&$str, $key, $params)
-{
-	static $search_gpc  = array("\\'", '\\"', "\\\\");
-	static $replace_gpc = array("'",   '"',   "\\");
-
-	if($params["preserve_nulls"])
-		$str = str_replace("\\0", "\0", $str);
-	else
-		$str = str_replace("\0", "", $str);
-
-	if($params["type"] == "gpc")
-		$str = str_replace($search_gpc ,$replace_gpc, $str);
-	elseif($params["type"] == "syb")
-		$str = str_replace("''", "'", $str);
-}
-
-function __unquoteitem(&$item, $key, $param = Array())
-{
-	$register_globals = ($param["first_use"] && ini_get_bool("register_globals"));
-
-	if(is_array($item))
-	{
-		$param["first_use"] = false;
-
-		foreach($item as $k=>$v)
-			__unquoteitem($item[$k], $k, $param);
-
-		if($register_globals)
-		{
-			global $$key;
-			if(isset($$key) && is_array($$key))
-			{
-				foreach($$key as $k=>$v)
-					__unquoteitem($GLOBALS[$key][$k], $k, $param);
-			}
-		}
-	}
-	else
-	{
-		if($register_globals)
-		{
-			global $$key;
-			if(isset($$key) && $$key==$item)
-				UnQuoteEx($$key, "", $param);
-		}
-		UnQuoteEx($item, "", $param);
-	}
-}
-
-function UnQuoteArr(&$arr, $syb = false, $preserve_nulls = false)
-{
-	static $params = null;
-	if (!isset($params))
-	{
-		$params = array("type" => "nulls");
-	}
-
-	if ($preserve_nulls != false && $params["type"] == "nulls")
-		return;
-
-	static $register_globals = null;
-	if (!isset($register_globals))
-		$register_globals = ini_get_bool("register_globals");
-
-	if (is_array($arr))
-	{
-		$params["preserve_nulls"] = $preserve_nulls;
-
-		foreach($arr as $key => $value)
-		{
-			if (is_array($value))
-				array_walk_recursive($arr[$key], "UnQuoteEx", $params);
-			else
-				UnQuoteEx($arr[$key], "", $params);
-		}
-
-		if ($register_globals)
-		{
-			foreach($arr as $key => $value)
-			{
-				if (isset($GLOBALS[$key]))
-				{
-					if (is_array($value))
-					{
-						if (is_array($GLOBALS[$key]))
-						{
-							foreach($GLOBALS[$key] as $k => $v)
-								array_walk_recursive($GLOBALS[$key], "UnQuoteEx", $params);
-						}
-					}
-					else
-					{
-						if($GLOBALS[$key] == $value)
-							UnQuoteEx($GLOBALS[$key], "", $params);
-					}
-				}
-			}
-		}
-	}
-}
-
+/**
+ * @deprecated Will be removed soon
+ * @return void
+ */
 function UnQuoteAll()
 {
-	global $HTTP_GET_VARS, $HTTP_POST_VARS, $HTTP_COOKIE_VARS, $_UNSECURE;
-	$superglobals = array('_GET', '_SESSION', '_POST', '_COOKIE', '_REQUEST', '_FILES', '_SERVER', 'GLOBALS', '_ENV');
-
-	foreach($superglobals as $key)
-	{
-		unset($_REQUEST[$key]);
-		unset($_GET[$key]);
-		unset($_POST[$key]);
-		unset($_COOKIE[$key]);
-		unset($HTTP_GET_VARS[$key]);
-		unset($HTTP_POST_VARS[$key]);
-		unset($HTTP_COOKIE_VARS[$key]);
-	}
-
-	UnQuoteArr($_GET);
-	if(!defined("BX_SKIP_POST_UNQUOTE") || BX_SKIP_POST_UNQUOTE !== true)
-	{
-		$_UNSECURE["_POST"] = $_POST;
-
-		UnQuoteArr($_POST);
-		UnQuoteArr($_REQUEST);
-		UnQuoteArr($HTTP_POST_VARS);
-	}
-	else
-	{
-		$_REQUEST = array_merge($_COOKIE, $_GET);
-		UnQuoteArr($_REQUEST);
-	}
-	UnQuoteArr($_COOKIE);
-	UnQuoteArr($HTTP_GET_VARS);
-	UnQuoteArr($HTTP_COOKIE_VARS);
 }
 
 /*********************************************************************
@@ -3746,7 +3612,7 @@ function IsIE()
 function GetCountryByID($id, $lang=LANGUAGE_ID)
 {
 	$msg = IncludeModuleLangFile(__FILE__, $lang, true);
-	return $msg["COUNTRY_".$id];
+	return $msg["COUNTRY_".$id] ?? '';
 }
 
 function GetCountryArray($lang=LANGUAGE_ID)
@@ -3764,34 +3630,36 @@ function GetCountryArray($lang=LANGUAGE_ID)
 	return $arCountry;
 }
 
-function GetCountries($lang=LANGUAGE_ID)
+function GetCountries($lang = LANGUAGE_ID)
 {
-	static $result = null;
-	if(!is_null($result))
-		return $result;
+	static $countries = null;
+	if (isset($countries[$lang]))
+	{
+		return $countries[$lang];
+	}
 
-	include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/countries.php");
+	include __DIR__ . '/countries.php';
 	$msg = IncludeModuleLangFile(__FILE__, $lang, true);
 
-	$result = array();
+	$countries[$lang] = [];
+	/** @var array $arCounries */
 	foreach ($arCounries as $country => $countryId)
 	{
-		$result[] = array(
+		$countries[$lang][$country] = [
 			'ID' => $countryId,
 			'CODE' => $country,
-			'NAME' => $msg["COUNTRY_".$countryId]
-		);
+			'NAME' => $msg['COUNTRY_' . $countryId]
+		];
 	}
-	return $result;
+	return $countries[$lang];
 }
 
 function GetCountryIdByCode($code)
 {
-	include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/countries.php");
-	$code = mb_strtoupper($code);
-	if(isset($arCounries[$code]))
-		return $arCounries[$code];
-	return false;
+	$code = strtoupper($code);
+	$countries = GetCountries();
+
+	return $countries[$code]['ID'] ?? false;
 }
 
 function GetCountryCodeById($countryId)
@@ -3799,13 +3667,14 @@ function GetCountryCodeById($countryId)
 	$countryId = (int)$countryId;
 
 	static $countryCodes = null;
-	if(is_null($countryCodes))
+	if ($countryCodes === null)
 	{
-		include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/countries.php");
+		include __DIR__ . '/countries.php';
+		/** @var array $arCounries */
 		$countryCodes = array_flip($arCounries);
 	}
 
-	return isset($countryCodes[$countryId]) ? $countryCodes[$countryId] : '';
+	return $countryCodes[$countryId] ?? '';
 }
 
 function minimumPHPVersion($vercheck)
@@ -3880,7 +3749,7 @@ function QueryGetData($SITE, $PORT, $PATH, $QUERY_STR, &$errno, &$errstr, $sMeth
 			$sMethod,
 			$SITE,
 			$PORT,
-			$PATH . ($sMethod == 'GET' ? ((mb_strpos($PATH, '?') === false ? '?' : '&') . $QUERY_STR) : ''),
+			$PATH . ($sMethod == 'GET' ? ((strpos($PATH, '?') === false ? '?' : '&') . $QUERY_STR) : ''),
 			$sMethod == 'POST' ? $QUERY_STR : false,
 			$sProto,
 			$sContentType
@@ -3933,14 +3802,7 @@ function xml_depth_xmldata($vals, &$i)
 		switch ($vals[$i]['type'])
 		{
 			case 'open':
-				if (isset($vals[$i]['tag']))
-				{
-					$tagname = $vals[$i]['tag'];
-				}
-				else
-				{
-					$tagname = '';
-				}
+				$tagname = $vals[$i]['tag'] ?? '';
 
 				if (isset($children[$tagname]))
 				{
@@ -4117,7 +3979,7 @@ function ShowMessage($arMess)
 	if(!is_array($arMess))
 		$arMess=Array("MESSAGE" => $arMess, "TYPE" => "ERROR");
 
-	if($arMess["MESSAGE"] <> "")
+	if(!empty($arMess["MESSAGE"]))
 	{
 		$APPLICATION->IncludeComponent(
 			"bitrix:system.show_message",
@@ -4174,13 +4036,16 @@ function check_email($email, $strict = false, $domainCheck = false)
 	}
 
 	//convert to UTF to use extended regular expressions
-	static $encoding = null;
-	if($encoding === null)
-	{
-		$encoding = strtolower(Context::getCurrent()->getCulture()->getCharset());
-	}
 	$encodedEmail = $email;
-	if($encoding <> "utf-8")
+	static $encoding = null;
+	if ($encoding === null)
+	{
+		if (($context = Context::getCurrent()) && ($culture = $context->getCulture()))
+		{
+			$encoding = strtolower($culture->getCharset());
+		}
+	}
+	if ($encoding !== null && $encoding != "utf-8")
 	{
 		$encodedEmail = Text\Encoding::convertEncoding($email, $encoding, "UTF-8");
 	}
@@ -4310,1463 +4175,6 @@ function IncludeAJAX()
 
 	$APPLICATION->AddHeadString('<script type="text/javascript">var ajaxMessages = {wait:"'.CUtil::JSEscape(GetMessage('AJAX_WAIT')).'"}</script>', true);
 	$APPLICATION->AddHeadScript('/bitrix/js/main/cphttprequest.js', true);
-}
-
-class CUtil
-{
-	protected static $alreadyDecodedRequest = false;
-
-	public static function addslashes($s)
-	{
-		static $aSearch = array("\\", "\"", "'");
-		static $aReplace = array("\\\\", '\\"', "\\'");
-		return str_replace($aSearch, $aReplace, $s);
-	}
-
-	public static function closetags($html)
-	{
-		preg_match_all("#<([a-z0-9]+)([^>]*)(?<!/)>#i".BX_UTF_PCRE_MODIFIER, $html, $result);
-		$openedtags = $result[1];
-
-		preg_match_all("#</([a-z0-9]+)>#i".BX_UTF_PCRE_MODIFIER, $html, $result);
-		$closedtags = $result[1];
-		$len_opened = count($openedtags);
-
-		if(count($closedtags) == $len_opened)
-			return $html;
-
-		$openedtags = array_reverse($openedtags);
-
-		for($i = 0; $i < $len_opened; $i++)
-		{
-			if (!in_array($openedtags[$i], $closedtags))
-				$html .= '</'.$openedtags[$i].'>';
-			else
-				unset($closedtags[array_search($openedtags[$i], $closedtags)]);
-		}
-
-		return $html;
-	}
-
-	public static function JSEscape($s)
-	{
-		static $aSearch = array("\xe2\x80\xa9", "\\", "'", "\"", "\r\n", "\r", "\n", "\xe2\x80\xa8", "*/", "</");
-		static $aReplace = array(" ", "\\\\", "\\'", '\\"', "\n", "\n", "\\n", "\\n", "*\\/", "<\\/");
-		$val = str_replace($aSearch, $aReplace, $s);
-		return $val;
-	}
-
-	public static function JSUrlEscape($s)
-	{
-		static $aSearch = array("%27", "%5C", "%0A", "%0D", "%", "&#039;", "&#39;", "&#x27;", "&apos;");
-		static $aReplace = array("\\'", "\\\\", "\\n", "\\r", "%25", "\\'", "\\'", "\\'", "\\'");
-		return str_replace($aSearch, $aReplace, $s);
-	}
-
-	public static function PhpToJSObject($arData, $bWS = false, $bSkipTilda = false, $bExtType = false)
-	{
-		static $use_bx_encode = null;
-		if (!isset($use_bx_encode))
-			$use_bx_encode = function_exists('bx_js_encode');
-		if ($use_bx_encode)
-			return bx_js_encode($arData, $bWS, $bSkipTilda, $bExtType);
-
-		switch(gettype($arData))
-		{
-		case "string":
-			if(preg_match("#['\"\\n\\r<\\\\\x80]#", $arData))
-				return "'".CUtil::JSEscape($arData)."'";
-			else
-				return "'".$arData."'";
-		case "array":
-			$i = -1;
-			$j = -1;
-			foreach($arData as $j => $temp)
-			{
-				$i++;
-				if ($j !== $i)
-					break;
-			}
-
-			if($j === $i)
-			{
-				$res = '[';
-				$first = true;
-				foreach($arData as $key => $value)
-				{
-					if($first)
-						$first = false;
-					else
-						$res .= ',';
-
-					switch(gettype($value))
-					{
-					case "string":
-						if(preg_match("#['\"\\n\\r<\\\\\x80]#", $value))
-							$res .= "'".CUtil::JSEscape($value)."'";
-						else
-							$res .= "'".$value."'";
-						break;
-					case "array":
-						$res .= CUtil::PhpToJSObject($value, $bWS, $bSkipTilda, $bExtType);
-						break;
-					case "boolean":
-						if($value === true)
-							$res .= 'true';
-						else
-							$res .= 'false';
-						break;
-					case "integer":
-						if ($bExtType)
-							$res .= $value;
-						else
-							$res .= "'".$value."'";
-						break;
-					case "double":
-						if ($bExtType)
-							$res .= is_finite($value) ? $value : "Infinity";
-						else
-							$res .= "'".$value."'";
-						break;
-					default:
-						if(preg_match("#['\"\\n\\r<\\\\\x80]#", $value))
-							$res .= "'".CUtil::JSEscape($value)."'";
-						else
-							$res .= "'".$value."'";
-						break;
-					}
-				}
-				$res .= ']';
-				return $res;
-			}
-
-			$sWS = ','.($bWS ? "\n" : '');
-			$res = ($bWS ? "\n" : '').'{';
-			$first = true;
-			foreach($arData as $key => $value)
-			{
-				if ($bSkipTilda && mb_substr($key, 0, 1) == '~')
-					continue;
-
-				if($first)
-					$first = false;
-				else
-					$res .= $sWS;
-
-				if(preg_match("#['\"\\n\\r<\\\\\x80]#", $key))
-					$res .= "'".CUtil::JSEscape($key)."':";
-				else
-					$res .= "'".$key."':";
-
-				switch(gettype($value))
-				{
-				case "string":
-					if(preg_match("#['\"\\n\\r<\\\\\x80]#", $value))
-						$res .= "'".CUtil::JSEscape($value)."'";
-					else
-						$res .= "'".$value."'";
-					break;
-				case "array":
-					$res .= CUtil::PhpToJSObject($value, $bWS, $bSkipTilda, $bExtType);
-					break;
-				case "boolean":
-					if($value === true)
-						$res .= 'true';
-					else
-						$res .= 'false';
-					break;
-				case "integer":
-					if ($bExtType)
-						$res .= $value;
-					else
-						$res .= "'".$value."'";
-					break;
-				case "double":
-					if ($bExtType)
-						$res .= is_finite($value) ? $value : "Infinity";
-					else
-						$res .= "'".$value."'";
-					break;
-				default:
-					if(preg_match("#['\"\\n\\r<\\\\\x80]#", (string)$value))
-						$res .= "'".CUtil::JSEscape($value)."'";
-					else
-						$res .= "'".$value."'";
-					break;
-				}
-			}
-			$res .= ($bWS ? "\n" : '').'}';
-			return $res;
-		case "boolean":
-			if($arData === true)
-				return 'true';
-			else
-				return 'false';
-		case "integer":
-			if ($bExtType)
-				return $arData;
-			else
-				return "'".$arData."'";
-		case "double":
-			if ($bExtType)
-				return is_finite($arData) ? $arData : "Infinity";
-			else
-				return "'".$arData."'";
-		default:
-			if(preg_match("#['\"\\n\\r<\\\\\x80]#", $arData))
-				return "'".CUtil::JSEscape($arData)."'";
-			else
-				return "'".$arData."'";
-		}
-	}
-
-	//$data must be in LANG_CHARSET encoding
-	public static function JsObjectToPhp($data, $bSkipNative=false)
-	{
-		$arResult = array();
-
-		$bSkipNative |= !function_exists('json_decode');
-
-		if(!$bSkipNative)
-		{
-			// php > 5.2.0 + php_json
-			$bUtf = defined("BX_UTF");
-			$dataUTF = ($bUtf? $data : Main\Text\Encoding::convertEncoding($data, LANG_CHARSET, 'UTF-8'));
-
-			// json_decode recognize only UTF strings
-			// the name and value must be enclosed in double quotes
-			// single quotes are not valid
-			$arResult = json_decode($dataUTF, true);
-
-			if($arResult === null)
-				$bSkipNative = true;
-			elseif(!$bUtf)
-				$arResult = Main\Text\Encoding::convertEncoding($arResult, 'UTF-8', LANG_CHARSET);
-		}
-
-		if ($bSkipNative)
-		{
-			$data = preg_replace('/[\s]*([{}\[\]\"])[\s]*/', '\1', $data);
-			$data = trim($data);
-
-			if (mb_substr($data, 0, 1) == '{') // object
-			{
-				$arResult = array();
-
-				$depth = 0;
-				$end_pos = 0;
-				$arCommaPos = array();
-				$bStringStarted = false;
-				$prev_symbol = "";
-
-				$string_delimiter = '';
-				for ($i = 1, $len = mb_strlen($data); $i < $len; $i++)
-				{
-					$cur_symbol = mb_substr($data, $i, 1);
-					if ($cur_symbol == '"' || $cur_symbol == "'")
-					{
-						if (
-							$prev_symbol != '\\' && (
-								!$string_delimiter || $string_delimiter == $cur_symbol
-							)
-						)
-						{
-							if ($bStringStarted = !$bStringStarted)
-								$string_delimiter = $cur_symbol;
-							else
-								$string_delimiter = '';
-
-						}
-					}
-
-					elseif ($cur_symbol == '{' || $cur_symbol == '[')
-						$depth++;
-					elseif ($cur_symbol == ']')
-						$depth--;
-					elseif ($cur_symbol == '}')
-					{
-						if ($depth == 0)
-						{
-							$end_pos = $i;
-							break;
-						}
-						else
-						{
-							$depth--;
-						}
-					}
-					elseif ($cur_symbol == ',' && $depth == 0 && !$bStringStarted)
-					{
-						$arCommaPos[] = $i;
-					}
-					$prev_symbol = $cur_symbol;
-				}
-
-				if ($end_pos == 0)
-					return false;
-
-				$token = mb_substr($data, 1, $end_pos - 1);
-
-				$arTokens = array();
-				if (count($arCommaPos) > 0)
-				{
-					$prev_index = 0;
-					foreach ($arCommaPos as $pos)
-					{
-						$arTokens[] = mb_substr($token, $prev_index, $pos - $prev_index - 1);
-						$prev_index = $pos;
-					}
-					$arTokens[] = mb_substr($token, $prev_index);
-				}
-				else
-				{
-					$arTokens[] = $token;
-				}
-
-				foreach ($arTokens as $token)
-				{
-					$arTokenData = explode(":", $token, 2);
-
-					$q = mb_substr($arTokenData[0], 0, 1);
-					if ($q == '"' || $q == '"')
-						$arTokenData[0] = mb_substr($arTokenData[0], 1, -1);
-					$arResult[CUtil::JsObjectToPhp($arTokenData[0], true)] = CUtil::JsObjectToPhp($arTokenData[1], true);
-				}
-			}
-			elseif (mb_substr($data, 0, 1) == '[') // array
-			{
-				$arResult = array();
-
-				$depth = 0;
-				$end_pos = 0;
-				$arCommaPos = array();
-				$bStringStarted = false;
-				$prev_symbol = "";
-				$string_delimiter = "";
-
-				for ($i = 1, $len = mb_strlen($data); $i < $len; $i++)
-				{
-					$cur_symbol = mb_substr($data, $i, 1);
-					if ($cur_symbol == '"' || $cur_symbol == "'")
-					{
-						if (
-							$prev_symbol != '\\' && (
-								!$string_delimiter || $string_delimiter == $cur_symbol
-							)
-						)
-						{
-							if ($bStringStarted = !$bStringStarted)
-								$string_delimiter = $cur_symbol;
-							else
-								$string_delimiter = '';
-
-						}
-					}
-					elseif ($cur_symbol == '{' || $cur_symbol == '[')
-						$depth++;
-					elseif ($cur_symbol == '}')
-						$depth--;
-					elseif ($cur_symbol == ']')
-					{
-						if ($depth == 0)
-						{
-							$end_pos = $i;
-							break;
-						}
-						else
-						{
-							$depth--;
-						}
-					}
-					elseif ($cur_symbol == ',' && $depth == 0 && !$bStringStarted)
-					{
-						$arCommaPos[] = $i;
-					}
-					$prev_symbol = $cur_symbol;
-				}
-
-				if ($end_pos == 0)
-					return false;
-
-				$token = mb_substr($data, 1, $end_pos - 1);
-
-				if (count($arCommaPos) > 0)
-				{
-					$prev_index = 0;
-					foreach ($arCommaPos as $pos)
-					{
-						$arResult[] = CUtil::JsObjectToPhp(mb_substr($token, $prev_index, $pos - $prev_index - 1), true);
-						$prev_index = $pos;
-					}
-					$r = CUtil::JsObjectToPhp(mb_substr($token, $prev_index), true);
-					if (isset($r))
-						$arResult[] = $r;
-				}
-				else
-				{
-					$r = CUtil::JsObjectToPhp($token, true);
-					if (isset($r))
-						$arResult[] = $r;
-				}
-			}
-			elseif ($data === "")
-			{
-				return null;
-			}
-			else // scalar
-			{
-				$q = mb_substr($data, 0, 1);
-				if ($q == '"' || $q == "'")
-					$data = mb_substr($data, 1, -1);
-
-				//\u0412\u0430\u0434\u0438\u043c
-				if(mb_strpos($data, '\u') !== false)
-					$data = preg_replace_callback("/\\\u([0-9A-F]{2})([0-9A-F]{2})/i", array('CUtil', 'DecodeUtf16'), $data);
-
-				$arResult = $data;
-			}
-		}
-
-		return $arResult;
-	}
-
-	public static function DecodeUtf16($ch)
-	{
-		$res = chr(hexdec($ch[2])).chr(hexdec($ch[1]));
-		return \Bitrix\Main\Text\Encoding::convertEncoding($res, "UTF-16", LANG_CHARSET);
-	}
-
-	public static function JSPostUnescape()
-	{
-	    if(!static::$alreadyDecodedRequest)
-	    {
-		    static::$alreadyDecodedRequest = true;
-		    CUtil::decodeURIComponent($_POST);
-		    CUtil::decodeURIComponent($_REQUEST);
-	    }
-	}
-
-	public static function decodeURIComponent(&$item)
-	{
-		if(defined("BX_UTF"))
-		{
-			return;
-		}
-
-		if(is_array($item))
-		{
-			array_walk($item, array('CUtil', 'decodeURIComponent'));
-		}
-		else
-		{
-			$item = Main\Text\Encoding::convertEncoding($item, "UTF-8", LANG_CHARSET);
-		}
-	}
-
-	public static function DetectUTF8($string)
-	{
-		//http://mail.nl.linux.org/linux-utf8/1999-09/msg00110.html
-
-		if(preg_match_all("/(?:%)([0-9A-F]{2})/i", $string, $match))
-		{
-			$string = pack("H*", strtr(implode('', $match[1]), 'abcdef', 'ABCDEF'));
-		}
-
-		//valid UTF-8 octet sequences
-		//0xxxxxxx
-		//110xxxxx 10xxxxxx
-		//1110xxxx 10xxxxxx 10xxxxxx
-		//11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-
-		$prevBits8and7 = 0;
-		$is_utf = 0;
-		foreach(unpack("C*", $string) as $byte)
-		{
-			$hiBits8and7 = $byte & 0xC0;
-			if ($hiBits8and7 == 0x80)
-			{
-				if ($prevBits8and7 == 0xC0)
-					$is_utf++;
-				elseif (($prevBits8and7 & 0x80) == 0x00)
-					$is_utf--;
-			}
-			elseif ($prevBits8and7 == 0xC0)
-			{
-					$is_utf--;
-			}
-			$prevBits8and7 = $hiBits8and7;
-		}
-		return ($is_utf > 0);
-	}
-
-	public static function ConvertToLangCharset($string)
-	{
-		$bUTF = CUtil::DetectUTF8($string);
-
-		$fromCP = $toCP = false;
-		if(defined("BX_UTF") && !$bUTF)
-		{
-			$fromCP = (defined("BX_DEFAULT_CHARSET")? BX_DEFAULT_CHARSET : "Windows-1251");
-			$toCP = "UTF-8";
-		}
-		elseif(!defined("BX_UTF") && $bUTF)
-		{
-			$fromCP = "UTF-8";
-			$toCP = (defined("LANG_CHARSET")? LANG_CHARSET : (defined("BX_DEFAULT_CHARSET")? BX_DEFAULT_CHARSET : "Windows-1251"));
-		}
-
-		if($fromCP !== false)
-			$string = \Bitrix\Main\Text\Encoding::convertEncoding($string, $fromCP, $toCP);
-
-		return $string;
-	}
-
-	public static function GetAdditionalFileURL($file, $bSkipCheck=false)
-	{
-		$filePath = $_SERVER['DOCUMENT_ROOT'].$file;
-		if($bSkipCheck || file_exists($filePath))
-			return $file.'?'.filemtime($filePath).filesize($filePath);
-		else
-			return $file;
-	}
-
-	public static function InitJSCore($arExt = array(), $bReturn = false)
-	{
-		
-		return CJSCore::Init($arExt, $bReturn);
-	}
-
-	public static function GetPopupSize($resize_id, $arDefaults = array())
-	{
-		if ($resize_id)
-		{
-			return CUserOptions::GetOption(
-				'BX.WindowManager.9.5',
-				'size_'.$resize_id,
-				array(
-					'width' => isset($arDefaults['width'])? $arDefaults['width']: null,
-					'height' => isset($arDefaults['height'])? $arDefaults['height']: null,
-				)
-			);
-		}
-		else
-			return false;
-	}
-
-	public static function GetPopupOptions($wnd_id)
-	{
-		if ($wnd_id)
-		{
-			return CUserOptions::GetOption(
-				'BX.WindowManager.9.5',
-				'options_'.$wnd_id
-			);
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	public static function SetPopupOptions($wnd_id, $arOptions)
-	{
-		if ($wnd_id)
-		{
-			CUserOptions::SetOption(
-				'BX.WindowManager.9.5',
-				'options_'.$wnd_id,
-				$arOptions
-			);
-		}
-	}
-
-	public static function translit($str, $lang, $params = array())
-	{
-		static $search = array();
-
-		if(!isset($search[$lang]))
-		{
-			$mess = IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/js_core_translit.php", $lang, true);
-			$trans_from = explode(",", $mess["TRANS_FROM"]);
-			$trans_to = explode(",", $mess["TRANS_TO"]);
-			foreach($trans_from as $i => $from)
-				$search[$lang][$from] = $trans_to[$i];
-		}
-
-		$defaultParams = array(
-			"max_len" => 100,
-			"change_case" => 'L', // 'L' - toLower, 'U' - toUpper, false - do not change
-			"replace_space" => '_',
-			"replace_other" => '_',
-			"delete_repeat_replace" => true,
-			"safe_chars" => '',
-		);
-		foreach($defaultParams as $key => $value)
-			if(!array_key_exists($key, $params))
-				$params[$key] = $value;
-
-		$len = mb_strlen($str);
-		$str_new = '';
-		$last_chr_new = '';
-
-		for($i = 0; $i < $len; $i++)
-		{
-			$chr = mb_substr($str, $i, 1);
-
-			if(preg_match("/[a-zA-Z0-9]/".BX_UTF_PCRE_MODIFIER, $chr) || mb_strpos($params["safe_chars"], $chr) !== false)
-			{
-				$chr_new = $chr;
-			}
-			elseif(preg_match("/\\s/".BX_UTF_PCRE_MODIFIER, $chr))
-			{
-				if (
-					!$params["delete_repeat_replace"]
-					||
-					($i > 0 && $last_chr_new != $params["replace_space"])
-				)
-					$chr_new = $params["replace_space"];
-				else
-					$chr_new = '';
-			}
-			else
-			{
-				if(array_key_exists($chr, $search[$lang]))
-				{
-					$chr_new = $search[$lang][$chr];
-				}
-				else
-				{
-					if (
-						!$params["delete_repeat_replace"]
-						||
-						($i > 0 && $i != $len-1 && $last_chr_new != $params["replace_other"])
-					)
-						$chr_new = $params["replace_other"];
-					else
-						$chr_new = '';
-				}
-			}
-
-			if($chr_new <> '')
-			{
-				if($params["change_case"] == "L" || $params["change_case"] == "l")
-				{
-					$chr_new = mb_strtolower($chr_new);
-				}
-				elseif($params["change_case"] == "U" || $params["change_case"] == "u")
-				{
-					$chr_new = mb_strtoupper($chr_new);
-				}
-
-				$str_new .= $chr_new;
-				$last_chr_new = $chr_new;
-			}
-
-			if (mb_strlen($str_new) >= $params["max_len"])
-				break;
-		}
-
-		return $str_new;
-	}
-
-	/**
-	 * @deprecated Use strlen()
-	 * @param $buf
-	 * @return int
-	 */
-	public static function BinStrlen($buf)
-	{
-		return strlen($buf);
-	}
-
-	/**
-	 * @deprecated Use substr()
-	 * @param $buf
-	 * @param $start
-	 * @param array $args
-	 * @return string
-	 */
-	public static function BinSubstr($buf, $start, ...$args)
-	{
-		return substr($buf, $start, ...$args);
-	}
-
-	/**
-	 * @deprecated Use strpos()
-	 * @param $haystack
-	 * @param $needle
-	 * @param int $offset
-	 * @return false|int
-	 */
-	public static function BinStrpos($haystack, $needle, $offset = 0)
-	{
-		return strpos($haystack, $needle, $offset);
-	}
-
-	/**
-	* Convert shorthand notation to integer equivalent
-	* @param string $str
-	* @return int
-	*
-	*/
-	public static function Unformat($str)
-	{
-		$str = mb_strtolower($str);
-		$res = intval($str);
-		$suffix = mb_substr($str, -1);
-		if($suffix == "k")
-			$res *= 1024;
-		elseif($suffix == "m")
-			$res *= 1048576;
-		elseif($suffix == "g")
-			$res *= 1048576*1024;
-		elseif($suffix == "b")
-			$res = self::Unformat(mb_substr($str, 0, -1));
-		return $res;
-	}
-
-	/**
-	 * Adjust php pcre.backtrack_limit
-	 * @param int $val
-	 * @return void
-	 *
-	 */
-	public static function AdjustPcreBacktrackLimit($val)
-	{
-		$val = intval($val);
-		if($val <=0 )
-			return;
-
-		$pcreBacktrackLimit = self::Unformat(ini_get("pcre.backtrack_limit"));
-		if($pcreBacktrackLimit < $val)
-			@ini_set("pcre.backtrack_limit", $val);
-	}
-
-	public static function getSitesByWizard($wizard)
-	{
-		static $list = [];
-
-		if (is_null($list[$wizard]))
-		{
-			$list[$wizard] = array();
-
-			if ('portal' == $wizard && Main\ModuleManager::isModuleInstalled('bitrix24'))
-			{
-				$list[$wizard] = Main\SiteTable::getByPrimary('s1')->fetchAll();
-			}
-			else if ($wizard <> '')
-			{
-				$res = Main\SiteTable::getList(['order' => ['DEF' => 'DESC', 'SORT' => 'ASC']]);
-				foreach ($res as $item)
-				{
-					if (Main\Config\Option::get('main', '~wizard_id', '', $item['LID']) === $wizard)
-					{
-						$list[$wizard][] = $item;
-					}
-				}
-			}
-		}
-
-		return $list[$wizard];
-	}
-}
-
-class CHTTP
-{
-	var $url = '';
-	var $status = 0;
-	var $result = '';
-	var $fp = null;
-	var $headers = array();
-	var $cookies = array();
-	var $http_timeout = 30;
-	var $user_agent;
-	var $follow_redirect = false;
-	var $errno;
-	var $errstr;
-	var $additional_headers = array();
-
-	private $redirectMax = 5;
-	private $redirectsMade = 0;
-	private static $lastSetStatus = "";
-
-	public function __construct()
-	{
-		$defaultOptions = \Bitrix\Main\Config\Configuration::getValue("http_client_options");
-		if(isset($defaultOptions["socketTimeout"]))
-		{
-			$this->http_timeout = intval($defaultOptions["socketTimeout"]);
-		}
-
-		$this->user_agent = 'BitrixSM ' . __CLASS__ . ' class';
-	}
-
-	public static function URN2URI($urn, $server_name = '')
-	{
-		/** @global CMain $APPLICATION */
-		global $APPLICATION;
-
-		if(preg_match("/^[a-z]+:\\/\\//", $urn))
-		{
-			$uri = $urn;
-		}
-		else
-		{
-			if($APPLICATION->IsHTTPS())
-				$proto = "https://";
-			else
-				$proto = "http://";
-
-			if($server_name <> '')
-				$server_name = preg_replace("/:(443|80)$/", "", $server_name);
-			else
-				$server_name = preg_replace("/:(443|80)$/", "", $_SERVER["HTTP_HOST"]);
-
-			$uri = $proto.$server_name.$urn;
-		}
-		return $uri;
-	}
-
-	public function Download($url, $file)
-	{
-		if (is_resource($file))
-		{
-			$this->fp = $file;
-		}
-		else
-		{
-			CheckDirPath($file);
-			$this->fp = fopen($file, "wb");
-		}
-
-		if(is_resource($this->fp))
-		{
-			$res = $this->HTTPQuery('GET', $url);
-
-			if (!is_resource($file))
-			{
-				fclose($this->fp);
-				unset($this->fp);
-			}
-
-			return $res && ($this->status == 200);
-		}
-		return false;
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 */
-	public function Get($url)
-	{
-		if ($this->HTTPQuery('GET', $url))
-		{
-			return $this->result;
-		}
-		return false;
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 */
-	public function Post($url, $arPostData)
-	{
-		$postdata = CHTTP::PrepareData($arPostData);
-
-		if($this->HTTPQuery('POST', $url, $postdata))
-		{
-			return $this->result;
-		}
-		return false;
-	}
-
-	public static function PrepareData($arPostData, $prefix = '')
-	{
-		$str = '';
-
-		if(!is_array($arPostData))
-		{
-			$str = $arPostData;
-		}
-		else
-		{
-			foreach ($arPostData as $key => $value)
-			{
-				$name = $prefix == "" ? urlencode($key) : $prefix."[".urlencode($key)."]";
-
-				if(is_array($value))
-				{
-					$str .= CHTTP::PrepareData($value, $name);
-				}
-				else
-				{
-					$str .= '&'.$name.'='.urlencode($value);
-				}
-			}
-		}
-
-		if($prefix == '' && mb_substr($str, 0, 1) == '&')
-		{
-			$str = mb_substr($str, 1);
-		}
-
-		return $str;
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 */
-	public function HTTPQuery($method, $url, $postdata = '')
-	{
-		if(is_resource($this->fp))
-			$file_pos = ftell($this->fp);
-
-		$this->redirectsMade = 0;
-
-		while (true)
-		{
-			$this->url = $url;
-			$arUrl = $this->ParseURL($url);
-			if (!$this->Query($method, $arUrl['host'], $arUrl['port'], $arUrl['path_query'], $postdata, $arUrl['proto']))
-			{
-				return false;
-			}
-
-			if(
-				$this->follow_redirect
-				&& isset($this->headers['Location'])
-				&& $this->headers['Location'] <> ''
-			)
-			{
-				$url = $this->headers['Location'];
-				if($this->redirectsMade < $this->redirectMax)
-				{
-					//When writing to file we have to discard
-					//redirect body
-					if(is_resource($this->fp))
-					{
-						/** @noinspection PhpUndefinedVariableInspection */
-						ftruncate($this->fp, $file_pos);
-						fseek($this->fp, $file_pos, SEEK_SET);
-					}
-					$this->redirectsMade++;
-					continue;
-				}
-				else
-				{
-					trigger_error("Maximum number of redirects (".$this->redirectMax.") has been reached at URL ".$url, E_USER_WARNING);
-					return false;
-				}
-			}
-			else
-			{
-				break;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 */
-	public function Query($method, $host, $port, $path, $postdata = false, $proto = '', $post_content_type = 'N', $dont_wait_answer = false)
-	{
-		$this->status = 0;
-		$this->result = '';
-		$this->headers = array();
-		$this->cookies = array();
-		$fp = fsockopen($proto.$host, $port, $this->errno, $this->errstr, $this->http_timeout);
-		if ($fp)
-		{
-			$strRequest = "$method $path HTTP/1.0\r\n";
-			$strRequest .= "Connection: close\r\n";
-			$strRequest .= "User-Agent: {$this->user_agent}\r\n";
-			$strRequest .= "Accept: */*\r\n";
-			$strRequest .= "Host: $host\r\n";
-			$strRequest .= "Accept-Language: en\r\n";
-
-			foreach ($this->additional_headers as $key => $value)
-				$strRequest .= $key.": ".$value."\r\n";
-
-			if ($method == 'POST' || $method == 'PUT')
-			{
-				if ('N' !== $post_content_type)
-					$strRequest .= $post_content_type == '' ? '' : "Content-type: ".$post_content_type."\r\n";
-				else
-					$strRequest.= "Content-type: application/x-www-form-urlencoded\r\n";
-
-				if(!array_key_exists("Content-Length", $this->additional_headers))
-					$strRequest.= "Content-Length: ".strlen($postdata) . "\r\n";
-			}
-			$strRequest .= "\r\n";
-			fwrite($fp, $strRequest);
-
-			if ($method == 'POST' || $method == 'PUT')
-			{
-				if(is_resource($postdata))
-				{
-					while(!feof($postdata))
-						fwrite($fp, fread($postdata, 1024*1024));
-				}
-				else
-				{
-					fwrite($fp, $postdata);
-				}
-			}
-
-			if ($dont_wait_answer)
-			{
-				fclose($fp);
-				return true;
-			}
-
-			$headers = "";
-			while(!feof($fp))
-			{
-				$line = fgets($fp, 4096);
-				if($line == "\r\n" || $line === false)
-				{
-					//$line = fgets($fp, 4096);
-					break;
-				}
-				$headers .= $line;
-			}
-			$this->ParseHeaders($headers);
-
-			if(is_resource($this->fp))
-			{
-				while(!feof($fp))
-				{
-					$buf = fread($fp, 40960);
-					if ($buf === false)
-						break;
-					fwrite($this->fp, $buf);
-					fflush($this->fp);
-				}
-			}
-			else
-			{
-				$this->result = "";
-				while(!feof($fp))
-				{
-					$buf = fread($fp, 4096);
-					if ($buf === false)
-						break;
-					$this->result .= $buf;
-				}
-			}
-
-			fclose($fp);
-
-			return true;
-		}
-
-		/** @global CMain $APPLICATION */
-		global $APPLICATION;
-		$APPLICATION->ThrowException(
-			GetMessage('HTTP_CLIENT_ERROR_CONNECT',
-				array(
-					'%ERRSTR%' => $this->errstr,
-					'%ERRNO%' => $this->errno,
-					'%HOST%' => $host,
-					'%PORT%' => $port,
-				)
-			)
-		);
-		return false;
-	}
-
-	public function SetAuthBasic($user, $pass)
-	{
-		$this->additional_headers['Authorization'] = "Basic ".base64_encode($user.":".$pass);
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\Uri
-	 */
-	public static function ParseURL($url)
-	{
-		$arUrl = parse_url($url);
-
-		$arUrl['proto'] = '';
-		if (array_key_exists('scheme', $arUrl))
-		{
-			$arUrl['scheme'] = mb_strtolower($arUrl['scheme']);
-		}
-		else
-		{
-			$arUrl['scheme'] = 'http';
-		}
-
-		if (!array_key_exists('port', $arUrl))
-		{
-			if ($arUrl['scheme'] == 'https')
-			{
-				$arUrl['port'] = 443;
-			}
-			else
-			{
-				$arUrl['port'] = 80;
-			}
-		}
-
-		if ($arUrl['scheme'] == 'https')
-		{
-			$arUrl['proto'] = 'ssl://';
-		}
-
-		$arUrl['path_query'] = array_key_exists('path', $arUrl) ? $arUrl['path'] : '/';
-		if (array_key_exists('query', $arUrl) && $arUrl['query'] <> '')
-		{
-			$arUrl['path_query'] .= '?' . $arUrl['query'];
-		}
-
-		return $arUrl;
-	}
-
-	public function ParseHeaders($strHeaders)
-	{
-		$arHeaders = explode("\n", $strHeaders);
-		foreach ($arHeaders as $k => $header)
-		{
-			if ($k == 0)
-			{
-				if (preg_match(',HTTP\S+ (\d+),', $header, $arFind))
-				{
-					$this->status = intval($arFind[1]);
-				}
-			}
-			elseif(mb_strpos($header, ':') !== false)
-			{
-				$arHeader = explode(':', $header, 2);
-				if ($arHeader[0] == 'Set-Cookie')
-				{
-					if (($pos = mb_strpos($arHeader[1], ';')) !== false && $pos > 0)
-					{
-						$cookie = trim(mb_substr($arHeader[1], 0, $pos));
-					}
-					else
-					{
-						$cookie = trim($arHeader[1]);
-					}
-					$arCookie = explode('=', $cookie, 2);
-					$this->cookies[$arCookie[0]] = rawurldecode($arCookie[1]);
-				}
-				else
-				{
-					$this->headers[$arHeader[0]] = trim($arHeader[1]);
-				}
-			}
-		}
-	}
-
-	public function setFollowRedirect($follow)
-	{
-		$this->follow_redirect = $follow;
-	}
-
-	public function setRedirectMax($n)
-	{
-		$this->redirectMax = $n;
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 */
-	public static function sGet($url, $follow_redirect = false) //static get
-	{
-		$ob = new CHTTP();
-		$ob->setFollowRedirect($follow_redirect);
-		return $ob->Get($url);
-	}
-
-	/**
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 */
-	public static function sPost($url, $arPostData, $follow_redirect = false) //static post
-	{
-		$ob = new CHTTP();
-		$ob->setFollowRedirect($follow_redirect);
-		return $ob->Post($url, $arPostData);
-	}
-
-	public function SetAdditionalHeaders($arHeader=array())
-	{
-		foreach($arHeader as $name => $value)
-		{
-			$name = str_replace(array("\r","\n"), "", $name);
-			$value = str_replace(array("\r","\n"), "", $value);
-			$this->additional_headers[$name] = $value;
-		}
-	}
-
-	/** Static Get with the ability to add headers and set the http timeout
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 * @static
-	 * @param $url
-	 * @param array $arHeader
-	 * @param int $httpTimeout
-	 * @return bool|string
-	 */
-	public static function sGetHeader($url, $arHeader = array(), $httpTimeout = 0)
-	{
-		$httpTimeout = intval($httpTimeout);
-		$ob = new CHTTP();
-		if(!empty($arHeader))
-			$ob->SetAdditionalHeaders($arHeader);
-		if($httpTimeout > 0)
-			$ob->http_timeout = $httpTimeout;
-
-		return $ob->Get($url);
-	}
-
-	/** Static Post with the ability to add headers and set the http timeout
-	 * @deprecated Use Bitrix\Main\Web\HttpClient
-	 * @static
-	 * @param $url
-	 * @param $arPostData
-	 * @param array $arHeader
-	 * @param int $http_timeout
-	 * @return bool|string
-	 */
-	public static function sPostHeader($url, $arPostData, $arHeader = array(), $http_timeout = 0)
-	{
-		$http_timeout = intval($http_timeout);
-		$ob = new CHTTP();
-		if(!empty($arHeader))
-			$ob->SetAdditionalHeaders($arHeader);
-		if($http_timeout > 0)
-			$ob->http_timeout = $http_timeout;
-		return $ob->Post($url, $arPostData);
-	}
-
-	public static function SetStatus($status)
-	{
-		$bCgi = (stristr(php_sapi_name(), "cgi") !== false);
-		if($bCgi && (!defined("BX_HTTP_STATUS") || BX_HTTP_STATUS == false))
-			header("Status: ".$status);
-		else
-			header($_SERVER["SERVER_PROTOCOL"]." ".$status);
-		self::$lastSetStatus = $status;
-	}
-
-	public static function GetLastStatus()
-	{
-		return self::$lastSetStatus;
-	}
-
-	public static function SetAuthHeader($bDigestEnabled=true)
-	{
-		self::SetStatus('401 Unauthorized');
-
-		if(defined('BX_HTTP_AUTH_REALM'))
-			$realm = BX_HTTP_AUTH_REALM;
-		else
-			$realm = "Bitrix Site Manager";
-
-		header('WWW-Authenticate: Basic realm="'.$realm.'"');
-
-		if($bDigestEnabled !== false && COption::GetOptionString("main", "use_digest_auth", "N") == "Y")
-		{
-			// On first try we found that we don't know user digest hash. Let ask only Basic auth first.
-			if(\Bitrix\Main\Application::getInstance()->getKernelSession()->get("BX_HTTP_DIGEST_ABSENT") !== true)
-				header('WWW-Authenticate: Digest realm="'.$realm.'", nonce="'.uniqid().'"');
-		}
-	}
-
-	public static function ParseAuthRequest()
-	{
-		$sDigest = '';
-
-		if(isset($_SERVER['PHP_AUTH_USER']) && $_SERVER['PHP_AUTH_USER'] <> '')
-		{
-			// Basic Authorization PHP module
-			return array("basic"=>array(
-				"username"=>CUtil::ConvertToLangCharset($_SERVER['PHP_AUTH_USER']),
-				"password"=>CUtil::ConvertToLangCharset($_SERVER['PHP_AUTH_PW']),
-			));
-		}
-		elseif(isset($_SERVER['PHP_AUTH_DIGEST']) && $_SERVER['PHP_AUTH_DIGEST'] <> '')
-		{
-			// Digest Authorization PHP module
-			$sDigest = $_SERVER['PHP_AUTH_DIGEST'];
-		}
-		else
-		{
-			if(isset($_SERVER['REDIRECT_REMOTE_USER']) || isset($_SERVER['REMOTE_USER']))
-			{
-				$res = (isset($_SERVER['REDIRECT_REMOTE_USER'])? $_SERVER['REDIRECT_REMOTE_USER'] : $_SERVER['REMOTE_USER']);
-				if($res <> '')
-				{
-					if(preg_match('/^\x20*Basic\x20+([a-zA-Z0-9+\/=]+)\s*$/D', $res, $matches))
-					{
-						// Basic Authorization PHP FastCGI (CGI)
-						$res = trim($matches[1]);
-						$res = base64_decode($res);
-						$res = CUtil::ConvertToLangCharset($res);
-						list($user, $pass) = explode(':', $res, 2);
-						if(mb_strpos($user, $_SERVER['HTTP_HOST']."\\") === 0)
-							$user = str_replace($_SERVER['HTTP_HOST']."\\", "", $user);
-						elseif(mb_strpos($user, $_SERVER['SERVER_NAME']."\\") === 0)
-							$user = str_replace($_SERVER['SERVER_NAME']."\\", "", $user);
-
-						return array("basic"=>array(
-							"username"=>$user,
-							"password"=>$pass,
-						));
-					}
-					elseif(preg_match('/^\x20*Digest\x20+(.*)$/sD', $res, $matches))
-					{
-						// Digest Authorization PHP FastCGI (CGI)
-						$sDigest = trim($matches[1]);
-					}
-				}
-			}
-		}
-
-		if($sDigest <> '' && ($data = self::ParseDigest($sDigest)))
-			return array("digest"=>$data);
-
-		return false;
-	}
-
-	public static function ParseDigest($sDigest)
-	{
-		$data = array();
-		$needed_parts = array('nonce'=>1, 'username'=>1, 'uri'=>1, 'response'=>1);
-		$keys = implode('|', array_keys($needed_parts));
-
-		//from php help
-		preg_match_all('@('.$keys.')=(?:([\'"])([^\2]+?)\2|([^\s,]+))@', $sDigest, $matches, PREG_SET_ORDER);
-
-		foreach ($matches as $m)
-		{
-			$data[$m[1]] = ($m[3]? $m[3] : $m[4]);
-			unset($needed_parts[$m[1]]);
-		}
-
-		return ($needed_parts? false : $data);
-	}
-
-	public static function urlAddParams($url, $add_params, $options = array())
-	{
-		if(count($add_params))
-		{
-			$params = array();
-			foreach($add_params as $name => $value)
-			{
-				if(($options["skip_empty"] ?? false) && (string)$value == '')
-					continue;
-				if(($options["encode"] ?? false))
-					$params[] = urlencode($name).'='.urlencode($value);
-				else
-					$params[] = $name.'='.$value;
-			}
-
-			if(count($params))
-			{
-				$p1 = mb_strpos($url, "?");
-				if($p1 === false)
-					$ch = "?";
-				else
-					$ch = "&";
-
-				$p2 = mb_strpos($url, "#");
-				if($p2===false)
-				{
-					$url = $url.$ch.implode("&", $params);
-				}
-				else
-				{
-					$url = mb_substr($url, 0, $p2).$ch.implode("&", $params).mb_substr($url, $p2);
-				}
-			}
-		}
-		return $url;
-	}
-
-	public static function urlDeleteParams($url, $delete_params, $options = array())
-	{
-		$url_parts = explode("?", $url, 2);
-		if(count($url_parts) == 2 && $url_parts[1] <> '')
-		{
-			if(($options["delete_system_params"] ?? false))
-				$delete_params = array_merge($delete_params, \Bitrix\Main\HttpRequest::getSystemParameters());
-
-			$params_pairs = explode("&", $url_parts[1]);
-			foreach($params_pairs as $i => $param_pair)
-			{
-				$name_value_pair = explode("=", $param_pair, 2);
-				if(count($name_value_pair) == 2 && in_array($name_value_pair[0], $delete_params))
-					unset($params_pairs[$i]);
-			}
-
-			if(empty($params_pairs))
-				return $url_parts[0];
-			else
-				return $url_parts[0]."?".implode("&", $params_pairs);
-		}
-
-		return $url;
-	}
-
-	public static function urnEncode($str, $charset = false)
-	{
-		$result = '';
-		$arParts = preg_split("#(://|:\\d+/|/|\\?|=|&)#", $str, -1, PREG_SPLIT_DELIM_CAPTURE);
-
-		if($charset === false)
-		{
-			foreach($arParts as $i => $part)
-			{
-				$result .= ($i % 2) ? $part : rawurlencode($part);
-			}
-		}
-		else
-		{
-			foreach($arParts as $i => $part)
-			{
-				$result .= ($i % 2)
-					? $part
-					: rawurlencode(Main\Text\Encoding::convertEncoding($part, LANG_CHARSET, $charset));
-			}
-		}
-		return $result;
-	}
-
-	public static function urnDecode($str, $charset = false)
-	{
-		$result = '';
-		$arParts = preg_split("#(://|:\\d+/|/|\\?|=|&)#", $str, -1, PREG_SPLIT_DELIM_CAPTURE);
-
-		if($charset === false)
-		{
-			foreach($arParts as $i => $part)
-			{
-				$result .= ($i % 2) ? $part : rawurldecode($part);
-			}
-		}
-		else
-		{
-			foreach($arParts as $i => $part)
-			{
-				$result .= ($i % 2)
-					? $part
-					: rawurldecode(Main\Text\Encoding::convertEncoding($part, LANG_CHARSET, $charset));
-			}
-		}
-		return $result;
-	}
-
-	// search for /../ and ulrencoded /../
-	public static function isPathTraversalUri($uri)
-	{
-		if (($pos = mb_strpos($uri, "?")) !== false)
-			$uri = mb_substr($uri, 0, $pos);
-
-		$uri = trim($uri);
-		return preg_match("#(?:/|2f|^|\\\\|5c)(?:(?:%0*(25)*2e)|\\.){2,}(?:/|%0*(25)*2f|\\\\|%0*(25)*5c|$)#i", $uri) ? true : false;
-	}
 }
 
 function GetMenuTypes($site=false, $default_value=false)
@@ -6000,7 +4408,7 @@ function NormalizePhone($number, $minLength = 10)
 		return false;
 	}
 
-	if (mb_strlen($number) >= 10 && mb_substr($number, 0, 2) == '+8')
+	if (mb_strlen($number) >= 10 && mb_substr($number, 0, 2) === '+8')
 	{
 		$number = '00'.mb_substr($number, 1);
 	}
@@ -6056,13 +4464,18 @@ function bxmail($to, $subject, $message, $additional_headers="", $additional_par
 	$event->send();
 
 	$defaultMailConfiguration = Configuration::getValue("smtp");
+	$smtpEnabled =
+		is_array($defaultMailConfiguration)
+		&& isset($defaultMailConfiguration['enabled'])
+		&& $defaultMailConfiguration['enabled'] === true
+	;
+
 	if (
-		$defaultMailConfiguration
-		&& $defaultMailConfiguration['enabled']
-		&& $context->getSmtp()
-		|| $defaultMailConfiguration['enabled']
-		&& $defaultMailConfiguration['host']
-		&& $defaultMailConfiguration['login']
+		$smtpEnabled
+		&& (
+			$context->getSmtp() !== null
+			|| (!empty($defaultMailConfiguration['host']) && !empty($defaultMailConfiguration['login']))
+		)
 	)
 	{
 		$mailer = Main\Mail\Smtp\Mailer::getInstance($context);
@@ -6092,10 +4505,12 @@ function bx_accelerator_reset()
 		wincache_refresh_if_changed();
 }
 
+/**
+ * @deprecated Use \Bitrix\Main\Config\Ini::getBool().
+ */
 function ini_get_bool($param)
 {
-	$val = ini_get($param);
-	return ($val == '1' || mb_strtolower($val) == 'on');
+	return Main\Config\Ini::getBool((string)$param);
 }
 
 /**

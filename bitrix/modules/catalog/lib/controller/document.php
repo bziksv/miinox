@@ -2,62 +2,85 @@
 
 namespace Bitrix\Catalog\Controller;
 
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Access\Model\StoreDocument;
 use Bitrix\Main\Engine\CurrentUser;
-
-use Bitrix\Main\Engine;
 use Bitrix\Catalog\StoreDocumentTable;
-use Bitrix\Catalog\RestView;
+use Bitrix\Main\Engine\Response\DataType\Page;
 use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Result;
+use Bitrix\Main\UI\PageNavigation;
+use CApplicationException;
 use CCatalogDocs;
+use CMain;
 
-class Document extends Engine\Controller
+class Document extends Controller
 {
-	private const LIST_COUNT_DEFAULT = 50;
-	private const LIST_COUNT_LIMIT = 500;
-
-	private const REST_AVAILABLE_DOC_TYPE = [
-		StoreDocumentTable::TYPE_ARRIVAL,
-		StoreDocumentTable::TYPE_STORE_ADJUSTMENT,
-	];
-
-	private function getDocumentData($documentIds)
+	//region Actions
+	/**
+	 * @return array
+	 */
+	public function getFieldsAction(): array
 	{
-		$documentTitlesRes = StoreDocumentTable::getList(['select' => ['ID', 'DOC_TYPE', 'TITLE'], 'filter' => ['ID' => $documentIds]]);
-		$documentTitles = [];
-		while ($document = $documentTitlesRes->fetch())
-		{
-			$documentTitles[$document['ID']] = [
-				'TITLE' => $document['TITLE'],
-				'DOC_TYPE' => $document['DOC_TYPE'],
-			];
-		}
-
-		return $documentTitles;
+		return ['DOCUMENT' => $this->getViewFields()];
 	}
 
-	public function conductListAction($documentIds)
+	/**
+	 * @param array $documentIds
+	 *
+	 * @return null|bool
+	 */
+	public function conductListAction(array $documentIds): ?bool
 	{
-		if (!$this->checkDocumentWriteRights())
-		{
-			$this->addError(new Error(Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR')));
-			return [];
-		}
-
 		if (!\Bitrix\Catalog\Component\UseStore::isUsed())
 		{
 			$this->addError(new Error(Loc::getMessage('DOCUMENT_CONTROLLER_MANAGEMENT_NOT_ENABLED')));
-			return [];
+
+			return null;
 		}
 
 		global $APPLICATION;
 
 		$documentData = $this->getDocumentData($documentIds);
+
 		$userId = CurrentUser::get()->getId();
 		foreach ($documentIds as $documentId)
 		{
+			$document = $documentData[$documentId] ?? null;
+			if (!$document)
+			{
+				$this->addError(
+					new Error(Loc::getMessage(
+						'CATALOG_CONTROLLER_DOCUMENT_CONDUCT_GENERAL_ERROR',
+						[
+							'#ERROR#' => Loc::getMessage('CATALOG_CONTROLLER_DOCUMENT_NOT_FOUND'),
+						]
+					))
+				);
+				continue;
+			}
+
+			$documentTitle = $document['TITLE'] ?: StoreDocumentTable::getTypeList(true)[$document['DOC_TYPE']];
+
+			$can = $this->accessController->check(
+				ActionDictionary::ACTION_STORE_DOCUMENT_CONDUCT,
+				StoreDocument::createFromArray($document)
+			);
+			if (!$can)
+			{
+				$this->addError(
+					new Error(Loc::getMessage('CATALOG_CONTROLLER_DOCUMENT_CONDUCT_ERROR',
+						[
+							'#DOC_TITLE#' => htmlspecialcharsbx($documentTitle),
+							'#ERROR#' => Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR'),
+						]
+					))
+				);
+				continue;
+			}
+
 			$isConducted = \CCatalogDocs::conductDocument($documentId, $userId);
-			$documentTitle = $documentData[$documentId]['TITLE'] ?: StoreDocumentTable::getTypeList(true)[$documentData[$documentId]['DOC_TYPE']];
 			if (!$isConducted)
 			{
 				if ($APPLICATION->GetException())
@@ -86,21 +109,26 @@ class Document extends Engine\Controller
 			}
 		}
 
-		return [];
-	}
-
-	public function cancelListAction($documentIds)
-	{
-		if (!$this->checkDocumentWriteRights())
+		if (!$this->errorCollection->isEmpty())
 		{
-			$this->addError(new Error(Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR')));
-			return [];
+			return null;
 		}
 
+		return true;
+	}
+
+	/**
+	 * @param $documentIds
+	 *
+	 * @return bool|null
+	 */
+	public function cancelListAction(array $documentIds): ?bool
+	{
 		if (!\Bitrix\Catalog\Component\UseStore::isUsed())
 		{
 			$this->addError(new Error(Loc::getMessage('DOCUMENT_CONTROLLER_MANAGEMENT_NOT_ENABLED')));
-			return [];
+
+			return null;
 		}
 
 		global $APPLICATION;
@@ -109,12 +137,44 @@ class Document extends Engine\Controller
 		$userId = CurrentUser::get()->getId();
 		foreach ($documentIds as $documentId)
 		{
+			$document = $documentData[$documentId] ?? null;
+			if (!$document)
+			{
+				$this->addError(
+					new Error(Loc::getMessage(
+						'CATALOG_CONTROLLER_DOCUMENT_CANCEL_ERROR',
+						[
+							'#ERROR#' => Loc::getMessage('CATALOG_CONTROLLER_DOCUMENT_NOT_FOUND'),
+						]
+					))
+				);
+				continue;
+			}
+
+			$documentTitle = $document['TITLE'] ?: StoreDocumentTable::getTypeList(true)[$document['DOC_TYPE']];
+
+			$can = $this->accessController->check(
+				ActionDictionary::ACTION_STORE_DOCUMENT_CONDUCT,
+				StoreDocument::createFromArray($document)
+			);
+			if (!$can)
+			{
+				$this->addError(
+					new Error(Loc::getMessage('DOCUMENT_CONTROLLER_CANCEL_ERROR',
+						[
+							'#DOC_TITLE#' => htmlspecialcharsbx($documentTitle),
+							'#ERROR#' => Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR'),
+						]
+					))
+				);
+				continue;
+			}
+
 			$isCancelled = \CCatalogDocs::cancellationDocument($documentId, $userId);
 			if (!$isCancelled)
 			{
 				if ($APPLICATION->GetException())
 				{
-					$documentTitle = $documentData[$documentId]['TITLE'] ?: StoreDocumentTable::getTypeList(true)[$documentData[$documentId]['DOC_TYPE']];
 					$this->addError(
 						new Error(Loc::getMessage(
 							'DOCUMENT_CONTROLLER_CANCEL_ERROR',
@@ -140,20 +200,17 @@ class Document extends Engine\Controller
 				}
 			}
 		}
+
+		if (!$this->errorCollection->isEmpty())
+		{
+			return null;
+		}
+
+		return true;
 	}
 
-	private function prepareFields($fields)
+	private function prepareFieldsAdd($fields)
 	{
-		if (array_key_exists('DOC_TYPE', $fields))
-		{
-			if (!in_array($fields['DOC_TYPE'], self::REST_AVAILABLE_DOC_TYPE, true))
-			{
-				return [
-					'error' => 'ERROR_DOC_TYPE_VALUE',
-					'error_description' => 'DOC_TYPE isn\'t available'
-				];
-			}
-		}
 		if (!array_key_exists('SITE_ID', $fields))
 		{
 			if (defined('SITE_ID'))
@@ -183,63 +240,57 @@ class Document extends Engine\Controller
 	 * Adds new document.
 	 * @param array $fields
 	 *
-	 * @return bool|int|array
+	 * @return null|array
 	 */
-	public function addAction(array $fields)
+	public function addAction(array $fields): ?array
 	{
-		if (!$this->checkDocumentWriteRights())
-		{
-			$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR');
-			$this->addError(new Error($message));
+		$docType = $fields['DOC_TYPE'] ?? null;
 
-			return [
-				'error' => 'ERROR_DOCUMENT_RIGHT',
-				'error_description' => $message,
-			];
+		$availableTypes = self::getAvailableRestDocumentTypes();
+		if (!isset($availableTypes[$docType]))
+		{
+			$this->addError(new Error('DOC_TYPE isn\'t available'));
+
+			return null;
 		}
 
-		$view = new RestView\Document();
-		$fields = $this->prepareFields($fields);
-		if (!empty($fields['error']) && !empty($fields['error_description']))
+		if (!$this->accessController->check(ActionDictionary::ACTION_STORE_DOCUMENT_MODIFY, StoreDocument::createFromArray($fields)))
 		{
-			$result = $fields;
+			$this->addError(
+				new Error(Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR'))
+			);
+
+			return null;
 		}
-		else
+
+		$fields = $this->prepareFieldsAdd($fields);
+		$addResult = CCatalogDocs::add($fields);
+		if (!$addResult)
 		{
-			$fields = $view->internalizeFieldsAdd($fields);
-			$result = CCatalogDocs::add($fields);
-			if (!$result)
+			global $APPLICATION;
+			if ($APPLICATION->GetException())
 			{
-				global $APPLICATION;
-				if ($APPLICATION->GetException())
-				{
-					$exception = $APPLICATION->GetException();
-					$result = [
-						'error' => 'ERROR_DOCUMENT_ADD',
-						'error_description' => $exception->GetString(),
-					];
-					$APPLICATION->ResetException();
-				}
+				$exception = $APPLICATION->GetException();
+				$this->addError(new Error($exception->GetString()));
+				$APPLICATION->ResetException();
+
+				return null;
 			}
 		}
 
-		return $result;
+		return ['DOCUMENT' => $this->get($addResult)];
 	}
 
 	/**
+	 * @deprecated
+	 *
 	 * Return documents fields.
 	 *
 	 * @return array
 	 */
 	public function fieldsAction(): array
 	{
-		if (!$this->checkDocumentReadRights())
-		{
-			return [];
-		}
-
-		$view = new RestView\Document();
-		return $view->getFields();
+		return [$this->getViewFields()];
 	}
 
 	/**
@@ -247,67 +298,92 @@ class Document extends Engine\Controller
 	 * @param int $id
 	 * @param array $fields
 	 *
-	 * @return bool|array
+	 * @return null|array
 	 */
-	public function updateAction(int $id, array $fields)
+	public function updateAction(int $id, array $fields): ?array
 	{
-		if (!$this->checkDocumentWriteRights())
+		if (!$this->checkDocumentAccess(ActionDictionary::ACTION_STORE_DOCUMENT_MODIFY, $id))
 		{
-			$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR');
-			$this->addError(new Error($message));
-
-			return [
-				'error' => 'ERROR_DOCUMENT_RIGHT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
-		$view = new RestView\Document();
-		$fields = $this->prepareFields($fields);
-		if (!empty($fields['error']) && !empty($fields['error_description']))
+		$user = CurrentUser::get();
+		if (!array_key_exists('MODIFIED_BY', $fields) || !$user->isAdmin())
 		{
-			$result = $fields;
+			$fields['MODIFIED_BY'] = $user->getId();
 		}
-		else
+
+		$result = CCatalogDocs::update($id, $fields);
+		if (!$result)
 		{
-			$fields = $view->internalizeFieldsUpdate($fields);
-			$result = CCatalogDocs::update($id, $fields);
-			if (!$result)
+			global $APPLICATION;
+			if ($APPLICATION->GetException())
 			{
-				global $APPLICATION;
-				if ($APPLICATION->GetException())
-				{
-					$exception = $APPLICATION->GetException();
-					$result = [
-						'error' => 'ERROR_DOCUMENT_UPDATE',
-						'error_description' => $exception->GetString(),
-					];
-					$APPLICATION->ResetException();
-				}
+				$exception = $APPLICATION->GetException();
+				$this->addError(new Error($exception->GetString()));
+				$APPLICATION->ResetException();
+
+				return null;
 			}
 		}
 
-		return $result;
+		return ['DOCUMENT' => $this->get($id)];
 	}
 
-	public function deleteListAction($documentIds)
+	/**
+	 * @param array $documentIds
+	 *
+	 * @return bool|null
+	 */
+	public function deleteListAction(array $documentIds): ?bool
 	{
-		if (!$this->checkDocumentWriteRights())
-		{
-			$this->addError(new Error(Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR')));
-			return [];
-		}
-
 		global $APPLICATION;
 
+		/**
+		 * @var CMain $APPLICATION
+		 */
+
 		$documentData = $this->getDocumentData($documentIds);
+
 		foreach ($documentIds as $documentId)
 		{
-			\CCatalogDocs::delete($documentId);
-			if ($APPLICATION->GetException())
+			$exception = null;
+			$document = $documentData[(int)$documentId] ?? null;
+
+			if (!$document)
 			{
-				$documentTitle = $documentData[$documentId]['TITLE'] ?: StoreDocumentTable::getTypeList(true)[$documentData[$documentId]['DOC_TYPE']];
+				$this->addError(
+					new Error(Loc::getMessage(
+						'DOCUMENT_CONTROLLER_DELETE_ERROR',
+						[
+							'#DOC_TITLE#' => "#{$documentId}",
+							'#ERROR#' => Loc::getMessage('CATALOG_CONTROLLER_DOCUMENT_NOT_FOUND'),
+						]
+					))
+				);
+				continue;
+			}
+
+			$can = $this->accessController->check(
+				ActionDictionary::ACTION_STORE_DOCUMENT_DELETE,
+				StoreDocument::createFromArray($document)
+			);
+			if ($can)
+			{
+				\CCatalogDocs::delete($documentId);
+
 				$exception = $APPLICATION->GetException();
+			}
+			else
+			{
+				$exception = new CApplicationException(
+					Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR')
+				);
+			}
+
+			if ($exception)
+			{
+				$documentTitle = $document['TITLE'] ?: StoreDocumentTable::getTypeList(true)[$document['DOC_TYPE']];
 				if ($exception->GetID() === CCatalogDocs::DELETE_CONDUCTED_ERROR)
 				{
 					$this->addError(
@@ -335,43 +411,25 @@ class Document extends Engine\Controller
 				$APPLICATION->ResetException();
 			}
 		}
+
+		return $this->errorCollection->isEmpty() ? true : null;
 	}
 
 	/**
 	 * Deletes document by id.
 	 * @param int $id
 	 *
-	 * @return bool|array
+	 * @return null|bool
 	 */
-	public function deleteAction(int $id)
+	public function deleteAction(int $id): ?bool
 	{
-		if (!$this->checkDocumentWriteRights())
+		if (!$this->checkDocumentAccess(ActionDictionary::ACTION_STORE_DOCUMENT_DELETE, $id))
 		{
-			$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR');
-			$this->addError(new Error($message));
-
-			return [
-				'error' => 'ERROR_DOCUMENT_RIGHT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
-		$list = CCatalogDocs::getList(
-			[],
-			[
-				'=ID' => $id
-			],
-			false,
-			false,
-			[
-				'ID',
-			]
-		);
-		if ($item = $list->fetch())
-		{
-			$res = CCatalogDocs::delete($id);
-		}
-		else
+		$deleteResult = CCatalogDocs::delete($id);
+		if (!$deleteResult)
 		{
 			$message = Loc::getMessage('CATALOG_CONTROLLER_DOCUMENT_NOT_FOUND');
 
@@ -379,10 +437,7 @@ class Document extends Engine\Controller
 				new Error($message)
 			);
 
-			return [
-				'error' => 'ERROR_DELETE_DOCUMENT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
 		global $APPLICATION;
@@ -414,13 +469,10 @@ class Document extends Engine\Controller
 
 			$APPLICATION->ResetException();
 
-			return [
-				'error' => 'ERROR_DELETE_DOCUMENT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
-		return $res;
+		return $deleteResult;
 	}
 
 	/**
@@ -429,70 +481,40 @@ class Document extends Engine\Controller
 	 * @param array $order
 	 * @param array $filter
 	 * @param array $select
-	 * @param int $offset
-	 * @param int $limit
+	 * @param PageNavigation $pageNavigation
 	 *
 	 * @return array
 	 */
 	public function listAction(
+		PageNavigation $pageNavigation,
 		array $order = [],
 		array $filter = [],
-		array $select = [],
-		int $offset = 0,
-		int $limit = self::LIST_COUNT_DEFAULT
-	): array
+		array $select = []
+	): Page
 	{
-		if (!$this->checkDocumentReadRights())
-		{
-			return [];
-		}
+		// set available types for REST
+		$filter = [
+			'=DOC_TYPE' => array_keys(self::getAvailableRestDocumentTypes()),
+			$filter,
+		];
 
-		if ($limit <= 0)
-		{
-			$limit = self::LIST_COUNT_DEFAULT;
-		}
-		elseif ($limit > self::LIST_COUNT_LIMIT)
-		{
-			$limit = self::LIST_COUNT_LIMIT;
-		}
-
-		$result = [];
-		$view = new RestView\Document();
-		$data = $view->internalizeFieldsList(
-			[
-				'order' => $order,
-				'filter' => $filter,
-				'select' => $select,
-			]
+		$accessFilter = $this->accessController->getEntityFilter(
+			ActionDictionary::ACTION_STORE_DOCUMENT_VIEW,
+			get_class($this->getEntityTable())
 		);
-		$page = 1 + (int)($offset / $limit);
+		if ($accessFilter)
+		{
+			// combines through a new array so that the `OR` condition does not bypass the access filter.
+			$filter = [
+				$accessFilter,
+				$filter,
+			];
+		}
 
-		$res = CCatalogDocs::getList(
-			$data['order'],
-			$data['filter'],
-			false,
-			[
-				'nPageSize' => $limit,
-				'iNumPage' => $page,
-			],
-			$data['select'],
+		return new Page('DOCUMENTS',
+			$this->getList($select, $filter, $order, $pageNavigation),
+			$this->count($filter)
 		);
-
-		while ($document = $res->fetch())
-		{
-			$result[] = $document;
-		}
-
-		if ($offset >= 0)
-		{
-			$result['total'] = $res->nSelectedCount;
-			if ($res->nSelectedCount > $offset + $limit)
-			{
-				$result['next'] = $page * $limit;
-			}
-		}
-
-		return $result;
 	}
 
 	/**
@@ -500,19 +522,27 @@ class Document extends Engine\Controller
 	 *
 	 * @param int $id
 	 *
-	 * @return bool|array
+	 * @return bool|null
 	 */
-	public function confirmAction(int $id)
+	public function conductAction(int $id): ?bool
 	{
-		if (!$this->checkDocumentWriteRights())
-		{
-			$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR');
-			$this->addError(new Error($message));
+		return $this->confirmAction($id);
+	}
 
-			return [
-				'error' => 'ERROR_DOCUMENT_RIGHT',
-				'error_description' => $message,
-			];
+	/**
+	 * Conducts document.
+	 *
+	 * @deprecated
+	 *
+	 * @param int $id
+	 *
+	 * @return bool|null
+	 */
+	public function confirmAction(int $id): ?bool
+	{
+		if (!$this->checkDocumentAccess(ActionDictionary::ACTION_STORE_DOCUMENT_CONDUCT, $id))
+		{
+			return null;
 		}
 
 		$document = StoreDocumentTable::getById($id)->fetch();
@@ -523,10 +553,7 @@ class Document extends Engine\Controller
 				new Error($message)
 			);
 
-			return [
-				'error' => 'ERROR_DOCUMENT_NOT_FOUND',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
 		$userId = CurrentUser::get()->getId();
@@ -536,6 +563,7 @@ class Document extends Engine\Controller
 			$error = '';
 
 			global $APPLICATION;
+
 			if ($APPLICATION->GetException())
 			{
 				$error = $APPLICATION->GetException()->GetString();
@@ -551,13 +579,22 @@ class Document extends Engine\Controller
 
 			$this->addError(new Error($message));
 
-			return [
-				'error' => 'ERROR_CONFIRM_DOCUMENT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
 		return true;
+	}
+
+	/**
+	 * Cancel document.
+	 *
+	 * @param int $id
+	 *
+	 * @return bool|null
+	 */
+	public function cancelAction(int $id): ?bool
+	{
+		return $this->unconfirmAction($id);
 	}
 
 	/**
@@ -565,19 +602,13 @@ class Document extends Engine\Controller
 	 *
 	 * @param int $id
 	 *
-	 * @return bool|array
+	 * @return bool|null
 	 */
-	public function unconfirmAction(int $id)
+	public function unconfirmAction(int $id): ?bool
 	{
-		if (!$this->checkDocumentWriteRights())
+		if (!$this->checkDocumentAccess(ActionDictionary::ACTION_STORE_DOCUMENT_CONDUCT, $id))
 		{
-			$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR');
-			$this->addError(new Error($message));
-
-			return [
-				'error' => 'ERROR_DOCUMENT_RIGHT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
 		$userId = CurrentUser::get()->getId();
@@ -592,7 +623,7 @@ class Document extends Engine\Controller
 				$APPLICATION->ResetException();
 			}
 
-			$message = Loc::getMessage(
+				$message = Loc::getMessage(
 				'CATALOG_CONTROLLER_DOCUMENT_CANCEL_ERROR',
 				[
 					'#ERROR#' => $error,
@@ -600,27 +631,127 @@ class Document extends Engine\Controller
 			);
 			$this->addError(new Error($message));
 
-			return [
-				'error' => 'ERROR_UNCONFIRM_DOCUMENT',
-				'error_description' => $message,
-			];
+			return null;
 		}
 
 		return true;
 	}
 
-	private function checkDocumentWriteRights(): bool
+	/**
+	 * @return array
+	 */
+	public static function getAvailableRestDocumentTypes(): array
 	{
-		return \Bitrix\Main\Engine\CurrentUser::get()->canDoOperation(Controller::CATALOG_STORE);
+		$types = StoreDocumentTable::getTypeList(true);
+		unset($types[StoreDocumentTable::TYPE_UNDO_RESERVE]);
+
+		return $types;
 	}
 
-	private function checkDocumentReadRights(): bool
+	/**
+	 * @param $name
+	 * @param $arguments
+	 * @return Result
+	 * @throws \Bitrix\Main\NotImplementedException
+	 */
+	protected function checkPermissionEntity($name, $arguments=[])
 	{
-		$currentUser = \Bitrix\Main\Engine\CurrentUser::get();
+		$name = mb_strtolower($name);
+		if ($name === 'fields')
+		{
+			return $this->checkGetFieldsPermissionEntity();
+		}
 
-		return
-			$currentUser->canDoOperation(Controller::CATALOG_STORE)
-			|| $currentUser->canDoOperation(Controller::CATALOG_READ)
-		;
+		if (in_array($name, ['conductlist', 'cancellist', 'unconfirm', 'confirm', 'conduct', 'cancel'], true))
+		{
+			return $this->checkUpdatePermissionEntity();
+		}
+
+		if ($name === 'deletelist')
+		{
+			return $this->checkDeletePermissionEntity();
+		}
+
+		return parent::checkPermissionEntity($name, $arguments);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function getEntityTable()
+	{
+		return new \Bitrix\Catalog\StoreDocumentTable();
+	}
+
+	protected function checkModifyPermissionEntity()
+	{
+		$r = $this->checkReadPermissionEntity();
+		if ($r->isSuccess())
+		{
+			if (!$this->accessController->check(Controller::CATALOG_STORE))
+			{
+				$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_STORE_RIGHTS_ERROR');
+				$r->addError(new Error($message));
+			}
+		}
+
+		return $r;
+	}
+
+	protected function checkReadPermissionEntity()
+	{
+		$r = new Result();
+
+		if (
+			!$this->accessController->check(Controller::CATALOG_STORE)
+			&& !$this->accessController->check(Controller::CATALOG_READ)
+		)
+		{
+			$message = Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR');
+			$r->addError(new Error($message));
+		}
+
+		return $r;
+	}
+
+	private function getDocumentData(array $documentIds): array
+	{
+		$documentTitlesRes = StoreDocumentTable::getList(['select' => ['ID', 'DOC_TYPE', 'TITLE'], 'filter' => ['ID' => $documentIds]]);
+		$documentTitles = [];
+		while ($document = $documentTitlesRes->fetch())
+		{
+			$documentTitles[$document['ID']] = [
+				'ID' => $document['ID'],
+				'TITLE' => $document['TITLE'],
+				'DOC_TYPE' => $document['DOC_TYPE'],
+			];
+		}
+
+		return $documentTitles;
+	}
+
+	/**
+	 * Check access to document store and add error to controller.
+	 *
+	 * Adds error if user does not have access.
+	 *
+	 * @param string $action
+	 * @param int $documentId
+	 *
+	 * @return bool false - if is access denied.
+	 */
+	private function checkDocumentAccess(string $action, int $documentId): bool
+	{
+		$can = $this->accessController->check($action, StoreDocument::createFromId($documentId));
+		if (!$can)
+		{
+			$this->addError(
+				new Error(Loc::getMessage('DOCUMENT_CONTROLLER_NO_RIGHTS_ERROR'))
+			);
+
+			return false;
+		}
+
+		return true;
 	}
 }

@@ -46,7 +46,10 @@ $this->setFrameMode(true);
                     </div>
                 </div>
             </div>
+			<noindex><p style="margin-top: 15px;">На нашем сайте осуществляется сбор персональных данных и <span style="color: #073e71;"><a target="_blank" href="/upload/politika-ispolzovanija-cookies-metplus-vrn.pdf">cookies</a></span> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая, вы соглашаетесь с использованием cookies и <span style="color: #073e71;"><a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a></span> в соответствии с нашей <span style="color: #073e71;"><a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a></span>.</p></noindex>
+
         </div>
+
         <div class="cart-content_footer cart-content_footer-second align-items-center">
             <div class="left-column">
                 <a href="" class="gray-btn back-site_btn js_back-site">Вернуться</a>

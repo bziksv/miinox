@@ -6,6 +6,8 @@
  * @copyright 2001-2014 Bitrix
  */
 
+use Bitrix\Main;
+
 /********************************************************************
 *	MySQLi database classes
 ********************************************************************/
@@ -71,19 +73,19 @@ class CDatabase extends CDatabaseMysql
 	public function ForSql($strValue, $iMaxLength = 0)
 	{
 		if ($iMaxLength > 0)
-			$strValue = mb_substr($strValue, 0, $iMaxLength);
+			$strValue = mb_substr($strValue ?? '', 0, $iMaxLength);
 
 		$this->DoConnect();
-		return mysqli_real_escape_string($this->db_Conn, $strValue);
+		return mysqli_real_escape_string($this->db_Conn, $strValue ?? '');
 	}
 
 	public function ForSqlLike($strValue, $iMaxLength = 0)
 	{
 		if ($iMaxLength > 0)
-			$strValue = mb_substr($strValue, 0, $iMaxLength);
+			$strValue = mb_substr($strValue ?? '', 0, $iMaxLength);
 
 		$this->DoConnect();
-		return mysqli_real_escape_string($this->db_Conn, str_replace("\\", "\\\\", $strValue));
+		return mysqli_real_escape_string($this->db_Conn, str_replace("\\", "\\\\", $strValue ?? ''));
 	}
 
 	public function GetTableFields($table)
@@ -224,8 +226,7 @@ class CDBResult extends CDBResultMysql
 			$this->NavPageCount++;
 
 		//page number to display. start with 1
-		$session = \Bitrix\Main\Application::getInstance()->getSession();
-		$this->NavPageNomer = ($this->PAGEN < 1 || $this->PAGEN > $this->NavPageCount? ($session[$this->SESS_PAGEN] < 1 || $session[$this->SESS_PAGEN] > $this->NavPageCount? 1: $session[$this->SESS_PAGEN]):$this->PAGEN);
+		$this->calculatePageNumber();
 
 		//rows to skip
 		$NavFirstRecordShow = $this->NavPageSize * ($this->NavPageNomer-1);

@@ -19,24 +19,6 @@ $APPLICATION->SetTitle("Отзывы");
 </div>
  <!-- end inner-page_title-section --> <?$APPLICATION->IncludeComponent(
 	"bitrix:news.line",
-	"reviews.galery",
-	Array(
-		"ACTIVE_DATE_FORMAT" => "d.m.Y",
-		"CACHE_GROUPS" => "Y",
-		"CACHE_TIME" => "300",
-		"CACHE_TYPE" => "A",
-		"DETAIL_URL" => "",
-		"FIELD_CODE" => array(0=>"NAME",1=>"PREVIEW_PICTURE",2=>"",),
-		"IBLOCKS" => array(0=>"19",),
-		"IBLOCK_TYPE" => "reviews",
-		"NEWS_COUNT" => "20",
-		"SORT_BY1" => "ACTIVE_FROM",
-		"SORT_BY2" => "SORT",
-		"SORT_ORDER1" => "DESC",
-		"SORT_ORDER2" => "ASC"
-	)
-);?> <!-- end reviews-section --> <?$APPLICATION->IncludeComponent(
-	"bitrix:news.line",
 	"reviews.partner",
 	Array(
 		"ACTIVE_DATE_FORMAT" => "d.m.Y",
@@ -54,13 +36,31 @@ $APPLICATION->SetTitle("Отзывы");
 		"SORT_ORDER1" => "DESC",
 		"SORT_ORDER2" => "ASC"
 	)
-);?> <!-- end partners_section -->
+);?> <!-- end partners_section --> <?$APPLICATION->IncludeComponent(
+	"bitrix:news.line",
+	"reviews.galery",
+	Array(
+		"ACTIVE_DATE_FORMAT" => "d.m.Y",
+		"CACHE_GROUPS" => "Y",
+		"CACHE_TIME" => "300",
+		"CACHE_TYPE" => "A",
+		"DETAIL_URL" => "",
+		"FIELD_CODE" => array(0=>"NAME",1=>"PREVIEW_PICTURE",2=>"",),
+		"IBLOCKS" => array(0=>"19",),
+		"IBLOCK_TYPE" => "reviews",
+		"NEWS_COUNT" => "20",
+		"SORT_BY1" => "ACTIVE_FROM",
+		"SORT_BY2" => "SORT",
+		"SORT_ORDER1" => "DESC",
+		"SORT_ORDER2" => "ASC"
+	)
+);?> <!-- end reviews-section -->
 <div class="form-content form-content_mod">
 	<div class="container">
 		<div class="row align-items-center">
 			<div class="col-lg-4">
 				<div class="beam-img">
- <img alt="alt" src="/bitrix/templates/metplus/img/static/beams.png" data-src="/bitrix/templates/metplus/img/static/beams.png">
+ <img alt="alt" src="/bitrix/templates/metplus/img/static/87n1ueywt8ujo642eddn3m531kcwsvy2.png" data-src="/bitrix/templates/metplus/img/static/87n1ueywt8ujo642eddn3m531kcwsvy2.png">
 				</div>
 			</div>
 			<div class="col-lg-8 form-content_mod-desc">

@@ -1,6 +1,10 @@
 <?
+
 use Bitrix\Main;
+use Bitrix\Main\Context;
 use Bitrix\Main\Loader;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Iblock;
 
 /** @global CUser $USER */
@@ -10,7 +14,14 @@ use Bitrix\Iblock;
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/prolog.php");
 
+/** @global CAdminPage $adminPage */
+global $adminPage;
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+global $adminSidePanelHelper;
+
 Loader::includeModule('iblock');
+
+$request = Context::getCurrent()->getRequest();
 
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 $publicMode = defined("SELF_FOLDER_URL");
@@ -25,10 +36,10 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/iblock/classes/general/s
 
 if (!function_exists('tabFilter'))
 {
-	function tabFilter($tab)
+	function tabFilter($tab): bool
 	{
 		return ($tab['DIV'] != 'product_group');
-	};
+	}
 }
 
 $type = (isset($_REQUEST['type']) && is_string($_REQUEST['type']) ? $_REQUEST['type'] : '');
@@ -103,7 +114,7 @@ if (isset($_REQUEST['action']) && $_REQUEST['action'] == 'copy')
 	$bSubCopy = true;
 $copyID = (isset($_REQUEST['copyID']) ? (int)$_REQUEST['copyID'] : 0);
 
-$PREV_ID = intval($PREV_ID);
+$PREV_ID = (int)$request->get('PREV_ID');
 
 $WF_ID = $ID; 		//This is ID of the current copy
 
@@ -121,22 +132,62 @@ if($ID <= 0 && $bWorkflow)
 elseif(!$bWorkflow)
 	$WF = "N";
 
+$view = (string)$request->get('view');
 $historyId = 0;
 if (isset($_REQUEST['history_id']) && is_string($_REQUEST['history_id']))
+{
 	$historyId = (int)$_REQUEST['history_id'];
+}
 if ($historyId > 0 && $bBizproc)
+{
 	$view = "Y";
+}
 else
+{
 	$historyId = 0;
+}
 
 Main\Page\Asset::getInstance()->addJs('/bitrix/js/iblock/iblock_edit.js');
 
 $error = false;
 
 $WF = ($WF=="Y") ? "Y" : "N";	//workflow mode
-$view = ($view=="Y") ? "Y" : "N"; //view mode
+$view = ($view === "Y") ? "Y" : "N"; //view mode
 
 $return_url = '';
+
+// TODO: hack for psevdo-excel export in crm (\CAdminUiList::GetSystemContextMenu)
+$urlBuilderManager = Iblock\Url\AdminPage\BuilderManager::getInstance();
+$urlBuilder = null;
+$urlBuilderId = (string)$request->get('urlBuilderId') ;
+if ($urlBuilderId !== '')
+{
+	$urlBuilder = $urlBuilderManager->getBuilder($urlBuilderId);
+}
+// TODO end
+if ($urlBuilder === null)
+{
+	$urlBuilder = $urlBuilderManager->getBuilder();
+}
+unset($urlBuilderManager);
+
+if ($urlBuilder === null)
+{
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	ShowError(GetMessage("IBLOCK_ELEMENT_ERR_BUILDER_ADSENT"));
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	die();
+}
+$urlBuilderId = $urlBuilder->getId();
+$urlBuilder->setIblockId($IBLOCK_ID);
+$urlBuilder->setUrlParams(array());
+
+$accessController = AccessController::getCurrent();
+$allowCatalogRead = $accessController->check(ActionDictionary::ACTION_CATALOG_READ);
+$allowPriceEdit = $accessController->check(ActionDictionary::ACTION_PRICE_EDIT);
+$allowProductAdd = $accessController->check(ActionDictionary::ACTION_PRODUCT_ADD);
+$allowProductEdit = $accessController->check(ActionDictionary::ACTION_PRODUCT_EDIT);
+$allowProductDelete = $accessController->check(ActionDictionary::ACTION_PRODUCT_DELETE);
 
 CCatalogAdminTools::setSkuFormParams();
 $arSubCatalogEx = array();
@@ -198,9 +249,9 @@ do{ //one iteration loop
 
 	if($arIBlock)
 	{
-		if (($ID > 0 && !$bCopy) && !CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $ID, "iblock_admin_display"))
+		if (($ID > 0 && !$bSubCopy) && !CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $ID, "iblock_admin_display"))
 			$bBadBlock = true;
-		elseif (($ID <= 0 || $bCopy) && !CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, 0, "iblock_admin_display"))
+		elseif (($ID <= 0 || $bSubCopy) && !CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, 0, "iblock_admin_display"))
 			$bBadBlock = true;
 		elseif (CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $ID, "element_edit"))
 			$bBadBlock = false;
@@ -209,7 +260,7 @@ do{ //one iteration loop
 		elseif ($bBizproc)
 			$bBadBlock = false;
 		elseif(
-			(($ID <= 0) || $bCopy)
+			(($ID <= 0) || $bSubCopy)
 			&& CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, 0, "section_element_bind")
 		)
 			$bBadBlock = false;
@@ -229,7 +280,9 @@ do{ //one iteration loop
 		|| (($ID <= 0 || $bSubCopy) && CIBlockRights::UserHasRightTo($IBLOCK_ID, $IBLOCK_ID, "element_rights_edit"))
 	);
 	$arShowTabs['edit_rights'] = $bEditRights;
-	$arShowTabs['catalog'] = $view!="Y" && $bCatalog && ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_price'));
+	$arShowTabs['catalog'] = ($view !== 'Y')
+		&& $bCatalog && ($allowCatalogRead || $allowPriceEdit)
+	;
 
 	$aTabs = array();
 	$aTabs[] = array(
@@ -484,7 +537,7 @@ do{ //one iteration loop
 
 	//transpose files array
 	// [property id] [value id] = file array (name, type, tmp_name, error, size)
-	$files = $_FILES["PROP"];
+	$files = $_FILES["PROP"] ?? null;
 	if(is_array($files))
 	{
 		if(!is_array($PROP))
@@ -509,8 +562,8 @@ do{ //one iteration loop
 			{
 				$PROP[$k1][$prop_value_id] = CIBlock::makeFilePropArray(
 					$PROP[$k1][$prop_value_id],
-					$PROP_del[$k1][$prop_value_id] === "Y",
-					isset($_POST["DESCRIPTION_PROP"][$k1][$prop_value_id])? $_POST["DESCRIPTION_PROP"][$k1][$prop_value_id]: $_POST["PROP_descr"][$k1][$prop_value_id]
+					($PROP_del[$k1][$prop_value_id] ?? 'N') === "Y",
+					$_POST["DESCRIPTION_PROP"][$k1][$prop_value_id] ?? $_POST["PROP_descr"][$k1][$prop_value_id]
 				);
 			}
 		}
@@ -520,7 +573,7 @@ do{ //one iteration loop
 		}
 	}
 
-	$DESCRIPTION_PROP = $_POST["DESCRIPTION_PROP"];
+	$DESCRIPTION_PROP = $_POST["DESCRIPTION_PROP"] ?? null;
 	if(is_array($DESCRIPTION_PROP))
 	{
 		foreach($DESCRIPTION_PROP as $k1=>$val1)
@@ -1017,7 +1070,12 @@ else
 	$str_NAME = htmlspecialcharsbx($arIBlock["FIELDS"]["NAME"]["DEFAULT_VALUE"]);
 	if ('' != $strProductName)
 		$str_NAME = htmlspecialcharsbx($strProductName);
+	$str_CODE = '';
+	$str_XML_ID = '';
+	$str_TAGS = '';
 
+	$str_ACTIVE_FROM = '';
+	$str_ACTIVE_TO = '';
 	$currentTime = time() + CTimeZone::GetOffset();
 	if ($arIBlock["FIELDS"]["ACTIVE_FROM"]["DEFAULT_VALUE"] === "=now")
 		$str_ACTIVE_FROM = ConvertTimeStamp($currentTime, "FULL");
@@ -1191,7 +1249,7 @@ else
 
 	$bFileman = CModule::IncludeModule("fileman");
 	$arTranslit = $arIBlock["FIELDS"]["CODE"]["DEFAULT_VALUE"];
-	$bLinked = (!mb_strlen($str_TIMESTAMP_X) || $bSubCopy) && $_POST["linked_state"]!=='N';
+	$bLinked = (!isset($str_TIMESTAMP_X) || $bSubCopy) && (!isset($_POST["linked_state"]) || $_POST["linked_state"]!=='N');
 
 	//////////////////////////
 	//START of the custom form
@@ -1301,7 +1359,6 @@ echo bitrix_sessid_post();
 echo GetFilterHiddens("find_");?>
 <input type="hidden" name="linked_state" id="linked_state" value="<?if($bLinked) echo 'Y'; else echo 'N';?>">
 <input type="hidden" name="Update" value="Y">
-<input type="hidden" name="from" value="<?echo htmlspecialcharsbx($from)?>">
 <input type="hidden" name="WF" value="<?echo htmlspecialcharsbx($WF)?>">
 <input type="hidden" name="return_url" value="<?echo htmlspecialcharsbx($return_url)?>">
 <?if ($ID>0 && !$bSubCopy)
@@ -1313,7 +1370,6 @@ if ($bSubCopy)
 	?><input type="hidden" name="copyID" value="<? echo $ID; ?>">
 	<input type="hidden" name="action" value="copy"><?
 }?>
-<input type="hidden" name="IBLOCK_SECTION_ID" value="<?echo intval($IBLOCK_SECTION_ID)?>">
 <input type="hidden" name="PRODUCT_ID" value="<? echo $intProductID; ?>">
 <input type="hidden" name="TMP_ID" value="<?echo htmlspecialcharsbx($strSubTMP_ID)?>">
 <?
@@ -1326,7 +1382,7 @@ $strFormAction = CIBlock::GetAdminSubElementEditLink(
 	$IBLOCK_ID,
 	$intProductID,
 	($ID>0 && !$bSubCopy ? $ID : 0),
-	array('WF' => $WF, 'find_section_section' => (int)$find_section_section),
+	array('WF' => $WF,),
 	'',
 	!BX_SUB_SETTINGS
 );
@@ -1453,7 +1509,7 @@ else
 
 if (COption::GetOptionString("iblock", "show_xml_id", "N")=="Y")
 {
-	if ($bCopy || $ID == 0)
+	if ($bSubCopy || $ID == 0)
 	{
 		$tabControl->BeginCustomField("SUB_XML_ID", GetMessage("IBLOCK_FIELD_XML_ID") . ":", $arIBlock["FIELDS"]["XML_ID"]["IS_REQUIRED"] === "Y");
 		?><tr id="tr_SUB_XML_ID">
@@ -1536,7 +1592,7 @@ if(!empty($PROP)):
 				if(is_array($val) && array_key_exists("VALUE",$val))
 				{
 					$hidden .= _ShowHiddenValue('PROP['.$prop_fields["ID"].']['.$key.'][VALUE]', $val["VALUE"]);
-					$hidden .= _ShowHiddenValue('PROP['.$prop_fields["ID"].']['.$key.'][DESCRIPTION]', $val["DESCRIPTION"]);
+					$hidden .= _ShowHiddenValue('PROP['.$prop_fields["ID"].']['.$key.'][DESCRIPTION]', $val["DESCRIPTION"] ?? '');
 				}
 				else
 				{
@@ -1972,7 +2028,6 @@ if ($arShowTabs['bizproc']):
 							<?if ($arDocumentState["ID"] <> '' && $arDocumentState["WORKFLOW_STATUS"] <> ''):?>
 							(<a href="<?echo htmlspecialcharsbx($selfFolderUrl.CIBlock::GetAdminElementEditLink($IBLOCK_ID, $ID, array(
 								"WF"=>$WF,
-								"find_section_section" => $find_section_section,
 								"stop_bizproc" => $arDocumentState["ID"],
 								"replace_script_name" => true,
 							),  "&".bitrix_sessid_get()))?>"><?echo GetMessage("IBEL_BIZPROC_STOP")?></a>)
@@ -2124,7 +2179,7 @@ if($arShowTabs['edit_rights']):
 			"SUB_RIGHTS",
 			$obRights->GetRightsList(),
 			$obRights->GetRights(array("count_overwrited" => true, "parents" => array())),
-			false, /*$bForceInherited=*/($ID <= 0) || $bCopy
+			false, /*$bForceInherited=*/($ID <= 0) || $bSubCopy
 		);
 	$tabControl->EndCustomField("RIGHTS", $htmlHidden);
 endif;
@@ -2133,11 +2188,11 @@ $bDisabled =
 	($view=="Y")
 	|| ($bWorkflow && $prn_LOCK_STATUS=="red")
 	|| (
-		(($ID <= 0) || $bCopy)
+		(($ID <= 0) || $bSubCopy)
 		&& !CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, 0, "section_element_bind")
 	)
 	|| (
-		(($ID > 0) && !$bCopy)
+		(($ID > 0) && !$bSubCopy)
 		&& !CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $ID, "element_edit")
 	)
 	|| (
@@ -2150,29 +2205,32 @@ if ($ID > 0 && !$bSubCopy && BX_SUB_SETTINGS)
 {
 	if (!$ajaxReload)
 	{
-		$reloadParams = array(
-			'bxpublic' => 'Y',
-			'bxsku' => 'Y',
-			'WF' => 'Y',
-			'TMP_ID' => $strSubTMP_ID,
-			'ajaxReload' => 'Y'
-		);
-
-		if ($arShowTabs['product_group'])
+		if ($allowProductEdit)
 		{
-			$reloadParams['groupdel'] = 'Y';
-			$reloadParams['sessid'] = bitrix_sessid();
-			$setBtn = "{
-				title: '".CUtil::JSEscape(GetMessage('IB_SE_SET_PRODUCT_TYPE_GROUP_DELETE'))."',
+			$reloadParams = [
+				'bxpublic' => 'Y',
+				'bxsku' => 'Y',
+				'WF' => 'Y',
+				'TMP_ID' => $strSubTMP_ID,
+				'ajaxReload' => 'Y'
+			];
+
+			if ($arShowTabs['product_group'])
+			{
+				$reloadParams['groupdel'] = 'Y';
+				$reloadParams['sessid'] = bitrix_sessid();
+				$setBtn = "{
+				title: '" . CUtil::JSEscape(GetMessage('IB_SE_SET_PRODUCT_TYPE_GROUP_DELETE')) . "',
 				name: 'groupdel',
 				id: 'groupdel',
 				className: 'adm-btn-add',
 				action: function () {
-					if (confirm('".CUtil::JSEscape(GetMessage('IB_SE_SET_PRODUCT_TYPE_GROUP_DELETE_CONFIRM'))."'))
+					if (confirm('" . CUtil::JSEscape(GetMessage('IB_SE_SET_PRODUCT_TYPE_GROUP_DELETE_CONFIRM')) . "'))
 					{
 						top.BX.showWait();
 						top.BX.ajax.get(
-							'".CIBlock::GetAdminSubElementEditLink($IBLOCK_ID, $intProductID, $ID, $reloadParams, '', true)."',
+							'" . CIBlock::GetAdminSubElementEditLink($IBLOCK_ID, $intProductID, $ID, $reloadParams, '',
+						true) . "',
 							function (result) {
 								top.BX.closeWait();
 								top.BX.WindowManager.Get().SetContent(result);
@@ -2185,18 +2243,19 @@ if ($ID > 0 && !$bSubCopy && BX_SUB_SETTINGS)
 					}
 				}
 			}";
-		}
-		else
-		{
-			$reloadParams['SUBPRODUCT_TYPE'] = CCatalogAdminTools::TAB_GROUP;
-			$setBtn = "{
-				title: '".CUtil::JSEscape(GetMessage('IB_SE_SET_PRODUCT_TYPE_GROUP_ADD'))."',
+			}
+			else
+			{
+				$reloadParams['SUBPRODUCT_TYPE'] = CCatalogAdminTools::TAB_GROUP;
+				$setBtn = "{
+				title: '" . CUtil::JSEscape(GetMessage('IB_SE_SET_PRODUCT_TYPE_GROUP_ADD')) . "',
 				name: 'groupset',
 				id: 'groupset',
 				className: 'adm-btn-add',
 				action: function () {
 					top.BX.showWait();
-					top.BX.ajax.get('".CIBlock::GetAdminSubElementEditLink($IBLOCK_ID, $intProductID, $ID, $reloadParams, '', true)."',
+					top.BX.ajax.get('" . CIBlock::GetAdminSubElementEditLink($IBLOCK_ID, $intProductID, $ID,
+						$reloadParams, '', true) . "',
 					function (result) {
 						top.BX.closeWait();
 						top.BX.WindowManager.Get().SetContent(result);
@@ -2207,9 +2266,11 @@ if ($ID > 0 && !$bSubCopy && BX_SUB_SETTINGS)
 					});
 				}
 			}";
+			}
+
+			$tabControl->ButtonsPublic([$setBtn]);
+			unset($setBtn, $reloadParams);
 		}
-		$tabControl->ButtonsPublic(array($setBtn));
-		unset($setBtn, $reloadParams);
 	}
 }
 else

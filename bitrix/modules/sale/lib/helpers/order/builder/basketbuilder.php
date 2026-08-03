@@ -16,6 +16,7 @@ use Bitrix\Sale\Helpers\Admin\Blocks\OrderBasket;
 use Bitrix\Sale\Helpers\Admin\OrderEdit;
 use Bitrix\Sale\Order;
 use Bitrix\Sale\Provider;
+use Bitrix\Sale\ReserveQuantityCollection;
 
 /**
  * Class BasketBuilder
@@ -224,8 +225,10 @@ abstract class BasketBuilder
 	{
 		foreach($this->formData["PRODUCT"] as $basketCode => $productData)
 		{
-			if($productData["IS_SET_ITEM"] == "Y")
+			if (isset($productData["IS_SET_ITEM"]) && $productData["IS_SET_ITEM"] === "Y")
+			{
 				continue;
+			}
 
 			if(!isset($productData["PROPS"]) || !is_array($productData["PROPS"]))
 				$productData["PROPS"] = array();
@@ -312,9 +315,14 @@ abstract class BasketBuilder
 				self::sendProductCachedDataToProvider($item, $this->getOrder(), $productData);
 			}
 
-			$item->setField("NAME", $productData["NAME"]);
+			if (isset($productData['NAME']))
+			{
+				$item->setField('NAME', $productData['NAME']);
+			}
 
-			if ($productData['CUSTOM_PRICE'] === 'Y')
+			$item->setField('TYPE', $productData['TYPE'] ?? null);
+
+			if (isset($productData['CUSTOM_PRICE']) && $productData['CUSTOM_PRICE'] === 'Y')
 			{
 				$item->markFieldCustom('PRICE');
 			}
@@ -350,7 +358,10 @@ abstract class BasketBuilder
 				$fillFields = array_intersect_key($productData, $availableFields);
 
 				$orderCurrency = $this->getOrder()->getCurrency();
-				if ($fillFields['CURRENCY'] !== $orderCurrency)
+				if (
+					isset($fillFields['CURRENCY'])
+					&& $fillFields['CURRENCY'] !== $orderCurrency
+				)
 				{
 					$fillFields['PRICE'] = \CCurrencyRates::ConvertCurrency(
 						(float)$fillFields['PRICE'],
@@ -484,7 +495,7 @@ abstract class BasketBuilder
 		foreach($basketItems as $item)
 		{
 			$basketCode = $item->getBasketCode();
-			$productFormData = $this->formData['PRODUCT'][$basketCode];
+			$productFormData = $this->formData['PRODUCT'][$basketCode] ?? [];
 			$isProductDataNeedUpdate = in_array($basketCode, $this->needDataUpdate);
 			$productProviderData[$basketCode] = $item->getFieldValues();
 
@@ -553,43 +564,59 @@ abstract class BasketBuilder
 			}
 			else
 			{
+				$basePrice = $productFormData['BASE_PRICE'] ?? 0;
+				$price = $productFormData['PRICE'] ?? 0;
+
 				$needUpdateItemPrice = $this->isNeedUpdateNewProductPrice() && $this->isBasketItemNew($basketCode);
 				$isPriceCustom = isset($productFormData['CUSTOM_PRICE']) && $productFormData['CUSTOM_PRICE'] == 'Y';
 
 				if ($isPriceCustom)
 				{
 					$productFormData['DISCOUNT_PRICE'] = 0;
-					if ($productFormData['BASE_PRICE'] > $productFormData['PRICE'])
+					if ($basePrice > $price)
 					{
-						$productFormData['DISCOUNT_PRICE'] = $productFormData['BASE_PRICE'] - $productFormData['PRICE'];
+						$productFormData['DISCOUNT_PRICE'] = $basePrice - $price;
 					}
 				}
 
-				if(($order->getId() <= 0 && !$isPriceCustom) || $needUpdateItemPrice)
+				if (($order->getId() === 0 && !$isPriceCustom) || $needUpdateItemPrice)
+				{
 					unset($productFormData['PRICE'], $productFormData['PRICE_BASE'], $productFormData['BASE_PRICE']);
+				}
 
 				$product = array_merge($product, $productFormData);
 			}
 
-			if(isset($product["OFFER_ID"]) && intval($product["OFFER_ID"]) > 0)
+			if (isset($product["OFFER_ID"]) && intval($product["OFFER_ID"]) > 0)
+			{
 				$product["PRODUCT_ID"] = $product["OFFER_ID"];
+			}
 
 			//discard BasketItem redundant fields
 			$product = array_intersect_key($product, array_flip($item::getAvailableFields()));
 
-			if(isset($product["MEASURE_CODE"]) && $product["MEASURE_CODE"] <> '')
+			if (isset($product["MEASURE_CODE"]) && $product["MEASURE_CODE"] <> '')
 			{
 				$measures = OrderBasket::getCatalogMeasures();
 
-				if(isset($measures[$product["MEASURE_CODE"]]) && $measures[$product["MEASURE_CODE"]] <> '')
+				if (!empty($measures[$product["MEASURE_CODE"]]))
+				{
 					$product["MEASURE_NAME"] = $measures[$product["MEASURE_CODE"]];
+				}
 			}
 
-			if(!isset($product["CURRENCY"]) || $product["CURRENCY"] == '')
+			if (empty($product["CURRENCY"]))
+			{
 				$product["CURRENCY"] = $order->getCurrency();
+			}
 
-			if($productFormData["IS_SET_PARENT"] == "Y")
+			if (
+				isset($productFormData["IS_SET_PARENT"])
+				&& $productFormData["IS_SET_PARENT"] === "Y"
+			)
+			{
 				$product["TYPE"] = BasketItem::TYPE_SET;
+			}
 
 			OrderEdit::setProductDetails(
 				$productFormData["OFFER_ID"],
@@ -617,16 +644,19 @@ abstract class BasketBuilder
 				$product["CURRENCY"] = $order->getCurrency();
 			}
 
-			self::setBasketItemFields($item, $product);
+			$this->setBasketItemFields($item, $product);
 
-			if (!empty($productFormData['RESERVE']) && is_array($productFormData['RESERVE']))
+			if ($item->isReservableItem())
 			{
-				$reserveData = $productFormData['RESERVE'];
-				$this->setReserveDataForItem($item, $reserveData);
-			}
-			elseif ($this->getSettingsContainer()->getItemValue('clearReservesIfEmpty') === true)
-			{
-				$this->clearReservesForItem($item);
+				if (!empty($productFormData['RESERVE']) && is_array($productFormData['RESERVE']))
+				{
+					$reserveData = $productFormData['RESERVE'];
+					$this->setReserveDataForItem($item, $reserveData);
+				}
+				elseif ($this->getSettingsContainer()->getItemValue('clearReservesIfEmpty') === true)
+				{
+					$this->clearReservesForItem($item);
+				}
 			}
 		}
 
@@ -635,12 +665,31 @@ abstract class BasketBuilder
 
 	protected function clearReservesForItem(BasketItem $item)
 	{
-		$item->getReserveQuantityCollection()->clearCollection();
+		if (!$item->isReservableItem())
+		{
+			return;
+		}
+
+		/** @var ReserveQuantityCollection $reserveCollection */
+		$reserveCollection = $item->getReserveQuantityCollection();
+		if ($reserveCollection)
+		{
+			$reserveCollection->clearCollection();
+		}
 	}
 
 	protected function setReserveDataForItem(BasketItem $item, array $reserveData)
 	{
+		if (!$item->isReservableItem())
+		{
+			return;
+		}
+
 		$reserveCollection = $item->getReserveQuantityCollection();
+		if (!$reserveCollection)
+		{
+			return;
+		}
 
 		// if some reserves were created upon order creation, we have to clear them and set the manual reserves
 		if ($this->getOrder()->isNew())
@@ -762,7 +811,7 @@ abstract class BasketBuilder
 			$setBasketCode = null;
 
 		$item = $this->getBasket()->createItem(
-			$productData["MODULE"],
+			$productData["MODULE"] ?? '',
 			$productData["OFFER_ID"],
 			$setBasketCode
 		);

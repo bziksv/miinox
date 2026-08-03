@@ -23,6 +23,8 @@ Loc::loadMessages(__FILE__);
 
 Extension::load(
 	[
+		'ui.design-tokens',
+		'ui.fonts.opensans',
 		'ui.buttons',
 		'ui.alerts',
 		'marketplace',
@@ -33,6 +35,19 @@ if (
 	&& isset($arResult['INSTALL_FINISH']['success'])
 	&& !isset($arResult['INSTALL_FINISH']['error'])
 ):?>
+	<?php
+		$APPLICATION->IncludeComponent(
+			'bitrix:rest.configuration.import',
+			'',
+			[
+				'MODE' => 'ZIP',
+				'SET_TITLE' => 'Y',
+				'FROM' => $arParams['FROM'],
+				'ADDITIONAL' => $arParams['ADDITIONAL'],
+				'ZIP_ID' => $arParams['ZIP_ID'],
+			]
+		);
+	?>
 	<script type="text/javascript">
 		BX.ready(
 			function ()
@@ -48,12 +63,7 @@ if (
 
 				if (!!result.open)
 				{
-					BX.SidePanel.Instance.reload();
 					top.BX.rest.AppLayout.openApplication(result.id, {});
-				}
-				else
-				{
-					BX.SidePanel.Instance.reload();
 				}
 			}
 		);

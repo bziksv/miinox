@@ -1,9 +1,10 @@
-<?
+<?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2022 Bitrix
  */
 
 IncludeModuleLangFile(__FILE__);
@@ -231,8 +232,8 @@ class CMenu
 			}
 
 			$bSkipMenuItem = false;
-			$ADDITIONAL_LINKS = $MenuItem[2];
-			$PARAMS = $MenuItem[3];
+			$ADDITIONAL_LINKS = $MenuItem[2] ?? [];
+			$PARAMS = $MenuItem[3] ?? [];
 
 			//Calculate menu items stack for iblock items only
 			if($this->MenuExtDir <> '' && is_array($PARAMS) && isset($PARAMS["FROM_IBLOCK"]))
@@ -250,7 +251,7 @@ class CMenu
 				{
 					//Unwind parents stack
 					while(
-						count($arParents) > 0
+						!empty($arParents)
 						&& $arParents[count($arParents)-1]["DEPTH_LEVEL"] > $PARAMS["DEPTH_LEVEL"]
 					)
 					{
@@ -430,7 +431,7 @@ class CMenu
 						$varvalue = urldecode(mb_substr($param, $eqpos + 1));
 					}
 
-					$globvarvalue = (isset($GLOBALS[$varname])? $GLOBALS[$varname] : "");
+					$globvarvalue = ($GLOBALS[$varname] ?? "");
 					if($globvarvalue != $varvalue)
 					{
 						$bOK = false;
@@ -491,7 +492,7 @@ class CMenu
 					"TITLE"=>GetMessage("MAIN_MENU_TEMPLATE_EDIT")
 				);
 			}
-			if(count($arIcons) > 0)
+			if(!empty($arIcons))
 			{
 				$result = $APPLICATION->IncludeStringBefore().$result;
 				$bShowButtons = true;
@@ -582,7 +583,7 @@ class CMenu
 				);
 			}
 
-			if(count($arIcons) > 0)
+			if(!empty($arIcons))
 			{
 				$result = $APPLICATION->IncludeStringBefore().$result;
 				$bShowButtons = true;
@@ -598,54 +599,3 @@ class CMenu
 		return $result;
 	}
 }
-
-class CMenuCustom
-{
-	var $arItems = array();
-
-	function AddItem($type="left", $arItem=array())
-	{
-		if (count($arItem) <= 0)
-			return;
-
-		if (!array_key_exists("TEXT", $arItem) || trim($arItem["TEXT"]) == '')
-			return;
-
-		if (!array_key_exists("LINK", $arItem) || trim($arItem["LINK"]) == '')
-			$arItem["LINK"] = "";
-
-		if (!array_key_exists("SELECTED", $arItem))
-			$arItem["SELECTED"] = false;
-
-		if (!array_key_exists("PERMISSION", $arItem))
-			$arItem["PERMISSION"] = "R";
-
-		if (!array_key_exists("DEPTH_LEVEL", $arItem))
-			$arItem["DEPTH_LEVEL"] = 1;
-
-		if (!array_key_exists("IS_PARENT", $arItem))
-			$arItem["IS_PARENT"] = false;
-
-		$this->arItems[$type][] = array(
-						"TEXT" => $arItem["TEXT"],
-						"LINK" => $arItem["LINK"],
-						"SELECTED" => $arItem["SELECTED"],
-						"PERMISSION" => $arItem["PERMISSION"],
-						"DEPTH_LEVEL" => $arItem["DEPTH_LEVEL"],
-						"IS_PARENT" => $arItem["IS_PARENT"],
-					);
-	}
-
-
-	function GetItems($type="left")
-	{
-		if (array_key_exists($type, $this->arItems))
-			return $this->arItems[$type];
-		else
-			return false;
-	}
-
-}
-
-global $BX_MENU_CUSTOM;
-$BX_MENU_CUSTOM = new CMenuCustom;

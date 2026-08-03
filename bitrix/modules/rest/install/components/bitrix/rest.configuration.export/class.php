@@ -31,6 +31,12 @@ class CRestConfigurationExportComponent extends CBitrixComponent implements Cont
 	protected $contextPostfix = 'export';
 	protected $optionPath = '~tmp_export_path_configuration';
 
+	public function __construct($component = null)
+	{
+		parent::__construct($component);
+		$this->errors = new ErrorCollection();
+	}
+
 	protected function checkRequiredParams()
 	{
 		$access = Manifest::checkAccess(Manifest::ACCESS_TYPE_EXPORT, $this->arParams['MANIFEST_CODE']);
@@ -83,7 +89,6 @@ class CRestConfigurationExportComponent extends CBitrixComponent implements Cont
 		if($result['ENABLED_ZIP_MODE'] != 'Y')
 		{
 			$result['REST_SETTING_PATH'] = BX_ROOT.'/admin/settings.php?lang='.LANGUAGE_ID.'&mid=rest';
-
 		}
 
 		$this->arResult = $result;
@@ -435,7 +440,19 @@ class CRestConfigurationExportComponent extends CBitrixComponent implements Cont
 					$fileName = !is_array($item['FILE_NAME']) ? (string) $item['FILE_NAME'] : '';
 					if ($fileName <> '')
 					{
-						$structure->saveContent($code, $fileName, $item['CONTENT']);
+						$saveResult = $structure->saveContent($code, $fileName, $item['CONTENT']);
+						if (is_array($saveResult))
+						{
+							foreach ($saveResult as $error)
+							{
+								$item['ERROR_EXCEPTION'][] = $error;
+							}
+						}
+					}
+
+					if ($item['ERROR_EXCEPTION'])
+					{
+						$result['exception'] = $item['ERROR_EXCEPTION'];
 					}
 					if ($item['ERROR_MESSAGES'])
 					{

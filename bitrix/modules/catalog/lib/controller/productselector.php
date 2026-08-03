@@ -2,16 +2,20 @@
 
 namespace Bitrix\Catalog\Controller;
 
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Component\ImageInput;
 use Bitrix\Catalog\MeasureTable;
 use Bitrix\Catalog\ProductTable;
 use Bitrix\Catalog\StoreBarcodeTable;
+use Bitrix\Catalog\UI\PropertyProduct;
 use Bitrix\Catalog\v2\Barcode\Barcode;
 use Bitrix\Catalog\v2\BaseIblockElementEntity;
 use Bitrix\Catalog\v2\Image\DetailImage;
 use Bitrix\Catalog\v2\Image\MorePhotoImage;
 use Bitrix\Catalog\v2\Image\PreviewImage;
 use Bitrix\Catalog\v2\Integration\JS\ProductForm\BasketBuilder;
+use Bitrix\Catalog\UI\FileUploader\ProductController;
 use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Catalog\v2\Product\BaseProduct;
 use Bitrix\Catalog\v2\Sku\BaseSku;
@@ -29,9 +33,26 @@ use Bitrix\Main\Security\Sign\Signer;
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\Loader;
 use Bitrix\UI\EntitySelector\Dialog;
+use Bitrix\UI\FileUploader\PendingFile;
+use Bitrix\UI\FileUploader\PendingFileCollection;
+use Bitrix\UI\FileUploader\Uploader;
 
 class ProductSelector extends JsonController
 {
+	private ?Uploader $uploader = null;
+	private ?PendingFileCollection $pendingFileCollection = null;
+	private AccessController $accessController;
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function init()
+	{
+		parent::init();
+
+		$this->accessController = AccessController::getCurrent();
+	}
+
 	public function configureActions()
 	{
 		return [
@@ -61,8 +82,15 @@ class ProductSelector extends JsonController
 
 	protected function processBeforeAction(Action $action)
 	{
-		global $USER;
-		if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_view'))
+		if ($action->getName() === 'getSkuTreeProperties')
+		{
+			return true;
+		}
+
+		if (
+			$this->accessController->check(ActionDictionary::ACTION_CATALOG_READ)
+			|| $this->accessController->check(ActionDictionary::ACTION_CATALOG_VIEW)
+		)
 		{
 			return parent::processBeforeAction($action);
 		}
@@ -222,12 +250,14 @@ class ProductSelector extends JsonController
 		$builder = new BasketBuilder();
 		$basketItem = $builder->createItem();
 		$basketItem->setSku($sku);
-		if ($options['priceId'] && (int)$options['priceId'] > 0)
+
+		$priceId = (int)($options['priceId'] ?? 0);
+		if ($priceId > 0)
 		{
-			$basketItem->setPriceGroupId((int)$options['priceId']);
+			$basketItem->setPriceGroupId($priceId);
 		}
 
-		if ($options['urlBuilder'])
+		if (!empty($options['urlBuilder']))
 		{
 			$basketItem->setDetailUrlManagerType($options['urlBuilder']);
 		}
@@ -270,6 +300,8 @@ class ProductSelector extends JsonController
 			$purchasingCurrency = $options['currency'];
 		}
 
+		$productProps = $this->getProductProperties($sku);
+
 		$fields = [
 			'TYPE' => $sku->getType(),
 			'ID' => $formFields['skuId'],
@@ -291,7 +323,13 @@ class ProductSelector extends JsonController
 			'PROPERTIES' => $formFields['properties'],
 			'VAT_ID' => $formFields['taxId'],
 			'VAT_INCLUDED' => $formFields['taxIncluded'],
+			'BRANDS' => $this->getProductBrand($sku),
+			'WEIGHT' => $formFields['weight'],
+			'DIMENSIONS' => $formFields['dimensions'],
+			'PRODUCT_PROPERTIES' => $productProps,
 		];
+
+		$fields = array_merge($fields, $productProps);
 
 		$previewImage = $sku->getFrontImageCollection()->getFrontImage();
 		if ($previewImage)
@@ -346,14 +384,70 @@ class ProductSelector extends JsonController
 		return null;
 	}
 
+	private function getProductBrand($sku): ?array
+	{
+		$product = $sku->getParent();
+		if (!$product)
+		{
+			return null;
+		}
+
+		$brand = $product->getPropertyCollection()->findByCode('BRAND_FOR_FACEBOOK');
+		if (!$brand)
+		{
+			return null;
+		}
+
+		$userType = \CIBlockProperty::GetUserType($brand->getUserType());
+		$userTypeMethod = $userType['GetUIEntityEditorProperty'];
+		$propertySettings = $brand->getSettings();
+		$propertyValues = $brand->getPropertyValueCollection()->getValues();
+		$description = $userTypeMethod($propertySettings, $propertyValues);
+		$propertyBrandItems = $description['data']['items'];
+
+		$selectedBrandItems = [];
+
+		foreach ($propertyBrandItems as $propertyBrandItem)
+		{
+			if (in_array($propertyBrandItem['VALUE'], $propertyValues, true))
+			{
+				$selectedBrandItems[] = $propertyBrandItem;
+			}
+		}
+
+		return $selectedBrandItems;
+	}
+
+	private function getProductProperties(BaseSku $sku): array
+	{
+		$columns = PropertyProduct::getColumnNames();
+		$emptyProps = [];
+		foreach ($columns as $columnName)
+		{
+			$emptyProps[$columnName] = '';
+		}
+
+		$productId = $sku->getParent()->getId();
+		$productIblockId = $sku->getIblockInfo()->getProductIblockId();
+		$productProps = PropertyProduct::getIblockProperties($productIblockId, $productId);
+
+		$skuId = $sku->getId();
+		$skuIblockId = $sku->getIblockId();
+		$skuProps = [];
+		if ($skuId && $skuIblockId)
+		{
+			$skuProps = PropertyProduct::getSkuProperties($skuIblockId, $skuId);
+		}
+
+		return array_merge($emptyProps, $productProps, $skuProps);
+	}
 
 	public function createProductAction(array $fields): ?array
 	{
-		global $USER;
 		$iblockId = (int)$fields['IBLOCK_ID'];
 		if (
 			!\CIBlockSectionRights::UserHasRightTo($iblockId, 0, 'section_element_bind')
-			|| !$USER->CanDoOperation('catalog_price')
+			|| !$this->accessController->check(ActionDictionary::ACTION_PRODUCT_ADD)
 		)
 		{
 			$this->addError(new Error(Loc::getMessage('PRODUCT_SELECTOR_ERROR_NO_PERMISSIONS_FOR_CREATION')));
@@ -369,13 +463,20 @@ class ProductSelector extends JsonController
 			return null;
 		}
 
+		$skuRepository = ServiceContainer::getSkuRepository($iblockId);
+		$type = $skuRepository ? ProductTable::TYPE_SKU : ProductTable::TYPE_PRODUCT;
+
 		/** @var BaseProduct $product */
 		$product = $productFactory
 			->createEntity()
-			->setType(ProductTable::TYPE_PRODUCT)
+			->setType($type)
 		;
 
-		$sku = $product->getSkuCollection()->getFirst();
+		$sku =
+			$skuRepository
+				? $product->getSkuCollection()->create()
+				:  $product->getSkuCollection()->getFirst()
+		;
 
 		if (!empty($fields['BARCODE']))
 		{
@@ -456,7 +557,16 @@ class ProductSelector extends JsonController
 			}
 		}
 
+		if (!$this->accessController->check(ActionDictionary::ACTION_PRICE_EDIT))
+		{
+			unset($fields['PRICE']);
+		}
+
 		$product->setFields($fields);
+		if ($fields['MEASURE'] > 0)
+		{
+			$sku->setField('MEASURE', $fields['MEASURE']);
+		}
 
 		if (isset($fields['PRICE']) && $fields['PRICE'] >= 0)
 		{
@@ -490,7 +600,7 @@ class ProductSelector extends JsonController
 		}
 
 		return [
-			'id' => $product->getId(),
+			'id' => $sku->getId(),
 		];
 	}
 
@@ -516,16 +626,22 @@ class ProductSelector extends JsonController
 		/** @var BaseProduct $parentProduct */
 		$parentProduct = $sku->getParent();
 
-		global $USER;
 		if (
-			!\CIBlockElementRights::UserHasRightTo($parentProduct->getIblockId(), $parentProduct->getId(), 'element_edit')
-			|| !\CIBlockElementRights::UserHasRightTo($parentProduct->getIblockId(), $parentProduct->getId(), 'element_edit_price')
-			|| !$USER->CanDoOperation('catalog_price')
+			!$this->accessController->check(ActionDictionary::ACTION_PRODUCT_EDIT)
+			|| !\CIBlockElementRights::UserHasRightTo($parentProduct->getIblockId(), $parentProduct->getId(), 'element_edit')
 		)
 		{
 			$this->addError(new Error(Loc::getMessage('PRODUCT_SELECTOR_ERROR_NO_PERMISSIONS_FOR_UPDATE')));
 
 			return null;
+		}
+
+		if (
+			!$this->accessController->check(ActionDictionary::ACTION_PRICE_EDIT)
+			|| !\CIBlockElementRights::UserHasRightTo($parentProduct->getIblockId(), $parentProduct->getId(), 'element_edit_price')
+		)
+		{
+			unset($updateFields['PRICES']);
 		}
 
 		$result = $this->saveSku($sku, $updateFields, $oldFields);
@@ -548,11 +664,9 @@ class ProductSelector extends JsonController
 
 	public function saveMorePhotoAction(int $productId, int $variationId, int $iblockId, array $imageValues): ?array
 	{
-		global $USER;
 		if (
-			!\CIBlockElementRights::UserHasRightTo($iblockId, $productId, 'element_edit')
-			|| !\CIBlockElementRights::UserHasRightTo($iblockId, $productId, 'element_edit_price')
-			|| !$USER->CanDoOperation('catalog_price')
+			!$this->accessController->check(ActionDictionary::ACTION_PRODUCT_EDIT)
+			|| !\CIBlockElementRights::UserHasRightTo($iblockId, $productId, 'element_edit')
 		)
 		{
 			$this->addError(new Error(Loc::getMessage('PRODUCT_SELECTOR_ERROR_NO_PERMISSIONS_FOR_UPDATE')));
@@ -600,14 +714,20 @@ class ProductSelector extends JsonController
 		$property = $entity->getPropertyCollection()->findByCode(MorePhotoImage::CODE);
 		foreach ($imageValues as $key => $newImage)
 		{
-			$newImage = $this->prepareMorePhotoValue($newImage);
+			$newImage = $this->prepareMorePhotoValue($newImage, $entity);
 			if (empty($newImage))
 			{
 				continue;
 			}
 
-			if (!$property)
+			if (!$property || !$property->isActive())
 			{
+				if (empty($previewPicture))
+				{
+					$previewPicture = $newImage;
+					continue;
+				}
+
 				$detailPicture = $newImage;
 				break;
 			}
@@ -646,16 +766,21 @@ class ProductSelector extends JsonController
 			return [];
 		}
 
-		$productImageField = new ImageInput($entity);
+		$this->commitPendingCollection();
 
-		return $productImageField->getFormattedField();
+		return (new ImageInput($entity))->getFormattedField();
 	}
 
-	private function prepareMorePhotoValue($imageValue)
+	private function prepareMorePhotoValue($imageValue, BaseIblockElementEntity $entity)
 	{
 		if (empty($imageValue))
 		{
 			return null;
+		}
+
+		if (!empty($imageValue['token']))
+		{
+			return $this->prepareMorePhotoValueByToken($imageValue, $entity);
 		}
 
 		if (is_string($imageValue))
@@ -704,6 +829,72 @@ class ProductSelector extends JsonController
 		return null;
 	}
 
+	private function prepareMorePhotoValueByToken(array $image, BaseIblockElementEntity $entity): ?array
+	{
+		$token = $image['token'] ?? null;
+		if (empty($token))
+		{
+			return null;
+		}
+
+		$fileId = $this->getFileIdByToken($token, $entity);
+		if ($fileId)
+		{
+			return \CIBlock::makeFileArray($fileId, false, null, ['allow_file_id' => true]);
+		}
+
+		return null;
+	}
+
+	private function getFileIdByToken(string $token, BaseIblockElementEntity $entity): ?int
+	{
+		$uploader = $this->getUploader($entity);
+		$pendingFile = $uploader->getPendingFiles([$token])->get($token);
+
+		if ($pendingFile && $pendingFile->isValid())
+		{
+			$this->addPendingFileToCollection($pendingFile);
+
+			return $pendingFile->getFileId();
+		}
+
+		return null;
+	}
+
+	private function getUploader(BaseIblockElementEntity $entity): Uploader
+	{
+		if ($this->uploader === null)
+		{
+			$fileController = new ProductController([
+				'productId' => $entity->getId(),
+			]);
+
+			$this->uploader = (new Uploader($fileController));
+		}
+
+		return $this->uploader;
+	}
+
+	private function addPendingFileToCollection(PendingFile $pendingFile): void
+	{
+		$this->getPendingFilesCollection()->add($pendingFile);
+	}
+
+	private function commitPendingCollection(): void
+	{
+		$this->getPendingFilesCollection()->makePersistent();
+	}
+
+	private function getPendingFilesCollection(): PendingFileCollection
+	{
+		if ($this->pendingFileCollection === null)
+		{
+			$this->pendingFileCollection = new PendingFileCollection();
+		}
+
+		return $this->pendingFileCollection;
+	}
+
 	private function saveSku(BaseSku $sku, array $fields = [], array $oldFields = []): Result
 	{
 		if ($sku->isNew() && empty($fields['CODE']))
@@ -720,6 +911,9 @@ class ProductSelector extends JsonController
 		{
 			$fields['MEASURE'] = $this->getMeasureIdByCode($fields['MEASURE_CODE']);
 		}
+
+		$sectionId = $fields['IBLOCK_SECTION_ID'] ?? null;
+		unset($fields['IBLOCK_SECTION_ID']);
 
 		$sku->setFields($fields);
 
@@ -801,7 +995,65 @@ class ProductSelector extends JsonController
 			}
 		}
 
-		return $sku->getParent()->save();
+		/** @var BaseProduct $parentProduct */
+		$parentProduct = $sku->getParent();
+
+		if (isset($fields['BRANDS']) && is_array($fields['BRANDS']))
+		{
+			$parentProduct->getPropertyCollection()->setValues(['BRAND_FOR_FACEBOOK' => $fields['BRANDS']]);
+		}
+
+		if (isset($sectionId))
+		{
+			$parentProduct->setField('IBLOCK_SECTION_ID', $sectionId);
+		}
+
+		if (
+			isset($fields['NAME'])
+			&& $parentProduct->getSkuCollection()->count() === 1
+		)
+		{
+			$this->changeProductName($parentProduct, $fields['NAME']);
+		}
+
+		return $parentProduct->save();
+	}
+
+	private function changeProductName(BaseProduct $parentProduct, string $newName): void
+	{
+		$skuTreeEntity = ServiceContainer::make('sku.tree', [
+			'iblockId' => $parentProduct->getIblockId(),
+		]);
+		$skuTree = $skuTreeEntity->load([$parentProduct->getId()]);
+		if (empty($skuTree))
+		{
+			$parentProduct->setField('NAME', $newName);
+
+			return;
+		}
+
+		$skuTreeElement = reset($skuTree);
+		$existingValues = $skuTreeElement['EXISTING_VALUES'] ?? null;
+		if (!$existingValues)
+		{
+			$parentProduct->setField('NAME', $newName);
+
+			return;
+		}
+
+		$hasFilledProperty = false;
+		foreach ($existingValues as $existingValue)
+		{
+			$hasFilledProperty = $existingValue[0] !== 0;
+			if ($hasFilledProperty)
+			{
+				break;
+			}
+		}
+		if (!$hasFilledProperty)
+		{
+			$parentProduct->setField('NAME', $newName);
+		}
 	}
 
 	private function getMeasureIdByCode(string $code): ?int

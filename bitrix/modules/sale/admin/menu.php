@@ -4,6 +4,8 @@
  * @global CMain $APPLICATION
  * @global CAdminMenu $adminMenu */
 
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Main\Application;
 use Bitrix\Sale\Location;
 use Bitrix\Main\Loader;
@@ -28,20 +30,21 @@ $boolImportEdit = false;
 $boolImportExec = false;
 $discountView = false;
 
-$catalogInstalled = ModuleManager::isModuleInstalled('catalog');
+$catalogInstalled = Loader::includeModule('catalog');
 if ($catalogInstalled)
 {
-	$bViewAll = $USER->CanDoOperation('catalog_read');
-	$boolVat = $USER->CanDoOperation('catalog_vat');
+	$accessController = AccessController::getCurrent();
+	$bViewAll = $accessController->check(ActionDictionary::ACTION_CATALOG_READ);
+	$boolVat = $accessController->check(ActionDictionary::ACTION_VAT_EDIT);
 
-	$boolStore = $USER->CanDoOperation('catalog_store');
-	$boolGroup = $USER->CanDoOperation('catalog_group');
-	$boolPrice = $USER->CanDoOperation('catalog_price');
-	$boolExportEdit = $USER->CanDoOperation('catalog_export_edit');
-	$boolExportExec = $USER->CanDoOperation('catalog_export_exec');
-	$boolImportEdit = $USER->CanDoOperation('catalog_import_edit');
-	$boolImportExec = $USER->CanDoOperation('catalog_import_exec');
-	$discountView = $USER->CanDoOperation('catalog_discount');
+	$boolStore = $accessController->check(ActionDictionary::ACTION_STORE_VIEW);
+	$boolGroup = $accessController->check(ActionDictionary::ACTION_PRICE_GROUP_EDIT);
+	$boolPrice = $accessController->check(ActionDictionary::ACTION_PRICE_EDIT);
+	$boolExportEdit = $accessController->check(ActionDictionary::ACTION_CATALOG_EXPORT_EDIT);
+	$boolExportExec = $accessController->check(ActionDictionary::ACTION_CATALOG_EXPORT_EXECUTION);
+	$boolImportEdit = $accessController->check(ActionDictionary::ACTION_CATALOG_IMPORT_EDIT);
+	$boolImportExec = $accessController->check(ActionDictionary::ACTION_CATALOG_IMPORT_EXECUTION);
+	$discountView = $accessController->check(ActionDictionary::ACTION_PRODUCT_DISCOUNT_SET);
 }
 
 global $adminMenu;
@@ -178,7 +181,7 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 	$region = \Bitrix\Main\Application::getInstance()->getLicense()->getRegion();
 	$isAllowedRegion = $region !== null && $region !== 'ru';
 
-	$hasShops = !empty(ShopSitesController::getShops());
+	$hasShops = Loader::includeModule('sale') && !empty(ShopSitesController::getShops());
 
 	if ($isAllowedRegion && $hasShops)
 	{
@@ -279,6 +282,7 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 
 			if (
 				IsModuleInstalled('crm')
+				&& Loader::includeModule('sale')
 				&& \Bitrix\Sale\Cashbox\CheckManager::isAvailableCorrection()
 			)
 			{
@@ -848,7 +852,10 @@ if ($APPLICATION->GetGroupRight("sale") == "W" ||
 						"text" => GetMessage("sale_menu_locations"),
 						"title" => GetMessage("sale_menu_locations_title"),
 						"url" => (new Uri(Location\Admin\LocationHelper::getListUrl(0)))->addParams(["apply_filter" => "y"])->getUri(),
-						"more_url" => array(Location\Admin\LocationHelper::getEditUrl()),
+						"more_url" => array(
+							Location\Admin\LocationHelper::getEditUrl(),
+							(new Uri(Location\Admin\LocationHelper::getListUrl(false)))->getUri(),
+						),
 						"module_id" => "sale",
 						"items_id" => "sale_location_node_list",
 						"dynamic" => true,

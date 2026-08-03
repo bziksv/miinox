@@ -12,13 +12,20 @@ global $adminPage;
 /** @global CAdminSidePanelHelper $adminSidePanelHelper */
 global $adminSidePanelHelper;
 
+Loader::includeModule('catalog');
+use \Bitrix\Catalog\Access\AccessController;
+use \Bitrix\Catalog\Access\ActionDictionary;
+
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_price')))
+$accessController = AccessController::getCurrent();
+if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $accessController->check(ActionDictionary::ACTION_PRICE_EDIT)))
+{
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
-Loader::includeModule('catalog');
-$bReadOnly = !$USER->CanDoOperation('catalog_extra');
+}
+
+$bReadOnly = !$accessController->check(ActionDictionary::ACTION_PRODUCT_PRICE_EXTRA_EDIT);
 
 IncludeModuleLangFile(__FILE__);
 
@@ -35,9 +42,11 @@ if ($ex = $APPLICATION->GetException())
 
 $sTableID = "tbl_catalog_extra";
 
-$oSort = new CAdminUiSorting($sTableID, "ID", "asc");
-
+$oSort = new CAdminUiSorting($sTableID, "ID", "ASC");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
+
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $arFilter = array();
 
@@ -96,7 +105,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 	if ($_REQUEST['action_target']=='selected')
 	{
 		$arID = array();
-		$dbResultList = CExtra::GetList(array($by => $order), $arFilter, false, false, array('ID'));
+		$dbResultList = CExtra::GetList(array(), $arFilter, false, false, array('ID'));
 		while ($arResult = $dbResultList->Fetch())
 			$arID[] = $arResult['ID'];
 	}

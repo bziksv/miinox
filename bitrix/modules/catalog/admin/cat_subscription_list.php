@@ -3,11 +3,14 @@
 /** @global CMain $APPLICATION */
 /** @global array $FIELDS */
 /** @global CDatabase $DB */
+
 use Bitrix\Main;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Iblock;
 use Bitrix\Catalog;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
 
@@ -24,7 +27,10 @@ $APPLICATION->setTitle(Loc::getMessage('PSL_PAGE_TITLE'));
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if(!$USER->canDoOperation('catalog_read') && !$USER->canDoOperation('catalog_view'))
+if (
+	!AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ)
+	&& !AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_VIEW)
+)
 {
 	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
 	ShowError(Loc::getMessage('PSL_ACCESS_DENIED'));
@@ -78,11 +84,8 @@ $tableId = 'tbl_product_subscription_list';
 $sortObject = new CAdminUiSorting($tableId, 'DATE_FROM', 'DESC');
 $listObject = new CAdminUiList($tableId, $sortObject);
 
-global $by, $order;
-if(!isset($by))
-	$by = 'DATE_FROM';
-if(!isset($order))
-	$order = 'DESC';
+$by = mb_strtoupper($sortObject->getField());
+$order = mb_strtoupper($sortObject->getOrder());
 
 $listContactTypes = array();
 $contactType = Catalog\SubscribeTable::getContactTypes();
@@ -262,6 +265,8 @@ $listObject->SetNavigationParams($queryObject, array("BASE_LINK" => $selfFolderU
 
 $actionUrl = '&lang='.LANGUAGE_ID;
 $listUserData = array();
+$rowList = [];
+
 while($subscribe = $queryObject->fetch())
 {
 	$subscribe['CONTACT_TYPE'] = $contactType[$subscribe['CONTACT_TYPE']]['NAME'];
@@ -319,26 +324,39 @@ while($subscribe = $queryObject->fetch())
 
 	$row->addActions($actions);
 }
+unset($row);
 
-$listUserId = array_keys($listUserData);
-$listUsers = implode(' | ', $listUserId);
-$userQuery = CUser::getList('ID', 'ASC',
-	array('ID' => $listUsers) ,
-	array('FIELDS' => array('ID' ,'LOGIN', 'NAME', 'LAST_NAME')));
-while($user = $userQuery->fetch())
+if (!empty($listUserData))
 {
-	if(is_array($listUserData[$user['ID']]))
+	$nameFormat = CSite::GetNameFormat();
+
+	$userIterator = Main\UserTable::getList([
+		'select' => [
+			'ID',
+			'LOGIN',
+			'NAME',
+			'LAST_NAME',
+			'SECOND_NAME',
+			'EMAIL',
+			'TITLE',
+		],
+		'filter' => ['@ID' => array_keys($listUserData)],
+	]);
+	while ($user = $userIterator->fetch())
 	{
-		$urlToUser = $selfFolderUrl."user_edit.php?ID=".$user["ID"]."&lang=".LANGUAGE_ID;
+		$urlToUser = $selfFolderUrl . "user_edit.php?ID=" . $user["ID"] . "&lang=" . LANGUAGE_ID;
 		if ($publicMode)
 		{
-			$urlToUser = $selfFolderUrl."sale_buyers_profile.php?USER_ID=".$user["ID"]."&lang=".LANGUAGE_ID;
+			$urlToUser = $selfFolderUrl . "sale_buyers_profile.php?USER_ID=" . $user["ID"] . "&lang=" . LANGUAGE_ID;
 			$urlToUser = $adminSidePanelHelper->editUrlToPublicPage($urlToUser);
 		}
-		foreach($listUserData[$user['ID']] as $subscribeId)
+		$userString =
+			'<a href="' . $urlToUser . '">'
+			. CUser::FormatName($nameFormat, $user, true, true)
+			. '</a>'
+		;
+		foreach ($listUserData[$user['ID']] as $subscribeId)
 		{
-			$userString='<a href="'.$urlToUser.'">'.
-				CUser::formatName(CSite::getNameFormat(false), $user, true, true).'</a>';
 			$rowList[$subscribeId]->addField('USER_ID', $userString);
 		}
 	}

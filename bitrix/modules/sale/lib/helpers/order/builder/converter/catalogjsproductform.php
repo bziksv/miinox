@@ -4,6 +4,8 @@ namespace Bitrix\Sale\Helpers\Order\Builder\Converter;
 
 use Bitrix\Main;
 use Bitrix\Catalog\Product;
+use Bitrix\Catalog\VatTable;
+use Bitrix\Sale\Internals;
 
 class CatalogJSProductForm
 {
@@ -27,30 +29,129 @@ class CatalogJSProductForm
 	}
 
 	/**
+	 * Brings the fields to a consistent state.
+	 *
+	 * Checks:
+	 * - discount price - must be equals difference base price and price;
+	 *
+	 * @param array $fields
+	 *
+	 * @return array
+	 */
+	private static function consistentFields(array $fields): array
+	{
+		// prices
+		if (!empty($fields['discount']))
+		{
+			$price = (float)($fields['priceExclusive'] ?? $fields['price']);
+			$basePrice = (float)$fields['basePrice'];
+			$discountPrice = (float)$fields['discount'];
+
+			$realDiscountPrice = $basePrice - $price;
+			if ($discountPrice !== $realDiscountPrice)
+			{
+				$fields['discount'] = $realDiscountPrice;
+
+				if (isset($fields['discountRate']))
+				{
+					$fields['discountRate'] =
+						$basePrice > 0
+							? $realDiscountPrice / $basePrice * 100
+							: 0
+					;
+				}
+			}
+		}
+
+		return $fields;
+	}
+
+	/**
 	 * @param $fields
 	 * @return array
 	 * @throws Main\ArgumentException
 	 */
 	protected static function obtainProductFields($fields) : array
 	{
+		$fields = self::consistentFields($fields);
+
+		$priceExclusive = $fields['priceExclusive'] ?? $fields['price'] ?? 0;
+		$basePrice = $fields['basePrice'] ?? 0;
+
 		$item = [
-			'NAME' => $fields['name'],
 			'QUANTITY' => (float)$fields['quantity'] > 0 ? (float)$fields['quantity'] : 1,
 			'PRODUCT_PROVIDER_CLASS' => '',
-			'SORT' => (int)$fields['sort'],
 			'BASKET_CODE' => $fields['code'] ?? '',
 			'PRODUCT_ID' => $fields['skuId'] ?? $fields['productId'] ?? 0,
-			'BASE_PRICE' => $fields['basePrice'],
-			'PRICE' => $fields['priceExclusive'] ?? $fields['price'],
-			'CUSTOM_PRICE' => $fields['isCustomPrice'] === 'Y' ? 'Y' : 'N',
+			'BASE_PRICE' => $basePrice,
+			'PRICE' => $priceExclusive,
 			'DISCOUNT_PRICE' => 0,
-			'MEASURE_NAME' => $fields['measureName'],
-			'MEASURE_CODE' => (int)$fields['measureCode'],
-			'ORIGIN_BASKET_ID' => (int)$fields['additionalFields']['originBasketId'] ?? 0,
-			'ORIGIN_PRODUCT_ID' => (int)$fields['additionalFields']['originProductId'] ?? 0,
+			'ORIGIN_BASKET_ID' => (int)($fields['additionalFields']['originBasketId'] ?? 0),
+			'ORIGIN_PRODUCT_ID' => (int)($fields['additionalFields']['originProductId'] ?? 0),
 			'MANUALLY_EDITED' => 'Y',
-			'XML_ID' => $fields['innerId']
+			'XML_ID' => $fields['innerId'],
+			'TYPE' => null,
 		];
+
+		if (isset($fields['type']))
+		{
+			$type = (int)$fields['type'];
+
+			$item['TYPE'] = Internals\Catalog\ProductTypeMapper::getType($type);
+		}
+
+		if (isset($fields['name']))
+		{
+			$item['NAME'] = $fields['name'];
+		}
+
+		if (isset($fields['sort']))
+		{
+			$item['SORT'] = (int)$fields['sort'];
+		}
+
+		if (isset($fields['isCustomPrice']))
+		{
+			$item['CUSTOM_PRICE'] = $fields['isCustomPrice'] === 'Y' ? 'Y' : 'N';
+		}
+
+		if (isset($fields['measureName']))
+		{
+			$item['MEASURE_NAME'] = $fields['measureName'];
+		}
+
+		if (isset($fields['measureCode']))
+		{
+			$item['MEASURE_CODE'] = (int)$fields['measureCode'];
+		}
+
+		if (isset($fields['weight']))
+		{
+			$item['WEIGHT'] = $fields['weight'];
+		}
+
+		if (isset($fields['dimensions']))
+		{
+			$item['DIMENSIONS'] = $fields['dimensions'];
+		}
+
+		if (
+			isset($fields['taxIncluded'], $fields['taxId'])
+			&& Main\Loader::includeModule('catalog')
+		)
+		{
+			$rateRow = VatTable::getRowById((int)$fields['taxId']);
+			if ($rateRow)
+			{
+				$item['VAT_RATE'] =
+					isset($rateRow['RATE'])
+						? (float)$rateRow['RATE'] / 100
+						: null
+				;
+			}
+
+			$item['VAT_INCLUDED'] = $fields['taxIncluded'] === 'N' ? 'N' : 'Y';
+		}
 
 		if (isset($fields['skuId']) && $fields['skuId'])
 		{
@@ -58,7 +159,8 @@ class CatalogJSProductForm
 		}
 
 		if (
-			$fields['module'] === 'catalog'
+			isset($fields['module'])
+			&& $fields['module'] === 'catalog'
 			&& Main\Loader::includeModule('catalog')
 		)
 		{
@@ -68,10 +170,11 @@ class CatalogJSProductForm
 
 		if (
 			(int)$fields['discount'] === 0
-			&& abs($fields['priceExclusive'] - $fields['basePrice']) > 1e-10
+			&& abs($priceExclusive - $basePrice) > 1e-10
+			&& (float)$basePrice > 0
 		)
 		{
-			$fields['discount'] = (int)(100 - ($fields['priceExclusive'] / $fields['basePrice']) * 100);
+			$fields['discount'] = (int)(100 - ($priceExclusive / $basePrice) * 100);
 		}
 
 		if ($fields['discount'] > 0)

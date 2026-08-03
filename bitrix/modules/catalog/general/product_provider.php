@@ -8,6 +8,7 @@ use Bitrix\Main,
 	Bitrix\Catalog,
 	Bitrix\Catalog\Product\Price,
 	Bitrix\Iblock;
+use Bitrix\Sale;
 
 if (!Loader::includeModule('sale'))
 	return false;
@@ -169,6 +170,7 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 		{
 			$select = array('ID', 'TYPE', 'AVAILABLE',
 				'QUANTITY', 'QUANTITY_TRACE', 'CAN_BUY_ZERO',
+				'QUANTITY_RESERVED',
 				'WEIGHT', 'WIDTH', 'HEIGHT', 'LENGTH',
 				'BARCODE_MULTI',
 				'MEASURE'
@@ -180,8 +182,12 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 			))->fetch();
 			if (!empty($arCatalogProduct))
 			{
-				Catalog\Product\SystemField::prepareRow($arCatalogProduct, Catalog\Product\SystemField::OPERATION_PROVIDER);
+				$arCatalogProduct['ID'] = (int)$arCatalogProduct['ID'];
+				$arCatalogProduct['TYPE'] = (int)$arCatalogProduct['TYPE'];
 				$arCatalogProduct['QUANTITY'] = (float)$arCatalogProduct['QUANTITY'];
+				$arCatalogProduct['QUANTITY_RESERVED'] = (float)$arCatalogProduct['QUANTITY_RESERVED'];
+				Catalog\Product\SystemField::prepareRow($arCatalogProduct, Catalog\Product\SystemField::OPERATION_PROVIDER);
+
 				static::setHitCache(self::CACHE_PRODUCT, $productID, $arCatalogProduct);
 			}
 		}
@@ -286,8 +292,6 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 				"HEIGHT" => $arCatalogProduct["HEIGHT"],
 				"LENGTH" => $arCatalogProduct["LENGTH"]
 			)),
-			"TYPE" => ($arCatalogProduct["TYPE"] == Catalog\ProductTable::TYPE_SET ? CCatalogProductSet::TYPE_SET : null),
-			"MARKING_CODE_GROUP" => $arCatalogProduct["MARKING_CODE_GROUP"],
 			"VAT_INCLUDED" => "Y",
 			"MEASURE_ID" => $arCatalogProduct['MEASURE'],
 			"MEASURE_NAME" => $arCatalogProduct['MEASURE_NAME'],
@@ -295,6 +299,23 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 			"CATALOG_XML_ID" => self::$catalogList[$arProduct['IBLOCK_ID']]['CATALOG_XML_ID'],
 			"PRODUCT_XML_ID" => $arProduct['~XML_ID']
 		);
+		switch ($arCatalogProduct['TYPE'])
+		{
+			case Catalog\ProductTable::TYPE_SET:
+				$arResult['TYPE'] = Sale\BasketItem::TYPE_SET;
+				break;
+			case Catalog\ProductTable::TYPE_SERVICE:
+				$arResult['TYPE'] = Sale\BasketItem::TYPE_SERVICE;
+				break;
+			default:
+				$arResult['TYPE'] = null;
+				break;
+		}
+		foreach (Catalog\Product\SystemField::getProviderSelectFields() as $index => $value)
+		{
+			$field = is_string($index) ? $index : $value;
+			$arResult[$field] = $arCatalogProduct[$field];
+		}
 
 		if ($arParams['SELECT_QUANTITY_TRACE'] == "Y")
 			$arResult["QUANTITY_TRACE"] = $arCatalogProduct["QUANTITY_TRACE"];
@@ -441,7 +462,8 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 
 			$arResult['PRODUCT_PRICE_ID'] = $arPrice['RESULT_PRICE']['ID'];
 			$arResult['NOTES'] = $arPrice['PRICE']['CATALOG_GROUP_NAME'];
-			$arResult['VAT_RATE'] = $arPrice['PRICE']['VAT_RATE'];
+			$arResult['VAT_RATE'] = $arPrice['RESULT_PRICE']['VAT_RATE'];
+			$arResult['VAT_INCLUDED'] = $arPrice['RESULT_PRICE']['VAT_INCLUDED'];
 			$arResult['DISCOUNT_NAME'] = null;
 			$arResult['DISCOUNT_COUPON'] = null;
 			$arResult['DISCOUNT_VALUE'] = null;
@@ -475,18 +497,24 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 		}
 		else
 		{
-			$vatRate = 0.0;
+			$vatRate = null;
 
 			if (!$arVAT = static::getHitCache(self::CACHE_VAT, $productID))
 			{
-				$rsVAT = CCatalogProduct::GetVATInfo($productID);
-				if ($arVAT = $rsVAT->Fetch())
+				$arVat = CCatalogProduct::GetVATDataByID($productID);
+				if (!empty($arVAT))
+				{
 					static::setHitCache(self::CACHE_VAT, $productID, $arVAT);
-				unset($rsVAT);
+				}
 			}
 
-			if (!empty($arVAT) && is_array($arVAT))
-				$vatRate = (float)$arVAT['RATE'] * 0.01;
+			if (isset($arVAT) && is_array($arVAT))
+			{
+				if ($arVat['EXCLUDE_VAT'] === 'N')
+				{
+					$vatRate = $arVAT['RATE'] * 0.01;
+				}
+			}
 
 			$arResult['VAT_RATE'] = $vatRate;
 		}
@@ -723,7 +751,8 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 			'PRICE_TYPE_ID' => $arPrice['RESULT_PRICE']['PRICE_TYPE_ID'],
 			'BASE_PRICE' => $arPrice['RESULT_PRICE']['BASE_PRICE'],
 			'PRICE' => $arPrice['RESULT_PRICE']['DISCOUNT_PRICE'],
-			'VAT_RATE' => $arPrice['PRICE']['VAT_RATE'],
+			'VAT_RATE' => $arPrice['RESULT_PRICE']['VAT_RATE'],
+			'VAT_INCLUDED' => $arPrice['RESULT_PRICE']['VAT_INCLUDED'],
 			"CURRENCY" => $arPrice['RESULT_PRICE']['CURRENCY'],
 			"WEIGHT" => (float)$arCatalogProduct["WEIGHT"],
 			"DIMENSIONS" => serialize(array(
@@ -736,13 +765,28 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 			"DETAIL_PAGE_URL" => $arProduct['~DETAIL_PAGE_URL'],
 			"NOTES" => $arPrice["PRICE"]["CATALOG_GROUP_NAME"],
 			"DISCOUNT_PRICE" => $arPrice['RESULT_PRICE']['DISCOUNT'],
-			"TYPE" => ($arCatalogProduct["TYPE"] == Catalog\ProductTable::TYPE_SET ? CCatalogProductSet::TYPE_SET : null),
-			"MARKING_CODE_GROUP" => $arCatalogProduct["MARKING_CODE_GROUP"],
 			"DISCOUNT_VALUE" => ($arPrice['RESULT_PRICE']['PERCENT'] > 0 ? $arPrice['RESULT_PRICE']['PERCENT'].'%' : null),
 			"DISCOUNT_NAME" => null,
 			"DISCOUNT_COUPON" => null,
 			"DISCOUNT_LIST" => array()
 		);
+		switch ($arCatalogProduct['TYPE'])
+		{
+			case Catalog\ProductTable::TYPE_SET:
+				$arResult['TYPE'] = Sale\BasketItem::TYPE_SET;
+				break;
+			case Catalog\ProductTable::TYPE_SERVICE:
+				$arResult['TYPE'] = Sale\BasketItem::TYPE_SERVICE;
+				break;
+			default:
+				$arResult['TYPE'] = null;
+				break;
+		}
+		foreach (Catalog\Product\SystemField::getProviderSelectFields() as $index => $value)
+		{
+			$field = is_string($index) ? $index : $value;
+			$arResult[$field] = $arCatalogProduct[$field];
+		}
 
 		if ($arParams["CHECK_QUANTITY"] == "Y")
 			$arResult["QUANTITY"] = $quantity;
@@ -760,8 +804,6 @@ class CCatalogProductProvider implements IBXSaleProductProvider
 			if (empty($arResult['DISCOUNT_LIST']))
 				$arResult['DISCOUNT_LIST'] = array($arPrice['DISCOUNT']);
 		}
-
-		$arResult["VAT_INCLUDED"] = "Y";
 
 		return $arResult;
 	}

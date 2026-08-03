@@ -1,4 +1,4 @@
-import {Runtime, Tag, Text, Type} from 'main.core';
+import {Runtime, Tag, Text, Type, Dom} from 'main.core';
 import './component.css';
 import {ProductSelector} from 'catalog.product-selector';
 
@@ -56,11 +56,12 @@ export class ProductImageInput
 `		;
 
 		this.selector.getModel()?.getImageCollection().setEditInput(defaultInput);
+		this.selector.getModel()?.getImageCollection().setPreview(defaultInput);
 	}
 
 	isViewMode(): boolean
 	{
-		return this.selector && this.selector.isViewMode();
+		return this.selector && (this.selector.isViewMode() || !this.selector.model.isSaveable());
 	}
 
 	isEnabledLiveSaving(): boolean

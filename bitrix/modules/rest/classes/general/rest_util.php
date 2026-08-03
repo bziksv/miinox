@@ -98,34 +98,65 @@ class CRestUtil
 					break;
 			}
 
+			if (!is_array($postData))
+			{
+				$postData = [];
+			}
+
 			$query = array_replace($query, $postData);
 		}
 
 		// TODO: process errorMessage and output correct error message on encoding mismatch
-		$query = \Bitrix\Main\Text\Encoding::convertEncoding($query, 'UTF-8', LANG_CHARSET, $errorMessage);
+		$query = \Bitrix\Main\Text\Encoding::convertEncoding($query, 'UTF-8', LANG_CHARSET);
 
 		return $query;
 	}
 
-	public static function isAdmin()
+	/**
+	 * @param int|null $userId - if not set - check system user
+	 * @return bool
+	 */
+	public static function isAdmin(?int $userId = null): bool
 	{
 		global $USER;
 
-		if(ModuleManager::isModuleInstalled('bitrix24'))
+		if ($userId > 0)
+		{
+			if (ModuleManager::isModuleInstalled('bitrix24'))
+			{
+				return $USER->CanDoOperation('bitrix24_config', $userId);
+			}
+
+			return in_array(1, \CUser::GetUserGroup($userId));
+		}
+
+		if (ModuleManager::isModuleInstalled('bitrix24'))
 		{
 			return $USER->CanDoOperation('bitrix24_config');
 		}
-		else
-		{
-			return $USER->IsAdmin();
-		}
+
+		return $USER->IsAdmin();
 	}
 
-	public static function canInstallApplication($appInfo = null)
+	/**
+	 * @param $appInfo
+	 * @param int|null $userId - if not set - check system user
+	 * @return bool|mixed
+	 */
+	public static function canInstallApplication($appInfo = null, ?int $userId = null)
 	{
 		global $USER;
 
-		if(static::isAdmin())
+		if (
+			!empty($appInfo['HOLD_INSTALL_BY_TRIAL'])
+			&& $appInfo['HOLD_INSTALL_BY_TRIAL'] === 'Y'
+			&& \Bitrix\Rest\Marketplace\Client::isSubscriptionDemo()
+		)
+		{
+			return false;
+		}
+
+		if (static::isAdmin($userId))
 		{
 			return true;
 		}
@@ -145,7 +176,7 @@ class CRestUtil
 		}
 
 		$hasAccess = $USER->CanAccess(static::getInstallAccessList());
-		if($hasAccess && is_array($appInfo))
+		if ($hasAccess && is_array($appInfo))
 		{
 			return static::appCanBeInstalledByUser($appInfo);
 		}
@@ -183,7 +214,7 @@ class CRestUtil
 	{
 		global $USER;
 
-		if(Loader::includeModule('im'))
+		if (Loader::includeModule('im'))
 		{
 			$userName = \CUser::FormatName("#NAME# #LAST_NAME#", array(
 				"NAME" => $USER->GetFirstName(),
@@ -388,6 +419,15 @@ class CRestUtil
 					}
 					else
 					{
+						if (is_numeric($r))
+						{
+							$r = (string)$r;
+						}
+
+						if (!is_string($r))
+						{
+							continue;
+						}
 						$query = str_replace($arMatch[0], $r, $query);
 					}
 				}
@@ -1002,7 +1042,7 @@ class CRestUtil
 			&& empty($appInfo['MENU_NAME_DEFAULT'])
 			&& empty($appInfo['MENU_NAME_LICENSE'])
 			|| $appInfo['ACTIVE'] === \Bitrix\Rest\AppTable::INACTIVE
-			|| $appInfo['TYPE'] === \Bitrix\Rest\AppTable::TYPE_CONFIGURATION
+			|| (isset($appInfo['TYPE']) && $appInfo['TYPE'] === \Bitrix\Rest\AppTable::TYPE_CONFIGURATION)
 		)
 		{
 			$url = \Bitrix\Rest\Marketplace\Url::getApplicationDetailUrl(urlencode($appInfo['CODE']));
@@ -1020,7 +1060,7 @@ class CRestUtil
 
 	public static function isSlider()
 	{
-		return ($_REQUEST['IFRAME'] == 'Y' && $_REQUEST['IFRAME_TYPE'] == 'SIDE_SLIDER');
+		return (isset($_REQUEST['IFRAME']) && $_REQUEST['IFRAME'] === 'Y' && $_REQUEST['IFRAME_TYPE'] == 'SIDE_SLIDER');
 	}
 
 }

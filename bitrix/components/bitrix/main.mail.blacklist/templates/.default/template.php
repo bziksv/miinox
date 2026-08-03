@@ -20,9 +20,9 @@ foreach ($arResult["BLACKLIST"] as $key => $item)
 	$item["DATE_INSERT"] = FormatDate("X", MakeTimeStamp($item["DATE_INSERT"]));
 	foreach ($item as $itemKey => $dataValue)
 	{
-		if (is_string($dataValue[$itemKey]))
+		if (is_string($dataValue))
 		{
-			$dataValue[$itemKey] = htmlspecialcharsbx($dataValue);
+			$item[$itemKey] = htmlspecialcharsbx($dataValue);
 		}
 	}
 	$actions = [];
@@ -74,7 +74,7 @@ $APPLICATION->IncludeComponent("bitrix:main.ui.grid",
 		"AJAX_OPTION_JUMP" => "N",
 		"AJAX_OPTION_STYLE" => "N",
 		"AJAX_OPTION_HISTORY" => "N",
-		"MESSAGES" => $arResult["MESSAGES"]
+		"MESSAGES" => $arResult["MESSAGES"] ?? null
 	]);
 ?>
 <script type="text/javascript">

@@ -275,12 +275,12 @@
 	 * 	}}
 	 */
 	BX.Landing.Utils.Matchers = {
-		youtube: new RegExp("(youtube\\.com|youtu\\.be|youtube\\-nocookie\\.com)\\/(watch\\?(.*&)?v=|v\\/|u\\/|embed\\/?)?(videoseries\\?list=(.*)|[\\w-]{11}|\\?listType=(.*)&list=(.*))(.*)"),
+		youtube: new RegExp("(youtube\\.com|youtu\\.be|youtube\\-nocookie\\.com)\\/((watch\\?(.*&)?v=|v\\/|u\\/|embed\\/?)|(shorts\\/))?(videoseries\\?list=(.*)|[\\w-]{11}|\\?listType=(.*)&list=(.*))(.*)"),
 		vimeo: new RegExp("^.+vimeo.com\\/(.*\\/)?([\\d]+)(.*)?"),
 		vine: new RegExp("vine.co\\/v\\/([a-zA-Z0-9\\?\\=\\-]+)"),
 		instagram: new RegExp("(instagr\\.am|instagram\\.com)\\/p\\/([a-zA-Z0-9_\\-]+)\\/?"),
-		rutube: new RegExp("rutube\\.ru\\/video\\/([a-zA-Z0-9]+)\\/?"),
-		vk: new RegExp("vk\\.com\\/.*(video|clip)(-?\\d+_\\d+)\\/?"),
+		rutube: new RegExp("rutube\\.ru\\/video\\/(private\\/)?([a-zA-Z0-9]+)\\/?"),
+		vk: new RegExp("vk\\.(com|ru)\\/.*(video|clip)(-?\\d+_\\d+)\\/?"),
 
 		// Examples:
 		// https://www.google.com/maps/search/Bitrix24+office/
@@ -422,23 +422,40 @@
 	 * Sets text content to node
 	 * @param {HTMLElement} element
 	 * @param {string} text
+	 * @param {string} classForTextNode
 	 */
-	BX.Landing.Utils.setTextContent = function(element, text)
+	BX.Landing.Utils.setTextContent = function(element, text, classForTextNode = '')
 	{
+		var addClass = BX.Landing.Utils.addClass;
 		if (typeof text === "string")
 		{
 			var firstNode = element.firstChild;
+			var textNode = document.createElement('div');
 
 			if (firstNode &&
 				firstNode === element.lastChild &&
 				firstNode.nodeType === Node.TEXT_NODE)
 			{
 				firstNode.nodeValue = text;
+				if (classForTextNode.length > 0)
+				{
+					addClass(textNode, classForTextNode);
+					textNode.textContent = element.innerText;
+					element.innerText = '';
+					BX.Dom.append(textNode, element);
+				}
 				return;
 			}
 		}
 
 		element.textContent = text;
+		if (classForTextNode.length > 0)
+		{
+			addClass(textNode, classForTextNode);
+			textNode.textContent = element.innerText;
+			element.innerText = '';
+			BX.Dom.append(textNode, element);
+		}
 	};
 
 
@@ -1372,7 +1389,6 @@
 			};
 		}
 
-
 		return BX.Landing.History.Highlight.getInstance().show(node, rect);
 	};
 
@@ -1554,9 +1570,6 @@
 		var slice = BX.Landing.Utils.slice;
 		var create = BX.Landing.Utils.create;
 		var attributes = slice(element.attributes);
-		var elementStyle = getComputedStyle(element);
-		var fontSize = elementStyle.getPropertyValue("font-size");
-		var fontWeight = elementStyle.getPropertyValue("font-weight");
 		var newElement = create(tagName);
 		var innerHTML = element.innerHTML;
 
@@ -1564,8 +1577,6 @@
 			newElement.setAttribute(attribute.nodeName, attribute.nodeValue);
 		});
 
-		newElement.style.fontSize = fontSize;
-		newElement.style.fontWeight = fontWeight;
 		newElement.innerHTML = innerHTML;
 
 		element.parentElement.replaceChild(newElement, element);
@@ -1731,16 +1742,25 @@
 		return path.split('\\').pop().split('/').pop();
 	};
 
-	BX.Landing.Utils.getSelectedElement = function() {
-		var range, sel, container;
-		if (document.selection)
+	BX.Landing.Utils.getSelectedElement = function(contextDocument)
+	{
+		const currentDocument =
+			(typeof contextDocument !== 'undefined' && contextDocument.nodeType === Node.DOCUMENT_NODE)
+				? contextDocument
+				: document
+		;
+
+		let range;
+		let sel;
+		let container;
+		if (currentDocument.selection)
 		{
-			range = document.selection.createRange();
+			range = currentDocument.selection.createRange();
 			return range.parentElement();
 		}
 		else
 		{
-			sel = window.getSelection();
+			sel = currentDocument.defaultView.getSelection();
 			if (sel.getRangeAt)
 			{
 				if (sel.rangeCount > 0)
@@ -1751,7 +1771,7 @@
 			else
 			{
 				// Old WebKit
-				range = document.createRange();
+				range = currentDocument.createRange();
 				range.setStart(sel.anchorNode, sel.anchorOffset);
 				range.setEnd(sel.focusNode, sel.focusOffset);
 

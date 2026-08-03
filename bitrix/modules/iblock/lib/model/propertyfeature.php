@@ -50,6 +50,7 @@ class PropertyFeature
 			return $result;
 		}
 
+		$resultIds = [];
 		foreach ($features as $row)
 		{
 			$row['PROPERTY_ID'] = $propertyId;
@@ -59,9 +60,12 @@ class PropertyFeature
 				$result->addErrors($internalResult->getErrors());
 				return $result;
 			}
+
+			$resultIds[] = $internalResult->getId();
 		}
 		unset($internalResult, $row);
 
+		$result->setData($resultIds);
 		return $result;
 	}
 
@@ -298,6 +302,27 @@ class PropertyFeature
 	}
 
 	/**
+	 * Parses the index into parts.
+	 *
+	 * @param string $index
+	 *
+	 * @return array|null if index correct, return array in format `[MODULE_ID => , FEATURE_ID =>]`
+	 */
+	public static function parseIndex(string $index): ?array
+	{
+		$parts = explode(':', $index);
+		if (count($parts) === 2)
+		{
+			return [
+				'MODULE_ID' => $parts[0],
+				'FEATURE_ID' => $parts[1],
+			];
+		}
+
+		return null;
+	}
+
+	/**
 	 * Build a list of available features for a property.
 	 *
 	 * @param array $property		Property description.
@@ -341,7 +366,7 @@ class PropertyFeature
 	 * Returns iblock properties identifiers (ID or CODE), showed in element list.
 	 *
 	 * @param int $iblockId			Iblock identifier.
-	 * @param array $parameters		Options.
+	 * @param array $parameters		Options
 	 * 	keys are case sensitive:
 	 *		<ul>
 	 * 		<li>CODE	Return symbolic code as identifier (Y/N, default N).
@@ -368,7 +393,7 @@ class PropertyFeature
 	 * Returns iblock properties identifiers (ID or CODE), showed on detail element page.
 	 *
 	 * @param int $iblockId			Iblock identifier.
-	 * @param array $parameters		Options.
+	 * @param array $parameters		Options
 	 * 	keys are case sensitive:
 	 *		<ul>
 	 * 		<li>CODE	Return symbolic code as identifier (Y/N, default N).
@@ -396,7 +421,7 @@ class PropertyFeature
 	 * @see self::getDetailPageShowPropertyCodes
 	 *
 	 * @param int $iblockId			Iblock identifier.
-	 * @param array $parameters		Options.
+	 * @param array $parameters		Options
 	 * 	keys are case sensitive:
 	 *		<ul>
 	 * 		<li>CODE	Return symbolic code as identifier (Y/N, default N).
@@ -413,7 +438,7 @@ class PropertyFeature
 	 *
 	 * @param int $iblockId			Iblock identifier.
 	 * @param array $filter			Feature filter.
-	 * @param array $parameters		Options.
+	 * @param array $parameters		Options
 	 * 	keys are case sensitive:
 	 *		<ul>
 	 * 		<li>CODE	Return symbolic code as identifier (Y/N, default N).

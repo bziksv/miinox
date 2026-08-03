@@ -14,8 +14,6 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
  * @param array $arCurrentValues
  */
 
-include_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/desktop/include.php');
-
 $arComponentParameters = array(
 	"GROUPS" => array(),
 	"PARAMETERS" => array(
@@ -185,7 +183,7 @@ foreach($arGadgets as $gd)
 	
 	if(!is_array($arCurrentValues) || !is_array($arCurrentValues["GADGETS"]) || in_array($gd["ID"], $arCurrentValues["GADGETS"]) || in_array("ALL", $arCurrentValues["GADGETS"]))
 	{
-		if(is_array($gd["PARAMETERS"]) && count($gd["PARAMETERS"])>0)
+		if(is_array($gd["PARAMETERS"]) && !empty($gd["PARAMETERS"]))
 		{
 			$arComponentParameters["GROUPS"]["G_".$gd["ID"]] = array("NAME" => GetMessage("CMDESKTOP_PARAMS_GADGET_SET")." \"".$gd["NAME"]."\"");
 			foreach($gd["PARAMETERS"] as $id=>$p)
@@ -195,7 +193,7 @@ foreach($arGadgets as $gd)
 			}
 		}
 
-		if(is_array($gd["USER_PARAMETERS"]) && count($gd["USER_PARAMETERS"])>0)
+		if(is_array($gd["USER_PARAMETERS"]) && !empty($gd["USER_PARAMETERS"]))
 		{
 			$arComponentParameters["GROUPS"]["GU_".$gd["ID"]] = array("NAME" => GetMessage("CMDESKTOP_PARAMS_GADGET_PAR")." \"".$gd["NAME"]."\"");
 			foreach($gd["USER_PARAMETERS"] as $id=>$p)

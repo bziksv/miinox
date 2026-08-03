@@ -31,6 +31,101 @@ class Folder extends \Bitrix\Landing\Internals\BaseTable
 	}
 
 	/**
+	 * Changes SITE_ID for folder, all sub folders, all sub landings.
+	 * @param int $folderId Folder id.
+	 * @param int $newSiteId New folder site id.
+	 * @return void
+	 */
+	public static function changeSiteIdRecursive(int $folderId, int $newSiteId)
+	{
+		// move sub folders
+		$res = self::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => [
+				'PARENT_ID' => $folderId
+			]
+		]);
+		while ($row = $res->fetch())
+		{
+			$resAffected = self::update($row['ID'], [
+				'SITE_ID' => $newSiteId
+			]);
+			if ($resAffected->isSuccess())
+			{
+				self::changeSiteIdRecursive($row['ID'], $newSiteId);
+			}
+		}
+
+		// move sub landings
+		$res = Landing::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => [
+				'FOLDER_ID' => $folderId
+			]
+		]);
+		while ($row = $res->fetch())
+		{
+			Landing::update($row['ID'], [
+				'SITE_ID' => $newSiteId
+			]);
+		}
+
+	}
+
+	/**
+	 * Recursively collects all subfolder ids for specific folder.
+	 *
+	 * @param int $folderId Folder id.
+	 * @return array
+	 */
+	public static function getSubFolderIds(int $folderId): array
+	{
+		$ids = [];
+
+		$res = self::getList([
+			'select' => ['ID'],
+			'filter' => [
+				'PARENT_ID' => $folderId,
+			],
+		]);
+		while ($row = $res->fetch())
+		{
+			array_push($ids, $row['ID'], ...self::getSubFolderIds($row['ID']));
+		}
+
+		return $ids;
+	}
+
+	/**
+	 * Returns site's folders id.
+	 * @param int $siteId Site id.
+	 * @param array $additionalFilter Optional additional filter.
+	 * @return array
+	 */
+	public static function getFolderIdsForSite(int $siteId, array $additionalFilter = []): array
+	{
+		$return = [];
+		$additionalFilter['SITE_ID'] = $siteId;
+
+		$res = self::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => $additionalFilter
+		]);
+		while ($row = $res->fetch())
+		{
+			$return[] = $row['ID'];
+		}
+
+		return $return;
+	}
+
+	/**
 	 * Returns breadcrumbs for folder of site.
 	 * @param int $folderId Folder id.
 	 * @param int|null $siteId Site id (optional, but desirable for optimisation).

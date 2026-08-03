@@ -37,6 +37,22 @@ class Mask implements \ArrayAccess
 	}
 
 	/**
+	 * @return array
+	 */
+	public function getVector()
+	{
+		$result = [];
+		foreach ($this->mask as $row)
+		{
+			foreach ($row as $column)
+			{
+				$result[] = $column;
+			}
+		}
+		return $result;
+	}
+
+	/**
 	 * @param int $precision
 	 * @return static
 	 */
@@ -55,7 +71,7 @@ class Mask implements \ArrayAccess
 		return new static($mask);
 	}
 
-	public function offsetSet($offset, $value)
+	public function offsetSet($offset, $value): void
 	{
 		if(is_null($offset))
 		{
@@ -67,18 +83,19 @@ class Mask implements \ArrayAccess
 		}
 	}
 
-	public function offsetExists($offset)
+	public function offsetExists($offset): bool
 	{
 		return isset($this->mask[$offset]);
 	}
 
-	public function offsetUnset($offset)
+	public function offsetUnset($offset): void
 	{
 		unset($this->mask[$offset]);
 	}
 
+	#[\ReturnTypeWillChange]
 	public function offsetGet($offset)
 	{
-		return (isset($this->mask[$offset])? $this->mask[$offset] : null);
+		return ($this->mask[$offset] ?? null);
 	}
 }

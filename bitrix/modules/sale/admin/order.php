@@ -3,6 +3,7 @@
 /** @global CUser $USER */
 /** @global string $DBType */
 /** @global CDatabase $DB */
+use Bitrix\Main;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Config\Option;
@@ -139,7 +140,7 @@ while ($arProps = $dbProps->fetch())
 	$key = "";
 	$propAdded = false;
 
-	if(strval(trim($arProps["CODE"])) != '')
+	if(trim((string)$arProps["CODE"]) !== '')
 	{
 		$key = $arProps["CODE"];
 
@@ -170,7 +171,7 @@ while ($arProps = $dbProps->fetch())
 
 $lAdmin->InitFilter($arFilterFields);
 
-$filter_lang = trim($filter_lang);
+$filter_lang = trim((string)$filter_lang);
 if($filter_lang <> '')
 {
 	if(!in_array($filter_lang, $arAccessibleSites) && $saleModulePermissions < "W")
@@ -183,11 +184,11 @@ $userCompanyList = array();
 
 if(intval($filter_id_from)>0) $arFilter[">=ID"] = intval($filter_id_from);
 if(intval($filter_id_to)>0) $arFilter["<=ID"] = intval($filter_id_to);
-if(strval(trim($filter_date_from)) != '')
+if(trim((string)$filter_date_from) !== '')
 {
 	$arFilter[">=DATE_INSERT"] = trim($filter_date_from);
 }
-if(strval(trim($filter_date_to)) != '')
+if(trim((string)$filter_date_to) !== '')
 {
 	if($arDate = ParseDateTime($filter_date_to, CSite::GetDateFormat("FULL", SITE_ID)))
 	{
@@ -207,7 +208,7 @@ if(strval(trim($filter_date_to)) != '')
 	}
 }
 
-if(strval(trim($filter_date_update_from)) != '')
+if(trim((string)$filter_date_update_from) !== '')
 {
 	$arFilter[">=DATE_UPDATE"] = trim($filter_date_update_from);
 }
@@ -218,7 +219,7 @@ elseif($set_filter!="Y" && $del_filter != "Y" && !$bExport)
 	$arFilter[">=DATE_UPDATE"] = $filter_date_update_from;
 }
 
-if(strval(trim($filter_date_update_to)) != '')
+if(trim((string)$filter_date_update_to) !== '')
 {
 	if($arDate = ParseDateTime($filter_date_update_to, CSite::GetDateFormat("FULL", SITE_ID)))
 	{
@@ -238,12 +239,12 @@ if(strval(trim($filter_date_update_to)) != '')
 	}
 }
 
-if(strval(trim($filter_date_paid_from)) != '')
+if(trim((string)$filter_date_paid_from) !== '')
 {
 	$arFilter[">=DATE_PAYED"] = trim($filter_date_paid_from);
 }
 
-if(strval(trim($filter_date_paid_to)) != '')
+if(trim((string)$filter_date_paid_to) !== '')
 {
 	if($arDate = ParseDateTime($filter_date_paid_to, CSite::GetDateFormat("FULL", SITE_ID)))
 	{
@@ -263,12 +264,12 @@ if(strval(trim($filter_date_paid_to)) != '')
 	}
 }
 
-if(strval(trim($filter_date_allow_delivery_from)) != '')
+if(trim((string)$filter_date_allow_delivery_from) !== '')
 {
 	$arFilter[">=DATE_ALLOW_DELIVERY"] = trim($filter_date_allow_delivery_from);
 }
 
-if(strval(trim($filter_date_allow_delivery_to)) != '')
+if(trim((string)$filter_date_allow_delivery_to) !== '')
 {
 	if($arDate = ParseDateTime($filter_date_allow_delivery_to, CSite::GetDateFormat("FULL", SITE_ID)))
 	{
@@ -338,12 +339,22 @@ if($filter_buyer <> '') $arFilter["%BUYER"] = trim($filter_buyer);
 if($filter_user_login <> '') $arFilter["USER.LOGIN"] = trim($filter_user_login);
 if($filter_user_email <> '') $arFilter["USER.EMAIL"] = trim($filter_user_email);
 if(intval($filter_user_id)>0) $arFilter["=USER_ID"] = intval($filter_user_id);
-if(is_array($filter_group_id) && count($filter_group_id) > 0)
+if (!empty($filter_group_id) && is_array($filter_group_id))
 {
-	foreach($filter_group_id as $v)
+	Main\Type\Collection::normalizeArrayValuesByInt($filter_group_id);
+	if (!empty($filter_group_id))
 	{
-		if(intval($v) > 0)
-			$arFilter["USER_GROUP.GROUP_ID"][] = $v;
+		$whereExpression = '(' . implode(', ', $filter_group_id) . ')';
+		$runtimeFields['REQUIRED_UG_PRESENTED'] = [
+			'data_type' => 'boolean',
+			'expression' => [
+				'case when exists (select USER_ID from b_user_group where USER_ID = %s and GROUP_ID in '
+					. $whereExpression . ') then 1 else 0 end'
+				,
+				'USER_ID',
+			],
+		];
+		$arFilter['=REQUIRED_UG_PRESENTED'] = 1;
 	}
 }
 
@@ -392,11 +403,11 @@ if(floatval($filter_price_to)>0) $arFilter["<=PRICE"] = floatval($filter_price_t
 if($filter_xml_id <> '') $arFilter["%XML_ID"] = trim($filter_xml_id);
 if($filter_tracking_number <> '') $arFilter["%SHIPMENT.TRACKING_NUMBER"] = trim($filter_tracking_number);
 
-if(strval(trim($filter_delivery_doc_date_from)) != '')
+if(trim((string)$filter_delivery_doc_date_from) !== '')
 {
 	$arFilter[">=SHIPMENT.DELIVERY_DOC_DATE"] = trim($filter_delivery_doc_date_from);
 }
-if(strval(trim($filter_delivery_doc_date_to)) != '')
+if(trim((string)$filter_delivery_doc_date_to) !== '')
 {
 	if($arDate = ParseDateTime($filter_delivery_doc_date_to, CSite::GetDateFormat("FULL", SITE_ID)))
 	{
@@ -438,12 +449,13 @@ if(isset($filter_person_type) && is_array($filter_person_type) && count($filter_
 	}
 }
 
-if(isset($filter_source) && $filter_source != 0)
+if (isset($filter_source))
 {
-	if($filter_source == -1)
-		$arFilter["=SOURCE.TRADING_PLATFORM_ID"] = "";
-	else
-		$arFilter["=SOURCE.TRADING_PLATFORM_ID"] = $filter_source;
+	$filter_source = (int)$filter_source;
+	if ($filter_source)
+	{
+		$arFilter["=SOURCE.TRADING_PLATFORM_ID"] = $filter_source !== -1 ? $filter_source : "";
+	}
 }
 
 if(!empty($filter_pay_system) && is_array($filter_pay_system))
@@ -540,7 +552,7 @@ if(!empty($filter_product_id) || !empty($filter_product_xml_id)|| !empty($filter
 
 	foreach ($filterProductFields as $code=>$filterValue)
 	{
-		if (strval(trim($filterValue)) != "")
+		if (trim((string)$filterValue) !== "")
 		{
 			if ($whereExpression == "")
 			{
@@ -601,7 +613,7 @@ foreach ($arOrderPropsCode as $key => $value)
 {
 	if($value["IS_FILTERED"] == "Y" && $value["TYPE"] != "MULTIPLE")
 	{
-		$tmp = trim(${"filter_prop_".$key});
+		$tmp = trim((string)${"filter_prop_".$key});
 		if($tmp <> '')
 		{
 			if($value["TYPE"]=="STRING" && !preg_match("/^\d+$/", $tmp))
@@ -1572,6 +1584,8 @@ foreach ($arVisibleColumns as $visibleColumn)
 	}
 }
 
+$WEIGHT_UNIT = [];
+$WEIGHT_KOEF = [];
 $dbSite = CSite::GetList();
 while ($arSite = $dbSite->Fetch())
 {
@@ -1839,6 +1853,11 @@ if (!empty($orderList) && is_array($orderList))
 	{
 		foreach ($userIdFields as $userIdField)
 		{
+			if (!isset($arOrder[$userIdField]))
+			{
+				continue;
+			}
+
 			$uId = intval($arOrder[$userIdField]);
 			if ($uId > 0 && !in_array($uId, $users))
 				$users[] = $uId;
@@ -2028,25 +2047,31 @@ if (!empty($orderList) && is_array($orderList))
 			if(in_array("CANCELED", $arVisibleColumns))
 			{
 				$fieldValue .= '<span id="cancel_'.$arOrder['ID'].'">'.(($arOrder["CANCELED"] == "Y") ? Loc::getMessage("SO_YES") : Loc::getMessage("SO_NO"))."</span>";
-				$fieldValueTmp = $arOrder["DATE_CANCELED"];
-				if(intval($arOrder["DATE_CANCELED"]) > 0)
+				$fieldValueTmp = '';
+				if ($arOrder['DATE_CANCELED'] instanceof Main\Type\DateTime)
 				{
-					if(intval($arOrder["EMP_CANCELED_ID"]) > 0)
-						$fieldValueTmp .= '<br />'.$formattedUserNames[$arOrder["EMP_CANCELED_ID"]];
-
-					if(!$bExport)
+					$fieldValueTmp = $arOrder['DATE_CANCELED']->toString();
+					if ($arOrder['DATE_CANCELED']->getTimestamp() > 0)
 					{
-						$sScript .= "
+						if ((int)$arOrder['EMP_CANCELED_ID'] > 0)
+						{
+							$fieldValueTmp .= '<br />' . $formattedUserNames[$arOrder["EMP_CANCELED_ID"]];
+						}
+
+						if (!$bExport)
+						{
+							$sScript .= "
 							new topWindow.BX.CHint({
-								parent: topWindow.BX('cancel_".$arOrder["ID"]."'),
+								parent: topWindow.BX('cancel_" . $arOrder["ID"] . "'),
 								show_timeout: 10,
 								hide_timeout: 100,
 								dx: 2,
 								preventHide: true,
 								min_width: 250,
-								hint: '".CUtil::JSEscape($fieldValueTmp)."'
+								hint: '" . CUtil::JSEscape($fieldValueTmp) . "'
 							});
 						";
+						}
 					}
 				}
 			}
@@ -2077,10 +2102,9 @@ if (!empty($orderList) && is_array($orderList))
 				|| $row->bEditMode == true && !$isStatusAllowed)
 			{
 				$fieldValue = "";
-				if(in_array("STATUS", $arVisibleColumns))
+				if (in_array("STATUS", $arVisibleColumns))
 				{
-					if(!isset($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]])
-						|| empty($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]))
+					if (empty($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]))
 					{
 						$arStatus =  StatusTable::getList(array(
 							'select' => array(
@@ -2173,10 +2197,9 @@ if (!empty($orderList) && is_array($orderList))
 			{
 				$fieldValue = "";
 				$fieldValueTmp = "";
-				if(in_array("STATUS_ID", $arVisibleColumns))
+				if (in_array("STATUS_ID", $arVisibleColumns))
 				{
-					if(!isset($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]])
-						|| empty($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]))
+					if (empty($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]))
 					{
 						$arStatus =  StatusTable::getList(array(
 							'select' => array(
@@ -2274,7 +2297,10 @@ if (!empty($orderList) && is_array($orderList))
 			}
 		}
 
-		$row->AddField("PRICE_DELIVERY", '<span style="white-space:nowrap;">'.SaleFormatCurrency($arOrder["PRICE_DELIVERY"], $arOrder["CURRENCY"]).'</span>');
+		if (in_array("PRICE_DELIVERY", $arVisibleColumns))
+		{
+			$row->AddField("PRICE_DELIVERY", '<span style="white-space:nowrap;">' . SaleFormatCurrency($arOrder["PRICE_DELIVERY"], $arOrder["CURRENCY"]) . '</span>');
+		}
 
 		//MARKED
 		$fieldValue = "";
@@ -2317,7 +2343,11 @@ if (!empty($orderList) && is_array($orderList))
 		$row->AddField("REASON_MARKED", $fieldValue);
 
 		$row->AddField("PRICE", '<span style="white-space:nowrap;">'.SaleFormatCurrency($arOrder["PRICE"], $arOrder["CURRENCY"]).'</span>');
-		$row->AddField("SUM_PAID", '<span style="white-space:nowrap;">'.SaleFormatCurrency($arOrder["SUM_PAID"], $arOrder["CURRENCY"]).'</span>');
+
+		if (in_array("SUM_PAID", $arVisibleColumns))
+		{
+			$row->AddField("SUM_PAID", '<span style="white-space:nowrap;">'.SaleFormatCurrency($arOrder["SUM_PAID"], $arOrder["CURRENCY"]).'</span>');
+		}
 
 		$fieldValue = "";
 
@@ -2494,8 +2524,15 @@ if (!empty($orderList) && is_array($orderList))
 			$row->AddField("PS_SUM", $fieldValue);
 		}
 
-		$row->AddField("DATE_UPDATE", $arOrder["DATE_UPDATE"]);
-		$row->AddField("TAX_VALUE", '<span style="white-space:nowrap;">'.SaleFormatCurrency($arOrder["TAX_VALUE"], $arOrder["CURRENCY"]).'</span>');
+		if (in_array("DATE_UPDATE", $arVisibleColumns))
+		{
+			$row->AddField("DATE_UPDATE", $arOrder["DATE_UPDATE"]);
+		}
+
+		if (in_array("TAX_VALUE", $arVisibleColumns))
+		{
+			$row->AddField("TAX_VALUE", '<span style="white-space:nowrap;">'.SaleFormatCurrency($arOrder["TAX_VALUE"], $arOrder["CURRENCY"]).'</span>');
+		}
 
 		//BASKET POSITIONS
 		$fieldValue = "";
@@ -2586,10 +2623,14 @@ if (!empty($orderList) && is_array($orderList))
 
 				$fieldValue .= "[".$arItem["PRODUCT_ID"]."] ";
 
-				if(mb_strpos($arItem["DETAIL_PAGE_URL"], "http") === false)
+				if(empty($arItem["DETAIL_PAGE_URL"]) || mb_strpos($arItem["DETAIL_PAGE_URL"], "http") === false)
+				{
 					$url = "//".$serverName[$arOrder["LID"]].htmlspecialcharsBack($arItem["DETAIL_PAGE_URL"]);
+				}
 				else
+				{
 					$url = htmlspecialcharsBack($arItem["DETAIL_PAGE_URL"]);
+				}
 
 				if($arItem["DETAIL_PAGE_URL"] <> '')
 					$fieldValue .= '<a href="'.htmlspecialcharsbx($url).'" class="'.$linkClass.'">';
@@ -2727,7 +2768,10 @@ if (!empty($orderList) && is_array($orderList))
 				$row->AddField("PROP_".$key, "");
 		}
 
-		$row->AddField("EXTERNAL_ORDER", ($arOrder["EXTERNAL_ORDER"] !="Y" ? Loc::getMessage("SO_NO") : Loc::getMessage("SO_YES")));
+		if (in_array("EXTERNAL_ORDER", $arVisibleColumns))
+		{
+			$row->AddField("EXTERNAL_ORDER", ($arOrder["EXTERNAL_ORDER"] != "Y" ? Loc::getMessage("SO_NO") : Loc::getMessage("SO_YES")));
+		}
 
 		//SHIPMENTS etc.
 		$shipmentFields = array("SHIPMENTS", "ALLOW_DELIVERY", "DATE_ALLOW_DELIVERY", "DELIVERY", "DEDUCTED", "DELIVERY_DOC_NUM", "DELIVERY_DOC_DATE", "TRACKING_NUMBER");
@@ -2967,7 +3011,11 @@ if (!empty($orderList) && is_array($orderList))
 
 		$row->AddViewField('BASKET_DISCOUNT_COUPON', ' ');
 		$row->AddViewField('BASKET_DISCOUNT_NAME', ' ');
-		$row->AddViewField("SOURCE_NAME", '<span style="white-space:nowrap;">'.htmlspecialcharsbx($arOrder["SOURCE_NAME"]).'</span>');
+
+		if (in_array("SOURCE_NAME", $arVisibleColumns))
+		{
+			$row->AddViewField("SOURCE_NAME", '<span style="white-space:nowrap;">'.htmlspecialcharsbx($arOrder["SOURCE_NAME"]).'</span>');
+		}
 
 		//COMPANY_ID
 		$fieldValue = "";
@@ -3451,10 +3499,9 @@ else
 
 	$allowedStatusesFrom = \Bitrix\Sale\OrderStatus::getStatusesUserCanDoOperations($intUserID, array('from'));
 
-	foreach($allowedStatusesFrom as $status)
+	foreach ($allowedStatusesFrom as $status)
 	{
-		if(!isset($LOCAL_STATUS_CACHE[$status])
-			|| empty($LOCAL_STATUS_CACHE[$status]))
+		if (empty($LOCAL_STATUS_CACHE[$status]))
 		{
 			$arStatus =  StatusTable::getList(array(
 				'select' => array(
@@ -3469,10 +3516,12 @@ else
 				'limit'  => 1,
 			))->fetch();
 
-			if($arStatus)
+			if ($arStatus)
 			{
-				$LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]['COLOR'] = htmlspecialcharsbx($arStatus["COLOR"]);
-				$LOCAL_STATUS_CACHE[$status]['NAME'] = htmlspecialcharsbx($arStatus["NAME"]);
+				$LOCAL_STATUS_CACHE[$status] = [
+					'NAME' => htmlspecialcharsbx($arStatus["NAME"]),
+					'COLOR' => htmlspecialcharsbx($arStatus["COLOR"]),
+				];
 			}
 		}
 
@@ -3987,7 +4036,7 @@ else
 
 						foreach ($paySystemList as $psId => $paySystem):
 							$personTypeString = '';
-							if ($paySystem['PERSON_TYPE_ID'])
+							if (!empty($paySystem['PERSON_TYPE_ID']))
 							{
 								$psPt = array();
 								foreach ($paySystem['PERSON_TYPE_ID'] as $ptId)

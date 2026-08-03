@@ -15,7 +15,7 @@
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\Localization\Loc;
 
-require_once(dirname(__FILE__)."/../include/prolog_admin_before.php");
+require_once(__DIR__."/../include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/lang_edit.php");
 
@@ -33,15 +33,16 @@ $tabControl = new CAdminTabControl("tabControl", $aTabs);
 
 $message = null;
 $bVarsFromForm = false;
-$ID = intval($_REQUEST["ID"]);
+$ID = intval($_REQUEST['ID'] ?? 0);
 
-if($_SERVER["REQUEST_METHOD"] == "POST" && ($_POST["save"] <> '' || $_POST["apply"] <> '') && $isAdmin && check_bitrix_sessid())
+if($_SERVER["REQUEST_METHOD"] == "POST" && (!empty($_POST['save']) || !empty($_POST['apply'])) && $isAdmin && check_bitrix_sessid())
 {
 	$arFields = array(
 		"ACTIVE" => $_POST['ACTIVE'],
 		"SORT" => $_POST['SORT'],
 		"DEF" => $_POST['DEF'],
 		"NAME" => $_POST['NAME'],
+		"CODE" => $_POST['CODE'],
 		"CULTURE_ID" => $_POST['CULTURE_ID'],
 	);
 
@@ -64,7 +65,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && ($_POST["save"] <> '' || $_POST["appl
 	}
 	else
 	{
-		if ($_POST["save"] <> '')
+		if (!empty($_POST["save"]))
 			LocalRedirect(BX_ROOT."/admin/lang_admin.php?lang=".LANGUAGE_ID);
 		else
 			LocalRedirect(BX_ROOT."/admin/lang_edit.php?lang=".LANGUAGE_ID."&LID=".$_POST["LID"]."&".$tabControl->ActiveTabParam());
@@ -75,12 +76,12 @@ if($bVarsFromForm == false)
 {
 	$ID = 0;
 	$language = false;
-	if($_REQUEST["COPY_ID"] <> '')
+	if (!empty($_REQUEST["COPY_ID"]))
 	{
 		$lng = CLanguage::GetByID($_REQUEST["COPY_ID"]);
 		$language = $lng->Fetch();
 	}
-	elseif($_REQUEST["LID"] <> '')
+	elseif (!empty($_REQUEST["LID"]))
 	{
 		$lng = CLanguage::GetByID($_REQUEST["LID"]);
 		if(($language = $lng->Fetch()))
@@ -156,7 +157,7 @@ if($message)
 <?=bitrix_sessid_post()?>
 <input type="hidden" name="lang" value="<?=LANGUAGE_ID?>">
 <input type="hidden" name="ID" value="<?echo $ID?>">
-<?if($_REQUEST["COPY_ID"] <> ''):?><input type="hidden" name="COPY_ID" value="<?echo HtmlFilter::encode($_REQUEST["COPY_ID"])?>"><?endif?>
+<?if (!empty($_REQUEST["COPY_ID"])):?><input type="hidden" name="COPY_ID" value="<?echo HtmlFilter::encode($_REQUEST["COPY_ID"])?>"><?endif?>
 <?
 $tabControl->Begin();
 $tabControl->BeginNextTab();
@@ -179,6 +180,10 @@ $tabControl->BeginNextTab();
 	<tr class="adm-detail-required-field">
 		<td><?echo Loc::getMessage('NAME')?></td>
 		<td><input type="text" name="NAME" size="30" maxlength="50" value="<? echo $langField["NAME"]?>"></td>
+	</tr>
+	<tr>
+		<td><?= Loc::getMessage('lang_edit_code') ?></td>
+		<td><input type="text" name="CODE" size="30" maxlength="50" value="<? echo $langField["CODE"]?>"></td>
 	</tr>
 	<tr>
 		<td><label for="def"><?echo Loc::getMessage('DEF')?></label></td>

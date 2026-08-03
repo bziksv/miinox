@@ -20,15 +20,16 @@ class InfoHelper
 			'frameUrlTemplate' => self::getUrl(),
 			'trialableFeatureList' => self::getTrialableFeatureList(),
 			'demoStatus' => self::getDemoStatus(),
+			'availableDomainList' => Util::listDomain(),
 		];
 	}
 
-	public static function getUrl()
+	public static function getUrl(string $url = "/widget2/show/code/")
 	{
 		global $USER;
 
 		$isBitrix24Cloud = Loader::includeModule("bitrix24");
-		$notifyUrl = Util::getHelpdeskUrl()."/widget2/show/code/";
+		$notifyUrl = Util::getHelpdeskUrl().$url;
 		$host = self::getHostName();
 
 		$parameters = [

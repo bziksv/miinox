@@ -366,7 +366,8 @@ class AppTable extends Main\Entity\DataManager
 		if(!static::$skipRemoteUpdate)
 		{
 			if(
-				$data['fields']['STATUS'] === static::STATUS_LOCAL
+				isset($data['fields']['STATUS'])
+				&& $data['fields']['STATUS'] === static::STATUS_LOCAL
 				&& OAuthService::getEngine()->isRegistered()
 			)
 			{
@@ -400,7 +401,7 @@ class AppTable extends Main\Entity\DataManager
 			}
 		}
 
-		if($data['fields']['STATUS'] !== static::STATUS_LOCAL)
+		if(isset($data['fields']['STATUS']) && $data['fields']['STATUS'] !== static::STATUS_LOCAL)
 		{
 			\Bitrix\Rest\Engine\Access::getActiveEntity(true);
 		}
@@ -595,7 +596,7 @@ class AppTable extends Main\Entity\DataManager
 					$dateFinishLocal = $localApps[$app['client_id']]['DATE_FINISH']
 						? $localApps[$app['client_id']]['DATE_FINISH']->getTimestamp()
 						: '';
-					$dateFinishRemote = $app['date_finish'] ? Main\Type\Date::createFromTimestamp($app['date_finish'])->getTimestamp() : '';
+					$dateFinishRemote = ($app['date_finish'] ?? null) ? Main\Type\Date::createFromTimestamp($app['date_finish'])->getTimestamp() : '';
 
 					if(
 						$localApps[$app['client_id']]['STATUS'] !== $app['status']
@@ -836,7 +837,8 @@ class AppTable extends Main\Entity\DataManager
 		}
 
 		if (
-			array_key_exists('#DAYS#', $replace)
+			is_array($replace)
+			&& array_key_exists('#DAYS#', $replace)
 			&& (
 				is_int($replace['#DAYS#'])
 				|| preg_match('/^(-|)\d+$/', $replace['#DAYS#'])
@@ -992,7 +994,7 @@ class AppTable extends Main\Entity\DataManager
 				}
 			}
 
-			if (is_array($appInfo))
+			if (isset($appInfo) && is_array($appInfo))
 			{
 				static::$applicationCache[$appInfo['ID']] = $appInfo;
 				static::$applicationCache[$appInfo['CLIENT_ID']] = $appInfo;

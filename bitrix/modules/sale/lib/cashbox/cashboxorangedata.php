@@ -699,6 +699,10 @@ class CashboxOrangeData
 		}
 
 		$checkInfo = CheckManager::getCheckInfoByExternalUuid($data['id']);
+		if (empty($checkInfo))
+		{
+			return $result;
+		}
 
 		$result['ID'] = $checkInfo['ID'];
 		$result['CHECK_TYPE'] = $checkInfo['TYPE'];
@@ -733,6 +737,10 @@ class CashboxOrangeData
 
 		$data = pack('H*', '3031300d060960864801650304020105000420') . hash('sha256', $data, true);
 		$pk = openssl_get_privatekey($this->getValueFromSettings('SECURITY', 'PKEY'));
+		if ($pk === false)
+		{
+			return false;
+		}
 
 		openssl_private_encrypt($data, $res, $pk);
 		return base64_encode($res);
@@ -990,12 +998,15 @@ class CashboxOrangeData
 
 		foreach (static::getSettings()['SECURITY']['ITEMS'] as $fieldId => $field)
 		{
+			$error = $files['error']['SECURITY'][$fieldId] ?? null;
+			$tmpName = $files['tmp_name']['SECURITY'][$fieldId] ?? null;
+
 			if ($field['TYPE'] === 'DATABASE_FILE'
-				&& $files['error']['SECURITY'][$fieldId] === 0
-				&& $files['tmp_name']['SECURITY'][$fieldId]
+				&& $error === 0
+				&& $tmpName
 			)
 			{
-				$content = $APPLICATION->GetFileContent($files['tmp_name']['SECURITY'][$fieldId]);
+				$content = $APPLICATION->GetFileContent($tmpName);
 				$settings['SECURITY'][$fieldId] = $content ?: '';
 			}
 		}

@@ -214,7 +214,8 @@ abstract class Cashbox
 		}
 
 		$settings = static::getSettings($this->getField('KKM_ID'));
-		return $settings[$name]['ITEMS'][$code]['VALUE'] ?: null;
+
+		return $settings[$name]['ITEMS'][$code]['VALUE'] ?? null;
 	}
 
 	/**
@@ -272,7 +273,9 @@ abstract class Cashbox
 	{
 		$result = static::extractCheckData($data);
 
-		return CheckManager::savePrintResult($result['ID'], $result);
+		$checkId = $result['ID'] ?? 0;
+
+		return CheckManager::savePrintResult($checkId, $result);
 	}
 
 	/**
@@ -388,7 +391,10 @@ abstract class Cashbox
 		{
 			foreach ($group['ITEMS'] as $code => $item)
 			{
-				$isRequired = $group['REQUIRED'] === 'Y' || $item['REQUIRED'] === 'Y';
+				$isRequired =
+					isset($group['REQUIRED']) && $group['REQUIRED'] === 'Y'
+					|| isset($item['REQUIRED']) && $item['REQUIRED'] === 'Y'
+				;
 				if ($isRequired)
 				{
 					$result[$code] = $item['LABEL'];

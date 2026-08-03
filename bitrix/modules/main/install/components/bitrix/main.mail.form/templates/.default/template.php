@@ -7,7 +7,8 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 \Bitrix\Main\UI\Extension::load([
 	'ui.design-tokens',
 	'ui.alerts',
-	'ui.buttons'
+	'ui.buttons',
+	'ui.entity-selector',
 ]);
 
 $htmlFormId = htmlspecialcharsbx('main_mail_form_'.$arParams['FORM_ID']);
@@ -84,9 +85,8 @@ $renderField = function($htmlFormId, $field, $isExt = false, $version)
 						<label class="main-mail-form-field-from-copy">
 							<span class="main-mail-form-field-spacer-25"></span>
 							<input class="main-mail-form-field-from-copy-checkbox" type="checkbox"
-								name="<?=htmlspecialcharsbx($field['copy']) ?>" value="Y" id="<?=$htmlFieldId ?>_copy"
-								<? if (\CUserOptions::getOption('main.mail.form', 'copy_to_sender', true)): ?> checked<? endif ?>><!--
-							--><span class="main-mail-form-field-title main-mail-form-field-from-copy-text"><?=getMessage('MAIN_MAIL_FORM_FROM_FIELD_COPY') ?></span>
+								name="<?=htmlspecialcharsbx($field['copy']) ?>" value="Y" id="<?=$htmlFieldId ?>_copy">
+							<span class="main-mail-form-field-title main-mail-form-field-from-copy-text"><?=getMessage('MAIN_MAIL_FORM_FROM_FIELD_COPY') ?></span>
 						</label>
 					<? endif ?>
 				</td>
@@ -427,7 +427,6 @@ $renderField = function($htmlFormId, $field, $isExt = false, $version)
 				'LHE' => array(
 					'id' => sprintf('%s_editor', $htmlFormId),
 					'documentCSS' => 'body { color:#434343; }',
-					'fontFamily' => "'Helvetica Neue', Helvetica, Arial, sans-serif",
 					'fontSize' => '15px',
 					'height' => $editorHeight,
 					'lazyLoad' => true,
@@ -437,7 +436,7 @@ $renderField = function($htmlFormId, $field, $isExt = false, $version)
 					'useFileDialogs' => false,
 					'useLinkStat' => false,
 					'uploadImagesFromClipboard' => false,
-					'autoLink' => false,
+					'autoLink' => true,
 					'controlsMap' => array(
 						array('id' => 'Bold', 'compact' => true, 'sort' => 10),
 						array('id' => 'Italic', 'compact' => true, 'sort' => 20),

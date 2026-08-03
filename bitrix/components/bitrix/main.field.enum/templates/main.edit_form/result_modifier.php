@@ -7,9 +7,7 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 use Bitrix\Main\Page\Asset;
 use Bitrix\Main\UserField\Types\EnumType;
 
-if(
-	($arResult['userField']['ENTITY_VALUE_ID'] < 1)
-)
+if (!isset($arResult['userField']['ENTITY_VALUE_ID']) || $arResult['userField']['ENTITY_VALUE_ID'] < 1)
 {
 	if ($arResult['userField']['MULTIPLE'] === 'Y')
 	{
@@ -146,13 +144,16 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_UI)
 }
 elseif($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_LIST)
 {
+	if ($arResult['userField']['MULTIPLE'] === 'N')
+	{
+		$arResult['additionalParameters']['VALIGN'] = 'middle';
+	}
 	if($arResult['userField']['SETTINGS']['LIST_HEIGHT'] > 1)
 	{
 		$arResult['size'] = $arResult['userField']['SETTINGS']['LIST_HEIGHT'];
 	}
 	else
 	{
-		$arResult['additionalParameters']['VALIGN'] = 'middle';
 		$arResult['size'] = '';
 	}
 }

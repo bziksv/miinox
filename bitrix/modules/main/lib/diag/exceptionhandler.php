@@ -7,6 +7,7 @@ class ExceptionHandler
 
 	private $handledErrorsTypes;
 	private $exceptionErrorsTypes;
+	private array $trackModules = [];
 
 	private $catchOverflowMemory = false;
 	private $memoryReserveLimit = 65536;
@@ -76,6 +77,16 @@ class ExceptionHandler
 	public function setHandledErrorsTypes($handledErrorsTypes)
 	{
 		$this->handledErrorsTypes = $handledErrorsTypes;
+	}
+
+	public function getTrackModules(): array
+	{
+		return $this->trackModules;
+	}
+
+	public function setTrackModules(array $trackModules): void
+	{
+		$this->trackModules = $trackModules;
 	}
 
 	/**
@@ -284,7 +295,19 @@ class ExceptionHandler
 	{
 		$exception = new \ErrorException($message, 0, $code, $file, $line);
 
-		if ((error_reporting() === 0) && !$this->ignoreSilence)
+		if (!$this->ignoreSilence)
+		{
+			$errorReporting = error_reporting();
+			if (
+				$errorReporting === 0 //Prior to PHP 8.0.0
+				|| $errorReporting === (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
+			)
+			{
+				return true;
+			}
+		}
+
+		if (!$this->isFileInTrackedModules($file))
 		{
 			return true;
 		}
@@ -298,6 +321,26 @@ class ExceptionHandler
 			$this->writeToLog($exception, ExceptionHandlerLog::LOW_PRIORITY_ERROR);
 			return true;
 		}
+	}
+
+	private function isFileInTrackedModules(string $file): bool
+	{
+		$modules = $this->getTrackModules();
+		if (!$modules)
+		{
+			return true;
+		}
+
+		foreach ($modules as $module)
+		{
+			$moduleDir = DIRECTORY_SEPARATOR . "modules" . DIRECTORY_SEPARATOR . $module . DIRECTORY_SEPARATOR;
+			if (strpos($file, $moduleDir) !== false)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -336,7 +379,7 @@ class ExceptionHandler
 	 */
 	public function handleFatalError()
 	{
-		unset($this->memoryReserve);
+		$this->memoryReserve = null;
 		if ($error = error_get_last())
 		{
 			if (($error['type'] & (E_ERROR | E_USER_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_RECOVERABLE_ERROR)))

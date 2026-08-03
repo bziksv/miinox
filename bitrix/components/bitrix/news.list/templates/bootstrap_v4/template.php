@@ -12,6 +12,8 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 
+\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
+
 $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_THEME'] : '';
 ?>
 <div class="row news-list<?=$themeClass?>">
@@ -42,10 +44,8 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 				?>
 				<div class="news-list-item mb-2 col-sm" id="<?=$this->GetEditAreaId($arItem['ID']);?>">
 					<div class="card">
-						<?if($arParams["DISPLAY_PICTURE"]!="N"):?>
-
-							<?
-							if ($arItem["VIDEO"])
+						<?if($arParams["DISPLAY_PICTURE"]!="N"):
+							if ($arItem["VIDEO"] ?? null)
 							{
 								?>
 								<div class="news-list-item-embed-video embed-responsive embed-responsive-16by9">
@@ -58,7 +58,7 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 								</div>
 								<?
 							}
-							else if ($arItem["SOUND_CLOUD"])
+							elseif ($arItem["SOUND_CLOUD"] ?? null)
 							{
 								?>
 								<div class="news-list-item-embed-audio embed-responsive embed-responsive-16by9">
@@ -72,7 +72,7 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 								</div>
 								<?
 							}
-							else if ($arItem["SLIDER"] && count($arItem["SLIDER"]) > 1)
+							elseif (isset($arItem["SLIDER"]) && is_array($arItem["SLIDER"]) && count($arItem["SLIDER"]) > 1)
 							{
 								?>
 								<div class="news-list-item-embed-slider">
@@ -112,7 +112,7 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 							</script>
 								<?
 							}
-							else if ($arItem["SLIDER"])
+							else if ($arItem["SLIDER"] ?? null)
 							{
 								?>
 								<div class="news-list-item-embed-img">
@@ -148,7 +148,7 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 								</div>
 								<?
 							}
-							else if (is_array($arItem["PREVIEW_PICTURE"]))
+							elseif (isset($arItem["PREVIEW_PICTURE"]) && is_array($arItem["PREVIEW_PICTURE"]))
 							{
 								if (!$arParams["HIDE_LINK_WHEN_NO_DETAIL"] || ($arItem["DETAIL_TEXT"] && $arResult["USER_HAVE_ACCESS"]))
 								{
@@ -311,16 +311,19 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 									?>
 									<div class="text-right">
 										<?
-										$APPLICATION->IncludeComponent("bitrix:main.share", $arParams["SHARE_TEMPLATE"], array(
-											"HANDLERS" => $arParams["SHARE_HANDLERS"],
-											"PAGE_URL" => $arResult["~DETAIL_PAGE_URL"],
-											"PAGE_TITLE" => $arResult["~NAME"],
-											"SHORTEN_URL_LOGIN" => $arParams["SHARE_SHORTEN_URL_LOGIN"],
-											"SHORTEN_URL_KEY" => $arParams["SHARE_SHORTEN_URL_KEY"],
-											"HIDE" => $arParams["SHARE_HIDE"],
-										),
-																	   $component,
-																	   array("HIDE_ICONS" => "Y")
+										$APPLICATION->IncludeComponent(
+											"bitrix:main.share",
+											$arParams["SHARE_TEMPLATE"],
+											[
+												"HANDLERS" => $arParams["SHARE_HANDLERS"],
+												"PAGE_URL" => $arResult["~DETAIL_PAGE_URL"],
+												"PAGE_TITLE" => $arResult["~NAME"],
+												"SHORTEN_URL_LOGIN" => $arParams["SHARE_SHORTEN_URL_LOGIN"],
+												"SHORTEN_URL_KEY" => $arParams["SHARE_SHORTEN_URL_KEY"],
+												"HIDE" => $arParams["SHARE_HIDE"],
+											],
+											$component,
+											["HIDE_ICONS" => "Y"]
 										);
 										?>
 									</div>

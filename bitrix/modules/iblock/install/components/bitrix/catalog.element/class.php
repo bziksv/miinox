@@ -34,7 +34,7 @@ class CatalogElementComponent extends Element
 	{
 		$params = parent::onPrepareComponentParams($params);
 
-		$params['COMPATIBLE_MODE'] = (isset($params['COMPATIBLE_MODE']) && $params['COMPATIBLE_MODE'] === 'N' ? 'N' : 'Y');
+		$params['COMPATIBLE_MODE'] = ($params['COMPATIBLE_MODE'] ?? 'N') === 'Y' ? 'Y' : 'N';
 		if ($params['COMPATIBLE_MODE'] === 'N')
 		{
 			$params['SET_VIEWED_IN_COMPONENT'] = 'N';
@@ -50,6 +50,12 @@ class CatalogElementComponent extends Element
 		if ($params['DISABLE_INIT_JS_IN_COMPONENT'] !== 'Y')
 		{
 			\CJSCore::Init(array('popup'));
+		}
+
+		$params['ADDITIONAL_FILTER_NAME'] = trim((string)($params['ADDITIONAL_FILTER_NAME'] ?? ''));
+		if (!preg_match(self::PARAM_TITLE_MASK, $params['ADDITIONAL_FILTER_NAME']))
+		{
+			$params['ADDITIONAL_FILTER_NAME'] = '';
 		}
 
 		return $params;
@@ -282,5 +288,24 @@ class CatalogElementComponent extends Element
 		{
 			Main\Analytics\Counter::sendData('ct', $this->arResult['counterData']);
 		}
+	}
+
+	protected function getFilter()
+	{
+		$result = parent::getFilter();
+		$elementFilter = $this->arParams['ADDITIONAL_FILTER_NAME'];
+		if (
+			$elementFilter !== ''
+			&& !empty($GLOBALS[$elementFilter])
+			&& is_array($GLOBALS[$elementFilter])
+		)
+		{
+			$result = array_merge(
+				$GLOBALS[$elementFilter],
+				$result
+			);
+		}
+
+		return $result;
 	}
 }

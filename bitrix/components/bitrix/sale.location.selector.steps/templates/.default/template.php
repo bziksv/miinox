@@ -1,30 +1,32 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
-<?
+<?php
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+
+/** @var array $arParams */
+/** @var array $arResult */
+
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Sale\Location;
 
 Loc::loadMessages(__FILE__);
 
 \Bitrix\Main\UI\Extension::load(['ui.design-tokens', 'fx']);
-?>
 
-<?if(!empty($arResult['ERRORS']['FATAL'])):?>
+if(!empty($arResult['ERRORS']['FATAL'])):
 
-	<?foreach($arResult['ERRORS']['FATAL'] as $error):?>
-		<?=ShowError($error)?>
-	<?endforeach?>
+	foreach($arResult['ERRORS']['FATAL'] as $error):
+		ShowError($error);
+	endforeach;
 
-<?else:?>
+else:
 
-	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_widget.js')?>
-	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_etc.js')?>
-	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_pager.js')?>
-	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_combobox.js')?>
-	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_chainedselectors.js')?>
-
+	$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_widget.js');
+	$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_etc.js');
+	$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_pager.js');
+	$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_combobox.js');
+	$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_chainedselectors.js');
+	?>
 	<div id="sls-<?=$arResult['RANDOM_TAG']?>" class="bx-slst<?if($arResult['ADMIN_MODE']):?> bx-admin-mode<?endif?>">
 
-		<?if(is_array($arResult['DEFAULT_LOCATIONS']) && !empty($arResult['DEFAULT_LOCATIONS'])):?>
+		<?if (!empty($arResult['DEFAULT_LOCATIONS']) && is_array($arResult['DEFAULT_LOCATIONS'])):?>
 
 			<div class="bx-ui-sls-quick-locations quick-locations">
 
@@ -36,7 +38,7 @@ Loc::loadMessages(__FILE__);
 
 		<?endif?>
 
-		<?if(is_array($arResult['TRUNK_NAMES']) && !empty($arResult['TRUNK_NAMES'])):?>
+		<?if(!empty($arResult['TRUNK_NAMES']) && is_array($arResult['TRUNK_NAMES'])):?>
 			<div class="bx-ui-sls-tree-trunk">
 				<?=htmlspecialcharsbx(implode(', ', $arResult['TRUNK_NAMES']))?>
 			</div>
@@ -49,13 +51,11 @@ Loc::loadMessages(__FILE__);
 
 		<?if(!$arParams['SUPPRESS_ERRORS']):?>
 			<div data-bx-ui-id="slst-error">
-				<?if(!empty($arResult['ERRORS']['NONFATAL'])):?>
-
-					<?foreach($arResult['ERRORS']['NONFATAL'] as $error):?>
-						<?=ShowError($error)?>
-					<?endforeach?>
-
-				<?endif?>
+				<?if(!empty($arResult['ERRORS']['NONFATAL'])):
+					foreach($arResult['ERRORS']['NONFATAL'] as $error):
+						ShowError($error);
+					endforeach;
+				endif?>
 			</div>
 		<?endif?>
 
@@ -64,7 +64,7 @@ Loc::loadMessages(__FILE__);
 			<div class="dropdown-block bx-ui-slst-input-block<?=($arParams['DISABLE_KEYBOARD_INPUT'] == 'Y' ? ' disabled-keyboard' : '')?>">
 				<span class="dropdown-icon"></span>
 				<input type="text" name="" value="" autocomplete="off" class="dropdown-field" />
-				<div class="bx-ui-combobox-container" style="margin: 0px; padding: 0px; border: none; position: relative;">
+				<div class="bx-ui-combobox-container" style="margin: 0; padding: 0; border: none; position: relative;">
 					<?if($arParams['DISABLE_KEYBOARD_INPUT'] == 'Y'):?>
 						<div class="bx-ui-combobox-fake bx-combobox-fake-as-input">
 							<?=Loc::getMessage('SALE_SLS_SELECTOR_PROMPT')?>
@@ -119,7 +119,7 @@ Loc::loadMessages(__FILE__);
 					),
 				),
 
-				'selectedItem' => intval($arResult['LOCATION']['ID']),
+				'selectedItem' => (int)($arResult['LOCATION']['ID'] ?? 0),
 				'knownBundles' => $arResult['PRECACHED_POOL_JSON'],
 				'provideLinkBy' => $arParams['PROVIDE_LINK_BY'],
 
@@ -143,12 +143,12 @@ Loc::loadMessages(__FILE__);
 				// a trouble of BX.merge() array over object. will be fixed later, but for now as a hotfix
 				'bundlesIncomplete' => array('a' => true) + (is_array($arResult['BUNDLES_INCOMPLETE']) ? $arResult['BUNDLES_INCOMPLETE'] : array()),
 
-				'autoSelectWhenSingle' => $arParams['SELECT_WHEN_SINGLE'] != 'N',
-				'types' => $arResult['TYPES'],
+				'autoSelectWhenSingle' => empty($arParams['SELECT_WHEN_SINGLE']) || $arParams['SELECT_WHEN_SINGLE'] !== 'N',
+				'types' => $arResult['TYPES'] ?? [],
 
 				// spike for sale.order.ajax
-				'disableKeyboardInput' => $arParams['DISABLE_KEYBOARD_INPUT'] == 'Y',
-				'dontShowNextChoice' => $arParams['DISABLE_KEYBOARD_INPUT'] == 'Y',
+				'disableKeyboardInput' => isset($arParams['DISABLE_KEYBOARD_INPUT']) && $arParams['DISABLE_KEYBOARD_INPUT'] === 'Y',
+				'dontShowNextChoice' => isset($arParams['DISABLE_KEYBOARD_INPUT']) && $arParams['DISABLE_KEYBOARD_INPUT'] === 'Y',
 
 			), false, false, true)?>);
 
@@ -158,4 +158,4 @@ Loc::loadMessages(__FILE__);
 
 	</script>
 
-<?endif?>
+<?endif;

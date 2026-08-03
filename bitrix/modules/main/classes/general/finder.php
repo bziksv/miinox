@@ -1,4 +1,7 @@
 <?
+
+use Bitrix\Main\Web\Uri;
+
 IncludeModuleLangFile(__FILE__);
 class CFinder
 {
@@ -133,16 +136,16 @@ class CFinder
 		$arResult['PROVIDER'] = CUtil::AddSlashes($arParams['PROVIDER']);
 
 		$arResult['ID'] = CUtil::AddSlashes($arItem['ID']);
-		$arResult['AVATAR'] = CUtil::AddSlashes($arItem['AVATAR']);
-		$arResult['NAME'] = htmlspecialcharsEx($arItem['NAME']);
-		$arResult['DESC'] = htmlspecialcharsEx($arItem['DESC']);
+		$arResult['AVATAR'] = CUtil::AddSlashes($arItem['AVATAR'] ?? '');
+		$arResult['NAME'] = htmlspecialcharsEx($arItem['NAME'] ?? '');
+		$arResult['DESC'] = htmlspecialcharsEx($arItem['DESC'] ?? '');
 
 		if (isset($arItem['SUBMENU']) && !empty($arItem['SUBMENU']))
 		{
 		}
 
 		$html = '<a href="#'.$arResult['ID'].'" class="bx-finder-box-item-t3 bx-finder-element" rel="'.$arResult['ID'].'" onclick="return BX.Finder.onAddItem(\''.$arResult['PROVIDER'].'\', 3, this, \''.$arResult['ID'].'\')" hidefocus="true">
-						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''.$arResult['AVATAR'].'\') no-repeat center center': '').'" class="bx-finder-box-item-t3-avatar"></div>
+						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''. Uri::urnEncode($arResult['AVATAR']).'\') no-repeat center center': '').'" class="bx-finder-box-item-t3-avatar"></div>
 						<div class="bx-finder-box-item-t3-info">
 							<div class="bx-finder-box-item-t3-name">'.$arResult['NAME'].'</div>
 							<div class="bx-finder-box-item-t3-desc">'.$arResult['DESC'].'</div>
@@ -166,7 +169,7 @@ class CFinder
 
 		$html = '<div class="bx-finder-box-item-t4">
 					<a href="#'.$arResult['ID'].'" '.($bopened? 'id="bx-finder-box-item-t3-'.$arResult['ID'].'"': '').' class="bx-finder-box-item-t3 bx-finder-element" rel="'.$arResult['ID'].'" onclick="return BX.Finder.OpenItemFolder(this)" hidefocus="true">
-						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''.$arResult['AVATAR'].'\') no-repeat center center': '').'" class="bx-finder-box-item-t3-avatar"></div>
+						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''. Uri::urnEncode($arResult['AVATAR']).'\') no-repeat center center': '').'" class="bx-finder-box-item-t3-avatar"></div>
 						<div class="bx-finder-box-item-t3-info">
 							<div class="bx-finder-box-item-t3-name">'.$arResult['NAME'].'</div>
 							<div class="bx-finder-box-item-t3-desc">'.$arResult['DESC'].'</div>
@@ -203,7 +206,7 @@ class CFinder
 		$arResult['DESC'] = htmlspecialcharsEx($arItem['DESC']);
 
 		$html = '<a href="#'.$arResult['ID'].'" class="bx-finder-box-item-t5 bx-finder-element" rel="'.$arResult['ID'].'" onclick="return BX.Finder.onAddItem(\''.$arResult['PROVIDER'].'\', 5, this, \''.$arResult['ID'].'\')" hidefocus="true">
-						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''.$arResult['AVATAR'].'\') no-repeat center center': '').'" class="bx-finder-box-item-t5-avatar"></div>
+						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''.Uri::urnEncode($arResult['AVATAR']).'\') no-repeat center center': '').'" class="bx-finder-box-item-t5-avatar"></div>
 						<div class="bx-finder-box-item-t5-info">
 							<div class="bx-finder-box-item-t5-name">'.$arResult['NAME'].'</div>
 							<div class="bx-finder-box-item-t5-desc">'.$arResult['DESC'].'</div>
@@ -306,7 +309,7 @@ class CFinder
 							<div class="bx-finder-company-department-employee-name">'.$arResult['NAME'].'</div>
 							<div class="bx-finder-company-department-employee-position">'.$arResult['DESC'].'</div>
 						</div>
-						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''.$arResult['AVATAR'].'\') no-repeat center center': '').'" class="bx-finder-company-department-employee-avatar"></div>
+						<div style="'.($arResult['AVATAR'] <> ''? 'background:url(\''.Uri::urnEncode($arResult['AVATAR']).'\') no-repeat center center': '').'" class="bx-finder-company-department-employee-avatar"></div>
 					</a>';
 
 		return $html;

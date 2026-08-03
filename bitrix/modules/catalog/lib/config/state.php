@@ -190,6 +190,40 @@ final class State
 		return null;
 	}
 
+	public static function getProductLimitState(int $iblockId): ?array
+	{
+		if ($iblockId <= 0)
+		{
+			return null;
+		}
+
+		if (!ModuleManager::isModuleInstalled('bitrix24'))
+		{
+			return null;
+		}
+
+		if ($iblockId !== self::getCrmCatalogId())
+		{
+			return null;
+		}
+
+		$result = [];
+		$variable = Feature::getLandingLimitVariable();
+		$result[$variable] = [
+			'LIMIT_NAME' => $variable,
+			'LIMIT_VALUE' => Feature::getLandingProductLimit(),
+			'CURRENT_VALUE' => self::getElementCount($iblockId),
+		];
+
+		$crmLimit = self::getCrmCatalogLimitState($iblockId);
+		if ($crmLimit !== null)
+		{
+			$result[$crmLimit['LIMIT_NAME']] = $crmLimit;
+		}
+
+		return $result;
+	}
+
 	/**
 	 * OnIBlockElementAdd event handler. Do not use directly.
 	 *
@@ -247,7 +281,7 @@ final class State
 		if (!self::checkIblockId($fields))
 			return;
 
-		$sections = $fields['IBLOCK_SECTION'];
+		$sections = $fields['IBLOCK_SECTION'] ?? null;
 		Main\Type\Collection::normalizeArrayValuesByInt($sections, true);
 		if (empty($sections))
 			return;
@@ -512,14 +546,19 @@ final class State
 			$iblockSectionIds = self::getIblockSections($iblockId);
 			if (!empty($iblockSectionIds))
 			{
+				$filter = [
+					'IBLOCK_ID' => $iblockId,
+					'SECTION_ID' => $iblockSectionIds,
+					'INCLUDE_SUBSECTIONS' => 'Y',
+					'CHECK_PERMISSIONS' => 'N',
+				];
+				$filter = Catalog\Product\SystemField\ProductMapping::getExtendedFilterByArea(
+					$filter,
+					Catalog\Product\SystemField\ProductMapping::MAP_LANDING
+				);
 				self::$elementCount = (int)\CIBlockElement::GetList(
 					[],
-					[
-						'IBLOCK_ID' => $iblockId,
-						'SECTION_ID' => $iblockSectionIds,
-						'INCLUDE_SUBSECTIONS' => 'Y',
-						'CHECK_PERMISSIONS' => 'N',
-					],
+					$filter,
 					[],
 					false,
 					['ID']
@@ -675,6 +714,21 @@ final class State
 		return Crm\Config\State::getExceedingProductLimit($iblockId);
 	}
 
+	private static function getCrmCatalogLimitState(int $iblockId): ?array
+	{
+		if (!self::isCrmIncluded())
+		{
+			return null;
+		}
+
+		if (!method_exists('\Bitrix\Crm\Config\State', 'getProductLimitState'))
+		{
+			return null;
+		}
+
+		return Crm\Config\State::getProductLimitState($iblockId);
+	}
+
 	/**
 	 * Returns true if crm exists.
 	 *
@@ -770,8 +824,8 @@ final class State
 	{
 		$result = [
 			'COUNT' => 0,
-			'LIMIT' => (int)Main\Config\Option::get('catalog', 'landing_product_limit'),
-			'MESSAGE_ID' => 'CATALOG_STATE_ERR_PRODUCT_LIMIT'
+			'LIMIT' => Feature::getLandingProductLimit(),
+			'MESSAGE_ID' => 'CATALOG_STATE_ERR_PRODUCT_LIMIT_1'
 		];
 		if ($result['LIMIT'] === 0)
 		{
@@ -834,6 +888,6 @@ final class State
 			return false;
 		}
 
-		return Main\Config\Option::get('catalog', 'product_card_slider_enabled', 'Y') === 'Y';
+		return Main\Config\Option::get('catalog', 'product_card_slider_enabled') === 'Y';
 	}
 }

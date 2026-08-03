@@ -214,6 +214,7 @@
 				case 0: // no catalog
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					this.initProductData();
 					break;
 				case 3: // sku
@@ -549,6 +550,7 @@
 					case 0: // no catalog
 					case 1: // product
 					case 2: // set
+					case 7: // service
 						if (this.product.useSlider)
 						{
 							this.product.slider = {
@@ -578,10 +580,13 @@
 						this.setAnalyticsDataLayer('showDetail');
 						break;
 					case 3: // sku
-						treeItems = this.obTree.querySelectorAll('li');
-						for (i = 0; i < treeItems.length; i++)
+						if (this.obTree)
 						{
-							BX.bind(treeItems[i], 'click', BX.delegate(this.selectOfferProp, this));
+							treeItems = this.obTree.querySelectorAll('li');
+							for (i = 0; i < treeItems.length; i++)
+							{
+								BX.bind(treeItems[i], 'click', BX.delegate(this.selectOfferProp, this));
+							}
 						}
 
 						for (i = 0; i < this.offers.length; i++)
@@ -838,7 +843,11 @@
 		{
 			if (this.params.BASKET && typeof this.params.BASKET === 'object')
 			{
-				if (this.productType === 1 || this.productType === 2)
+				if (
+					this.productType === 1
+					|| this.productType === 2
+					|| this.productType === 7
+				)
 				{
 					this.basketData.useProps = this.params.BASKET.ADD_PROPS;
 					this.basketData.emptyProps = this.params.BASKET.EMPTY_PROPS;
@@ -957,6 +966,7 @@
 				case 0: //no catalog
 				case 1: //product
 				case 2: //set
+				case 7: // service
 					item = {
 						'id': this.product.id,
 						'name': this.product.name,
@@ -3050,6 +3060,7 @@
 					case 0: // no catalog
 					case 1: // product
 					case 2: // set
+					case 7: // service
 						compareLink = url.replace('#ID#', this.product.id.toString());
 						break;
 					case 3: // sku
@@ -3106,7 +3117,7 @@
 							style: {marginRight: '10px'}
 						}),
 						new BasketButton({
-							text: BX.message('BTN_MESSAGE_CLOSE_POPUP'),
+							text: BX.message('BTN_MESSAGE_CLOSE'),
 							events: {
 								click: BX.delegate(this.obPopupWin.close, this.obPopupWin)
 							}
@@ -3201,6 +3212,7 @@
 				case 0: // no catalog
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					if (this.product.id == id)
 					{
 						this.setCompared(false);
@@ -3234,6 +3246,7 @@
 			{
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					this.basketUrl = this.basketUrl.replace('#ID#', this.product.id.toString());
 					break;
 				case 3: // sku
@@ -3375,6 +3388,7 @@
 			{
 				case 1: // product
 				case 2: // set
+				case 7: // service
 					if (this.basketData.useProps && !this.basketData.emptyProps)
 					{
 						this.initPopupWindow();
@@ -3439,6 +3453,7 @@
 					{
 						case 1: // product
 						case 2: // set
+						case 7: // service
 							productPict = this.product.pict.SRC;
 							break;
 						case 3: // sku
@@ -3535,6 +3550,7 @@
 				{
 					case 1:
 					case 2:
+					case 7: // service
 						this.viewedCounter.params.PRODUCT_ID = this.product.id;
 						this.viewedCounter.params.PARENT_ID = this.product.id;
 						break;

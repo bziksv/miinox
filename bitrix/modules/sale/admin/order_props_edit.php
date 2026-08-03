@@ -1,28 +1,30 @@
-<?
+<?php
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
+
+use Bitrix\Main;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Sale\Internals\Input;
+use Bitrix\Sale\Internals\OrderPropsTable;
+use Bitrix\Sale\Internals\OrderPropsRelationTable;
 
 $saleModulePermissions = $APPLICATION->GetGroupRight('sale');
 if ($saleModulePermissions < 'W')
 	$APPLICATION->AuthForm(GetMessage('ACCESS_DENIED'));
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/sale/prolog.php');
-\Bitrix\Main\Loader::includeModule('sale');
+Loader::includeModule('sale');
 
 ClearVars();
 ClearVars('f_');
 ClearVars('l_');
 
-use	Bitrix\Sale\Internals\Input,
-	Bitrix\Sale\Internals\OrderPropsTable,
-	Bitrix\Main\Localization\Loc;
-
 Loc::loadMessages(__FILE__);
 
-$ID = intval($ID);
+$request = Main\Context::getCurrent()->getRequest();
 
-$propertyId = $ID;
-$personTypeId = $PERSON_TYPE_ID;
-unset($ID, $PERSON_TYPE_ID);
+$propertyId = (int)$request->get('ID');
+$personTypeId = (int)$request->get('PERSON_TYPE_ID');
 
 // load person types
 $personTypes = array();
@@ -72,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') // get property from post
 	}
 
 	$property = $_POST;
-	$relations = $_POST['RELATIONS'];
+	$relations = (array)($_POST['RELATIONS'] ?? []);
 }
 else
 {
@@ -103,7 +105,7 @@ else
 
 // 4. check requested person type
 if (! $personType = $personTypes[$personTypeId])
-	LocalRedirect('sale_order_props.php?lang='.LANG.GetFilterParams('filter_', false));
+	LocalRedirect('sale_order_props.php?lang=' . LANGUAGE_ID . GetFilterParams('filter_', false));
 
 // SETTINGS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -170,7 +172,7 @@ while ($row = $result->Fetch())
 
 $commonSettings = array(
 	'PERSON_TYPE_ID' => array('TYPE' => 'NUMBER', 'LABEL' => Loc::getMessage('SALE_PERS_TYPE'  ), 'MIN' => 0, 'STEP' => 1, 'HIDDEN' => 'Y', 'REQUIRED' => 'Y', 'RLABEL' => "[$personTypeId] {$personType['NAME']} ({$personType['LID']})"),
-	'PROPS_GROUP_ID' => array('TYPE' => 'ENUM'  , 'LABEL' => Loc::getMessage('F_PROPS_GROUP_ID'), 'OPTIONS' => $groupOptions, 'RLABEL' => '&nbsp;&nbsp;<a href="sale_order_props_group.php?lang='.LANG.'" target="_blank">'.Loc::getMessage('SALE_PROPS_GROUP').'</a>'),
+	'PROPS_GROUP_ID' => array('TYPE' => 'ENUM'  , 'LABEL' => Loc::getMessage('F_PROPS_GROUP_ID'), 'OPTIONS' => $groupOptions, 'RLABEL' => '&nbsp;&nbsp;<a href="sale_order_props_group.php?lang=' . LANGUAGE_ID . '" target="_blank">'.Loc::getMessage('SALE_PROPS_GROUP').'</a>'),
 	'NAME'           => array('TYPE' => 'STRING', 'LABEL' => Loc::getMessage('F_NAME'          ), 'MAXLENGTH' => 255, 'REQUIRED' => 'Y'),
 	'CODE'           => array('TYPE' => 'STRING', 'LABEL' => Loc::getMessage('F_CODE'          ), 'MAXLENGTH' => 50),
 	'ACTIVE'         => array('TYPE' => 'Y/N'   , 'LABEL' => Loc::getMessage('F_ACTIVE'        ), 'VALUE' => 'Y'),
@@ -306,7 +308,7 @@ $result = CSalePaySystem::GetList(
 	array("ID", "NAME", "ACTIVE", "SORT", "LID")
 );
 while ($row = $result->Fetch())
-	$paymentOptions[$row['ID']] = $row['NAME'] . ($row['LID'] ? " ({$row['LID']}) " : ' ') . "[{$row['ID']}]";
+	$paymentOptions[$row['ID']] = $row['NAME'] . "[{$row['ID']}]";
 
 // delivery system options
 $deliveryOptions = array();
@@ -322,10 +324,10 @@ foreach(\Bitrix\Sale\Delivery\Services\Manager::getActiveList(true) as $delivery
 	$deliveryOptions[$deliveryId] = $name;
 }
 
-$relationsSettings = array(
-	'P' => array('TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('SALE_PROPERTY_PAYSYSTEM'), 'OPTIONS' => $paymentOptions , 'MULTIPLE' => 'Y', 'SIZE' => '5'),
-	'D' => array('TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('SALE_PROPERTY_DELIVERY' ), 'OPTIONS' => $deliveryOptions, 'MULTIPLE' => 'Y', 'SIZE' => '5'),
-);
+$relationsSettings = [
+	OrderPropsRelationTable::ENTITY_TYPE_PAY_SYSTEM => ['TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('SALE_PROPERTY_PAYSYSTEM'), 'OPTIONS' => $paymentOptions , 'MULTIPLE' => 'Y', 'SIZE' => '5'],
+	OrderPropsRelationTable::ENTITY_TYPE_DELIVERY => ['TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('SALE_PROPERTY_DELIVERY' ), 'OPTIONS' => $deliveryOptions, 'MULTIPLE' => 'Y', 'SIZE' => '5'],
+];
 
 $landingOptions = [];
 $dbRes = Bitrix\Sale\TradingPlatform\Manager::getList(
@@ -344,7 +346,39 @@ foreach ($dbRes as $item)
 
 if ($landingOptions)
 {
-	$relationsSettings['L'] = ['TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('SALE_PROPERTY_TP_LANDING'), 'OPTIONS' => $landingOptions, 'MULTIPLE' => 'Y', 'SIZE' => '5'];
+	$relationsSettings[OrderPropsRelationTable::ENTITY_TYPE_LANDING] = [
+		'TYPE' => 'ENUM',
+		'LABEL' => Loc::getMessage('SALE_PROPERTY_TP_LANDING'),
+		'OPTIONS' => $landingOptions,
+		'MULTIPLE' => 'Y',
+		'SIZE' => '5'
+	];
+}
+
+$tradingPlatformOptions = [];
+$dbRes = Bitrix\Sale\TradingPlatform\Manager::getList(
+	[
+		'select' => ['ID', 'NAME'],
+		'filter' => [
+			'=ACTIVE' => 'Y',
+			'!%CODE' => Bitrix\Sale\TradingPlatform\Landing\Landing::TRADING_PLATFORM_CODE,
+		]
+	]
+);
+foreach ($dbRes as $item)
+{
+	$tradingPlatformOptions[$item['ID']] = "{$item['NAME']} [{$item['ID']}]";
+}
+
+if ($tradingPlatformOptions)
+{
+	$relationsSettings[OrderPropsRelationTable::ENTITY_TYPE_TRADING_PLATFORM] = [
+		'TYPE' => 'ENUM',
+		'LABEL' => Loc::getMessage('SALE_PROPERTY_TP'),
+		'OPTIONS' => $tradingPlatformOptions,
+		'MULTIPLE' => 'Y',
+		'SIZE' => '5'
+	];
 }
 
 // VALIDATE AND SAVE POST //////////////////////////////////////////////////////////////////////////////////////////////
@@ -375,6 +409,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST["apply"]) || isset($_P
 	if ($property['TYPE'] == 'ENUM')
 	{
 		$index = 0;
+		$variantCodes = [];
 		foreach ($variants as $row)
 		{
 			++ $index;
@@ -385,6 +420,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST["apply"]) || isset($_P
 			else
 			{
 				$hasError = false;
+				if (in_array($row['VALUE'], $variantCodes, true))
+				{
+					$errors[] = Loc::getMessage('INPUT_ENUM_NOT_UNIQUE_CODES');
+					$hasError = true;
+				}
+				else
+				{
+					$variantCodes[] = $row['VALUE'];
+				}
 				foreach ($variantSettings as $name => $input)
 					if ($error = Input\Manager::getError($input, $row[$name]))
 					{
@@ -401,6 +445,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST["apply"]) || isset($_P
 
 	foreach ($relationsSettings as $name => $input)
 	{
+		if (!isset($relations[$name]))
+		{
+			$relations[$name] = array();
+		}
 		if (($value = $relations[$name]) && $value != array(''))
 		{
 			if ($error = Input\Manager::getError($input, $value))
@@ -413,7 +461,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST["apply"]) || isset($_P
 	}
 
 	// insert/update database
-	if (! $errors && ($_POST['save'] || $_POST['apply']) && $saleModulePermissions == 'W' && check_bitrix_sessid())
+	if (
+		!$errors
+		&& ($request->getPost('save') !== null || $request->getPost('apply') !== null)
+		&& $saleModulePermissions == 'W'
+		&& check_bitrix_sessid()
+	)
 	{
 		// save uploaded files
 		if ($property['TYPE'] == 'FILE')
@@ -449,12 +502,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST["apply"]) || isset($_P
 		$propertyForDB = array();
 		foreach ($commonSettings + $inputSettings + $stringSettings + $locationSettings as $name => $input)
 		{
-			if (is_string($property[$name]))
+			if (isset($property[$name]))
 			{
-				$property[$name] = trim($property[$name]);
-			}
+				if (is_string($property[$name]))
+				{
+					$property[$name] = trim($property[$name]);
+				}
 
-			$propertyForDB[$name] = Input\Manager::getValue($input, $property[$name]);
+				$propertyForDB[$name] = Input\Manager::getValue($input, $property[$name]);
+			}
 		}
 
 		$propertyForDB['SETTINGS'] = array_intersect_key($propertyForDB, $inputSettings);
@@ -587,11 +643,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST["apply"]) || isset($_P
 				CSaleOrderProps::UpdateOrderPropsRelations($propertyId, $relations[$name], $name);
 		}
 
-		if ($_POST['save'] && ! $errors)
-			LocalRedirect("sale_order_props.php?lang=".LANG.GetFilterParams("filter_", false));
+		if ($request->getPost('save') !== null && !$errors)
+			LocalRedirect("sale_order_props.php?lang=" . LANGUAGE_ID . GetFilterParams("filter_", false));
 
-		if ($_POST['apply'] && ! $errors)
-			LocalRedirect("sale_order_props_edit.php?lang=".LANG."&ID=".$propertyId.GetFilterParams("filter_", false));
+		if ($request->getPost('apply') !== null && ! $errors)
+			LocalRedirect("sale_order_props_edit.php?lang=" . LANGUAGE_ID . "&ID=".$propertyId.GetFilterParams("filter_", false));
 	}
 }
 // RENDER VIEW /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -606,7 +662,7 @@ $aMenu = array(
 	array(
 		"TEXT" => Loc::getMessage('SOPEN_2FLIST'),
 		"ICON" => "btn_list",
-		"LINK" => "/bitrix/admin/sale_order_props.php?lang=".LANG.GetFilterParams("filter_")
+		"LINK" => "/bitrix/admin/sale_order_props.php?lang=" . LANGUAGE_ID . GetFilterParams("filter_")
 	)
 );
 
@@ -624,7 +680,7 @@ if ($propertyId && $saleModulePermissions >= "W")
 	foreach($personTypes as $row)
 		$arDDMenu[] = array(
 			'TEXT' => "[{$row['ID']}] {$row['NAME']} ({$row['LID']})",
-			'ACTION' => "window.location = 'sale_order_props_edit.php?lang=".LANG."&PERSON_TYPE_ID={$row['ID']}';"
+			'ACTION' => "window.location = 'sale_order_props_edit.php?lang=" . LANGUAGE_ID . "&PERSON_TYPE_ID={$row['ID']}';"
 		);
 
 	$aMenu[] = array(
@@ -635,7 +691,7 @@ if ($propertyId && $saleModulePermissions >= "W")
 
 	$aMenu[] = array(
 		"TEXT" => Loc::getMessage('SOPEN_DELETE_PROPS'),
-		"LINK" => "javascript:if(confirm('".Loc::getMessage('SOPEN_DELETE_PROPS_CONFIRM')."')) window.location='/bitrix/admin/sale_order_props.php?action=delete&ID[]=".$propertyId."&lang=".LANG."&".bitrix_sessid_get()."#tb';",
+		"LINK" => "javascript:if(confirm('".Loc::getMessage('SOPEN_DELETE_PROPS_CONFIRM')."')) window.location='/bitrix/admin/sale_order_props.php?action=delete&ID[]=".$propertyId."&lang=" . LANGUAGE_ID . "&".bitrix_sessid_get()."#tb';",
 		"ICON" => "btn_delete",
 	);
 }
@@ -692,10 +748,18 @@ if ($errors)
 	<?
 
 	foreach ($propertySettings as $name => $input):
-		if ($input['HIDDEN'] != 'Y')
+		$input['HIDDEN'] ??= 'N';
+		$input['REQUIRED'] ??= 'N';
+		$input['MULTIPLE'] ??= 'N';
+		$input['DESCRIPTION'] ??= '';
+		$input['RLABEL'] ??= '';
+		$tr = '';
+		$td = '';
+
+		if ($input['HIDDEN'] !== 'Y')
 		{
-			$tr = $input['REQUIRED'] == 'Y' ? ' class="adm-detail-required-field"' : '';
-			$td = $input['MULTIPLE'] == 'Y' ? ' valign="top"' : '';
+			$tr = $input['REQUIRED'] === 'Y' ? ' class="adm-detail-required-field"' : '';
+			$td = $input['MULTIPLE'] === 'Y' ? ' valign="top"' : '';
 			switch ($input['TYPE'])
 			{
 				case 'FILE': $input['CLASS'] = 'adm-designed-file'; break;
@@ -706,9 +770,9 @@ if ($errors)
 		<?if ($name == 'TYPE'):?><tr class="heading"><td colspan="2"><?=Loc::getMessage('TYPE_TITLE')?></td></tr><?endif?>
 		<tr<?=$tr?>>
 			<td width="40%"<?=$td?>><?=$input['LABEL']?>:</td>
-			<td width="60%"<?=$td?>>
-				<?=Input\Manager::getEditHtml($name, $input, $property[$name]).$input['RLABEL']?>
-				<?if ($input['DESCRIPTION']):?>
+			<td width="60%"<?=$td?>><?php
+				echo Input\Manager::getEditHtml($name, $input, $property[$name] ?? '').$input['RLABEL'];
+				if ($input['DESCRIPTION']):?>
 					<small><?=$input['DESCRIPTION']?></small>
 				<?endif?>
 			</td>
@@ -775,10 +839,9 @@ if ($errors)
 	$tabControl->EndTab();
 	$tabControl->Buttons(array(
 		'disabled' => ($saleModulePermissions < 'W'),
-		'back_url' => '/bitrix/admin/sale_order_props.php?lang='.LANG.GetFilterParams('filter_'),
+		'back_url' => '/bitrix/admin/sale_order_props.php?lang=' . LANGUAGE_ID . GetFilterParams('filter_'),
 	));
 	$tabControl->End();
 	?>
 </form>
-
 <?require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin.php');

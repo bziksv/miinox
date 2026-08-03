@@ -12,7 +12,7 @@ use Bitrix\Catalog;
  * @example BX.ajax.runAction("sale.entity.addBasketItem", { data: { fields: { siteId:'s1', product: {..}}}});
  * @internal
  */
-final class AddBasketItemAction extends BaseAction
+final class AddBasketItemAction extends Sale\Controller\Action\BaseAction
 {
 	private function checkParams(array $fields): Sale\Result
 	{
@@ -88,6 +88,8 @@ final class AddBasketItemAction extends BaseAction
 
 		$basket = $this->getBasketByFuserId($fuserId, $siteId);
 
+		$product = $this->prepareBasketFields($product);
+
 		$addProductToBasketResult = Catalog\Product\Basket::addProductToBasket($basket, $product, ['SITE_ID' => $siteId], $options);
 		if ($addProductToBasketResult->isSuccess())
 		{
@@ -142,5 +144,20 @@ final class AddBasketItemAction extends BaseAction
 		/** @var Sale\Basket $basketClassName */
 		$basketClassName = $registry->getBasketClassName();
 		return $basketClassName::loadItemsForFUser($fuserId, $siteId);
+	}
+
+	private function prepareBasketFields(array $fields): array
+	{
+		$fields = $this->filterBasketFieldsOnAdd($fields);
+
+		$fields['MODULE'] = 'catalog';
+		$fields['PRODUCT_PROVIDER_CLASS'] = Catalog\Product\Basket::getDefaultProviderName();
+
+		return $fields;
+	}
+
+	private function filterBasketFieldsOnAdd(array $basketFields): array
+	{
+		return (new Sale\Rest\Entity\BasketItem())->internalizeFieldsAdd($basketFields);
 	}
 }

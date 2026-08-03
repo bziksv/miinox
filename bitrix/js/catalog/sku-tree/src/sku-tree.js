@@ -1,6 +1,7 @@
 import {Tag, Type, Text, Dom, ajax} from 'main.core';
-import SkuProperty from './sku-property';
+import 'ui.design-tokens';
 import './sku-tree.css';
+import SkuProperty from './sku-property';
 import {EventEmitter} from 'main.core.events';
 import 'ui.forms';
 import 'ui.buttons';
@@ -61,6 +62,7 @@ export class SkuTree extends EventEmitter
 		}
 
 		this.selectable = (options.selectable !== false);
+		this.isShortView = (options.isShortView === true);
 		this.hideUnselected = (options.hideUnselected === true);
 
 		if (this.hasSku())
@@ -72,6 +74,14 @@ export class SkuTree extends EventEmitter
 		if (!Type.isNil(options.skuTree.EXISTING_VALUES_JSON) && Type.isNil(options.skuTree.EXISTING_VALUES))
 		{
 			this.existingValues = JSON.parse(options.skuTree.EXISTING_VALUES_JSON);
+		}
+
+		for (const key in this.existingValues)
+		{
+			if (this.existingValues[key].length === 1 && this.existingValues[key][0] === 0)
+			{
+				delete this.existingValues[key];
+			}
 		}
 	}
 
@@ -286,6 +296,11 @@ export class SkuTree extends EventEmitter
 	layout(): HTMLElement
 	{
 		const container = Tag.render`<div class="product-item-scu-wrapper" id="${this.id}"></div>`;
+
+		if (this.isShortView)
+		{
+			Dom.addClass(container, '--short-format');
+		}
 
 		this.skuProperties = [];
 		if (this.hasSku())

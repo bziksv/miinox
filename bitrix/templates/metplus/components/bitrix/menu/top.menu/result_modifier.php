@@ -2,7 +2,7 @@
 
 if (empty($arResult))
 	return;
-
+	
 if (isset($arParams["MENU_THEME"]) && !empty($arParams["MENU_THEME"]))
 {
 	$arAvailableThemes = array();
@@ -275,3 +275,4 @@ $arResult = array();
 $arResult["ALL_ITEMS"] = $arAllItems;
 $arResult["ITEMS_IMG_DESC"] = $arImgDesc;
 $arResult["MENU_STRUCTURE"] = $arMenuStructure;
+$arResult["IS_HIDDEN_MENU"] = (isset($arParams["IS_HIDDEN_MENU"])) ? $arParams["IS_HIDDEN_MENU"] : true;

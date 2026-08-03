@@ -10,6 +10,7 @@ import hasBlock from './internal/has-block';
 import hasCreateButton from './internal/has-create-button';
 import onAnimationEnd from './internal/on-animation-end';
 import isEmpty from './internal/is-empty';
+import {ExternalControls} from './external.controls';
 import {Backend} from 'landing.backend';
 
 BX.Landing.getMode = () => 'edit';
@@ -49,6 +50,42 @@ export class Main extends EventEmitter
 		return rootWindow.BX.Landing.Main.instance;
 	}
 
+	/**
+	 * Returns true, if current page is Editor.
+	 * @return {boolean}
+	 */
+	static isEditorMode()
+	{
+		return Dom.hasClass(document.body, 'landing-editor');
+	}
+
+	/**
+	 * Returns true, if external controls is enabled.
+	 * @return {boolean}
+	 */
+	static isExternalControlsEnabled()
+	{
+		return Dom.hasClass(document.body, 'enable-external-controls');
+	}
+
+	/**
+	 * Returns in percent scroll position of page.
+	 *
+	 * @return {number}
+	 */
+	static topInPercent(): number
+	{
+		const scrollHeight = Math.max(
+			document.body.scrollHeight, document.documentElement.scrollHeight,
+			document.body.offsetHeight, document.documentElement.offsetHeight,
+			document.body.clientHeight, document.documentElement.clientHeight
+		);
+
+		const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+
+		return scrollTop / scrollHeight * 100;
+	}
+
 	constructor(id: number)
 	{
 		super();
@@ -63,6 +100,7 @@ export class Main extends EventEmitter
 		this.isDesignBlockModeFlag = this.options["design_block"] === true;
 		this.loadedDeps = {};
 		this.cache = new Cache.MemoryCache();
+		this.externalControls = new ExternalControls;
 
 		this.onSliderFormLoaded = this.onSliderFormLoaded.bind(this);
 		this.onBlockDelete = this.onBlockDelete.bind(this);
@@ -106,7 +144,7 @@ export class Main extends EventEmitter
 		const panel = new SaveBlock('save_block_panel', {block: this.currentBlock});
 		panel.layout.hidden = true;
 		panel.content.hidden = false;
-		Dom.append(panel.layout, document.body);
+		Dom.append(panel.layout, window.parent.document.body);
 
 		return panel;
 	}
@@ -127,7 +165,7 @@ export class Main extends EventEmitter
 			});
 			blocksPanel.layout.hidden = true;
 			blocksPanel.content.hidden = false;
-			Dom.append(blocksPanel.layout, document.body);
+			Dom.append(blocksPanel.layout, window.parent.document.body);
 
 			return blocksPanel;
 		});
@@ -340,6 +378,54 @@ export class Main extends EventEmitter
 	}
 
 	/**
+	 * Makes landing controls internal.
+	 */
+	// eslint-disable-next-line class-methods-use-this
+	makeControlsInternal()
+	{
+		BX.onCustomEvent('BX.Landing.Main:changeControls', ['internal', Main.topInPercent()]);
+		Dom.removeClass(document.body, 'landing-ui-external-controls');
+	}
+
+	/**
+	 * Makes landing controls external.
+	 */
+	// eslint-disable-next-line class-methods-use-this
+	makeControlsExternal()
+	{
+		BX.onCustomEvent('BX.Landing.Main:changeControls', ['external', Main.topInPercent()]);
+		Dom.addClass(document.body, 'landing-ui-external-controls');
+	}
+
+	/**
+	 * Checks that landing controls is external.
+	 * @return {boolean}
+	 */
+	// eslint-disable-next-line class-methods-use-this
+	isControlsExternal()
+	{
+		return Dom.hasClass(document.body, 'landing-ui-external-controls');
+	}
+
+	/**
+	 * Set device code in body data-attribute.
+	 * @param {string} code
+	 */
+	setDeviceCode(code: string)
+	{
+		document.body.setAttribute('data-device', code);
+	}
+
+	/**
+	 * Get device code from body attribute.
+	 * @return {string}
+	 */
+	getDeviceCode(): ?string
+	{
+		return document.body.getAttribute('data-device');
+	}
+
+	/**
 	 * Set BX classes to mark this landing frame as mobile (touch) device
 	 */
 	setTouchDevice()
@@ -398,7 +484,7 @@ export class Main extends EventEmitter
 
 		BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
 
-		if (this.isCrmFormPage())
+		if (this.isCrmFormPage() || this.isControlsExternal())
 		{
 			const rootWindow = PageObject.getRootWindow();
 			Dom.append(this.getBlocksPanel().layout, rootWindow.document.body);
@@ -802,8 +888,9 @@ export class Main extends EventEmitter
 	/**
 	 * Handles paste block event
 	 * @param {BX.Landing.Block} block
+	 * @param {() => {}} callback
 	 */
-	onPasteBlock(block)
+	onPasteBlock(block, callback)
 	{
 		if (window.localStorage.landingBlockId)
 		{
@@ -832,7 +919,7 @@ export class Main extends EventEmitter
 				.batch(action, requestBody, {action})
 				.then((res) => {
 					this.currentBlock = block;
-					return this.addBlock(res[action].result.content);
+					return this.addBlock(res[action].result.content, false, false, callback);
 				});
 		}
 	}
@@ -841,12 +928,12 @@ export class Main extends EventEmitter
 	/**
 	 * Adds block from server response
 	 * @param {addBlockResponse} res
-	 * @param {boolean} [preventHistory = false]
 	 * @param {boolean} [withoutAnimation = false]
 	 * @param {boolean} [insertBefore = false]
+	 * @param {() => {}} callback
 	 * @return {Promise<T>}
 	 */
-	addBlock(res, preventHistory, withoutAnimation, insertBefore = false)
+	addBlock(res, withoutAnimation, insertBefore = false, callback)
 	{
 		if (this.lastBlocks)
 		{
@@ -858,40 +945,6 @@ export class Main extends EventEmitter
 
 		return this.loadBlockDeps(res)
 			.then((blockRes) => {
-				if (!Type.isBoolean(preventHistory) || preventHistory === false)
-				{
-					let lid = null;
-					let id = null;
-
-					if (self.currentBlock)
-					{
-						lid = self.currentBlock.lid;
-						id = self.currentBlock.id;
-					}
-
-					if (self.currentArea)
-					{
-						lid = Dom.attr(self.currentArea, 'data-landing');
-						id = Dom.attr(self.currentArea, 'data-site');
-					}
-
-					// Add history entry
-					BX.Landing.History.getInstance().push(
-						new BX.Landing.History.Entry({
-							block: blockRes.id,
-							selector: `#block${blockRes.id}`,
-							command: 'addBlock',
-							undo: '',
-							redo: {
-								currentBlock: id,
-								lid,
-								code: blockRes.manifest.code,
-								insertBefore: Text.toBoolean(insertBefore),
-							},
-						}),
-					);
-				}
-
 				self.currentBlock = null;
 				self.currentArea = null;
 
@@ -907,6 +960,7 @@ export class Main extends EventEmitter
 				// Init block entity
 				void new BX.Landing.Block(block, {
 					id: blockId,
+					sections: res.sections,
 					requiredUserAction: res.requiredUserAction,
 					manifest: res.manifest,
 					access: res.access,
@@ -920,6 +974,10 @@ export class Main extends EventEmitter
 
 				return self.runBlockScripts(res)
 					.then(() => {
+						if (callback)
+						{
+							callback(blockId);
+						}
 						return block;
 					});
 			})
@@ -936,14 +994,14 @@ export class Main extends EventEmitter
 	 * @param {?boolean} [preventHistory = false]
 	 * @return {Promise<BX.Landing.Block>}
 	 */
-	onAddBlock(blockCode, restoreId, preventHistory)
+	onAddBlock(blockCode, restoreId, preventHistory: ?boolean  = false)
 	{
 		const id = Text.toNumber(restoreId);
 
 		this.hideBlocksPanel();
 
 		return this.showBlockLoader()
-			.then(this.loadBlock(blockCode, id))
+			.then(this.loadBlock(blockCode, id, preventHistory))
 			.then((res) => {
 				return new Promise((resolve) => {
 					setTimeout(() => {
@@ -953,11 +1011,12 @@ export class Main extends EventEmitter
 			})
 			.then((res) => {
 				res.manifest.codeOriginal = blockCode;
-				const p = this.addBlock(res, preventHistory, false, this.insertBefore);
+				const p = this.addBlock(res, false, this.insertBefore);
 				this.insertBefore = false;
 				this.adjustEmptyAreas();
 				void this.hideBlockLoader();
 				this.enableAddBlockButtons();
+				BX.onCustomEvent('BX.Landing.Block:onAfterAdd', res);
 				return p;
 			});
 	}
@@ -1136,9 +1195,10 @@ export class Main extends EventEmitter
 	 * Load new block from server
 	 * @param {string} blockCode
 	 * @param {int} [restoreId]
+	 * @param {boolean} [preventHistory = false]
 	 * @returns {Function}
 	 */
-	loadBlock(blockCode, restoreId)
+	loadBlock(blockCode, restoreId, preventHistory)
 	{
 		return () => {
 			let lid = this.id;
@@ -1159,6 +1219,7 @@ export class Main extends EventEmitter
 			let requestBody = {
 				lid,
 				siteId,
+				preventHistory: preventHistory ? 1 : 0,
 			};
 
 			const fields = {
@@ -1168,13 +1229,19 @@ export class Main extends EventEmitter
 				RETURN_CONTENT: 'Y',
 			};
 
+			if (!Type.isBoolean(preventHistory) || preventHistory === false)
+			{
+				// Change history steps
+				BX.Landing.History.getInstance().push();
+			}
+
 			if (!restoreId)
 			{
 				requestBody.fields = fields;
 				return Backend
 					.getInstance()
 					.action('Landing::addBlock', requestBody, {code: blockCode})
-					.then((result) => {
+					.then(result => {
 						if (this.insertBefore)
 						{
 							return Backend
@@ -1193,30 +1260,16 @@ export class Main extends EventEmitter
 					});
 			}
 
-			requestBody = {
-				undeleete: {
-					action: 'Landing::markUndeletedBlock',
-					data: {
-						lid,
-						block: restoreId,
-					},
-				},
-				getContent: {
-					action: 'Block::getContent',
-					data: {
-						block: restoreId,
-						lid,
-						fields,
-						editMode: 1,
-					},
-				},
-			};
-
 			return BX.Landing.Backend.getInstance()
-				.batch('Landing::addBlock', requestBody, {code: blockCode})
+				.action('Block::getContent', {
+					block: restoreId,
+					lid,
+					fields,
+					editMode: 1,
+				})
 				.then((res) => {
-					res.getContent.result.id = restoreId;
-					return res.getContent.result;
+					res.id = restoreId;
+					return res;
 				});
 		};
 	}

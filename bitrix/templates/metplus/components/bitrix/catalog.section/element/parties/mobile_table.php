@@ -18,7 +18,7 @@
             <?=$arItem['PROPERTIES']['TYPE_METALL']['VALUE']?>
         </li>
         <li>
-            <strong>Вес</strong>
+            <strong><?=(isset($arResult['FIELDS'][2])) ? $arResult['FIELDS'][2] : 'Вес'?></strong>
             <?=$arItem['PROPERTIES']['_3_VESPMSAYT']['VALUE']?>
         </li>
         <li>

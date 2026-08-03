@@ -22,26 +22,36 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\Page\Asset;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Security\Random;
 use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Uri;
 use CBXPunycode;
-use CJSCore;
 use CUtil;
 use function htmlspecialcharsback;
 use function htmlspecialcharsbx;
-use function randString;
 
 Loc::loadMessages(__FILE__);
 
 if ($arResult['ERRORS'])
 {
-	?><div class="landing-message-label error"><?
-	foreach ($arResult['ERRORS'] as $error)
+	foreach ($arResult['ERRORS'] as $errorCode => $errorMessage)
 	{
-		echo $error . '<br/>';
+		$errorMessage .= $component->getSettingLinkByError(
+			$errorCode
+		);
+		if ($arResult['FATAL'])
+		{
+			?>
+			<div class="landing-error-page">
+				<div class="landing-error-page-inner">
+					<div class="landing-error-page-title"><?= $errorMessage ?></div>
+					<div class="landing-error-page-img">
+						<div class="landing-error-page-img-inner"></div>
+					</div>
+				</div>
+			</div>
+			<?php
+		}
 	}
-	?></div><?php
 }
 if ($arResult['FATAL'])
 {
@@ -208,7 +218,7 @@ if ($arParams['SUCCESS_SAVE'])
 					</div>
 				</div>
 			<?php elseif ($domain):?>
-			<div class="ui-form-row ui-form-row-middle-input">
+				<div class="ui-form-row ui-form-row-middle-input">
 					<div class="ui-form-label">
 						<div class="ui-ctl-label-text">
 							<?= $row['CODE']['TITLE']?>
@@ -216,23 +226,23 @@ if ($arParams['SUCCESS_SAVE'])
 					</div>
 					<div class="ui-form-content">
 						<div class="landing-domain">
-						<?php if (Manager::isB24()): ?>
-							<?php $puny = new CBXPunycode; ?>
-							<span class="landing-domain-name">
-								<span class="landing-domain-name-value"><?= $puny->decode($domain['DOMAIN']) ?></span>
-								<a href="<?= str_replace('__tab__', '', $uriDomain->getUri()) ?>" class="ui-title-input-btn ui-editing-pen landing-frame-btn"></a>
-							</span>
+							<?php if (Manager::isB24()): ?>
+								<?php $puny = new CBXPunycode; ?>
+								<span class="landing-domain-name">
+									<span class="landing-domain-name-value"><?= $puny->decode($domain['DOMAIN']) ?></span>
+									<a href="<?= str_replace('__tab__', '', $uriDomain->getUri()) ?>" class="ui-title-input-btn ui-editing-pen landing-frame-btn"></a>
+								</span>
 								<?php if (!Domain::getBitrix24Subdomain($domain['DOMAIN'])):?>
-								<?php if (Register::isDomainActive($domain['DOMAIN'])):?>
-									<div class="landing-domain-status landing-domain-status-active">
-										<div class="landing-domain-status-text"><?= Loc::getMessage('LANDING_TPL_DOMAIN_ACTIVATION_YES') ?></div>
-									</div>
-								<?php else:?>
-									<div class="landing-domain-status landing-domain-status-wait">
-										<div class="landing-domain-status-text"><?= Loc::getMessage('LANDING_TPL_DOMAIN_ACTIVATION_NO') ?></div>
-										<div class="landing-domain-status-notice"><?= Loc::getMessage('LANDING_TPL_DOMAIN_ACTIVATION_INFO') ?></div>
-									</div>
-								<?php endif;?>
+									<?php if (Register::isDomainActive($domain['DOMAIN'])):?>
+										<div class="landing-domain-status landing-domain-status-active">
+											<div class="landing-domain-status-text"><?= Loc::getMessage('LANDING_TPL_DOMAIN_ACTIVATION_YES') ?></div>
+										</div>
+									<?php else:?>
+										<div class="landing-domain-status landing-domain-status-wait">
+											<div class="landing-domain-status-text"><?= Loc::getMessage('LANDING_TPL_DOMAIN_ACTIVATION_NO') ?></div>
+											<div class="landing-domain-status-notice"><?= Loc::getMessage('LANDING_TPL_DOMAIN_ACTIVATION_INFO') ?></div>
+										</div>
+									<?php endif;?>
 								<?php elseif ($arResult['REGISTER']->enable()):?>
 									<div class="landing-domain-status landing-domain-status-configure">
 										<div class="landing-domain-status-title"><?= Loc::getMessage('LANDING_TPL_DOMAIN_FREE_TEXT') ?></div>
@@ -257,22 +267,22 @@ if ($arParams['SUCCESS_SAVE'])
 									</script>
 								<?php endif;?>
 
-						<?php else:?>
-							<div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
-								<div class="ui-ctl-after ui-ctl-icon-angle "></div>
-								<select name="fields[DOMAIN_ID]" class="ui-ctl-element">
+							<?php else:?>
+								<div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
+									<div class="ui-ctl-after ui-ctl-icon-angle "></div>
+									<select name="fields[DOMAIN_ID]" class="ui-ctl-element">
 										<?foreach ($arResult['DOMAINS'] as $item):?>
-										<option
-											value="<?= $item['ID']?>"
-											<?if ($item['ID'] == $row['DOMAIN_ID']['CURRENT']){?> selected="selected"<?}?>
-										>
+											<option
+												value="<?= $item['ID']?>"
+												<?if ($item['ID'] == $row['DOMAIN_ID']['CURRENT']){?> selected="selected"<?}?>
+											>
 												<?= htmlspecialcharsbx($item['DOMAIN']) ?>
 											</option>
 										<?php endforeach;?>
 									</select>
-							</div>
-						<?php endif;?>
-					</div>
+								</div>
+							<?php endif;?>
+						</div>
 					</div>
 				</div>
 			<?php endif;?>
@@ -501,7 +511,7 @@ if ($arParams['SUCCESS_SAVE'])
 							$gaCounterFields['GACOUNTER_CLICK_TYPE']->setValue('text');
 						}
 						?>
-						<div class="ui-form-row" id="<?= $fieldId ?>">
+						<div class="ui-form-row landing-form-gacounter" id="<?= $fieldId ?>">
 							<?php
 							$isLocked = $hooks['GACOUNTER']->isLocked();
 							?>
@@ -519,19 +529,23 @@ if ($arParams['SUCCESS_SAVE'])
 							</div>
 							<div class="ui-form-row-hidden">
 								<div class="ui-form-row">
+									<div class="ui-form-label">
+										<?= Loc::getMessage('LANDING_TPL_HOOK_METRIKA_COUNTER') ?>
+									</div>
 									<?php $template->showField($gaCounterFields['GACOUNTER_COUNTER']); ?>
 									<div class="ui-form-label landing-form-gacounter-send-js" data-form-row-hidden>
-										<label class="ui-ctl ui-ctl-checkbox">
-											<input type="checkbox" class="ui-ctl-element">
-											<div class="ui-ctl-label-text">
-												<?=$gaCounterFields['GACOUNTER_SEND_CLICK']->getLabel()?>
-											</div>
-										</label>
+										<?php $template->showField($gaCounterFields['GACOUNTER_SEND_CLICK'], ['title' => true]); ?>
 									</div>
 									<div class="ui-form-row-hidden">
 										<?php $template->showField($gaCounterFields['GACOUNTER_CLICK_TYPE']); ?>
 									</div>
 									<?php $template->showField($gaCounterFields['GACOUNTER_SEND_SHOW'], ['title' => true]); ?>
+								</div>
+								<div class="ui-form-row">
+									<div class="ui-form-label">
+										<?= Loc::getMessage('LANDING_TPL_HOOK_METRIKA_COUNTER_GA4') ?>
+									</div>
+									<?php $template->showField($gaCounterFields['GACOUNTER_COUNTER_GA4']); ?>
 								</div>
 							</div>
 						</div>
@@ -718,23 +732,26 @@ if ($arParams['SUCCESS_SAVE'])
 									>
 								<?php endforeach;?>
 								<div class="landing-form-list">
-									<div class="landing-form-list-container">
-										<div class="landing-form-list-inner">
-											<?php foreach (array_values($arResult['TEMPLATES']) as $i => $tpl):?>
-												<label class="landing-form-layout-item <?
-												?><?= (!$row['TPL_ID']['CURRENT'] && $tpl['XML_ID'] == 'empty') ? 'landing-form-layout-item-selected ' : ''?><?
-												?>landing-form-layout-item-<?= $tpl['XML_ID'] ?>" <?php
-												?>data-block="<?= $tpl['AREA_COUNT'] ?>" <?php
-												?>data-layout="<?= $tpl['XML_ID'] ?>" <?php
-												?>for="<?= $template->getFieldId('LAYOUT-RADIO_' . ($i + 1)) ?>">
-													<div class="landing-form-layout-item-img"></div>
-												</label>
-											<?php endforeach;?>
-										</div>
-									</div>
 									<div class="landing-form-select-buttons">
 										<div class="landing-form-select-prev"></div>
 										<div class="landing-form-select-next"></div>
+									</div>
+									<div class="landing-form-list-container">
+										<div class="landing-form-list-inner">
+											<?php foreach (array_values($arResult['TEMPLATES']) as $i => $tpl):?>
+												<div class="landing-form-layout-item-img-container">
+													<label class="landing-form-layout-item <?
+														?><?= (!$row['TPL_ID']['CURRENT'] && $tpl['XML_ID'] == 'empty') ? 'landing-form-layout-item-selected ' : ''?><?
+														?>landing-form-layout-item-<?= $tpl['XML_ID'] ?>" <?php
+														?>data-block="<?= $tpl['AREA_COUNT'] ?>" <?php
+														?>data-layout="<?= $tpl['XML_ID'] ?>" <?php
+														?>for="<?= $template->getFieldId('LAYOUT-RADIO_' . ($i + 1)) ?>"
+													>
+														<div class="landing-form-layout-item-img"></div>
+													</label>
+												</div>
+											<?php endforeach;?>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -921,7 +938,7 @@ if ($arParams['SUCCESS_SAVE'])
 			<!--CSS block-->
 			<?php if (isset($hooks['CSSBLOCK'])): ?>
 				<?php $hookFields = $hooks['CSSBLOCK']->getPageFields(); ?>
-				<div class="ui-form-row landing-form-additional-row landing-form-row-cssblock" data-landing-additional-detail="public_html_disallowed">
+				<div class="ui-form-row landing-form-additional-row landing-form-row-cssblock" data-landing-additional-detail="css">
 					<div class="ui-form-label">
 						<div class="ui-ctl-label-text">
 							<?= $hooks['CSSBLOCK']->getTitle() ?>
@@ -1069,33 +1086,41 @@ if ($arParams['SUCCESS_SAVE'])
 								<div class="landing-form-cookies-settings-wrapper">
 									<div class="landing-form-cookies-title"><?= Loc::getMessage('LANDING_TPL_HOOK_COOKIES_VIEW') ?></div>
 									<div class="landing-form-cookies-settings">
-										<div class="landing-form-cookies-settings-preview">
-											<div class="landing-form-cookies-settings-type landing-form-cookies-settings-type-simple">
-												<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="#FFF" class="landing-form-cookies-settings-preview-svg">
-													<path fill-rule="evenodd" d="M7.328.07c.463 0 .917.043 1.356.125.21.04.3.289.228.49a1.5 1.5 0 001.27 1.99h.001a.22.22 0 01.213.243 3.218 3.218 0 003.837 3.453c.18-.035.365.078.384.26A7.328 7.328 0 117.329.07zm.263 10.054a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854zM3.697 7.792a.884.884 0 100 1.769.884.884 0 000-1.769zm5.476-.488a.884.884 0 100 1.768.884.884 0 000-1.768zM5.806 3.628a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854z"/>
-												</svg>
+										<div class="landing-form-cookies-settings-inner">
+											<div class="landing-form-cookies-settings-preview">
+												<div class="landing-form-cookies-settings-type landing-form-cookies-settings-type-simple">
+													<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="#FFF" class="landing-form-cookies-settings-preview-svg">
+														<path fill-rule="evenodd" d="M7.328.07c.463 0 .917.043 1.356.125.21.04.3.289.228.49a1.5 1.5 0 001.27 1.99h.001a.22.22 0 01.213.243 3.218 3.218 0 003.837 3.453c.18-.035.365.078.384.26A7.328 7.328 0 117.329.07zm.263 10.054a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854zM3.697 7.792a.884.884 0 100 1.769.884.884 0 000-1.769zm5.476-.488a.884.884 0 100 1.768.884.884 0 000-1.768zM5.806 3.628a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854z"/>
+													</svg>
+												</div>
+												<div class="landing-form-cookies-settings-type landing-form-cookies-settings-type-advanced">
+													<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="#FFF" class="landing-form-cookies-settings-preview-svg">
+														<path fill-rule="evenodd" d="M7.328.07c.463 0 .917.043 1.356.125.21.04.3.289.228.49a1.5 1.5 0 001.27 1.99h.001a.22.22 0 01.213.243 3.218 3.218 0 003.837 3.453c.18-.035.365.078.384.26A7.328 7.328 0 117.329.07zm.263 10.054a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854zM3.697 7.792a.884.884 0 100 1.769.884.884 0 000-1.769zm5.476-.488a.884.884 0 100 1.768.884.884 0 000-1.768zM5.806 3.628a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854z"/>
+													</svg>
+													<span class="landing-form-cookies-settings-preview-text">Cookies</span>
+												</div>
 											</div>
-											<div class="landing-form-cookies-settings-type landing-form-cookies-settings-type-advanced">
-												<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="#FFF" class="landing-form-cookies-settings-preview-svg">
-													<path fill-rule="evenodd" d="M7.328.07c.463 0 .917.043 1.356.125.21.04.3.289.228.49a1.5 1.5 0 001.27 1.99h.001a.22.22 0 01.213.243 3.218 3.218 0 003.837 3.453c.18-.035.365.078.384.26A7.328 7.328 0 117.329.07zm.263 10.054a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854zM3.697 7.792a.884.884 0 100 1.769.884.884 0 000-1.769zm5.476-.488a.884.884 0 100 1.768.884.884 0 000-1.768zM5.806 3.628a1.427 1.427 0 100 2.854 1.427 1.427 0 000-2.854z"/>
-												</svg>
-												<span class="landing-form-cookies-settings-preview-text">Cookies</span>
+											<div class="landing-form-cookies-settings-colors">
+												<?php if (isset($pageFields['COOKIES_COLOR_BG'])):?>
+													<div class="landing-form-cookies-settings-color-bg">
+														<span class="landing-form-cookies-settings-label"><?= $pageFields['COOKIES_COLOR_BG']->getLabel() ?></span>
+														<?$pageFields['COOKIES_COLOR_BG']->viewForm([
+															'class' => 'landing-form-cookies-color landing-form-cookies-color-bg',
+															'name_format' => 'fields[ADDITIONAL_FIELDS][#field_code#]'
+														]);?>
+													</div>
+												<?php endif;?>
+												<?php if (isset($pageFields['COOKIES_COLOR_TEXT'])):?>
+													<div class="landing-form-cookies-settings-color-text">
+														<span class="landing-form-cookies-settings-label"><?= $pageFields['COOKIES_COLOR_TEXT']->getLabel() ?></span>
+														<?$pageFields['COOKIES_COLOR_TEXT']->viewForm([
+															'class' => 'landing-form-cookies-color landing-form-cookies-color-text',
+															'name_format' => 'fields[ADDITIONAL_FIELDS][#field_code#]'
+														]);?>
+													</div>
+												<?php endif;?>
 											</div>
 										</div>
-										<?php if (isset($pageFields['COOKIES_COLOR_BG'])):?>
-											<span class="landing-form-cookies-settings-label"><?= $pageFields['COOKIES_COLOR_BG']->getLabel() ?></span>
-											<?$pageFields['COOKIES_COLOR_BG']->viewForm([
-												'class' => 'landing-form-cookies-color landing-form-cookies-color-bg',
-												'name_format' => 'fields[ADDITIONAL_FIELDS][#field_code#]'
-											]);?>
-										<?php endif;?>
-										<?php if (isset($pageFields['COOKIES_COLOR_TEXT'])):?>
-											<span class="landing-form-cookies-settings-label"><?= $pageFields['COOKIES_COLOR_TEXT']->getLabel() ?></span>
-											<?$pageFields['COOKIES_COLOR_TEXT']->viewForm([
-												'class' => 'landing-form-cookies-color landing-form-cookies-color-text',
-												'name_format' => 'fields[ADDITIONAL_FIELDS][#field_code#]'
-											]);?>
-										<?php endif;?>
 									</div>
 									<div class="landing-form-cookies-position">
 										<?php if (isset($pageFields['COOKIES_POSITION'])):?>
@@ -1216,8 +1241,13 @@ if ($arParams['SUCCESS_SAVE'])
 												</select>
 											</div>
 
-											<input type="hidden" name="fields[RIGHTS][ACCESS_CODE][]" value="<?= htmlspecialcharsbx($code) ?>">
-											<a href="javascript:void(0);" onclick="deleteAccessRow(this);" data-id="<?= htmlspecialcharsbx($code) ?>" class="landing-form-rights-delete"></a>
+											<input type="hidden" name="fields[RIGHTS][ACCESS_CODE][<?= $i ?>]" value="<?= htmlspecialcharsbx($code) ?>">
+											<a href="javascript:void(0);"
+												onclick="BX.Landing.Access.onRowDelete(this);"
+												data-id="<?= htmlspecialcharsbx($code) ?>"
+												class="landing-form-rights-delete"
+											>
+											</a>
 										</td>
 									</tr>
 								<?php endforeach;?>
@@ -1243,6 +1273,11 @@ if ($arParams['SUCCESS_SAVE'])
 							form: BX('<?= $template->getFieldId('RIGHTS_FORM') ?>'),
 							select: '<?= CUtil::jsEscape($tasksStr) ?>',
 							inc: <?= count($arResult['CURRENT_RIGHTS']) ?>,
+							selected: <?=
+								isset($accessCodes)
+									? json_encode(array_fill_keys($accessCodes, true))
+									: '[]'
+								?>
 						});
 					});
 				</script>
@@ -1283,9 +1318,6 @@ if ($arParams['SUCCESS_SAVE'])
 </div>
 
 <script type="text/javascript">
-	<?php if (isset($accessCodes)):?>
-	var landingAccessSelected = <?= json_encode(array_fill_keys($accessCodes, true)) ?>;
-	<?php endif;?>
 	BX.ready(function(){
 		new BX.Landing.EditTitleForm(BX('<?= $template->getFieldId('EDITABLE_TITLE') ?>'), 600, true);
 		new BX.Landing.Favicon();

@@ -13,11 +13,11 @@ use Bitrix\Main\ModuleManager;
 
 if (isset($arParams['USE_COMMON_SETTINGS_BASKET_POPUP']) && $arParams['USE_COMMON_SETTINGS_BASKET_POPUP'] == 'Y')
 {
-	$basketAction = isset($arParams['COMMON_ADD_TO_BASKET_ACTION']) ? $arParams['COMMON_ADD_TO_BASKET_ACTION'] : '';
+	$basketAction = $arParams['COMMON_ADD_TO_BASKET_ACTION'] ?? '';
 }
 else
 {
-	$basketAction = isset($arParams['SECTION_ADD_TO_BASKET_ACTION']) ? $arParams['SECTION_ADD_TO_BASKET_ACTION'] : '';
+	$basketAction = $arParams['SECTION_ADD_TO_BASKET_ACTION'] ?? '';
 }
 
 if ($isFilter || $isSidebar): ?>
@@ -153,7 +153,7 @@ if ($isFilter || $isSidebar): ?>
 
 								'LABEL_PROP_'.$arParams['IBLOCK_ID'] => array(),
 								'LABEL_PROP_MOBILE_'.$arParams['IBLOCK_ID'] => array(),
-								'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'],
+								'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'] ?? '',
 
 								'ADD_TO_BASKET_ACTION' => $basketAction,
 								'MESS_BTN_BUY' => $arParams['~GIFTS_MESS_BTN_BUY'],
@@ -339,7 +339,7 @@ if ($isFilter || $isSidebar): ?>
 
 					'LABEL_PROP' => $arParams['LABEL_PROP'],
 					'LABEL_PROP_MOBILE' => $arParams['LABEL_PROP_MOBILE'],
-					'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'],
+					'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'] ?? '',
 					'ADD_PICT_PROP' => $arParams['ADD_PICT_PROP'],
 					'PRODUCT_DISPLAY_MODE' => $arParams['PRODUCT_DISPLAY_MODE'],
 					'PRODUCT_BLOCKS_ORDER' => $arParams['LIST_PRODUCT_BLOCKS_ORDER'],
@@ -365,7 +365,8 @@ if ($isFilter || $isSidebar): ?>
 					'MESS_BTN_ADD_TO_BASKET' => (isset($arParams['~MESS_BTN_ADD_TO_BASKET']) ? $arParams['~MESS_BTN_ADD_TO_BASKET'] : ''),
 					'MESS_BTN_SUBSCRIBE' => (isset($arParams['~MESS_BTN_SUBSCRIBE']) ? $arParams['~MESS_BTN_SUBSCRIBE'] : ''),
 					'MESS_BTN_DETAIL' => (isset($arParams['~MESS_BTN_DETAIL']) ? $arParams['~MESS_BTN_DETAIL'] : ''),
-					'MESS_NOT_AVAILABLE' => (isset($arParams['~MESS_NOT_AVAILABLE']) ? $arParams['~MESS_NOT_AVAILABLE'] : ''),
+					'MESS_NOT_AVAILABLE' => $arParams['~MESS_NOT_AVAILABLE'] ?? '',
+					'MESS_NOT_AVAILABLE_SERVICE' => $arParams['~MESS_NOT_AVAILABLE_SERVICE'] ?? '',
 					'MESS_BTN_COMPARE' => (isset($arParams['~MESS_BTN_COMPARE']) ? $arParams['~MESS_BTN_COMPARE'] : ''),
 
 					'USE_ENHANCED_ECOMMERCE' => (isset($arParams['USE_ENHANCED_ECOMMERCE']) ? $arParams['USE_ENHANCED_ECOMMERCE'] : ''),
@@ -464,7 +465,7 @@ if ($isFilter || $isSidebar): ?>
 
 								'LABEL_PROP' => $arParams['LABEL_PROP'],
 								'LABEL_PROP_MOBILE' => $arParams['LABEL_PROP_MOBILE'],
-								'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'],
+								'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'] ?? '',
 								'ADD_PICT_PROP' => $arParams['ADD_PICT_PROP'],
 								'PRODUCT_DISPLAY_MODE' => $arParams['PRODUCT_DISPLAY_MODE'],
 								'PRODUCT_BLOCKS_ORDER' => $arParams['LIST_PRODUCT_BLOCKS_ORDER'],
@@ -497,7 +498,8 @@ if ($isFilter || $isSidebar): ?>
 								'MESS_BTN_ADD_TO_BASKET' => (isset($arParams['~MESS_BTN_ADD_TO_BASKET']) ? $arParams['~MESS_BTN_ADD_TO_BASKET'] : ''),
 								'MESS_BTN_SUBSCRIBE' => (isset($arParams['~MESS_BTN_SUBSCRIBE']) ? $arParams['~MESS_BTN_SUBSCRIBE'] : ''),
 								'MESS_BTN_DETAIL' => (isset($arParams['~MESS_BTN_DETAIL']) ? $arParams['~MESS_BTN_DETAIL'] : ''),
-								'MESS_NOT_AVAILABLE' => (isset($arParams['~MESS_NOT_AVAILABLE']) ? $arParams['~MESS_NOT_AVAILABLE'] : ''),
+								'MESS_NOT_AVAILABLE' => $arParams['~MESS_NOT_AVAILABLE'] ?? '',
+								'MESS_NOT_AVAILABLE_SERVICE' => $arParams['~MESS_NOT_AVAILABLE_SERVICE'] ?? '',
 								'MESS_BTN_COMPARE' => (isset($arParams['~MESS_BTN_COMPARE']) ? $arParams['~MESS_BTN_COMPARE'] : ''),
 
 								'USE_ENHANCED_ECOMMERCE' => (isset($arParams['USE_ENHANCED_ECOMMERCE']) ? $arParams['USE_ENHANCED_ECOMMERCE'] : ''),

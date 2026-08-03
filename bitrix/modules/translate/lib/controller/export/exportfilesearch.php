@@ -50,7 +50,7 @@ class ExportFileSearch
 		{
 			$path = Translate\Config::getDefaultPath();
 		}
-		if (preg_match("#(.+\/lang)(\/?\w*)#", $path, $matches))
+		if (\preg_match("#(.+\/lang)(\/?\w*)#", $path, $matches))
 		{
 			$path = $matches[1];
 		}
@@ -94,7 +94,7 @@ class ExportFileSearch
 	 */
 	private function runExporting(array $params)
 	{
-		$path = rtrim($params['path'], '/');
+		$path = \rtrim($params['path'], '/');
 
 		$csvFile = new Translate\IO\CsvFile($this->exportFilePath);
 		$this->configureExportCsvFile($csvFile);
@@ -111,11 +111,11 @@ class ExportFileSearch
 
 		foreach ($this->languages as $langId)
 		{
-			$select[] = mb_strtoupper($langId)."_LANG";
+			$select[] = \mb_strtoupper($langId)."_LANG";
 		}
-		if (!in_array($this->filter['LANGUAGE_ID'], $this->languages))
+		if (!\in_array($this->filter['LANGUAGE_ID'], $this->languages))
 		{
-			$select[] = mb_strtoupper($this->filter['LANGUAGE_ID'])."_LANG";
+			$select[] = \mb_strtoupper($this->filter['LANGUAGE_ID'])."_LANG";
 		}
 
 		/** @var Main\ORM\Query\Result $cachePathRes */
@@ -123,7 +123,6 @@ class ExportFileSearch
 			'filter' => $pathFilter,
 			'order' => ['PATH_ID' => 'ASC'],
 			'select' => $select,
-			//todo: add limit here
 		));
 
 		$processedItemCount = 0;
@@ -212,7 +211,7 @@ class ExportFileSearch
 		{
 			foreach ($this->filter as $key => $value)
 			{
-				if (!in_array($key, ['FILTER_ID', 'PRESET_ID', 'FILTER_APPLIED', 'FIND', 'tabId']))
+				if (!\in_array($key, ['FILTER_ID', 'PRESET_ID', 'FILTER_APPLIED', 'FIND', 'tabId']))
 				{
 					$filterOut[$key] = $value;
 				}

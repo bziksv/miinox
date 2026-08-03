@@ -52,10 +52,15 @@
     }
 
     function closeBannerCenter(El){
-        document.cookie = 'primeBannerClose-<?=$arResult['ID']?>=true';
-        document.getElementById('show-<?=$arResult['ID']?>').style.opacity='0';
+		
+		var showId = El.closest(".prime-banner-center").id;
+		var id = showId.split("-");
+		
+        document.cookie = 'primeBannerClose-' + id[1] + '=true; path=/;';
+		
+        document.getElementById(showId).style.opacity='0';
         document.getElementById('prime-window-bgr').style.opacity='0';
-        document.getElementById('show-<?=$arResult['ID']?>').style.display='none';
+        document.getElementById(showId).style.display='none';
         document.getElementById('prime-window-bgr').style.display='none';
     }
 

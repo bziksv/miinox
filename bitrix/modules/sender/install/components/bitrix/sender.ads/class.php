@@ -21,10 +21,11 @@ class SenderAdsComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	protected function initParams()
 	{
-		$this->arParams['SEF_MODE'] = isset($this->arParams['SEF_MODE']) ? $this->arParams['SEF_MODE'] : 'Y';
-		$this->arParams['SEF_FOLDER'] = isset($this->arParams['SEF_FOLDER']) ? $this->arParams['SEF_FOLDER'] : '';
-		$this->arParams['ELEMENT_ID'] = isset($this->arParams['ELEMENT_ID']) ? $this->arParams['ELEMENT_ID'] : $this->request->get('id');
-		$this->arParams['SHOW_CAMPAIGNS'] = isset($this->arParams['SHOW_CAMPAIGNS']) ? (bool) $this->arParams['SHOW_CAMPAIGNS'] : false;
+		$this->arParams['SEF_MODE'] = $this->arParams['SEF_MODE'] ?? 'Y';
+		$this->arParams['SEF_FOLDER'] = $this->arParams['SEF_FOLDER'] ?? '';
+		$this->arParams['ELEMENT_ID'] = $this->arParams['ELEMENT_ID'] ?? $this->request->get('id');
+		$this->arParams['SHOW_CAMPAIGNS'] = isset($this->arParams['SHOW_CAMPAIGNS'])
+			&& (bool)$this->arParams['SHOW_CAMPAIGNS'];
 
 		$this->arParams['IFRAME'] = isset($this->arParams['IFRAME']) ? $this->arParams['IFRAME'] : true;
 		$this->arResult['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
@@ -63,8 +64,8 @@ class SenderAdsComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 			$arDefaultVariableAliases404 = array();
 			$arComponentVariables = array('id');
 			$arVariables = array();
-			$arUrlTemplates = CComponentEngine::makeComponentUrlTemplates($arDefaultUrlTemplates404, $this->arParams['SEF_URL_TEMPLATES']);
-			$arVariableAliases = CComponentEngine::makeComponentVariableAliases($arDefaultVariableAliases404, $this->arParams['VARIABLE_ALIASES']);
+			$arUrlTemplates = CComponentEngine::makeComponentUrlTemplates($arDefaultUrlTemplates404, $this->arParams['SEF_URL_TEMPLATES'] ?? '');
+			$arVariableAliases = CComponentEngine::makeComponentVariableAliases($arDefaultVariableAliases404, $this->arParams['VARIABLE_ALIASES'] ?? '');
 			$componentPage = CComponentEngine::parseComponentPath($this->arParams['SEF_FOLDER'], $arUrlTemplates, $arVariables);
 
 			if (!(is_string($componentPage) && isset($componentPage[0]) && isset($arDefaultUrlTemplates404[$componentPage])))
@@ -136,7 +137,7 @@ class SenderAdsComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 				'VARIABLES' => $arVariables,
 				'ALIASES' => $this->arParams['SEF_MODE'] == 'Y' ? array(): $arVariableAliases,
 				'ID' => isset($arVariables['id']) ? strval($arVariables['id']) : '',
-				'PATH_TO_USER_PROFILE' => $this->arParams['PATH_TO_USER_PROFILE']
+				'PATH_TO_USER_PROFILE' => $this->arParams['PATH_TO_USER_PROFILE'] ?? ''
 			),
 			$this->arResult
 		);

@@ -28,7 +28,7 @@ class Manager
 	/**
 	 * Path, where user can buy upgrade.
 	 */
-	const BUY_LICENSE_PATH = '/settings/license_all.php';
+	const BUY_LICENSE_PATH = '/bitrix/tools/landing/ajax.php?redirect=upgrade';
 
 	/**
 	 * Features codes for backward compatibility.
@@ -447,14 +447,20 @@ class Manager
 	}
 
 	/**
-	 * Add some content to some marker.
-	 * @param string $marker Marker.
+	 * Adds content in specific area named by marker.
+	 *
+	 * @param string $marker Marker name.
 	 * @param string $content Content.
+	 * @param bool $skipTrim If true content will not be trimmed.
 	 * @return void
 	 */
-	public static function setPageView($marker, $content)
+	public static function setPageView(string $marker, string $content, bool $skipTrim = false): void
 	{
-		$content = trim($content);
+		if (!$skipTrim)
+		{
+			$content = trim($content);
+		}
+
 		if ($content)
 		{
 			$application = self::getApplication();
@@ -638,11 +644,24 @@ class Manager
 			$file = \CFile::makeFileArray($tempPath);
 		}
 
-		// post array or file from prev. steps
-		if (\CFile::checkImageFile($file, 0, 0, 0, array('IMAGE')) === null)
+		$isSvg = false;
+		$isImage = \CFile::checkImageFile($file, 0, 0, 0, array('IMAGE')) === null;
+
+		if (!$isImage && (Manager::getOption('allow_svg_content') === 'Y'))
 		{
-			// resize if need
+			$extension = \getFileExtension(mb_strtolower($file['name']));
+			if ($extension === 'svg')
+			{
+				$isSvg = true;
+			}
+		}
+
+		// post array or file from prev. steps
+		if ($isImage || $isSvg)
+		{
+			// resize if needed
 			if (
+				$isImage &&
 				isset($params['width']) &&
 				isset($params['height'])
 			)
@@ -653,6 +672,15 @@ class Manager
 					isset($params['resize_type'])
 					? intval($params['resize_type'])
 					: BX_RESIZE_IMAGE_PROPORTIONAL);
+			}
+			// if duplicate change size little (bug #167903)
+			if ($isImage && self::isDuplicateExistsInAnotherModule($file['tmp_name'], $file['size']))
+			{
+				[$width, $height] = getimagesize($file['tmp_name']) ?: [0, 0];
+				if ($width && $height)
+				{
+					\CFile::resizeImage($file, ['width' => $width-1, 'height' => $height-1]);
+				}
 			}
 			// save
 			$module = 'landing';
@@ -675,6 +703,53 @@ class Manager
 		}
 
 		return false;
+	}
+
+	/**
+	 * Detects file duplicates by file path.
+	 * @param string $filePath Full path to the file.
+	 * @param int $size Size of the file.
+	 * @return bool
+	 */
+	private static function isDuplicateExistsInAnotherModule(string $filePath, int $size): bool
+	{
+		$hash = self::calculateHash($filePath, $size);
+		if (!$hash)
+		{
+			return false;
+		}
+
+		$original = \CFile::findDuplicate($size, $hash);
+		if ($original === null)
+		{
+			return false;
+		}
+
+		// we allow duplicate only within from current module
+		return $original->getFile()->getModuleId() !== 'landing';
+	}
+
+	/**
+	 * Calculates a hash of the file.
+	 * @see \CFile::CalculateHash
+	 * @param string $filePath Full path to the file.
+	 * @param int $size Size of the file.
+	 * @return string
+	 */
+	private static function calculateHash(string $filePath, int $size): string
+	{
+		$hash = '';
+
+		if ($size > 0 && Option::get('main', 'control_file_duplicates', 'N') === 'Y')
+		{
+			$maxSize = (int)Option::get('main', 'duplicates_max_size', '100') * 1024 * 1024; //Mbytes
+			if ($size <= $maxSize || $maxSize === 0)
+			{
+				$hash = hash_file('md5', $filePath);
+			}
+		}
+
+		return $hash;
 	}
 
 	/**
@@ -876,7 +951,8 @@ class Manager
 			'sc' => 'zh-Hans',
 			'tc' => 'zh-Hant',
 			'vn' => 'vi',
-			'ua' => 'uk'
+			'ua' => 'uk',
+			'in' => 'hi',
 		];
 
 		return $transform[LANGUAGE_ID] ?? LANGUAGE_ID;
@@ -1178,16 +1254,16 @@ class Manager
 				$bad = true;
 				$value = $sanitizer->getFilteredValue();
 				$value = str_replace(
-					[' bxstyle="', '<sv g ', '<?', '?>'],
-					[' style="', '<svg ', '< ?', '? >'],
+					[' bxstyle="', '<sv g ', '<?', '?>', '<fo rm '],
+					[' style="', '<svg ', '< ?', '? >', '<form '],
 					$value
 				);
 			}
 			else
 			{
 				$value = str_replace(
-					[' bxstyle="', '<sv g ', '<?', '?>'],
-					[' style="', '<svg ', '< ?', '? >'],
+					[' bxstyle="', '<sv g ', '<?', '?>', '<fo rm '],
+					[' style="', '<svg ', '< ?', '? >', '<form '],
 					$value
 				);
 			}

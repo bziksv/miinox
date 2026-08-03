@@ -211,7 +211,8 @@ class DateType extends BaseType
 	 */
 	public static function getFieldValue(array $userField, array $additionalParameters = [])
 	{
-		if(!$additionalParameters['bVarsFromForm'])
+		$bVarsFromForm = ($additionalParameters['bVarsFromForm'] ?? false);
+		if(!$bVarsFromForm)
 		{
 			if(
 				isset($userField['ENTITY_VALUE_ID'])
@@ -231,7 +232,7 @@ class DateType extends BaseType
 					);
 				}
 			} else {
-				$value = $userField['VALUE'];
+				$value = $userField['VALUE'] ?? null;
 			}
 		}
 		elseif(isset($additionalParameters['VALUE']))

@@ -7,7 +7,7 @@ namespace Bitrix\Sale\Exchange\Integration\Controller;
 use Bitrix\Main\Engine\Action;
 use Bitrix\Main\Error;
 use Bitrix\Rest\Integration\Controller\Base;
-use Bitrix\Rest\Integration\SaleViewManager;
+use Bitrix\Sale\Rest\View\SaleViewManager;
 use Bitrix\Sale\Exchange\Integration\Entity\B24IntegrationStatProviderTable;
 use Bitrix\Sale\Exchange\Integration\Entity\B24integrationStatTable;
 use Bitrix\Sale\Result;
@@ -38,7 +38,7 @@ class Statistic extends Base
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public function listAction($select=[], $filter=[], $order=[], PageNavigation $pageNavigation)
+	public function listAction($select = [], $filter = [], $order = [], PageNavigation $pageNavigation = null): Page
 	{
 		return new Page('STATISTIC',
 			$this->getList($select, $filter, $order, $pageNavigation),

@@ -502,6 +502,10 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 				"AUTHOR_ID" => $author["ID"],
 				"AUTHOR_NAME" => $author["NAME"],
 				"AUTHOR_EMAIL" => $fields["AUTHOR_EMAIL"],
+
+				"AUTHOR_IP" => $fields["AUTHOR_IP"] ?? null,
+				"AUTHOR_REAL_IP" =>  $fields["AUTHOR_REAL_IP"] ?? null,
+				"GUEST_ID" =>  $fields["GUEST_ID"] ?? null,
 			);
 
 			$messageData += array_intersect_key($fields, $USER_FIELD_MANAGER->getUserFields(MessageTable::getUfId()));
@@ -744,7 +748,6 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 		/***************** /Event ******************************************/
 
 		Forum\Internals\MessageCleaner::runForTopic($id);
-		Forum\FileTable::deleteBatch(['TOPIC_ID' => $id]);
 		Main\Application::getConnection()->queryExecute("DELETE FROM b_forum_subscribe WHERE TOPIC_ID = ".$id);
 		Main\Application::getConnection()->queryExecute("DELETE FROM b_forum_message WHERE TOPIC_ID = ".$id);
 		Main\Application::getConnection()->queryExecute("DELETE FROM b_forum_user_topic WHERE TOPIC_ID = ".$id);

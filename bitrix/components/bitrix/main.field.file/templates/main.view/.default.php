@@ -16,19 +16,19 @@ use Bitrix\Main\Text\HtmlFilter;
 			{
 				continue;
 			}
-			if(\CFile::IsImage($fileInfo['SRC'], $fileInfo['CONTENT_TYPE']))
+			if(\CFile::IsImage($fileInfo['ORIGINAL_NAME'], $fileInfo['CONTENT_TYPE']))
 			{
 				print CFile::ShowImage(
 					$fileInfo,
-					$arResult['additionalParameters']['FILE_MAX_WIDTH'],
-					$arResult['additionalParameters']['FILE_MAX_HEIGHT'],
+					$arResult['additionalParameters']['FILE_MAX_WIDTH'] ?? 0,
+					$arResult['additionalParameters']['FILE_MAX_HEIGHT'] ?? 0,
 					'',
 					'',
-					($arResult['additionalParameters']['FILE_SHOW_POPUP'] === 'Y'),
+					(isset($arResult['additionalParameters']['FILE_SHOW_POPUP']) && $arResult['additionalParameters']['FILE_SHOW_POPUP'] === 'Y'),
 					false,
 					0,
 					0,
-					$arResult['additionalParameters']['URL_TEMPLATE']
+					$arResult['additionalParameters']['URL_TEMPLATE'] ?? ''
 				);
 			}
 			else

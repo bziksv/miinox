@@ -1,17 +1,47 @@
-web/*
-upload/*
-bitrix/php_interface/*
-!/bitrix/php_interface/init.php
+# === Cursor (локально, не в репозиторий) ===
+.cursorignore
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
+# === Секреты и конфиги окружения (НЕ коммитить) ===
 bitrix/.settings.php
-.idea/*
-bitrix/managed_cache/*
+bitrix/license_key.php
+bitrix/php_interface/dbconn.php
+bitrix/php_interface/dbconn.local.php
+.local/
+.local/**
+
+# === Медиа и кеш ===
+upload/
+upload/*
 bitrix/cache/*
+bitrix/managed_cache/*
 bitrix/stack_cache/*
-access/*
-bitrix/html_pages/*
 bitrix/backup/*
+bitrix/html_pages/*
+bitrix/catalog_export/*
+
+# === Дампы, архивы, бэкапы ===
+*.sql
+*.sql.gz
+*.tar
+*.tar.gz
+*.zip
+iBlockConverter.tar.gz
+iBlockConverter/
+11111111111/
+
+
+# === Логи и служебное ===
 *.log
-sitemap.xml
-sitemap-iblock-*.xml
-sitemap-files.xml
-.htaccess
+.DS_Store
+.idea/
+.osp/
+
+# === Верификация поисковиков ===
+yandex_*
+google*
+mailru-*
+cmsmagazine*
+bitrix/OLD_MOSKVA_license_key.php

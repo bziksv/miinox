@@ -91,7 +91,7 @@ else
 	<form
 		action="<?= \htmlspecialcharsbx($uriSave->getUri());?>"
 		method="post"
-		class="ui-form ui-form-section landing-form-gray-padding landing-form-collapsed"
+		class="ui-form ui-form-section landing-form landing-form-gray-padding landing-form-collapsed"
 		id="landing-site-catalog-set-form"
 	>
 		<?= bitrix_sessid_post();?>
@@ -143,17 +143,27 @@ else
 										value="<?= (int)$field->getValue() ?>"
 									>
 									<script type="text/javascript">
-										const fieldSection = new BX.Landing.UI.Field.LinkURL({
+										const fieldSection = new BX.Landing.UI.Field.LinkUrl({
 											title: "",
 											textOnly: true,
 											disableCustomURL: true,
 											disallowType: true,
 											allowedTypes: [
-												BX.Landing.UI.Field.LinkURL.TYPE_CATALOG
+												BX.Landing.UI.Field.LinkUrl.TYPE_CATALOG
 											],
 											allowedCatalogEntityTypes: [
 												BX.Landing.UI.Panel.Catalog.TYPE_CATALOG_SECTION
 											],
+											typeData: {
+												button : {
+													'className': 'fa fa-chevron-right',
+													'text': '',
+													'action': BX.Landing.UI.Field.LinkUrl.TYPE_CATALOG_SECTION,
+												},
+												hideInput : false,
+												contentEditable : false,
+											},
+											settingMode: true,
 											content: "<?= $field->getValue() ? '#catalogSection' . (int)$field->getValue() : '' ?>",
 											onValueChange: function()
 											{
@@ -161,28 +171,6 @@ else
 											}
 										});
 										BX("fieldSectionId").appendChild(fieldSection.layout);
-										// if iblock id select exist
-										if (BX("settings_iblock_id"))
-										{
-											BX("row_section_id").classList.add("landing-form-field-section");
-											new BX.Landing.IblockSelect();
-
-											BX.bind(
-												BX("settings_iblock_id"),
-												"change",
-												() => {
-													fieldSection.setValue("");
-													fieldSection.setIblocks([{
-														name: "iblock",
-														value: BX("settings_iblock_id").value
-													}]);
-
-													new BX.Landing.IblockSelect();
-												}
-											);
-
-											BX.fireEvent(BX("settings_iblock_id"), "change");
-										}
 									</script>
 								<?php else:?>
 									<?php $template->showField($field, [

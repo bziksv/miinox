@@ -105,7 +105,6 @@ abstract class EntityCompatibility
 	 */
 	public static function getList($sort = array(), $filter = array(), $group = null, $nav = array(), $select = array(), $callback = false)
 	{
-		/** @var EntityCompatibility $compatibility */
 		$compatibility = new static();
 		return static::setGetListParameters($compatibility, $sort, $filter, $group, $nav, $select, $callback);
 	}
@@ -199,16 +198,19 @@ abstract class EntityCompatibility
 			else
 			{
 				if (!$this->checkWhiteListFields($fieldClearName))
+				{
 					continue;
+				}
 
-				if (!is_array($aliasFields[$fieldClearName]))
+				$aliasFieldsValue = $aliasFields[$fieldClearName] ?? null;
+				if (!is_array($aliasFieldsValue))
 				{
 					$this->addFilter($fieldName, $fieldValue);
 				}
 				else
 				{
-					$this->addFilterForAlias($aliasFields[$fieldClearName], $fieldName, $fieldValue);
-					$this->addSelectForAlias($aliasFields[$fieldClearName]);
+					$this->addFilterForAlias($aliasFieldsValue, $fieldName, $fieldValue);
+					$this->addSelectForAlias($aliasFieldsValue);
 				}
 			}
 		}
@@ -239,7 +241,7 @@ abstract class EntityCompatibility
 
 		foreach($select as $fieldName)
 		{
-			$fieldName = ToUpper($fieldName);
+			$fieldName = mb_strtoupper($fieldName);
 			if (!in_array($fieldName, $this->getQueryAliasList()))
 			{
 				if (isset($aliasFields[$fieldName]))
@@ -254,13 +256,14 @@ abstract class EntityCompatibility
 			}
 			else
 			{
-				if (!is_array($aliasFields[$fieldName]))
+				$aliasFieldsValue = $aliasFields[$fieldName] ?? null;
+				if (!is_array($aliasFieldsValue))
 				{
 					$this->addSelect($fieldName);
 				}
 				else
 				{
-					$this->addSelectForAlias($aliasFields[$fieldName]);
+					$this->addSelectForAlias($aliasFieldsValue);
 				}
 			}
 		}

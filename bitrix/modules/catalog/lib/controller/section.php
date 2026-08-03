@@ -4,6 +4,7 @@
 namespace Bitrix\Catalog\Controller;
 
 
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Main\Engine\Response\DataType\Page;
 use Bitrix\Main\Error;
 use Bitrix\Main\Result;
@@ -12,17 +13,19 @@ use Bitrix\Main\UI\PageNavigation;
 final class Section extends Controller
 {
 	//region Actions
-	public function getFieldsAction()
+	public function getFieldsAction(): array
 	{
-		$view = $this->getViewManager()
-			->getView($this);
-
-		return ['SECTION'=>$view->prepareFieldInfos(
-			$view->getFields()
-		)];
+		return ['SECTION' => $this->getViewFields()];
 	}
 
-	public function listAction($select=[], $filter=[], $order=[], PageNavigation $pageNavigation)
+	/**
+	 * @param $select
+	 * @param $filter
+	 * @param $order
+	 * @param PageNavigation $pageNavigation
+	 * @return Page|null
+	 */
+	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): ?Page
 	{
 		$r = $this->checkPermissionIBlockSectionList($filter['IBLOCK_ID']);
 		if($r->isSuccess())
@@ -44,7 +47,7 @@ final class Section extends Controller
 
 			return new Page('SECTIONS', $result, function() use ($filter)
 			{
-				return (int)\CIBlockSection::GetList([], $filter, []);
+				return \CIBlockSection::GetCount($filter);
 			});
 		}
 		else
@@ -83,7 +86,7 @@ final class Section extends Controller
 		$r = $this->checkPermissionIBlockSectionAdd($fields['IBLOCK_ID']);
 		if($r->isSuccess())
 		{
-			if(isset($fields['IBLOCK_SECTION_ID']) && intval($fields['IBLOCK_SECTION_ID']>0))
+			if (isset($fields['IBLOCK_SECTION_ID']) && (int)$fields['IBLOCK_SECTION_ID'] > 0)
 			{
 				$r = $this->checkPermissionIBlockSectionSectionBindUpdate($fields['IBLOCK_SECTION_ID']);
 			}
@@ -121,7 +124,7 @@ final class Section extends Controller
 		$r = $this->checkPermissionIBlockSectionUpdate($id);
 		if($r->isSuccess())
 		{
-			if(isset($fields['IBLOCK_SECTION_ID']) && intval($fields['IBLOCK_SECTION_ID']>0))
+			if (isset($fields['IBLOCK_SECTION_ID']) && (int)$fields['IBLOCK_SECTION_ID'] > 0)
 			{
 				$r = $this->checkPermissionIBlockSectionSectionBindUpdate($fields['IBLOCK_SECTION_ID']);
 			}
@@ -221,7 +224,10 @@ final class Section extends Controller
 	{
 		$r = new Result();
 
-		if (!static::getGlobalUser()->CanDoOperation('catalog_read') && !static::getGlobalUser()->CanDoOperation('catalog_view'))
+		if (
+			!$this->accessController->check(ActionDictionary::ACTION_CATALOG_READ)
+			&& !$this->accessController->check(ActionDictionary::ACTION_CATALOG_VIEW)
+		)
 		{
 			$r->addError(new Error('Access Denied', 200040300010));
 		}

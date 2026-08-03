@@ -19,7 +19,7 @@ use \Bitrix\Main\Localization\Loc;
 $context = \Bitrix\Main\Application::getInstance()->getContext();
 $request = $context->getRequest();
 
-Loc::loadMessages(dirname(__FILE__) . '/template.php');
+Loc::loadMessages(__DIR__ . '/template.php');
 
 $templatePage = $this->getTemplatePage();
 $disableFrame = $templatePage === 'landing_view';
@@ -48,8 +48,9 @@ if (
 	Type::getCurrentScopeId() === null
 	&& $templatePage !== 'landing_view'
 	&& Loader::includeModule('crm')
-	&& CCrmSaleHelper::isShopAccess()
+	&& CCrmSaleHelper::isShopAccess() //TODO: change this block to new shop menu component
 )
 {
 	$APPLICATION->IncludeComponent('bitrix:crm.shop.page.controller', '', []);
 }
+

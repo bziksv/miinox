@@ -1,5 +1,8 @@
-<?
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?php
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
+{
+	die();
+}
 
 /** @var array $arCurrentValues */
 
@@ -117,7 +120,7 @@ $arTemplateParameters['TEMPLATE_THEME'] = array(
 );
 $arTemplateParameters['SEARCH_PAGE_RESULT_COUNT'] = array(
 	'PARENT' => 'SEARCH_SETTINGS',
-	'NAME' => GetMessage("CP_BC_TPL_SEARCH_PAGE_RESULT_COUNT"),
+	'NAME' => GetMessage("CP_BC_TPL_SEARCH_PAGE_RESULT_COUNT_MSGVER_1"),
 	"TYPE" => "STRING",
 	"DEFAULT" => "50",
 );
@@ -1047,6 +1050,13 @@ $arTemplateParameters['MESS_NOT_AVAILABLE'] = array(
 	'TYPE' => 'STRING',
 	'DEFAULT' => GetMessage('CP_BC_TPL_MESS_NOT_AVAILABLE_DEFAULT')
 );
+$arTemplateParameters['MESS_NOT_AVAILABLE_SERVICE'] = [
+	'PARENT' => 'VISUAL',
+	'NAME' => GetMessage('CP_BC_TPL_MESS_NOT_AVAILABLE_SERVICE'),
+	'TYPE' => 'STRING',
+	'DEFAULT' => GetMessage('CP_BC_TPL_MESS_NOT_AVAILABLE_SERVICE_DEFAULT'),
+];
+
 $arTemplateParameters['MESS_BTN_SUBSCRIBE'] = array(
 	'PARENT' => 'VISUAL',
 	'NAME' => GetMessage('CP_BC_TPL_MESS_BTN_SUBSCRIBE'),

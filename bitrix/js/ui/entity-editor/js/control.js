@@ -1360,6 +1360,13 @@ if(typeof BX.UI.EntityEditorField === "undefined")
 			BX.UI.Hint.init(titleNode);
 		}
 
+		var lock = this.createTitleLock();
+		if (lock)
+		{
+			BX.Dom.prepend(lock, titleNode);
+			BX.UI.Hint.init(titleNode);
+		}
+
 		this._titleWrapper.appendChild(titleNode);
 
 		var actionControls = this.createTitleActionControls();
@@ -1414,6 +1421,22 @@ if(typeof BX.UI.EntityEditorField === "undefined")
 				}
 			});
 		}
+		return null;
+	};
+	BX.UI.EntityEditorField.prototype.createTitleLock = function()
+	{
+		var lockText = this._schemeElement ? this._schemeElement.getLockText() : null;
+		if (lockText && !this.isEditable())
+		{
+			return BX.Tag.render`
+				<span
+					class="ui-btn ui-btn-link ui-btn-icon-lock ui-btn-icon-lock-entity-editor-title"
+					data-hint="${BX.Text.encode(lockText)}"
+					data-hint-no-icon="true"
+				></span>
+			`;
+		}
+
 		return null;
 	};
 	BX.UI.EntityEditorField.prototype.createTitleActionControls = function()
@@ -1947,9 +1970,10 @@ if(typeof BX.UI.EntityEditorField === "undefined")
 				if(!this.isNeedToDisplay())
 				{
 					window.setTimeout(BX.delegate(this.clearLayout, this), 500);
+					var handledTitle =  BX.util.htmlspecialchars(this.getTitle());
 					BX.UI.Notification.Center.notify(
 						{
-							content: BX.message("UI_ENTITY_EDITOR_FIELD_HIDDEN_DUE_TO_SHOW_ALWAYS_CHANGED").replace(/#TITLE#/gi, this.getTitle()),
+							content: BX.message("UI_ENTITY_EDITOR_FIELD_HIDDEN_DUE_TO_SHOW_ALWAYS_CHANGED").replace(/#TITLE#/gi, handledTitle),
 							position: "top-center",
 							autoHideDelay: 5000
 						}
@@ -3165,6 +3189,13 @@ if(typeof BX.UI.EntityEditorSection === "undefined")
 				props: { className: "ui-entity-editor-header-title-text" },
 				text: title
 			});
+
+			var hint = this.createTitleHint();
+			if (hint)
+			{
+				this._titleView.appendChild(hint);
+				BX.UI.Hint.init(this._titleView);
+			}
 
 			this._titleInput = BX.create("input",
 			{
@@ -5254,6 +5285,21 @@ if(typeof BX.UI.EntityEditorSection === "undefined")
 		}
 		return this._buttonPanelWrapper;
 	};
+	BX.UI.EntityEditorSection.prototype.createTitleHint = function()
+	{
+		var hint = this._schemeElement ? this._schemeElement.getHint() : null;
+		if(hint)
+		{
+			return BX.create("span", {
+				dataset: {
+					hint,
+					hintHtml: true,
+					hintInteractivity: true,
+				}
+			});
+		}
+		return null;
+	};
 	BX.UI.EntityEditorSection.create = function(id, settings)
 	{
 		var self = new BX.UI.EntityEditorSection();
@@ -6535,12 +6581,27 @@ if(typeof BX.UI.EntityEditorMultiMoney === "undefined")
 			}
 		);
 	};
-	BX.UI.EntityEditorMultiMoney.prototype.onAmountValueChange = function(v, index)
+	BX.UI.EntityEditorMultiMoney.prototype.onAmountValueChange = function(value, index)
 	{
-		if(this._amountValue[index])
+		if(!this._amountValue[index])
 		{
-			this._amountValue[index].value = v;
+			return;
 		}
+
+		var currencyFormat = BX.prop.getObject(
+			BX.Currency.Editor.currencyList,
+			this._selectedCurrencyValue[index],
+			null
+		);
+		if (currencyFormat)
+		{
+			value = BX.Currency.Editor.getFormattedValue(
+				value,
+				this._selectedCurrencyValue[index]
+			);
+			value = value.replaceAll(currencyFormat['SEPARATOR'], '');
+		}
+		this._amountValue[index].value = value;
 	};
 	BX.UI.EntityEditorMultiMoney.prototype.getViewInnerLayout = function()
 	{
@@ -7461,7 +7522,7 @@ if(typeof BX.UI.EntityEditorDatetime === "undefined")
 							BX.create("div",
 								{
 									props: {className: "ui-entity-editor-content-block-text"},
-									text: value
+									text: value.replaceAll('\\', '')
 								}
 							)
 						]
@@ -8124,12 +8185,20 @@ if(typeof BX.UI.EntityEditorList === "undefined")
 			menu.push(itemParams);
 		}
 
+		const selectBottomY = BX.Dom.getPosition(this._select).y;
+
+		const distanceToTop = selectBottomY - window.pageYOffset;
+		const distanceToBottom = document.documentElement.clientHeight + window.pageYOffset - selectBottomY;
+
+		const popupMaxHeight = distanceToTop > distanceToBottom ? distanceToTop - 50 : distanceToBottom - 100;
+
 		BX.PopupMenu.show(
 			this._id,
 			this._select,
 			menu,
 			{
 				angle: false, width: this._select.offsetWidth + 'px',
+				maxHeight: popupMaxHeight,
 				events:
 					{
 						onPopupShow: BX.delegate( this.onMenuShow, this),
@@ -8780,24 +8849,31 @@ if(typeof BX.UI.EntityEditorHtml === "undefined")
 
 			if(this.hasContentToDisplay())
 			{
+
+				var entityEditorContentBlockInner = BX.create("div",
+					{
+						props: { className: "ui-entity-editor-content-block-inner-html" },
+						html: value
+					}
+				);
+
 				this._innerWrapper.appendChild(
 					BX.create("div",
 						{
 							props: { className: "ui-entity-editor-content-block-field-container" },
 							children:
 								[
-									BX.create("div",
-										{
-											props: { className: "ui-entity-editor-content-block-inner-html" },
-											html: value
-										}
-									)
+									entityEditorContentBlockInner,
 								]
 						}
 					)
 				);
+				var contentLength = entityEditorContentBlockInner
+									&&  entityEditorContentBlockInner.innerText
+									&& entityEditorContentBlockInner.innerText.length
+				;
 
-				if (value.length > 200)
+				if (contentLength > 200)
 				{
 					BX.addClass(this._wrapper, "ui-entity-editor-content-block-field-html-collapsed");
 					this._innerWrapper.appendChild(
@@ -8871,7 +8947,9 @@ if(typeof BX.UI.EntityEditorHtml === "undefined")
 					"OnCreateIframeAfter",
 					this._editorInitializationHandler
 				);
-				this._htmlEditor.Init();
+				setTimeout(function() {
+					this._htmlEditor.Init();
+				}.bind(this), 0);
 			}
 
 			window.top.setTimeout(BX.delegate(this.bindChangeEvent, this), 1000);
@@ -9115,6 +9193,50 @@ if(typeof BX.UI.EntityEditorHtml === "undefined")
 	};
 }
 
+if (typeof BX.UI.EntityEditorBB === 'undefined')
+{
+	BX.UI.EntityEditorBB = function()
+	{
+		BX.UI.EntityEditorBB.superclass.constructor.apply(this);
+	};
+	BX.extend(BX.UI.EntityEditorBB, BX.UI.EntityEditorHtml);
+	BX.UI.EntityEditorBB.prototype.layout = function(options)
+	{
+		if (this._hasLayout)
+		{
+			return;
+		}
+
+		BX.UI.EntityEditorBB.superclass.layout.apply(this, [options]);
+
+		if (this._mode !== BX.UI.EntityEditorMode.edit) // view mode
+		{
+			let contentNode = null;
+			if (this._innerWrapper)
+			{
+				contentNode = this._innerWrapper.querySelector('.ui-entity-editor-content-block-inner-html');
+			}
+
+			if (contentNode)
+			{
+				let value = this._model.getField(this.getDataKey() + '_HTML', '');
+				if (!BX.Type.isStringFilled(value))
+				{
+					value = BX.Text.encode(this.getValue());
+				}
+
+				contentNode.innerHTML = value;
+			}
+		}
+	};
+	BX.UI.EntityEditorBB.create = function(id, settings)
+	{
+		var self = new BX.UI.EntityEditorBB();
+		self.initialize(id, settings);
+		return self;
+	};
+}
+
 if (typeof BX.UI.EntityEditorFile === "undefined")
 {
 	BX.UI.EntityEditorFile = function()
@@ -9323,21 +9445,38 @@ if (typeof BX.UI.EntityEditorFile === "undefined")
 			this._singleEditController.setActiveDelayed(true);
 		}
 	};
+	BX.UI.EntityEditorFile.prototype.getValueAsArray = function()
+	{
+		var value = this.getValue();
+
+		if (!Array.isArray(value))
+		{
+			if (value)
+			{
+				value = [value];
+			}
+			else
+			{
+				value = [];
+			}
+		}
+
+		return value;
+	};
 	BX.UI.EntityEditorFile.prototype.onFileChange = function(result)
 	{
 		this.markAsChanged();
 	};
 	BX.UI.EntityEditorFile.prototype.onFileAdd = function(result)
 	{
-		var value = this.getValue();
+		var value = this.getValueAsArray();
 		value.push(result);
 		this._model.setField(this.getName(), value);
 		this.markAsChanged();
 	};
 	BX.UI.EntityEditorFile.prototype.onFileDelete = function(result)
 	{
-		var value = this.getValue();
-		value.splice(value.indexOf(result), 1);
+		var value = this.getValueAsArray();
 		this._model.setField(this.getName(), value);
 		this.markAsChanged();
 	};
@@ -9400,7 +9539,7 @@ if(typeof BX.UI.EntityEditorImage === "undefined")
 										props:
 											{
 												className: "crm-entity-widget-content-block-photo",
-												src: this._model.getSchemeField(this._schemeElement, "showUrl", "")
+												src: encodeURI(this._model.getSchemeField(this._schemeElement, "showUrl", ""))
 											}
 									}
 								)
@@ -9970,6 +10109,7 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 	{
 		BX.UI.EntityEditorMoney.superclass.constructor.apply(this);
 		this._currencyEditor = null;
+		this._amountWrapper = null;
 		this._amountInput = null;
 		this._currencyInput = null;
 		this._sumElement = null;
@@ -9997,7 +10137,7 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 	};
 	BX.UI.EntityEditorMoney.prototype.focus = function()
 	{
-		if(this._amountInput)
+		if(this._amountInput && !this.isInputDisabled())
 		{
 			BX.focus(this._amountInput);
 			BX.UI.EditorTextHelper.getCurrent().selectAll(this._amountInput);
@@ -10062,6 +10202,7 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 		var amountValue = this._model.getField(amountFieldName, ""); //SET CURRENT SUM VALUE
 		var formatted = this._model.getField(BX.prop.getString(data, "formatted"), ""); //SET FORMATTED VALUE
 
+		this._amountWrapper = null;
 		this._amountValue = null;
 		this._amountInput = null;
 		this._currencyInput = null;
@@ -10093,10 +10234,18 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 				{
 					attrs:
 						{
-							className: "ui-ctl-inline ui-ctl-element ui-ctl-w75",
+							className: "ui-ctl-element",
 							type: "text",
 							value: formatted
 						}
+				}
+			);
+			this._amountWrapper = BX.create('div',
+				{
+					props: { className: 'ui-ctl-inline ui-ctl-w75'},
+					children: [
+						this._amountInput,
+					]
 				}
 			);
 
@@ -10104,7 +10253,7 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 
 			if(this._model.isFieldLocked(amountFieldName))
 			{
-				this._amountInput.disabled = true;
+				this.setInputDisabled(true);
 			}
 
 			this._currencyInput = BX.create("input",
@@ -10159,7 +10308,7 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 						[
 							this._amountValue,
 							this._currencyInput,
-							this._amountInput,
+							this._amountWrapper,
 							this._selectContainer,
 						]
 				}
@@ -10249,6 +10398,7 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 			this._currencyEditor = null;
 		}
 
+		this._amountWrapper = null;
 		this._amountValue = null;
 		this._amountInput = null;
 		this._currencyInput = null;
@@ -10288,19 +10438,34 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 				currencyValue
 			);
 
-			this._amountInput.disabled = this._model.isFieldLocked(amountFieldName);
+			this.setInputDisabled(this._model.isFieldLocked(amountFieldName));
 		}
 		else if(this._mode === BX.UI.EntityEditorMode.view && this._sumElement)
 		{
 			this._sumElement.innerHTML = this.renderMoney();
 		}
 	};
-	BX.UI.EntityEditorMoney.prototype.onAmountValueChange = function(v)
+	BX.UI.EntityEditorMoney.prototype.onAmountValueChange = function(value)
 	{
-		if(this._amountValue)
+		if(!this._amountValue)
 		{
-			this._amountValue.value = v;
+			return;
 		}
+
+		var currencyFormat = BX.prop.getObject(
+			BX.Currency.Editor.currencyList,
+			this._selectedCurrencyValue,
+			null
+		);
+		if (currencyFormat)
+		{
+			value = BX.Currency.Editor.getFormattedValue(
+				value,
+				this._selectedCurrencyValue
+			);
+			value = value.replaceAll(currencyFormat['SEPARATOR'], '');
+		}
+		this._amountValue.value = value;
 	};
 	BX.UI.EntityEditorMoney.prototype.getAmountFieldName = function()
 	{
@@ -10460,6 +10625,26 @@ if(typeof BX.UI.EntityEditorMoney === "undefined")
 			BX.removeClass(this._amountInput, "ui-entity-editor-field-error");
 		}
 	};
+	BX.UI.EntityEditorMoney.prototype.setInputDisabled = function(isDisabled)
+	{
+		if (!this._amountInput || !this._amountWrapper)
+		{
+			return;
+		}
+		this._amountInput.readOnly = isDisabled;
+		if (isDisabled)
+		{
+			BX.Dom.addClass(this._amountWrapper, 'ui-ctl-disabled');
+		}
+		else
+		{
+			BX.Dom.removeClass(this._amountWrapper, 'ui-ctl-disabled');
+		}
+	};
+	BX.UI.EntityEditorMoney.prototype.isInputDisabled = function()
+	{
+		return this._amountInput.readOnly;
+	};
 	BX.UI.EntityEditorMoney.prototype.getRuntimeValue = function()
 	{
 		var data = [];
@@ -10617,7 +10802,7 @@ if(typeof BX.UI.EntityEditorUser === "undefined")
 				props: { className: "ui-entity-editor-user-avatar-container", target: "_blank" },
 				style:
 					{
-						backgroundImage: BX.type.isNotEmptyString(photoUrl) ? "url('" + photoUrl + "')" : "",
+						backgroundImage: BX.type.isNotEmptyString(photoUrl) ? "url('" + encodeURI(photoUrl) + "')" : "",
 						backgroundSize: BX.type.isNotEmptyString(photoUrl) ? "30px" : ""
 					}
 			}
@@ -10749,7 +10934,7 @@ if(typeof BX.UI.EntityEditorUser === "undefined")
 
 		this._input.value = this._selectedData["id"];
 		this._photoElement.style.backgroundImage = this._selectedData["photoUrl"] !== ""
-			? "url('" + this._selectedData["photoUrl"] + "')" : "";
+			? "url('" + encodeURI(this._selectedData["photoUrl"]) + "')" : "";
 		this._photoElement.style.backgroundSize = this._selectedData["photoUrl"] !== ""
 			? "30px" : "";
 
@@ -10840,6 +11025,507 @@ if(typeof BX.UI.EntityEditorUser === "undefined")
 	BX.UI.EntityEditorUser.create = function(id, settings)
 	{
 		var self = new BX.UI.EntityEditorUser();
+		self.initialize(id, settings);
+		return self;
+	};
+}
+
+if(typeof BX.UI.EntityEditorProductRowSummary === "undefined")
+{
+	BX.UI.EntityEditorProductRowSummary = function()
+	{
+		BX.UI.EntityEditorProductRowSummary.superclass.constructor.apply(this);
+
+		this._availableProducts = null;
+
+		this._productListOffset = 0;
+		this.productListLimit = 3;
+		this.totalCount = 0;
+
+		this._productSummaryContainer = null;
+		this._productListContainer = null;
+
+		this._moreButton = null;
+	};
+	BX.extend(BX.UI.EntityEditorProductRowSummary, BX.UI.EntityEditorField);
+
+	BX.UI.EntityEditorProductRowSummary.prototype.layout = function(options)
+	{
+		if (this._hasLayout)
+		{
+			return;
+		}
+		const wasLayoutCleared = this._isNeedClearLayout(options);
+
+		if (wasLayoutCleared)
+		{
+			this.ensureWrapperCreated({});
+			this.adjustWrapper();
+		}
+
+		if (wasLayoutCleared)
+		{
+			if (this.isDragEnabled())
+			{
+				this._wrapper.appendChild(this.createDragButton());
+			}
+
+			this._wrapper.appendChild(this.createTitleNode(this.getTitle()));
+		}
+
+		this.updateProductSummaryContainer(this.getValue());
+
+		if (wasLayoutCleared)
+		{
+			this._wrapper.appendChild(this._productSummaryContainer);
+
+			if (this.isContextMenuEnabled())
+			{
+				this._wrapper.appendChild(this.createContextMenuButton());
+			}
+
+			if (this.isDragEnabled())
+			{
+				this.initializeDragDropAbilities();
+			}
+		}
+
+		this._hasLayout = true;
+		this.registerLayout(options);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.getProductListLength = function()
+	{
+		const data = this.getValue();
+		return BX.prop.getArray(data, 'items', []).length;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.clearLayout = function(options)
+	{
+		if(this._isNeedClearLayout(options))	// clear layout if animation not required or position not preserved
+		{
+			return BX.UI.EntityEditorProductRowSummary.superclass.clearLayout.apply(this, arguments);
+		}
+
+		this._hasLayout = false;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._isNeedClearLayout = function(options)
+	{
+		return (
+			!BX.prop.getBoolean(options, 'preservePosition', false)
+			|| !BX.prop.getBoolean(options, 'isRefreshViewModeLayout', false)
+		);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.doClearLayout = function()
+	{
+		this._clearProductListData();
+
+		this._productSummaryContainer = null;
+		this._productListContainer = null;
+		this._moreButton = null;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.getAvailableProductsToDisplay = function ()
+	{
+		if (this._availableProducts === null)
+		{
+			this.initProductListData();
+		}
+
+		return this._availableProducts;
+	}
+
+	BX.UI.EntityEditorProductRowSummary.prototype._clearProductListData = function()
+	{
+		this._productListOffset = 0;
+		this.totalCount = 0;
+		this._availableProducts = null;
+	}
+
+	BX.UI.EntityEditorProductRowSummary.prototype.initProductListData = function(products)
+	{
+		if (!(products instanceof Array))
+		{
+			products = BX.prop.getArray(this.getValue(), 'items', []);
+		}
+
+		this._availableProducts = products.slice(0, this.productListLimit * 2);
+	}
+
+	BX.UI.EntityEditorProductRowSummary.prototype.updateProductSummaryContainer = function(summaryData)
+	{
+		const isContainerInited = !(this._productSummaryContainer === null);
+
+		if (!isContainerInited)
+		{
+			this._productSummaryContainer = BX.create(
+				'div',
+				{
+					props: {className: 'ui-entity-editor-product-summary-container'}
+				}
+			);
+			this._currentData = summaryData;
+			this._previousData = {};
+		}
+		else
+		{
+			BX.cleanNode(this._productSummaryContainer);
+
+			this._previousData = this._currentData;
+			this._currentData = summaryData;
+
+			this._productListContainer = null;
+			this._clearProductListData();
+		}
+
+		this.totalCount = BX.prop.getNumber(summaryData, 'count', 0);
+		const totalInfo = BX.prop.getString(summaryData, 'total', '');
+		if (this.totalCount > 0)
+		{
+			const totalInfoBlock = BX.create(
+				'span',
+				{
+					props: {className: 'ui-enitity-editor-product-summary-total-info'},
+					html: this._getTotalInfoPhraseTemplate(this.totalCount)
+						.replace(/#COUNT#/gi, this.totalCount)
+						.replace(/#TOTAL#/gi, totalInfo),
+				}
+			);
+			this._productSummaryContainer.appendChild(totalInfoBlock);
+
+			const isReadOnly = BX.prop.getBoolean(summaryData, 'isReadOnly', true);
+			if (!isReadOnly)
+			{
+				const addProductLinkBlock = BX.create(
+					'span',
+					{
+						props: {
+							className: 'ui-enitity-editor-product-summary-tab-link',
+							onclick: () => {
+								this.openDetailProductList();
+							}
+						},
+						text: BX.message("UI_ENTITY_EDITOR_PRODUCT_SUMMARY_TAB_LINK_EDIT"),
+					}
+				);
+				this._productSummaryContainer.appendChild(addProductLinkBlock);
+			}
+
+			const products = this.getAvailableProductsToDisplay();
+			this.createProductListContainer(products);
+			this._productSummaryContainer.appendChild(this._productListContainer);
+
+			const limit = Math.min(products.length, this.productListLimit);
+			if (limit < products.length)
+			{
+				this._moreButton = this._getMoreButton();
+				this._productSummaryContainer.appendChild(this._moreButton);
+			}
+		}
+		else
+		{
+			const isReadOnly = BX.prop.getBoolean(summaryData, 'isReadOnly', true);
+			this._productSummaryContainer.appendChild(this._createEmptyListContainer(isReadOnly, this.totalCount, totalInfo));
+		}
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._getTotalInfoPhraseTemplate = function(totalValue)
+	{
+		const languageId = BX.message('LANGUAGE_ID');
+		const phraseTemplate = BX.message(
+			'UI_ENTITY_EDITOR_PRODUCT_SUMMARY_TOTAL_PLURAL_' + BX.Loc.getPluralForm(totalValue, languageId)
+		);
+
+		if (phraseTemplate)
+		{
+			return phraseTemplate;
+		}
+
+		return BX.message('UI_ENTITY_EDITOR_PRODUCT_SUMMARY_TOTAL');
+	}
+
+	BX.UI.EntityEditorProductRowSummary.prototype._createEmptyListContainer = function(isReadOnly, totalCount, totalInfo)
+	{
+		if (isReadOnly)
+		{
+			return BX.create(
+				'span',
+				{
+					props: {className: 'ui-enitity-editor-product-summary-total-info'},
+					html: BX.message("UI_ENTITY_EDITOR_PRODUCT_SUMMARY_TOTAL").replace(/#COUNT#/gi, totalCount).replace(/#TOTAL#/gi, totalInfo),
+				}
+			);
+		}
+
+		return BX.create(
+			'div',
+			{
+				props: {
+					className: 'ui-entity-editor-product-summary-empty-list-container',
+					onclick: () => {
+						this.addNewPositionInDetailProductList();
+					}
+				},
+				children:
+					[
+						BX.create(
+							'span',
+							{
+								props: {
+									className: 'ui-entity-editor-product-summary-empty-list-title'
+								},
+								text: BX.message("UI_ENTITY_EDITOR_PRODUCT_SUMMARY_TAB_LINK_ADD")
+							}
+						)
+					]
+			}
+		);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.createProductListContainer = function(products = [])
+	{
+		if (this._productListContainer !== null)
+		{
+			return;
+		}
+
+		this._productListContainer = BX.create(
+			'ul',
+			{
+				props: {
+					className: 'ui-entity-editor-product-list-container'
+				}
+			}
+		);
+
+		const limit = Math.min(products.length, this.productListLimit);
+		for (let i = 0; i < limit; i++)
+		{
+			this.addProductRow(products[i]);
+		}
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.addProductRow = function(productData)
+	{
+		if (this._productListContainer === null)
+		{
+			return;
+		}
+		const formattedProductData = this._formatProductData(productData);
+
+
+
+		const row = BX.create(
+			'li',
+			{
+				props: {
+					className: 'ui-entity-editor-product-row-container'
+				},
+				children: [
+					this._getProductPicture(formattedProductData),
+					this._getProductDetails(formattedProductData)
+				],
+			}
+		);
+
+		this._productListContainer.appendChild(row);
+		this._productListOffset++;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._formatProductData = function(product)
+	{
+		return {
+			name: BX.prop.getString(product, 'PRODUCT_NAME', ''),
+			url: BX.prop.getString(product, 'URL', ''),
+			price: BX.prop.getString(product, 'SUM', ''),
+			propertiesString: BX.prop.getString(product, 'VARIATION_INFO', ''),
+			photo: BX.prop.getString(product, 'PHOTO_URL', ''),
+		};
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._getProductPicture = function(productData)
+	{
+		const {photo: photoUrl} = productData;
+
+		const photoSettings = {
+			props: {
+				className: 'ui-enitity-editor-product-photo'
+			}
+		}
+		if (photoUrl !== '')
+		{
+			photoSettings.style = {
+				backgroundImage: `url(${encodeURI(photoUrl)})`
+			};
+		}
+
+		return BX.create('div', photoSettings);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._getProductDetails = function(productData)
+	{
+		const {
+			name: productName,
+			url: productUrl,
+			price: productPrice,
+			propertiesString: productProperties
+		} = productData;
+
+		const productTitle = this._getProductTitle(productName, productUrl);
+
+		const productDetailsNodes = [];
+		if (productProperties !== '')
+		{
+			productDetailsNodes.push(BX.create(
+				'span',
+				{
+					props: {className: 'ui-entity-editor-product-details-properties'},
+					text: productProperties,
+				}
+			));
+		}
+
+		productDetailsNodes.push(BX.create(
+			'span',
+			{
+				props: {className: 'ui-entity-editor-product-details-price'},
+				html: productPrice,
+			}
+		));
+
+		const productDetails = BX.create(
+			'div',
+			{
+				props: {className: 'ui-enitity-editor-product-details'},
+				children: productDetailsNodes
+			}
+		);
+
+		return BX.create(
+			'div',
+			{
+				props: {className: 'ui-enitity-editor-product-info'},
+				children: [productTitle, productDetails]
+			}
+		);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._isShowProductLink = function()
+	{
+		const settings =
+			this._schemeElement && this._schemeElement._settings && BX.Type.isObject(this._schemeElement._settings)
+				? this._schemeElement._settings
+				: {}
+		;
+		return BX.prop.getBoolean(settings, 'showProductLink', true);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._getProductTitle = function(title, url = '')
+	{
+		let titleBlock;
+		if ((typeof url === 'string') && url !== '' && this._isShowProductLink())
+		{
+			titleBlock = BX.create(
+				'a',
+				{
+					props: {
+						className: 'ui-entity-editor-product-title-link',
+						href: url
+					},
+					text: title
+				}
+			);
+		}
+		else
+		{
+			titleBlock = BX.create(
+				'span',
+				{
+					props: {
+						className: 'ui-entity-editor-product-title'
+					},
+					text: title
+				}
+			);
+		}
+
+		return titleBlock;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._getMoreButton = function()
+	{
+		if (this._moreButton === null)
+		{
+			const listLength = Math.min(this.totalCount, this.productListLimit * 2);
+			this._moreButton = BX.create(
+				'span',
+				{
+					props: {
+						className: 'ui-entity-editor-product-list-more-button',
+						onclick: () => {
+							this._onMoreButtonClick();
+						}
+					},
+					text: BX.message('UI_ENTITY_EDITOR_PRODUCT_SUMMARY_MORE_BUTTON')
+						.replace('#COUNT#', listLength - this._productListOffset),
+				}
+			);
+		}
+
+		return this._moreButton;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype._onMoreButtonClick = function() {
+		this._productListContainer.style.maxHeight = `${this._productListContainer.clientHeight}px`;
+		const products = this.getAvailableProductsToDisplay();
+
+		for (let i = this._productListOffset; i < products.length; i++)
+		{
+			this.addProductRow(products[i]);
+		}
+		const height = parseInt(this._productListContainer.style.maxHeight);
+		setTimeout(() => {
+			this._productListContainer.style.maxHeight = `${2 * height}px`;
+		}, 0);
+		BX.remove(this._moreButton);
+		if (products.length < this.getProductListLength())
+		{
+			this._wrapper.appendChild(BX.create(
+				'span',
+				{
+					props: {
+						className: 'ui-entity-editor-product-list-more-button',
+						onclick: () => {
+							this.openDetailProductList();
+						}
+					},
+					text: BX.message('UI_ENTITY_EDITOR_PRODUCT_SUMMARY_FULL_BUTTON')
+						.replace(/#COUNT#/gi, this.totalCount),
+				}
+			))
+		}
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.openDetailProductList = function()
+	{
+		BX.onCustomEvent(window, "BX.UI.EntityEditorProductRowSummary:onDetailProductListLinkClick", [this]);
+	};
+
+	BX.UI.EntityEditorProductRowSummary.prototype.addNewPositionInDetailProductList = function()
+	{
+		BX.onCustomEvent(window, "BX.UI.EntityEditorProductRowSummary:onAddNewRowInProductList", [this]);
+	}
+
+	BX.UI.EntityEditorProductRowSummary.prototype.hasContentToDisplay = function()
+	{
+		return true;
+	};
+
+	BX.UI.EntityEditorProductRowSummary.create = function(id, settings)
+	{
+		let self = new BX.UI.EntityEditorProductRowSummary();
 		self.initialize(id, settings);
 		return self;
 	};

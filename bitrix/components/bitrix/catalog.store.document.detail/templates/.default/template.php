@@ -10,36 +10,53 @@ use Bitrix\Main\IO\File;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
-use Bitrix\Main\Loader;
 use Bitrix\UI\Toolbar\Facade\Toolbar;
 
 global $APPLICATION;
 
-if ($arResult['DOCUMENT']['TITLE'])
+if (isset($arResult['DOCUMENT']['TITLE']))
 {
 	$APPLICATION->SetTitle($arResult['DOCUMENT']['TITLE']);
 }
-elseif (!$arResult['DOCUMENT'] && empty($arResult['ERROR_MESSAGES']))
+elseif (empty($arResult['DOCUMENT']) && empty($arResult['ERROR_MESSAGES']))
 {
 	$APPLICATION->SetTitle(Loc::getMessage('DOC_TYPE_CREATION_PAGE_TITLE_' . $arResult['DOCUMENT_TYPE']));
 }
 
-\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
+\Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
+]);
 
 $bodyClass = $APPLICATION->GetPageProperty("BodyClass");
 $APPLICATION->SetPageProperty('BodyClass', ($bodyClass ? $bodyClass.' ' : '').'no-background');
 
-if (!empty($arResult['ERROR_MESSAGES']) && is_array($arResult['ERROR_MESSAGES'])): ?>
-	<?php foreach($arResult['ERROR_MESSAGES'] as $error):?>
-		<div class="ui-alert ui-alert-danger" style="margin-bottom: 0px;">
-			<span class="ui-alert-message"><?= htmlspecialcharsbx($error) ?></span>
-		</div>
-	<?php endforeach;?>
-	<?php
+if (!empty($arResult['ERROR_MESSAGES']) && is_array($arResult['ERROR_MESSAGES']))
+{
+	if (is_array($arResult['ERROR_MESSAGES'][0]))
+	{
+		$APPLICATION->IncludeComponent(
+			'bitrix:ui.info.error',
+			'',
+			$arResult['ERROR_MESSAGES'][0]
+		);
+	}
+	else
+	{
+		$APPLICATION->IncludeComponent(
+			'bitrix:ui.info.error',
+			'',
+			[
+				'TITLE' => $arResult['ERROR_MESSAGES'][0],
+			],
+		);
+	}
+
 	return;
-endif;
+}
 
 Extension::load([
+	'ui.alerts',
 	'catalog.document-card',
 	'catalog.entity-card',
 	'ui.entity-selector',
@@ -62,7 +79,8 @@ if (isset($arResult['TOOLBAR_ID']))
 	);
 }
 
-if ((int)$arResult['DOCUMENT']['ID'] > 0)
+$documentId = (int)($arResult['DOCUMENT']['ID'] ?? 0);
+if ($documentId > 0)
 {
 	$labelColorClass = 'ui-label-light';
 	$isDocumentCancelled = $arResult['DOCUMENT']['WAS_CANCELLED'] === 'Y' && $arResult['DOCUMENT']['STATUS'] === 'N';
@@ -86,22 +104,22 @@ if ((int)$arResult['DOCUMENT']['ID'] > 0)
 
 	$this->SetViewTarget('in_pagetitle');
 	?>
-<div class="catalog-title-buttons-wrapper">
+	<div class="catalog-title-buttons-wrapper">
 	<span id="pagetitle_btn_wrapper" class="pagetitile-button-container">
 		<?php if (!$arResult['IS_MAIN_CARD_READ_ONLY']): ?>
 			<span id="pagetitle_edit" class="pagetitle-edit-button"></span>
 		<?php endif; ?>
 		<span id="page_url_copy_btn" class="page-link-btn"></span>
 	</span>
-	<span class="ui-label ui-label-lg document-status-label ui-label-fill <?= $labelColorClass ?>">
+		<span class="ui-label ui-label-lg document-status-label ui-label-fill <?= $labelColorClass ?>">
 		<span class="ui-label-inner">
 			<?= $labelText ?>
 		</span>
 	</span>
-</div>
-<div class="catalog-title-document-type">
-	<?= Loc::getMessage('DOC_TYPE_SHORT_' . $arResult['DOCUMENT_TYPE']) ?>
-</div>
+	</div>
+	<div class="catalog-title-document-type">
+		<?= Loc::getMessage('DOC_TYPE_SHORT_' . $arResult['DOCUMENT_TYPE']) ?>
+	</div>
 	<?php
 	$this->EndViewTarget();
 }
@@ -138,13 +156,11 @@ $tabContainerId = "{$guid}_TABS";
 
 $tabContainerClassName = 'catalog-entity-section catalog-entity-section-tabs';
 $tabContainerClassName .= ' ui-entity-stream-section-planned-above-overlay';
+$wrapperClassNames = ['catalog-wrapper'];
+$wrapperClassNames[] = $arResult['INCLUDE_CRM_ENTITY_EDITOR'] ? 'catalog-entity-wrap-crm' : 'catalog-entity-wrap';
 ?>
 
-<script>
-	BX.Catalog.DocumentCard.DocumentCard.initializeEntityEditorFactories();
-</script>
-
-<div id="<?=htmlspecialcharsbx($containerId)?>" class="catalog-entity-wrap catalog-wrapper">
+<div id="<?=htmlspecialcharsbx($containerId)?>" class="<?=implode(' ', $wrapperClassNames);?>">
 	<div class="<?=$tabContainerClassName?>">
 		<ul id="<?=htmlspecialcharsbx($tabMenuContainerId)?>" class="catalog-entity-section-tabs-container">
 			<?php
@@ -210,7 +226,7 @@ $tabContainerClassName .= ' ui-entity-stream-section-planned-above-overlay';
 	BX.Catalog.DocumentCard.Instance = new BX.Catalog.DocumentCard.DocumentCard(
 		'<?=CUtil::JSEscape($guid)?>',
 		{
-			entityId: '<?=CUtil::JSEscape($arResult['DOCUMENT']['ID'])?>',
+			entityId: '<?=CUtil::JSEscape($documentId)?>',
 			documentType: '<?=CUtil::JSEscape($arResult['DOCUMENT_TYPE'])?>',
 			documentStatus: '<?= CUtil::JSEscape($arResult['DOCUMENT']['STATUS'] ?? 'N') ?>',
 			tabs: <?=CUtil::PhpToJSObject($tabs)?>,
@@ -224,16 +240,23 @@ $tabContainerClassName .= ' ui-entity-stream-section-planned-above-overlay';
 			signedParameters: <?=CUtil::PhpToJSObject($this->getComponent()->getSignedParameters()) ?>,
 			isConductLocked: <?= CUtil::PhpToJSObject($arResult['IS_CONDUCT_LOCKED']) ?>,
 			masterSliderUrl: <?= CUtil::PhpToJSObject($arResult['MASTER_SLIDER_URL']) ?>,
+			inventoryManagementSource: <?= CUtil::PhpToJSObject($arResult['INVENTORY_MANAGEMENT_SOURCE']) ?>,
+			includeCrmEntityEditor: <?= Cutil::PhpToJSObject($arResult['INCLUDE_CRM_ENTITY_EDITOR']) ?>,
 		}
 	);
 
 	BX.ready(function () {
 		BX.Catalog.DocumentCard.Instance.adjustToolPanel();
-		<?if (isset($arResult['TOOLBAR_ID'])):?>
-			BX.Catalog.DocumentCard.FeedbackButton.render(
-				document.getElementById('<?=CUtil::JSEscape($arResult['TOOLBAR_ID'])?>'),
-				<?=CUtil::JSEscape(((int)$arResult['DOCUMENT']['ID'] <= 0))?>
-			);
-		<?endif;?>
+		<?php if (isset($arResult['TOOLBAR_ID'])):?>
+		BX.Catalog.DocumentCard.FeedbackButton.render(
+			document.getElementById('<?=CUtil::JSEscape($arResult['TOOLBAR_ID'])?>'),
+			<?=CUtil::JSEscape($documentId <= 0)?>
+		);
+		<?php endif; ?>
+
+		<?php if (isset($arResult['FOCUSED_TAB'])): ?>
+			const tabId = '<?=CUtil::JSEscape($arResult['FOCUSED_TAB'])?>';
+			BX.Catalog.DocumentCard.Instance.focusOnTab(tabId);
+		<?php endif; ?>
 	});
 </script>

@@ -62,7 +62,7 @@ class CRestConfigurationInstallComponent extends CBitrixComponent implements Con
 			return false;
 		}
 
-		if($this->arParams['IMPORT_DISK_FOLDER_ID'])
+		if(isset($this->arParams['IMPORT_DISK_FOLDER_ID']) && $this->arParams['IMPORT_DISK_FOLDER_ID'])
 		{
 			$this->diskFolder = $this->getDiskFolder();
 			if($this->diskFolder === false)
@@ -88,6 +88,7 @@ class CRestConfigurationInstallComponent extends CBitrixComponent implements Con
 			'MANIFEST_CODE',
 			'UNINSTALL_APP_ON_FINISH',
 			'PROCESS_ID',
+			'FROM',
 		];
 	}
 
@@ -111,6 +112,7 @@ class CRestConfigurationInstallComponent extends CBitrixComponent implements Con
 			'NEED_START_BTN' => true,
 			'NEED_CLEAR_FULL_CONFIRM' => true,
 			'IMPORT_BY_PROCESS_ID' => $this->isImportByProcessId(),
+			'FROM' => $this->arParams['FROM'] ?? '',
 		];
 		$manifest = null;
 
@@ -123,7 +125,7 @@ class CRestConfigurationInstallComponent extends CBitrixComponent implements Con
 			}
 			elseif (!is_null($manifest))
 			{
-				if ((int)$this->arParams['IMPORT_MANIFEST']['MANIFEST_VERSION'] > 0)
+				if (isset($this->arParams['IMPORT_MANIFEST']['MANIFEST_VERSION']) && (int)$this->arParams['IMPORT_MANIFEST']['MANIFEST_VERSION'] > 0)
 				{
 					if ((int)$this->arParams['IMPORT_MANIFEST']['MANIFEST_VERSION'] > (int)$manifest['VERSION'])
 					{
@@ -147,20 +149,23 @@ class CRestConfigurationInstallComponent extends CBitrixComponent implements Con
 
 		if (!is_null($manifest))
 		{
-			if (is_array($this->arParams['IMPORT_MANIFEST']))
+			if (!empty($this->arParams['IMPORT_MANIFEST']) && is_array($this->arParams['IMPORT_MANIFEST']))
 			{
 				$manifest = array_merge($this->arParams['IMPORT_MANIFEST'],  $manifest);
 			}
 
 			$result['MANIFEST'] = $manifest;
-			if ($result['MANIFEST']['SKIP_CLEARING'] === 'Y')
+			if (isset($result['MANIFEST']['SKIP_CLEARING']) && $result['MANIFEST']['SKIP_CLEARING'] === 'Y')
 			{
 				$manifest['DISABLE_CLEAR_FULL'] = 'Y';
 				$result['SKIP_CLEARING'] = true;
 			}
-			$result['NEED_CLEAR_FULL_CONFIRM'] = $manifest['DISABLE_CLEAR_FULL'] !== 'Y';
+
+			$result['NEED_CLEAR_FULL_CONFIRM'] = (!isset($manifest['DISABLE_CLEAR_FULL']) || $manifest['DISABLE_CLEAR_FULL'] !== 'Y');
 			$result['NEED_CLEAR_FULL'] = $result['NEED_CLEAR_FULL_CONFIRM'];
+			$manifest['NEED_CLEAR_FULL_CONFIRM'] = $manifest['NEED_CLEAR_FULL_CONFIRM'] ?? false;
 			$result['NEED_START_BTN'] = !(empty($result['NOTIFY'])
+				&& isset($manifest['DISABLE_NEED_START_BTN'])
 				&& $manifest['DISABLE_NEED_START_BTN'] === 'Y'
 				&& !$manifest['NEED_CLEAR_FULL_CONFIRM']);
 		}
@@ -353,6 +358,17 @@ class CRestConfigurationInstallComponent extends CBitrixComponent implements Con
 					$this->deleteBackupFolder();
 				}
 			}
+
+			$userId = 0;
+			global $USER;
+			if ($USER->isAuthorized())
+			{
+				$userId = $USER->getId();
+			}
+			$import->getSetting()->set(
+				Setting::SETTING_USER_ID,
+				$userId
+			);
 
 			if ($this->arParams['IMPORT_DISK_FOLDER_ID'] && $this->arParams['IMPORT_DISK_STORAGE_PARAMS'])
 			{

@@ -2,12 +2,14 @@
 
 namespace Bitrix\Landing\Assets;
 
+use Bitrix\Landing\Agent;
 use Bitrix\Landing\File;
 use Bitrix\Landing\Site;
 use Bitrix\Landing\Manager;
 use Bitrix\Main;
 use Bitrix\Main\FileTable;
 use Bitrix\Main\Security\Random;
+use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\WebPacker;
 
 class WebpackFile
@@ -134,25 +136,8 @@ class WebpackFile
 				$this->fileId = $res->getId();
 				File::addToAsset($this->landingId, $this->fileId);
 
-				$file = \CFile::GetByID($this->fileId)->Fetch();
-				$fileMsg = "File {$this->fileId} with NAME {$file['FILE_NAME']} and ORIG_NAME {$file['ORIGINAL_NAME']}";
-				$duplicateMsg = "Has no duplicates";
-
-				$original = \Bitrix\Main\File\Internal\FileDuplicateTable::query()
-					->addSelect("ORIGINAL_ID")
-					->where("DUPLICATE_ID", $this->fileId)
-					->fetch();
-				if ($original && $original['ORIGINAL_ID'])
-				{
-					$fileOrig = \CFile::GetByID((int)$original['ORIGINAL_ID'])->Fetch();
-					$duplicateMsg = "It is duplicate of orig {$original['ORIGINAL_ID']} with NAME {$fileOrig['FILE_NAME']} and ORIG_NAME {$fileOrig['ORIGINAL_NAME']}";
-				}
-
-				AddMessage2Log(
-					"[lndgdbg] afterBuildFile for lid {$this->landingId}. {$fileMsg}. {$duplicateMsg}.",
-					'landing',
-					7
-				);
+				// tmp fixing agent for 149117
+				Agent::addUniqueAgent('checkFileExists', [$this->fileId], 86400, 60);
 			}
 		}
 	}
@@ -162,19 +147,12 @@ class WebpackFile
 	 */
 	protected function configureFile(): void
 	{
-		$msgAdd = '';
 		if ($fileId = $this->findExistFile())
 		{
 			$this->fileId = $fileId;
 			$file = \CFile::GetByID($fileId)->Fetch();
 			$this->setFileName($file['ORIGINAL_NAME'] ?: $this->filename);
 		}
-
-		AddMessage2Log(
-			"[lndgdbg] configureFile for lid {$this->landingId}.",
-			'landing',
-			7
-		);
 
 		$this->fileController->configureFile(
 			$this->fileId,
@@ -194,21 +172,6 @@ class WebpackFile
 		{
 			foreach(File::getFilesFromAsset($this->landingId) as $fileId)
 			{
-				$currentFile = \CFile::GetByID($fileId)->Fetch();
-				$msg = "Current file {$fileId} with ORIG_NAME {$currentFile['ORIGINAL_NAME']}. ";
-
-				$currentName = self::DEFAULT_NAME . '_' . $this->packageHash;
-				$msg .= "Hash name {$currentName} ";
-				$msg .= strpos($currentFile['ORIGINAL_NAME'], $currentName) === 0
-					? 'and it MATCH with file.'
-					: 'and it NOT MATCH with file.'
-				;
-				AddMessage2Log(
-					"[lndgdbg] findExistFile for lid {$this->landingId}. {$msg}",
-					'landing',
-					7
-				);
-
 				if(
 					$fileId > 0
 					&& $this->packageHash

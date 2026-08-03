@@ -1,4 +1,10 @@
 <?
+/**
+ * @global \CUser $USER
+ * @global \CMain $APPLICATION
+ * @global \CDatabase $DB
+ */
+
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Page\Asset;
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
@@ -6,11 +12,12 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 if(!$USER->CanDoOperation('view_other_settings'))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
+\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
 Asset::getInstance()->addString('<link rel="stylesheet" type="text/css" href="/bitrix/themes/.default/promo_https.css">');
 Loc::loadMessages(__FILE__);
 
 $APPLICATION->SetTitle(Loc::getMessage("HTTPS_PROMO__ADMIN_TITLE"));
-require_once ($DOCUMENT_ROOT.BX_ROOT."/modules/main/include/prolog_admin_after.php");
+require_once ($_SERVER['DOCUMENT_ROOT'].BX_ROOT."/modules/main/include/prolog_admin_after.php");
 ?>
 
 	<div class="adm-promo-https-wrapper">

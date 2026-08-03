@@ -10,6 +10,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use \Bitrix\Landing\Config;
 use \Bitrix\Landing\Hook;
+use \Bitrix\Landing\Landing\View;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\Rights;
 use \Bitrix\Main\Localization\Loc;
@@ -38,6 +39,10 @@ if ($arResult['ERRORS'])
 
 // load extensions
 $extensions = ['ui.fonts.opensans'];
+if ($arParams['TYPE'] === 'KNOWLEDGE' || $arParams['TYPE'] === 'GROUP')
+{
+	$extensions[] = 'ui.entity-selector';
+}
 if (
 	$arParams['SHOW_EDIT_PANEL'] == 'Y' ||
 	!$landing->getDomainId()// wiki mode
@@ -51,6 +56,7 @@ if ($b24Installed)
 	$extensions[] = 'landing.metrika';
 }
 $extensions[] = 'sidepanel';
+$extensions[] = 'ui.hint';
 
 Extension::load($extensions);
 
@@ -74,9 +80,11 @@ if ($component->request('IFRAME'))
 			}
 		})();
 	</script>
-	<?
+	<?php
 }
+?>
 
+<?php
 // shop master frame
 if ($masterFrame)
 {
@@ -92,12 +100,16 @@ if ($arParams['SHOW_EDIT_PANEL'] === 'Y')
 {
 	Extension::load([
 		'ui.buttons',
-		'ui.buttons.icons'
+		'ui.buttons.icons',
+		'ui.hint'
 	]);
 	ob_start(function($content)
 	{
 		Manager::setPageView('AfterBodyOpen',$content);
 	});
+	$allMess = Loc::loadLanguageFile(__FILE__);
+	$setMessForJS = [];
+	$setMessForJS['LANDING_TPL_PUB_COPIED_LINK'] = $allMess['LANDING_TPL_PUB_COPIED_LINK'];
 	?>
 	<div class="landing-pub-top-panel-wrapper">
 		<div class="landing-pub-top-panel">
@@ -108,34 +120,52 @@ if ($arParams['SHOW_EDIT_PANEL'] === 'Y')
 				</div>
 				<div class="landing-pub-top-panel-separator"></div>
 				<div class="landing-pub-top-panel-chain">
-					<?$title = $component->getMessageType('LANDING_TPL_SITES');?>
-					<span class="ui-btn ui-btn-xs ui-btn-light ui-btn-round landing-pub-top-panel-chain-link" style="pointer-events: none" title="<?= $title;?>">
-						<?= $title;?>
+					<?php $title = $component->getMessageType('LANDING_TPL_SITES');?>
+					<span class="ui-btn ui-btn-xs ui-btn-light ui-btn-round landing-pub-top-panel-chain-link" style="pointer-events: none" title="<?= $title?>">
+						<?= $title?>
 					</span>
 					<strong class="landing-pub-top-panel-chain-separator"><span></span></strong>
-					<?$title = \htmlspecialcharsbx($landing->getTitle());?>
-					<span class="ui-btn ui-btn-xs ui-btn-light ui-btn-round landing-pub-top-panel-chain-link" style="pointer-events: none" title="<?= $title;?>">
-						<?= $title;?>
+					<?php $title = \htmlspecialcharsbx($landing->getTitle());?>
+					<span class="ui-btn ui-btn-xs ui-btn-light ui-btn-round landing-pub-top-panel-chain-link landing-pub-top-panel-chain-link-page"" data-hint="<?= $title?>" data-hint-no-icon>
+						<?= $title?>
 					</span>
 				</div>
+				<div class="landing-pub-top-panel-page-link">
+					<span class="landing-page-link-btn"></span>
+				</div>
 			</div>
-			<?php if($arResult['CAN_EDIT'] === 'Y'): ?>
-				<div class="landing-pub-top-panel-right">
+			<div class="landing-pub-top-panel-right">
+				<div class="landing-pub-top-panel-unique-view">
+					<div class="ui-btn ui-btn-xs ui-btn-icon-eye-opened ui-btn-link ui-btn-light">
+						<?= View::getNumberUniqueViews($landing->getId())?>
+					</div>
+					<div class="landing-pub-top-panel-unique-view-popup hide">
+						<div class="landing-pub-top-panel-unique-view-popup-header">
+							<?= $component->getMessageType('LANDING_TPL_VIEWS')?>
+						</div>
+						<div class="landing-pub-top-panel-unique-view-popup-item-container"></div>
+					</div>
+				</div>
+				<?php if($arResult['CAN_EDIT'] === 'Y'): ?>
 					<div class="landing-pub-top-panel-actions">
 						<a href="<?= $arParams['PAGE_URL_LANDING_VIEW'];?>" data-landingId="<?= $landing->getId();?>" class="ui-btn ui-btn-primary ui-btn-icon-edit landing-pub-top-panel-edit-button">
 							<?= $component->getMessageType('LANDING_TPL_EDIT_PAGE');?>
 						</a>
 					</div>
-				</div>
-			<?php endif; ?>
+				<?php endif; ?>
+			</div>
 		</div>
 		<script>
+			BX.message(<?= \CUtil::PhpToJSObject($setMessForJS)?>);
+			var userData = <?= \CUtil::PhpToJSObject(View::getUniqueUserData($landing->getId()))?>;
+			var data = [];
+			data.userData = userData;
 			BX.ready(function() {
-				void new BX.Landing.Pub.TopPanel();
+				void new BX.Landing.Pub.TopPanel(data);
 			});
 		</script>
 	</div>
-	<?
+	<?php
 	ob_end_flush();
 }
 
@@ -149,7 +179,7 @@ if ($arResult['SEARCH_RESULT_QUERY'])
 				void new BX.Landing.Pub.SearchResult();
 			});
 		</script>
-		<?
+		<?php
 	}
 }
 
@@ -161,7 +191,7 @@ if ($component->request('ts'))
 			void new BX.Landing.Pub.TimeStamp();
 		});
 	</script>
-	<?
+	<?php
 }
 
 
@@ -173,7 +203,7 @@ if ($arParams['TYPE'] === 'KNOWLEDGE' || $arParams['TYPE'] === 'GROUP')
 			void new BX.Landing.Pub.DiskFile();
 		});
 	</script>
-	<?
+	<?php
 }
 
 // landing view
@@ -200,16 +230,7 @@ if (!$check)
 			top.BX.UI.InfoHelper.show('limit_knowledge_base_number_page_view');
 		});
 	</script>
-	<?
-}
-
-// hook for copyrights
-$enableHook = \Bitrix\Landing\Restriction\Manager::isAllowed(
-	'limit_sites_powered_by'
-);
-if ($enableHook)
-{
-	$hooksSite = Hook::getForSite($landing->getSiteId());
+	<?php
 }
 
 // assets
@@ -218,85 +239,61 @@ $assets->addAsset(
 		'landing_public',
 		Assets\Location::LOCATION_AFTER_TEMPLATE
 );
+$viewMode = $component->isPreviewMode() ? 'preview' : 'view';
+$publicModeInit = '
+	BX.namespace("BX.Landing");
+	BX.Landing.getMode = () => "' . $viewMode . '";
+';
+$assets->addString(
+	"<script>{$publicModeInit}</script>",
+);
 $assets->addAsset(
 	Config::get('js_core_public'),
 	Assets\Location::LOCATION_KERNEL
 );
 $assets->addAsset('landing_critical_grid', Assets\Location::LOCATION_BEFORE_ALL);
 ?>
+<?php if ($viewMode === 'preview' && $component->request('scrollTo')):?>
+<script>
+	const scrollToElementId = '<?= CUtil::JSEscape(htmlspecialcharsbx($component->request('scrollTo')))?>';
+	const scrollToElement = document.getElementById(scrollToElementId);
 
-<?if ($b24Installed):?>
+	if (scrollToElement)
+	{
+		scrollToElement.scrollIntoView();
+	}
+</script>
+<?php elseif ($viewMode === 'preview'):?>
+<style>
+	[data-b24-crm-hello-cont] {
+		display: none;
+	}
+</style>
+<?php endif;?>
+
+<?php if ($b24Installed):?>
 <script>
 	(function()
 	{
 		new BX.Landing.Metrika();
 	})();
 </script>
-<?endif;?>
+<?php endif;?>
 
-<?ob_start(); ?>
-<?if (!$masterFrame && !$formEditor && (!$enableHook || isset($hooksSite['COPYRIGHT']) && $hooksSite['COPYRIGHT']->enabled())):?>
-<div class="bitrix-footer">
-	<?if (Manager::isB24()):?>
-		<span class="bitrix-footer-text">
-			<?
-			$zone = Manager::getZone();
-			$westCopy = !in_array($zone, ['ru', 'kz', 'by', 'ua']);
-			$fullCopy = in_array($zone, array('ru', 'by'))
-						? Loc::getMessage('LANDING_TPL_COPY_FULL')
-						: Loc::getMessage('LANDING_TPL_COPY_FULL2');
-			$logo = '<img src="' .
-						$this->getFolder() . '/images/' .
-						(in_array($zone, array('ru', 'ua', 'en')) ? $zone : 'en') .
-						'.svg?1" alt="' . Loc::getMessage('LANDING_TPL_COPY_NAME') . '">';
-			$rel = $westCopy ? ' rel="nofollow"' : '';
-			if ($fullCopy)
-			{
-				if ($westCopy)
-				{
-					$fullCopy = preg_replace('#<linkcreate>[^<]+</linkcreate>#is', '', $fullCopy);
-					$fullCopy = trim($fullCopy, ' .');
-				}
-				echo str_replace(
-					[
-						'#LOGO#',
-						'<linklogo>', '</linklogo>',
-						'<linksite>', '</linksite>',
-						'<linkcrm>', '</linkcrm>',
-						'<linkcreate>', '</linkcreate>'
-					],
-					[
-						$logo,
-						'<a' . $rel . ' target="_blank" href="' . $this->getComponent()->getRefLink('bitrix24_logo', true, $westCopy) . '">', '</a>',
-						'<a class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('websites', true, $westCopy) . '">', '</a>',
-						'<a' . $rel . ' class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('crm', true, $westCopy) . '">', '</a>',
-						'<a class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('create', false) . '">', '</a>'
-					],
-					$fullCopy
-				);
-			}
-			else
-			{
-				echo Loc::getMessage('LANDING_TPL_COPY_NAME_0') . ' ';
-				echo $logo;
-				echo ' &mdash; ';
-				echo Loc::getMessage('LANDING_TPL_COPY_REVIEW');
-			}
-			?>
-		</span>
-		<?if (!$fullCopy && !$westCopy):?>
-		<a class="bitrix-footer-link" target="_blank" href="<?= $this->getComponent()->getRefLink('create', false);?>">
-			<?= Loc::getMessage('LANDING_TPL_COPY_LINK');?>
-		</a>
-		<?endif;?>
-	<?else:?>
-		<span class="bitrix-footer-text"><?= Loc::getMessage('LANDING_TPL_COPY_NAME_SMN_0');?></span>
-		<a href="https://www.1c-bitrix.ru/?<?= $arResult['ADV_CODE'];?>" target="_blank" class="bitrix-footer-link"><?= Loc::getMessage('LANDING_TPL_COPY_NAME_SMN_1');?></a>
-	<?endif;?>
-</div>
-<?endif;?>
-<?
-$footer = ob_get_contents();
-ob_end_clean();
-Manager::setPageView('BeforeBodyClose', $footer);
+<script>
+	BX.ready(function() {
+		void new BX.Landing.Pub.PageTransition();
+		BX.UI.Hint.init(BX('bitrix-footer-terms'));
+	});
+</script>
+
+<?php
+$hooksSite = Hook::getForSite($landing->getSiteId());
+if (!$masterFrame && !$formEditor && isset($hooksSite['COPYRIGHT']))
+{
+	$lang = $landing->getMeta()['SITE_LANG'];
+	$hooksSite['COPYRIGHT']->setLang($lang);
+	$hooksSite['COPYRIGHT']->setSiteId($landing->getSiteId());
+	Manager::setPageView('BeforeBodyClose', $hooksSite['COPYRIGHT']->view());
+}
 ?>

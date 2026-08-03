@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Retargeting\Services;
 
@@ -16,6 +16,7 @@ class AudienceYandex extends Audience
 	const MAX_CONTACTS_PER_PACKET = 0;
 	const MIN_CONTACTS_FOR_ACTIVATING = 1000;
 	const URL_AUDIENCE_LIST = 'https://audience.yandex.ru/';
+	private const EXAMPLE_MAIL = 'example@mail.domain';
 
 	const NEW_AUDIENCE_FAKE_ID = -1;
 	const UPDATE_AUDIENCE_TIMEOUT = 60;
@@ -67,6 +68,16 @@ class AudienceYandex extends Audience
 		return false;
 	}
 
+	public static function isSupportAddAudience()
+	{
+		return true;
+	}
+
+	public static function isSupportCreateLookalikeFromSegments(): bool
+	{
+		return false;
+	}
+
 	/**
 	 * @param array $data Data.
 	 * @return \Bitrix\Seo\Retargeting\Response
@@ -75,7 +86,23 @@ class AudienceYandex extends Audience
 	 */
 	public function add(array $data)
 	{
-		throw new NotImplementedException('Method `AudienceYandex::Add` not implemented.');
+		$response = $this->request->send(array(
+			'methodName' => 'retargeting.audience.add',
+			'parameters' => array(
+				'name' => $data['NAME'],
+				'hashed' => 0,
+				'contacts' => $this->prepareContacts(["email" => [self::EXAMPLE_MAIL]]),
+			),
+		));
+
+		$responseData = $response->getData();
+		if (isset($responseData['id']))
+		{
+			$response->setId($responseData['id']);
+		}
+
+		return $response
+			;
 	}
 
 	/**
@@ -122,7 +149,7 @@ class AudienceYandex extends Audience
 	 * @return Result|\Bitrix\Seo\Retargeting\Response
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public function importContacts($audienceId, array $contacts = array(), array $options)
+	public function importContacts($audienceId, array $contacts, array $options)
 	{
 		$createNewAudience = ($audienceId == static::NEW_AUDIENCE_FAKE_ID);
 		$audienceData = $this->getById($audienceId);
@@ -172,7 +199,7 @@ class AudienceYandex extends Audience
 	 * @deprecated Not supported by Yandex anymore
 	 * @return \Bitrix\Seo\Retargeting\Response|null
 	 */
-	public function removeContacts($audienceId, array $contacts = array(), array $options)
+	public function removeContacts($audienceId, array $contacts, array $options)
 	{
 		$response = Response::create(static::TYPE_CODE);
 		return $response;
@@ -195,8 +222,7 @@ class AudienceYandex extends Audience
 			$data = array_values(array_filter($data['segments'], function ($item) {
 				return (
 					$item['type'] == 'uploading' && // based on uploaded data
-					$item['content_type'] == 'crm' && // Data from crm
-					$item['status'] != 'is_processed' // Can't use segments which are processed right now
+					$item['content_type'] == 'crm'// Data from crm
 				);
 			}));
 		}
@@ -226,5 +252,50 @@ class AudienceYandex extends Audience
 			'hashed' => false,
 		]);
 		return $data;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getLookalikeAudiencesParams(): array
+	{
+		return [
+			'FIELDS' => [
+				'AUDIENCE_LOOKALIKE',
+				'DEVICE_DISTRIBUTION',
+				'GEO_DISTRIBUTION'
+			],
+			'AUDIENCE_LOOKALIKE' => [
+				'MIN' => 1,
+				'MAX' => 5,
+			],
+		];
+	}
+
+	/**
+	 * @param $sourceAudienceId
+	 * @param array $options
+	 * @return Response
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public function createLookalike($sourceAudienceId, array $options): Response
+	{
+		$result = $this->getRequest()->send([
+			'methodName' => 'retargeting.audience.lookalike.add',
+			'parameters' => [
+				'name' => (string) $options['name'],
+				'lookalike_link' => (int) $sourceAudienceId,
+				'lookalike_value' => (int) $options['lookalike_value'],
+				'maintain_device_distribution' => (bool) $options['maintain_device_distribution'],
+				'maintain_geo_distribution' => (bool) $options['maintain_geo_distribution'],
+			],
+		]);
+
+		if ($result->isSuccess())
+		{
+			$result->setId($result->getData()['id']);
+		}
+
+		return $result;
 	}
 }

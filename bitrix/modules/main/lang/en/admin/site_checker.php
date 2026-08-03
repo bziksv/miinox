@@ -129,6 +129,7 @@ $MESS["MAIN_SC_WARN_EXPAND_SESSION"] = "If the Instant Messenger module is insta
 $MESS["MAIN_SC_WINDOWS_ENV"] = "Windows environment integration";
 $MESS["MAIN_TMP_FILE_ERROR"] = "Could not create a temporary test file";
 $MESS["MAIN_WRONG_ANSWER_PULL"] = "PUSH server replied with an unknown response.";
+$MESS["PHP_VER_NOTIFY"] = "Attention! You are not receiving system or security updates because your PHP version #CUR# is outdated. Please update your PHP to version #REQ#. Make sure you've read this <a href=\"https://helpdesk.bitrix24.com/open/17347208/\">Helpdesk page</a> before updating PHP.";
 $MESS["SC_BX_UTF"] = "Use the following code in <i>/bitrix/php_interface/dbconn.php</i>:
 <code>define('BX_UTF', true);</code> ";
 $MESS["SC_BX_UTF_DISABLE"] = "The BX_UTF constant must not be defined";
@@ -222,9 +223,6 @@ This connection is required by many cloud related routine tasks (CDN, cloud back
 
 Then, the test downloads a list of certification centers from the Bitrix server which is required by the SSL certificate test.
 ";
-$MESS["SC_HELP_CHECK_CLONE"] = "Since verion 5, PHP passes objects by reference rather than copy. However, there are PHP 5 builds that support legacy conventions and pass objects as copies.
-
-To resolve this problem, download and install the latest PHP 5 build.";
 $MESS["SC_HELP_CHECK_COMPRESSION"] = "HTML compression reduces file size and decreases file transmission time.
 
 To reduce server load, make sure a special web server module is used to compress HTML files.
@@ -301,7 +299,7 @@ Misconfiguration will lead to numerous issues: texts will be haphazardly truncat
 
 Add this code to <i>/bitrix/php_interface/dbconn.php</I> to enable UTF-8 on your site:
 <code>define('BX_UTF', true);</code>
-and add this code to <i>/bitrix/settings.php</i>:
+and add this code to <i>/bitrix/.settings.php</i>:
 <code>'utf_mode' => 
   array (
     'value' => true,
@@ -438,7 +436,7 @@ A certificate is valid if it was verified by the issuing authority and is owned 
 
 If you use a self-issued certificate on a HTTPS connection, your visitors may experience problems using external software when connecting a WebDav drive or communicating with Microsoft Outlook.
 ";
-$MESS["SC_HELP_CHECK_SOCNET"] = "To receive updates from social resources, the <a href=\"http://www.bitrixsoft.com/company/blog/news/integration-with-social-networks.php\">Social Website Integration</a> module has to be configured providing authentication keys for each service that are going to be used.";
+$MESS["SC_HELP_CHECK_SOCNET"] = "To receive updates from social resources, the Social Website Integration module has to be configured providing authentication keys for each service that are going to be used.";
 $MESS["SC_HELP_CHECK_TURN"] = "Video calling requires that the involved users' browsers can connect to each other. If the callers sit on different networks - for example, in offices  in different locations - and no direct connection is possible, you will need a special TURN server to establish connection.
 
 Bitrix24 provides the preconfigured TURN server free of charge at turn.calls.bitrix24.com. 

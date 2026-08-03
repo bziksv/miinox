@@ -1,5 +1,5 @@
 <?
-require_once(dirname(__FILE__)."/../include/prolog_admin_before.php");
+require_once(__DIR__."/../include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/wizard_load.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/wizard.php");
@@ -37,7 +37,7 @@ do
 	{
 		$strError .= GetMessage("MAIN_WIZARD_IMPORT_ERROR");
 		$arErrors = &$oArchiver->GetErrors();
-		if(count($arErrors)>0)
+		if(!empty($arErrors))
 		{
 			$strError .= ":<br>";
 			foreach ($arErrors as $value)

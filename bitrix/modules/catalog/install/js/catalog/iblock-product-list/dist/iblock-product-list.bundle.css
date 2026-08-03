@@ -25,3 +25,14 @@
 .catalog-product-grid .ui-image-input-img-add {
 	right: 0;
 }
+
+.catalog-product-grid-lock-hint {
+	height: 1em !important;
+}
+
+/* for full height in sliders */
+.ui-page-slider-wrapper.grid-mode,
+.grid-mode > .ui-slider-page
+{
+	height: 100% !important;
+}

@@ -4,6 +4,7 @@ namespace Bitrix\Sale\Controller\Action\Entity;
 
 use Bitrix\Main;
 use Bitrix\Sale;
+use Bitrix\Catalog;
 
 /**
  * Class UpdateBasketItemAction
@@ -11,7 +12,7 @@ use Bitrix\Sale;
  * @example BX.ajax.runAction("sale.entity.updateBasketItem", { data: { id: 1, fields: { quantity: 2 }}});
  * @internal
  */
-final class UpdateBasketItemAction extends BaseAction
+final class UpdateBasketItemAction extends Sale\Controller\Action\BaseAction
 {
 	public function run(int $id, array $fields)
 	{
@@ -45,6 +46,9 @@ final class UpdateBasketItemAction extends BaseAction
 				'=ID' => $id
 			]
 		]);
+
+		$fields = $this->prepareBasketFields($fields);
+
 		if ($basketItemData = $basketIterator->fetch())
 		{
 			if (empty($basketItemData['ORDER_ID']))
@@ -186,5 +190,26 @@ final class UpdateBasketItemAction extends BaseAction
 		}
 
 		return $quantityList;
+	}
+
+	private function prepareBasketFields(array $fields): array
+	{
+		$fields = $this->filterBasketFieldsOnUpdate($fields);
+
+		$fields['PRODUCT_PROVIDER_CLASS'] = Catalog\Product\Basket::getDefaultProviderName();
+
+		$settableFields = Sale\BasketItemBase::getSettableFields();
+		return array_filter(
+			$fields,
+			static function ($field) use ($settableFields) {
+				return in_array($field, $settableFields, true);
+			},
+			ARRAY_FILTER_USE_KEY
+		);
+	}
+
+	private function filterBasketFieldsOnUpdate(array $basketFields): array
+	{
+		return (new Sale\Rest\Entity\BasketItem())->internalizeFieldsUpdate($basketFields);
 	}
 }

@@ -1,18 +1,21 @@
 <?php
+
 namespace Bitrix\Pull;
 
 use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Config\Option;
+use Bitrix\Pull\DTO\Message;
 
 class Event
 {
 	const SHARED_CHANNEL = 0;
 
-	private static $backgroundContext = false;
+	private static bool $backgroundContext = false;
 
-	private static $messages = array();
-	private static $deferredMessages = array();
-	private static $push = array();
+	private static array $messages = [];
+	private static array $deferredMessages = [];
+	private static array $push = [];
 	private static $error = false;
 
 	public static function add($recipient, array $parameters, $channelType = \CPullChannel::TYPE_PRIVATE)
@@ -24,7 +27,7 @@ class Event
 		}
 
 		$badUnicodeSymbolsPath = Common::findInvalidUnicodeSymbols($parameters);
-		if($badUnicodeSymbolsPath)
+		if ($badUnicodeSymbolsPath)
 		{
 			$warning = 'Parameters array contains invalid UTF-8 characters by the path ' . $badUnicodeSymbolsPath;
 			self::$error = new Error(__METHOD__, 'EVENT_BAD_ENCODING', $warning, $parameters);
@@ -33,7 +36,14 @@ class Event
 
 		if (isset($parameters['command']) && !empty($parameters['command']))
 		{
-			$result = self::addEvent($recipient, $parameters, $channelType);
+			if (!Config::isJsonRpcUsed() && (isset($parameters['user_params']) || isset($parameters['dictionary'])))
+			{
+				self::generateEventsForUsers($recipient, $parameters, $channelType);
+			}
+			else
+			{
+				$result = self::addEvent($recipient, $parameters, $channelType);
+			}
 		}
 		else if (isset($parameters['push']) || isset($parameters['pushParamsCallback']))
 		{
@@ -56,12 +66,12 @@ class Event
 		}
 
 		$entities = self::getEntitiesByType($recipient);
-		if (!$entities)
+		if ($entities === null)
 		{
-			self::$error = new Error(__METHOD__, 'RECIPIENT_FORMAT', Loc::getMessage('PULL_EVENT_RECIPIENT_FORMAT_ERROR'), Array(
+			self::$error = new Error(__METHOD__, 'RECIPIENT_FORMAT', Loc::getMessage('PULL_EVENT_RECIPIENT_FORMAT_ERROR'), [
 				'recipient' => $recipient,
-				'eventParameters' => $parameters
-			));
+				'eventParameters' => $parameters,
+			]);
 
 			return false;
 		}
@@ -71,20 +81,9 @@ class Event
 		{
 			return false;
 		}
+		$parameters['channel_type'] = $channelType;
 
-		$request = Array('users'=>array(), 'channels'=>array());
-		if (!empty($entities['users']))
-		{
-			$request['users'] = self::getChannelIds($entities['users'], $channelType);
-		}
-
-		if (!empty($entities['channels']))
-		{
-			$request['channels'] = self::getUserIds($entities['channels']);
-		}
-
-		$channels = array_merge($request['users'], $request['channels']);
-		if (empty($channels))
+		if (empty($entities['users']) && empty($entities['channels']))
 		{
 			return true;
 		}
@@ -109,15 +108,14 @@ class Event
 			$pushParametersCallback = null;
 		}
 
-		if($parameters['hasCallback'])
+		if (isset($parameters['hasCallback']) && $parameters['hasCallback'])
 		{
-			self::addMessage(self::$deferredMessages, $channels, $parameters);
+			self::addMessage(self::$deferredMessages, $entities['channels'], $entities['users'], $parameters);
 		}
 		else
 		{
-			self::addMessage(self::$messages, $channels, $parameters);
+			self::addMessage(self::$messages, $entities['channels'], $entities['users'], $parameters);
 		}
-
 
 		if (
 			self::$backgroundContext
@@ -137,27 +135,74 @@ class Event
 			{
 				$parameters['pushParamsCallback'] = $pushParametersCallback;
 			}
-			self::addPush(array_values($request['users']), $parameters);
+			unset($parameters['channel_type']);
+			self::addPush($entities['users'], $parameters);
 		}
 
 		return true;
 	}
 
-	private static function addMessage(array &$destination, array $channels, array $parameters)
+	private static function addMessage(array &$destination, array $channels, array $users, array $parameters)
 	{
 		$eventCode = self::getParamsCode($parameters);
 		unset($parameters['hasCallback']);
 
-		if ($destination[$eventCode])
+		if (isset($destination[$eventCode]))
 		{
-			$destination[$eventCode]['users'] = array_unique(array_merge($destination[$eventCode]['users'], array_values($channels)));
-			$destination[$eventCode]['channels'] = array_unique(array_merge($destination[$eventCode]['channels'], array_keys($channels)));
+			$waitingToReceiveUserList = $destination[$eventCode]['users'] ?? [];
+			$newUserList = $users ?? [];
+			$destination[$eventCode]['users'] = array_unique(array_merge($waitingToReceiveUserList, $newUserList));
+
+			$waitingToReceiveChannelList = $destination[$eventCode]['channels'] ?? [];
+			$newChannelList = $channels ?? [];
+			$destination[$eventCode]['channels'] = array_unique(array_merge($waitingToReceiveChannelList, $newChannelList));
 		}
 		else
 		{
-			$destination[$eventCode]['event'] = $parameters;
-			$destination[$eventCode]['users'] = array_unique(array_values($channels));
-			$destination[$eventCode]['channels'] = array_unique(array_keys($channels));
+			$destination[$eventCode] = [
+				'event' => $parameters,
+				'users' => array_unique($users),
+				'channels' => array_unique($channels),
+			];
+		}
+	}
+
+	private static function generateEventsForUsers($recipients, $parameters, $channelType = \CPullChannel::TYPE_PRIVATE)
+	{
+		if (!is_array($recipients))
+		{
+			$recipients = [$recipients];
+		}
+		if (is_array($parameters['dictionary']))
+		{
+			$dictionary = $parameters['dictionary'];
+			unset($parameters['dictionary']);
+			$parameters['params'] = array_merge($parameters['params'], $dictionary);
+		}
+
+		$processed = [];
+		if (is_array($parameters['user_params']))
+		{
+			$params = $parameters['params'];
+			$paramsByUser = $parameters['user_params'];
+			unset($parameters['user_params']);
+
+			foreach ($recipients as $recipient)
+			{
+				if (isset($paramsByUser[$recipient]) && is_array($paramsByUser[$recipient]))
+				{
+					$userParams = $parameters;
+					$userParams['params'] = array_merge($params, $paramsByUser[$recipient]);
+					self::addEvent($recipient, $userParams, $channelType);
+
+					$processed[] = $recipient;
+				}
+			}
+		}
+		$left = array_diff($recipients, $processed);
+		if (!empty($left))
+		{
+			self::addEvent($left, $parameters, $channelType);
 		}
 	}
 
@@ -165,16 +210,16 @@ class Event
 	{
 		if (!\CPullOptions::GetPushStatus())
 		{
-			self::$error = new Error(__METHOD__, 'PUSH_DISABLED', Loc::getMessage('PULL_EVENT_PUSH_DISABLED_ERROR'), Array(
+			self::$error = new Error(__METHOD__, 'PUSH_DISABLED', Loc::getMessage('PULL_EVENT_PUSH_DISABLED_ERROR'), [
 				'recipient' => $users,
-				'eventParameters' => $parameters
-			));
+				'eventParameters' => $parameters,
+			]);
 
 			return false;
 		}
 		if (!is_array($users))
 		{
-			$users = Array($users);
+			$users = [$users];
 		}
 
 		foreach ($users as $id => $entity)
@@ -188,10 +233,10 @@ class Event
 
 		if (empty($users))
 		{
-			self::$error = new Error(__METHOD__, 'RECIPIENT_FORMAT', Loc::getMessage('PULL_EVENT_RECIPIENT_FORMAT_ERROR'), Array(
+			self::$error = new Error(__METHOD__, 'RECIPIENT_FORMAT', Loc::getMessage('PULL_EVENT_RECIPIENT_FORMAT_ERROR'), [
 				'recipient' => $users,
-				'eventParameters' => $parameters
-			));
+				'eventParameters' => $parameters,
+			]);
 
 			return false;
 		}
@@ -200,7 +245,7 @@ class Event
 		{
 			if (!isset($parameters['push']['skip_users']))
 			{
-				$parameters['push']['skip_users'] = Array();
+				$parameters['push']['skip_users'] = [];
 			}
 			$parameters['push']['skip_users'] = array_merge($parameters['skip_users'], $parameters['push']['skip_users']);
 		}
@@ -257,20 +302,10 @@ class Event
 			if (Main\Loader::includeModule($callback['module_id']) && method_exists($callback['class'], $callback['method']))
 			{
 				$messageParameters = call_user_func_array([$callback['class'], $callback['method']], [$callback['params']]);
-				self::addMessage(self::$messages, $message['channels'], $messageParameters);
+				self::addMessage(self::$messages, $message['users'], $message['channels'], $messageParameters);
 			}
 		}
 		self::$deferredMessages = [];
-	}
-
-	private static function executeEvent($parameters)
-	{
-		if (empty($parameters['channels']))
-		{
-			return true;
-		}
-
-		return \CPullStack::AddByChannel($parameters['channels'], $parameters['event']);
 	}
 
 	private static function executePushEvent($parameters)
@@ -280,20 +315,21 @@ class Event
 			return null;
 		}
 
-		$data = Array();
+		$data = [];
 		if ($parameters['hasPushCallback'])
 		{
-			Main\Loader::includeModule($parameters['push']['pushParamsCallback']['module_id']);
-			if (method_exists($parameters['push']['pushParamsCallback']['class'], $parameters['push']['pushParamsCallback']['method']))
+			$callback = $parameters['push']['pushParamsCallback'];
+			Main\Loader::includeModule($callback['module_id']);
+			if (method_exists($callback['class'], $callback['method']))
 			{
 				$data = call_user_func_array(
-					array(
-						$parameters['push']['pushParamsCallback']['class'],
-						$parameters['push']['pushParamsCallback']['method']
-					),
-					Array(
-						$parameters['push']['pushParamsCallback']['params']
-					)
+					[
+						$callback['class'],
+						$callback['method'],
+					],
+					[
+						$callback['params'],
+					]
 				);
 			}
 		}
@@ -303,18 +339,18 @@ class Event
 		}
 
 		$data['message'] = str_replace("\n", " ", trim($data['message']));
-		$data['params'] = isset($data['params'])? $data['params']: Array();
-		$data['advanced_params'] = isset($data['advanced_params'])? $data['advanced_params']: Array();
-		$data['advanced_params']['extra'] = $parameters['extra']? $parameters['extra']: Array();
-		$data['badge'] = isset($data['badge'])? intval($data['badge']): '';
-		$data['sound'] = isset($data['sound'])? $data['sound']: '';
-		$data['tag'] = isset($data['tag'])? $data['tag']: '';
-		$data['sub_tag'] = isset($data['sub_tag'])? $data['sub_tag']: '';
-		$data['app_id'] = isset($data['app_id'])? $data['app_id']: '';
-		$data['send_immediately'] = $data['send_immediately'] == 'Y'? 'Y': 'N';
-		$data['important'] = $data['important'] == 'Y'? 'Y': 'N';
+		$data['params'] = $data['params'] ?? [];
+		$data['advanced_params'] = $data['advanced_params'] ?? [];
+		$data['advanced_params']['extra'] = $parameters['extra'] ?? [];
+		$data['badge'] = isset($data['badge']) ? (int)$data['badge'] : '';
+		$data['sound'] = $data['sound'] ?? '';
+		$data['tag'] = $data['tag'] ?? '';
+		$data['sub_tag'] = $data['sub_tag'] ?? '';
+		$data['app_id'] = $data['app_id'] ?? '';
+		$data['send_immediately'] = $data['send_immediately'] == 'Y' ? 'Y' : 'N';
+		$data['important'] = $data['important'] == 'Y' ? 'Y' : 'N';
 
-		$users = Array();
+		$users = [];
 		foreach ($parameters['users'] as $userId)
 		{
 			$users[] = $userId;
@@ -326,9 +362,9 @@ class Event
 		}
 
 		$manager = new \CPushManager();
-		$manager->AddQueue(Array(
+		$manager->AddQueue([
 			'USER_ID' => $users,
-			'SKIP_USERS' => is_array($data['skip_users'])? $data['skip_users']: Array(),
+			'SKIP_USERS' => is_array($data['skip_users']) ? $data['skip_users'] : [],
 			'MESSAGE' => $data['message'],
 			'EXPIRY' => $data['expiry'],
 			'PARAMS' => $data['params'],
@@ -340,7 +376,7 @@ class Event
 			'APP_ID' => $data['app_id'],
 			'SEND_IMMEDIATELY' => $data['send_immediately'],
 			'IMPORTANT' => $data['important'],
-		));
+		]);
 
 		return true;
 	}
@@ -358,81 +394,55 @@ class Event
 		return true;
 	}
 
-	public static function executeEvents()
+	public static function executeEvents(): Main\Result
 	{
-		$hitCount = 0;
-		$channelCount = 0;
-		$messagesCount = count(self::$messages);
-		$messagesBytes = 0;
-		$logs = Array();
-
-		if(count(self::$messages) === 0)
+		$result = new Main\Result();
+		if (empty(self::$messages))
 		{
-			return true;
+			return $result;
 		}
 
 		if (!\CPullOptions::GetQueueServerStatus())
 		{
 			self::$messages = [];
 
-			return true;
+			return $result;
 		}
 
-		if(Config::isProtobufUsed())
+		self::fillChannels(self::$messages);
+
+		if (Config::isJsonRpcUsed())
 		{
-			if(ProtobufTransport::sendMessages(self::$messages)->isSuccess())
+			$messageList = self::convertEventsToMessages(self::$messages);
+			$sendResult = JsonRpcTransport::sendMessages($messageList);
+			if ($sendResult->isSuccess())
 			{
 				self::$messages = [];
+			}
+			else
+			{
+				$result->addErrors($sendResult->getErrors());
 			}
 		}
 		else
 		{
-			foreach (self::$messages as $eventCode => $event)
+			if (Config::isProtobufUsed())
 			{
-				if (\Bitrix\Pull\Log::isEnabled())
+				$sendResult = ProtobufTransport::sendMessages(self::$messages);
+				if (!$sendResult->isSuccess())
 				{
-					// TODO change code after release - $parameters['hasCallback']
-					$currentHits = ceil(count($event['channels'])/\CPullOptions::GetCommandPerHit());
-					$hitCount += $currentHits;
-
-					$currentChannelCount = count($event['channels']);
-					$channelCount += $currentChannelCount;
-
-					$currentMessagesBytes = self::getBytes($event['event'])+self::getBytes($event['channels']);
-					$messagesBytes += $currentMessagesBytes;
-					$logs[] = 'Command: '.$event['event']['module_id'].'/'.$event['event']['command'].'; Hits: '.$currentHits.'; Channel: '.$currentChannelCount.'; Bytes: '.$currentMessagesBytes.'';
-				}
-
-				if (empty($event['channels']))
-				{
-					continue;
-				}
-
-				if (\CPullStack::AddByChannel($event['channels'], $event['event']))
-				{
-					unset(self::$messages[$eventCode]);
+					$result->addErrors($sendResult->getErrors());
 				}
 			}
-
-			if ($logs && \Bitrix\Pull\Log::isEnabled())
+			else
 			{
-				if (count($logs) > 1)
-				{
-					$logs[] = 'Total - Hits: '.$hitCount.'; Channel: '.$channelCount.'; Messages: '.$messagesCount.'; Bytes: '.$messagesBytes.'';
-				}
-
-				if (count($logs) > 1 || $hitCount > 1 || $channelCount > 1 || $messagesBytes > 1000)
-				{
-					$logTitle = '!! Pull messages stats - important !!';
-				}
-				else
-				{
-					$logTitle = '-- Pull messages stats --';
-				}
-
-				\Bitrix\Pull\Log::write(implode("\n", $logs), $logTitle);
+				self::sendEventsLegacy();
 			}
+
+			self::$messages = [];
 		}
+
+		return $result;
 	}
 
 
@@ -448,6 +458,63 @@ class Event
 		}
 	}
 
+	private static function sendEventsLegacy()
+	{
+		foreach (self::$messages as $eventCode => $event)
+		{
+			if (\Bitrix\Pull\Log::isEnabled())
+			{
+				// TODO change code after release - $parameters['hasCallback']
+				$currentHits = ceil(count($event['channels']) / \CPullOptions::GetCommandPerHit());
+				$hitCount += $currentHits;
+
+				$currentChannelCount = count($event['channels']);
+				$channelCount += $currentChannelCount;
+
+				$currentMessagesBytes = self::getBytes($event['event']) + self::getBytes($event['channels']);
+				$messagesBytes += $currentMessagesBytes;
+				$logs[] = 'Command: ' . $event['event']['module_id'] . '/' . $event['event']['command'] . '; Hits: ' . $currentHits . '; Channel: ' . $currentChannelCount . '; Bytes: ' . $currentMessagesBytes . '';
+			}
+
+			if (empty($event['channels']))
+			{
+				continue;
+			}
+
+			$data = [
+				'module_id' => $event['event']['module_id'],
+				'command' => $event['event']['command'],
+				'params' => is_array($event['event']['params']) ? $event['event']['params'] : [],
+				'extra' => $event['event']['extra'],
+			];
+			$options = ['expiry' => $event['event']['expiry']];
+
+			if (\CPullChannel::Send($event['channels'], \Bitrix\Pull\Common::jsonEncode($data), $options))
+			{
+				unset(self::$messages[$eventCode]);
+			}
+		}
+
+		if ($logs && \Bitrix\Pull\Log::isEnabled())
+		{
+			if (count($logs) > 1)
+			{
+				$logs[] = 'Total - Hits: ' . $hitCount . '; Channel: ' . $channelCount . '; Messages: ' . $messagesCount . '; Bytes: ' . $messagesBytes . '';
+			}
+
+			if (count($logs) > 1 || $hitCount > 1 || $channelCount > 1 || $messagesBytes > 1000)
+			{
+				$logTitle = '!! Pull messages stats - important !!';
+			}
+			else
+			{
+				$logTitle = '-- Pull messages stats --';
+			}
+
+			\Bitrix\Pull\Log::write(implode("\n", $logs), $logTitle);
+		}
+	}
+
 	public static function onAfterEpilog()
 	{
 		Main\Application::getInstance()->addBackgroundJob([__CLASS__, "sendInBackground"]);
@@ -460,20 +527,32 @@ class Event
 		self::send();
 	}
 
-	public static function getChannelIds($users, $type = \CPullChannel::TYPE_PRIVATE)
+	public static function fillChannels(array &$messages)
 	{
-		if (!is_array($users))
+		foreach ($messages as $key => &$message)
 		{
-			$users = Array($users);
+			$users = $message['users'] ?? [];
+			if (!empty($messages[$key]['channels']) && is_array($messages[$key]['channels']))
+			{
+				$messages[$key]['channels'] = array_merge($messages[$key]['channels'], self::getChannelIds($users, $message['event']['channel_type']));
+			}
+			else
+			{
+				$messages[$key]['channels'] = self::getChannelIds($users, $message['event']['channel_type']);
+			}
+			unset($message['event']['channel_type']);
 		}
+	}
 
-		$result = Array();
+	public static function getChannelIds(array $users, $type = \CPullChannel::TYPE_PRIVATE)
+	{
+		$result = [];
 		foreach ($users as $userId)
 		{
 			$data = \CPullChannel::Get($userId, true, false, $type);
 			if ($data)
 			{
-				$result[$data['CHANNEL_ID']] = $userId;
+				$result[] = $data['CHANNEL_ID'];
 			}
 		}
 
@@ -486,8 +565,8 @@ class Event
 		$orm = \Bitrix\Pull\Model\ChannelTable::getList([
 			'select' => ['USER_ID', 'CHANNEL_ID', 'USER_ACTIVE' => 'USER.ACTIVE'],
 			'filter' => [
-				'=CHANNEL_ID' => $channels
-			]
+				'=CHANNEL_ID' => $channels,
+			],
 		]);
 		while ($row = $orm->fetch())
 		{
@@ -504,11 +583,9 @@ class Event
 		return $result;
 	}
 
-	private static function prepareParameters($parameters)
+	private static function prepareParameters(array $parameters)
 	{
-		if (
-			!isset($parameters['command']) || empty($parameters['command'])
-		)
+		if (empty($parameters['command']))
 		{
 			self::$error = new Error(__METHOD__, 'EVENT_PARAMETERS_FORMAT', Loc::getMessage('PULL_EVENT_PARAMETERS_FORMAT_ERROR'), $parameters);
 			return false;
@@ -519,10 +596,7 @@ class Event
 
 		if (isset($parameters['paramsCallback']))
 		{
-			if (
-				empty($parameters['paramsCallback']['class'])
-				|| empty($parameters['paramsCallback']['method'])
-			)
+			if (empty($parameters['paramsCallback']['class']) || empty($parameters['paramsCallback']['method']))
 			{
 				self::$error = new Error(__METHOD__, 'EVENT_CALLBACK_FORMAT', Loc::getMessage('PULL_EVENT_CALLBACK_FORMAT_ERROR'), $parameters);
 				return false;
@@ -542,39 +616,31 @@ class Event
 			}
 			if (!isset($parameters['paramsCallback']['params']))
 			{
-				$parameters['paramsCallback']['params'] = array();
+				$parameters['paramsCallback']['params'] = [];
 			}
 
-			$parameters['params'] = Array();
+			$parameters['params'] = [];
 			$parameters['hasCallback'] = true;
 		}
 		else
 		{
-			$parameters['hasCallback'] = false;
-			$parameters['paramsCallback'] = Array();
-
-			if (
-				!isset($parameters['params'])
-				|| !is_array($parameters['params'])
-			)
+			if (!isset($parameters['params']) || !is_array($parameters['params']))
 			{
-				$parameters['params'] = Array();
+				$parameters['params'] = [];
 			}
 		}
 
-		if (!isset($parameters['extra']['server_time']))
-		{
-			$parameters['extra']['server_time'] = date('c');
-		}
-		if (!$parameters['extra']['server_time_unix'])
-		{
-			$parameters['extra']['server_time_unix'] = microtime(true);
-		}
+		$parameters['extra']['server_time'] ??= date('c');
+		$parameters['extra']['server_time_unix'] ??= microtime(true);
+
+		$parameters['extra']['server_name'] = Option::get('main', 'server_name', $_SERVER['SERVER_NAME']);
+		$parameters['extra']['revision_web'] = PULL_REVISION_WEB;
+		$parameters['extra']['revision_mobile'] = PULL_REVISION_MOBILE;
 
 		return $parameters;
 	}
 
-	private static function preparePushParameters($parameters)
+	private static function preparePushParameters(array $parameters)
 	{
 		$parameters['module_id'] = mb_strtolower($parameters['module_id']);
 
@@ -603,7 +669,7 @@ class Event
 			}
 			if (!isset($parameters['pushParamsCallback']['params']))
 			{
-				$parameters['pushParamsCallback']['params'] = array();
+				$parameters['pushParamsCallback']['params'] = [];
 			}
 			$parameters['push']['pushParamsCallback'] = $parameters['pushParamsCallback'];
 			$parameters['hasPushCallback'] = true;
@@ -611,7 +677,7 @@ class Event
 		else
 		{
 			$parameters['hasPushCallback'] = false;
-			$parameters['pushParamsCallback'] = Array();
+			$parameters['pushParamsCallback'] = [];
 
 			if (isset($parameters['badge']) && $parameters['badge'] == 'Y')
 			{
@@ -656,14 +722,14 @@ class Event
 		}
 	}
 
-	private static function getEntitiesByType($recipient)
+	private static function getEntitiesByType(array $recipientList): ?array
 	{
-		$result = Array(
-			'users' => Array(),
-			'channels' => Array(),
+		$result = [
+			'users' => [],
+			'channels' => [],
 			'count' => 0,
-		);
-		foreach ($recipient as $entity)
+		];
+		foreach ($recipientList as $entity)
 		{
 			if ($entity instanceof \Bitrix\Pull\Model\Channel)
 			{
@@ -682,7 +748,7 @@ class Event
 			}
 		}
 
-		return $result['count'] > 0? $result: false;
+		return $result['count'] > 0 ? $result : null;
 	}
 
 	private static function getBytes($variable)
@@ -711,6 +777,20 @@ class Event
 	private static function isChannelEntity($entity)
 	{
 		return is_string($entity) && mb_strlen($entity) == 32;
+	}
+
+	/**
+	 * @param array $events
+	 * @return \Bitrix\Pull\DTO\Message[]
+	 */
+	private static function convertEventsToMessages(array $events): array
+	{
+		return array_map(
+			function ($event) {
+				return Message::fromEvent($event);
+			},
+			$events
+		);
 	}
 
 	public static function getLastError()

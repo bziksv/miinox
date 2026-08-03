@@ -98,7 +98,9 @@ class LandingTable extends Entity\DataManager
 			)),
 			'TITLE' => new Entity\StringField('TITLE', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_LANDING_TITLE'),
-				'required' => true
+				'required' => true,
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
 			)),
 			'XML_ID' => new Entity\StringField('XML_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_XML_ID')
@@ -143,6 +145,9 @@ class LandingTable extends Entity\DataManager
 			'VERSION' => new Entity\IntegerField('VERSION', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_VERSION'),
 				'default_value' => 10
+			)),
+			'HISTORY_STEP' => new Entity\IntegerField('HISTORY_STEP', array(
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_HISTORY_STEP')
 			)),
 			'CREATED_BY_ID' => new Entity\IntegerField('CREATED_BY_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CREATED_BY_ID'),

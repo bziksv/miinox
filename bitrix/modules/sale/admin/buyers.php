@@ -1,10 +1,16 @@
-<?
+<?php
 use Bitrix\Main\Loader;
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 Loader::includeModule('sale');
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 
 IncludeModuleLangFile(__FILE__);
+
+/** @global CMain $APPLICATION */
+/** @global CAdminPage $adminPage */
+global $adminPage;
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+global $adminSidePanelHelper;
 
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
@@ -21,6 +27,12 @@ if(!CBXFeatures::IsFeatureEnabled('SaleAccounts'))
 
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	return;
+}
+
+$isWithOrdersMode = true;
+if (Loader::includeModule('crm'))
+{
+	$isWithOrdersMode = CCrmSaleHelper::isWithOrdersMode();
 }
 
 ClearVars();
@@ -328,6 +340,7 @@ if ($publicMode && \Bitrix\Main\Loader::includeModule('crm'))
 	}
 	else
 	{
+		$totalPages = 0;
 		$navyParams['PAGEN'] = 1;
 		$navLimit = $navyParams['SIZEN'];
 		$navOffset = 0;
@@ -494,9 +507,6 @@ while ($arBuyers = $resultUsersList->Fetch())
 	if (in_array("SUM_PAID", $arVisibleColumns))
 		$row->AddField("SUM_PAID", SaleFormatCurrency($arBuyers["SUM_PAID"], $arBuyers["CURRENCY"]));
 
-	if (floatVal($arBuyers["ORDER_COUNT"]) <= 0)
-		$row->AddField("ORDER_COUNT", '&nbsp;');
-
 	if (in_array("GROUPS_ID", $arVisibleColumns))
 	{
 		$strUserGroup = '';
@@ -557,11 +567,14 @@ while ($arBuyers = $resultUsersList->Fetch())
 		{
 			$addOrderUrl = "/shop/orders/details/0/?USER_ID=".$userId."&SITE_ID=".$val["ID"]."&lang=".LANGUAGE_ID;
 		}
-		$arActions[] = array(
-			"ICON" => "view",
-			"TEXT" => GetMessage("BUYER_SUB_ACTION_ORDER")." [".$val["ID"]."]",
-			"LINK" => $addOrderUrl,
-		);
+		if (!$publicMode || $isWithOrdersMode)
+		{
+			$arActions[] = array(
+				"ICON" => "view",
+				"TEXT" => GetMessage("BUYER_SUB_ACTION_ORDER")." [".$val["ID"]."]",
+				"LINK" => $addOrderUrl,
+			);
+		}
 	}
 
 	$row->AddActions($arActions);
@@ -596,4 +609,3 @@ else
 	$lAdmin->DisplayList();
 }
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
-?>

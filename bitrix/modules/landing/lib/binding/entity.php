@@ -3,6 +3,7 @@ namespace Bitrix\Landing\Binding;
 
 use \Bitrix\Landing\Internals\BindingTable;
 use \Bitrix\Landing\Landing;
+use \Bitrix\Landing\Rights;
 use \Bitrix\Landing\Site;
 use \Bitrix\Main;
 
@@ -294,6 +295,11 @@ abstract class Entity
 	 */
 	public function bindSite(int $siteId): bool
 	{
+		if (self::isForbiddenBindingAction())
+		{
+			return false;
+		}
+
 		$siteId = intval($siteId);
 
 		$success = $this->bind($siteId, $this::ENTITY_TYPE_SITE);
@@ -307,12 +313,35 @@ abstract class Entity
 	}
 
 	/**
+	 * Refreshes binding of site.
+	 *
+	 * @param int $siteId Site id.
+	 * @return bool
+	 */
+	public function rebindSite(int $siteId): bool
+	{
+		// this method only implements parent method currently
+
+		if (method_exists($this, 'updateSiteRights'))
+		{
+			$this->updateSiteRights($siteId);
+		}
+
+		return true;
+	}
+
+	/**
 	 * Unbind site for current entity.
 	 * @param int $siteId Site id.
 	 * @return bool
 	 */
 	public function unbindSite(int $siteId): bool
 	{
+		if (self::isForbiddenBindingAction())
+		{
+			return false;
+		}
+
 		$siteId = intval($siteId);
 
 		$success = $this->unbind($siteId, $this::ENTITY_TYPE_SITE);
@@ -387,5 +416,13 @@ abstract class Entity
 				self::clearCache();
 			}
 		}
+	}
+
+	protected static function isForbiddenBindingAction(): bool
+	{
+		return (
+			!Rights::hasAdditionalRight('extension', 'knowledge', false, true)
+			&& Site\Type::getCurrentScopeId() !== 'GROUP'
+		);
 	}
 }

@@ -33,7 +33,8 @@ $MESS["FIELD_LINK_TEXT_LABEL"] = "Текст";
 $MESS["FIELD_LINK_HREF_PLACEHOLDER"] = "http:// или выбрать блок, страницу";
 $MESS["FIELD_LINK_HREF_PLACEHOLDER_PAGES_ONLY"] = "выбрать страницу";
 $MESS["FIELD_LINK_HREF_PLACEHOLDER_WITHOUT_CUSTOM_URL"] = "выбрать блок или страницу";
-$MESS["FIELD_LINK_HREF_LABEL"] = "Ссылка";
+$MESS["FIELD_LINK_HREF_LABEL_2"] = "Действие по клику";
+$MESS["FIELD_LINK_HREF_BUTTON"] = "Выберите действие";
 $MESS["FIELD_LINK_TARGET_LABEL"] = "открывать";
 $MESS["FIELD_LINK_TARGET_SELF"] = "В этом окне";
 $MESS["FIELD_LINK_TARGET_BLANK"] = "В новом окне";
@@ -81,6 +82,8 @@ $MESS["LANDING_EDITOR_PIN_RIGHT"] = "Прикрепить справа";
 $MESS["LANDING_DESIGN_PANEL_HEADER"] = "Дизайн и настройки";
 $MESS["LANDING_CONTENT_PANEL_TITLE"] = "Редактировать";
 $MESS["LANDING_CONTENT_BLOCKS_TITLE"] = "Добавить блок";
+$MESS["LANDING_FIELD_IMAGE_AI_BUTTON"] = "Создать";
+$MESS["LANDING_FIELD_IMAGE_AI_BUTTON_COMPACT"] = "Создать картинку";
 $MESS["LANDING_FIELD_IMAGE_UPLOAD_BUTTON"] = "Загрузить";
 $MESS["LANDING_FIELD_IMAGE_EDIT_BUTTON"] = "Изменить";
 $MESS["LANDING_FIELD_IMAGE_ALT_PLACEHOLDER"] = "Описание картинки – alt";
@@ -108,10 +111,11 @@ $MESS["LANDING_LINKS_LANDINGS_TITLE__KNOWLEDGE"] = "Базы знаний и с�
 $MESS["LANDING_LINKS_BLOCKS_TITLE"] = "Переход к блоку";
 $MESS["LANDING_LINKS_CRM_FORMS_TITLE"] = "CRM-формы";
 $MESS["LANDING_LINKS_CRM_PHONES_TITLE"] = "Телефоны";
+$MESS["LANDING_LINKS_CRM_PHONES_USERS"] = "Пользователи";
 $MESS["LANDING_BLOCKS_LIST_FEEDBACK_BUTTON"] = "Обратная связь";
 $MESS["LANDING_BLOCKS_LIST_NEW_LABEL"] = "Новый";
 $MESS["LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"] = "Оставить замечание";
-$MESS["LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON"] = "Сохранить в список блоков";
+$MESS["LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"] = "Сохранить в список блоков";
 $MESS["LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"] = "Суперблок";
 $MESS["LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK_NEW"] = "Новое";
 $MESS["LANDING_PANEL_FEEDBACK_TITLE"] = "Обратная связь";
@@ -218,6 +222,7 @@ $MESS["LANDING_CONTENT_URL_MEDIA_FB_POST_FULL"] = "Показать весь п�
 
 $MESS["LANDING_CONTENT_MEDIA_SECONDS_SHORT"] = "Сек.";
 $MESS["LANDING_TITLE_OF_EDITOR_ACTION_DESIGN"] = "Дизайн";
+$MESS["LANDING_TITLE_OF_EDITOR_ACTION_AI_TEXT"] = "Создать";
 $MESS["LANDING_BLOCK_DISABLED_ON_DESKTOP_NAME_2"] = "Настроена видимость блока";
 
 $MESS["LANDING_BLOCK_HIDDEN_ON_DESKTOP"] = "Скрыт на&nbsp;устройствах с&nbsp;шириной экрана более чем 1120px";
@@ -389,11 +394,11 @@ $MESS['LANDING_CREATE_PAGE_PANEL_FIELD_PAGE_CODE'] = 'Код страницы';
 $MESS['LANDING_CREATE_PAGE_PANEL_SUCCESS_MESSAGE_TITLE'] = 'Страница создана';
 $MESS['LANDING_CREATE_PAGE_PANEL_FAIL_MESSAGE_TITLE'] = 'Не удалось создать страницу';
 
-$MESS['LANDING_SAVE_BLOCK_PANEL_TITLE'] = 'Сохранить в список блоков';
+$MESS['LANDING_SAVE_BLOCK_PANEL_TITLE_MSGVER_1'] = 'Сохранить в список блоков';
 $MESS['LANDING_SAVE_BLOCK_PANEL_FAIL_MESSAGE_TITLE'] = 'Не удалось сохранить блок';
 $MESS['LANDING_SAVE_BLOCK_PANEL_SUCCESS_MESSAGE_TITLE'] = 'Блок успешно сохранен';
-$MESS['LANDING_SAVE_BLOCK_PANEL_MESSAGE_TITLE'] = 'Сохранить как шаблон';
-$MESS['LANDING_SAVE_BLOCK_PANEL_MESSAGE_TEXT'] = 'Создавайте свои блоки и храните их в списке для быстрого использования на страницах своих сайтов.';
+$MESS['LANDING_SAVE_BLOCK_PANEL_MESSAGE_TITLE_MSGVER_1'] = 'Сохранить как шаблон';
+$MESS['LANDING_SAVE_BLOCK_PANEL_MESSAGE_TEXT_MSGVER_1'] = 'Создавайте свои блоки и храните их в списке для быстрого использования на страницах своих сайтов.';
 $MESS['LANDING_SAVE_BLOCK_PANEL_FIELD_TITLE'] = 'Название блока';
 $MESS['LANDING_SAVE_BLOCK_PANEL_FIELD_SECTIONS'] = 'Разделы для блока';
 $MESS['LANDING_SAVE_BLOCK_PANEL_FIELD_TEMPLATE_REF'] = 'Привязать к текущему стилю';
@@ -409,6 +414,7 @@ $MESS['LANDING_ACTION_BUTTON_PUBLISH'] = 'Опубликовать';
 $MESS['LANDING_LINK_PLACEHOLDER_NEW_PAGE'] = 'Новая страница';
 $MESS['LANDING_LINK_NEW_PAGE_LABEL'] = 'НОВАЯ';
 $MESS['LANDING_LINK_NEW_PAGE_SAVE_BUTTON_LABEL'] = 'Создать';
+$MESS['LANDING_LINK_NEW_PAGE_CANCEL_BUTTON_LABEL'] = 'Отменить';
 
 $MESS['LANDING_EMBED_BG_FIELD_DESCRIPTION'] = 'Допускаются только полные или короткие ссылки на видео с&nbsp;сервисов Youtube и VK видео';
 $MESS['LANDING_EMBED_NOT_BG_FIELD_DESCRIPTION'] = 'Допускаются только полные или короткие ссылки на видео с&nbsp;сервисов Youtube, VK видео, RuTube или Vimeo';
@@ -463,3 +469,48 @@ $MESS["LANDING_TABLE_SELECT_TABLE"] = "Выбрать всю таблицу";
 $MESS["LANDING_TABLE_BUTTON_CHANGE_TEXT"] = "Отредактировать текст";
 $MESS['LANDING_FONTS_PANEL_MORE_BUTTON_LABEL'] = 'Загрузить еще';
 $MESS['LANDING_FONTS_PANEL_EMPTY_STUB'] = 'Шрифты не найдены...';
+
+//link control phrases
+//actions
+$MESS["LANDING_LINK_URL_ACTION_SELECT"] = "Выберите действие";
+$MESS["LANDING_LINK_URL_ACTION_PAGE"] = "Перейти на страницу";
+$MESS["LANDING_LINK_URL_ACTION_BLOCK"] = "Перейти к блоку";
+$MESS["LANDING_LINK_URL_ACTION_CRM"] = "Открыть CRM-форму";
+$MESS["LANDING_LINK_URL_ACTION_PRODUCT"] = "Открыть страницу товара";
+$MESS["LANDING_LINK_URL_ACTION_PHONE"] = "Позвонить";
+$MESS["LANDING_LINK_URL_ACTION_SMS"] = "Отправить СМС";
+$MESS["LANDING_LINK_URL_ACTION_EMAIL"] = "Отправить письмо по e-mail";
+$MESS["LANDING_LINK_URL_ACTION_SKYPE"] = "Связаться по Skype";
+$MESS["LANDING_LINK_URL_ACTION_LINK"] = "Перейти по внешней ссылке";
+$MESS["LANDING_LINK_URL_ACTION_FILE_MSGVER_1"] = "Открыть файл";
+$MESS["LANDING_LINK_URL_ACTION_USER"] = "Открыть профиль в Битрикс24";
+$MESS["LANDING_LINK_URL_DELETE_ACTION"] = "Не указывать ссылку";
+$MESS["LANDING_LINK_URL_ACTION_SELECT_CATALOG"] = "Выбрать папку";
+$MESS["LANDING_LINK_URL_ACTION_SELECT_PAGE"] = "Выбрать страницу";
+
+$MESS["LANDING_LINK_URL_TITLE_PAGE"] = "Клиент откроет страницу";
+$MESS["LANDING_LINK_URL_TITLE_BLOCK"] = "Клиент откроет блок";
+$MESS["LANDING_LINK_URL_TITLE_CRM_FORM"] = "Клиент откроет CRM-форму";
+$MESS["LANDING_LINK_URL_TITLE_PRODUCT"] = "Клиент откроет страницу товара в этом окне";
+$MESS["LANDING_LINK_URL_TITLE_TEL"] = "Клиент позвонит по указанному номеру";
+$MESS["LANDING_LINK_URL_TITLE_SMS"] = "Клиент отправит СМС";
+$MESS["LANDING_LINK_URL_TITLE_SKYPE"] = "Клиент свяжется с указанным контактом в Skype";
+$MESS["LANDING_LINK_URL_TITLE_MAILTO"] = "Клиент отправит письмо на указанный e-mail";
+$MESS["LANDING_LINK_URL_TITLE_LINK"] = "Клиент откроет страницу";
+$MESS["LANDING_LINK_URL_TITLE_FILE"] = "Пользователь скачает файл";
+$MESS["LANDING_LINK_URL_TITLE_USER"] = "Откроется профиль пользователя Битрикс24";
+
+$MESS["LANDING_LINK_URL_BUTTON_PAGE"] = "Выберите страницу для перехода";
+$MESS["LANDING_LINK_URL_BUTTON_PAGE_SHORT"] = "Страницы сайта";
+$MESS["LANDING_LINK_URL_BUTTON_BLOCK"] = "Выберите блок для перехода";
+$MESS["LANDING_LINK_URL_BUTTON_CRM"] = "Выберите CRM-Форму";
+$MESS["LANDING_LINK_URL_BUTTON_FILE"] = "Выберите файл";
+$MESS["LANDING_LINK_URL_BUTTON_USER"] = "Выберите пользователя";
+$MESS["LANDING_LINK_URL_BUTTON_PRODUCT"] = "Выберите товар";
+$MESS["LANDING_LINK_URL_BUTTON_CATALOG"] = "Каталог товаров";
+
+//placeholder
+$MESS["LANDING_LINK_URL_PLACEHOLDER_PHONE"] = "Выберите или введите номер телефона";
+$MESS["LANDING_LINK_URL_PLACEHOLDER_EMAIL"] = "Введите e-mail";
+$MESS["LANDING_LINK_URL_PLACEHOLDER_SKYPE"] = "Введите логин Skype";
+$MESS["LANDING_LINK_URL_PLACEHOLDER_URL"] = "Введите url";

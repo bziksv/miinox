@@ -18,12 +18,12 @@ use Bitrix\Main\Web\Json;
 use Bitrix\UI\Util;
 
 Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
 	'ui.common',
 	'ui.notification',
 	'ui.dialogs.messagebox',
 	'ui.hint',
-	'ui.design-tokens',
-	'ui.fonts.opensans',
 ]);
 
 $containerId = 'catalog_variation_grid';
@@ -55,18 +55,21 @@ $isProduct = $arParams['VARIATION_ID_LIST'] === null;
 			'',
 			[
 				'AJAX_MODE' => 'N',
+				'AJAX_ID' => \CAjax::GetComponentID("bitrix:main.ui.grid", '', ''),
+
 				//Strongly required
 				'AJAX_OPTION_JUMP' => 'N',
 				'AJAX_OPTION_STYLE' => 'N',
 				'AJAX_OPTION_HISTORY' => 'N',
 
 				// 'MODE' => $arResult['GRID']['MODE'],
-				'GRID_ID' => $arResult['GRID']['ID'],
+				'GRID_ID' => $arResult['GRID']['GRID_ID'],
 				'HEADERS' => $arResult['GRID']['HEADERS'],
 				'SORT' => $arResult['GRID']['SORT'],
 				'SORT_VARS' => $arResult['GRID']['SORT_VARS'],
 				'ROWS' => $arResult['GRID']['ROWS'],
-				// 'TOTAL_ROWS_COUNT' => $arResult['GRID']['TOTAL_ROWS_COUNT'],
+				'TOTAL_ROWS_COUNT' => $arResult['GRID']['TOTAL_ROWS_COUNT'],
+				'NAV_OBJECT' => $arResult['GRID']['NAV_OBJECT'],
 
 				'ADVANCED_EDIT_MODE' => true,
 				'SHOW_CHECK_ALL_CHECKBOXES' => $isProduct ? $arResult['GRID']['SHOW_CHECK_ALL_CHECKBOXES'] : false,
@@ -77,12 +80,18 @@ $isProduct = $arParams['VARIATION_ID_LIST'] === null;
 				'SHOW_PAGINATION' => $arResult['GRID']['SHOW_PAGINATION'],
 				'SHOW_SELECTED_COUNTER' => $arResult['GRID']['SHOW_SELECTED_COUNTER'],
 				'SHOW_TOTAL_COUNTER' => $arResult['GRID']['SHOW_TOTAL_COUNTER'],
-				'TOTAL_ROWS_COUNT' => is_array($arResult['GRID']['ROWS']) ? count($arResult['GRID']['ROWS']) : 0,
 				'SHOW_PAGESIZE' => $arResult['GRID']['SHOW_PAGESIZE'],
+				'PAGE_SIZES' => [
+					['NAME' => '5', 'VALUE' => '5'],
+					['NAME' => '10', 'VALUE' => '10'],
+					['NAME' => '20', 'VALUE' => '20'],
+					['NAME' => '50', 'VALUE' => '50'],
+				],
 
 				'SHOW_ACTION_PANEL' => $isProduct ? $arResult['GRID']['SHOW_ACTION_PANEL'] : false,
 				'ACTION_PANEL' => $isProduct ? $arResult['GRID']['ACTION_PANEL'] : false,
 				'HANDLE_RESPONSE_ERRORS' => true,
+				'ENABLE_FIELDS_SEARCH' => $arResult['GRID']['ENABLE_FIELDS_SEARCH'],
 			],
 			$component
 		);
@@ -112,14 +121,18 @@ $isProduct = $arParams['VARIATION_ID_LIST'] === null;
 			'gridId' => $component->getGridId(),
 			'isGridReload' => $component->isAjaxGridAction(),
 			'isNew' => $component->isNewProduct(),
+			'isReadOnly' => $arResult['IS_READ_ONLY'],
+			'isSimple' => $component->isSimpleProduct(),
 			'hiddenProperties' => $arResult['GRID']['HIDDEN_PROPERTIES'],
 			'modifyPropertyLink' => $arResult['PROPERTY_MODIFY_LINK'],
+			'productCopyLink' => $arResult['PROPERTY_COPY_LINK'],
 			'gridEditData' => $arResult['GRID']['EDIT_DATA'],
 			'canHaveSku' => $arResult['CAN_HAVE_SKU'],
 			'copyItemsMap' => $arResult['COPY_ITEM_MAP'] ?? null,
 			'storeAmount' => $arResult['STORE_AMOUNT'],
 			'isShowedStoreReserve' => $arResult['IS_SHOWED_STORE_RESERVE'],
 			'reservedDealsSliderLink' => $arResult['RESERVED_DEALS_SLIDER_LINK'],
+			'supportedAjaxFields' => $arResult['SUPPORTED_AJAX_FIELDS'],
 		])?>);
 	});
 </script>

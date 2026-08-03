@@ -145,11 +145,11 @@ class File
 	 */
 	public static function deleteFinal($limit = null)
 	{
-		$deletedFiles = array();
+		$deletedFiles = [];
 
 		$res = FileTable::getList([
 		  	'select' => [
-		 		'ID', 'FILE_ID', 'ENTITY_ID', 'ENTITY_TYPE'
+		 		'ID', 'FILE_ID'
 		    ],
 	  		'filter' => [
 				'<FILE_ID' => 0
@@ -163,11 +163,7 @@ class File
 		{
 			$row['FILE_ID'] *= -1;
 			FileTable::delete($row['ID']);
-			$deletedFiles[$row['FILE_ID']] =[
-				'FILE_ID' => $row['FILE_ID'],
-				'ENTITY_ID' => $row['ENTITY_ID'],
-				'ENTITY_TYPE' => $row['ENTITY_TYPE'],
-			];
+			$deletedFiles[$row['FILE_ID']] = $row['FILE_ID'];
 		}
 		if (!empty($deletedFiles))
 		{
@@ -177,7 +173,7 @@ class File
 					'FILE_ID'
 				],
 				'filter' => [
-					'FILE_ID' => array_keys($deletedFiles)
+					'FILE_ID' => $deletedFiles
 				]
 			]);
 			while ($row = $res->fetch())
@@ -186,15 +182,9 @@ class File
 			}
 			foreach ($deletedFiles as $fid)
 			{
-				$fileData = self::getFileArray($fid['FILE_ID']);
+				$fileData = self::getFileArray($fid);
 				if ($fileData)
 				{
-					AddMessage2Log(
-						"[lndgdbg] AGENT delete file {$fid} with ORIG_NAME {$fileData['ORIGINAL_NAME']} for ENTITY {$fid['ENTITY_TYPE']}_{$fid['ENTITY_ID']}",
-						'landing',
-						7
-					);
-
 					//@tmp log
 					Debug::log(
 						$fileData['SRC'],

@@ -6,6 +6,8 @@
  * @copyright 2001-2016 Bitrix
  */
 
+use Bitrix\Main\Web\Uri;
+
 class CAdminFilter
 {
 	public 	$id;
@@ -46,10 +48,15 @@ class CAdminFilter
 			"styleFolded" => "N",
 			"presetsDeleted" => ""
 		));
+		$this->arOptFlt['styleFolded'] = (string)($this->arOptFlt['styleFolded'] ?? 'N');
 
-		$presetsDeleted = explode(",", $this->arOptFlt["presetsDeleted"]);
+		$presetsDeleted = [];
+		if (isset($this->arOptFlt["presetsDeleted"]))
+		{
+			$presetsDeleted = explode(",", $this->arOptFlt["presetsDeleted"]);
+		}
 
-		$this->arOptFlt["presetsDeleted"] = $presetsDeleted ? $presetsDeleted : array();
+		$this->arOptFlt["presetsDeleted"] = $presetsDeleted ?: array();
 
 		$presetsDeletedJS='';
 
@@ -559,7 +566,7 @@ class CAdminFilter
 		uasort($this->arItems, "CAdminFilter::Cmp");
 
 		echo '
-<div id="adm-filter-tab-wrap-'.$this->id.'" class="adm-filter-wrap'.($this->arOptFlt["styleFolded"]=="Y" ? " adm-filter-folded" : "").'" style = "display: none;">
+<div id="adm-filter-tab-wrap-'.$this->id.'" class="adm-filter-wrap'.($this->arOptFlt['styleFolded'] === "Y" ? " adm-filter-folded" : "").'" style = "display: none;">
 	<table class="adm-filter-main-table">
 		<tr>
 			<td class="adm-filter-main-table-cell">
@@ -603,13 +610,13 @@ class CAdminFilter
 		if($aParams !== false)
 		{
 			$url = $aParams["url"];
-			if(mb_strpos($url, "?") === false)
+			if(strpos($url, "?") === false)
 				$url .= "?";
 			else
 				$url .= "&";
 
-			if(mb_strpos($url, "lang=") === false)
-				$url .= "lang=".LANG;
+			if(strpos($url, "lang=") === false)
+				$url .= "lang=".LANGUAGE_ID;
 
 			if(!$this->url)
 				$this->url = $url;
@@ -680,8 +687,16 @@ class CAdminFilter
 		}
 		else
 		{
-			$openedTabSes = \Bitrix\Main\Application::getInstance()->getSession()[self::SESS_PARAMS_NAME][$this->id]["activeTabId"];
-			$filteredTab = \Bitrix\Main\Application::getInstance()->getSession()[self::SESS_PARAMS_NAME][$this->id]["filteredId"];
+			$session = \Bitrix\Main\Application::getInstance()->getSession();
+			if (isset($session[self::SESS_PARAMS_NAME][$this->id]["activeTabId"]))
+			{
+				$openedTabSes = $session[self::SESS_PARAMS_NAME][$this->id]["activeTabId"];
+			}
+			if (isset($session[self::SESS_PARAMS_NAME][$this->id]["filteredId"]))
+			{
+				$filteredTab = $session[self::SESS_PARAMS_NAME][$this->id]["filteredId"];
+			}
+			unset($session);
 		}
 
 		echo '
@@ -694,7 +709,7 @@ class CAdminFilter
 			BX.adminMenu = new BX.adminMenu();	
 		}
 		'.$this->id.'.state.init = true;
-		'.$this->id.'.state.folded = '.($this->arOptFlt["styleFolded"] == "Y" ? "true" : "false").';
+		'.$this->id.'.state.folded = '.($this->arOptFlt["styleFolded"] === "Y" ? "true" : "false").';
 		'.$this->id.'.InitFilter({'.$sVisRowsIds.'});
 		'.$this->id.'.oOptions = '.CUtil::PhpToJsObject($this->arItems).';
 		'.$this->id.'.popupItems = '.CUtil::PhpToJsObject($this->popup).';
@@ -722,7 +737,10 @@ class CAdminFilter
 		//making filter tabs draggable
 		if($this->url)
 		{
-			$registerUrl = CHTTP::urlDeleteParams($this->url, array("adm_filter_applied", "adm_filter_preset"));
+			$registerUrl = (new Uri($this->url))
+				->deleteParams(["adm_filter_applied", "adm_filter_preset"])
+				->getUri()
+			;
 
 			foreach($this->arItems as $filter_id => $filter)
 			{
@@ -731,7 +749,9 @@ class CAdminFilter
 				if(isset($filter["PRESET_ID"]))
 					$arParamsAdd["adm_filter_preset"] = $filter["PRESET_ID"];
 
-				$filterUrl = CHTTP::urlAddParams($registerUrl, $arParamsAdd, array("encode","skip_empty"));
+				$filterUrl = (new Uri($registerUrl))
+					->addParams($arParamsAdd)
+					->getUri();
 
 				echo "
 					if(BX.adminMenu && BX.adminMenu.registerItem) // todo: find true reason in sliders.
@@ -833,7 +853,7 @@ class CAdminFilter
 		if(!is_array($aFilter))
 			return;
 		foreach($aFilter as $flt)
-			if(is_string($GLOBALS[$flt]) && CUtil::DetectUTF8($GLOBALS[$flt]))
+			if(isset($GLOBALS[$flt]) && is_string($GLOBALS[$flt]) && CUtil::DetectUTF8($GLOBALS[$flt]))
 				CUtil::decodeURIComponent($GLOBALS[$flt]);
 	}
 }

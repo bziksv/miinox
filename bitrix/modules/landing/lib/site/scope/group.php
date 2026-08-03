@@ -2,10 +2,12 @@
 namespace Bitrix\Landing\Site\Scope;
 
 use Bitrix\Landing\Domain;
+use Bitrix\Landing\Connector\SocialNetwork;
 use Bitrix\Landing\Internals\BindingTable;
 use Bitrix\Landing\Manager;
-use Bitrix\Landing\Role;
 use Bitrix\Landing\Restriction;
+use Bitrix\Landing\Rights;
+use Bitrix\Landing\Role;
 use Bitrix\Landing\Site\Scope;
 use Bitrix\Main\Loader;
 
@@ -36,10 +38,8 @@ class Group extends Scope
 		{
 			return '/mobile/knowledge/group/';
 		}
-		else
-		{
-			return '/knowledge/group/';
-		}
+
+		return '/knowledge/group/';
 	}
 
 	/**
@@ -124,7 +124,14 @@ class Group extends Scope
 			$groupId = (int) $row['BINDING_ID'];
 			if ($checkAccess && Loader::includeModule('socialnetwork'))
 			{
-				if (!\CSocNetGroup::canUserReadGroup(Manager::getUserId(), $groupId))
+				$canRead = \CSocNetFeaturesPerms::CanPerformOperation(
+					Manager::getUserId(),
+					SONET_ENTITY_GROUP,
+					$groupId,
+					SocialNetwork::SETTINGS_CODE,
+					'read'
+				);
+				if (!$canRead)
 				{
 					return null;
 				}
@@ -133,5 +140,34 @@ class Group extends Scope
 		}
 
 		return null;
+	}
+
+	/**
+	 * Scoped method for returning available operations of site.
+	 * @param int $siteId Site id.
+	 * @see \Bitrix\Landing\Rights::getOperationsForSite
+	 * @return array
+	 */
+	public static function getOperationsForSite(int $siteId): array
+	{
+		static $cache = [];
+
+		if (!array_key_exists($siteId, $cache))
+		{
+			$groupId = self::getGroupIdBySiteId($siteId) ?: 0;
+			$cache[$siteId] = [
+				'read' => false,//see below
+				'edit' => SocialNetwork::canPerformOperation($groupId, Rights::ACCESS_TYPES['edit']),
+				'sett' => SocialNetwork::canPerformOperation($groupId, Rights::ACCESS_TYPES['sett']),
+				'delete' => SocialNetwork::canPerformOperation($groupId, Rights::ACCESS_TYPES['delete']),
+			];
+
+			if (array_sum($cache[$siteId]))
+			{
+				$cache[$siteId]['read'] = true;
+			}
+		}
+
+		return $cache[$siteId];
 	}
 }

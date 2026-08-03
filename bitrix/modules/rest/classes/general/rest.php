@@ -69,9 +69,9 @@ class CRestServer
 		$this->method = $toLowerMethod ? ToLower($params['METHOD']) : $params['METHOD'];
 		$this->query = $params['QUERY'];
 
-		$this->transport = $params['TRANSPORT'];
+		$this->transport = $params['TRANSPORT'] ?? null;
 
-		$this->securityClientState = $params['STATE'];
+		$this->securityClientState = $params['STATE'] ?? null;
 
 		if(!$this->transport)
 		{
@@ -151,7 +151,7 @@ class CRestServer
 		{
 			$this->error = $e;
 
-			if(!is_a($this->error, "\\Bitrix\\Rest\\RestException"))
+			if(!is_a($this->error, \Bitrix\Rest\RestException::class))
 			{
 				$this->error = RestException::initFromException($this->error);
 			}
@@ -253,15 +253,16 @@ class CRestServer
 			$this->usage = getrusage();
 		}
 
+		$entity = !empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId();
 		LoadLimiter::registerStarting(
 			$this->getAuthType(),
-			!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+			$entity,
 			$this->method
 		);
 		$result = call_user_func_array($callback, array($this->query, $start, $this));
 		LoadLimiter::registerEnding(
 			$this->getAuthType(),
-			!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+			$entity,
 			$this->method
 		);
 		$this->timeProcessFinish = microtime(true);
@@ -609,7 +610,7 @@ class CRestServer
 			$this->authData  = $res;
 
 			if(
-				$this->authData['auth_connector']
+				(isset($this->authData['auth_connector']))
 				&& !$this->canUseConnectors()
 			)
 			{
@@ -628,7 +629,7 @@ class CRestServer
 				}
 			}
 
-			$arAdditionalParams = $res['parameters'];
+			$arAdditionalParams = $res['parameters'] ?? null;
 			if(isset($arAdditionalParams[\Bitrix\Rest\Event\Session::PARAM_SESSION]))
 			{
 				\Bitrix\Rest\Event\Session::set($arAdditionalParams[\Bitrix\Rest\Event\Session::PARAM_SESSION]);
@@ -717,7 +718,7 @@ class CRestServer
 
 			Header('X-Bitrix-Rest-Time: '.number_format($this->timeProcessFinish - $this->timeProcessStart, 10, '.', ''));
 
-			if(function_exists('getrusage'))
+			if($this->usage && function_exists('getrusage'))
 			{
 				$usage = getrusage();
 
@@ -732,7 +733,10 @@ class CRestServer
 		\Bitrix\Rest\LogTable::log($this, $data);
 		\Bitrix\Rest\UsageStatTable::finalize();
 
-		if (is_object($data['result']) && $data['result'] instanceof \Bitrix\Main\Engine\Response\BFile)
+		if (
+			isset($data['result'])
+			&& $data['result'] instanceof \Bitrix\Main\Engine\Response\BFile
+		)
 		{
 			return $data['result'];
 		}
@@ -905,11 +909,28 @@ class IRestService
 	{
 		if (is_array($dbRes))
 		{
-			if($dbRes["offset"] + count($result) < $dbRes["count"])
+			// backward compatibility moment...
+			if ($result instanceof Countable || is_array($result))
 			{
-				$result['next'] = $dbRes["offset"] + count($result);
+				$count = count($result);
 			}
-			$result['total'] = $dbRes["count"];
+			elseif (is_null($result))
+			{
+				$count = 0;
+			}
+			else
+			{
+				$count = 1;
+			}
+
+			if($dbRes["offset"] + $count < $dbRes["count"])
+			{
+				$result['next'] = $dbRes["offset"] + $count;
+			}
+			if (!is_scalar($result))
+			{
+				$result['total'] = $dbRes["count"];
+			}
 		}
 		else
 		{

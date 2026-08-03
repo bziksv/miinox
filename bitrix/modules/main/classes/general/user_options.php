@@ -98,7 +98,7 @@ class CUserOptions
 	{
 		global $DB, $USER, $CACHE_MANAGER;
 
-		if ($user_id === false && is_object($USER) && $USER instanceof CUser)
+		if ($user_id === false && $USER instanceof CUser)
 		{
 			$user_id = $USER->GetID();
 		}
@@ -125,7 +125,7 @@ class CUserOptions
 					WHERE (USER_ID = {$user_id} OR (USER_ID = 0 AND COMMON = 'Y'))
 						AND CATEGORY = '{$DB->ForSql($category)}'
 				";
-	
+
 				$res = $DB->Query($sql);
 				while ($option = $res->Fetch())
 				{
@@ -236,8 +236,10 @@ class CUserOptions
 					}
 				}
 				CUserOptions::SetOption($opt["c"], $opt["n"], $val);
-				if ($opt["d"] == "Y" && $USER->CanDoOperation('edit_other_settings'))
+				if (isset($opt["d"]) && $opt["d"] === "Y" && $USER->CanDoOperation('edit_other_settings'))
+				{
 					CUserOptions::SetOption($opt["c"], $opt["n"], $val, true);
+				}
 			}
 		}
 	}
@@ -246,8 +248,10 @@ class CUserOptions
 	{
 		global $DB, $USER, $CACHE_MANAGER;
 
-		if ($user_id === false)
+		if ($user_id === false && $USER instanceof CUser)
+		{
 			$user_id = $USER->GetID();
+		}
 
 		$user_id = intval($user_id);
 		$strSql = "

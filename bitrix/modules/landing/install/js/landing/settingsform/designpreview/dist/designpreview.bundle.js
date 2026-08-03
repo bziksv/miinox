@@ -60,6 +60,8 @@ this.BX.Landing = this.BX.Landing || {};
 	  babelHelpers.inherits(DesignPreview, _EventEmitter);
 
 	  function DesignPreview(form) {
+	    var _window$fontsProxyUrl;
+
 	    var _this;
 
 	    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
@@ -74,6 +76,7 @@ this.BX.Landing = this.BX.Landing || {};
 	    _this.phrase = phrase;
 	    _this.id = id;
 	    _this.options = options;
+	    _this.fontProxyUrl = (_window$fontsProxyUrl = window.fontsProxyUrl) !== null && _window$fontsProxyUrl !== void 0 ? _window$fontsProxyUrl : 'fonts.googleapis.com';
 
 	    _this.initControls();
 
@@ -354,17 +357,12 @@ this.BX.Landing = this.BX.Landing || {};
 	        }
 	      }
 
-	      var link;
-	      var linkH;
-
 	      if (textFont) {
-	        link = this.createLink(textFont);
-	        main_core.Dom.append(link, this.form);
+	        main_core.Dom.append(this.createFontLink(textFont), this.form);
 	      }
 
 	      if (hFont) {
-	        linkH = this.createLink(hFont);
-	        main_core.Dom.append(linkH, this.form);
+	        main_core.Dom.append(this.createFontLink(hFont), this.form);
 	      }
 
 	      css += "--design-preview-color: ".concat(textColor, ";");
@@ -394,11 +392,11 @@ this.BX.Landing = this.BX.Landing || {};
 	      return css;
 	    }
 	  }, {
-	    key: "createLink",
-	    value: function createLink(font) {
+	    key: "createFontLink",
+	    value: function createFontLink(font) {
 	      var link = document.createElement('link');
 	      link.rel = 'stylesheet';
-	      link.href = 'https://fonts.googleapis.com/css2?family=';
+	      link.href = 'https://' + this.fontProxyUrl + '/css2?family=';
 	      link.href += font.replace(' ', '+');
 	      link.href += ':wght@100;200;300;400;500;600;700;800;900';
 	      return link;

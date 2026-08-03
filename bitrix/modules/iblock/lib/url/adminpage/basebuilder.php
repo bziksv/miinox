@@ -17,11 +17,14 @@ abstract class BaseBuilder
 	public const PAGE_ELEMENT_COPY = 'elementCopy';
 	public const PAGE_ELEMENT_SAVE = 'elementSave';
 	public const PAGE_ELEMENT_SEARCH = 'elementSearch';
+	public const PAGE_ELEMENT_SEO = 'elementSeo';
 	public const PAGE_SECTION_LIST = 'sectionList';
 	public const PAGE_SECTION_DETAIL = 'sectionDetail';
 	public const PAGE_SECTION_COPY = 'sectionCopy';
 	public const PAGE_SECTION_SAVE = 'sectionSave';
 	public const PAGE_SECTION_SEARCH = 'sectionSearch';
+	public const PAGE_SECTION_SEO = 'sectionSeo';
+	public const PAGE_CATALOG_SEO = 'catalogSeo';
 
 	public const ENTITY_SECTION = 'section';
 	public const ENTITY_ELEMENT = 'element';
@@ -253,6 +256,30 @@ abstract class BaseBuilder
 		);
 	}
 
+	public function getCatalogSeoUrl(array $options = [], string $additional = ''): string
+	{
+		return $this->fillUrlTemplate(
+			$this->getUrlTemplate(self::PAGE_CATALOG_SEO),
+			$this->getExtendedVariables($options, $additional)
+		);
+	}
+
+	public function getElementSeoUrl(int $productId, array $options = [], string $additional = ''): string
+	{
+		return $this->fillUrlTemplate(
+			$this->getUrlTemplate(self::PAGE_ELEMENT_SEO),
+			$this->getDetailSeoVariables($productId, $options, $additional)
+		);
+	}
+
+	public function getSectionSeoUrl(int $sectionId, array $options = [], string $additional = ''): string
+	{
+		return $this->fillUrlTemplate(
+			$this->getUrlTemplate(self::PAGE_SECTION_SEO),
+			$this->getSectionSeoVariables($sectionId, $options, $additional)
+		);
+	}
+
 	public function getContextMenuItems(string $pageType, array $items = [], array $options = []): ?array
 	{
 		return null;
@@ -260,6 +287,11 @@ abstract class BaseBuilder
 
 	public function getBaseParams(): string
 	{
+		if ($this->iblockId === null)
+		{
+			return '';
+		}
+
 		return 'IBLOCK_ID='.$this->iblockId
 			.'&type='.urlencode($this->iblock['IBLOCK_TYPE_ID'])
 			.'&lang='.urlencode($this->languageId);
@@ -273,6 +305,11 @@ abstract class BaseBuilder
 	public function getLanguageParam(): string
 	{
 		return 'lang='.urlencode($this->languageId);
+	}
+
+	public function getUrlBuilderIdParam(): string
+	{
+		return 'urlBuilderId='.urlencode($this->id);
 	}
 
 	public function setSliderMode(bool $mode): void
@@ -366,7 +403,7 @@ abstract class BaseBuilder
 			&& $listMode != Iblock\IblockTable::LIST_MODE_COMBINED
 		)
 		{
-			$listMode = ((string)Main\Config\Option::get('iblock', 'combined_list_mode') === 'Y'
+			$listMode = (Main\Config\Option::get('iblock', 'combined_list_mode') === 'Y'
 				? Iblock\IblockTable::LIST_MODE_COMBINED
 				: Iblock\IblockTable::LIST_MODE_SEPARATE
 			);
@@ -479,10 +516,7 @@ abstract class BaseBuilder
 
 	protected function getUrlTemplate(string $templateId): ?string
 	{
-		return (isset($this->urlTemplates[$templateId])
-			? $this->urlTemplates[$templateId]
-			: null
-		);
+		return ($this->urlTemplates[$templateId] ?? null);
 	}
 
 	protected function fillUrlTemplate(?string $template, array $replaces): string
@@ -528,6 +562,22 @@ abstract class BaseBuilder
 		$replaces = $this->getExtendedVariables($options, $additional);
 		$replaces['#ENTITY_ID#'] = (string)$entityId;
 		$replaces['#ENTITY_FILTER#'] = $this->getEntityFilter($entityId);
+		return $replaces;
+	}
+
+	protected function getDetailSeoVariables(?int $entityId, array $options = [], string $additional = ''): array
+	{
+		$replaces = $this->getExtendedVariables($options, $additional);
+		$replaces['#PRODUCT_ID#'] = (string)$entityId;
+
+		return $replaces;
+	}
+
+	protected function getSectionSeoVariables(?int $sectionId, array $options = [], string $additional = ''): array
+	{
+		$replaces = $this->getExtendedVariables($options, $additional);
+		$replaces['#SECTION_ID#'] = (string)$sectionId;
+
 		return $replaces;
 	}
 
@@ -601,5 +651,24 @@ abstract class BaseBuilder
 	protected function getSliderPathTemplates(): array
 	{
 		return [];
+	}
+
+	/**
+	 * Open settings page of IBlock context
+	 *
+	 * <i>Example: for catalog IBlock it should open settings of catalog</i>
+	 * @return void
+	 */
+	public function openSettingsPage(): void
+	{
+	}
+
+	/**
+	 * Subscribe to save settings events depending on the context
+	 *
+	 * @return void
+	 */
+	public function subscribeOnAfterSettingsSave(): void
+	{
 	}
 }

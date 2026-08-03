@@ -16,6 +16,8 @@ if ($arResult['VOTE_AVAILABLE'] === 'Y')
 	$arAllowVote = CRatings::CheckAllowVote($arParams);
 }
 
+global $USER;
+
 $sRatingVoteType = COption::GetOptionString("main", "rating_vote_type", "standart");
 $ratingTemplateName = $this->GetTemplateName();
 if ($ratingTemplateName == "" || $ratingTemplateName == ".default")
@@ -100,10 +102,22 @@ $arResult['VOTE_ID'] = (
 		)
 );
 
+$arResult['VOTE_KEY_SIGNED'] = '';
+if ($arResult['VOTE_AVAILABLE'] === 'Y')
+{
+	$signer = new \Bitrix\Main\Security\Sign\TimeSigner();
+
+	$arResult['VOTE_KEY_SIGNED'] = $signer->sign(
+		$arResult['ENTITY_TYPE_ID'] . '-' . $arResult['ENTITY_ID'],
+		'+1 day',
+		'main.rating.vote'
+	);
+}
+
 $isMobileLog = defined("BX_MOBILE_LOG") && BX_MOBILE_LOG == true;
 
 $arParams['REACTIONS_LIST'] = (
-	is_array($arParams['REACTIONS_LIST'])
+	isset($arParams['REACTIONS_LIST']) && is_array($arParams['REACTIONS_LIST'])
 		? array_filter($arParams['REACTIONS_LIST'], static function ($value) {
 			return (int)$value > 0;
 		})

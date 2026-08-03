@@ -1,7 +1,8 @@
-<?
+<?php
+
 //country IDs are from lang/tools.php as stored in the b_user.personal_country
 //country codes are from ISO 3166-1, http://www.iso.org/iso/country_codes/
-static $arCounries = array(
+static $arCounries = [
 	'RU'=>1, //Russia
 	'AZ'=>2, //Azerbaijan
 	'AM'=>3, //Armenia
@@ -58,6 +59,7 @@ static $arCounries = array(
 	'DK'=>54, //Denmark
 	'DO'=>55, //Dominican Republic
 	'EG'=>56, //Egypt
+	'CD'=>57, //Congo-Kinshasa
 	'ZM'=>58, //Zambia
 	'ZW'=>59, //Zimbabwe
 	'IL'=>60, //Israel
@@ -235,5 +237,4 @@ static $arCounries = array(
 	'VA'=>234, //Vatican City
 	'WF'=>235, //Wallis and Futuna Islands
 	'ME'=>236, //Montenegro
-);
-?>
+];

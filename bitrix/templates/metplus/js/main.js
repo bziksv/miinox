@@ -567,8 +567,11 @@ jQuery(document).ready(function($) {
     e.preventDefault();
 
     let self = $(this);
+	self.css('cursor', 'no-drop');
     $.cookie(`in_stock_${self.data('cat_id')}`, true, { expires: 30, path: '/' });
-    window.location.reload();
+	$.get("/ajax/cache.php");
+	  
+	 setTimeout(() => { window.location.reload(); }, 1000);
   });
 
   $('[data-text]').each(function(i, el){

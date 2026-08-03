@@ -1,12 +1,11 @@
 <?
-##############################################
-# Bitrix Site Manager                        #
-# Copyright (c) 2002-2010 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
+/**
+ * @global \CUser $USER
+ * @global \CMain $APPLICATION
+ * @global \CDatabase $DB
+ */
 
-require_once(dirname(__FILE__)."/../include/prolog_admin_before.php");
+require_once(__DIR__."/../include/prolog_admin_before.php");
 
 ClearVars();
 
@@ -15,24 +14,24 @@ if(!$USER->CanDoOperation('edit_ratings'))
 
 IncludeModuleLangFile(__FILE__);
 
-$ID = intval($ID);
+$ID = intval($_REQUEST['ID'] ?? 0);
 $message = null;
 
-if($_SERVER['REQUEST_METHOD']=="POST" && ($_POST['save']<>"" || $_POST['apply']<>"") && check_bitrix_sessid())
+if($_SERVER['REQUEST_METHOD']=="POST" && (!empty($_POST['save']) || !empty($_POST['apply'])) && check_bitrix_sessid())
 {
 	$arFields = array(
-		"ACTIVE"					=> isset($_POST['ACTIVE'])? $_POST['ACTIVE'] : 'N',
-		"ACTIVATE"				=> isset($_POST['ACTIVATE'])? $_POST['ACTIVATE'] : 'N',
-		"DEACTIVATE"			=> isset($_POST['DEACTIVATE'])? $_POST['DEACTIVATE'] : 'N',
-		"NAME"					=> $_POST['NAME'],
-		"ENTITY_TYPE_ID"		=> $_POST['ENTITY_TYPE_ID'],
-		"CONDITION_NAME"		=> $_POST['CONDITION_NAME'],
-		"CONDITION_CONFIG"	=> $_POST['CONDITION_CONFIG'],
+		"ACTIVE"					=> $_POST['ACTIVE'] ?? 'N',
+		"ACTIVATE"				=> $_POST['ACTIVATE'] ?? 'N',
+		"DEACTIVATE"			=> $_POST['DEACTIVATE'] ?? 'N',
+		"NAME"					=> $_POST['NAME'] ?? '',
+		"ENTITY_TYPE_ID"		=> $_POST['ENTITY_TYPE_ID'] ?? '',
+		"CONDITION_NAME"		=> $_POST['CONDITION_NAME'] ?? '',
+		"CONDITION_CONFIG"	=> $_POST['CONDITION_CONFIG'] ?? '',
 	);
-	if (isset($_POST['ACTION_NAME']) && isset($_POST['ACTION_NAME']))
+	if (isset($_POST['ACTION_NAME']))
 	{
 		$arFields["ACTION_NAME"] = $_POST['ACTION_NAME'];
-		$arFields["ACTION_CONFIG"] = $_POST['ACTION_CONFIG'];
+		$arFields["ACTION_CONFIG"] = $_POST['ACTION_CONFIG'] ?? '';
 	}
 
 	if($ID>0)
@@ -113,7 +112,10 @@ if($ID>0)
 $context = new CAdminContextMenu($aMenu);
 $context->Show();
 
-if(is_array(\Bitrix\Main\Application::getInstance()->getSession()["SESS_ADMIN"]["RATING_RULE_EDIT_MESSAGE"]))
+if(
+	isset(\Bitrix\Main\Application::getInstance()->getSession()["SESS_ADMIN"]["RATING_RULE_EDIT_MESSAGE"])
+	&& is_array(\Bitrix\Main\Application::getInstance()->getSession()["SESS_ADMIN"]["RATING_RULE_EDIT_MESSAGE"])
+)
 {
 	CAdminMessage::ShowMessage(\Bitrix\Main\Application::getInstance()->getSession()["SESS_ADMIN"]["RATING_RULE_EDIT_MESSAGE"]);
 	\Bitrix\Main\Application::getInstance()->getSession()["SESS_ADMIN"]["RATING_RULE_EDIT_MESSAGE"]=false;
@@ -133,7 +135,7 @@ $tabControl->BeginEpilogContent();
 	<input type="hidden" name="ID" value=<?=$ID?>>
 	<input type="hidden" name="lang" value="<?=LANGUAGE_ID?>">
 	<input type="hidden" name="action" value="" id="action">
-<?if($_REQUEST["addurl"]<>""):?>
+<?if (!empty($_REQUEST["addurl"])):?>
 	<input type="hidden" name="addurl" value="<?echo htmlspecialcharsbx($_REQUEST["addurl"])?>">
 <?endif;?>
 <?
@@ -197,8 +199,7 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 				for ($i=0; $i<$conditionCount; $i++)
 				{
 					// define a default value
-					$strFieldValue = isset($_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID']])?
-											$_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID']] : $arCurrentCondition['FIELDS'][$i]['DEFAULT'];
+					$strFieldValue = $_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID']] ?? $arCurrentCondition['FIELDS'][$i]['DEFAULT'];
 					// if exist editing data
 					if (isset($str_CONDITION_CONFIG[$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID']]))
 						$strFieldValue = $str_CONDITION_CONFIG[$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID']];
@@ -220,7 +221,7 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 						?>
 						<tr valign="top" style="">
 							<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentCondition['FIELDS'][$i]['NAME']?>:</label></td>
-							<td width="25%"><?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentCondition['ID']."][".$arCurrentCondition['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue);?></td>
+							<td width="25%"><?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentCondition['ID']."][".$arCurrentCondition['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue));?></td>
 						</tr>
 						<?
 					}
@@ -236,15 +237,14 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 						?>
 						<tr valign="top" style="">
 							<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentCondition['FIELDS'][$i]['NAME']?>:</label></td>
-							<td width="25%"><?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentCondition['ID']."][".$arCurrentCondition['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue, "");?></td>
+							<td width="25%"><?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentCondition['ID']."][".$arCurrentCondition['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue), "");?></td>
 						</tr>
 						<?
 					}
 					elseif (isset($arCurrentCondition['FIELDS'][$i]['TYPE']) && $arCurrentCondition['FIELDS'][$i]['TYPE'] == 'SELECT_ARRAY_WITH_INPUT')
 					{
 						// define a default value
-						$strFieldValueInput = isset($_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_INPUT']])?
-												$_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_INPUT']] : $arCurrentCondition['FIELDS'][$i]['DEFAULT_INPUT'];
+						$strFieldValueInput = $_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_INPUT']] ?? $arCurrentCondition['FIELDS'][$i]['DEFAULT_INPUT'];
 						// if exist editing data
 						if (isset($str_CONDITION_CONFIG[$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_INPUT']]))
 							$strFieldValueInput = $str_CONDITION_CONFIG[$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_INPUT']];
@@ -260,8 +260,8 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 						<tr valign="top" style="">
 							<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentCondition['FIELDS'][$i]['NAME']?>:</label></td>
 							<td width="25%">
-								<?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentCondition['ID']."][".$arCurrentCondition['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue, "");?>
-								<input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID_INPUT']?>]" value="<?=$strFieldValueInput?>" style="width:45px;">
+								<?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentCondition['ID']."][".$arCurrentCondition['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue), "");?>
+								<input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID_INPUT']?>]" value="<?=htmlspecialcharsbx($strFieldValueInput)?>" style="width:45px;">
 							</td>
 						</tr>
 						<?
@@ -269,8 +269,7 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 					elseif (isset($arCurrentCondition['FIELDS'][$i]['TYPE']) && $arCurrentCondition['FIELDS'][$i]['TYPE'] == 'INPUT_INTERVAL')
 					{
 						// define a default value
-						$strFieldValue2 = isset($_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_2']])?
-												$_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_2']] : $arCurrentCondition['FIELDS'][$i]['DEFAULT_2'];
+						$strFieldValue2 = $_POST['CONDITION_CONFIG'][$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_2']] ?? $arCurrentCondition['FIELDS'][$i]['DEFAULT_2'];
 						// if exist editing data
 						if (isset($str_CONDITION_CONFIG[$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_2']]))
 							$strFieldValue2 = $str_CONDITION_CONFIG[$arCurrentCondition['ID']][$arCurrentCondition['FIELDS'][$i]['ID_2']];
@@ -279,8 +278,8 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 						<tr valign="top">
 							<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentCondition['FIELDS'][$i]['NAME']?>:</label></td>
 							<td width="25%" style="vertical-align:middle">
-								<?=GetMessage('PP_USER_CONDITION_RATING_INTERVAL_FROM')?> <input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID']?>]" value="<?=$strFieldValue?>" style="width:45px;">
-								<?=GetMessage('PP_USER_CONDITION_RATING_INTERVAL_TO')?> <input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID_2']?>]" value="<?=$strFieldValue2?>" style="width:45px;">
+								<?=GetMessage('PP_USER_CONDITION_RATING_INTERVAL_FROM')?> <input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID']?>]" value="<?=htmlspecialcharsbx($strFieldValue)?>" style="width:45px;">
+								<?=GetMessage('PP_USER_CONDITION_RATING_INTERVAL_TO')?> <input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID_2']?>]" value="<?=htmlspecialcharsbx($strFieldValue2)?>" style="width:45px;">
 							</td>
 						</tr>
 						<?
@@ -306,7 +305,7 @@ $conditionCount = count($arCurrentCondition['FIELDS']);
 						?>
 						<tr valign="top">
 							<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentCondition['FIELDS'][$i]['NAME']?>:</label></td>
-							<td width="25%" style="vertical-align:middle"><input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID']?>]" size="<?=intval($arCurrentCondition['FIELDS'][$i]['SIZE'])?>" value="<?=$strFieldValue?>"> <?=isset($arCurrentCondition['FIELDS'][$i]['NAME_DESC'])? $arCurrentCondition['FIELDS'][$i]['NAME_DESC']: ''?></td>
+							<td width="25%" style="vertical-align:middle"><input type="text" name="CONDITION_CONFIG[<?=$arCurrentCondition['ID']?>][<?=$arCurrentCondition['FIELDS'][$i]['ID']?>]" size="<?=intval($arCurrentCondition['FIELDS'][$i]['SIZE'])?>" value="<?=htmlspecialcharsbx($strFieldValue)?>"> <?= $arCurrentCondition['FIELDS'][$i]['NAME_DESC'] ?? '' ?></td>
 						</tr>
 						<?
 					}
@@ -354,8 +353,7 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 					for ($i=0; $i<$actionCount; $i++)
 					{
 						// define a default value
-						$strFieldValue = isset($_POST['ACTION_CONFIG'][$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID']]) ?
-											$_POST['ACTION_CONFIG'][$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID']] : $arCurrentAction['FIELDS'][$i]['DEFAULT'];
+						$strFieldValue = $_POST['ACTION_CONFIG'][$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID']] ?? $arCurrentAction['FIELDS'][$i]['DEFAULT'];
 						// if exist editing data
 						if (isset($str_ACTION_CONFIG[$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID']]))
 							$strFieldValue = $str_ACTION_CONFIG[$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID']];
@@ -375,7 +373,7 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 							?>
 							<tr valign="top" style="">
 								<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentAction['FIELDS'][$i]['NAME']?>:</label></td>
-								<td width="25%"><?=SelectBoxFromArray("ACTION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue, "", 'style="width: 300px"');?></td>
+								<td width="25%"><?=SelectBoxFromArray("ACTION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue), "", 'style="width: 300px"');?></td>
 							</tr>
 							<?
 						}
@@ -394,7 +392,7 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 							?>
 							<tr valign="top" style="">
 								<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentAction['FIELDS'][$i]['NAME']?>:</label></td>
-								<td width="25%"><?=SelectBoxFromArray("ACTION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue, "", 'style="width: 300px"');?></td>
+								<td width="25%"><?=SelectBoxFromArray("ACTION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue), "", 'style="width: 300px"');?></td>
 							</tr>
 							<?
 						}
@@ -409,15 +407,14 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 							?>
 							<tr valign="top" style="">
 								<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentAction['FIELDS'][$i]['NAME']?>:</label></td>
-								<td width="25%"><?=SelectBoxFromArray("ACTION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue, "");?></td>
+								<td width="25%"><?=SelectBoxFromArray("ACTION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue), "");?></td>
 							</tr>
 							<?
 						}
 						elseif (isset($arCurrentAction['FIELDS'][$i]['TYPE']) && $arCurrentAction['FIELDS'][$i]['TYPE'] == 'SELECT_ARRAY_WITH_INPUT')
 						{
 							// define a default value
-							$strFieldValueInput = isset($_POST['ACTION_CONFIG'][$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID_INPUT']])?
-													$_POST['ACTION_CONFIG'][$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID_INPUT']] : $arCurrentAction['FIELDS'][$i]['DEFAULT_INPUT'];
+							$strFieldValueInput = $_POST['ACTION_CONFIG'][$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID_INPUT']] ?? $arCurrentAction['FIELDS'][$i]['DEFAULT_INPUT'];
 							// if exist editing data
 							if (isset($str_ACTION_CONFIG[$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID_INPUT']]))
 								$strFieldValueInput = $str_ACTION_CONFIG[$arCurrentAction['ID']][$arCurrentAction['FIELDS'][$i]['ID_INPUT']];
@@ -433,8 +430,8 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 							<tr valign="top" style="">
 								<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentAction['FIELDS'][$i]['NAME']?>:</label></td>
 								<td width="25%">
-									<?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, $strFieldValue, "");?>
-									<input type="text" name="CONDITION_CONFIG[<?=$arCurrentAction['ID']?>][<?=$arCurrentAction['FIELDS'][$i]['ID_INPUT']?>]" value="<?=$strFieldValueInput?>" style="width:45px;">
+									<?=SelectBoxFromArray("CONDITION_CONFIG[".$arCurrentAction['ID']."][".$arCurrentAction['FIELDS'][$i]['ID']."]", $arSelect, htmlspecialcharsbx($strFieldValue), "");?>
+									<input type="text" name="CONDITION_CONFIG[<?=$arCurrentAction['ID']?>][<?=$arCurrentAction['FIELDS'][$i]['ID_INPUT']?>]" value="<?=htmlspecialcharsbx($strFieldValueInput)?>" style="width:45px;">
 								</td>
 							</tr>
 							<?
@@ -453,21 +450,21 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 							?>
 							<tr valign="top" style="">
 								<td class="field-name" style="vertical-align:middle"><label><?=$arCurrentAction['FIELDS'][$i]['NAME']?>:</label></td>
-								<td width="25%"><input type="text" name="ACTION_CONFIG[<?=$arCurrentAction['ID']?>][<?=$arCurrentAction['FIELDS'][$i]['ID']?>]" value="<?=$strFieldValue?>"></td>
+								<td width="25%"><input type="text" name="ACTION_CONFIG[<?=$arCurrentAction['ID']?>][<?=$arCurrentAction['FIELDS'][$i]['ID']?>]" value="<?=htmlspecialcharsbx($strFieldValue)?>"></td>
 							</tr>
 							<?
 						}
 					}
 
 				// define a default value
-				$strFieldValue = isset($_REQUEST["ACTIVATE"]) && $_REQUEST["ACTIVATE"] == 'Y' ? 'Y' : (isset($str_ACTIVATE) ? $str_ACTIVATE : 'N');
+				$strFieldValue = isset($_REQUEST["ACTIVATE"]) && $_REQUEST["ACTIVATE"] == 'Y' ? 'Y' : ($str_ACTIVATE ?? 'N');
 				if ($ID == 0 && empty($_POST))
 					$strFieldValue = $arCurrentAction['ACTIVATE_DEFAULT'];
 				?>
 
 				<?
 				// define a default value
-				$strFieldValue = isset($_REQUEST["DEACTIVATE"]) && $_REQUEST["DEACTIVATE"] == 'Y' ? 'Y' : (isset($str_DEACTIVATE) ? $str_DEACTIVATE : 'N');
+				$strFieldValue = isset($_REQUEST["DEACTIVATE"]) && $_REQUEST["DEACTIVATE"] == 'Y' ? 'Y' : ($str_DEACTIVATE ?? 'N');
 				if ($ID == 0 && empty($_POST))
 					$strFieldValue = $arCurrentAction['DEACTIVATE_DEFAULT'];
 				?>
@@ -480,7 +477,7 @@ if (!isset($arCurrentCondition['HIDE_ACTION']) || !$arCurrentCondition['HIDE_ACT
 }
 $tabControl->Buttons(array(
 	"disabled"=>false,
-	"back_url"=>($_REQUEST["addurl"]<>""? $_REQUEST["addurl"]:"rating_rule_list.php?lang=".LANG),
+	"back_url" => (!empty($_REQUEST["addurl"]) ? $_REQUEST["addurl"] : "rating_rule_list.php?lang=" . LANG),
 ));
 $tabControl->Show();
 $tabControl->ShowWarnings($tabControl->GetName(), $message);

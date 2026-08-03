@@ -16,6 +16,8 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 }
 
 Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
 	'popup',
 	'ui',
 	'resize_observer',
@@ -28,14 +30,13 @@ Extension::load([
 	'ui.cnt',
 	'ui.label',
 	'ui.layout-form',
-	'ui.design-tokens',
 ]);
 
 global $APPLICATION;
 $bodyClass = $APPLICATION->GetPageProperty("BodyClass");
 $APPLICATION->SetPageProperty("BodyClass", ($bodyClass ? $bodyClass." " : "")."grid-mode");
 
-if ($arParams['FLEXIBLE_LAYOUT'])
+if (isset($arParams['FLEXIBLE_LAYOUT']) && $arParams['FLEXIBLE_LAYOUT'])
 {
 	$bodyClass = $APPLICATION->getPageProperty('BodyClass', false);
 	$APPLICATION->setPageProperty('BodyClass', trim(sprintf('%s %s', $bodyClass, 'flexible-layout')));
@@ -73,7 +74,7 @@ $displayedCount = count(
 		$arParams["ROWS"],
 		function($val)
 		{
-			return $val["not_count"] !== true;
+			return !isset($val["not_count"]) || $val["not_count"] !== true;
 		}
 	)
 );
@@ -132,9 +133,14 @@ if (!$arParams["ALLOW_HORIZONTAL_SCROLL"])
 	$gridClasses[] = 'main-grid-full';
 }
 
-if ($arParams["ALLOW_ROWS_SORT"])
+if ($arParams["HIDE_TOP_BORDER_RADIUS"])
 {
-	$gridClasses[] = 'main-grid-rows-sort-enable';
+	$gridClasses[] = '--hide-top-border-radius';
+}
+
+if ($arParams["HIDE_BOTTOM_BORDER_RADIUS"])
+{
+	$gridClasses[] = '--hide-bottom-border-radius';
 }
 
 $emptyFooter =
@@ -202,9 +208,21 @@ if ($emptyFooter)
 					{
 						$sectionId = $headerSection['id'];
 						$isHiddenSection = empty($headerSection['selected']);
-						?><div <?= $isHiddenSection ? 'hidden' : '' ?> data-ui-grid-filter-section="<?= $sectionId ?>"><?php
-							?><h3 class="main-grid-settings-window-section-title"><?= Text\HtmlFilter::encode($headerSection['name']) ?></h3><?
-							?><div class="main-grid-settings-window-list"><?php
+						?><div <?= $isHiddenSection ? 'hidden' : '' ?> data-ui-grid-filter-section="<?= $sectionId ?>">
+						<h3 class="main-grid-settings-window-section-title">
+							<?= Text\HtmlFilter::encode($headerSection['name']) ?>
+							<?php if (isset($headerSection["hint"])): ?>
+								<script>
+									BX.ready(function() {
+										BX.UI.Hint.init(BX('hint_section_<?= CUtil::JSEscape($headerSection['id']) ?>'));
+									});
+								</script>
+								<span id="hint_section_<?= Text\HtmlFilter::encode($headerSection['id']) ?>" class="main-grid-head-title-tooltip" title="">
+									<span <?= empty($headerSection['hintInteractivity']) ? '' : 'data-hint-interactivity'?> <?= empty($headerSection['hintHtml']) ? '' : 'data-hint-html' ?> data-hint="<?= Text\HtmlFilter::encode($headerSection["hint"]) ?>"></span>
+								</span>
+							<? endif; ?>
+						</h3>
+						<div class="main-grid-settings-window-list"><?php
 								if (!empty($arResult['COLUMNS_ALL_WITH_SECTIONS'][$sectionId]))
 								{
 									foreach ($arResult['COLUMNS_ALL_WITH_SECTIONS'][$sectionId] as $column)
@@ -254,9 +272,8 @@ if ($emptyFooter)
 				endif; ?><?
 				?><div class="main-grid-loader-container"></div><?
 				?><div class="main-grid-container<?=$arParams["ALLOW_STICKED_COLUMNS"] && $arResult["HAS_STICKED_COLUMNS"] ? " main-grid-with-sticked" : ""?>"><?
-					?><table class="main-grid-table" id="<?=$arParams["GRID_ID"]?>_table"><?
-						if (!$arResult['BX_isGridAjax']): ?><?
-							?><thead class="main-grid-header" data-relative="<?=$arParams["GRID_ID"]?>"><?
+					?><table class="main-grid-table" id="<?=$arParams["GRID_ID"]?>_table">
+						<thead class="main-grid-header" data-relative="<?=$arParams["GRID_ID"]?>"><?
 								?><tr class="main-grid-row-head"><?
 									if ($arParams["ALLOW_ROWS_SORT"]) :
 									?><th class="main-grid-cell-head main-grid-cell-static main-grid-cell-drag<?=$arParams["ALLOW_STICKED_COLUMNS"] && $arResult["HAS_STICKED_COLUMNS"] ? " main-grid-sticked-column" : ""?>"><?
@@ -285,7 +302,7 @@ if ($emptyFooter)
 									foreach ($arResult['COLUMNS'] as $id => $header) :
 										?><th class="main-grid-cell-head<?=$header["layout"]["cell"]["class"]?>"<?=$header["layout"]["cell"]["attributes"]?>><?
 											?><div class="main-grid-cell-inner"<?=$header["layout"]["container"]["attributes"]?>><?
-												if ($header["layout"]["hasLeftAlignedCounter"]) :
+												if (isset($header["layout"]["hasLeftAlignedCounter"]) && $header["layout"]["hasLeftAlignedCounter"]) :
 													?><span class="main-grid-cell-counter main-grid-cell-counter-left-aligned"></span><?
 												endif;
 												?><span class="main-grid-cell-head-container"><?
@@ -318,9 +335,8 @@ if ($emptyFooter)
 									endforeach ?><?
 									?><th class="main-grid-cell-head main-grid-cell-static main-grid-special-empty"></th><?
 								?></tr><?
-							?></thead><?
-						endif ?><?
-							?><tbody><?
+							?></thead>
+							<tbody><?
 							if (
 								empty($arParams['ROWS'])
 								|| (count($arParams['ROWS']) === 1 && $arParams['ROWS'][0]['id'] === 'template_0')
@@ -330,14 +346,14 @@ if ($emptyFooter)
 									?><td class="main-grid-cell main-grid-cell-center" colspan="<?=count($arParams['COLUMNS']) + $additionalColumnsCount + $stickedColumnsCount?>"><?
 										?><div class="main-grid-empty-block"><?
 											?><div class="main-grid-empty-inner"><?
-												if (is_array($arParams['STUB'])) :
+												if (isset($arParams['STUB']) && is_array($arParams['STUB'])) :
 													if (isset($arParams['STUB']['title'])) :
 														?><div class="main-grid-empty-block-title"><?=$arParams['STUB']['title']?></div><?
 													endif;
 													if (isset($arParams['STUB']['description'])) :
 														?><div class="main-grid-empty-block-description"><?=$arParams['STUB']['description']?></div><?
 													endif;
-												elseif (is_string($arParams['STUB'])) :
+												elseif (isset($arParams['STUB']) && is_string($arParams['STUB'])) :
 													echo htmlspecialcharsback($arParams['STUB']);
 												else :
 													?><div class="main-grid-empty-image"></div><?
@@ -359,7 +375,7 @@ if ($emptyFooter)
 									$rowClasses = isset($arRow['columnClasses']) && is_array($arRow['columnClasses'])
 										? $arRow['columnClasses'] : array();
 								if (!empty($arRow["custom"])) :
-									$lastCollapseGroup = $arRow["expand"] === false ? $arRow["group_id"] : null;
+									$lastCollapseGroup = isset($arRow["expand"]) && $arRow["expand"] === false ? $arRow["group_id"] : null;
 									?><tr class="main-grid-row main-grid-row-body main-grid-row-custom<?=$arRow["layout"]["row"]["class"]?>"<?=$arRow["layout"]["row"]["attributes"]?>><?
 										?><td colspan="<?=count($arResult["COLUMNS"]) + $additionalColumnsCount?>" class="main-grid-cell main-grid-cell-center"><?
 											if ($arParams["ENABLE_COLLAPSIBLE_ROWS"] && $arRow["has_child"] == true) :
@@ -628,12 +644,12 @@ if ($emptyFooter)
 															}
 															else
 															{
-																echo $arRow["columns"][$header["id"]];
+																echo $arRow["columns"][$header["id"]] ?? '';
 															}
 														}
 														else
 														{
-															echo $arRow["columns"][$header["id"]];
+															echo $arRow["columns"][$header["id"]] ?? '';
 														}
 													?></span><?
 													if ($colLayout["cellActions"]["enabled"]) :
@@ -729,8 +745,8 @@ if ($emptyFooter)
 							endif; ?><?
 						?></td><?
 						?><td class="main-grid-panel-cell main-grid-panel-limit main-grid-cell-right"><?
-							if ($arParams["SHOW_PAGESIZE"] && is_array($arParams["PAGE_SIZES"]) && count($arParams["PAGE_SIZES"]) > 0) :
-									$pageSize = $arResult['OPTIONS']['views'][$arResult['OPTIONS']['current_view']]['page_size'] ?: $arParams["DEFAULT_PAGE_SIZE"]; ?><?
+							if ($arParams["SHOW_PAGESIZE"] && is_array($arParams["PAGE_SIZES"]) && !empty($arParams["PAGE_SIZES"])) :
+									$pageSize = $arResult['OPTIONS']['views'][$arResult['OPTIONS']['current_view']]['page_size'] ?? $arParams["DEFAULT_PAGE_SIZE"]; ?><?
 								?><span class="main-grid-panel-content"><?
 									?><span class="main-grid-panel-content-title"><?=getMessage('interface_grid_page_size') ?></span> <?
 										?><span class="main-dropdown main-grid-popup-control main-grid-panel-select-pagesize" id="<?=$arParams["GRID_ID"]?>_grid_page_size" data-value="<?=$pageSize;?>" data-items="<?=$arResult["PAGE_SIZES_JSON"]?>">
@@ -750,13 +766,22 @@ if ($emptyFooter)
 					?><table class="main-grid-control-panel-table"><?
 						?><tr class="main-grid-control-panel-row"><?
 							foreach ($arParams["ACTION_PANEL"]["GROUPS"] as $groupKey => $group) : ?><?
-								?><td class="main-grid-control-panel-cell<?=$group["CLASS"] ? " ".$group["CLASS"] : "" ?>"><?
+								?><td class="main-grid-control-panel-cell<?= isset($group["CLASS"]) && $group["CLASS"] ? " ".$group["CLASS"] : "" ?>"><?
+									$itemsCounter = 0;
 									foreach ($group["ITEMS"] as $itemKey => $item) : ?><?
+										if (!isset($item["ID"]))
+										{
+											$item["ID"] = "group-{$groupKey}-item-{$itemsCounter}";
+											$itemsCounter++;
+										}
+
+										$item["CLASS"] = $item["CLASS"] ?? '';
+
 										if ($item["TYPE"] === "CHECKBOX") :
-											?><span class="main-grid-panel-control-container<?=$item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
+											?><span class="main-grid-panel-control-container<?= (isset($item["DISABLED"]) && $item["DISABLED"] ? " main-grid-disable" : "")?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
 												if ($item["NAME"] === Grid\Panel\DefaultValue::FOR_ALL_CHECKBOX_NAME) : ?><?
 													?><span class="main-grid-checkbox-container main-grid-control-panel-checkbox-container"><?
-															?><input class="main-grid-panel-checkbox main-grid-checkbox main-grid-panel-control <?=$item["CLASS"]?>" id="<?=Text\HtmlFilter::encode($item["ID"])?><?=$arParams["GRID_ID"]?>" name="<?=Text\HtmlFilter::encode($item["NAME"])?><?=$arParams["GRID_ID"]?>" type="checkbox" value="<?=Text\HtmlFilter::encode($item["VALUE"])?>" title="<?=Text\HtmlFilter::encode($item["TITLE"])?>" data-onchange="<?=Text\HtmlFilter::encode(CUtil::PhpToJSObject($item["ONCHANGE"]))?>"<?=$item["CHECKED"] ? " checked" : ""?>> <?
+															?><input class="main-grid-panel-checkbox main-grid-checkbox main-grid-panel-control <?=$item["CLASS"]?>" id="<?=Text\HtmlFilter::encode($item["ID"])?><?=$arParams["GRID_ID"]?>" name="<?=Text\HtmlFilter::encode($item["NAME"])?><?=$arParams["GRID_ID"]?>" type="checkbox" value="<?=Text\HtmlFilter::encode($item["VALUE"])?>" title="<?=Text\HtmlFilter::encode($item["TITLE"] ?? '')?>" data-onchange="<?=Text\HtmlFilter::encode(CUtil::PhpToJSObject($item["ONCHANGE"]))?>"<?= (isset($item["CHECKED"]) && $item["CHECKED"] ? " checked" : "")?>> <?
 															?> <label class="main-grid-checkbox" for="<?=Text\HtmlFilter::encode($item["ID"])?><?=$arParams["GRID_ID"]?>"></label><?
 													?></span><?
 													?><span class="main-grid-control-panel-content-title"><?
@@ -774,21 +799,21 @@ if ($emptyFooter)
 											?></span><?
 										endif; ?><?
 										if ($item["TYPE"] === "DROPDOWN") :
-											?><span class="main-grid-panel-control-container<?=$item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
+											?><span class="main-grid-panel-control-container<?= isset($item["DISABLED"]) && $item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
 												?><span class="main-dropdown main-grid-panel-control" data-popup-position="fixed" id="<?=Text\HtmlFilter::encode($item["ID"])?>_control" data-name="<?=Text\HtmlFilter::encode($item["NAME"])?>" data-value="<?=Text\HtmlFilter::encode(CUtil::PhpToJSObject($item["ITEMS"][0]["VALUE"]))?>" data-items="<?=Text\HtmlFilter::encode(CUtil::PhpToJSObject($item["ITEMS"]))?>"><?
 													?><span class="main-dropdown-inner"><?=$item["ITEMS"][0]["NAME"]?></span><?
 												?></span><?
 											?></span><?
 										endif; ?><?
 										if ($item["TYPE"] === "CUSTOM") : ?><?
-											?><span class="main-grid-panel-control-container<?=$item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>">
+											?><span class="main-grid-panel-control-container<?= isset($item["DISABLED"]) && $item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>">
 												<div class="main-grid-panel-custom">
 													<?=$item["VALUE"]?>
 												</div>
 											</span><?
 										endif; ?><?
 										if ($item["TYPE"] === "TEXT") : ?><?
-										?><span class="main-grid-panel-control-container<?=$item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
+										?><span class="main-grid-panel-control-container<?= isset($item["DISABLED"]) && $item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
 											if ($item["LABEL"]) : ?><?
 												?><label for="<?=Text\HtmlFilter::encode($item["ID"])?>_control"><?=Text\HtmlFilter::encode($item["LABEL"])?></label><?
 											endif;
@@ -796,8 +821,8 @@ if ($emptyFooter)
 										?></span><?
 										endif; ?><?
 										if ($item["TYPE"] === "BUTTON") : ?><?
-										?><span class="main-grid-panel-control-container<?=$item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
-											?><span class="main-grid-buttons <?=Text\HtmlFilter::encode($item["CLASS"])?>" data-name="<?=Text\HtmlFilter::encode($item["NAME"])?>" data-value="<?=Text\HtmlFilter::encode($item["VALUE"])?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>_control" data-onchange="<?=Text\HtmlFilter::encode(CUtil::PhpToJSObject($item["ONCHANGE"]))?>" title="<?=Text\HtmlFilter::encode($item["TITLE"])?>"><?
+										?><span class="main-grid-panel-control-container<?= isset($item["DISABLED"]) && $item["DISABLED"] ? " main-grid-disable" : "";?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>"><?
+											?><span class="main-grid-buttons <?=Text\HtmlFilter::encode($item["CLASS"])?>" data-name="<?=Text\HtmlFilter::encode($item["NAME"] ?? '')?>" data-value="<?=Text\HtmlFilter::encode($item["VALUE"] ?? '')?>" id="<?=Text\HtmlFilter::encode($item["ID"])?>_control" data-onchange="<?=Text\HtmlFilter::encode(CUtil::PhpToJSObject($item["ONCHANGE"]))?>" title="<?=Text\HtmlFilter::encode($item["TITLE"] ?? '')?>"><?
 												?><?=$item["TEXT"]
 											?></span><?
 										?></span><?
@@ -888,9 +913,9 @@ endif; ?>
 					},
 					pinnedMode: <?=\CUtil::phpToJsObject($arParams['TOP_ACTION_PANEL_PINNED_MODE']) ?>,
 					renderTo: document.querySelector('<?=\CUtil::jsEscape($arParams['TOP_ACTION_PANEL_RENDER_TO']) ?>'),
-					className: '<?=\CUtil::jsEscape($arParams['TOP_ACTION_PANEL_CLASS']) ?>',
+					className: '<?=\CUtil::jsEscape($arParams['TOP_ACTION_PANEL_CLASS'] ?? '') ?>',
 					groupActions: <?=\Bitrix\Main\Web\Json::encode($arParams['ACTION_PANEL']) ?>,
-					maxHeight: <?= (int)$arParams['ACTION_PANEL_OPTIONS']['MAX_HEIGHT']?>
+					maxHeight: <?= (int)($arParams['ACTION_PANEL_OPTIONS']['MAX_HEIGHT'] ?? null)?>
 				});
 				actionPanel.draw();
 			<? endif; ?>
@@ -910,8 +935,7 @@ endif; ?>
 							"ALLOW_HORIZONTAL_SCROLL" => $arParams["ALLOW_HORIZONTAL_SCROLL"],
 							"ALLOW_PIN_HEADER" => $arParams["ALLOW_PIN_HEADER"],
 							"SHOW_ACTION_PANEL" => $arParams["SHOW_ACTION_PANEL"],
-							"PRESERVE_HISTORY" => $arParams["PRESERVE_HISTORY"],
-							"BACKEND_URL" => $arResult["BACKEND_URL"],
+							"PRESERVE_HISTORY" => $arParams["PRESERVE_HISTORY"] ?? '',
 							"ALLOW_CONTEXT_MENU" => $arResult["ALLOW_CONTEXT_MENU"],
 							"COLUMNS_ALL" => $arResult["COLUMNS_ALL"],
 							"DEFAULT_COLUMNS" => $arResult["DEFAULT_COLUMNS"],
@@ -939,7 +963,7 @@ endif; ?>
 							"IS_ADMIN" => $USER->CanDoOperation("edit_other_settings"),
 							"MESSAGES" => $arResult["MESSAGES"],
 							"LAZY_LOAD" => $arResult["LAZY_LOAD"],
-							"ALLOW_VALIDATE" => $arParams["ALLOW_VALIDATE"],
+							"ALLOW_VALIDATE" => $arParams["ALLOW_VALIDATE"] ?? false,
 							"HANDLE_RESPONSE_ERRORS" => $arResult["HANDLE_RESPONSE_ERRORS"],
 							"ALLOW_STICKED_COLUMNS" => $arParams["ALLOW_STICKED_COLUMNS"],
 							"CHECKBOX_COLUMN_ENABLED" => $arParams["SHOW_ROW_CHECKBOXES"],
@@ -958,7 +982,7 @@ endif; ?>
 					<?=CUtil::PhpToJSObject($arResult["PANEL_ACTIONS"])?>,
 					<?=CUtil::PhpToJSObject($arResult["PANEL_TYPES"])?>,
 					<?=CUtil::PhpToJSObject($arResult["EDITOR_TYPES"])?>,
-					<?=CUtil::PhpToJSObject($arResult["MESSAGE_TYPES"])?>
+					<?=CUtil::PhpToJSObject($arResult["MESSAGE_TYPES"] ?? [])?>
 				)
 			);
 		});

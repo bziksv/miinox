@@ -17,6 +17,7 @@ use Bitrix\Sale\BusinessValue;
 use Bitrix\Sale\Internals\PaySystemActionTable;
 use Bitrix\Sale\Internals\PaySystemRestHandlersTable;
 use Bitrix\Sale\Internals\ServiceRestrictionTable;
+use Bitrix\Sale\Internals\BusinessValueTable;
 use Bitrix\Sale\Order;
 use Bitrix\Sale\Payment;
 use Bitrix\Sale\Registry;
@@ -128,12 +129,11 @@ final class Manager
 		if ($oldFields)
 		{
 			$newFields = array_merge($oldFields, $data);
-			
-			$data['PS_CLIENT_TYPE'] = (new Service($newFields))->getClientTypeFromHandler();	
+			$data['PS_CLIENT_TYPE'] = (new Service($newFields))->getClientTypeFromHandler();
 		}
-		
+
 		$updateResult = PaySystemActionTable::update($primary, $data);
-		if ($updateResult->isSuccess())
+		if ($oldFields && $updateResult->isSuccess())
 		{
 			$oldFields = array_intersect_key($oldFields, $data);
 			$eventParams = [
@@ -197,7 +197,7 @@ final class Manager
 				$className = '';
 				if (File::isFileExists($documentRoot.$path.$name.'/handler.php'))
 				{
-					list($className) = self::includeHandler($item['ACTION_FILE']);
+					[$className] = self::includeHandler($item['ACTION_FILE']);
 				}
 
 				if (class_exists($className) && is_callable(array($className, 'isMyResponse')))
@@ -244,24 +244,24 @@ final class Manager
 	 * @param string $registryType
 	 * @return array
 	 */
-	public static function getIdsByPayment($paymentId, $registryType = Registry::REGISTRY_TYPE_ORDER)
+	public static function getIdsByPayment($paymentId, $registryType = Registry::REGISTRY_TYPE_ORDER): array
 	{
 		if (empty($paymentId))
 		{
-			return array(0, 0);
+			return [0, 0];
 		}
 
-		$params = array(
-			'select' => array('ID', 'ORDER_ID')
-		);
+		$params = [
+			'select' => ['ID', 'ORDER_ID'],
+		];
 
 		if (intval($paymentId).'|' == $paymentId.'|')
 		{
-			$params['filter']['ID'] = $paymentId;
+			$params['filter']['=ID'] = $paymentId;
 		}
 		else
 		{
-			$params['filter']['ACCOUNT_NUMBER'] = $paymentId;
+			$params['filter']['=ACCOUNT_NUMBER'] = $paymentId;
 		}
 
 		$registry = Registry::getInstance($registryType);
@@ -269,9 +269,9 @@ final class Manager
 		/** @var Payment $paymentClassName */
 		$paymentClassName = $registry->getPaymentClassName();
 		$result = $paymentClassName::getList($params);
-		$data = $result->fetch() ?: array();
+		$data = $result->fetch() ?: [];
 
-		return array((int)$data['ORDER_ID'], (int)$data['ID']);
+		return [(int)$data['ORDER_ID'], (int)$data['ID']];
 	}
 
 	/**
@@ -551,12 +551,34 @@ final class Manager
 		$event->send();
 		foreach ($event->getResults() as $eventResult)
 		{
-			if($eventResult->getType() !== EventResult::ERROR)
-				$data['CODES'] = array_merge($data['CODES'], $eventResult->getParameters());
+			if ($eventResult->getType() !== EventResult::ERROR)
+			{
+				$codes = $eventResult->getParameters();
+				if ($codes && is_array($codes))
+				{
+					if (!isset($data['CODES']) || !is_array($data['CODES']))
+					{
+						$data['CODES'] = [];
+					}
+
+					$data['CODES'] = array_merge($data['CODES'], $codes);
+				}
+			}
 		}
 
 		if (isset($data['CODES']) && is_array($data['CODES']))
-			uasort($data['CODES'], function ($a, $b) { return ($a['SORT'] < $b['SORT']) ? -1 : 1;});
+		{
+			uasort(
+				$data['CODES'],
+				function ($a, $b)
+				{
+					$sortA = $a['SORT'] ?? 0;
+					$sortB = $b['SORT'] ?? 0;
+
+					return ($sortA < $sortB) ? -1 : 1;
+				}
+			);
+		}
 
 		return $data;
 	}
@@ -615,31 +637,37 @@ final class Manager
 	/**
 	 * @return int
 	 */
-	public static function getInnerPaySystemId()
+	public static function getInnerPaySystemId() : int
 	{
 		$id = 0;
 		$cacheManager = Application::getInstance()->getManagedCache();
 
-		if($cacheManager->read(self::TTL, self::CACHE_ID))
+		if ($cacheManager->read(self::TTL, self::CACHE_ID))
+		{
 			$id = $cacheManager->get(self::CACHE_ID);
+		}
 
 		if ($id <= 0)
 		{
 			$data = PaySystemActionTable::getRow(
-				array(
-					'select' => array('ID'),
-					'filter' => array('ACTION_FILE' => 'inner')
-				)
+				[
+					'select' => ['ID'],
+					'filter' => ['ACTION_FILE' => 'inner']
+				]
 			);
 			if ($data === null)
+			{
 				$id = self::createInnerPaySystem();
+			}
 			else
+			{
 				$id = $data['ID'];
+			}
 
 			$cacheManager->set(self::CACHE_ID, $id);
 		}
 
-		return $id;
+		return (int)$id;
 	}
 
 	/**
@@ -764,7 +792,7 @@ final class Manager
 			'CONNECT_SETTINGS_UAPAY' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_UAPAY'), 'SORT' => 100],
 			'CONNECT_SETTINGS_ADYEN' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_ADYEN'), 'SORT' => 100],
 			'CONNECT_SETTINGS_APPLE_PAY' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_APPLE_PAY'), 'SORT' => 200],
-			'CONNECT_SETTINGS_SKB' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_SKB'), 'SORT' => 100],
+			'CONNECT_SETTINGS_SKB' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_SINARA'), 'SORT' => 100],
 			'CONNECT_SETTINGS_BEPAID' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_BEPAID'), 'SORT' => 100],
 			'CONNECT_SETTINGS_WOOPPAY' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_WOOPPAY'), 'SORT' => 100],
 			'CONNECT_SETTINGS_PLATON' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_PLATON'), 'SORT' => 100],
@@ -791,25 +819,13 @@ final class Manager
 			\CFile::Delete($paySystemInfo['LOGOTIP']);
 		}
 
-		$restrictionList =  Restrictions\Manager::getRestrictionsList($primary);
-		if ($restrictionList)
-		{
-			Restrictions\Manager::getClassesList();
-
-			foreach ($restrictionList as $restriction)
-			{
-				/** @var Restriction $className */
-				$className = $restriction["CLASS_NAME"];
-				if (is_subclass_of($className, '\Bitrix\Sale\Services\Base\Restriction'))
-				{
-					$className::delete($restriction['ID'], $primary);
-				}
-			}
-		}
-
-		BusinessValue::delete(Service::PAY_SYSTEM_PREFIX.$primary);
+		self::deleteRestrictions($primary);
 
 		$service = Manager::getObjectById($primary);
+		if ($service)
+		{
+			self::deleteBusinessValues($service);
+		}
 
 		$deleteResult = PaySystemActionTable::delete($primary);
 		if ($deleteResult->isSuccess())
@@ -825,6 +841,60 @@ final class Manager
 		}
 
 		return $deleteResult;
+	}
+
+	/**
+	 * Deletes restrictions
+	 *
+	 * @param int $paySystemId
+	 * @return void
+	 */
+	private static function deleteRestrictions(int $paySystemId): void
+	{
+		$restrictionList =  Restrictions\Manager::getRestrictionsList($paySystemId);
+		if ($restrictionList)
+		{
+			Restrictions\Manager::getClassesList();
+
+			foreach ($restrictionList as $restriction)
+			{
+				/** @var Restriction $className */
+				$className = $restriction['CLASS_NAME'];
+				if (is_subclass_of($className, Restriction::class))
+				{
+					$className::delete($restriction['ID'], $paySystemId);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Deletes business value with prefix
+	 * Also if there is only 1 paysystem (before delete), deletes all business value including COMMON
+	 *
+	 * @param Service $service
+	 * @return void
+	 */
+	private static function deleteBusinessValues(Service $service): void
+	{
+		BusinessValue::delete(Service::PAY_SYSTEM_PREFIX . $service->getField('ID'));
+
+		$paySystemCount = PaySystemActionTable::getList([
+			'select' => ['ID'],
+			'filter' => [
+				'ACTION_FILE' => $service->getField('ACTION_FILE'),
+			],
+			'count_total' => true,
+		])->getCount();
+		if ($paySystemCount === 1)
+		{
+			$handlerDescription = $service->getHandlerDescription();
+			$handlerDescriptionCodes = array_keys($handlerDescription['CODES'] ?? []);
+			foreach ($handlerDescriptionCodes as $code)
+			{
+				BusinessValueTable::deleteByCodeKey($code);
+			}
+		}
 	}
 
 	/**

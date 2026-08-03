@@ -32,7 +32,7 @@ Vue.component(config.templateFieldResultSum,
 			{
 				event.target.value = 0;
 			}
-			let lastSymbol = event.target.value.substr(-1);
+			const lastSymbol = event.target.value.substr(-1);
 			if (lastSymbol === ',')
 			{
 				event.target.value = event.target.value.replace(',', ".");
@@ -71,6 +71,8 @@ Vue.component(config.templateFieldResultSum,
 					:value="sum"
 					@input="onInputSumHandler"
 					:disabled="!editable"
+					data-name="sum"
+					:data-value="sum"
 			>
 			<div class="catalog-pf-product-input-info"
 				 :class="{ 'catalog-pf-product-input--disabled': !editable }"

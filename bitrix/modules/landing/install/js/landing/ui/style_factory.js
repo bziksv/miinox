@@ -85,7 +85,8 @@
 				postfix: this.postfix,
 				onChange: options.onChange,
 				onReset: options.onReset,
-				help: options.help
+				help: options.help,
+				attrKey: options.attrKey
 			}
 
 			if (options.type === "slider" || options.type === "range-slider")
@@ -144,7 +145,12 @@
 
 			if (options.style === "font-family")
 			{
-				field = new BX.Landing.UI.Field.Font(defaultOptions);
+				field = new BX.Landing.UI.Field.Font(Object.assign(
+					defaultOptions,
+					{
+						styleNode: options.styleNode
+					}
+				));
 			}
 
 			return field;

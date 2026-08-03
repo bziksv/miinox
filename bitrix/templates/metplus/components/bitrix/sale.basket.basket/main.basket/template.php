@@ -112,14 +112,15 @@ if (empty($arResult['ERROR_MESSAGE']))
                 </table>
             </div>
             <textarea class="cart-table_textarea" placeholder="Комментарий к заказу"></textarea>
-            <small>
+            <p><small>
                 Расчеты и размеры товара являются предварительными. После оформления заказа с вами свяжутся наши операторы.
                 * цена за единицу товара будет уточнена оператором
-            </small>
+				</small></p>
+
+			<noindex><small><p>На нашем сайте осуществляется сбор персональных данных и <span style="color: #073e71;"><a target="_blank" href="/upload/politika-ispolzovanija-cookies-metplus-vrn.pdf">cookies</a></span> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая, вы соглашаетесь с использованием cookies и <span style="color: #073e71;"><a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a></span> в соответствии с нашей <span style="color: #073e71;"><a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a></span>.</p></small></noindex>
         </div>
 
         <div class="cart-content_footer" data-entity="basket-total-block"></div>
-
 	</div>
 	<?
 	if (!empty($arResult['CURRENCIES']) && Main\Loader::includeModule('currency'))

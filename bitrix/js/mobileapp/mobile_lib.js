@@ -697,13 +697,29 @@
 			}
 		},
 		PageManager: {
-			loadPageBlank: function (params)
+			loadPageBlank: function (params, skipResolve)
 			{
 				/**
 				 * Notice:
 				 * use "bx24ModernStyle:true" to get new look of navigation bar
 				 */
-				app.loadPageBlank(params);
+				if (typeof BX.MobileTools === 'undefined' || skipResolve)
+				{
+					app.loadPageBlank(params);
+					return;
+				}
+
+				if(params.url) {
+					const { url, ...restParams } = params;
+					const func = BX.MobileTools.resolveOpenFunction(url, restParams);
+
+					if(func)
+					{
+						func();
+					}
+
+				}
+
 			},
 			loadPageUnique: function (params)
 			{

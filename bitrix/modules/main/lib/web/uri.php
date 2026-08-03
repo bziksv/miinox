@@ -1,13 +1,18 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2014 Bitrix
+ * @copyright 2001-2022 Bitrix
  */
+
 namespace Bitrix\Main\Web;
 
-class Uri implements \JsonSerializable
+use Bitrix\Main;
+use Bitrix\Main\Text\Encoding;
+
+class Uri implements \JsonSerializable, \Psr\Http\Message\UriInterface
 {
 	protected $scheme;
 	protected $host;
@@ -23,31 +28,24 @@ class Uri implements \JsonSerializable
 	 */
 	public function __construct($url)
 	{
-		if(mb_strpos($url, "/") === 0)
+		if (strpos($url, '/') === 0)
 		{
 			//we don't support "current scheme" e.g. "//host/path"
-			$url = "/".ltrim($url, "/");
+			$url = '/' . ltrim($url, '/');
 		}
 
 		$parsedUrl = parse_url($url);
 
-		if($parsedUrl !== false)
+		if ($parsedUrl !== false)
 		{
-			$this->scheme = (isset($parsedUrl["scheme"])? mb_strtolower($parsedUrl["scheme"]) : "http");
-			$this->host = (isset($parsedUrl["host"])? $parsedUrl["host"] : "");
-			if(isset($parsedUrl["port"]))
-			{
-				$this->port = $parsedUrl["port"];
-			}
-			else
-			{
-				$this->port = ($this->scheme == "https"? 443 : 80);
-			}
-			$this->user = (isset($parsedUrl["user"])? $parsedUrl["user"] : "");
-			$this->pass = (isset($parsedUrl["pass"])? $parsedUrl["pass"] : "");
-			$this->path = (isset($parsedUrl["path"])? $parsedUrl["path"] : "/");
-			$this->query = (isset($parsedUrl["query"])? $parsedUrl["query"] : "");
-			$this->fragment = (isset($parsedUrl["fragment"])? $parsedUrl["fragment"] : "");
+			$this->scheme = strtolower($parsedUrl['scheme'] ?? '');
+			$this->host = strtolower($parsedUrl['host'] ?? '');
+			$this->port = $parsedUrl['port'] ?? null;
+			$this->user = $parsedUrl['user'] ?? '';
+			$this->pass = $parsedUrl['pass'] ?? '';
+			$this->path = $parsedUrl['path'] ?? '';
+			$this->query = $parsedUrl['query'] ?? '';
+			$this->fragment = $parsedUrl['fragment'] ?? '';
 		}
 	}
 
@@ -65,20 +63,23 @@ class Uri implements \JsonSerializable
 	 */
 	public function getLocator()
 	{
-		$url = "";
-		if($this->host <> '')
-		{
-			$url .= $this->scheme."://".$this->host;
+		$uri = '';
 
-			if(($this->scheme == "http" && $this->port <> 80) || ($this->scheme == "https" && $this->port <> 443))
-			{
-				$url .= ":".$this->port;
-			}
+		$scheme = $this->getScheme();
+		if ($scheme != '')
+		{
+			$uri .= $scheme . ':';
 		}
 
-		$url .= $this->getPathQuery();
+		$authority = $this->getAuthority();
+		if ($authority != '')
+		{
+			$uri .= '//' . $authority;
+		}
 
-		return $url;
+		$uri .= $this->getPathQuery();
+
+		return $uri;
 	}
 
 	/**
@@ -88,18 +89,18 @@ class Uri implements \JsonSerializable
 	public function getUri()
 	{
 		$url = $this->getLocator();
+		$fragment = $this->getFragment();
 
-		if($this->fragment <> '')
+		if ($fragment != '')
 		{
-			$url .= "#".$this->fragment;
+			$url .= '#' . $fragment;
 		}
 
 		return $url;
 	}
 
 	/**
-	 * Returns the fragment.
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getFragment()
 	{
@@ -107,8 +108,7 @@ class Uri implements \JsonSerializable
 	}
 
 	/**
-	 * Returns the host.
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getHost()
 	{
@@ -122,7 +122,7 @@ class Uri implements \JsonSerializable
 	 */
 	public function setHost($host)
 	{
-		$this->host = $host;
+		$this->host = strtolower($host);
 		return $this;
 	}
 
@@ -147,11 +147,11 @@ class Uri implements \JsonSerializable
 	}
 
 	/**
-	 * Returns the path.
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getPath()
 	{
+		// TODO: make it work as described
 		return $this->path;
 	}
 
@@ -172,26 +172,45 @@ class Uri implements \JsonSerializable
 	 */
 	public function getPathQuery()
 	{
-		$pathQuery = $this->path;
-		if($this->query <> "")
+		$pathQuery = $this->getPath();
+
+		if ($pathQuery == '')
 		{
-			$pathQuery .= '?'.$this->query;
+			$pathQuery = '/';
 		}
+
+		$query = $this->getQuery();
+
+		if ($query != '')
+		{
+			$pathQuery .= '?' . $query;
+		}
+
 		return $pathQuery;
 	}
 
 	/**
-	 * Returns the port number.
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getPort()
 	{
-		return $this->port;
+		if ($this->port === null)
+		{
+			switch ($this->getScheme())
+			{
+				case 'https':
+					return 443;
+				case 'http':
+					return 80;
+				default:
+					return null;
+			}
+		}
+		return (int)$this->port;
 	}
 
 	/**
-	 * Returns the query.
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getQuery()
 	{
@@ -256,16 +275,17 @@ class Uri implements \JsonSerializable
 	 */
 	public function deleteParams(array $params, $preserveDots = false)
 	{
-		if($this->query <> '')
+		$query = $this->getQuery();
+		if ($query != '')
 		{
-			if($preserveDots)
+			if ($preserveDots)
 			{
-				$currentParams = static::parseParams($this->query);
+				$currentParams = static::parseParams($query);
 			}
 			else
 			{
-				$currentParams = array();
-				parse_str($this->query, $currentParams);
+				$currentParams = [];
+				parse_str($query, $currentParams);
 			}
 
 			foreach($params as $param)
@@ -273,7 +293,7 @@ class Uri implements \JsonSerializable
 				unset($currentParams[$param]);
 			}
 
-			$this->query = http_build_query($currentParams, "", "&");
+			$this->query = http_build_query($currentParams, '', '&', PHP_QUERY_RFC3986);
 		}
 		return $this;
 	}
@@ -286,26 +306,31 @@ class Uri implements \JsonSerializable
 	 */
 	public function addParams(array $params, $preserveDots = false)
 	{
-		$currentParams = array();
-		if($this->query <> '')
+		$currentParams = [];
+		$query = $this->getQuery();
+
+		if ($query != '')
 		{
-			if($preserveDots)
+			if ($preserveDots)
 			{
-				$currentParams = static::parseParams($this->query);
+				$currentParams = static::parseParams($query);
 			}
 			else
 			{
-				parse_str($this->query, $currentParams);
+				parse_str($query, $currentParams);
 			}
 		}
 
 		$currentParams = array_replace($currentParams, $params);
 
-		$this->query = http_build_query($currentParams, "", "&");
+		$this->query = http_build_query($currentParams, '', '&', PHP_QUERY_RFC3986);
 
 		return $this;
 	}
 
+	/**
+	 * @inheritdoc
+	 */
 	public function __toString()
 	{
 		return $this->getUri();
@@ -332,7 +357,7 @@ class Uri implements \JsonSerializable
 	{
 		$host = \CBXPunycode::ToASCII($this->getHost(), $encodingErrors);
 
-		if(!empty($encodingErrors))
+		if (!empty($encodingErrors))
 		{
 			return new \Bitrix\Main\Error(implode("\n", $encodingErrors));
 		}
@@ -340,5 +365,223 @@ class Uri implements \JsonSerializable
 		$this->setHost($host);
 
 		return $host;
+	}
+
+	/**
+	 * Searches for /../ and ulrencoded /../
+	 */
+	public function isPathTraversal(): bool
+	{
+		return (bool)preg_match("#(?:/|2f|^|\\\\|5c)(?:(?:%0*(25)*2e)|\\.){2,}(?:/|%0*(25)*2f|\\\\|%0*(25)*5c|$)#i", $this->getPath());
+	}
+
+	/**
+	 * Encodes the URI string without parsing it.
+	 * @param $str
+	 * @param $charset
+	 * @return string
+	 */
+	public static function urnEncode($str, $charset = 'UTF-8')
+	{
+		$result = '';
+		$arParts = preg_split("#(://|:\\d+/|/|\\?|=|&)#", $str, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+		if ($charset === false)
+		{
+			foreach ($arParts as $i => $part)
+			{
+				$result .= ($i % 2) ? $part : rawurlencode($part);
+			}
+		}
+		else
+		{
+			$currentCharset = Main\Context::getCurrent()->getCulture()->getCharset();
+			foreach ($arParts as $i => $part)
+			{
+				$result .= ($i % 2)	? $part	: rawurlencode(Encoding::convertEncoding($part, $currentCharset, $charset));
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Decodes the URI string without parsing it.
+	 * @param $str
+	 * @param $charset
+	 * @return string
+	 */
+	public static function urnDecode($str, $charset = false)
+	{
+		$result = '';
+		$arParts = preg_split("#(://|:\\d+/|/|\\?|=|&)#", $str, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+		if ($charset === false)
+		{
+			foreach ($arParts as $i => $part)
+			{
+				$result .= ($i % 2) ? $part : rawurldecode($part);
+			}
+		}
+		else
+		{
+			$currentCharset = Main\Context::getCurrent()->getCulture()->getCharset();
+			foreach ($arParts as $i => $part)
+			{
+				$result .= ($i % 2) ? $part : rawurldecode(Encoding::convertEncoding($part, $charset, $currentCharset));
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Converts a relative uri to the absolute one using given host name or the host from the current context server object.
+	 * @param string | null $host
+	 * @return $this
+	 */
+	public function toAbsolute(string $host = null): Uri
+	{
+		if ($this->host == '')
+		{
+			$request = Main\HttpContext::getCurrent()->getRequest();
+
+			$this->scheme = $request->isHttps() ? 'https' : 'http';
+
+			if ($host !== null)
+			{
+				$this->host = preg_replace('/:(443|80)$/', '', $host);
+			}
+			else
+			{
+				$this->host = $request->getHttpHost();
+			}
+		}
+		return $this;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getAuthority()
+	{
+		$authority = '';
+
+		$userInfo = $this->getUserInfo();
+		if ($userInfo != '')
+		{
+			$authority = $userInfo . '@';
+		}
+
+		$host = $this->getHost();
+		if ($host != '')
+		{
+			$authority .= $host;
+			$port = $this->getPort();
+
+			if ($port !== null)
+			{
+				if (($this->scheme == 'http' && $port != 80) || ($this->scheme == 'https' && $port != 443))
+				{
+					$authority .= ':' . $port;
+				}
+			}
+		}
+
+		return $authority;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getUserInfo()
+	{
+		$user = $this->getUser();
+
+		if ($user != '')
+		{
+			$password = $this->getPass();
+			return $user . ($password != '' ? ':' . $password : '');
+		}
+
+		return '';
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withScheme($scheme)
+	{
+		$new = clone $this;
+		$new->scheme = $scheme;
+
+		return $new;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withUserInfo($user, $password = null)
+	{
+		$new = clone $this;
+		$new
+			->setUser($user)
+			->setPass((string)$password)
+		;
+
+		return $new;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withHost($host)
+	{
+		$new = clone $this;
+		$new->setHost($host);
+
+		return $new;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withPort($port)
+	{
+		$new = clone $this;
+		$new->port = $port;
+
+		return $new;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withPath($path)
+	{
+		$new = clone $this;
+		$new->setPath($path);
+
+		return $new;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withQuery($query)
+	{
+		$new = clone $this;
+		$new->query = $query;
+
+		return $new;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function withFragment($fragment)
+	{
+		$new = clone $this;
+		$new->fragment = $fragment;
+
+		return $new;
 	}
 }

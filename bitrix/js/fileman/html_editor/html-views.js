@@ -1755,7 +1755,7 @@ var focusWithoutScrolling = function(element)
 				{
 					window.scrollTo(originalScrollLeft, originalScrollTop);
 				}
-			}, 10);
+			}, 0);
 		}
 	};
 

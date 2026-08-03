@@ -104,7 +104,6 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/vendor/bootstrap/bootstrap.css',
 			$pathTemplate24 . '/theme.css',
 			$pathTemplate24 . '/assets/css/custom.css',
-			$pathTemplate24 . '/assets/css/themes_custom.css',
 			$pathTemplate24 . '/assets/vendor/animate.css',
 		],
 		'rel' => [
@@ -214,7 +213,6 @@ $jsConfig = [
 		'js' => [
 			$pathTemplate24 . '/assets/vendor/bootstrap/js/dist/util.js',
 			$pathTemplate24 . '/assets/vendor/bootstrap/js/dist/collapse.js',
-			$pathTemplate24 . '/assets/js/helpers/menu/hamburgers.js',
 			$pathTemplate24 . '/assets/js/helpers/menu/scrollspy.js',
 			$pathTemplate24 . '/assets/js/helpers/menu/menu_init.js',
 		],
@@ -321,10 +319,11 @@ $jsConfig = [
 
 	'landing_auto_font_scale' => [
 		'js' => [
-			$pathJS . '/ui/tool/auto-font-scale.js',
-			$pathJS . '/ui/tool/auto-font-scale-entry.js',
 			$pathTemplate24 . '/assets/js/helpers/auto_font_scale_init.js',
 		],
+		'rel' => [
+			'landing.ui.tool.auto_font_scale',
+		]
 	],
 
 	'landing_backlinks' => [

@@ -55,46 +55,10 @@ Asset::getInstance()->addCSS(
 );
 
 // prepare urls
-$arParams['PAGE_URL_LANDING_ADD'] = str_replace('#landing_edit#', 0, $arParams['PAGE_URL_LANDING_EDIT']);
-if ($folderId)
-{
-	$arParams['PAGE_URL_LANDING_ADD'] = new Uri(
-		$arParams['PAGE_URL_LANDING_ADD']
-	);
-	$arParams['PAGE_URL_LANDING_ADD']->addParams(array(
-		$arParams['ACTION_FOLDER'] => $folderId
-	));
-	$arParams['PAGE_URL_LANDING_ADD'] = $arParams['PAGE_URL_LANDING_ADD']->getUri();
-}
+$arParams['PAGE_URL_LANDING_ADD'] = $component->getUrlAdd(false);
+$arParams['PAGE_URL_LANDING_ADD_SIDEPANEL_CONDITION'] = $component->getUrlAddSidepanelCondition(false);
 
 $sliderConditions = [
-	str_replace(
-		array(
-			'#landing_edit#', '?'
-		),
-		array(
-			'(\d+)', '\?'
-		),
-		CUtil::jsEscape($arParams['PAGE_URL_LANDING_EDIT'])
-	),
-	str_replace(
-		array(
-			'#landing_edit#', '?'
-		),
-		array(
-			'(\d+)', '\?'
-		),
-		CUtil::jsEscape($arParams['PAGE_URL_LANDING_ADD'])
-	),
-	str_replace(
-		array(
-			'#landing_edit#', '?'
-		),
-		array(
-			'(\d+)', '\?'
-		),
-		CUtil::jsEscape($arParams['PAGE_URL_LANDING_DESIGN'])
-	),
 	str_replace(
 		array(
 			'#landing_edit#', '?'
@@ -119,6 +83,16 @@ if ($arParams['TILE_MODE'] === 'view')
 	);
 }
 
+$sliderFullConditions = [];
+if ($arParams['TYPE'] === 'PAGE' && $component->isUseNewMarket())
+{
+	$sliderFullConditions[] = $arParams['PAGE_URL_LANDING_ADD_SIDEPANEL_CONDITION'];
+}
+else
+{
+	$sliderConditions[] = $arParams['PAGE_URL_LANDING_ADD_SIDEPANEL_CONDITION'];
+}
+
 $sliderShortConditions = [
 	str_replace(
 		array(
@@ -131,6 +105,7 @@ $sliderShortConditions = [
 	)
 ];
 
+\trimArr($sliderFullConditions, true);
 \trimArr($sliderConditions, true);
 \trimArr($sliderShortConditions, true);
 ?>
@@ -382,8 +357,17 @@ foreach ($arResult['LANDINGS'] as $i => $item):
 					</div>
 				<?php endif;?>
 				<div class="landing-item-cover<?= $item['IS_AREA'] ? ' landing-item-cover-area' : '' ?>"
-					<?if ($item['PREVIEW'] && !$item['IS_AREA']) {?> style="background-image: url(<?=
-					htmlspecialcharsbx($item['PREVIEW'])?>);"<?}?>>
+					<?php if ($item['PREVIEW'] && !$item['IS_AREA']) :?>
+						style="background-image: url(<?= htmlspecialcharsbx($item['PREVIEW']) ?>);"
+						<?php if (
+							$item['PUBLISHED']
+							&& ($item['CLOUD_PREVIEW'] ?? null)
+							&& ($item['CLOUD_PREVIEW'] !== $item['PREVIEW'])
+						) :?>
+							data-cloud-preview="<?= $item['CLOUD_PREVIEW'] ?>"
+						<?php endif; ?>
+					<?php endif; ?>
+				>
 					<?if ($item['IS_HOMEPAGE'] || $item['IS_AREA']):?>
 					<div class="landing-item-area">
 						<div class="landing-item-area-icon<?=' landing-item-area-icon-' . htmlspecialcharsbx($areaCode) ?>"></div>
@@ -450,47 +434,88 @@ foreach ($arResult['LANDINGS'] as $i => $item):
 	</div>
 <?endif;?>
 
-
 <script type="text/javascript">
-	BX.SidePanel.Instance.bindAnchors(
-		top.BX.clone({
-			rules: [
-				{
-					condition: <?= CUtil::phpToJSObject($sliderConditions);?>,
-					stopParameters: [
-						'action',
-						'folderUp',
-						'fields%5Bdelete%5D',
-						'nav'
-					],
-					options: {
-						allowChangeHistory: false,
-						events: {
-							onOpen: function(event)
-							{
-								if (BX.hasClass(BX('landing-create-element'), 'ui-btn-disabled'))
-								{
-									event.denyAction();
+	(() => {
+		const sliderConditions = <?= CUtil::phpToJSObject($sliderConditions);?>;
+		if (sliderConditions.length > 0)
+		{
+			BX.SidePanel.Instance.bindAnchors(
+				top.BX.clone({
+					rules: [
+						{
+							condition: sliderConditions,
+							stopParameters: [
+								'action',
+								'folderUp',
+								'fields%5Bdelete%5D',
+								'nav'
+							],
+							options: {
+								allowChangeHistory: false,
+								events: {
+									onOpen: function(event)
+									{
+										if (BX.hasClass(BX('landing-create-element'), 'ui-btn-disabled'))
+										{
+											event.denyAction();
+										}
+									}
 								}
 							}
-						}
-					}
-				},
-				{
-					condition: <?= CUtil::phpToJSObject($sliderShortConditions);?>,
-					options: {
-						allowChangeHistory: false,
-						cacheable: false,
-						width: 800
-					}
-				}
-			]
-		})
-    );
+						},
+					]
+				})
+			);
+		}
 
-	BX.bind(document.querySelector('.landing-item-add-new span.landing-item-inner'), 'click', function(event) {
+		const sliderFullConditions = <?= CUtil::phpToJSObject($sliderFullConditions);?>;
+		if (sliderFullConditions.length > 0)
+		{
+			BX.SidePanel.Instance.bindAnchors(
+				top.BX.clone({
+					rules: [
+						{
+							condition: sliderFullConditions,
+							options: {
+								allowChangeHistory: false,
+								cacheable: false,
+								customLeftBoundary: 0,
+							}
+						},
+					]
+				})
+			);
+		}
+
+		const sliderShortConditions = <?= CUtil::phpToJSObject($sliderShortConditions);?>;
+		if (sliderShortConditions.length > 0)
+		{
+			BX.SidePanel.Instance.bindAnchors(
+				top.BX.clone({
+					rules: [
+						{
+							condition: sliderShortConditions,
+							options: {
+								allowChangeHistory: false,
+								cacheable: false,
+								width: 800
+							}
+						}
+					]
+				})
+			);
+		}
+	})();
+</script>
+<script type="text/javascript">
+	// + button open page add slider
+	BX.bind(document.querySelector('.landing-item-add-new span.landing-item-inner'), 'click', event => {
 		BX.SidePanel.Instance.open(event.currentTarget.dataset.href, {
-			allowChangeHistory: false
+			allowChangeHistory: false,
+			<?php
+				echo $component->isUseNewMarket() ? 'customLeftBoundary: 0,' : '';
+				echo $component->isUseNewMarket() ? 'cacheable: false,' : '';
+			?>
 		});
 	});
 
@@ -500,30 +525,12 @@ foreach ($arResult['LANDINGS'] as $i => $item):
 
 	BX.ready(function ()
 	{
-		var wrapper = BX('grid-tile-wrap');
-		var title_list = Array.prototype.slice.call(wrapper.getElementsByClassName('landing-item'));
-
-		setTimeout(function()
-		{
-			let previews = document.querySelectorAll('.landing-item-cover');
-
-			if (previews)
-			{
-				[...previews].map(function(node)
-				{
-					let url = node.style.backgroundImage.match(/url\(["']?([^"']*)["']?\)/);
-					if (url)
-					{
-						url = url[1];
-						url += (url.indexOf('?') > 0) ? '&' : '?';
-						node.style.backgroundImage = 'url(' + url + 'refreshed' + (Date.now()/3600000|0) + ')';
-					}
-				});
-			}
-		}, 3000);
+		const wrapper = BX('grid-tile-wrap');
+		const title_list = Array.prototype.slice.call(wrapper.getElementsByClassName('landing-item'));
 
 		tileGrid = new BX.Landing.TileGrid({
 			wrapper: wrapper,
+			siteId: <?= $arParams['SITE_ID'];?>,
 			siteType: '<?= $arParams['TYPE'];?>',
 			inner: BX('grid-tile-inner'),
 			tiles: title_list,
@@ -532,6 +539,36 @@ foreach ($arResult['LANDINGS'] as $i => $item):
 				maxWidth: 330
 			}
 		});
+
+		// init previews
+		const previews = document.querySelectorAll('.landing-item-cover[data-cloud-preview]');
+		previews.forEach(item => lazyLoadCloudPreview(item));
+		function lazyLoadCloudPreview(item)
+		{
+			const cloudPreview = item.dataset.cloudPreview;
+			const previewUrl =
+				cloudPreview
+				+ ((cloudPreview.indexOf('?') > 0) ? '&' : '?')
+				+ 'refreshed' + (Date.now()/86400000|0)
+			;
+			const xhr = new XMLHttpRequest();
+			xhr.open("HEAD", previewUrl);
+			xhr.onload = () => {
+				const expires = xhr.getResponseHeader("expires");
+				if (
+					expires
+					&& (new Date(expires)) <= (new Date())
+				)
+				{
+					setTimeout(lazyLoadCloudPreview, 3000, item);
+				}
+				else
+				{
+					item.style.backgroundImage = 'url(' + previewUrl + ')';
+				}
+			};
+			xhr.send();
+		}
 
 		// disable some buttons for deleted
 		var createFolderEl = BX('landing-create-folder');
@@ -744,7 +781,7 @@ foreach ($arResult['LANDINGS'] as $i => $item):
 				},
 				{
 					text: params.isFolder
-							? '<?= CUtil::jsEscape(Loc::getMessage('LANDING_TPL_ACTION_EDIT_FOLDER')) ?>'
+							? '<?= CUtil::jsEscape(Loc::getMessage('LANDING_TPL_ACTION_EDIT_FOLDER_MSGVER_1')) ?>'
 							: '<?= CUtil::jsEscape(Loc::getMessage('LANDING_TPL_ACTION_EDIT_2')) ?>',
 					href: params.isFolder ? params.editPage : params.settings,
 					disabled: params.isDeleted || params.isSettingsDisabled,
@@ -909,8 +946,39 @@ foreach ($arResult['LANDINGS'] as $i => $item):
 								sitePath = sitePath.replace(replace[0], replace[1]);
 							});
 
+							if (
+								event.data.from !== undefined
+								&& typeof BX.Landing.Metrika !== 'undefined'
+							)
+							{
+								var dataFrom = event.data.from.split('|');
+								var appCode = dataFrom[1];
+								var title = dataFrom[2];
+								var previewId = dataFrom[3];
+								if (
+									appCode !== null
+									&& title !== null
+									&& previewId !== null
+								)
+								{
+									var metrikaValue =
+										sitePath
+										+ '?action=templateCreated&app_code='
+										+ appCode
+										+ '&title='
+										+ title
+										+ '&preview_id='
+										+ previewId;
+									var metrika = new BX.Landing.Metrika(true);
+									metrika.sendLabel(
+										null,
+										'templateCreated',
+										metrikaValue
+									);
+								}
+							}
 							gotoSiteButton.setAttribute('href', sitePath);
-							window.location.href = sitePath;
+							setTimeout(() => {window.location.href = sitePath}, 3000);
 						}
 					}
 				}

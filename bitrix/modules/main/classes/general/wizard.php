@@ -473,7 +473,7 @@ class CWizardBase
 			if (method_exists($oCurrentStep, "OnPostForm"))
 			{
 				$oCurrentStep->OnPostForm();
-				if (count($oCurrentStep->stepErrors)>0)
+				if (!empty($oCurrentStep->stepErrors))
 					$currentStep = $_REQUEST[$this->currentStepHiddenID];
 			}
 		}
@@ -1288,7 +1288,7 @@ STYLES;
 
 		$arErrors = $obStep->GetErrors();
 		$strError = "";
-		if (count($arErrors) > 0)
+		if (!empty($arErrors))
 		{
 			foreach ($arErrors as $arError)
 				$strError .= $arError[0]."<br />";
@@ -1467,7 +1467,7 @@ class CWizardAdminTemplate extends CWizardTemplate
 		$obStep = $wizard->GetCurrentStep();
 		$arErrors = $obStep->GetErrors();
 		$strError = $strJsError = "";
-		if (count($arErrors) > 0)
+		if (!empty($arErrors))
 		{
 			foreach ($arErrors as $arError)
 			{
@@ -1605,20 +1605,6 @@ class CWizardAdminTemplate extends CWizardTemplate
 				outline:none;
 				padding:2px 13px 1px;
 			}
-
-			.bx-ie8 .step-buttons input,
-			.bx-ie9 .step-buttons input {
-				border-radius:4px;
-				background:url("/bitrix/panel/main/images/bx-admin-sprite-small-2.png") repeat-x 0 -3554px;
-				box-shadow:0 0 0 1px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 #FFFFFF inset, 0 0 1px rgba(255, 255, 255, 0.5) inset !important;
-				line-height:16px;
-				height:31px!important;
-				padding-top:6px!important;
-				padding-bottom:6px!important;
-				margin-right: 3px !important;
-			}
-
-			.bx-ie8 .step-buttons input {border:1px solid #959c9d !important;}
 
 			#step_error
 			{

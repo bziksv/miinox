@@ -1,14 +1,14 @@
-import { Tag, Text, Event, Loc, Dom} from 'main.core';
-import { PopupMenuWindow } from 'main.popup';
-import { EventEmitter } from 'main.core.events';
-import { MessageBox } from 'ui.dialogs.messagebox';
+import {Tag, Text, Event, Loc, Dom} from 'main.core';
+import {Menu} from 'main.popup';
+import {EventEmitter} from 'main.core.events';
+import {MessageBox} from 'ui.dialogs.messagebox';
 
 import EditableTitle from './editableTitle';
 import LeaderShip from './leadership';
 import PopupHelper from './popupHelper';
 
-
-export default class Item {
+export default class Item
+{
 	constructor(options)
 	{
 		this.id = options.id;
@@ -21,15 +21,18 @@ export default class Item {
 		this.ordersUrl = options.ordersUrl;
 		this.domainUrl = options.domainUrl;
 		this.contactsUrl = options.contactsUrl;
+		this.indexEditUrl = options.indexEditUrl;
 		this.ordersCount = options.ordersCount;
 		this.phone = options.phone;
 		this.preview = options.preview;
+		this.cloudPreview = options.cloudPreview;
 		this.published = options.published;
 		this.deleted = options.deleted;
 		this.domainStatus = options.domainStatus;
 		this.domainStatusMessage = options.domainStatusMessage;
 		this.menuItems = options.menuItems || [];
 		this.menuBottomItems = options.menuBottomItems || [];
+		this.notPublishedText = options.notPublishedText || null;
 		this.access = options.access || {};
 		this.articles = options.articles || [];
 		this.editableTitle = null;
@@ -62,25 +65,27 @@ export default class Item {
 		this.$containerLinks = null;
 
 		this.bindEvents();
+
+		this.lazyLoadCloudPreview = this.lazyLoadCloudPreview.bind(this);
 	}
 
 	bindEvents()
 	{
-		EventEmitter.subscribe('BX.Landing.SiteTile:showLeadership', (options)=> {
-			if(this === options.data)
+		EventEmitter.subscribe('BX.Landing.SiteTile:showLeadership', options => {
+			if (this === options.data)
 			{
 				this.active();
 				this.setContainerPosition();
 			}
 
-			if(this !== options.data)
+			if (this !== options.data)
 			{
 				this.fade();
 			}
 		});
 
-		EventEmitter.subscribe('BX.Landing.SiteTile:hideLeadership', (options)=> {
-			if(this === options.data)
+		EventEmitter.subscribe('BX.Landing.SiteTile:hideLeadership', options => {
+			if (this === options.data)
 			{
 				this.unActive();
 				this.unSetContainerPosition();
@@ -89,11 +94,11 @@ export default class Item {
 			this.unFade();
 		});
 
-		EventEmitter.subscribe(this.getPopupHelper(), 'BX.Landing.SiteTile.Popup:onShow', ()=> {
+		EventEmitter.subscribe(this.getPopupHelper(), 'BX.Landing.SiteTile.Popup:onShow', () => {
 			this.getContainerWrapper().classList.add('--fade');
 		});
 
-		EventEmitter.subscribe(this.getPopupHelper(), 'BX.Landing.SiteTile.Popup:onHide', ()=> {
+		EventEmitter.subscribe(this.getPopupHelper(), 'BX.Landing.SiteTile.Popup:onHide', () => {
 			this.getContainerWrapper().classList.remove('--fade');
 		});
 	}
@@ -103,14 +108,14 @@ export default class Item {
 		let offsetRight = window.innerWidth - this.getContainer().getBoundingClientRect().right;
 		let leaderShipWidth = this.getLeadership().getContainer().offsetWidth;
 		let previousItem = this.getContainer().previousSibling;
-		if(offsetRight > leaderShipWidth)
+		if (offsetRight > leaderShipWidth)
 		{
 			return;
 		}
 
 		this.getContainer().style.transform = 'translateX(-' + (leaderShipWidth + 40 - offsetRight) + 'px)';
 
-		if(	previousItem && (previousItem.offsetTop === this.getContainer().offsetTop))
+		if (previousItem && (previousItem.offsetTop === this.getContainer().offsetTop))
 		{
 			previousItem.style.transform = 'translateX(-10px)';
 		}
@@ -121,7 +126,7 @@ export default class Item {
 		this.getContainer().style.transform = null;
 
 		let previousItem = this.getContainer().previousSibling;
-		if(	previousItem && (previousItem.offsetTop === this.getContainer().offsetTop))
+		if (previousItem && (previousItem.offsetTop === this.getContainer().offsetTop))
 		{
 			previousItem.style.transform = null;
 		}
@@ -129,19 +134,22 @@ export default class Item {
 
 	updatePublishedStatus(status: boolean)
 	{
-		if(this.published === status)
+		if (this.published === status)
 		{
 			return;
 		}
-
-		this.popupStatus.destroy();
+		if (this.popupStatus)
+		{
+			this.popupStatus.destroy();
+		}
 		this.popupStatus = null;
 
-		if(status)
+		if (status)
 		{
 			this.published = true;
 			this.getContainerSiteStatusRound().className = 'landing-sites__status-round --success';
 			this.getContainerSiteStatusTitle().innerText = Loc.getMessage('LANDING_SITE_TILE_STATUS_PUBLISHED');
+			this.getContainerPreviewImage().classList.remove('--not-published');
 			this.getContainerPreviewStatus().classList.add('--hide');
 			return;
 		}
@@ -149,12 +157,13 @@ export default class Item {
 		this.published = false;
 		this.getContainerSiteStatusRound().className = 'landing-sites__status-round --alert';
 		this.getContainerSiteStatusTitle().innerText = Loc.getMessage('LANDING_SITE_TILE_STATUS_NOT_PUBLISHED');
+		this.getContainerPreviewImage().classList.add('--not-published');
 		this.getContainerPreviewStatus().classList.remove('--hide');
 	}
 
 	updateTitle(param: string)
 	{
-		if(param)
+		if (param)
 		{
 			this.title = param;
 		}
@@ -162,7 +171,7 @@ export default class Item {
 
 	updateUrl(param: string)
 	{
-		if(param)
+		if (param)
 		{
 			this.url = param;
 		}
@@ -170,7 +179,7 @@ export default class Item {
 
 	getContainerTitle()
 	{
-		if(!this.$containerTitle)
+		if (!this.$containerTitle)
 		{
 			this.$containerTitle = Tag.render`
 				<div class="landing-sites__title">
@@ -209,8 +218,8 @@ export default class Item {
 								minWidth: 260,
 								maxWidth: 300,
 								width: false,
-								animation: 'fading-slide'
-							}
+								animation: 'fading-slide',
+							},
 						});
 						messageBox.show();
 					}
@@ -219,8 +228,8 @@ export default class Item {
 						EventEmitter.emit('BX.Landing.SiteTile:restore', this);
 						this.getPopupConfig().close();
 					}
-				}
-			}
+				},
+			},
 		];
 
 		let spliceStart = 0;
@@ -256,9 +265,9 @@ export default class Item {
 
 	getPopupConfig()
 	{
-		if(!this.popupConfig)
+		if (!this.popupConfig)
 		{
-			this.popupConfig = new PopupMenuWindow({
+			this.popupConfig = new Menu({
 				className: 'landing-sites__status-popup',
 				bindElement: this.getContainerSiteMore(),
 				offsetLeft: -61,
@@ -275,20 +284,20 @@ export default class Item {
 					},
 					onPopupShow: () => {
 						this.getContainerSiteMore().classList.add('--hover');
-					}
+					},
 				},
-				animation: 'fading-slide'
+				animation: 'fading-slide',
 			});
 		}
 
 		return this.popupConfig;
 	}
 
-	getPopupStatus()
+	getPopupStatus(): Menu
 	{
-		if(!this.popupStatus)
+		if (!this.popupStatus)
 		{
-			this.popupStatus = new PopupMenuWindow({
+			this.popupStatus = new Menu({
 				className: 'landing-sites__status-popup',
 				bindElement: this.getContainerSiteStatus(),
 				minWidth: 220,
@@ -302,13 +311,13 @@ export default class Item {
 						text: this.published
 							? Loc.getMessage('LANDING_SITE_TILE_UNPUBLISH')
 							: Loc.getMessage('LANDING_SITE_TILE_PUBLISH'),
-						onclick: ()=> {
+						onclick: () => {
 							this.popupStatus.close();
 							this.published
 								? EventEmitter.emit('BX.Landing.SiteTile:unPublish', this)
 								: EventEmitter.emit('BX.Landing.SiteTile:publish', this);
-						}
-					}
+						},
+					},
 				],
 				events: {
 					onPopupClose: () => {
@@ -316,9 +325,9 @@ export default class Item {
 					},
 					onPopupShow: () => {
 						this.getContainerSiteStatus().classList.add('--hover');
-					}
+					},
 				},
-				animation: 'fading-slide'
+				animation: 'fading-slide',
 			});
 		}
 
@@ -327,7 +336,7 @@ export default class Item {
 
 	getContainerSiteStatus()
 	{
-		if(!this.$containerSiteStatus)
+		if (!this.$containerSiteStatus)
 		{
 			this.$containerSiteStatus = Tag.render`
 				<div class="${this.access.publication ? 'landing-sites__status' : 'landing-sites__status_disabled'}">
@@ -339,10 +348,11 @@ export default class Item {
 
 			if (this.access.publication)
 			{
-				Event.bind(this.$containerSiteStatus, 'click', (ev)=> {
-					this.getPopupStatus().layout.menuContainer.style.left = this.$containerSiteStatus.getBoundingClientRect().left + 'px';
+				Event.bind(this.$containerSiteStatus, 'click', ev => {
+					this.getPopupStatus().layout.menuContainer.style.left =
+						this.$containerSiteStatus.getBoundingClientRect().left + 'px';
 					this.getPopupStatus().show();
-					ev.stopPropagation()
+					ev.stopPropagation();
 				});
 			}
 		}
@@ -352,13 +362,13 @@ export default class Item {
 
 	getContainerSiteMore()
 	{
-		if(!this.$containerSiteMore)
+		if (!this.$containerSiteMore)
 		{
 			this.$containerSiteMore = Tag.render`<div class="landing-sites__more"></div>`;
 
-			Event.bind(this.$containerSiteMore, 'click', (ev)=> {
+			Event.bind(this.$containerSiteMore, 'click', ev => {
 				this.getPopupConfig().show();
-				ev.stopPropagation()
+				ev.stopPropagation();
 			});
 		}
 
@@ -367,7 +377,7 @@ export default class Item {
 
 	getContainerSiteStatusRound()
 	{
-		if(!this.$containerSiteStatusRound)
+		if (!this.$containerSiteStatusRound)
 		{
 			let status = this.published
 				? '--success'
@@ -381,13 +391,13 @@ export default class Item {
 
 	getContainerSiteStatusTitle()
 	{
-		if(!this.$containerSiteStatusTitle)
+		if (!this.$containerSiteStatusTitle)
 		{
 			let title = this.published
 				? Loc.getMessage('LANDING_SITE_TILE_STATUS_PUBLISHED')
 				: Loc.getMessage('LANDING_SITE_TILE_STATUS_NOT_PUBLISHED');
 
-			this.$containerSiteStatusTitle = Tag.render`<div class="landing-sites__status-title">${title}</div>`
+			this.$containerSiteStatusTitle = Tag.render`<div class="landing-sites__status-title">${title}</div>`;
 		}
 
 		return this.$containerSiteStatusTitle;
@@ -411,15 +421,15 @@ export default class Item {
 
 	getEditableTitle()
 	{
-		if(!this.editableTitle)
+		if (!this.editableTitle)
 		{
 			this.editableTitle = new EditableTitle({
 				phone: this.phone,
 				type: 'title',
 				item: this,
 				url: this.contactsUrl,
-				disabled: !this.access.settings
-			})
+				disabled: !this.access.settings,
+			});
 		}
 
 		return this.editableTitle;
@@ -427,7 +437,7 @@ export default class Item {
 
 	getContainerInfo()
 	{
-		if(!this.$containerInfo)
+		if (!this.$containerInfo)
 		{
 			this.$containerInfo = Tag.render`
 				<div class="landing-sites__container --white-bg">
@@ -463,7 +473,7 @@ export default class Item {
 
 	getContainerDomainStatus()
 	{
-		if(!this.$containerDomainStatus)
+		if (!this.$containerDomainStatus)
 		{
 			this.$containerDomainStatus = Tag.render`
 				<div class="landing-sites__container-status --${this.domainStatus}"></div>
@@ -475,14 +485,14 @@ export default class Item {
 
 	getEditableUrl()
 	{
-		if(!this.editableUrl)
+		if (!this.editableUrl)
 		{
 			this.editableUrl = new EditableTitle({
 				title: this.url,
 				type: 'url',
 				item: this,
 				url: this.domainUrl,
-				disabled: !this.access.settings
+				disabled: !this.access.settings,
 			});
 		}
 
@@ -491,7 +501,7 @@ export default class Item {
 
 	getContainerDomainStatusIcon()
 	{
-		if(!this.$containerDomainStatusIcon)
+		if (!this.$containerDomainStatusIcon)
 		{
 			this.$containerDomainStatusIcon = Tag.render`
 				<div class="landing-sites__status-icon --${this.domainStatus}"></div>
@@ -503,7 +513,7 @@ export default class Item {
 
 	getContainerDomainStatusTitle()
 	{
-		if(!this.$containerDomainStatusTitle)
+		if (!this.$containerDomainStatusTitle)
 		{
 			let title = Loc.getMessage('LANDING_SITE_TILE_OPEN');
 
@@ -526,7 +536,7 @@ export default class Item {
 
 	getContainerDomainStatusMessage()
 	{
-		if(!this.$containerDomainStatusMessage)
+		if (!this.$containerDomainStatusMessage)
 		{
 			!this.domainStatusMessage ? this.domainStatusMessage = '' : null;
 			this.$containerDomainStatusMessage = Tag.render`
@@ -539,7 +549,7 @@ export default class Item {
 
 	getContainerDomainLink()
 	{
-		if(!this.$containerDomainLink)
+		if (!this.$containerDomainLink)
 		{
 			this.$containerDomainLink = Tag.render`
 				<div class="landing-sites__status landing-sites__status-${this.id}">
@@ -548,8 +558,8 @@ export default class Item {
 				</div>
 			`;
 
-			Event.bind(this.$containerDomainLink, 'click', ()=> {
-				this.getPopupHelper().show('link');
+			Event.bind(this.$containerDomainLink, 'click', () => {
+				this.getPopupHelper().show(this.published ? 'link' : 'notPublished');
 			});
 		}
 
@@ -558,7 +568,7 @@ export default class Item {
 
 	getContainerDomain()
 	{
-		if(!this.$containerDomain)
+		if (!this.$containerDomain)
 		{
 			this.$containerDomain = Tag.render`
 				<div class="landing-sites__container --white-bg --white-bg--alpha --domain">
@@ -579,23 +589,50 @@ export default class Item {
 
 	getContainerPreviewImage()
 	{
-		if(!this.$containerPreviewImage)
+		if (!this.$containerPreviewImage)
 		{
 			this.$containerPreviewImage = Tag.render`<div class="landing-sites__preview-image ${this.published ? '' : '--not-published'}"></div>`;
 
-			if(this.preview)
+			this.$containerPreviewImage.style.backgroundImage = 'url(' + this.preview + ')';
+			this.$containerPreviewImage.style.backgroundSize = 'cover';
+			if (this.published && this.cloudPreview && (this.cloudPreview !== this.preview))
 			{
-				this.$containerPreviewImage.style.backgroundImage = 'url(' + this.preview + ')';
-				this.$containerPreviewImage.style.backgroundSize = 'cover';
+				this.lazyLoadCloudPreview();
 			}
 		}
 
 		return this.$containerPreviewImage;
 	}
 
+	lazyLoadCloudPreview()
+	{
+		const previewUrl =
+			this.cloudPreview
+			+ ((this.cloudPreview.indexOf('?') > 0) ? '&' : '?')
+			+ 'refreshed' + (Date.now()/86400000|0)
+		;
+		const xhr = new XMLHttpRequest();
+		xhr.open("HEAD", previewUrl);
+		xhr.onload = () => {
+			const expires = xhr.getResponseHeader("expires");
+			if (
+				expires
+				&& (new Date(expires)) <= (new Date())
+			)
+			{
+				setTimeout(this.lazyLoadCloudPreview, 3000);
+			}
+			else
+			{
+				this.$containerPreviewImage.style.backgroundImage = 'url(' + previewUrl + ')';
+			}
+		};
+		xhr.send();
+	}
+
 	getContainerPreviewStatus()
 	{
-		if(!this.$containerPreviewStatus)
+		if (!this.$containerPreviewStatus)
 		{
 			this.$containerPreviewStatus = Tag.render`
 				<div class="landing-sites__preview-status --not-published ${this.published ? '--hide' : ''}">
@@ -608,11 +645,11 @@ export default class Item {
 				</div>
 			`;
 
-			Event.bind(this.$containerPreviewStatus, 'mouseenter', ()=> {
+			Event.bind(this.$containerPreviewStatus, 'mouseenter', () => {
 				this.$containerPreviewStatus.style.width = this.$containerPreviewStatus.firstElementChild.offsetWidth + 'px';
 			});
 
-			Event.bind(this.$containerPreviewStatus, 'mouseleave', ()=> {
+			Event.bind(this.$containerPreviewStatus, 'mouseleave', () => {
 				this.$containerPreviewStatus.style.width = null;
 			});
 		}
@@ -622,7 +659,7 @@ export default class Item {
 
 	getContainerPreviewShowPages()
 	{
-		if(!this.$containerPreviewShowPages)
+		if (!this.$containerPreviewShowPages)
 		{
 			this.$containerPreviewShowPages = Tag.render`
 				<div class="landing-sites__preview-show">
@@ -636,7 +673,7 @@ export default class Item {
 
 	getContainerPreviewInstruction()
 	{
-		if(!this.$containerPreviewInstruction)
+		if (!this.$containerPreviewInstruction)
 		{
 			this.$containerPreviewInstruction = Tag.render`
 				<div class="landing-sites__preview-leadership">
@@ -646,7 +683,7 @@ export default class Item {
 				</div>
 			`;
 
-			Event.bind(this.$containerPreviewInstruction, 'click', ()=> {
+			Event.bind(this.$containerPreviewInstruction, 'click', () => {
 				this.getLeadership().show();
 			});
 		}
@@ -656,7 +693,7 @@ export default class Item {
 
 	getContainerLinks()
 	{
-		if(!this.$containerLinks)
+		if (!this.$containerLinks)
 		{
 			this.$containerLinks = Tag.render`<div class="landing-sites__container --without-bg --auto-height --flex"></div>`;
 
@@ -677,7 +714,7 @@ export default class Item {
 			</a>
 		`;
 
-		Event.bind(container, 'click', (event) => {
+		Event.bind(container, 'click', event => {
 			EventEmitter.emit('BX.Landing.SiteTile:onBottomMenuClick', [type, event, this]);
 		});
 
@@ -686,12 +723,12 @@ export default class Item {
 
 	getLeadership()
 	{
-		if(!this.leadership)
+		if (!this.leadership)
 		{
 			this.leadership = new LeaderShip({
 				id: this.id,
 				item: this,
-				articles: this.articles
+				articles: this.articles,
 			});
 		}
 		return this.leadership;
@@ -710,11 +747,11 @@ export default class Item {
 	lock()
 	{
 		this.getContainer().classList.add('--lock');
-		if(!this.loader)
+		if (!this.loader)
 		{
 			this.loader = new BX.Loader({
 				target: this.getContainer(),
-				size: 100
+				size: 100,
 			});
 		}
 
@@ -724,7 +761,7 @@ export default class Item {
 	unLock()
 	{
 		this.getContainer().classList.remove('--lock');
-		if(this.loader)
+		if (this.loader)
 		{
 			this.loader.hide();
 		}
@@ -750,16 +787,19 @@ export default class Item {
 		this.getContainer().classList.remove('--active');
 	}
 
-	getPopupHelper()
+	getPopupHelper(): PopupHelper
 	{
-		if(!this.popupHelper)
+		if (!this.popupHelper)
 		{
 			this.popupHelper = new PopupHelper({
 				id: this.id,
 				url: this.url,
+				itemObj: this,
 				fullUrl: this.fullUrl,
-				ordersUrl: this.ordersUrl
-			})
+				ordersUrl: this.ordersUrl,
+				indexEditUrl: this.indexEditUrl,
+				notPublishedText: this.notPublishedText,
+			});
 		}
 
 		return this.popupHelper;
@@ -767,7 +807,7 @@ export default class Item {
 
 	getContainerWrapper()
 	{
-		if(!this.$containerWrapper)
+		if (!this.$containerWrapper)
 		{
 			this.$containerWrapper = Tag.render`
 				<div class="landing-sites__item-container">
@@ -789,7 +829,7 @@ export default class Item {
 
 	getContainer()
 	{
-		if(!this.$container)
+		if (!this.$container)
 		{
 			this.$container = Tag.render`
 				<div class="landing-sites__grid-item ${this.deleted ? '--deleted' : ''}">

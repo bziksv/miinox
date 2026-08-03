@@ -1,5 +1,5 @@
 this.BX = this.BX || {};
-(function (exports,main_core) {
+(function (exports,ui_fonts_opensans,main_core) {
 	'use strict';
 
 	/**
@@ -517,6 +517,8 @@ this.BX = this.BX || {};
 	UI.Progressround = ProgressRound;
 
 	exports.ProgressRound = ProgressRound;
+	exports.ProgressRoundColor = ProgressRoundColor;
+	exports.ProgressRoundStatus = ProgressRoundStatus;
 
-}((this.BX.UI = this.BX.UI || {}),BX));
+}((this.BX.UI = this.BX.UI || {}),BX,BX));
 //# sourceMappingURL=progressround.bundle.js.map

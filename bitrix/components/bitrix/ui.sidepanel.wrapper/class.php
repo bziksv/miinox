@@ -92,6 +92,7 @@ class UIPageSliderWrapperComponent extends \CBitrixComponent
 		$this->arParams['USE_LINK_TARGETS_REPLACING'] = isset($this->arParams['USE_LINK_TARGETS_REPLACING']) && $this->arParams['USE_LINK_TARGETS_REPLACING'];
 		$this->arParams['PLAIN_VIEW'] = isset($this->arParams['PLAIN_VIEW']) && $this->arParams['PLAIN_VIEW'];
 		$this->arParams['USE_PADDING'] = !isset($this->arParams['USE_PADDING']) || $this->arParams['USE_PADDING'];
+		$this->arParams['USE_UI_TOOLBAR_MARGIN'] = !isset($this->arParams['USE_UI_TOOLBAR_MARGIN']) || $this->arParams['USE_UI_TOOLBAR_MARGIN'];
 		$this->arParams['USE_BACKGROUND_CONTENT'] = !isset($this->arParams['USE_BACKGROUND_CONTENT']) || $this->arParams['USE_BACKGROUND_CONTENT'];
 		$this->arParams['BUTTONS'] = $this->arParams['BUTTONS'] ?? [];
 		$this->arParams['PAGE_MODE'] = !isset($this->arParams['PAGE_MODE']) || $this->arParams['PAGE_MODE'];
@@ -229,11 +230,11 @@ class UIPageSliderWrapperComponent extends \CBitrixComponent
 		}
 		else
 		{
-			$this->arResult['SLIDER_COMPONENT_NAME_LIST'][] = $this->arParams['POPUP_COMPONENT_NAME'];
-			$this->arResult['SLIDER_COMPONENT_TEMPLATE_LIST'][] = $this->arParams['POPUP_COMPONENT_TEMPLATE_NAME'];
+			$this->arResult['SLIDER_COMPONENT_NAME_LIST'][] = $this->arParams['POPUP_COMPONENT_NAME'] ?? '';
+			$this->arResult['SLIDER_COMPONENT_TEMPLATE_LIST'][] = $this->arParams['POPUP_COMPONENT_TEMPLATE_NAME'] ?? '';
 
 			$this->arParams['POPUP_COMPONENT_PARAMS']['IFRAME'] = true;
-			$this->arResult['SLIDER_COMPONENT_PARAMS_LIST'][] = $this->arParams['POPUP_COMPONENT_PARAMS'];
+			$this->arResult['SLIDER_COMPONENT_PARAMS_LIST'][] = $this->arParams['POPUP_COMPONENT_PARAMS'] ?? [];
 		}
 	}
 }

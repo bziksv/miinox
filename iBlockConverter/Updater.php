@@ -110,6 +110,10 @@ class Updater {
 
         while($element = $result->Fetch()) {
             echo "Dropping Аcceptor with id {$element['ID']}\n";
+
+			$ipropValues = new \Bitrix\Iblock\InheritedProperty\ElementValues($element["IBLOCK_ID"], $element["ID"]);
+			$ipropValues->clearValues();
+
             CIBlockElement::Delete($element['ID']);
         }
 

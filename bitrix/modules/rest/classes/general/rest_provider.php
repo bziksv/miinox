@@ -28,6 +28,8 @@ class CRestProvider
 		"project" => "project",
 		"corporation" => "corporation",
 		"company" => "company",
+		"company2" => "company2",
+		"company3" => "company3",
 		"team" => "team",
 		"demo" => "demo",
 		"nfr" => "nfr",
@@ -35,9 +37,23 @@ class CRestProvider
 		"crm" => "crm",
 		"tasks" => "tasks",
 		"basic" => "basic",
+		"start" => "start",
 		"std" => "std",
 		"pro" => "pro",
 		"ent" => "ent",
+		"pro100" => "pro100",
+		"ent250" => "ent250",
+		"ent500" => "ent500",
+		"ent1000" => "ent1000",
+		"ent2000" => "ent2000",
+		"ent3000" => "ent3000",
+		"ent4000" => "ent4000",
+		"ent5000" => "ent5000",
+		"ent6000" => "ent6000",
+		"ent7000" => "ent7000",
+		"ent8000" => "ent8000",
+		"ent9000" => "ent9000",
+		"ent10000" => "ent10000",
 	);
 
 	protected static $arApp = null;
@@ -103,6 +119,17 @@ class CRestProvider
 								"category" => \Bitrix\Rest\Sqs::CATEGORY_IMPORTANT,
 							)
 						),
+						'OnSubscriptionRenew' => [
+							'rest',
+							'onAfterSubscriptionRenew',
+							[
+								__CLASS__,
+								'onSubscriptionRenew',
+							],
+							[
+								'sendRefreshToken' => true,
+							],
+						],
 						'OnAppTest' => array(
 							'rest',
 							'OnRestAppTest',
@@ -236,7 +263,7 @@ class CRestProvider
 	{
 		$arQuery = array_change_key_case($arQuery, CASE_UPPER);
 
-		$bHalt = (bool)$arQuery['HALT'];
+		$bHalt = (isset($arQuery['HALT'])) ? ((bool) $arQuery['HALT']) : false;
 
 		$arResult = array(
 			'result' => array(),
@@ -254,6 +281,10 @@ class CRestProvider
 			{
 				if(($cnt++) < \CRestUtil::BATCH_MAX_LENGTH)
 				{
+					if (!is_string($call))
+					{
+						continue;
+					}
 					$queryData = parse_url($call);
 
 					$method = $queryData['path'];
@@ -275,19 +306,33 @@ class CRestProvider
 							}
 						}
 
-						$pseudoServer = new \CRestServerBatchItem(array(
-							'CLASS' => __CLASS__,
-							'METHOD' => $method,
-							'QUERY' => $arParams
-						));
-						$pseudoServer->setApplicationId($server->getClientId());
-						$pseudoServer->setAuthKeys(array_keys($authData));
-						$pseudoServer->setAuthData($server->getAuthData());
-						$pseudoServer->setAuthType($server->getAuthType());
+						$methods = [ToLower($method), $method];
 
-						$res = $pseudoServer->process();
+						// try lowercase first, then original
+						foreach ($methods as $restMethod)
+						{
+							$pseudoServer = new \CRestServerBatchItem([
+								'CLASS' => __CLASS__,
+								'METHOD' => $restMethod,
+								'QUERY' => $arParams
+							], false);
+							$pseudoServer->setApplicationId($server->getClientId());
+							$pseudoServer->setAuthKeys(array_keys($authData));
+							$pseudoServer->setAuthData($server->getAuthData());
+							$pseudoServer->setAuthType($server->getAuthType());
+							$res = $pseudoServer->process();
 
-						unset($pseudoServer);
+							unset($pseudoServer);
+
+							// try original controller name if lower is not found
+							if (is_array($res) && !empty($res['error']) && $res['error'] === 'ERROR_METHOD_NOT_FOUND')
+							{
+								continue;
+							}
+
+							// output result
+							break;
+						}
 					}
 				}
 				else
@@ -309,7 +354,7 @@ class CRestProvider
 					}
 				}
 
-				if($res['error'] && $bHalt)
+				if(isset($res['error']) && $res['error'] && $bHalt)
 				{
 					break;
 				}

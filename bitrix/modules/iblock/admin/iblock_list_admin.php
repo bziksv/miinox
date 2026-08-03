@@ -4,17 +4,20 @@
 /** @global CUser $USER */
 
 use Bitrix\Catalog;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Component\ImageInput;
+use Bitrix\Catalog\Product\SystemField\ProductMapping;
 use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Crm\Order\Import\Instagram;
 use Bitrix\Crm;
 use Bitrix\Currency;
 use Bitrix\Iblock;
 use Bitrix\Iblock\Grid\ActionType;
+use Bitrix\Iblock\PropertyTable;
 use Bitrix\Main;
 use Bitrix\Main\Loader;
 use Bitrix\Main\UI\Extension;
-use Bitrix\Main\Web\Json;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 Loader::includeModule("iblock");
@@ -106,15 +109,33 @@ if ($urlBuilder === null)
 	die();
 }
 $urlBuilderId = $urlBuilder->getId();
+//TODO: hack fo compensation BX.adminSidePanel.prototype.checkActionByUrl where remove IFRAME=Y&IFRAME_TYPE=SIDE_SLIDER from url
+if ($urlBuilderId === 'INVENTORY')
+{
+	$urlBuilder->setSliderMode(true);
+}
+// end hack
 $urlBuilder->setIblockId($IBLOCK_ID);
-
 $urlBuilder->setUrlParams([]);
+
+// TODO: remove after realization of the new grid of products.
+if ($publicMode)
+{
+	/**
+	 * @var CMain $APPLICATION
+	 */
+
+	$bodyClass = $APPLICATION->GetPageProperty('BodyClass', '');
+	$APPLICATION->SetPageProperty('BodyClass', str_replace('no-background', '', $bodyClass));
+}
 
 $pageConfig = array(
 	'IBLOCK_EDIT' => false,
 	'CHECK_NEW_CARD' => false,
 	'USE_NEW_CARD' => false,
 	'CATALOG' => false,
+	'PUBLIC_CRM_CATALOG' => false,
+	'PUBLIC_MODE' => false,
 
 	'LIST_ID_PREFIX' => '',
 	'LIST_ID' => $type.'.'.$IBLOCK_ID,
@@ -135,11 +156,16 @@ switch ($urlBuilderId)
 		$pageConfig['LIST_ID_PREFIX'] = 'tbl_product_list_';
 		$pageConfig['CHECK_NEW_CARD'] = true;
 		$pageConfig['SHOW_NAVCHAIN'] = false;
-		$pageConfig['CONTEXT_PATH'] = '/shop/settings/cat_product_list.php'; // TODO: temporary hack
+		$pageConfig['CONTEXT_PATH'] = '/shop/settings/cat_product_list.php?' . $urlBuilder->getUrlBuilderIdParam(); // TODO: temporary hack
 		$pageConfig['CATALOG'] = true;
 		$pageConfig['ALLOW_EXTERNAL_LINK'] = false;
 		$pageConfig['ALLOW_USER_EDIT'] = false;
 		$pageConfig['DEFAULT_ACTION_TYPE'] = CAdminUiListRow::LINK_TYPE_SLIDER;
+		if (Loader::includeModule('crm'))
+		{
+			$pageConfig['PUBLIC_CRM_CATALOG'] = \Bitrix\Crm\Product\Catalog::getDefaultId() === $IBLOCK_ID;
+		}
+		$pageConfig['PUBLIC_MODE'] = true;
 		break;
 	case 'CATALOG':
 		$pageConfig['LIST_ID_PREFIX'] = 'tbl_product_list_';
@@ -173,9 +199,9 @@ $canViewUser = (
 );
 
 if(!$arIBlock["SECTIONS_NAME"])
-	$arIBlock["SECTIONS_NAME"] = $arIBTYPE["SECTION_NAME"]? $arIBTYPE["SECTION_NAME"]: GetMessage("IBLIST_A_SECTIONS");
+	$arIBlock["SECTIONS_NAME"] = $arIBTYPE["SECTION_NAME"]?: GetMessage("IBLIST_A_SECTIONS");
 if(!$arIBlock["ELEMENTS_NAME"])
-	$arIBlock["ELEMENTS_NAME"] = $arIBTYPE["ELEMENT_NAME"]? $arIBTYPE["ELEMENT_NAME"]: GetMessage("IBLIST_A_ELEMENTS");
+	$arIBlock["ELEMENTS_NAME"] = $arIBTYPE["ELEMENT_NAME"]?: GetMessage("IBLIST_A_ELEMENTS");
 
 $arIBlock["SITE_ID"] = array();
 $rsSites = CIBlock::GetSite($IBLOCK_ID);
@@ -229,7 +255,6 @@ $bCatalog = Loader::includeModule("catalog");
 $arCatalog = false;
 $boolSKU = false;
 $boolSKUFiltrable = false;
-$strSKUName = '';
 $uniq_id = 0;
 $useStoreControl = false;
 $strSaveWithoutPrice = '';
@@ -238,7 +263,12 @@ $boolCatalogPrice = false;
 $boolCatalogPurchasInfo = false;
 $catalogPurchasInfoEdit = false;
 $boolCatalogSet = false;
+$boolCatalogExport = false;
+$boolCatalogProductAdd = false;
+$boolCatalogProductEdit = false;
+$boolCatalogProductDelete = false;
 $showCatalogWithOffers = false;
+$useSummaryStoreAmount = false;
 $productTypeList = array();
 $productLimits = false;
 $priceTypeList = array();
@@ -246,14 +276,25 @@ $priceTypeIndex = array();
 $basePriceType = [];
 $basePriceTypeId = 0;
 $measureList = array();
+$vatList = array();
+$clearedGridFields = array();
+$lockedGridFields = array();
+$enableConversionToService = false;
 if ($bCatalog)
 {
+	$accessController = AccessController::getCurrent();
 	$useStoreControl = Catalog\Config\State::isUsedInventoryManagement();
 	$strSaveWithoutPrice = Main\Config\Option::get('catalog','save_product_without_price');
-	$boolCatalogRead = $USER->CanDoOperation('catalog_read');
-	$boolCatalogPrice = $USER->CanDoOperation('catalog_price');
-	$boolCatalogPurchasInfo = $USER->CanDoOperation('catalog_purchas_info');
+	$boolCatalogExport = $accessController->check(ActionDictionary::ACTION_CATALOG_EXPORT_EXECUTION);
+	$boolCatalogProductAdd = $accessController->check(ActionDictionary::ACTION_PRODUCT_ADD);
+	$boolCatalogProductEdit = $accessController->check(ActionDictionary::ACTION_PRODUCT_EDIT);
+	$boolCatalogProductDelete = $accessController->check(ActionDictionary::ACTION_PRODUCT_DELETE);
+	$boolCatalogRead = $accessController->check(ActionDictionary::ACTION_CATALOG_READ);
+	$boolCatalogPrice = $accessController->check(ActionDictionary::ACTION_PRICE_EDIT);
+	$boolCatalogPurchasInfo = $accessController->check(ActionDictionary::ACTION_PRODUCT_PURCHASE_INFO_VIEW);
 	$boolCatalogSet = Catalog\Config\Feature::isProductSetsEnabled();
+	$useSummaryStoreAmount = \CCatalogAdminTools::needSummaryStoreAmountByPermissions();
+	$enableConversionToService = Main\Config\Option::get('catalog', 'enable_convert_product_to_service') === 'Y';
 	$arCatalog = CCatalogSKU::GetInfoByIBlock($arIBlock["ID"]);
 	if (empty($arCatalog))
 	{
@@ -261,18 +302,16 @@ if ($bCatalog)
 	}
 	else
 	{
-		$productLimits = Catalog\Config\State::getExceedingProductLimit((int)$arIBlock['ID']);
 		if (CCatalogSKU::TYPE_PRODUCT == $arCatalog['CATALOG_TYPE'] || CCatalogSKU::TYPE_FULL == $arCatalog['CATALOG_TYPE'])
 		{
 			if (CIBlockRights::UserHasRightTo($arCatalog['IBLOCK_ID'], $arCatalog['IBLOCK_ID'], "iblock_admin_display"))
 			{
 				$boolSKU = true;
-				$strSKUName = GetMessage('IBLIST_A_OFFERS');
 			}
 		}
 		if (!$boolCatalogRead && !$boolCatalogPrice)
 			$bCatalog = false;
-		$productTypeList = CCatalogAdminTools::getIblockProductTypeList($arIBlock['ID'], true);
+		$productTypeList = \CCatalogAdminTools::getIblockProductTypeList($arIBlock['ID'], true);
 	}
 	if ($bCatalog)
 	{
@@ -301,7 +340,7 @@ if ($bCatalog)
 
 	if ($boolCatalogPurchasInfo)
 		$catalogPurchasInfoEdit = $boolCatalogPrice && !$useStoreControl;
-	$basePriceType = \CCatalogGroup::GetBaseGroup();
+	$basePriceType = Catalog\GroupTable::getBasePriceType();
 	if (!empty($basePriceType))
 		$basePriceTypeId = $basePriceType['ID'];
 	$measureIterator = CCatalogMeasure::getList(
@@ -309,17 +348,21 @@ if ($bCatalog)
 		array(),
 		false,
 		false,
-		array('ID', 'MEASURE_TITLE', 'SYMBOL_RUS')
+		array('ID', 'MEASURE_TITLE', 'SYMBOL_RUS', 'CODE')
 	);
 	while($measure = $measureIterator->Fetch())
 	{
-		$measureList[$measure['ID']] = ($measure['SYMBOL_RUS'] != ''
-			? $measure['SYMBOL_RUS']
-			: $measure['MEASURE_TITLE']
-		);
+		$measureList[$measure['ID']] =
+			$measure['SYMBOL_RUS'] !== ''
+				? $measure['SYMBOL_RUS']
+				: $measure['MEASURE_TITLE']
+		;
 	}
 	unset($measure, $measureIterator);
 	asort($measureList);
+
+	$clearedGridFields = \CCatalogAdminTools::getClearedGridFields(['USE_NEW_CARD' => $pageConfig['USE_NEW_CARD']]);
+	$lockedGridFields = \CCatalogAdminTools::getLockedGridFields(['USE_NEW_CARD' => $pageConfig['USE_NEW_CARD']]);
 }
 
 $arFileProps = array();
@@ -370,18 +413,13 @@ if ($boolSKU)
 }
 
 $sTableID = $pageConfig['LIST_ID_PREFIX'].md5($pageConfig['LIST_ID']);
-$oSort = new CAdminUiSorting($sTableID, "timestamp_x", "desc");
-global $by, $order;
-if (!isset($by))
-	$by = 'ID';
-if (!isset($order))
-	$order = 'asc';
-$by = mb_strtoupper($by);
-if ($by == 'CATALOG_TYPE')
-	$by = 'TYPE';
+$oSort = new CAdminUiSorting($sTableID, "ID", "DESC");
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $lAdmin = new CAdminUiList($sTableID, $oSort);
 $lAdmin->bMultipart = true;
+$lAdmin->setPublicModeState($pageConfig['PUBLIC_MODE']);
 
 $bExcel = $lAdmin->isExportMode();
 
@@ -412,6 +450,13 @@ $find_section_section = $section_id;
 $sThisSectionUrl = $urlBuilder->getUrlParams([
 	'find_section_section' => (int)$find_section_section
 ]);
+
+if (!empty($arCatalog))
+{
+	$productLimits = Catalog\Config\State::getExceedingProductLimit((int)$arIBlock['ID'], $find_section_section);
+}
+
+// region Filter definitions
 
 $sectionItems = array(
 	"" => GetMessage("IBLOCK_ALL"),
@@ -458,33 +503,26 @@ $filterFields = array(
 		"filterable" => ""
 	)
 );
-
-if ($canViewUserList)
-{
-	$filterFields[] = array(
-		"id" => "MODIFIED_USER_ID",
-		"name" => GetMessage("IBLIST_A_F_MODIFIED_BY"),
-		"type" => "custom_entity",
-		"selector" => array("type" => "user"),
-		"filterable" => ""
-	);
-}
+$filterFields[] = array(
+	"id" => "MODIFIED_USER_ID",
+	"name" => GetMessage("IBLIST_A_F_MODIFIED_BY"),
+	"type" => "custom_entity",
+	"selector" => array("type" => "user"),
+	"filterable" => ""
+);
 $filterFields[] = array(
 	"id" => "DATE_CREATE",
 	"name" => GetMessage("IBLIST_A_DATE_CREATE"),
 	"type" => "date",
 	"filterable" => ""
 );
-if ($canViewUserList)
-{
-	$filterFields[] = array(
-		"id" => "CREATED_USER_ID",
-		"name" => GetMessage("IBLIST_A_F_CREATED_BY"),
-		"type" => "custom_entity",
-		"selector" => array("type" => "user"),
-		"filterable" => ""
-	);
-}
+$filterFields[] = array(
+	"id" => "CREATED_USER_ID",
+	"name" => GetMessage("IBLIST_A_F_CREATED_BY"),
+	"type" => "custom_entity",
+	"selector" => array("type" => "user"),
+	"filterable" => ""
+);
 $filterFields[] = array(
 	"id" => "DATE_ACTIVE_FROM",
 	"name" => GetMessage("IBLIST_A_DATE_ACTIVE_FROM"),
@@ -547,16 +585,19 @@ if ($bCatalog)
 		"params" => array("multiple" => "Y"),
 		"filterable" => ""
 	);
-	$filterFields[] = array(
-		"id" => "CATALOG_BUNDLE",
-		"name" => GetMessage("IBLIST_A_CATALOG_BUNDLE"),
-		"type" => "list",
-		"items" => array(
-			"Y" => GetMessage("IBLOCK_YES"),
-			"N" => GetMessage("IBLOCK_NO")
-		),
-		"filterable" => ""
-	);
+	if ($boolCatalogSet)
+	{
+		$filterFields[] = [
+			"id" => "CATALOG_BUNDLE",
+			"name" => GetMessage("IBLIST_A_CATALOG_BUNDLE"),
+			"type" => "list",
+			"items" => [
+				"Y" => GetMessage("IBLOCK_YES"),
+				"N" => GetMessage("IBLOCK_NO")
+			],
+			"filterable" => ""
+		];
+	}
 	$filterFields[] = array(
 		"id" => "CATALOG_AVAILABLE",
 		"name" => GetMessage("IBLIST_A_CATALOG_AVAILABLE"),
@@ -567,12 +608,15 @@ if ($bCatalog)
 		),
 		"filterable" => ""
 	);
-	$filterFields[] = array(
-		"id" => "QUANTITY",
-		"name" => GetMessage("IBLIST_A_CATALOG_QUANTITY_EXT"),
-		"type" => "number",
-		"filterable" => ""
-	);
+	if (!$useSummaryStoreAmount)
+	{
+		$filterFields[] = [
+			"id" => "QUANTITY",
+			"name" => GetMessage("IBLIST_A_CATALOG_QUANTITY_EXT"),
+			"type" => "number",
+			"filterable" => ""
+		];
+	}
 	$filterFields[] = array(
 		"id" => "MEASURE",
 		"name" => GetMessage("IBLIST_A_CATALOG_MEASURE_TITLE"),
@@ -585,9 +629,15 @@ if ($bCatalog)
 
 $propertyManager = new Iblock\Helpers\Filter\PropertyManager($IBLOCK_ID);
 $filterFields = array_merge($filterFields, $propertyManager->getFilterFields());
+
+// endregion
+
 $lAdmin->BeginEpilogContent();
 $propertyManager->renderCustomFields($sTableID);
 $lAdmin->EndEpilogContent();
+$propertySKUFilterFields = [];
+/** @var Iblock\Helpers\Filter\PropertyManager $propertySKUManager */
+$propertySKUManager = null;
 if ($boolSKU)
 {
 	$propertySKUManager = new Iblock\Helpers\Filter\PropertyManager($arCatalog['IBLOCK_ID']);
@@ -617,15 +667,25 @@ if ($boolSKU)
 	}
 }
 
-if (!is_null($arFilter["SECTION_ID"]))
+if (isset($arFilter["SECTION_ID"]))
 {
 	$find_section_section = intval($arFilter["SECTION_ID"]);
 }
 else
 {
-	$isDifferences = array_diff($baseFilter, array_diff($arFilter, array_map(function ($field) {
-		return $field["id"];
-	}, $filterFields)));
+	$isDifferences = array_diff(
+		$baseFilter,
+		array_diff(
+			$arFilter,
+			array_map(
+				function ($field)
+				{
+					return $field["id"];
+				},
+				$filterFields
+			)
+		)
+	);
 	if ($isDifferences)
 	{
 		$arFilter["SECTION_ID"] = $find_section_section;
@@ -715,6 +775,7 @@ if ($isChangeVariationRequest)
 	}
 }
 
+// region Columns definition
 // List header
 
 $transferHeaders = [
@@ -993,6 +1054,7 @@ foreach ($arProps as $arFProps)
 	];
 }
 
+$arCatExtra = [];
 if($bCatalog)
 {
 	$arHeader[] = array(
@@ -1016,26 +1078,29 @@ if($bCatalog)
 		];
 	}
 
-	if ($arCatalog['CATALOG_TYPE'] != CCatalogSKU::TYPE_PRODUCT)
+	if ($arCatalog['CATALOG_TYPE'] !== CCatalogSKU::TYPE_PRODUCT)
 	{
-		$arHeader[] = array(
-			"id" => "CATALOG_QUANTITY",
-			"content" => ($pageConfig["USE_NEW_CARD"]
-				? GetMessage("IBLIST_A_CATALOG_QUANTITY_NEW_CARD")
-				: GetMessage("IBLIST_A_CATALOG_QUANTITY_EXT")
-			),
-			"align" => "right",
-			"sort" => ($pageConfig["USE_NEW_CARD"] ? "" : "QUANTITY"),
-			"column_sort" => 400,
-		);
-		$arHeader[] = array(
-			"id" => "CATALOG_QUANTITY_RESERVED",
-			"content" => ($pageConfig["USE_NEW_CARD"]
-				? GetMessage("IBLIST_A_CATALOG_QUANTITY_RESERVED_NEW_CARD")
-				: GetMessage("IBLIST_A_CATALOG_QUANTITY_RESERVED")
-			),
-			"align" => "right",
-		);
+		if (\CCatalogAdminTools::allowedShowQuantityFields())
+		{
+			$arHeader[] = [
+				"id" => "CATALOG_QUANTITY",
+				"content" => ($pageConfig["USE_NEW_CARD"]
+					? GetMessage("IBLIST_A_CATALOG_QUANTITY_NEW_CARD")
+					: GetMessage("IBLIST_A_CATALOG_QUANTITY_EXT")
+				),
+				"align" => "right",
+				"sort" => ($pageConfig["USE_NEW_CARD"] || $useSummaryStoreAmount ? "" : "QUANTITY"),
+				"column_sort" => 400,
+			];
+			$arHeader[] = [
+				"id" => "CATALOG_QUANTITY_RESERVED",
+				"content" => ($pageConfig["USE_NEW_CARD"]
+					? GetMessage("IBLIST_A_CATALOG_QUANTITY_RESERVED_NEW_CARD")
+					: GetMessage("IBLIST_A_CATALOG_QUANTITY_RESERVED")
+				),
+				"align" => "right",
+			];
+		}
 		$arHeader[] = array(
 			"id" => "CATALOG_MEASURE_RATIO",
 			"content" => GetMessage("IBLIST_A_CATALOG_MEASURE_RATIO"),
@@ -1141,7 +1206,7 @@ if($bCatalog)
 				"align" => "right",
 			);
 		}
-		$priceTypeList = CCatalogGroup::GetListArray();
+		$priceTypeList = Catalog\GroupTable::getTypeList();
 		if (!empty($priceTypeList))
 		{
 			foreach ($priceTypeList as $priceType)
@@ -1153,7 +1218,7 @@ if($bCatalog)
 				}
 				$arHeader[] = array(
 					"id" => "CATALOG_GROUP_".$priceType["ID"],
-					"content" => !empty($priceType["NAME_LANG"]) ? $priceType["NAME_LANG"] : $priceType["NAME"],
+					"content" => $priceType["NAME_LANG"] ?? $priceType["NAME"],
 					"align" => "right",
 					"sort" => "SCALED_PRICE_".$priceType["ID"],
 					"default" => $default,
@@ -1163,7 +1228,6 @@ if($bCatalog)
 			unset($priceType);
 		}
 
-		$arCatExtra = array();
 		$db_extras = CExtra::GetList(array("ID" => "ASC"));
 		while ($extras = $db_extras->Fetch())
 			$arCatExtra[$extras['ID']] = $extras;
@@ -1214,6 +1278,8 @@ if ($pageConfig['USE_NEW_CARD'])
 {
 	Main\Type\Collection::sortByColumn($arHeader, ['column_sort' => SORT_ASC], '', PHP_INT_MAX);
 }
+
+// endregion
 
 $lAdmin->AddHeaders($arHeader);
 $lAdmin->AddVisibleHeaderColumn('ID');
@@ -1307,8 +1373,6 @@ if ($bCatalog)
 	}
 	if ($boolPriceInc)
 	{
-		if (!isset($arVisibleColumnsMap['CATALOG_TYPE']))
-			$arVisibleColumnsMap['CATALOG_TYPE'] = true;
 		$bCurrency = Loader::includeModule('currency');
 		if ($bCurrency)
 		{
@@ -1317,8 +1381,10 @@ if ($bCatalog)
 	}
 	unset($boolPriceInc);
 
-	if (isset($arVisibleColumnsMap['CATALOG_TYPE']) && $boolCatalogSet)
+	if ($boolCatalogSet)
+	{
 		$arVisibleColumnsMap['CATALOG_BUNDLE'] = true;
+	}
 }
 
 $arSelectedFields = $arVisibleColumnsMap;
@@ -1361,6 +1427,7 @@ switch ($by)
 	case 'ID':
 		$arOrder = array('ID' => $order);
 		break;
+	case 'CATALOG_TYPE':
 	case 'TYPE':
 		$arOrder = array('TYPE' => $order, 'BUNDLE' => $order, 'ID' => 'ASC');
 		break;
@@ -1549,8 +1616,11 @@ if($lAdmin->EditAction())
 				);
 			}
 
-			if(!is_array($arFields["PROPERTY_VALUES"]))
+			if (!isset($arFields["PROPERTY_VALUES"]) || !is_array($arFields["PROPERTY_VALUES"]))
+			{
 				$arFields["PROPERTY_VALUES"] = array();
+			}
+
 			$bFieldProps = array();
 
 			foreach ($arFields as $k=>$v)
@@ -1676,15 +1746,26 @@ if($lAdmin->EditAction())
 			}
 
 			//All not displayed required fields from DB
-			foreach($arIBlock["FIELDS"] as $FIELD_ID => $field)
+			foreach ($arIBlock["FIELDS"] as $FIELD_ID => $field)
 			{
-				if(
+				if ($field["VISIBLE"] === "N")
+				{
+					continue;
+				}
+				if (preg_match("/^(SECTION_|LOG_)/", $FIELD_ID))
+				{
+					continue;
+				}
+
+				if (
 					$field["IS_REQUIRED"] === "Y"
 					&& !array_key_exists($FIELD_ID, $arFields)
 					&& $FIELD_ID !== "DETAIL_PICTURE"
 					&& $FIELD_ID !== "PREVIEW_PICTURE"
 				)
+				{
 					$arFields[$FIELD_ID] = $arRes[$FIELD_ID];
+				}
 			}
 			if($arRes["IN_SECTIONS"] == "Y")
 			{
@@ -1711,7 +1792,7 @@ if($lAdmin->EditAction())
 
 			if($bCatalog)
 			{
-				if ($boolCatalogPrice && CIBlockElementRights::UserHasRightTo($elementIblockID, $ID, "element_edit_price"))
+				if ($boolCatalogProductEdit && CIBlockElementRights::UserHasRightTo($elementIblockID, $ID, "element_edit_price"))
 				{
 					$arCatalogProduct = array();
 					if (isset($arFields['CATALOG_WEIGHT']) && '' != $arFields['CATALOG_WEIGHT'])
@@ -1736,6 +1817,16 @@ if($lAdmin->EditAction())
 						$arCatalogProduct['CAN_BUY_ZERO'] = $arFields['CAN_BUY_ZERO'];
 					if (isset($arFields['CATALOG_MEASURE']) && is_string($arFields['CATALOG_MEASURE']) && (int)$arFields['CATALOG_MEASURE'] > 0)
 						$arCatalogProduct['MEASURE'] = $arFields['CATALOG_MEASURE'];
+					if (
+						isset($arFields['CATALOG_AVAILABLE'])
+						&& (
+							$arFields['CATALOG_AVAILABLE'] === Catalog\ProductTable::STATUS_YES
+							|| $arFields['CATALOG_AVAILABLE'] === Catalog\ProductTable::STATUS_NO
+						)
+					)
+					{
+						$arCatalogProduct['AVAILABLE'] = $arFields['CATALOG_AVAILABLE'];
+					}
 
 					if ($catalogPurchasInfoEdit)
 					{
@@ -1809,33 +1900,62 @@ if($lAdmin->EditAction())
 	unset($ib);
 	unset($obS);
 
-	if($bCatalog)
+	if ($bCatalog)
 	{
-		if ($boolCatalogPrice && (isset($_POST["CATALOG_PRICE"]) || isset($_POST["CATALOG_CURRENCY"])))
+		if (
+			$boolCatalogPrice
+			&& isset($_POST['CATALOG_PRICE'])
+			&& is_array($_POST['CATALOG_PRICE'])
+			&& isset($_POST['CATALOG_CURRENCY'])
+			&& is_array($_POST['CATALOG_CURRENCY'])
+		)
 		{
 			$CATALOG_PRICE = $_POST["CATALOG_PRICE"];
 			$CATALOG_CURRENCY = $_POST["CATALOG_CURRENCY"];
-			$CATALOG_EXTRA = $_POST["CATALOG_EXTRA"];
+			$CATALOG_EXTRA = ($_POST["CATALOG_EXTRA"] ?? []);
+			if (!is_array($CATALOG_EXTRA))
+			{
+				$CATALOG_EXTRA = [];
+			}
 			$CATALOG_PRICE_ID = $_POST["CATALOG_PRICE_ID"];
-			$CATALOG_QUANTITY_FROM = $_POST["CATALOG_QUANTITY_FROM"];
-			$CATALOG_QUANTITY_TO = $_POST["CATALOG_QUANTITY_TO"];
+			$CATALOG_QUANTITY_FROM = ($_POST["CATALOG_QUANTITY_FROM"] ?? []);
+			if (!is_array($CATALOG_QUANTITY_FROM))
+			{
+				$CATALOG_QUANTITY_FROM = [];
+			}
+			$CATALOG_QUANTITY_TO = ($_POST["CATALOG_QUANTITY_TO"] ?? []);
+			if (!is_array($CATALOG_QUANTITY_TO))
+			{
+				$CATALOG_QUANTITY_TO = [];
+			}
 			$CATALOG_PRICE_old = $_POST["CATALOG_old_PRICE"];
 			$CATALOG_CURRENCY_old = $_POST["CATALOG_old_CURRENCY"];
+
 			$db_extras = CExtra::GetList(array("ID" => "ASC"));
 
 			$arCatExtraUp = array();
 			while ($extras = $db_extras->Fetch())
 				$arCatExtraUp[$extras["ID"]] = $extras["PERCENTAGE"];
 
-			$arBaseGroup = CCatalogGroup::GetBaseGroup();
-			$arCatalogGroupList = CCatalogGroup::GetListArray();
+			$checkBasePriceTypeId = Catalog\GroupTable::getBasePriceTypeId();
+			$arCatalogGroupList = Catalog\GroupTable::getTypeList();
 			foreach($CATALOG_PRICE as $elID => $arPrice)
 			{
+				if (!is_array($arPrice))
+				{
+					continue;
+				}
+				if (!(isset($CATALOG_CURRENCY[$elID]) && is_array($CATALOG_CURRENCY[$elID])))
+				{
+					continue;
+				}
 				if (!(
 					CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $elID, "element_edit")
-					&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $elID, "element_edit_price"))
-				)
+					&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $elID, "element_edit_price")
+				))
+				{
 					continue;
+				}
 				//1 Find base price ID
 				//2 If such a column is displayed then
 				//	check if it is greater than 0
@@ -1843,11 +1963,11 @@ if($lAdmin->EditAction())
 				//	look up it's value in database and
 				//	output an error if not found or found less or equal then zero
 				$bError = false;
-				if ($strSaveWithoutPrice != 'Y')
+				if ($checkBasePriceTypeId !== null && $strSaveWithoutPrice !== 'Y')
 				{
-					if (isset($arPrice[$arBaseGroup['ID']]))
+					if (isset($arPrice[$checkBasePriceTypeId]))
 					{
-						if ($arPrice[$arBaseGroup['ID']] < 0)
+						if ((float)$arPrice[$checkBasePriceTypeId] < 0)
 						{
 							$bError = true;
 							$lAdmin->AddUpdateError(GetMessage('IBLIST_A_NO_BASE_PRICE', array("#ID#" => $elID)), $elID);
@@ -1855,14 +1975,46 @@ if($lAdmin->EditAction())
 					}
 					else
 					{
-						$arBasePrice = CPrice::GetBasePrice(
-							$elID,
-							$CATALOG_QUANTITY_FROM[$elID][$arBaseGroup['ID']],
-							$CATALOG_QUANTITY_FROM[$elID][$arBaseGroup['ID']],
-							false
-						);
+						$quantityFrom = null;
+						if (
+							isset($CATALOG_QUANTITY_FROM[$elID][$basePriceTypeId])
+							&& is_string($CATALOG_QUANTITY_FROM[$elID][$basePriceTypeId])
+							&& $CATALOG_QUANTITY_FROM[$elID][$basePriceTypeId] !== ''
+						)
+						{
+							$quantityFrom = (int)$CATALOG_QUANTITY_FROM[$elID][$basePriceTypeId];
+							if ($quantityFrom <= 0)
+							{
+								$quantityFrom = null;
+							}
+						}
+						$quantityTo = null;
+						if (
+							isset($CATALOG_QUANTITY_TO[$elID][$basePriceTypeId])
+							&& is_string($CATALOG_QUANTITY_TO[$elID][$basePriceTypeId])
+							&& $CATALOG_QUANTITY_TO[$elID][$basePriceTypeId] !== ''
+						)
+						{
+							$quantityTo = (int)$CATALOG_QUANTITY_TO[$elID][$basePriceTypeId];
+							if ($quantityTo <= 0)
+							{
+								$quantityTo = null;
+							}
+						}
 
-						if (!is_array($arBasePrice) || $arBasePrice['PRICE'] < 0)
+						$basePrice = Catalog\PriceTable::getRow([
+							'select' => [
+								'ID',
+								'PRICE',
+							],
+							'filter' => [
+								'=PRODUCT_ID' => $elID,
+								'=CATALOG_GROUP_ID' => $basePriceTypeId,
+								'=QUANTITY_FROM' => $quantityFrom,
+								'=QUANTITY_TO' => $quantityTo,
+							],
+						]);
+						if ($basePrice === null || (float)$basePrice['PRICE'] < 0)
 						{
 							$bError = true;
 							$lAdmin->AddUpdateError(GetMessage('IBLIST_A_NO_BASE_PRICE', array("#ID#" => $elID)), $elID);
@@ -1870,17 +2022,32 @@ if($lAdmin->EditAction())
 					}
 				}
 
-				if($bError)
+				if ($bError)
+				{
 					continue;
+				}
 
-				$arCurrency = $CATALOG_CURRENCY[$elID];
+				$arCurrency = (array)($CATALOG_CURRENCY[$elID] ?? []);
 
 				if (!empty($arCatalogGroupList))
 				{
 					foreach ($arCatalogGroupList as $arCatalogGroup)
 					{
-						if ($arPrice[$arCatalogGroup["ID"]] != $CATALOG_PRICE_old[$elID][$arCatalogGroup["ID"]]
-							|| $arCurrency[$arCatalogGroup["ID"]] != $CATALOG_CURRENCY_old[$elID][$arCatalogGroup["ID"]])
+						$priceTypeId = $arCatalogGroup['ID'];
+						if (!isset(
+							$arPrice[$priceTypeId],
+							$arCurrency[$priceTypeId],
+							$CATALOG_PRICE_old[$elID][$priceTypeId],
+							$CATALOG_CURRENCY_old[$elID][$priceTypeId]
+						))
+						{
+							continue;
+						}
+
+						if (
+							$arPrice[$priceTypeId] != $CATALOG_PRICE_old[$elID][$priceTypeId]
+							|| $arCurrency[$priceTypeId] != $CATALOG_CURRENCY_old[$elID][$priceTypeId]
+						)
 						{
 							if ($arCatalogGroup["BASE"] == 'Y') // if base price check extra for other prices
 							{
@@ -1962,10 +2129,7 @@ if($lAdmin->EditAction())
 			}
 			unset($arCatalogGroupList);
 		}
-	}
 
-	if ($bCatalog)
-	{
 		Catalog\Product\Sku::disableDeferredCalculation();
 		Catalog\Product\Sku::calculate();
 	}
@@ -2296,7 +2460,10 @@ if(($arID = $lAdmin->GroupAction()))
 								|| CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $ID, "element_edit_any_wf_status")
 							)
 							{
-								if ($arRes["WF_STATUS_ID"] != $new_status)
+								if (
+									isset($arRes)
+									&& $arRes["WF_STATUS_ID"] != $new_status
+								)
 								{
 									$obE->LAST_ERROR = '';
 									$res = $obE->Update($ID, array(
@@ -2457,7 +2624,13 @@ if(($arID = $lAdmin->GroupAction()))
 				{
 					case Catalog\Grid\ProductAction::CHANGE_PRICE:
 					case Catalog\Grid\ProductAction::SET_FIELD:
-						if ($boolCatalogPrice)
+					case Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE:
+					case Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT:
+						$allowOperation = $actionId === Catalog\Grid\ProductAction::CHANGE_PRICE
+							? $boolCatalogPrice
+							: $boolCatalogProductEdit
+						;
+						if ($allowOperation)
 						{
 							if ($TYPE == "S")
 							{
@@ -2539,8 +2712,152 @@ if(($arID = $lAdmin->GroupAction()))
 							}
 							unset($error);
 						}
+						else
+						{
+							// notification
+							$fieldName = 'UF_'. ProductMapping::getFieldId();
+							if (isset($actionParams[$fieldName]))
+							{
+								if (Loader::includeModule('pull'))
+								{
+									// TODO: change to general ui pull event 'notification-balloon'
+									$ret = CPullStack::AddByUser(
+										$USER->GetID(),
+										[
+											'module_id' => 'catalog',
+											'command' => 'notification-balloon',
+											'params' => [
+												'message' => GetMessage('IBLIST_A_CATALOG_PRODUCT_MAPPING_SAVE_NOTIFICATION'),
+											],
+										]
+									);
+								}
+							}
+						}
 						unset($result);
 					}
+					break;
+				case Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE:
+					$labelStart = !empty($elementsList['SECTIONS']) || !empty($elementsList['ELEMENTS'])
+						? 'withData'
+						: 'emptyData'
+					;
+					AddEventToStatFile(
+						'catalog',
+						Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE,
+						'start',
+						$labelStart
+					);
+					$labelResult = 'fail';
+					if (!empty($elementsList['SECTIONS']))
+					{
+						$result = Catalog\Grid\ProductAction::convertToServiceSectionList(
+							$IBLOCK_ID,
+							$elementsList['SECTIONS']
+						);
+						if (!$result->isSuccess())
+						{
+							foreach ($result->getErrors() as $error)
+							{
+								$lAdmin->AddGroupError($error->getMessage(), $error->getCode());
+							}
+							unset($error);
+						}
+						$resultData = $result->getData();
+						if (isset($resultData['CONVERT_COMPLETE']))
+						{
+							$labelResult = 'success';
+						}
+						unset($result);
+					}
+					if (!empty($elementsList['ELEMENTS']))
+					{
+						$result = Catalog\Grid\ProductAction::convertToServiceElementList(
+							$IBLOCK_ID,
+							$elementsList['ELEMENTS']
+						);
+						if (!$result->isSuccess())
+						{
+							foreach ($result->getErrors() as $error)
+							{
+								$lAdmin->AddGroupError($error->getMessage(), $error->getCode());
+							}
+							unset($error);
+						}
+						$resultData = $result->getData();
+						if (isset($resultData['CONVERT_COMPLETE']))
+						{
+							$labelResult = 'success';
+						}
+						unset($result);
+					}
+					AddEventToStatFile(
+						'catalog',
+						Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE,
+						'finish',
+						$labelResult
+					);
+					break;
+				case Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT:
+					$labelStart = !empty($elementsList['SECTIONS']) || !empty($elementsList['ELEMENTS'])
+						? 'withData'
+						: 'emptyData'
+					;
+					AddEventToStatFile(
+						'catalog',
+						Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT,
+						'start',
+						$labelStart
+					);
+					$labelResult = 'fail';
+					if (!empty($elementsList['SECTIONS']))
+					{
+						$result = Catalog\Grid\ProductAction::convertToProductSectionList(
+							$IBLOCK_ID,
+							$elementsList['SECTIONS']
+						);
+						if (!$result->isSuccess())
+						{
+							foreach ($result->getErrors() as $error)
+							{
+								$lAdmin->AddGroupError($error->getMessage(), $error->getCode());
+							}
+							unset($error);
+						}
+						$resultData = $result->getData();
+						if (isset($resultData['CONVERT_COMPLETE']))
+						{
+							$labelResult = 'success';
+						}
+						unset($result);
+					}
+					if (!empty($elementsList['ELEMENTS']))
+					{
+						$result = Catalog\Grid\ProductAction::convertToProductElementList(
+							$IBLOCK_ID,
+							$elementsList['ELEMENTS']
+						);
+						if (!$result->isSuccess())
+						{
+							foreach ($result->getErrors() as $error)
+							{
+								$lAdmin->AddGroupError($error->getMessage(), $error->getCode());
+							}
+							unset($error);
+						}
+						$resultData = $result->getData();
+						if (isset($resultData['CONVERT_COMPLETE']))
+						{
+							$labelResult = 'success';
+						}
+						unset($result);
+					}
+					AddEventToStatFile(
+						'catalog',
+						Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT,
+						'finish',
+						$labelResult
+					);
 					break;
 			}
 		}
@@ -2549,6 +2866,7 @@ if(($arID = $lAdmin->GroupAction()))
 		{
 			Catalog\Product\Sku::disableDeferredCalculation();
 			Catalog\Product\Sku::calculate();
+			CIBlock::clearIblockTagCache($IBLOCK_ID);
 		}
 
 		unset($elementsList);
@@ -2563,9 +2881,10 @@ if(($arID = $lAdmin->GroupAction()))
 		$adminSidePanelHelper->sendSuccessResponse();
 	}
 
-	if (isset($return_url) && $return_url <> '')
+	$returnUrl = trim((string)$request->get('return_url'));
+	if ($returnUrl !== '')
 	{
-		LocalRedirect($return_url);
+		LocalRedirect($returnUrl);
 	}
 }
 CJSCore::Init(array('date'));
@@ -2680,14 +2999,22 @@ while($row = $rsData->Fetch())
 {
 	$rawRows[$row['TYPE'].$row['ID']] = $row;
 	if ($row['TYPE'] == 'S')
-		$sectionIds[] = $row['ID'];
+		$sectionIds[] = (int)$row['ID'];
 	else
-		$elementIds[] = $row['ID'];
+		$elementIds[] = (int)$row['ID'];
 }
 $selectedCount = $rsData->SelectedRowsCount();
 unset($rsData, $row);
 if (!empty($sectionIds))
 {
+	$changePreviewPicture = false;
+	$sectionSelectFields = $arSelectedFields;
+	$previewPictureIndex = array_search('PREVIEW_PICTURE', $arSelectedFields);
+	if ($previewPictureIndex !== false)
+	{
+		$changePreviewPicture = true;
+		$sectionSelectFields[$previewPictureIndex] = 'PICTURE';
+	}
 	sort($sectionIds);
 	foreach (array_chunk($sectionIds, 500) as $pageIds)
 	{
@@ -2696,9 +3023,13 @@ if (!empty($sectionIds))
 			'ID' => $pageIds,
 			'CHECK_PERMISSIONS' => 'N'
 		];
-		$iterator = \CIBlockSection::GetList(array(), $sectionFilter, false, $arSelectedFields);
+		$iterator = \CIBlockSection::GetList(array(), $sectionFilter, false, $sectionSelectFields);
 		while ($row = $iterator->Fetch())
 		{
+			if ($changePreviewPicture)
+			{
+				$row['PREVIEW_PICTURE'] = $row['PICTURE'];
+			}
 			$rawRows['S'.$row['ID']] = $rawRows['S'.$row['ID']] + $row;
 		}
 	}
@@ -2739,12 +3070,13 @@ if ($pageConfig['USE_NEW_CARD'] && $moreProtoPropertyId !== null)
 $productSkuTree = [];
 $selectedSkuMap = [];
 
+/** @var \Bitrix\Catalog\Component\SkuTree $skuTree */
+$skuTree = null;
 if (
 		$boolSKU
 		&& $pageConfig['USE_NEW_CARD']
 )
 {
-	/** @var \Bitrix\Catalog\Component\SkuTree $skuTree */
 	$skuTree = Catalog\v2\IoC\ServiceContainer::make('sku.tree', ['iblockId' => $IBLOCK_ID]);
 }
 
@@ -2863,6 +3195,54 @@ if (!empty($elementIds))
 			}
 		}
 	}
+	unset($row);
+	unset($iterator);
+	unset($elementFilter);
+	unset($pageIds);
+
+	// region Replacing the total quantity in grid with the amount of products from available stores (store permissions by current user)
+	if (
+		$useSummaryStoreAmount
+		&& ($arVisibleColumnsMap['CATALOG_QUANTITY'] || $arVisibleColumnsMap['CATALOG_QUANTITY_RESERVED'])
+	)
+	{
+		$productIdList = [];
+		foreach ($elementIds as $productId)
+		{
+			// Only for simple products and offers
+			$productType = $rawRows['E'.$productId]['CATALOG_TYPE'];
+			if (
+				$productType === Catalog\ProductTable::TYPE_SET
+				|| $productType === Catalog\ProductTable::TYPE_EMPTY_SKU
+			)
+			{
+				continue;
+			}
+			$productIdList[$productId] = $selectedSkuMap[$productId] ?? $productId;
+		}
+
+		if (!empty($productIdList))
+		{
+			$quantityList = \CCatalogAdminTools::getSummaryStoreAmountByPermissions($productIdList);
+			if (!empty($quantityList))
+			{
+				foreach ($productIdList as $productId => $resultId)
+				{
+					if (!isset($quantityList[$resultId]))
+					{
+						continue;
+					}
+					$rawRows['E' . $productId]['CATALOG_QUANTITY'] = $quantityList[$resultId]['QUANTITY'];
+					$rawRows['E' . $productId]['CATALOG_QUANTITY_RESERVED'] = $quantityList[$resultId]['QUANTITY_RESERVED'];
+				}
+				unset($productId);
+				unset($resultId);
+			}
+			unset($quantityList);
+		}
+		unset($productIdList);
+	}
+	// endregion
 
 	unset($row, $iterator, $elementFilter, $pageIds, $elementIds);
 }
@@ -2909,6 +3289,8 @@ foreach (array_keys($rawRows) as $rowId)
 	}
 
 	$arRes_orig = $arRes;
+
+	$lockStatus = '';
 	if($itemType=="E")
 	{
 		if($bWorkFlow)
@@ -2937,10 +3319,6 @@ foreach (array_keys($rawRows) as $rowId)
 		{
 			$lockStatus = call_user_func(array(ENTITY, "IsDocumentLocked"), $itemId, "") ? "red" : "green";
 		}
-		else
-		{
-			$lockStatus = "";
-		}
 	}
 
 	$boolEditPrice = false;
@@ -2961,54 +3339,31 @@ foreach (array_keys($rawRows) as $rowId)
 
 	if ($bCatalog && 'E' == $itemType)
 	{
-		if (isset($arRes['CATALOG_TYPE']))
-			$arRes['CATALOG_TYPE'] = (int)$arRes['CATALOG_TYPE'];
+		$arRes['CATALOG_TYPE'] = (int)$arRes['CATALOG_TYPE'];
 
-		if (isset($arVisibleColumnsMap['CATALOG_TYPE']))
+		if (isset($clearedGridFields[$arRes['CATALOG_TYPE']]))
 		{
-			$hideSkuCatalog = (
-					$arRes['CATALOG_TYPE'] == \Bitrix\Catalog\ProductTable::TYPE_SKU
-					|| $arRes['CATALOG_TYPE'] == \Bitrix\Catalog\ProductTable::TYPE_EMPTY_SKU
-				)
-				&& !$showCatalogWithOffers
-			;
-			if (
-				$hideSkuCatalog
-				|| $arRes['CATALOG_TYPE'] == \Bitrix\Catalog\ProductTable::TYPE_SET
-			)
+			foreach ($clearedGridFields[$arRes['CATALOG_TYPE']] as $fieldName)
 			{
-				if (isset($arRes['CATALOG_QUANTITY_RESERVED']))
-					$arRes['CATALOG_QUANTITY_RESERVED'] = '';
-			}
-			if (
-				$hideSkuCatalog
-			)
-			{
-				if (isset($arRes['CATALOG_QUANTITY']))
-					$arRes['CATALOG_QUANTITY'] = '';
-				if (isset($arRes['CATALOG_QUANTITY_TRACE']))
-					$arRes['CATALOG_QUANTITY_TRACE'] = '';
-				if (isset($arRes['CAN_BUY_ZERO']))
-					$arRes['CAN_BUY_ZERO'] = '';
-				if (isset($arRes['CATALOG_PURCHASING_PRICE']))
-					$arRes['CATALOG_PURCHASING_PRICE'] = '';
-				if (isset($arRes['CATALOG_PURCHASING_CURRENCY']))
-					$arRes['CATALOG_PURCHASING_CURRENCY'] = '';
-				if (isset($arRes['CATALOG_MEASURE']))
-					$arRes['CATALOG_MEASURE'] = 0;
+				if (isset($arRes[$fieldName]))
+				{
+					$arRes[$fieldName] = '';
+				}
 			}
 		}
-		if (isset($arVisibleColumnsMap['CATALOG_MEASURE']))
+
+		if (isset($arRes['CATALOG_MEASURE']))
 		{
 			$arRes['CATALOG_MEASURE'] = (int)$arRes['CATALOG_MEASURE'];
 			if ($arRes['CATALOG_MEASURE'] <= 0)
+			{
 				$arRes['CATALOG_MEASURE'] = '';
+			}
 		}
 	}
 
 	if($itemType=="S") // double click moves deeper
 	{
-		$arRes["PREVIEW_PICTURE"] = $arRes["PICTURE"];
 		$row = $lAdmin->AddRow($itemType.$itemId, $arRes, $sec_list_url, GetMessage("IBLIST_A_LIST"));
 		$row->setConfig([
 			CAdminUiListRow::DEFAULT_ACTION_TYPE_FIELD => CAdminUiListRow::LINK_TYPE_URL,
@@ -3022,9 +3377,12 @@ foreach (array_keys($rawRows) as $rowId)
 			CAdminUiListRow::SKIP_URL_MODIFY_FIELD => $pageConfig['SKIP_URL_MODIFICATION'],
 		]);
 		$arElemID[] = $itemId;
-		if ($row->arRes['VAT_ID'] === null)
+		if (isset($arVisibleColumnsMap['VAT_ID']))
 		{
-			$row->arRes['VAT_ID'] = '0';
+			if ($row->arRes['VAT_ID'] === null)
+			{
+				$row->arRes['VAT_ID'] = '0';
+			}
 		}
 	}
 	$arRows[$itemType.$itemId] = $row;
@@ -3246,7 +3604,7 @@ foreach (array_keys($rawRows) as $rowId)
 			{
 				if ($bSearch)
 				{
-					$row->AddViewField("TAGS", $arRes['TAGS']);
+					$row->AddViewField("TAGS", htmlspecialcharsEx($arRes['TAGS']));
 					$row->AddEditField("TAGS", InputTags("FIELDS[".$itemType.$itemId."][TAGS]", $arRes["TAGS"], $arIBlock["SITE_ID"]));
 				}
 				else
@@ -3255,20 +3613,49 @@ foreach (array_keys($rawRows) as $rowId)
 				}
 			}
 
-			if(!empty($arWFStatusPerm))
-				$row->AddSelectField("WF_STATUS_ID", $arWFStatusPerm);
-			if($arRes_orig['WF_NEW']=='Y' || $arRes['WF_STATUS_ID']=='1')
-				$row->AddViewField("WF_STATUS_ID", $arWFStatusAll[$arRes['WF_STATUS_ID']]);
-			else
-				$row->AddViewField("WF_STATUS_ID", '<a href="'.$el_edit_url.'" title="'.GetMessage("IBLIST_A_ED_TITLE").'">'.$arWFStatusAll[$arRes['WF_STATUS_ID']].'</a> / <a href="'.'iblock_element_edit.php?ID='.$arRes_orig['ID'].'&'.$sThisSectionUrl.'" title="'.GetMessage("IBLIST_A_ED2_TITLE").'">'.$arWFStatusAll[$arRes_orig['WF_STATUS_ID']].'</a>');
+			if ($bWorkFlow)
+			{
+				if (!empty($arWFStatusPerm))
+				{
+					$row->AddSelectField("WF_STATUS_ID", $arWFStatusPerm);
+				}
+				if ($arRes_orig['WF_NEW'] == 'Y' || $arRes['WF_STATUS_ID'] == '1')
+				{
+					$row->AddViewField("WF_STATUS_ID", $arWFStatusAll[$arRes['WF_STATUS_ID']]);
+				}
+				else
+				{
+					$row->AddViewField("WF_STATUS_ID", '<a href="'
+						. $el_edit_url
+						. '" title="'
+						. GetMessage("IBLIST_A_ED_TITLE")
+						. '">'
+						. $arWFStatusAll[$arRes['WF_STATUS_ID']]
+						. '</a> / <a href="'
+						. 'iblock_element_edit.php?ID='
+						. $arRes_orig['ID']
+						. '&'
+						. $sThisSectionUrl
+						. '" title="'
+						. GetMessage("IBLIST_A_ED2_TITLE")
+						. '">'
+						. $arWFStatusAll[$arRes_orig['WF_STATUS_ID']]
+						. '</a>');
+				}
+			}
 		}
 		else
 		{
 			$row->AddCalendarField("DATE_ACTIVE_FROM", false);
 			$row->AddCalendarField("DATE_ACTIVE_TO", false);
-			$row->AddViewField("WF_STATUS_ID", $arWFStatusAll[$arRes['WF_STATUS_ID']]);
+			if ($bWorkFlow)
+			{
+				$row->AddViewField("WF_STATUS_ID", $arWFStatusAll[$arRes['WF_STATUS_ID']]);
+			}
 			if (isset($arVisibleColumnsMap["TAGS"]))
-				$row->AddViewField("TAGS", $arRes['TAGS']);
+			{
+				$row->AddViewField("TAGS", htmlspecialcharsEx($arRes['TAGS']));
+			}
 		}
 
 		if ($bCatalog && $pageConfig['USE_NEW_CARD'] && isset($arVisibleColumnsMap['MORE_PHOTO']))
@@ -3364,7 +3751,27 @@ foreach (array_keys($rawRows) as $rowId)
 				elseif($prop['PROPERTY_TYPE']=='S')
 					$arViewHTML[] = $prop["VALUE"];
 				elseif($prop['PROPERTY_TYPE']=='L')
-					$arViewHTML[] = $prop["VALUE_ENUM"];
+				{
+					if ($prop['LIST_TYPE'] === PropertyTable::CHECKBOX && count($arSelect[$prop['ID']]) === 1)
+					{
+						if ($prop["VALUE_ENUM"] === 'Y')
+						{
+							$arViewHTML[] = GetMessage('IBLOCK_YES');
+						}
+						elseif ($prop["VALUE_ENUM"] === null)
+						{
+							$arViewHTML[] = GetMessage('IBLOCK_NO');
+						}
+						else
+						{
+							$arViewHTML[] = $prop["VALUE_ENUM"];
+						}
+					}
+					else
+					{
+						$arViewHTML[] = $prop["VALUE_ENUM"];
+					}
+				}
 				elseif($prop['PROPERTY_TYPE']=='F')
 				{
 					if ($bExcel)
@@ -3496,7 +3903,14 @@ foreach (array_keys($rawRows) as $rowId)
 								$html .= '<input type="checkbox" name="'.$VALUE_NAME.'" id="id'.$uniq_id.'" value="'.$value.'"';
 								if(isset($arValues[$value]))
 									$html .= ' checked';
-								$html .= '>&nbsp;<label for="id'.$uniq_id.'">'.$display.'</label><br>';
+								if (count($arSelect[$prop['ID']]) === 1 && $display === 'Y')
+								{
+									$html .= '>&nbsp;<label for="id' . $uniq_id . '"></label><br>';
+								}
+								else
+								{
+									$html .= '>&nbsp;<label for="id' . $uniq_id . '">' . $display . '</label><br>';
+								}
 								$uniq_id++;
 							}
 						}
@@ -3759,31 +4173,32 @@ foreach (array_keys($rawRows) as $rowId)
 				$row->AddEditField("PROPERTY_".$aProp['ID'], '<table id="tb'.$table_id.'" border=0 cellpadding=0 cellspacing=0><tr><td nowrap>'.implode("</td></tr><tr><td nowrap>", $arEditHTML).'</td></tr></table>');
 		}
 	}
-	if($itemType == "E")
+	if ($itemType == "E")
 	{
-		$arCatalogRights[$row->arRes['ID']] = (!$bReadOnly && $boolEditPrice && $boolCatalogPrice);
-		if (!$bReadOnly)
+		if ($bCatalog)
 		{
-			if ($boolEditPrice && $boolCatalogPrice)
+			$productUnlocked = (!$bReadOnly && $boolEditPrice && $boolCatalogPrice);
+			$arCatalogRights[$row->arRes['ID']] = $productUnlocked;
+
+			if ($productUnlocked)
 			{
-				if ($useStoreControl)
-				{
-					$row->AddInputField("CATALOG_QUANTITY", false);
-				}
-				else
-				{
-					$row->AddInputField("CATALOG_QUANTITY");
-				}
-				$row->AddCheckField('CATALOG_AVAILABLE', false);
-				$row->AddSelectField("CATALOG_QUANTITY_TRACE", $quantityTraceStatus);
-				$row->AddSelectField("CAN_BUY_ZERO", $canBuyZeroStatus);
-				$row->AddInputField("CATALOG_WEIGHT");
-				$row->AddInputField('CATALOG_WIDTH');
-				$row->AddInputField('CATALOG_HEIGHT');
-				$row->AddInputField('CATALOG_LENGTH');
-				$row->AddCheckField("CATALOG_VAT_INCLUDED");
-				$row->AddSelectField('VAT_ID', $vatList);
-				if ($boolCatalogPurchasInfo)
+				$lockFields = $lockedGridFields[$row->arRes['CATALOG_TYPE']] ?? [];
+				$row->AddInputField('CATALOG_QUANTITY', $lockFields['CATALOG_QUANTITY'] ?? []);
+				$row->AddInputField('CATALOG_QUANTITY_RESERVED', $lockFields['CATALOG_QUANTITY_RESERVED'] ?? []);
+				$row->AddCheckField('CATALOG_AVAILABLE', $lockFields['CATALOG_AVAILABLE'] ?? []);
+				$row->AddSelectField('CATALOG_QUANTITY_TRACE', $quantityTraceStatus, $lockFields['CATALOG_QUANTITY_TRACE'] ?? []);
+				$row->AddSelectField('CAN_BUY_ZERO', $canBuyZeroStatus, $lockFields['CAN_BUY_ZERO'] ?? []);
+				$row->AddCheckField('CATALOG_VAT_INCLUDED', $lockFields['CATALOG_VAT_INCLUDED'] ?? []);
+				$row->AddSelectField('VAT_ID', $vatList, $lockFields['VAT_ID'] ?? []);
+				$row->AddInputField('CATALOG_WEIGHT', $lockFields['CATALOG_WEIGHT'] ?? []);
+				$row->AddInputField('CATALOG_WIDTH', $lockFields['CATALOG_WIDTH'] ?? []);
+				$row->AddInputField('CATALOG_HEIGHT', $lockFields['CATALOG_HEIGHT'] ?? []);
+				$row->AddInputField('CATALOG_LENGTH', $lockFields['CATALOG_LENGTH'] ?? []);
+
+				if (
+					$boolCatalogPurchasInfo
+					&& isset($arVisibleColumnsMap['CATALOG_PURCHASING_PRICE'])
+				)
 				{
 					$price = '&nbsp;';
 					if ((float)$row->arRes["CATALOG_PURCHASING_PRICE"] > 0)
@@ -3827,58 +4242,34 @@ foreach (array_keys($rawRows) as $rowId)
 						);
 					}
 				}
+				unset($lockFields);
 			}
-			elseif ($boolCatalogRead)
+			else
 			{
 				$row->AddCheckField('CATALOG_AVAILABLE', false);
-				$row->AddInputField("CATALOG_QUANTITY", false);
-				$row->AddSelectField("CATALOG_QUANTITY_TRACE", $quantityTraceStatus, false);
-				$row->AddSelectField("CAN_BUY_ZERO", $canBuyZeroStatus, false);
-				$row->AddInputField("CATALOG_WEIGHT", false);
+				$row->AddInputField('CATALOG_QUANTITY', false);
+				$row->AddSelectField('CATALOG_QUANTITY_TRACE', $quantityTraceStatus, false);
+				$row->AddSelectField('CAN_BUY_ZERO', $canBuyZeroStatus, false);
+				$row->AddInputField('CATALOG_WEIGHT', false);
 				$row->AddInputField('CATALOG_WIDTH', false);
 				$row->AddInputField('CATALOG_HEIGHT', false);
 				$row->AddInputField('CATALOG_LENGTH', false);
-				$row->AddCheckField("CATALOG_VAT_INCLUDED", false);
+				$row->AddCheckField('CATALOG_VAT_INCLUDED', false);
 				$row->AddSelectField('VAT_ID', $vatList, false);
-				if ($boolCatalogPurchasInfo)
+				if (
+					$boolCatalogPurchasInfo
+					&& isset($arVisibleColumnsMap['CATALOG_PURCHASING_PRICE'])
+				)
 				{
 					$price = '&nbsp;';
-					if ((float)$row->arRes["CATALOG_PURCHASING_PRICE"] > 0)
+					if ((float)$row->arRes['CATALOG_PURCHASING_PRICE'] > 0)
 					{
 						if ($bCurrency)
-							$price = CCurrencyLang::CurrencyFormat($row->arRes["CATALOG_PURCHASING_PRICE"], $row->arRes["CATALOG_PURCHASING_CURRENCY"], true);
+							$price = CCurrencyLang::CurrencyFormat($row->arRes['CATALOG_PURCHASING_PRICE'], $row->arRes['CATALOG_PURCHASING_CURRENCY'], true);
 						else
-							$price = $row->arRes["CATALOG_PURCHASING_PRICE"]." ".$row->arRes["CATALOG_PURCHASING_CURRENCY"];
+							$price = $row->arRes['CATALOG_PURCHASING_PRICE'].' '.$row->arRes['CATALOG_PURCHASING_CURRENCY'];
 					}
-					$row->AddViewField("CATALOG_PURCHASING_PRICE", htmlspecialcharsEx($price));
-				}
-			}
-		}
-		else
-		{
-			if ($bCatalog)
-			{
-				$row->AddCheckField('CATALOG_AVAILABLE', false);
-				$row->AddInputField("CATALOG_QUANTITY", false);
-				$row->AddSelectField("CATALOG_QUANTITY_TRACE", $quantityTraceStatus, false);
-				$row->AddSelectField("CAN_BUY_ZERO", $canBuyZeroStatus, false);
-				$row->AddInputField("CATALOG_WEIGHT", false);
-				$row->AddInputField('CATALOG_WIDTH', false);
-				$row->AddInputField('CATALOG_HEIGHT', false);
-				$row->AddInputField('CATALOG_LENGTH', false);
-				$row->AddCheckField("CATALOG_VAT_INCLUDED", false);
-				$row->AddSelectField('VAT_ID', $vatList, false);
-				if ($boolCatalogPurchasInfo)
-				{
-					$price = '&nbsp;';
-					if ((float)$row->arRes["CATALOG_PURCHASING_PRICE"] > 0)
-					{
-						if ($bCurrency)
-							$price = CCurrencyLang::CurrencyFormat($row->arRes["CATALOG_PURCHASING_PRICE"], $row->arRes["CATALOG_PURCHASING_CURRENCY"], true);
-						else
-							$price = $row->arRes["CATALOG_PURCHASING_PRICE"]." ".$row->arRes["CATALOG_PURCHASING_CURRENCY"];
-					}
-					$row->AddViewField("CATALOG_PURCHASING_PRICE", htmlspecialcharsEx($price));
+					$row->AddViewField('CATALOG_PURCHASING_PRICE', htmlspecialcharsEx($price));
 				}
 			}
 		}
@@ -3897,40 +4288,50 @@ foreach (array_keys($rawRows) as $rowId)
 	}
 	else
 	{
-		if (!$bExcel && $bCatalog && $pageConfig['USE_NEW_CARD'])
+		if ($bCatalog && $pageConfig['USE_NEW_CARD'])
 		{
-			if (!$isChangeVariationRequest)
+			if ($bExcel)
 			{
-				$productFields = array_merge($row->arRes, [
-					'SKU_IBLOCK_ID' => $arCatalog['IBLOCK_ID'],
-					'SKU_ID' => $selectedSkuMap[$row->arRes['ID']] ?? null,
-				]);
-				ob_start();
-				$APPLICATION->IncludeComponent(
-					'bitrix:catalog.grid.product.field',
-					'',
-					[
-						'GRID_ID' => $sTableID,
-						'ROW_ID' => $rowId,
-						'ROW_ID_MASK' => 'E#ID#',
-						'PRODUCT_FIELDS' => $productFields,
-						'ENABLE_IMAGE_INPUT' => false,
-						'ENABLE_CHANGES_RENDERING' => false,
-						'SKU_TREE' => $productSkuTree[$row->arRes['ID']] ?? null,
-					]
-				);
-				$field = ob_get_clean();
-				$row->AddViewField('CATALOG_PRODUCT', $field);
+				$row->AddViewField('CATALOG_PRODUCT', $arRes['NAME']);
+			}
+			else
+			{
+				if (!$isChangeVariationRequest)
+				{
+					$productFields = array_merge($row->arRes, [
+						'SKU_IBLOCK_ID' => $arCatalog['IBLOCK_ID'],
+						'SKU_ID' => $selectedSkuMap[$row->arRes['ID']] ?? null,
+					]);
+					ob_start();
+					$APPLICATION->IncludeComponent(
+						'bitrix:catalog.grid.product.field',
+						'',
+						[
+							'GRID_ID' => $sTableID,
+							'ROW_ID' => $rowId,
+							'ROW_ID_MASK' => 'E#ID#',
+							'PRODUCT_FIELDS' => $productFields,
+							'ENABLE_IMAGE_INPUT' => false,
+							'ENABLE_CHANGES_RENDERING' => false,
+							'SKU_TREE' => $productSkuTree[$row->arRes['ID']] ?? null,
+						]
+					);
+					$field = ob_get_clean();
+					$row->AddViewField('CATALOG_PRODUCT', $field);
+				}
 			}
 		}
 		else
 		{
-			$row->AddViewField(
-				'CATALOG_PRODUCT',
-				'<a href="'.$el_edit_url.'" title="'.GetMessage("IBLIST_A_EDIT").'">'
-					.htmlspecialcharsbx($arRes['NAME'])
-					.'</a>'
-			);
+			if (!$bExcel)
+			{
+				$row->AddViewField(
+					'NAME',
+					'<a href="' . $el_edit_url . '" title="' . GetMessage("IBLIST_A_EDIT") . '">'
+					. htmlspecialcharsbx($arRes['NAME'])
+					. '</a>'
+				);
+			}
 		}
 	}
 
@@ -4040,6 +4441,7 @@ foreach (array_keys($rawRows) as $rowId)
 	if($arRes['ACTIVE'] == "Y")
 	{
 		$arActive = array(
+			"ID" => "deactivate",
 			"TEXT" => GetMessage("IBLIST_A_DEACTIVATE"),
 			"ACTION" => $lAdmin->ActionDoGroup($itemType.$itemId, ActionType::DEACTIVATE, $sThisSectionUrl),
 			"ONCLICK" => "",
@@ -4048,6 +4450,7 @@ foreach (array_keys($rawRows) as $rowId)
 	else
 	{
 		$arActive = array(
+			"ID" => "activate",
 			"TEXT" => GetMessage("IBLIST_A_ACTIVATE"),
 			"ACTION" => $lAdmin->ActionDoGroup($itemType.$itemId, ActionType::ACTIVATE, $sThisSectionUrl),
 			"ONCLICK" => "",
@@ -4055,12 +4458,14 @@ foreach (array_keys($rawRows) as $rowId)
 	}
 
 	$clearCounter = array(
+		"ID" => "clear_counter",
 		"TEXT" => GetMessage('IBLIST_A_CLEAR_COUNTER'),
 		"TITLE" => GetMessage('IBLIST_A_CLEAR_COUNTER_TITLE'),
 		"ACTION" => "if(confirm('".GetMessageJS("IBLIST_A_CLEAR_COUNTER_CONFIRM")."')) ".$lAdmin->ActionDoGroup($itemType.$itemId, ActionType::CLEAR_COUNTER, $sThisSectionUrl),
 		"ONCLICK" => ""
 	);
 	$elementCodeTranslitAction = array(
+		"ID" => "code_translit",
 		"TEXT" => GetMessage('IBLIST_A_CODE_TRANSLIT'),
 		"TITLE" => GetMessage('IBLIST_A_CODE_TRANSLIT_ELEMENT_TITLE'),
 		"ACTION" => "if(confirm('".GetMessageJS("IBLIST_A_CODE_TRANSLIT_ELEMENT_CONFIRM")."')) ".$lAdmin->ActionDoGroup($itemType.$itemId, ActionType::CODE_TRANSLIT, $sThisSectionUrl),
@@ -4072,6 +4477,7 @@ foreach (array_keys($rawRows) as $rowId)
 		if(CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, $itemId, "section_edit"))
 		{
 			$arActions[] = array(
+				"ID" => "edit_section",
 				"ICON" => "edit",
 				"TEXT" => GetMessage("IBLOCK_CHANGE"),
 				"LINK" =>$sec_edit_url,
@@ -4080,6 +4486,7 @@ foreach (array_keys($rawRows) as $rowId)
 			if ($useSectionTranslit)
 			{
 				$arActions[] = array(
+					"ID" => "code_translit",
 					"TEXT" => GetMessage('IBLIST_A_CODE_TRANSLIT'),
 					"TITLE" => GetMessage('IBLIST_A_CODE_TRANSLIT_SECTION_TITLE'),
 					"ACTION" => "if(confirm('".GetMessageJS("IBLIST_A_CODE_TRANSLIT_SECTION_CONFIRM")."')) ".$lAdmin->ActionDoGroup($itemType.$itemId, ActionType::CODE_TRANSLIT, $sThisSectionUrl),
@@ -4090,6 +4497,7 @@ foreach (array_keys($rawRows) as $rowId)
 
 		if(CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, $itemId, "section_delete"))
 			$arActions[] = array(
+				"ID" => "delete",
 				"ICON" => "delete",
 				"TEXT" => GetMessage("MAIN_DELETE"),
 				"ACTION" => "if(confirm('".GetMessageJS("IBLOCK_CONFIRM_DEL_MESSAGE")."')) ".$lAdmin->ActionDoGroup($itemType.$itemId, ActionType::DELETE, $sThisSectionUrl),
@@ -4097,6 +4505,7 @@ foreach (array_keys($rawRows) as $rowId)
 	}
 	else
 	{
+		$iblockElementEdit = CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, 'element_edit');
 		if ($bWorkFlow)
 		{
 			if (CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit_any_wf_status"))
@@ -4130,7 +4539,7 @@ foreach (array_keys($rawRows) as $rowId)
 				 * delete
 				 */
 				if (
-					CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit")
+					$iblockElementEdit
 					&& (2 <= $STATUS_PERMISSION)
 				)
 				{
@@ -4162,6 +4571,7 @@ foreach (array_keys($rawRows) as $rowId)
 				)
 				{
 					$arActions[] = array(
+						"ID" => "copy",
 						"ICON" => "copy",
 						"TEXT" => GetMessage("IBLIST_A_COPY_ELEMENT"),
 						"LINK" => $urlBuilder->getElementCopyUrl(
@@ -4186,7 +4596,7 @@ foreach (array_keys($rawRows) as $rowId)
 					$tmpVar = CIBlock::ReplaceDetailUrl($arRes_orig["DETAIL_PAGE_URL"], $arRes_orig, true, "E");
 					if (
 						$arRes_orig['WF_NEW'] == "Y"
-						&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit")
+						&& $iblockElementEdit
 						&& (2 <= $STATUS_PERMISSION)
 					) // not yet published element under workflow
 					{
@@ -4200,7 +4610,7 @@ foreach (array_keys($rawRows) as $rowId)
 					}
 					elseif (
 						$arRes["WF_STATUS_ID"] > 1
-						&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit")
+						&& $iblockElementEdit
 						&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit_any_wf_status")
 					)
 					{
@@ -4222,7 +4632,7 @@ foreach (array_keys($rawRows) as $rowId)
 					else
 					{
 						if (
-							CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit")
+							$iblockElementEdit
 							&& (2 <= $STATUS_PERMISSION)
 						)
 							$arActions[] = array("SEPARATOR" => true);
@@ -4237,11 +4647,12 @@ foreach (array_keys($rawRows) as $rowId)
 
 				if (
 					$arRes["WF_STATUS_ID"] > 1
-					&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit")
+					&& $iblockElementEdit
 					&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit_any_wf_status")
 				)
 				{
 					$arActions[] = array(
+						"ID" => "edit_orig",
 						"ICON" => "edit_orig",
 						"TEXT" => GetMessage("IBLIST_A_ORIG_ED"),
 						"TITLE" => GetMessage("IBLIST_A_ORIG_ED_TITLE"),
@@ -4263,6 +4674,7 @@ foreach (array_keys($rawRows) as $rowId)
 					{
 						$arActions[] = array("SEPARATOR" => true);
 						$arActions[] = array(
+							"ID" => "delete",
 							"ICON" => "delete",
 							"TEXT" => GetMessage('MAIN_DELETE'),
 							"TITLE" => GetMessage("IBLOCK_DELETE_ALT"),
@@ -4311,6 +4723,7 @@ foreach (array_keys($rawRows) as $rowId)
 			elseif ($bWritePermission)
 			{
 				$arActions[] = array(
+					"ID" => "edit",
 					"ICON" => "edit",
 					"TEXT" => GetMessage("IBLOCK_CHANGE"),
 					"DEFAULT" => true,
@@ -4324,6 +4737,7 @@ foreach (array_keys($rawRows) as $rowId)
 				$arActions[] = array('SEPARATOR' => 'Y');
 
 				$arActions[] = array(
+					"ID" => "copy",
 					"ICON" => "copy",
 					"TEXT" => GetMessage("IBLIST_A_COPY_ELEMENT"),
 					"LINK" => $urlBuilder->getElementCopyUrl(
@@ -4344,6 +4758,7 @@ foreach (array_keys($rawRows) as $rowId)
 
 				$arActions[] = array("SEPARATOR" => true);
 				$arActions[] = array(
+					"ID" => "delete",
 					"ICON" => "delete",
 					"TEXT" => GetMessage('MAIN_DELETE'),
 					"TITLE" => GetMessage("IBLOCK_DELETE_ALT"),
@@ -4353,9 +4768,10 @@ foreach (array_keys($rawRows) as $rowId)
 		}
 		else
 		{
-			if (CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit"))
+			if ($iblockElementEdit)
 			{
 				$action = array(
+					"ID" => "edit_element",
 					"ICON" => "edit",
 					"DEFAULT" => true,
 					"TEXT" => GetMessage("IBLOCK_CHANGE"),
@@ -4372,10 +4788,11 @@ foreach (array_keys($rawRows) as $rowId)
 			}
 
 			if ($boolIBlockElementAdd
-				&& CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $itemId, "element_edit")
+				&& $iblockElementEdit
 			)
 			{
 				$action = array(
+					"ID" => "copy",
 					"ICON" => "copy",
 					"TEXT" => GetMessage("IBLIST_A_COPY_ELEMENT"),
 					"LINK" => $urlBuilder->getElementCopyUrl($arRes_orig['ID'], $elementUrlParams)
@@ -4399,14 +4816,100 @@ foreach (array_keys($rawRows) as $rowId)
 				if (!empty($arActions))
 					$arActions[] = array("SEPARATOR" => true);
 				$arActions[] = array(
+					"ID" => "delete",
 					"ICON" => "delete",
 					"TEXT" => GetMessage('MAIN_DELETE'),
 					"TITLE" => GetMessage("IBLOCK_DELETE_ALT"),
 					"ACTION" => "if(confirm('".GetMessageJS('IBLOCK_CONFIRM_DEL_MESSAGE')."')) ".$lAdmin->ActionDoGroup($itemType.$arRes_orig['ID'], ActionType::DELETE, $sThisSectionUrl),
 				);
 			}
+
+			if (
+				$iblockElementEdit
+				&& $bCatalog
+				&& (
+					$arRes['CATALOG_TYPE'] === Catalog\ProductTable::TYPE_PRODUCT
+					|| $arRes['CATALOG_TYPE'] === Catalog\ProductTable::TYPE_SERVICE
+				)
+				&& $enableConversionToService
+				&& $boolCatalogProductEdit
+			)
+			{
+				if (!empty($arActions))
+				{
+					$arActions[] = array("SEPARATOR" => true);
+				}
+				if ($arRes['CATALOG_TYPE'] === Catalog\ProductTable::TYPE_PRODUCT)
+				{
+					$messageId =
+						$useStoreControl
+							? 'IBLIST_A_CONVERT_PRODUCT_TO_SERVICE_CONFIRM_WITH_INVENTORY'
+							: 'IBLIST_A_CONVERT_PRODUCT_TO_SERVICE_CONFIRM_WITHOUT_INVENTORY'
+					;
+					$arActions[] = array(
+						'TEXT' => GetMessage('IBLIST_A_CONVERT_PRODUCT_TO_SERVICE_TITLE'),
+						'TITLE' => GetMessage('IBLIST_A_CONVERT_PRODUCT_TO_SERVICE_TITLE'),
+						"ACTION" => "if(confirm('".GetMessageJS($messageId)."')) ".$lAdmin->ActionDoGroup($itemType.$itemId, Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE, $sThisSectionUrl),
+						"ONCLICK" => ""
+					);
+				}
+				else
+				{
+					$arActions[] = array(
+						'TEXT' => GetMessage('IBLIST_A_CONVERT_SERVICE_TO_PRODUCT_TITLE'),
+						'TITLE' => GetMessage('IBLIST_A_CONVERT_SERVICE_TO_PRODUCT_TITLE'),
+						"ACTION" => "if(confirm('".GetMessageJS("IBLIST_A_CONVERT_SERVICE_TO_PRODUCT_CONFIRM_MESSAGE")."')) ".$lAdmin->ActionDoGroup($itemType.$itemId, Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT, $sThisSectionUrl),
+						"ONCLICK" => ""
+					);
+				}
+			}
 		}
 	}
+
+	// filter actions for access rights
+	if ($bCatalog)
+	{
+		$editActions = array_fill_keys([
+			// 'edit', not included, because edit page it is view page
+			'edit_orig',
+			'edit_section',
+			ActionType::ACTIVATE,
+			ActionType::DEACTIVATE,
+			ActionType::CLEAR_COUNTER,
+			ActionType::CODE_TRANSLIT,
+			Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE,
+			Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT,
+		], true);
+
+		$arActions = array_filter(
+			$arActions,
+			static function ($item) use (
+				$editActions,
+				$boolCatalogProductAdd,
+				$boolCatalogProductEdit,
+				$boolCatalogProductDelete
+			)
+			{
+				$id = $item['ID'] ?? null;
+
+				if ($id === 'copy')
+				{
+					return $boolCatalogProductAdd;
+				}
+				elseif ($id === 'delete')
+				{
+					return $boolCatalogProductDelete;
+				}
+				elseif (isset($editActions[$id]))
+				{
+					return $boolCatalogProductEdit;
+				}
+
+				return true;
+			}
+		);
+	}
+
 	$row->AddActions($arActions);
 	unset($arActions);
 }
@@ -4451,49 +4954,6 @@ if ($bCatalog)
 		}
 	}
 
-	if (!empty($arProductIDs))
-	{
-		$arProductKeys = array_keys($arProductIDs);
-		foreach ($arProductKeys as &$intProductID)
-		{
-			if ($arRows['E'.$intProductID]->arRes['CATALOG_TYPE'] == Catalog\ProductTable::TYPE_SKU)
-			{
-				if (!$showCatalogWithOffers)
-				{
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_QUANTITY', ' ');
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_QUANTITY_TRACE', ' ');
-					$arRows['E'.$intProductID]->AddViewField('CAN_BUY_ZERO', ' ');
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_WEIGHT', ' ');
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_VAT_INCLUDED', ' ');
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_PURCHASING_PRICE', '&nbsp;');
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_MEASURE_RATIO', ' ');
-					$arRows['E'.$intProductID]->AddViewField('CATALOG_MEASURE', ' ');
-					$arRows['E'.$intProductID]->AddViewField('VAT_ID', ' ');
-					$arRows['E'.$intProductID]->arRes['VAT_ID'] = '';
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_QUANTITY']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_QUANTITY']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_QUANTITY_TRACE']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_QUANTITY_TRACE']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CAN_BUY_ZERO']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CAN_BUY_ZERO']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_WEIGHT']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_WEIGHT']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_VAT_INCLUDED']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_VAT_INCLUDED']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_PURCHASING_PRICE']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_PURCHASING_PRICE']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_MEASURE_RATIO']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_MEASURE_RATIO']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['CATALOG_MEASURE']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['CATALOG_MEASURE']['edit']);
-					if (isset($arRows['E'.$intProductID]->aFields['VAT_ID']['edit']))
-						unset($arRows['E'.$intProductID]->aFields['VAT_ID']['edit']);
-					$arRows['E'.$intProductID]->arRes["CATALOG_BAR_CODE"] = ' ';
-				}
-			}
-		}
-		unset($intProductID, $existOffers);
-	}
 	foreach ($arElemID as &$intOneElemID)
 	{
 		$strProductType = '';
@@ -4510,26 +4970,8 @@ if ($bCatalog)
 	{
 		foreach ($arElemID as &$intOneElemID)
 		{
-			if ($showCatalogWithOffers || $arRows['E'.$intOneElemID]->arRes['CATALOG_TYPE'] != Catalog\ProductTable::TYPE_SKU)
-			{
-				if (isset($arCatalogRights[$intOneElemID]) && $arCatalogRights[$intOneElemID] && $arRows['E'.$intOneElemID]->arRes['CATALOG_TYPE'] != Catalog\ProductTable::TYPE_SET)
-				{
-					$arRows['E'.$intOneElemID]->AddSelectField('CATALOG_MEASURE', $measureList);
-				}
-				else
-				{
-					$measureTitle = (isset($measureList[$arRows['E'.$intOneElemID]->arRes['CATALOG_MEASURE']])
-						? $measureList[$arRows['E'.$intOneElemID]->arRes['CATALOG_MEASURE']]
-						: $measureList[0]
-					);
-					$arRows['E'.$intOneElemID]->AddViewField('CATALOG_MEASURE', $measureTitle);
-					unset($measureTitle);
-				}
-			}
-			else
-			{
-				$arRows['E'.$intOneElemID]->AddViewField('CATALOG_MEASURE', ' ');
-			}
+			$lockFields = $lockedGridFields[$arRows['E'.$intOneElemID]->arRes['CATALOG_TYPE']] ?? [];
+			$arRows['E'.$intOneElemID]->AddSelectField('CATALOG_MEASURE', $measureList, $lockFields['CATALOG_MEASURE'] ?? []);
 		}
 		unset($intOneElemID);
 	}
@@ -4558,18 +5000,9 @@ if ($bCatalog)
 		{
 			foreach ($arElemID as &$intOneElemID)
 			{
-				$arRows['E'.$intOneElemID]->arRes['CATALOG_MEASURE_RATIO'] = (isset($arRatioList[$intOneElemID]) ? $arRatioList[$intOneElemID] : ' ');
-				if ($showCatalogWithOffers || $arRows['E'.$intOneElemID]->arRes['CATALOG_TYPE'] != Catalog\ProductTable::TYPE_SKU)
-				{
-					if (isset($arCatalogRights[$intOneElemID]) && $arCatalogRights[$intOneElemID])
-						$arRows['E'.$intOneElemID]->AddInputField('CATALOG_MEASURE_RATIO');
-					else
-						$arRows['E'.$intOneElemID]->AddInputField('CATALOG_MEASURE_RATIO', false);
-				}
-				else
-				{
-					$arRows['E'.$intOneElemID]->AddViewField('CATALOG_MEASURE_RATIO', ' ');
-				}
+				$lockFields = $lockedGridFields[$arRows['E'.$intOneElemID]->arRes['CATALOG_TYPE']] ?? [];
+				$arRows['E'.$intOneElemID]->arRes['CATALOG_MEASURE_RATIO'] = ($arRatioList[$intOneElemID] ?? ' ');
+				$arRows['E'.$intOneElemID]->AddInputField('CATALOG_MEASURE_RATIO', $lockFields['CATALOG_MEASURE_RATIO'] ?? []);
 			}
 			unset($intOneElemID);
 		}
@@ -4811,27 +5244,45 @@ if(true)
 	$actionList = array();
 	if ($mainEntityEdit)
 	{
-		$actionList[] = ActionType::DELETE;
-		$actionList[] = ActionType::EDIT;
-		$actionList[] = ActionType::SELECT_ALL;
-		$actionList[] = ActionType::ACTIVATE;
-		$actionList[] = ActionType::DEACTIVATE;
-
-		if ($useElementTranslit || $useSectionTranslit)
+		if (!$bCatalog || $boolCatalogProductDelete)
 		{
-			$actionList[ActionType::CODE_TRANSLIT] = [
-				'CONFIRM_MESSAGE' => GetMessage('IBLIST_A_CODE_TRANSLIT_CONFIRM_MULTI')
-			];
+			$actionList[] = ActionType::DELETE;
 		}
-		$actionList[] = ActionType::CLEAR_COUNTER;
 
-		$actionList[] = ActionType::MOVE_TO_SECTION;
-		$actionList[] = ActionType::ADD_TO_SECTION;
-
-		if ($bCatalog && $boolCatalogPrice && $mainEntityEditPrice)
+		if ((!$bCatalog || $boolCatalogProductEdit))
 		{
-			$actionList[] = Catalog\Grid\ProductAction::SET_FIELD;
-			$actionList[] = Catalog\Grid\ProductAction::CHANGE_PRICE;
+			$actionList[] = ActionType::EDIT;
+			$actionList[] = ActionType::SELECT_ALL;
+			$actionList[] = ActionType::ACTIVATE;
+			$actionList[] = ActionType::DEACTIVATE;
+
+			if ($useElementTranslit || $useSectionTranslit)
+			{
+				$actionList[ActionType::CODE_TRANSLIT] = [
+					'CONFIRM_MESSAGE' => GetMessage('IBLIST_A_CODE_TRANSLIT_CONFIRM_MULTI')
+				];
+			}
+			$actionList[] = ActionType::CLEAR_COUNTER;
+
+			$actionList[] = ActionType::MOVE_TO_SECTION;
+			$actionList[] = ActionType::ADD_TO_SECTION;
+
+			if ($bCatalog && $boolCatalogProductEdit && $mainEntityEditPrice)
+			{
+				if (
+					$arCatalog['CATALOG_TYPE'] === CCatalogSku::TYPE_FULL
+					|| $arCatalog['CATALOG_TYPE'] === CCatalogSku::TYPE_CATALOG
+				)
+				{
+					$actionList[] = Catalog\Grid\ProductAction::CONVERT_PRODUCT_TO_SERVICE;
+					$actionList[] = Catalog\Grid\ProductAction::CONVERT_SERVICE_TO_PRODUCT;
+				}
+				$actionList[] = Catalog\Grid\ProductAction::SET_FIELD;
+			}
+			if ($bCatalog && $boolCatalogPrice && $mainEntityEditPrice)
+			{
+				$actionList[] = Catalog\Grid\ProductAction::CHANGE_PRICE;
+			}
 		}
 	}
 
@@ -4925,13 +5376,13 @@ if ($pageConfig['SHOW_NAVCHAIN'])
 // toolbar
 $boolBtnNew = false;
 $aContext = array();
-if ($iblockElementAdd)
+if ($iblockElementAdd && (!$bCatalog || $boolCatalogProductAdd))
 {
 	$boolBtnNew = true;
 	if (!empty($arCatalog))
 	{
-		CCatalogAdminTools::setProductFormParams();
-		$arCatalogBtns = CCatalogAdminTools::getIBlockElementMenu(
+		\CCatalogAdminTools::setProductFormParams();
+		$arCatalogBtns = \CCatalogAdminTools::getIBlockElementMenu(
 			$IBLOCK_ID,
 			$arCatalog,
 			array(
@@ -4959,8 +5410,15 @@ if ($iblockElementAdd)
 		);
 	}
 }
+elseif ($bCatalog && !$boolCatalogProductAdd && empty($productLimits))
+{
+	$aContext = \CCatalogAdminTools::getIblockElementMenuLocked();
+}
 
-if(CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, $find_section_section, "section_section_bind") && $arIBTYPE["SECTIONS"]!="N")
+if(
+	CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, $find_section_section, "section_section_bind") && $arIBTYPE["SECTIONS"]!="N"
+	&& (!$bCatalog || $boolCatalogProductAdd)
+)
 {
 	$aContext[] = array(
 		"TEXT" => htmlspecialcharsbx($arIBlock["SECTION_ADD"]),
@@ -4970,7 +5428,7 @@ if(CIBlockSectionRights::UserHasRightTo($IBLOCK_ID, $find_section_section, "sect
 			'IBLOCK_SECTION_ID'=>$find_section_section,
 			'from' => 'iblock_list_admin',
 		)),
-		"PUBLIC" => $pageConfig['USE_NEW_CARD']
+		"PUBLIC" => $pageConfig['PUBLIC_MODE']
 	);
 }
 
@@ -4992,15 +5450,18 @@ if($bBizproc && IsModuleInstalled("bizprocdesigner"))
 	}
 }
 
-// TODO: hack for psevdo-excel export in crm (\CAdminUiList::GetSystemContextMenu)
-$_GET['urlBuilderId'] = $urlBuilderId;
-// TODO end
 $lAdmin->setContextSettings(array("pagePath" => $pageConfig['CONTEXT_PATH']));
 $contextConfig = array();
 $excelExport = (Main\Config\Option::get("iblock", "excel_export_rights") == "Y"
 	? CIBlockRights::UserHasRightTo($IBLOCK_ID, $IBLOCK_ID, "iblock_export")
 	: true
 );
+
+if ($excelExport && $bCatalog && !$boolCatalogExport)
+{
+	$excelExport = false;
+}
+
 if ($excelExport)
 {
 	$contextConfig['excel'] = true;
@@ -5014,10 +5475,17 @@ $lAdmin->SetContextMenu($aContext, $additional, $contextConfig);
 
 $lAdmin->CheckListMode();
 
-if ($pageConfig['CATALOG'])
-	$APPLICATION->SetTitle(GetMessage("IBLIST_A_LIST_TITLE", array("#IBLOCK_NAME#" => $arIBlock["NAME"])));
+if ($pageConfig['PUBLIC_CRM_CATALOG'])
+{
+	$APPLICATION->SetTitle(GetMessage("IBLIST_A_LIST_TITLE_2"));
+}
 else
-	$APPLICATION->SetTitle($arIBlock["NAME"]);
+{
+	if ($pageConfig['CATALOG'])
+		$APPLICATION->SetTitle(GetMessage("IBLIST_A_LIST_TITLE", ["#IBLOCK_NAME#" => $arIBlock["NAME"]]));
+	else
+		$APPLICATION->SetTitle($arIBlock["NAME"]);
+}
 
 Main\Page\Asset::getInstance()->addJs('/bitrix/js/iblock/iblock_edit.js');
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
@@ -5184,6 +5652,7 @@ if ($bCatalog && !$isChangeVariationRequest && $pageConfig['USE_NEW_CARD'])
 		'productVariationMap' => $selectedSkuMap,
 		'createNewProductHref' => $aContext[0]['LINK'],
 		'showCatalogWithOffers' => $showCatalogWithOffers,
+		'canEditPrice' => $boolCatalogPrice,
 	];
 	Extension::load([
 		'catalog.iblock-product-list',
@@ -5202,6 +5671,46 @@ if ($bCatalog && !$isChangeVariationRequest && $pageConfig['USE_NEW_CARD'])
 		});
 	</script>
 	<?php
+
+	if (Loader::includeModule('pull'))
+	{
+		Extension::load('ui.nofiticaion');
+		?>
+		<script>
+			BX.addCustomEvent("onPullEvent-catalog", function(command, params) {
+				if (command === 'notification-balloon')
+				{
+					BX.UI.Notification.Center.notify({
+						content: params.message,
+					});
+				}
+			});
+		</script>
+		<?php
+	}
+}
+elseif ($bCatalog && !$isChangeVariationRequest && $publicMode)
+{
+	$listData = [
+		'gridId' => $sTableID,
+		'canEditPrice' => $boolCatalogPrice,
+	];
+	Extension::load([
+		'catalog.iblock-product-list',
+	]);
+	?>
+	<script>
+		BX.ready(function() {
+			new BX.Catalog.IblockProductListHints(<?=CUtil::PhpToJsObject($listData)?>);
+		});
+	</script>
+	<?php
+}
+
+if ($pageConfig['PUBLIC_CRM_CATALOG'])
+{
+	$urlBuilder->openSettingsPage();
+	$urlBuilder->subscribeOnAfterSettingsSave();
 }
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

@@ -1,7 +1,12 @@
-<?
-require_once(dirname(__FILE__)."/../bx_root.php");
+<?php
 
-define("START_EXEC_PROLOG_BEFORE_1", microtime(true));
+require_once(__DIR__."/../bx_root.php");
+
+if (!defined('START_EXEC_PROLOG_BEFORE_1'))
+{
+	define("START_EXEC_PROLOG_BEFORE_1", microtime(true));
+}
+
 $GLOBALS["BX_STATE"] = "PB";
 unset($_REQUEST["BX_STATE"]);
 unset($_GET["BX_STATE"]);
@@ -31,7 +36,7 @@ if (!defined('PUBLIC_MODE') || PUBLIC_MODE !== 1)
 	}
 }
 
-require_once(dirname(__FILE__)."/../include.php");
+require_once(__DIR__."/../include.php");
 if(!headers_sent())
 	header("Content-type: text/html; charset=".LANG_CHARSET);
 
@@ -45,3 +50,5 @@ require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/admin_tools.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/interface/init_admin.php");
 
 CMain::PrologActions();
+
+define("START_EXEC_PROLOG_BEFORE_2", microtime(true));

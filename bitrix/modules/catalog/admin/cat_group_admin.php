@@ -2,7 +2,10 @@
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
 /** @global CDatabase $DB */
+
 use Bitrix\Main\Loader,
+	Bitrix\Catalog\Access\ActionDictionary,
+	Bitrix\Catalog\Access\AccessController,
 	Bitrix\Catalog;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
@@ -16,10 +19,15 @@ global $adminSidePanelHelper;
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_group')))
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 Loader::includeModule('catalog');
-$bReadOnly = !$USER->CanDoOperation('catalog_group');
+
+$accessController = AccessController::getCurrent();
+if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $accessController->check(ActionDictionary::ACTION_PRICE_GROUP_EDIT)))
+{
+	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+}
+
+$bReadOnly = !$accessController->check(ActionDictionary::ACTION_PRICE_GROUP_EDIT);
 
 if ($ex = $APPLICATION->GetException())
 {
@@ -36,9 +44,11 @@ IncludeModuleLangFile(__FILE__);
 
 $sTableID = "tbl_catalog_group";
 
-$oSort = new CAdminUiSorting($sTableID, "ID", "asc");
-
+$oSort = new CAdminUiSorting($sTableID, "ID", "ASC");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
+
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $arFilterFields = array();
 
@@ -77,7 +87,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 	if ($_REQUEST['action_target']=='selected')
 	{
 		$arID = Array();
-		$dbResultList = CCatalogGroup::GetListEx(array($by => $order), $arFilter, false, false, array('ID'));
+		$dbResultList = CCatalogGroup::GetListEx(array(), $arFilter, false, false, array('ID'));
 		while ($arResult = $dbResultList->Fetch())
 			$arID[] = $arResult['ID'];
 	}
@@ -233,10 +243,7 @@ if ($arSelectFieldsMap['NAME_LID'])
 		$arLangDefList[$arPriceLang['LID']] = str_replace('#LANG#', htmlspecialcharsbx($arPriceLang['NAME']), GetMessage('BT_CAT_GROUP_ADM_LANG_MESS'));
 	}
 	unset($arPriceLang, $rsPriceLangs);
-	unset($order1, $by1);
 }
-
-global $by, $order;
 
 if (!in_array('ID', $arSelectFields))
 {
@@ -314,7 +321,7 @@ while ($arRes = $dbResultList->Fetch())
 	$arActions = array();
 	$arActions[] = array(
 		"ICON" => "edit",
-		"TEXT" => GetMessage("EDIT_STATUS_ALT"),
+		"TEXT" => $bReadOnly ? GetMessage('VIEW') : GetMessage('EDIT_STATUS_ALT'),
 		"LINK" => $editUrl,
 		"DEFAULT" => true
 	);

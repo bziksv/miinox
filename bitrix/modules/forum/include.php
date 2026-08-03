@@ -1,5 +1,7 @@
-<?
-global $APPLICATION, $DBType;
+<?php
+
+global $APPLICATION;
+
 IncludeModuleLangFile(__FILE__);
 
 if (file_exists(__DIR__."/deprecated.php"))
@@ -9,7 +11,7 @@ if (file_exists(__DIR__."/deprecated.php"))
 
 $arNameStatuses = @unserialize(COption::GetOptionString("forum", "statuses_name"), ["allowed_classes" => false]);
 $arNameStatuses = is_array($arNameStatuses) ? $arNameStatuses : array();
-$arNameStatuses[LANGUAGE_ID] = is_array($arNameStatuses[LANGUAGE_ID]) ? $arNameStatuses[LANGUAGE_ID] : array();
+$arNameStatuses[LANGUAGE_ID] = isset($arNameStatuses[LANGUAGE_ID]) && is_array($arNameStatuses[LANGUAGE_ID]) ? $arNameStatuses[LANGUAGE_ID] : array();
 $name = array("guest" => "Guest", "user" => "User", "moderator" => "Moderator", "editor" => "Editor", "administrator" => "Administrator");
 foreach ($name as $k => $v):
 	$name[$k] = trim(!empty($arMess["F_".mb_strtoupper($k)]) ? $arMess["F_".mb_strtoupper($k)] : $name[$k]);
@@ -68,40 +70,40 @@ if(!defined("CACHED_b_forum_user"))
 		"textParser" => "classes/general/functions.php",
 		"forumTextParser" => "classes/general/functions.php",
 
-		"CForumNew" =>   "classes/".$DBType."/forum_new.php",
-		"CForumGroup" => "classes/".$DBType."/forum_new.php",
+		"CForumNew" =>   "classes/mysql/forum_new.php",
+		"CForumGroup" => "classes/mysql/forum_new.php",
 		"CForumSmile" => "classes/general/forum_new.php",
 		"_CForumDBResult"=>"classes/general/forum_new.php",
 
-		"CForumTopic" => "classes/".$DBType."/topic.php",
+		"CForumTopic" => "classes/mysql/topic.php",
 		"_CTopicDBResult" => "classes/general/topic.php",
 
-		"CForumMessage" => "classes/".$DBType."/message.php",
-		"CForumFiles" => "classes/".$DBType."/message.php",
+		"CForumMessage" => "classes/mysql/message.php",
+		"CForumFiles" => "classes/mysql/message.php",
 		"_CMessageDBResult" => "classes/general/message.php",
 
 		"CForumEventLog" => "classes/general/event_log.php",
 
-		"CFilterDictionary" => "classes/".$DBType."/filter_dictionary.php",
-		"CFilterLetter" => "classes/".$DBType."/filter_dictionary.php",
-		"CFilterUnquotableWords" => "classes/".$DBType."/filter_dictionary.php",
+		"CFilterDictionary" => "classes/mysql/filter_dictionary.php",
+		"CFilterLetter" => "classes/mysql/filter_dictionary.php",
+		"CFilterUnquotableWords" => "classes/mysql/filter_dictionary.php",
 
-		"CForumPMFolder" => "classes/".$DBType."/private_message.php",
-		"CForumPrivateMessage" => "classes/".$DBType."/private_message.php",
+		"CForumPMFolder" => "classes/mysql/private_message.php",
+		"CForumPrivateMessage" => "classes/mysql/private_message.php",
 
-		"CForumPoints" => "classes/".$DBType."/points.php",
-		"CForumPoints2Post" => "classes/".$DBType."/points.php",
-		"CForumUserPoints" => "classes/".$DBType."/points.php",
+		"CForumPoints" => "classes/mysql/points.php",
+		"CForumPoints2Post" => "classes/mysql/points.php",
+		"CForumUserPoints" => "classes/mysql/points.php",
 
-		"CForumRank" => "classes/".$DBType."/user.php",
-		"CForumStat" => "classes/".$DBType."/user.php",
-		"CForumSubscribe" => "classes/".$DBType."/user.php",
-		"CForumUser" => "classes/".$DBType."/user.php",
+		"CForumRank" => "classes/mysql/user.php",
+		"CForumStat" => "classes/mysql/user.php",
+		"CForumSubscribe" => "classes/mysql/user.php",
+		"CForumUser" => "classes/mysql/user.php",
 
 		"CForumParameters" => "tools/components_lib.php",
 		"CForumEMail" => "mail/mail.php",
 		"CForumFormat" => "tools/components_lib.php",
-		"CRatingsComponentsForum" => "classes/".$DBType."/ratings_components.php",
+		"CRatingsComponentsForum" => "classes/mysql/ratings_components.php",
 		"CEventForum" => "classes/general/event_log.php",
 
 		"CForumCacheManager" => "classes/general/functions.php",
@@ -119,7 +121,7 @@ function ForumCurrUserPermissions($FID, $arAddParams = array())
 {
 	static $arCache = array();
 	$arAddParams = (is_array($arAddParams) ? $arAddParams : array());
-	$arAddParams["PERMISSION"] = (!!$arAddParams["PERMISSION"] ? $arAddParams["PERMISSION"] : '');
+	$arAddParams["PERMISSION"] = $arAddParams["PERMISSION"] ?? '';
 	if (! isset($arCache[$FID.$arAddParams["PERMISSION"]]))
 	{
 		if (CForumUser::IsAdmin())
@@ -128,7 +130,7 @@ function ForumCurrUserPermissions($FID, $arAddParams = array())
 		}
 		else
 		{
-			$strPerms = (!!$arAddParams["PERMISSION"] ? $arAddParams["PERMISSION"] : CForumNew::GetUserPermission($FID, $GLOBALS["USER"]->GetUserGroupArray()));
+			$strPerms = (!empty($arAddParams["PERMISSION"]) ? $arAddParams["PERMISSION"] : CForumNew::GetUserPermission($FID, $GLOBALS["USER"]->GetUserGroupArray()));
 			if ($strPerms <= "E")
 			{
 				$result = $strPerms;
@@ -413,14 +415,28 @@ function ForumAddMessage(
 		else
 		{
 			$arFieldsG["AUTHOR_ID"] = $usr->getId();
-			$arFieldsG["AUTHOR_EMAIL"] = trim($arFieldsG["AUTHOR_EMAIL"]);
-			$arFieldsG["AUTHOR_NAME"] = trim($arFieldsG["AUTHOR_NAME"]);
+			$arFieldsG["AUTHOR_EMAIL"] = trim($arFieldsG["AUTHOR_EMAIL"] ?? '');
+			$arFieldsG["AUTHOR_NAME"] = trim($arFieldsG["AUTHOR_NAME"] ?? '');
 			if ($arFieldsG["AUTHOR_NAME"] == '' && $usr->getId() > 0)
 			{
 				$arFieldsG["AUTHOR_NAME"] = $usr->getName();
 			}
 			$arFieldsG["APPROVED"] = $forum["MODERATION"] != "Y" || $usr->canModerate($forum) ? "Y" : "N";
 			$arFieldsG["POST_DATE"] = new \Bitrix\Main\Type\DateTime();
+
+			if (\Bitrix\Main\ModuleManager::isModuleInstalled("statistic"))
+			{
+				$arFieldsG["GUEST_ID"] = $_SESSION["SESS_GUEST_ID"];
+			}
+			if ($realIp = \Bitrix\Main\Service\GeoIp\Manager::getRealIp())
+			{
+				$arFieldsG["AUTHOR_IP"] = $realIp;
+				$arFieldsG["AUTHOR_REAL_IP"] = $realIp;
+				if (\Bitrix\Main\Config\Option::get("forum", "FORUM_GETHOSTBYADDR", "N") == "Y")
+				{
+					$arFieldsG["AUTHOR_REAL_IP"] = @gethostbyaddr($realIp);
+				}
+			}
 
 			if ($MESSAGE_TYPE == "NEW") // New Topic
 			{
@@ -1221,8 +1237,8 @@ function ForumPrintSmilesList($num_cols, $strLang = false)
 		$res_str .= "<td width=\"".intval(100/$num_cols)."%\">";
 		$strTYPING = strtok($res['TYPING'], " ");
 		$res_str .= "<img src=\"".$strPath2Icons.$res['IMAGE']."\" alt=\"".$res['NAME']."\" title=\"".$res['NAME']."\" border=\"0\"";
-		if (intval($res['IMAGE_WIDTH'])>0) $res_str .= " width=\"".$res['IMAGE_WIDTH']."\"";
-		if (intval($res['IMAGE_HEIGHT'])>0) $res_str .= " height=\"".$res['IMAGE_HEIGHT']."\"";
+		if (!empty($res['IMAGE_WIDTH'])) $res_str .= " width=\"".intval($res['IMAGE_WIDTH'])."\"";
+		if (!empty($res['IMAGE_HEIGHT'])) $res_str .= " height=\"".intval($res['IMAGE_HEIGHT'])."\"";
 		$res_str .= " class=\"smiles-list\" alt=\"smile".$strTYPING."\" onclick=\"if(emoticon){emoticon('".$strTYPING."');}\" name=\"smile\"  id='".$strTYPING."' ";
 		$res_str .= "/>&nbsp;</td>\n";
 		$ind++;
@@ -1800,4 +1816,3 @@ function ForumGetEntity($entityId, $value = true)
 	$arForumGetEntity[$entityId] = $value;
 	return false;
 }
-?>
