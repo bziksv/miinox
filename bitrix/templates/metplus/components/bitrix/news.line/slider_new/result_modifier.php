@@ -15,23 +15,35 @@ foreach ($arResult['ITEMS'] as &$arItem) {
     }
 
     // Миграция со старого слайдера: PREVIEW_PICTURE → desktop
+    // news.line отдаёт PREVIEW_PICTURE массивом — нельзя кастить (int) в PHP 8+
     if (empty($arItem['SLIDER_IMAGES']['IMG_DESKTOP'])) {
-        $previewId = (int)($arItem['PREVIEW_PICTURE'] ?? 0);
-        if ($previewId <= 0 && !empty($arItem['FIELDS']['PREVIEW_PICTURE'])) {
-            $previewId = (int)$arItem['FIELDS']['PREVIEW_PICTURE'];
+        $previewId = 0;
+        $previewSrc = '';
+        $preview = $arItem['PREVIEW_PICTURE'] ?? null;
+        if (is_array($preview)) {
+            $previewId = (int)($preview['ID'] ?? 0);
+            $previewSrc = (string)($preview['SRC'] ?? '');
+        } elseif (is_numeric($preview)) {
+            $previewId = (int)$preview;
         }
-        // news.line кладёт картинку как массив после обработки
-        if ($previewId <= 0 && !empty($arItem['PREVIEW_PICTURE']['ID'])) {
-            $previewId = (int)$arItem['PREVIEW_PICTURE']['ID'];
+        if ($previewId <= 0 && !empty($arItem['FIELDS']['PREVIEW_PICTURE'])) {
+            $fieldPreview = $arItem['FIELDS']['PREVIEW_PICTURE'];
+            if (is_array($fieldPreview)) {
+                $previewId = (int)($fieldPreview['ID'] ?? 0);
+                if ($previewSrc === '') {
+                    $previewSrc = (string)($fieldPreview['SRC'] ?? '');
+                }
+            } elseif (is_numeric($fieldPreview)) {
+                $previewId = (int)$fieldPreview;
+            }
         }
         if ($previewId > 0) {
             $src = (string)CFile::GetPath($previewId);
             $arItem['SLIDER_IMAGES_ORIG']['IMG_DESKTOP'] = $src;
             $arItem['SLIDER_IMAGES']['IMG_DESKTOP'] = $src !== '' ? getImageWebpSrc($src) : '';
-        } elseif (!empty($arItem['PREVIEW_PICTURE']['SRC'])) {
-            $src = (string)$arItem['PREVIEW_PICTURE']['SRC'];
-            $arItem['SLIDER_IMAGES_ORIG']['IMG_DESKTOP'] = $src;
-            $arItem['SLIDER_IMAGES']['IMG_DESKTOP'] = getImageWebpSrc($src);
+        } elseif ($previewSrc !== '') {
+            $arItem['SLIDER_IMAGES_ORIG']['IMG_DESKTOP'] = $previewSrc;
+            $arItem['SLIDER_IMAGES']['IMG_DESKTOP'] = getImageWebpSrc($previewSrc);
         }
     }
 

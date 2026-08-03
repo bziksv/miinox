@@ -21,16 +21,34 @@ if (empty($arResult['ITEMS'])) {
                 ['CONFIRM' => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')]
             );
 
-            $desktop = $arItem['SLIDER_IMAGES']['IMG_DESKTOP'] ?? '';
-            $tablet = $arItem['SLIDER_IMAGES']['IMG_TABLET'] ?? '';
-            $mobile = $arItem['SLIDER_IMAGES']['IMG_MOBILE'] ?? '';
-            $desktopOrig = $arItem['SLIDER_IMAGES_ORIG']['IMG_DESKTOP'] ?? $desktop;
-            $tabletOrig = $arItem['SLIDER_IMAGES_ORIG']['IMG_TABLET'] ?? $tablet;
-            $mobileOrig = $arItem['SLIDER_IMAGES_ORIG']['IMG_MOBILE'] ?? $mobile;
+            $desktopOrig = (string)($arItem['SLIDER_IMAGES_ORIG']['IMG_DESKTOP'] ?? '');
+            $tabletOrig = (string)($arItem['SLIDER_IMAGES_ORIG']['IMG_TABLET'] ?? '');
+            $mobileOrig = (string)($arItem['SLIDER_IMAGES_ORIG']['IMG_MOBILE'] ?? '');
+            $desktop = (string)($arItem['SLIDER_IMAGES']['IMG_DESKTOP'] ?? '');
+            $tablet = (string)($arItem['SLIDER_IMAGES']['IMG_TABLET'] ?? '');
+            $mobile = (string)($arItem['SLIDER_IMAGES']['IMG_MOBILE'] ?? '');
+            if ($desktop === '') {
+                $desktop = $desktopOrig;
+            }
+            if ($tablet === '') {
+                $tablet = $tabletOrig !== '' ? $tabletOrig : $desktop;
+            }
+            if ($mobile === '') {
+                $mobile = $mobileOrig !== '' ? $mobileOrig : $tablet;
+            }
+            if ($desktopOrig === '') {
+                $desktopOrig = $desktop;
+            }
+            if ($tabletOrig === '') {
+                $tabletOrig = $tablet;
+            }
+            if ($mobileOrig === '') {
+                $mobileOrig = $mobile;
+            }
             $link = $arItem['SLIDER_LINK'] ?? '';
             $alt = htmlspecialcharsbx($arItem['NAME']);
 
-            if ($desktop === '') {
+            if ($desktop === '' && $desktopOrig === '') {
                 continue;
             }
             ?>
