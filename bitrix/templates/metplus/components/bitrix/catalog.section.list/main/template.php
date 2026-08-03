@@ -12,46 +12,81 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 
+require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icons.php";
+
 $strSectionEdit = CIBlock::GetArrayByID($arParams["IBLOCK_ID"], "SECTION_EDIT");
 $strSectionDelete = CIBlock::GetArrayByID($arParams["IBLOCK_ID"], "SECTION_DELETE");
 $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_CONFIRM'));
+
+$promoItems = array(
+	array(
+		'name' => 'Инженерная сантехника',
+		'code' => 'santekhnika',
+		'url' => 'https://polimer-vrn.ru/',
+	),
+	array(
+		'name' => 'Кровельные материалы',
+		'code' => 'krovlya',
+		'url' => 'http://metprof-vrn.ru/',
+	),
+	array(
+		'name' => 'Художественная ковка',
+		'code' => 'kovka',
+		'url' => 'https://vrn-ehk.ru/',
+	),
+);
 ?><div class="category-section">
     <div class="container">
-        <ul class="category-list">
+        <ul class="category-list category-list_photo">
             <? foreach ($arResult['SECTIONS'] as &$arSection):
                 $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
                 $this->AddDeleteAction($arSection['ID'], $arSection['DELETE_LINK'], $strSectionDelete, $arSectionDeleteParams);
+                $pictureSrc = '';
+                if (!empty($arSection['PICTURE']['SRC'])) {
+                    $pictureSrc = $arSection['PICTURE']['SRC'];
+                } else {
+                    $pictureSrc = miinoxResolveSubcategoryImageSrc(
+                        (string)($arSection['CODE'] ?? ''),
+                        (string)($arSection['NAME'] ?? ''),
+                        (string)($arSection['SECTION_PAGE_URL'] ?? '')
+                    );
+                }
                 ?>
-                <li class="category-item">
+                <li class="category-item category-item_photo" id="<?=$this->GetEditAreaId($arSection['ID']);?>">
                     <? if($arSection['UF_IN_STOCK']): ?>
                         <div class="badge main">
                             <span class="in-stock" data-text="В наличии"></span>
                         </div>
                     <? endif; ?>
-                    <a href="<?=$arSection['SECTION_PAGE_URL']?>"><span class="category-icon <?=$arSection['UF_ICON']?>"></span><?=$arSection['NAME']?></a>
+                    <a href="<?=$arSection['SECTION_PAGE_URL']?>">
+                        <span class="category-item_img">
+                            <? if ($pictureSrc): ?>
+                                <img data-src="<?=htmlspecialcharsbx($pictureSrc)?>?v=norm2" alt="<?=htmlspecialcharsbx($arSection['NAME'])?>">
+                            <? endif; ?>
+                        </span>
+                        <span class="category-item_text"><?=$arSection['NAME']?></span>
+                    </a>
                 </li>
             <?endforeach;?>
-            <li class="category-item_mod">
+        </ul>
+        <ul class="category-list category-list_mod category-list_mod-photo">
+            <? foreach ($promoItems as $promo):
+                $promoSrc = miinoxResolveSubcategoryImageSrc($promo['code'], $promo['name'], '');
+                ?>
+            <li class="category-item_mod category-item_mod-photo">
                 <div class="category-item_mod-content">
-                    <span class="category-icon category-icon_thirst"></span>
-                    <span class="text">Инженерная <br>сантехника</span>
-                    <a href="https://polimer-vrn.ru/" class="site-link">Перейти на сайт</a>
+                    <span class="category-item_mod-img">
+                        <? if ($promoSrc): ?>
+                            <img data-src="<?=htmlspecialcharsbx($promoSrc)?>" alt="<?=htmlspecialcharsbx($promo['name'])?>">
+                        <? endif; ?>
+                    </span>
+                    <span class="category-item_mod-body">
+                        <span class="text"><?=htmlspecialcharsbx($promo['name'])?></span>
+                        <a href="<?=htmlspecialcharsbx($promo['url'])?>" class="site-link" target="_blank" rel="noopener">Перейти на сайт</a>
+                    </span>
                 </div>
             </li>
-            <li class="category-item_mod">
-                <div class="category-item_mod-content">
-                    <span class="category-icon category-icon_fifth"></span>
-                    <span class="text">Кровельные <br>материалы</span>
-                    <a href="http://metprof-vrn.ru/" class="site-link">Перейти на сайт</a>
-                </div>
-            </li>
-            <li class="category-item_mod">
-                <div class="category-item_mod-content">
-                    <span class="category-icon category-icon_sixteen"></span>
-                    <span class="text">Художественная <br>ковка</span>
-                    <a href="https://vrn-ehk.ru/" class="site-link">Перейти на сайт</a>
-                </div>
-            </li>
+            <? endforeach; ?>
         </ul>
 		<a href="/prays/price_metall.xls" class="download-price_btn main-btn"><span class="glipf-download"></span>Скачать прайс</a>
     </div>

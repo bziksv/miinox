@@ -3,9 +3,9 @@
 use Bitrix\Main\Localization\Loc;
 ?>
 <div class="container">
-    <div class="cart-close"></div>
     <div class="cart-content_header">
         <div class="cart-content_title">Состав корзины</div>
+        <button type="button" class="cart-close" aria-label="Закрыть"></button>
         <ul class="cart-steps">
             <li class="cart-step_item active active-mod">Шаг 1</li>
             <li class="cart-step_item">Шаг 2</li>

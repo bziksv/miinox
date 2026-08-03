@@ -26,21 +26,18 @@ if (0 < $arResult['SECTIONS_COUNT'])
 	$boolDescr = false;
 	$arSelect = array('ID');
 	$arMap = array();
-	if ('LINE' == $arParams['VIEW_MODE'] || 'TILE' == $arParams['VIEW_MODE'])
+	reset($arResult['SECTIONS']);
+	$arCurrent = current($arResult['SECTIONS']);
+	if (!isset($arCurrent['PICTURE']))
 	{
-		reset($arResult['SECTIONS']);
-		$arCurrent = current($arResult['SECTIONS']);
-		if (!isset($arCurrent['PICTURE']))
-		{
-			$boolPicture = true;
-			$arSelect[] = 'PICTURE';
-		}
-		if ('LINE' == $arParams['VIEW_MODE'] && !array_key_exists('DESCRIPTION', $arCurrent))
-		{
-			$boolDescr = true;
-			$arSelect[] = 'DESCRIPTION';
-			$arSelect[] = 'DESCRIPTION_TYPE';
-		}
+		$boolPicture = true;
+		$arSelect[] = 'PICTURE';
+	}
+	if ('LINE' == $arParams['VIEW_MODE'] && !array_key_exists('DESCRIPTION', $arCurrent))
+	{
+		$boolDescr = true;
+		$arSelect[] = 'DESCRIPTION';
+		$arSelect[] = 'DESCRIPTION_TYPE';
 	}
 	if ($boolPicture || $boolDescr)
 	{

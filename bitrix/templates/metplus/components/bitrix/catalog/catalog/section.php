@@ -124,17 +124,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                     </aside>
                 </div>
 
-                <div class="catalog_right-column <?=(!$arCurSection['UF_IN_STOCK']) ? 'to-order' : null?>">
-
-                        <?
-                        if(!$arCurSection['UF_IN_STOCK'] && empty($arCurSection['UF_PRELOADER'])){
-                            $APPLICATION->IncludeFile($templateFolder . "/include/to_order.php", [
-                                "ID" => $arCurSection['ID']
-                            ], Array(
-                                "SHOW_BORDER" => false,
-                            ));
-                        }
-                        ?>
+                <div class="catalog_right-column">
 
                         <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array(
                                 "SITE_ID" => SITE_ID
@@ -143,7 +133,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                         );?>
 
 
-                           <? if(intval($arCurSection['ELEMENT_CNT']) > 0): ?>
+                           <? if(intval($arCurSection['ELEMENT_CNT']) > 0 && trim((string)($arCurSection['UF_DESCRIPTION_TOP'] ?? '')) !== ''): ?>
                             <div class="unified-text-section top">
                                 <?=$arCurSection['UF_DESCRIPTION_TOP'];?>
                             </div>
@@ -161,7 +151,8 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                             "CACHE_TIME" => $arParams["CACHE_TIME"],
                             "CACHE_GROUPS" => $arParams["CACHE_GROUPS"],
                             "COUNT_ELEMENTS" => $arParams["SECTION_COUNT_ELEMENTS"],
-                            "TOP_DEPTH" => $arParams["SECTION_TOP_DEPTH"],
+                            // Только прямые дочерние разделы — иначе родитель и внуки идут одной плоской сеткой
+                            "TOP_DEPTH" => "1",
                             "SECTION_URL" => $arResult["FOLDER"].$arResult["URL_TEMPLATES"]["section"],
                             "VIEW_MODE" => $arParams["SECTIONS_VIEW_MODE"],
                             "SHOW_PARENT_NAME" => $arParams["SECTIONS_SHOW_PARENT_NAME"],
@@ -175,6 +166,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                         ?>
 
                         <? if(intval($arCurSection['ELEMENT_CNT']) > 0): ?>
+                        <? if (false): /* фильтр временно скрыт */ ?>
                         <div class="catalog-section-header">
                             <?$APPLICATION->IncludeComponent("bitrix:catalog.smart.filter", "filter", array(
                                     "IBLOCK_TYPE" => $arParams["IBLOCK_TYPE"],
@@ -205,6 +197,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                                 );
                             ?>
                         </div>
+                        <? endif; ?>
                         <? else: ?>
                             <div class="row form-content_mod" style="padding: 0 1em;">
                                 <div class="col-lg-12 form-content_mod-desc">
@@ -268,7 +261,10 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                             "SHOW_404" => $arParams["SHOW_404"],
                             "FILE_404" => $arParams["FILE_404"],
                             "DISPLAY_COMPARE" => $arParams["USE_COMPARE"],
-                            "PAGE_ELEMENT_COUNT" => $arCurSection["UF_COUNT"] ?: $arParams["PAGE_ELEMENT_COUNT"],
+                            /* вся таблица в DOM — иначе клиентский умный поиск видит только текущую страницу пагинации */
+                            "PAGE_ELEMENT_COUNT" => ((int)$arCurSection["ELEMENT_CNT"] > 0)
+                                ? (int)$arCurSection["ELEMENT_CNT"]
+                                : ($arCurSection["UF_COUNT"] ?: $arParams["PAGE_ELEMENT_COUNT"]),
                             "LINE_ELEMENT_COUNT" => $arParams["LINE_ELEMENT_COUNT"],
                             "PRICE_CODE" => $arParams["~PRICE_CODE"],
                             "USE_PRICE_COUNT" => $arParams["USE_PRICE_COUNT"],
@@ -280,8 +276,8 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                             "PARTIAL_PRODUCT_PROPERTIES" => (isset($arParams["PARTIAL_PRODUCT_PROPERTIES"]) ? $arParams["PARTIAL_PRODUCT_PROPERTIES"] : ''),
                             "PRODUCT_PROPERTIES" => (isset($arParams["PRODUCT_PROPERTIES"]) ? $arParams["PRODUCT_PROPERTIES"] : []),
 
-                            "DISPLAY_TOP_PAGER" => $arParams["DISPLAY_TOP_PAGER"],
-                            "DISPLAY_BOTTOM_PAGER" => $arParams["DISPLAY_BOTTOM_PAGER"],
+                            "DISPLAY_TOP_PAGER" => "N",
+                            "DISPLAY_BOTTOM_PAGER" => "N",
                             "PAGER_TITLE" => $arParams["PAGER_TITLE"],
                             "PAGER_SHOW_ALWAYS" => $arParams["PAGER_SHOW_ALWAYS"],
                             "PAGER_TEMPLATE" => $arParams["PAGER_TEMPLATE"],

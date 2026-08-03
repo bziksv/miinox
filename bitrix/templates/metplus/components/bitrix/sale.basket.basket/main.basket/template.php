@@ -82,9 +82,9 @@ if (empty($arResult['ERROR_MESSAGE']))
 	?>
 	<div class="container" id="basket-root">
 
-        <div class="cart-close"></div>
         <div class="cart-content_header">
             <div class="cart-content_title">Состав корзины</div>
+            <button type="button" class="cart-close" aria-label="Закрыть"></button>
             <ul class="cart-steps">
                 <li class="cart-step_item active active-mod">Шаг 1</li>
                 <li class="cart-step_item">Шаг 2</li>
@@ -117,7 +117,7 @@ if (empty($arResult['ERROR_MESSAGE']))
                 * цена за единицу товара будет уточнена оператором
 				</small></p>
 
-			<noindex><small><p>На нашем сайте осуществляется сбор персональных данных и <span style="color: #073e71;"><a target="_blank" href="/upload/politika-ispolzovanija-cookies-metplus-vrn.pdf">cookies</a></span> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая, вы соглашаетесь с использованием cookies и <span style="color: #073e71;"><a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a></span> в соответствии с нашей <span style="color: #073e71;"><a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a></span>.</p></small></noindex>
+			<noindex><small><p>На нашем сайте осуществляется сбор персональных данных и <span style="color: #206380;"><a target="_blank" href="/upload/politics.pdf">cookies</a></span> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая, вы соглашаетесь с использованием cookies и <span style="color: #206380;"><a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a></span> в соответствии с нашей <span style="color: #206380;"><a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a></span>.</p></small></noindex>
         </div>
 
         <div class="cart-content_footer" data-entity="basket-total-block"></div>

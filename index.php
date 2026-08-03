@@ -8,22 +8,29 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 
         <?$APPLICATION->IncludeComponent(
 	"bitrix:news.line",
-	"slider",
+	"slider_new",
 	Array(
 		"ACTIVE_DATE_FORMAT" => "d.m.Y",
 		"CACHE_GROUPS" => "Y",
 		"CACHE_TIME" => "300",
 		"CACHE_TYPE" => "A",
-		"COMPONENT_TEMPLATE" => ".default",
+		"COMPONENT_TEMPLATE" => "slider_new",
 		"DETAIL_URL" => "",
-		"FIELD_CODE" => array(0=>"CODE",1=>"NAME",2=>"PREVIEW_TEXT",3=>"PREVIEW_PICTURE",),
+		"FIELD_CODE" => array(0=>"NAME",1=>"PREVIEW_PICTURE",2=>"",),
+		"PROPERTY_CODE" => array(
+			0 => "IMG_DESKTOP",
+			1 => "IMG_TABLET",
+			2 => "IMG_MOBILE",
+			3 => "LINK",
+			4 => "ADS",
+		),
 		"IBLOCKS" => array(0=>"5",),
 		"IBLOCK_TYPE" => "components",
 		"NEWS_COUNT" => "20",
-		"SORT_BY1" => "ACTIVE_FROM",
-		"SORT_BY2" => "SORT",
-		"SORT_ORDER1" => "DESC",
-		"SORT_ORDER2" => "ASC"
+		"SORT_BY1" => "SORT",
+		"SORT_BY2" => "ID",
+		"SORT_ORDER1" => "ASC",
+		"SORT_ORDER2" => "DESC"
 	)
 );?>
         <!-- end main-section -->
@@ -38,12 +45,12 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 		"CACHE_TYPE" => "A",
 		"COUNT_ELEMENTS" => "N",
 		"FILTER_NAME" => "sectionsFilter",
-		"IBLOCK_ID" => "13",
-		"IBLOCK_TYPE" => "catalog",
-		"SECTION_CODE" => "",
+		"IBLOCK_ID" => "39",
+		"IBLOCK_TYPE" => "1c_catalog",
+		"SECTION_CODE" => "1_1_nerzhaveyushchaya_stal",
 		"SECTION_FIELDS" => array(0=>"",1=>"",),
 		"SECTION_ID" => "",
-		"SECTION_URL" => "",
+		"SECTION_URL" => "/catalog/#SECTION_CODE#/",
 		"SECTION_USER_FIELDS" => array(0=>"UF_ICON",1=>"",),
 		"SHOW_PARENT_NAME" => "Y",
 		"TOP_DEPTH" => "1",

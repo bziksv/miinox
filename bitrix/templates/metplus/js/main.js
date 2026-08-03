@@ -2,11 +2,18 @@ function is_mobile() {
   return (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
 }
 jQuery(document).ready(function($) {
+  var $loader = $('.wrapper-loader');
   if (!is_mobile()) {
-    $('.wrapper-loader').fadeOut(300);
+    $loader.stop(true, true).fadeOut(300, function () {
+      $(this).hide();
+    });
   } else {
-    $('.wrapper-loader').fadeOut(10);
+    $loader.hide();
   }
+  // fallback: jQuery fade can stall under rAF throttling
+  setTimeout(function () {
+    $loader.hide();
+  }, 500);
   if (!is_mobile()) {
     $('.dropdown-content').addClass('is-animation');
   }
@@ -66,13 +73,158 @@ jQuery(document).ready(function($) {
     });
   }
   if (!is_mobile()) {
-    $('.dropdown-menu_item').hover(function() {
-      var height1 = $(this).find('.dropdown-submenu').outerHeight();
-      var height2 = $(this).find('.dropdown-submenu_img').outerHeight();
-      console.log(height2)
-      if (height1 < height2) {
-        $(this).find('.dropdown-submenu').outerHeight(height2);
+    // Hover-intent: держим меню при промахе курсора (L2↔L3 и кнопка↔панель)
+    var MENU_CLOSE_DELAY = 450;
+
+    function menuClearTimer($el) {
+      var t = $el.data('menuCloseTimer');
+      if (t) {
+        clearTimeout(t);
+        $el.removeData('menuCloseTimer');
       }
+    }
+
+    function menuScheduleClose($el, fn) {
+      menuClearTimer($el);
+      $el.data('menuCloseTimer', setTimeout(fn, MENU_CLOSE_DELAY));
+    }
+
+    function menuRoot($from) {
+      return $from.closest('.head-menu_catalog-item, .fixed-menu_catalog, .head-menu_item');
+    }
+
+    /** L2: лёгкий дотяг влево только если L3 реально не влезает; не уезжать к логотипу */
+    function menuAlignCatalogPanel($wrap) {
+      var $root = $wrap.children('.dropdown-content');
+      if (!$root.length) {
+        return;
+      }
+      $root[0].style.setProperty('--menu-nudge-x', '0px');
+      requestAnimationFrame(function() {
+        var pad = 24;
+        var l3Reserve = 280;
+        var maxNudge = 80; // px — не больше небольшого сдвига от кнопки КАТАЛОГ
+        var rootEl = $root[0];
+        var rootRect = rootEl.getBoundingClientRect();
+        var overflowRight = rootRect.right + l3Reserve - (window.innerWidth - pad);
+        if (overflowRight <= 0) {
+          return;
+        }
+        var maxLeft = Math.max(0, rootRect.left - pad);
+        var nudge = -Math.min(overflowRight, maxLeft, maxNudge);
+        rootEl.style.setProperty('--menu-nudge-x', Math.round(nudge) + 'px');
+      });
+    }
+
+    /** L3 справа; если не влазит — сдвигаем L2 влево. Влево flip только если экран совсем узкий */
+    function menuPlaceSubmenu($item) {
+      var $panel = $item.children('.dropdown-submenu-content');
+      if (!$panel.length) {
+        return;
+      }
+      $panel.removeClass('is-flip-left');
+      var $root = $item.closest('.dropdown-content');
+      if (!$root.length) {
+        return;
+      }
+      requestAnimationFrame(function() {
+        var rootEl = $root[0];
+        var rootRect = rootEl.getBoundingClientRect();
+        var panelW = $panel.outerWidth() || 280;
+        var gap = 12;
+        var spaceRight = window.innerWidth - rootRect.right - gap;
+        if (spaceRight >= panelW) {
+          return;
+        }
+        var need = panelW - spaceRight;
+        var current = parseFloat(getComputedStyle(rootEl).getPropertyValue('--menu-nudge-x')) || 0;
+        var roomLeft = Math.min(80, Math.max(0, rootRect.left - gap));
+        if (need <= roomLeft) {
+          rootEl.style.setProperty('--menu-nudge-x', Math.round(current - need) + 'px');
+          return;
+        }
+        // совсем узко — fallback влево
+        if (rootRect.left - gap > spaceRight) {
+          $panel.addClass('is-flip-left');
+        }
+      });
+    }
+
+    $(document).on('mouseenter', '.head-menu_catalog-item, .fixed-menu_catalog, .head-menu_item', function() {
+      var $wrap = $(this);
+      menuClearTimer($wrap);
+      $wrap.addClass('is-hover');
+      if ($wrap.hasClass('head-menu_catalog-item') || $wrap.hasClass('fixed-menu_catalog')) {
+        menuAlignCatalogPanel($wrap);
+      }
+    });
+
+    $(document).on('mouseleave', '.head-menu_catalog-item, .fixed-menu_catalog, .head-menu_item', function(e) {
+      var $wrap = $(this);
+      var to = e.relatedTarget;
+      // остаёмся внутри того же корня — не закрываем
+      if (to && $wrap[0].contains(to)) {
+        return;
+      }
+      menuScheduleClose($wrap, function() {
+        $wrap.removeClass('is-hover');
+        $wrap.find('.dropdown-menu_item').removeClass('is-hover');
+      });
+    });
+
+    // Любое движение внутри панели отменяет закрытие корня
+    $(document).on('mouseenter', '.dropdown-content, .dropdown-submenu-content', function() {
+      var $wrap = menuRoot($(this));
+      if ($wrap.length) {
+        menuClearTimer($wrap);
+        $wrap.addClass('is-hover');
+      }
+    });
+
+    // Любой пункт L2 (в т.ч. без детей): сразу гасим чужой is-hover,
+    // иначе leaf + предыдущий has-submenu светятся оба (как «Заказные» + «Запорная»).
+    $(document).on('mouseenter', '.dropdown-menu_item:not(.dropdown-menu_item--label)', function() {
+      var $item = $(this);
+      var $wrap = menuRoot($item);
+      if ($wrap.length) {
+        menuClearTimer($wrap);
+        $wrap.addClass('is-hover');
+      }
+      $item.siblings('.dropdown-menu_item').each(function() {
+        var $sib = $(this);
+        menuClearTimer($sib);
+        $sib.removeClass('is-hover');
+      });
+      if ($item.hasClass('has-submenu')) {
+        menuClearTimer($item);
+        $item.addClass('is-hover');
+        menuPlaceSubmenu($item);
+      }
+    });
+
+    $(document).on('mouseleave', '.dropdown-menu_item.has-submenu', function(e) {
+      var $item = $(this);
+      var to = e.relatedTarget;
+      // уход в свой L3 — не гасим
+      if (to && $item[0].contains(to)) {
+        return;
+      }
+      // уход на соседний L2 — mouseenter соседа уже снимет is-hover
+      if (to && $(to).closest('.dropdown-menu_item').parent()[0] === $item.parent()[0]) {
+        return;
+      }
+      menuScheduleClose($item, function() {
+        if (!$item.hasClass('is-hover')) return;
+        if ($item.siblings('.dropdown-menu_item.is-hover').length) {
+          $item.removeClass('is-hover');
+          return;
+        }
+        var $wrap = menuRoot($item);
+        if ($wrap.hasClass('is-hover') || $wrap.is(':hover')) {
+          return;
+        }
+        $item.removeClass('is-hover');
+      });
     });
   }
 
@@ -80,12 +232,22 @@ jQuery(document).ready(function($) {
     $(this).closest('tr').find('.product-item_cart-btn').trigger('click');
   });
   $(".product-table").on("click", ".product-item_cart-btn", function() {
-    $(this).clone().css({
+    var $btn = $(this);
+    var $qty = $btn.closest('tr').find('.product-table-input[name="pieces"]');
+    var qty = 1;
+    if ($qty.length) {
+      qty = parseFloat(String($qty.val()).replace(',', '.'));
+      if (!isFinite(qty) || qty <= 0) {
+        qty = 1;
+      }
+    }
+
+    $btn.clone().css({
       'position': 'absolute',
       'z-index': '1000',
       'width': '57px',
-      top: $(this).offset().top,
-      left: $(this).offset().left
+      top: $btn.offset().top,
+      left: $btn.offset().left
     }).appendTo("body").animate({
       opacity: 0.05,
       left: $(".head-cart").offset()['left'],
@@ -95,7 +257,7 @@ jQuery(document).ready(function($) {
       $(this).remove();
     });
 
-    $.get("/ajax/", { component: "add_cart", id : $(this).attr('id') }).done(function(data) {
+    $.get("/ajax/", { component: "add_cart", id: $btn.attr('id'), quantity: qty }).done(function() {
       $.get("/ajax/", { component: "cart_small" }).done(function(cart) {
         $('.head-cart').html(cart);
       });
@@ -193,11 +355,23 @@ jQuery(document).ready(function($) {
     autoplay: true,
     autoplaySpeed: 6000
   });
-  $('.main-slider').on('beforeChange', function(event, slick, currentSlide, nextSlide){
+  // Старый слайдер (фон + текст): меняем background секции
+  $('.main-slider:not(.main-slider--picture)').on('beforeChange', function(event, slick, currentSlide, nextSlide){
     var currentSlide = $(slick.$slides.get(nextSlide));
     var currentImage = currentSlide.find('.main-slide').data('background');
-    currentSlide.closest('.main-section').css('background','url('+ currentImage +') no-repeat center top');
+    if (currentImage) {
+      currentSlide.closest('.main-section').css('background','url('+ currentImage +') no-repeat center top');
+    }
   });
+  // Картиночный слайдер: пересчёт ширины после загрузки/resize (без «пляски»)
+  var $pictureSlider = $('.main-slider--picture');
+  if ($pictureSlider.length) {
+    var refreshPictureSlider = function() {
+      $pictureSlider.slick('setPosition');
+    };
+    $pictureSlider.find('img').on('load', refreshPictureSlider);
+    $(window).on('resize orientationchange', refreshPictureSlider);
+  }
   $('.review_mobile-slider').slick({
     dots: true,
     infinite: false,
@@ -518,19 +692,25 @@ jQuery(document).ready(function($) {
 
     $(this).closest('.tab-container').find('.tab-item').eq($(this).index()).find('.js-select').trigger('change');
   });
-  var heightTopHead = $('.ui-header').outerHeight();
-  jQuery(window).on("scroll load resize", function() {
-    if ($(window).scrollTop() > heightTopHead) {
+  var heightTopHead = $('.ui-header').outerHeight() || 120;
+  function updateStickyHeader() {
+    // пересчёт: админ-панель Bitrix / ресайз меняют высоту шапки
+    if (!$('.ui-header').hasClass('fixed-menu')) {
+      heightTopHead = $('.ui-header').outerHeight() || heightTopHead;
+    }
+    if ($(window).scrollTop() > Math.max(heightTopHead - 8, 40)) {
       $('.ui-header').addClass('fixed-menu');
       $('.global-wrapper').addClass('global-pad');
-      setTimeout(function() {
-        $('.ui-header').addClass('scroll-transform');
-      }, 100);
+      // сразу выводим sticky (без 100ms «провала» за экран)
+      $('.ui-header').addClass('scroll-transform');
     } else {
       $('.ui-header').removeClass('fixed-menu');
       $('.ui-header').removeClass('scroll-transform');
       $('.global-wrapper').removeClass('global-pad');
     }
+  }
+  jQuery(window).on("scroll load resize", function() {
+    updateStickyHeader();
     if ($(window).scrollTop() > $(window).height()) {
       $('.scroll-to-top').addClass('scroll-to-top-visible');
     } else {
@@ -549,13 +729,98 @@ jQuery(document).ready(function($) {
   });
 
   $("#product-table").fancyTable({
+    nColumns: Math.max($("#product-table thead tr:first-child th").length, 1),
     sortColumn: 1,
     sortable: false,
-    searchable: true,
+    searchable: false,
     globalSearch: true,
     pagination: false,
-    inputPlaceholder: "Введите название или марку стали",
   });
+
+  /**
+   * Умный поиск над таблицей: фильтр по названию / марке / размерам (все строки раздела).
+   */
+  (function initProductTableSmartSearch() {
+    var $table = $('#product-table');
+    var $wrap = $('[data-product-table-search]');
+    if (!$table.length || !$wrap.length) {
+      return;
+    }
+    var $input = $wrap.find('.product-table-smart-search__input');
+    var $clear = $wrap.find('.product-table-smart-search__clear');
+    var $meta = $wrap.find('.product-table-smart-search__meta');
+    var timer = null;
+
+    function normalize(str) {
+      return String(str || '')
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/[х×⁎﹡]/g, 'x')
+        .replace(/,/g, '.')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function getRows() {
+      return $table.find('tbody tr');
+    }
+
+    function rowHaystack($row) {
+      var cached = $row.data('searchText');
+      if (typeof cached === 'string') {
+        return cached;
+      }
+      var clone = $row.clone();
+      clone.find('.product-item_popup, script, style, .product-availability-marker__tip, .product-availability').remove();
+      cached = normalize(clone.text());
+      $row.data('searchText', cached);
+      return cached;
+    }
+
+    function applyFilter() {
+      var $rows = getRows();
+      var total = $rows.length;
+      var q = normalize($input.val());
+      $clear.prop('hidden', !q);
+      var visible = 0;
+      if (!q) {
+        $rows.show();
+        $meta.text('');
+        return;
+      }
+      var tokens = q.split(' ').filter(Boolean);
+      $rows.each(function() {
+        var hay = rowHaystack($(this));
+        var ok = tokens.every(function(token) {
+          return hay.indexOf(token) !== -1;
+        });
+        $(this).toggle(ok);
+        if (ok) {
+          visible++;
+        }
+      });
+      if (visible === 0) {
+        $meta.text('Ничего не найдено');
+      } else {
+        $meta.text('Найдено: ' + visible + ' из ' + total);
+      }
+    }
+
+    $input.on('input search', function() {
+      clearTimeout(timer);
+      timer = setTimeout(applyFilter, 120);
+    });
+    $input.on('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(timer);
+        applyFilter();
+      }
+    });
+    $clear.on('click', function() {
+      $input.val('').trigger('input').focus();
+    });
+  })();
 
   $('#success_msg').modal('show');
 

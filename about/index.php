@@ -1,7 +1,7 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "О компании, ее история, инфографика и план развития");
-$APPLICATION->SetPageProperty("title", "О компании «Корпорация Металлинвест»");
+$APPLICATION->SetPageProperty("title", "О компании «Металлинвест Инокс»");
 $APPLICATION->SetTitle("О компании");
 ?><main class="main-content">
 <div class="inner-page_title-section">

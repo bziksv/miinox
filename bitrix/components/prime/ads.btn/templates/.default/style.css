@@ -1,0 +1,63 @@
+.tooltip {
+    position: relative;
+    cursor: pointer;
+	width: fit-content;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    position: absolute;
+    background-color: rgba(89,89,89, 0.95);
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 10px;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity .6s;
+	min-width: 400px;
+}
+
+.tooltip-bottom {
+    top: 135%;
+}
+
+.tooltip-top-left {
+	bottom: 115%;
+	right: 0%;
+}
+
+.tooltip-top-right {
+	bottom: 115%;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+.ads_btn {
+	display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 2rem;
+    border-radius: 1rem;
+    background-color: rgba(89,89,89, 0.6);
+    background-image: url("./img/ads-ico.svg");
+    background-position: 90% center;
+    background-size: 1rem;
+    background-repeat: no-repeat;
+    color: white;
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-transform: uppercase;
+    padding: 0 2.3rem 0 1.25rem;
+    border: 0 none;
+    outline: 0 none;
+    transition: opacity 0.25s;	
+}
+
+.ads_btn:hover {
+    opacity: 0.7;
+}

@@ -130,17 +130,17 @@ ol:not([class])
 	min-width: 226px
 	height: 50px
 	line-height: 50px
-	background-color: #3ebbf3
+	background-color: #206380
 	padding: 0 1em
 	color: #fff
 	text-align: center
 	transition: background-color .3s
 	white-space: nowrap
 	&:hover
-		background-color: darken(#3ebbf3, 10%)
+		background-color: darken(#206380, 10%)
 	&:active
-		box-shadow: inset 1px 2px darken(#3ebbf3, 30%)
-		border-top: 1px solid darken(#3ebbf3, 30%)
+		box-shadow: inset 1px 2px darken(#206380, 30%)
+		border-top: 1px solid darken(#206380, 30%)
 .gray-btn
 	display: inline-block
 	min-width: 251px
@@ -164,7 +164,7 @@ h2,.section-title
 	color: #3d3c3c
 	margin-bottom: 1.5em
 	padding-left: .6em
-	border-left: 6px solid #3ebbf3
+	border-left: 6px solid #206380
 	text-transform: uppercase
 h1
 	font-size: 1.875rem
@@ -181,7 +181,7 @@ h3,.title-h3
 .white-title
 	color: #fff
 .blue-color
-	color: #24a6d7
+	color: #2a8fad
 @media screen and (-webkit-min-device-pixel-ratio:0)
 	::i-block-chrome,.row
 		display: block
@@ -343,7 +343,7 @@ h3,.title-h3
 	content: "\e913"
 	
 .wrapper-loader
-	background: #24A5D8
+	background: #2a8fad
 	z-index: 1000
 
 /*****HEADER*****/
@@ -353,7 +353,8 @@ h3,.title-h3
 	&.is-overflow
 		overflow-y: scroll
 .main-head
-	padding: 1.3em 0 .6em
+	padding: 1em 0
+	border-bottom: 1px solid #e8eef1
 .main-head_left-column,.main-head_right-column
 	display: -webkit-flex
 	display: -moz-flex
@@ -361,24 +362,37 @@ h3,.title-h3
 	display: -o-flex
 	display: flex
 	justify-content: space-between
+	align-items: center
+	min-height: 64px
 .head-logo
-	margin-right: .6em
+	margin-right: 1.25rem
 	position: relative
-	top: -6px
+	top: 0
+	display: flex
+	align-items: center
+	max-width: 240px
+	flex: 0 0 auto
 	img
-		max-width: 100%
+		max-width: 240px
+		height: 40px
+		max-height: 40px
+		width: auto
+		display: block
 .head_phone-box
 	margin-right: auto
 .head_phone-number
-	color: #363637
+	color: #206380
 	white-space: nowrap
+	line-height: 1.2
+	font-size: 1.05rem
+	font-weight: 600
 .head_callback-btn
 	a
-		color: #3dbdf4
+		color: #2a8fad
 		font-size: 1rem
 		font-weight: 600
 	.text
-		border-bottom: 1px solid #3dbdf4
+		border-bottom: 1px solid #2a8fad
 		transition: border-bottom-color .3s
 	&:hover
 		.text
@@ -425,14 +439,14 @@ h3,.title-h3
 		border-radius: 0
 		&:focus
 			border: none
-			border-bottom: 1px solid  #24A5D8
+			border-bottom: 1px solid  #2a8fad
 	.fixed-menu_catalog
 		display: block
 	.head_form-search
 		max-width: 250px
 	.head-nav
 		display: none
-		background: #073E71
+		background: #206380
 		position: absolute
 		top: 100%
 		left: 0
@@ -465,20 +479,24 @@ h3,.title-h3
 			visibility: visible
 			transform:  translate(0,0)
 .head_select-city
-	display: inline-block
-	margin-top: -7px
-	margin-right: 3%
+	display: flex
+	align-items: center
+	gap: .35em
+	margin: 0 1rem 0 0
 	color: #363637
 	white-space: nowrap
+	height: 40px
 .select-city_btn
-	font-size: .75rem
-	border-bottom: 1px dashed #3EBBF4
+	font-size: .8125rem
+	border-bottom: 1px dashed #206380
 	transition: border-bottom-color .3s
 	&:hover
 		border-bottom-color: transparent
 .select-city_field
-	margin-top: 1px
-	font-weight: 800
+	display: inline
+	margin: 0
+	font-size: .8125rem
+	font-weight: 700
 .modal-dialog-city
 	max-width: 600px
 .modal-content
@@ -494,7 +512,7 @@ h3,.title-h3
 		cursor: pointer
 		transition: color .3s
 		&:hover
-			color: #3EBBF3
+			color: #206380
 .uhified_close-btn
 	width: 37px
 	height: 37px
@@ -507,9 +525,9 @@ h3,.title-h3
 	transform: rotate(45deg)
 	transition: border-color .3s
 	&:hover
-		border-color: #3EBBF3!important
+		border-color: #206380!important
 		&:after,&:before
-			background: #3EBBF3
+			background: #206380
 	&:after,&:before
 		content: ''
 		display: block
@@ -528,7 +546,7 @@ h3,.title-h3
 		height: 100%
 		width: 6px
 .head-nav
-	background: #073E71
+	background: #206380
 .head-menu
 	display: -webkit-flex
 	display: -moz-flex
@@ -542,7 +560,7 @@ h3,.title-h3
 	position: relative
 	transform: skew(-45deg)
 	&.active
-		background: #24A6D7
+		background: #184c61
 	&:first-child
 		flex: .8
 	&:last-child
@@ -556,7 +574,7 @@ h3,.title-h3
 			&:hover
 				background-color: transparent
 				&:before
-					background: #24A5D8
+					background: #184c61
 			&:before
 				content: ''
 				display: block
@@ -574,7 +592,7 @@ h3,.title-h3
 				display: block
 				height: 100%
 				width: 1000%
-				background: #24A5D8
+				background: #184c61
 				position: absolute
 				top: 0
 				left: 0
@@ -582,23 +600,33 @@ h3,.title-h3
 	>a
 		display: block
 		padding: 1.35em 1em
+		font-family: 'Golos Text', 'roboto', sans-serif
 		font-weight: 600
+		font-size: .8125rem
+		letter-spacing: .04em
 		color: #fff
 		text-align: center
 		text-transform: uppercase
+		white-space: nowrap
 		transition: background .3s
 		&:hover
-			background: #24A6D7
+			background: #184c61
 .fixed-panel_catalog-btn
 	display: block
-	background: #073E71
+	background: #206380
 	height: 100%
 	padding: 1.35em 3em
 	color: #fff
+	font-family: 'Golos Text', 'roboto', sans-serif
+	font-weight: 600
+	font-size: .8125rem
+	letter-spacing: .04em
+	text-transform: uppercase
+	white-space: nowrap
 	transform: skew(-45deg)
 	transition: background .3s
 	&:hover
-		background: #24A6D7
+		background: #184c61
 .head-menu_catalog-item
 	position: relative
 	z-index: 1
@@ -608,13 +636,13 @@ h3,.title-h3
 		&:hover
 			background-color: transparent
 			&:before
-				background: #24A5D8
+				background: #184c61
 		&:before
 			content: ''
 			display: block
 			height: 100%
 			width: 1000%
-			background: tarnsaprent
+			background: transparent
 			position: absolute
 			top: 0
 			right: 0
@@ -626,7 +654,7 @@ h3,.title-h3
 			display: block
 			height: 100%
 			width: 1000%
-			background: #24A5D8
+			background: #184c61
 			position: absolute
 			top: 0
 			right: 0
@@ -634,7 +662,7 @@ h3,.title-h3
 	&.is-active
 		.dropdown-content
 			visibility: visible
-			transform: skew(45deg) translate(0,0)
+			transform: skew(45deg) translate(-52px,0)
 .head-menu_text
 	display: block
 	transform: skew(45deg)
@@ -651,7 +679,7 @@ h3,.title-h3
 		height: 100%
 		&:hover
 			.glipf-search
-				color: #3EBBF3
+				color: #206380
 	.glipf-search
 		position: absolute
 		top: 0
@@ -686,7 +714,7 @@ h3,.title-h3
 	border-radius: 10px
 	transition: border .3s
 	&:focus
-		border: 1px solid  #24A5D8
+		border: 1px solid  #2a8fad
 	&::-webkit-input-placeholder
 		color: #a9a9a9
 		font-size: .75rem
@@ -702,19 +730,21 @@ h3,.title-h3
 .dropdown-content
 	position: absolute
 	top: 100%
-	left: 320px
-	min-width: 318px
+	left: 0
+	min-width: 260px
+	max-width: 320px
 	background-color: white
-	box-shadow: 0 0 4px 1px rgba(0, 1, 5, 0.16)
-	transform: skew(45deg) translate(0,15px)
+	box-shadow: 0 4px 16px rgba(0, 1, 5, 0.12)
+	transform: skew(45deg) translate(-52px, 8px)
+	transform-origin: top left
 	visibility: hidden
 	z-index: 50
 	&.is-animation
 		transition: visibility .3s, transform .3s
 .dropdown-menu_item
-	font-family: "GothamPro"
-	font-weight: 600
-	text-transform: uppercase
+	font-family: 'Golos Text', 'roboto', sans-serif
+	font-weight: 500
+	text-transform: none
 	&.is-active
 		.dropdown-submenu-content
 			display: block
@@ -725,10 +755,11 @@ h3,.title-h3
 		display: -o-flex
 		display: flex
 		align-items: center
-		min-height: 40px
-		font-size: 1rem
-		padding: .4em 1em
-		transition: background .3s, color .3s
+		min-height: 30px
+		font-size: .8125rem
+		padding: .28em .9em
+		color: #363637
+		transition: background .2s, color .2s
 .menu-icon
 	width: 28px
 	flex: 28px 0 0
@@ -839,7 +870,7 @@ h3,.title-h3
 		transition: color .3s
 		text-transform: capitalize
 		&:hover
-			color: #24A5D8
+			color: #2a8fad
 .dropdown-submenu_img
 	position: absolute
 	top: 0
@@ -879,13 +910,13 @@ h3,.title-h3
 		&:hover
 			.dropdown-content
 				visibility: visible
-				transform: skew(45deg) translate(0,0)
+				transform: skew(45deg) translate(-52px,0)
 	.dropdown-menu_item
 		&:hover
 			.dropdown-submenu-content
 				display: block
 			>a
-				background: #073F72
+				background: #184c61
 				color: #fff
 				.menu-icon
 					filter: brightness(0) invert(1)
@@ -895,15 +926,24 @@ h3,.title-h3
 				visibility: visible
 				transform:  translate(0,0)
 .head-cart
-	flex: 43px 0 0
-	max-width: 43px
+	flex: 0 0 36px
+	max-width: 36px
+	height: 40px
 	position: relative
+	display: flex
+	align-items: center
+	justify-content: center
 	>
 		a
-			display: block
+			display: flex
+			align-items: center
+			justify-content: center
+			width: 36px
+			height: 40px
 	.glipf-cart
-		font-size: 2.65rem
+		font-size: 1.5rem
 		font-weight: 600
+		line-height: 1
 .head-cart_number
 	position: absolute
 	top: -1px
@@ -914,7 +954,7 @@ h3,.title-h3
 	font-family: "GothamPro"
 	line-height: 17px
 	color: #fff
-	background-color: #24a6d7
+	background-color: #2a8fad
 	border-radius: 50%
 	text-align: center
 .cart-content
@@ -993,7 +1033,7 @@ h3,.title-h3
 	cursor: pointer
 	&:hover
 		&:after,&:before
-			background: #3EBBF3
+			background: #206380
 	&:after,&:before
 		content: ''
 		display: block
@@ -1028,7 +1068,7 @@ h3,.title-h3
 	width: 48px
 	height: 48px
 	flex: 48px 0 0
-	background-color: #073e71
+	background-color: #206380
 	border-radius: 50%
 	display: -webkit-flex
 	display: -moz-flex
@@ -1054,7 +1094,7 @@ h3,.title-h3
 			width: calc(100% + 12px)
 			height: calc(100% + 12px)
 			border-radius: 50%
-			border: 3px solid #24a5d8
+			border: 3px solid #2a8fad
 			position: absolute
 			left: -6px
 			top: -6px
@@ -1074,7 +1114,7 @@ h3,.title-h3
 		display: block
 		width: 134px
 		height: 5px
-		background-color: #073e71
+		background-color: #206380
 		position: absolute
 		top: 0
 		bottom: 0
@@ -1132,7 +1172,7 @@ h3,.title-h3
 .cart-total-price
 	font-size: 2.0625rem
 	font-weight: 800
-	color: #073e71
+	color: #206380
 	margin-right: 1em
 .cart-total_sum
 	color: #3d3c3c
@@ -1176,7 +1216,7 @@ h3,.title-h3
 			bottom: 0
 			margin: auto
 		&:hover
-			background: #24A6D7
+			background: #2a8fad
 	.counter-forward
 		&:before
 			content: ''
@@ -1209,7 +1249,7 @@ h3,.title-h3
 	cursor: pointer
 	transition: color .3s
 	&:hover
-		color: #24A6D7
+		color: #2a8fad
 .cart-table_textarea
 	height: 150px
 	background-color: #eee
@@ -1219,7 +1259,7 @@ h3,.title-h3
 	width: 100%
 	transition: border .3s
 	&:focus
-		border: 1px solid  #24A5D8
+		border: 1px solid  #2a8fad
 	&::-webkit-input-placeholder
 		color: #9fa2a7
 		font-size: 1.25rem
@@ -1266,7 +1306,7 @@ h3,.title-h3
 	border: 1px solid transparent
 	transition: border .3s
 	&:focus
-		border: 1px solid  #24A5D8
+		border: 1px solid  #2a8fad
 	&::-webkit-input-placeholder
 		color: #9fa2a7
 		font-size: 1.25rem
@@ -1289,7 +1329,7 @@ h3,.title-h3
 	padding: 1em 1.5em
 	transition: border .3s
 	&:focus
-		border: 1px solid  #24A5D8
+		border: 1px solid  #2a8fad
 	&::-webkit-input-placeholder
 		color: #9fa2a7
 		font-size: 1.25rem
@@ -1353,9 +1393,9 @@ h3,.title-h3
 	width: 23px
 	&.is-active
 	.hamburger-inner
-		background: #073F72
+		background: #184c61
 		&:after,&:before
-			background: #073F72
+			background: #184c61
 	.hamburger-box
 		&:after
 			opacity: 0
@@ -1424,8 +1464,8 @@ h3,.title-h3
 			transform: rotate(45deg)
 			z-index: 1
 		&:checked + .checkbox-text:after
-			background: #073E71
-			border-color: #073E71
+			background: #206380
+			border-color: #206380
 		+ .checkbox-text:after
 			content: ""
 			display: block
@@ -1477,7 +1517,7 @@ h3,.title-h3
 		border-radius: 10px
 		height: 43px
 		&:focus
-			border: 1px solid #3ebbf3
+			border: 1px solid #206380
 	.form-callback_submit
 		margin-top: .7em
 		min-width: 226px
@@ -1521,7 +1561,7 @@ h3,.title-h3
 		padding: .5em 0
 		transition: background .3s, color .3s
 		&:hover
-			background: #3EBBF3
+			background: #206380
 			color: #fff
 			.category-icon
 				filter: brightness(0) invert(1)
@@ -1635,8 +1675,11 @@ h3,.title-h3
 		width: 21px
 		height: 69px
 		background-position: -20px -1455px
+.category-list_mod
+	justify-content: center
+	margin-top: .5em
 .category-item_mod
-	flex: 26% 0 0
+	flex: 0 0 26%
 	max-width: 26%
 	font-size: 1.5rem
 	font-weight: 800
@@ -1649,8 +1692,8 @@ h3,.title-h3
 	.site-link
 		font-size: .875rem
 		font-weight: 600
-		color: #3ebbf3
-		border-bottom: 1px solid #3ebbf3
+		color: #206380
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 		&:hover
 			border-bottom-color: transparent
@@ -1658,7 +1701,7 @@ h3,.title-h3
 		display: block
 .category-item_mod-content
 	padding: .7em
-	border: 1px solid #3ebbf3
+	border: 1px solid #206380
 	position: relative
 	padding-left: 3.3em
 .download-price_btn
@@ -1730,7 +1773,7 @@ h3,.title-h3
 		position: absolute
 		top: 0
 		left: 0
-		background-image: linear-gradient(to top, #3ebbf3 0%, transparent 100%)
+		background-image: linear-gradient(to top, #206380 0%, transparent 100%)
 		opacity: 0
 		z-index: -1
 		transition: opacity .3s
@@ -1793,7 +1836,7 @@ h3,.title-h3
 	margin-bottom: .9em
 .services-detailed_hide-table
 	display: inline-block
-	color: #3ebbf3
+	color: #206380
 	padding-right: 1.2em
 	position: relative
 	cursor: pointer
@@ -1808,8 +1851,8 @@ h3,.title-h3
 		display: block
 		width: 8px
 		height: 8px
-		border-top: 1px solid #3ebbf3
-		border-right: 1px solid #3ebbf3
+		border-top: 1px solid #206380
+		border-right: 1px solid #206380
 		position: absolute
 		right: 0
 		top: 10px
@@ -1822,7 +1865,7 @@ h3,.title-h3
 		padding: 1.4em
 		color: #fff
 		font-weight: 600
-		background: #3EBBF3
+		background: #206380
 		border-right: 1px solid #38A8DA
 		width: 33.333%
 		&:last-child
@@ -1885,7 +1928,7 @@ h3,.title-h3
 		font-size: 6.25rem
 		line-height: .8
 		font-weight: 800
-		color: #073e71
+		color: #206380
 .wrapper_advantages-slider
 	position: relative
 	padding-right: 2em
@@ -1931,7 +1974,7 @@ h3,.title-h3
 		font-size: 1rem
 		color: #949494
 .advantages-item_icon
-	color: #073E71
+	color: #206380
 	display: -webkit-flex
 	display: -moz-flex
 	display: -ms-flex
@@ -1956,7 +1999,7 @@ h3,.title-h3
 		display: block
 		width: 104px
 		height: 3px
-		background-color: #073e71
+		background-color: #206380
 		position: absolute
 		bottom: 0
 		left: 0
@@ -1987,9 +2030,9 @@ h3,.title-h3
 		height: 15px
 		border-radius: 0
 		margin: 0 5px
-		border: 1px solid #3ebbf3
+		border: 1px solid #206380
 		&.slick-active
-			background: #3EBBF3
+			background: #206380
 /**text-section***/
 .text-section
 	padding: 5em 0
@@ -2045,13 +2088,13 @@ h3,.title-h3
 		top: 3px
 		// font-size: 1.5rem
 		margin-right: .7em
-		color: #3EBBF3
+		color: #206380
 		&.glipf-call-answer
 			font-size: 90%
 .map-contact_mail
 	transition: color .3s
 	&:hover
-		color: #3EBBF3
+		color: #206380
 .map-callback_btn
 	display: -webkit-flex
 	display: -moz-flex
@@ -2094,21 +2137,21 @@ h3,.title-h3
 		display: none!important
 .selectric-items li
 	&:hover
-		background: lighten(#3EBBF3,20%)
+		background: lighten(#206380,20%)
 		color: inherit
 .selectric-items li.highlighted
-	background: lighten(#3EBBF3,20%)
+	background: lighten(#206380,20%)
 	color: inherit
 .selectric-items ul
 	margin: 0
 	padding: .5em
 .selectric-open
 	.selectric
-		border-color: #3EBBF3
+		border-color: #206380
 	.button
 		transform: rotate(180deg)
 		&:after
-			border-color: #3EBBF3
+			border-color: #206380
 /**category-page***/
 .category-section_mod
 	padding: 5.5em 0
@@ -2220,8 +2263,8 @@ h3,.title-h3
 	border-bottom: 1px solid transparent
 	transition: color .3s, border-bottom-color .3s
 	&:hover
-		color: #3EBBF3
-		border-bottom-color: #3EBBF3
+		color: #206380
+		border-bottom-color: #206380
 .category-item_other-list
 	margin-top: 1.1em
 	li
@@ -2233,7 +2276,7 @@ h3,.title-h3
 			display: block
 			width: 5px
 			height: 5px
-			background-color: #24a5d8
+			background-color: #2a8fad
 			border-radius: 50%
 			position: absolute
 			top: 6px
@@ -2244,8 +2287,8 @@ h3,.title-h3
 		border-bottom: 1px solid transparent
 		transition: color .3s, border-bottom-color .3s
 		&:hover
-			color: #3EBBF3
-			border-bottom-color: #3EBBF3
+			color: #206380
+			border-bottom-color: #206380
 .price-list_box
 	text-align: center
 .price-list_box-content
@@ -2321,7 +2364,7 @@ h3,.title-h3
 			display: block
 			width: 5px
 			height: 5px
-			background-color: #24a5d8
+			background-color: #2a8fad
 			border-radius: 50%
 			position: absolute
 			top: 7px
@@ -2331,8 +2374,8 @@ h3,.title-h3
 		border-bottom: 1px solid transparent
 		transition: color .3s, border-bottom-color .3s
 		&:hover
-			color: #3EBBF3
-			border-bottom-color: #3EBBF3
+			color: #206380
+			border-bottom-color: #206380
 /**subcategory-section**/
 .subcategory-section
 	padding: 5.5em 0
@@ -2365,7 +2408,7 @@ h3,.title-h3
 		padding: 1em
 		transition: border-color .3s
 		&:hover
-			border-color: #3EBBF3
+			border-color: #206380
 .subcategory-item_img
 	display: -webkit-flex
 	display: -moz-flex
@@ -2412,7 +2455,7 @@ h3,.title-h3
 .sidebar-title
 	font-size: 1.5rem
 	font-weight: 800
-	color: #073e72
+	color: #184c61
 	margin-bottom: 1.2em
 .catalog-menu_item
 	margin-bottom: 1.1em
@@ -2432,7 +2475,7 @@ h3,.title-h3
 		padding-right: 1.5em
 		transition: color .3s
 		&:hover
-			color: #3EBBF3
+			color: #206380
 		&.is-active
 			&:after
 				transform: rotate(-135deg)
@@ -2442,8 +2485,8 @@ h3,.title-h3
 			display: block
 			width: 8px
 			height: 8px
-			border-right: 2px solid #3EBBF3
-			border-bottom: 2px solid #3EBBF3
+			border-right: 2px solid #206380
+			border-bottom: 2px solid #206380
 			position: absolute
 			top: .3em
 			bottom: 0
@@ -2461,8 +2504,8 @@ h3,.title-h3
 		border-bottom: 1px solid transparent
 		transition: color .3s, border-bottom-color .3s
 		&:hover
-			border-bottom-color: #3EBBF3
-			color: #3EBBF3
+			border-bottom-color: #206380
+			color: #206380
 .sidebar-catalog
 	.price-list_box
 		margin-top: 4em
@@ -2474,7 +2517,7 @@ h3,.title-h3
 .filter-box_title
 	font-size: 1.5625rem
 	font-weight: 800
-	color: #073e72
+	color: #184c61
 	position: relative
 	cursor: pointer
 	margin-bottom: .8em
@@ -2489,8 +2532,8 @@ h3,.title-h3
 		display: block
 		width: 10px
 		height: 10px
-		border-right: 2px solid #3EBBF3
-		border-bottom: 2px solid #3EBBF3
+		border-right: 2px solid #206380
+		border-bottom: 2px solid #206380
 		position: absolute
 		top: .6em
 		bottom: 0
@@ -2523,7 +2566,7 @@ h3,.title-h3
 	.button
 		width: 12px
 		&:after
-			border-color: #3EBBF3
+			border-color: #206380
 			border-width: 2px
 			width: 8px
 			height: 8px
@@ -2546,7 +2589,7 @@ h3,.title-h3
 	color: #5C5C5C
 	transition: color .3s
 	&:hover
-		color: #3EBBF3
+		color: #206380
 	.glipf-reset
 		font-size: .6rem
 		margin-right: 10px
@@ -2555,7 +2598,7 @@ h3,.title-h3
 	margin-bottom: 2em
 	width: 100%
 	th
-		background: #073E71
+		background: #206380
 		padding: 1.3em 1em .2em
 		color: #fff
 		font-size: 1rem
@@ -2601,7 +2644,7 @@ h3,.title-h3
 	right: 1em
 	font-size: .75rem
 	&:active
-		color: #3EBBF3
+		color: #206380
 .product-item_popup-list
 	font-size: inherit
 	li
@@ -2670,7 +2713,7 @@ h3,.title-h3
 .product-table_form-search
 	padding: 1em
 	padding-top: 0
-	background: #073E71
+	background: #206380
 .product_form-search
 	max-width: 385px
 	height: 25px
@@ -2688,7 +2731,7 @@ h3,.title-h3
 		text-align: right
 		&:hover
 			.glipf-search
-				color: #3EBBF3
+				color: #206380
 	.glipf-search
 		position: absolute
 		top: 0
@@ -2762,7 +2805,7 @@ h3,.title-h3
 		overflow: hidden
 		&.active
 			a
-				background: #3EBBF3
+				background: #206380
 				color: #fff
 	a
 		display: block
@@ -2773,7 +2816,7 @@ h3,.title-h3
 		text-align: center
 		transition: background .3s, color .3s
 		&:hover
-			background: #3EBBF3
+			background: #206380
 			color: #fff
 			&:after
 				border-color: #fff!important
@@ -2834,8 +2877,8 @@ h3,.title-h3
 	.more-details_btn
 		font-size: .875rem
 		font-weight: 600
-		color: #3ebbf3
-		border-bottom: 1px solid #3ebbf3
+		color: #206380
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 		&:hover
 			border-bottom-color: transparent
@@ -2850,7 +2893,7 @@ h3,.title-h3
 	background-size: cover
 	padding: 5em 0
 	.blue-color
-		color: #3ebbf3
+		color: #206380
 	.top-small_text
 		display: block
 		margin-bottom: 1.5em
@@ -2924,9 +2967,9 @@ h3,.title-h3
 	.more-details_btn
 		font-size: .875rem
 		font-weight: 600
-		color: #3ebbf3
+		color: #206380
 		margin-top: .5em
-		border-bottom: 1px solid #3ebbf3
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 		&:hover
 			border-bottom-color: transparent
@@ -2967,9 +3010,9 @@ h3,.title-h3
 	.more-details_btn
 		font-size: .875rem
 		font-weight: 600
-		color: #3ebbf3
+		color: #206380
 		margin-top: .5em
-		border-bottom: 1px solid #3ebbf3
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 		&:hover
 			border-bottom-color: transparent
@@ -2983,8 +3026,8 @@ h3,.title-h3
 		border-bottom: 1px solid transparent
 		transition: color .3s, border-bottom-color .3s
 		&:hover
-			color: #3EBBF3
-			border-bottom-color: #3EBBF3
+			color: #206380
+			border-bottom-color: #206380
 .news-item_date
 	display: block
 	margin-bottom: 1.5em
@@ -3015,7 +3058,7 @@ h3,.title-h3
 		height: 65px
 		font-size: 4rem
 		margin-bottom: .3em
-		color: #073E71
+		color: #206380
 	.advatages-title
 		display: block
 		font-size: 1.5rem
@@ -3030,7 +3073,7 @@ h3,.title-h3
 			display: block
 			width: 104px
 			height: 3px
-			background-color: #073e71
+			background-color: #206380
 			position: absolute
 			bottom: 0
 			left: 0
@@ -3054,7 +3097,7 @@ h3,.title-h3
 .vacancy-item_title
 	font-size: 1.875rem
 	font-weight: 700
-	color: #073e71
+	color: #206380
 	margin-bottom: 1.3em
 .vacancy-item_list-title
 	color: #3d3c3c
@@ -3063,8 +3106,8 @@ h3,.title-h3
 .vacancy-item_more-details
 	display: inline-block
 	font-size: .875rem
-	color: #3ebbf3
-	border-bottom: 1px solid #3ebbf3
+	color: #206380
+	border-bottom: 1px solid #206380
 	position: relative
 	cursor: pointer
 	transition: border-bottom-color .3s
@@ -3077,8 +3120,8 @@ h3,.title-h3
 		display: block
 		width: 8px
 		height: 8px
-		border-right: 1px solid #3ebbf3
-		border-top: 1px solid #3ebbf3
+		border-right: 1px solid #206380
+		border-top: 1px solid #206380
 		position: absolute
 		top: -2px
 		right: -22px
@@ -3141,29 +3184,29 @@ h3,.title-h3
 	padding: 0 0 0 2.5em
 	background-color: transparent
 	border: none
-	color: #3ebbf3
+	color: #206380
 	position: absolute
 	top: 0
 	left: 0
 	width: 100%
 	&::-webkit-input-placeholder
-		color: #3ebbf3
-		border-bottom: 1px solid #3ebbf3
+		color: #206380
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 	&::-moz-placeholder
-		color: #3ebbf3
-		border-bottom: 1px solid #3ebbf3
+		color: #206380
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 	&::-ms-input-placeholder
-		color: #3ebbf3
-		border-bottom: 1px solid #3ebbf3
+		color: #206380
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 	&::input-placeholder
-		color: #3ebbf3
-		border-bottom: 1px solid #3ebbf3
+		color: #206380
+		border-bottom: 1px solid #206380
 		transition: border-bottom-color .3s
 .input-file_icon
-	color: #3ebbf3
+	color: #206380
 	font-size: 2rem
 .form-static_submit-btn--mod
 	max-width: 226px
@@ -3186,7 +3229,7 @@ h3,.title-h3
 		height: 100%
 		&:hover
 			.glipf-search
-				color: #3EBBF3
+				color: #206380
 	.glipf-search
 		position: absolute
 		top: 0
@@ -3213,7 +3256,7 @@ h3,.title-h3
 	border-radius: 10px
 	transition: border .3s
 	&:focus
-		border: 1px solid  #24A5D8
+		border: 1px solid  #2a8fad
 	&::-webkit-input-placeholder
 		color: #a9a9a9
 		font-size: .75rem
@@ -3287,12 +3330,12 @@ h3,.title-h3
 		height: 100%
 		&:hover
 			p
-				color: #3EBBF3
-				border-bottom-color: #3EBBF3
+				color: #206380
+				border-bottom-color: #206380
 .gost-item_icon
 	flex: 34px 0 0
 	max-width: 34px
-	color: #073e71
+	color: #206380
 	font-size: 2.4rem
 .gost-item-desc
 	flex-basis: calc(100% - 34px)
@@ -3346,7 +3389,7 @@ h3,.title-h3
 		color: #949494
 		font-size: 1rem
 .delivery-item_icon
-	color: #073E71
+	color: #206380
 	display: -webkit-flex
 	display: -moz-flex
 	display: -ms-flex
@@ -3371,7 +3414,7 @@ h3,.title-h3
 		display: block
 		width: 104px
 		height: 3px
-		background-color: #073e71
+		background-color: #206380
 		position: absolute
 		bottom: 0
 		left: 0
@@ -3408,7 +3451,7 @@ h3,.title-h3
 		display: block
 		height: 95%
 		width: 70%
-		background: #3EBBF3
+		background: #206380
 		position: absolute
 		top: 0
 		left: 1.6em
@@ -3519,8 +3562,8 @@ h3,.title-h3
 			margin-right: 0
 		&.active
 			.tab-text
-				color: #24a6d7
-				border-bottom-color: #24a6d7
+				color: #2a8fad
+				border-bottom-color: #2a8fad
 	.tab-text
 		color: #b6b6b6
 		border-bottom: 1px solid transparent
@@ -3552,7 +3595,7 @@ h3,.title-h3
 	font-size: 1.5rem
 	margin-bottom: 1.35em
 	.glipf-place-2
-		color: #3EBBF3
+		color: #206380
 		font-size: 1.7rem
 		margin-right: .3em
 .contact-section_list
@@ -3566,7 +3609,7 @@ h3,.title-h3
 		align-items: center
 		margin-bottom: 12px
 	[class*="glipf-"]
-		color: #3EBBF3
+		color: #206380
 		margin-right: .9em
 	a
 		display: -webkit-flex
@@ -3582,23 +3625,23 @@ h3,.title-h3
 .contact-mail
 	transition:  color .3s
 	&:hover
-		color: #3EBBF3
+		color: #206380
 .blue-border_btn
 	display: inline-block
-	color: #3ebbf3
+	color: #206380
 	font-weight: 600
 	height: 50px
 	line-height: 50px
 	min-width: 140px
-	border: 2px solid #3ebbf3
+	border: 2px solid #206380
 	text-align: center
 	transition: border-color .3s, background .3s, color .3s
 	&:hover
-		background: #3ebbf3
+		background: #206380
 		color: #fff
 	&:active
-		background: darken(#3ebbf3, 10%)
-		border-color: darken(#3ebbf3, 10%)
+		background: darken(#206380, 10%)
+		border-color: darken(#206380, 10%)
 .download-details_btn
 	display: -webkit-flex
 	display: -moz-flex
@@ -3608,17 +3651,17 @@ h3,.title-h3
 	align-items: center
 	justify-content: center
 	padding: .2em .5em
-	color: #3ebbf3
+	color: #206380
 	font-weight: 600
 	height: 50px
-	border: 2px solid #3ebbf3
+	border: 2px solid #206380
 	transition: border-color .3s, background .3s, color .3s
 	&:hover
-		background: #3ebbf3
+		background: #206380
 		color: #fff
 	&:active
-		background: darken(#3ebbf3, 10%)
-		border-color: darken(#3ebbf3, 10%)
+		background: darken(#206380, 10%)
+		border-color: darken(#206380, 10%)
 	.glipf-pdf
 		font-size: 1.3rem
 		margin-right: .7em
@@ -3719,7 +3762,7 @@ h3,.title-h3
 	justify-content: center
 	width: 180px
 	height: 180px
-	background-color: #3ebbf3
+	background-color: #206380
 	border: 30px solid #38a6d9
 	color: #fff
 	font-size: 2.25rem
@@ -3761,7 +3804,7 @@ h3,.title-h3
 		display: block
 		height: 100%
 		width: 88%
-		background: #3EBBF3
+		background: #206380
 		position: absolute
 		top: 0
 		left: 0
@@ -3808,7 +3851,7 @@ h3,.title-h3
 		z-index: -1
 .history-company_slide-year
 	display: inline-block
-	color: #3ebbf3
+	color: #206380
 	font-size: 1.25em
 	font-weight: 700
 	padding-bottom: .3em
@@ -3819,7 +3862,7 @@ h3,.title-h3
 		display: block
 		width: 100%
 		height: 4px
-		background-color: #24a6d7
+		background-color: #2a8fad
 		position: absolute
 		bottom: 0
 		left: 0
@@ -3843,7 +3886,7 @@ h3,.title-h3
 		cursor: pointer
 		transition: color .3s
 		&:hover
-			color: #3ebbf3
+			color: #206380
 			font-weight: 400
 .history-company_slide-right
 	padding: 0 15px 0 3em
@@ -3876,7 +3919,7 @@ h3,.title-h3
 		&.is-active
 			.year-slide_dots
 				background-color: #fff
-				border: 2px solid #3ebbf3
+				border: 2px solid #206380
 				box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55)
 				transform: scale(2)
 .year-slide_dots
@@ -4047,15 +4090,15 @@ h3,.title-h3
 		border-bottom: 1px solid transparent
 		transition: color .3s, border-bottom-color .3s
 		&:hover
-			border-bottom-color: #24A6D7
-			color: #24A6D7
+			border-bottom-color: #2a8fad
+			color: #2a8fad
 .sidebar_news-item_date
 	color: #aeaeae
 	font-size: 0.625rem
 .all-news_btn
 	width: 100%
 .slick-arrow
-	border-color: #24A6D7
+	border-color: #2a8fad
 	top: 40%
 	&:hover
 		border-color: #2456D7
@@ -4066,7 +4109,7 @@ h3,.title-h3
 /***main-footer***/
 .main-footer
 	flex: 0 0 auto
-	background: #083F72
+	background: #206380
 	padding: 2.6em 0 1.2em
 	color: #fff
 .footer-title
@@ -4143,14 +4186,14 @@ h3,.title-h3
 		font-size: 1.1rem
 		transition: color .3s
 		&:hover
-			color: #24A5D8
+			color: #2a8fad
 
 
 .scroll-to-top
 	display: block
 	width: 50px
 	height: 50px
-	background: darken(#083F72, 10%)
+	background: darken(#206380, 10%)
 	cursor: pointer
 	position: fixed
 	right: 20px
@@ -4282,8 +4325,8 @@ h3,.title-h3
 	.map-contact_box
 		padding: 1.7em 1.5em
 	.head-logo
-		max-width: 300px
-		flex: 300px 0 0
+		max-width: 260px
+		flex: 0 1 260px
 	.head_phone-box
 		font-size: .875rem
 	.head_callback-btn a
@@ -4458,7 +4501,7 @@ h3,.title-h3
 @media only screen and (max-width: 1200px)
 	.head-logo
 		max-width: 220px
-		flex: 220px 0 0
+		flex: 0 1 220px
 	.head_form-search	
 		max-width: 205px
 	.head-cart
@@ -4760,8 +4803,8 @@ h3,.title-h3
 	.head-menu_item:last-child > a:before
 		width: 100%
 	.head-logo
-		max-width: 214px
-		flex: 214px 0 0
+		max-width: 200px
+		flex: 0 1 200px
 		margin-right: 1em
 		top: 0
 	.head_phone-box
@@ -4799,7 +4842,7 @@ h3,.title-h3
 	.head-menu_text
 		transform: none
 	.head-menu_catalog-item
-		background: #24a6d7
+		background: #2a8fad
 		>a
 			position: relative
 			&:after
@@ -4826,7 +4869,7 @@ h3,.title-h3
 				display: block
 				transform: none
 	.dropdown-menu_item.is-active
-		background: #073F72
+		background: #184c61
 		color: #fff
 		.menu-icon
 			filter: brightness(0) invert(1)
@@ -5032,8 +5075,8 @@ h3,.title-h3
 			display: block
 			width: 10px
 			height: 10px
-			border-right: 2px solid #3EBBF3
-			border-bottom: 2px solid #3EBBF3
+			border-right: 2px solid #206380
+			border-bottom: 2px solid #206380
 			position: absolute
 			top: -5px
 			bottom: 0
@@ -5535,13 +5578,15 @@ h3,.title-h3
 	.main-head_right-column
 		justify-content: flex-end
 	.head-logo
-		height: 30px
+		height: 36px
 		display: -webkit-flex
 		display: -moz-flex
 		display: -ms-flex
 		display: -o-flex
 		display: flex
 		align-items: center
+		max-width: 70%
+		flex: 0 1 auto
 	.head-logo img
 		max-height: 100%
 	.mobile-visible
@@ -5722,8 +5767,8 @@ h3,.title-h3
 			display: block
 			width: 10px
 			height: 10px
-			border-right: 2px solid #3EBBF3
-			border-bottom: 2px solid #3EBBF3
+			border-right: 2px solid #206380
+			border-bottom: 2px solid #206380
 			position: absolute
 			top: 1.34em
 			bottom: 0
@@ -5757,7 +5802,7 @@ h3,.title-h3
 			top: -1.2em
 			transform: scale(.4)
 	.category-item_mod-other
-		border: 1px solid #3ebbf3
+		border: 1px solid #206380
 		padding: 1em 1em 1em 3.3em
 	.sidebar-catalog
 		.price-list_box

@@ -13,9 +13,9 @@
 $this->setFrameMode(true);
 ?>
 <div class="container">
-    <div class="cart-close"></div>
     <div class="cart-content_header">
         <div class="cart-content_title">Оформление заказа</div>
+        <button type="button" class="cart-close" aria-label="Закрыть"></button>
         <ul class="cart-steps">
             <li class="cart-step_item active">Шаг 1</li>
             <li class="cart-step_item active">Шаг 2</li>

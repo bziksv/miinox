@@ -10,19 +10,15 @@
         "COLUMNS_LIST_HEADER" => array(
             0 => "Название товара",
             1 => "Вес",
-            2 => "Марка стали",
-            3 => "Размеры ед.",
-            4 => "Цена",
-            5 => "Количество",
-            6 => "Сумма",
-            7 => "",
+            2 => "Цена",
+            3 => "Количество",
+            4 => "Сумма",
+            5 => "",
         ),
         "COLUMNS_LIST_EXT" => array(
             0 => "WEIGHT",
             1 => "DELETE",
             2 => "SUM",
-            3 => "PROPERTY_TYPE_METALL",
-            4 => "PROPERTY__8_SHT",
         ),
         "COLUMNS_LIST_MOBILE" => array(
         ),

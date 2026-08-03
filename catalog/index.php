@@ -3,7 +3,7 @@ define("HIDE_SIDEBAR", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "В разделе представлен каталог продукции Металлинвест Плюс, специализирующейся на поставках нержавейки и цветного металла");
 $APPLICATION->SetTitle("Каталог продукции Металлинвест Плюс");
-$IBLOCK_ID = 13;
+$IBLOCK_ID = 39;
 
 $link = explode('/', $APPLICATION->GetCurPage(false));
 TrimArr($link);
@@ -64,6 +64,7 @@ if($code &&  $cat == "catalog"){
 		"FILTER_VIEW_MODE" => "VERTICAL",
 		"USE_COMPARE" => "N",
 		"PRICE_CODE" => array(
+			0 => "Цена Розница",
 		),
 		"USE_PRICE_COUNT" => "N",
 		"SHOW_PRICE_COUNT" => "1",
@@ -90,10 +91,16 @@ if($code &&  $cat == "catalog"){
 		"ELEMENT_SORT_FIELD2" => "name",
 		"ELEMENT_SORT_ORDER2" => "asc",
 		"LIST_PROPERTY_CODE" => array(
-			0 => "NEWPRODUCT",
-			1 => "SALELEADER",
-			2 => "SPECIALOFFER",
-			3 => "",
+			0 => "MARKA_STALI_SPLAVA_AKH",
+			1 => "DIAMETR_AKH",
+			2 => "TOLSHCHINA_AKH",
+			3 => "DLINA_AKH",
+			4 => "SHIRINA_AKH",
+			5 => "DN_AKH",
+			6 => "FORMA_AKH",
+			7 => "POVERKHNOST_AKH",
+			8 => "SPOSOB_PRISOEDINENIYA_AKH",
+			9 => "",
 		),
 		"INCLUDE_SUBSECTIONS" => "Y",
 		"LIST_META_KEYWORDS" => "-",

@@ -258,18 +258,21 @@ foreach ($arMenuItemsIDs as $itemIdLevel_1=>$arLevels2)
 $menu = current($arMenuStructure);
 $in_stock = [];
 $to_order = [];
-foreach ($menu[1] as $index => $m){
-    if($arAllItems[$index]['PARAMS']['IN_STOCK']){
-        $in_stock[$index] = $m;
-    }else{
-        $to_order[$index] = $m;
-    }
-}
+if (is_array($menu) && !empty($menu[1]) && is_array($menu[1]))
+{
+	foreach ($menu[1] as $index => $m){
+		if($arAllItems[$index]['PARAMS']['IN_STOCK']){
+			$in_stock[$index] = $m;
+		}else{
+			$to_order[$index] = $m;
+		}
+	}
 
-$arMenuStructure[key($arMenuStructure)][1] = [
-    'in_stock' => $in_stock,
-    'to_order' => $to_order,
-];
+	$arMenuStructure[key($arMenuStructure)][1] = [
+		'in_stock' => $in_stock,
+		'to_order' => $to_order,
+	];
+}
 
 $arResult = array();
 $arResult["ALL_ITEMS"] = $arAllItems;

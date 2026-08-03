@@ -1,9 +1,10 @@
 <?
 /**
  * @global CMain $APPLICATION
- * @var string $arItem
+ * @var array $arItem
  * @var string $priceGroup
- *
+ * @var array $arResult
+ * @var callable $formatPropValue
  */
 ?>
 <div class="product-item_popup">
@@ -13,21 +14,22 @@
             <strong>Наименование товара</strong>
             <span class="product-item_name"><?=($arItem['PROPERTIES']['SEO_NAME']['VALUE']) ? $arItem['PROPERTIES']['SEO_NAME']['VALUE'] : htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?></span>
         </li>
+        <? foreach (($arResult['TABLE_PROP_COLUMNS'] ?? []) as $col):
+            $val = is_callable($formatPropValue ?? null)
+                ? $formatPropValue($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? '')
+                : htmlspecialcharsbx((string)($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? ''));
+            if ($val === '') {
+                continue;
+            }
+            ?>
         <li>
-            <strong>Марка Стали</strong>
-            <?=$arItem['PROPERTIES']['TYPE_METALL']['VALUE']?>
+            <strong><?=htmlspecialcharsbx($col['TITLE'])?></strong>
+            <?=$val?>
         </li>
-        <li>
-            <strong><?=(isset($arResult['FIELDS'][2])) ? $arResult['FIELDS'][2] : 'Вес'?></strong>
-            <?=$arItem['PROPERTIES']['_3_VESPMSAYT']['VALUE']?>
-        </li>
+        <? endforeach; ?>
         <li>
             <strong>Цена руб/кг (с НДС)</strong>
             <?=$priceGroup?>
-        </li>
-        <li>
-            <strong>Резка, руб</strong>
-            <?=CurrencyFormat($arItem['PROPERTIES']['PRICE_CUTTING']['VALUE'], $arItem['ITEM_PRICES'][0]['CURRENCY']);?>
         </li>
     </ul>
 

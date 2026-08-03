@@ -259,9 +259,25 @@ $arResult = array();
 $arResult["ALL_ITEMS"] = $arAllItems;
 $arResult["ITEMS_IMG_DESC"] = $arImgDesc;
 $arResult["MENU_STRUCTURE"] = $arMenuStructure;
+$arResult["PROPERTIES"] = [
+	"UF_JS_MENU" => [],
+];
 
 $page = $APPLICATION->GetCurPage();
-$code = explode('/', $page);
-$dbRes = CIBlockSection::GetList(array(), ["IBLOCK_ID" => $arParams['IBLOCK_ID'], "CODE" => $code[2]], false, array("ID", "UF_*"));
-if ($arCurSection = $dbRes->Fetch())
-    $arResult['PROPERTIES'] = $arCurSection;
+$code = explode('/', trim($page, '/'));
+$sectionCode = $code[1] ?? '';
+if ($sectionCode !== '' && !empty($arParams['IBLOCK_ID']))
+{
+	$dbRes = CIBlockSection::GetList(
+		[],
+		["IBLOCK_ID" => $arParams['IBLOCK_ID'], "CODE" => $sectionCode, "ACTIVE" => "Y"],
+		false,
+		["ID", "UF_*"]
+	);
+	if ($arCurSection = $dbRes->Fetch())
+	{
+		if (!isset($arCurSection['UF_JS_MENU']) || !is_array($arCurSection['UF_JS_MENU']))
+			$arCurSection['UF_JS_MENU'] = [];
+		$arResult['PROPERTIES'] = $arCurSection;
+	}
+}

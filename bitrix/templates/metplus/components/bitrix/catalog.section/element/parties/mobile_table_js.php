@@ -1,9 +1,10 @@
 <?
 /**
  * @global CMain $APPLICATION
- * @var string $arItem
+ * @var array $arItem
  * @var string $priceGroup
- *
+ * @var array $arResult
+ * @var callable $formatPropValue
  */
 ?>
 <div class="product-item_popup">
@@ -13,21 +14,22 @@
             <strong data-text="Наименование товара"></strong>
             <span class="product-item_name" data-text="<?=($arItem['PROPERTIES']['SEO_NAME']['VALUE']) ? $arItem['PROPERTIES']['SEO_NAME']['VALUE'] : htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?>"></span>
         </li>
+        <? foreach (($arResult['TABLE_PROP_COLUMNS'] ?? []) as $col):
+            $val = is_callable($formatPropValue ?? null)
+                ? $formatPropValue($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? '')
+                : htmlspecialcharsbx((string)($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? ''));
+            if ($val === '') {
+                continue;
+            }
+            ?>
         <li>
-            <strong data-text="Марка Стали"></strong>
-            <span data-text="<?=$arItem['PROPERTIES']['TYPE_METALL']['VALUE']?>"></span>
+            <strong data-text="<?=htmlspecialcharsbx($col['TITLE'])?>"></strong>
+            <span data-text="<?=$val?>"></span>
         </li>
-        <li>
-            <strong data-text="<?=(isset($arResult['FIELDS'][2])) ? $arResult['FIELDS'][2] : 'Вес'?>"></strong>
-            <span data-text="<?=$arItem['PROPERTIES']['_3_VESPMSAYT']['VALUE']?>"></span>
-        </li>
+        <? endforeach; ?>
         <li>
             <strong data-text="Цена руб/кг (с НДС)"></strong>
-            <span data-text="<?=$priceGroup?>"></span>
-        </li>
-        <li>
-            <strong data-text="Резка, руб"></strong>
-            <span data-text="<?=CurrencyFormat($arItem['PROPERTIES']['PRICE_CUTTING']['VALUE'], $arItem['ITEM_PRICES'][0]['CURRENCY']);?>"></span>
+            <span data-text="<?=htmlspecialcharsbx((string)$priceGroup)?>"></span>
         </li>
     </ul>
 

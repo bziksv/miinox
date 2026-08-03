@@ -1,1 +1,1 @@
-<img src="/include/logo_mobile.png"  srcset="/include/logo_mobile_retina.png" />
+<img src="/bitrix/templates/metplus/img/static/logo-header.svg?v=4" alt="Металлинвест Инокс" width="240" height="39" />

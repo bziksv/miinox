@@ -21,7 +21,7 @@ $APPLICATION->SetTitle("Поиск");
 		"USE_TITLE_RANK" => "Y",
 		"DEFAULT_SORT" => "rank",
 		"arrFILTER" => array(
-			0 => "iblock_catalog",
+			0 => "iblock_1c_catalog",
 		),
 		"arrFILTER_main" => "",
 		"arrFILTER_iblock_services" => array(
@@ -30,8 +30,8 @@ $APPLICATION->SetTitle("Поиск");
 		"arrFILTER_iblock_news" => array(
 			0 => "all",
 		),
-		"arrFILTER_iblock_catalog" => array(
-			0 => "13",
+		"arrFILTER_iblock_1c_catalog" => array(
+			0 => "39",
 		),
 		"SHOW_WHERE" => "N",
 		"SHOW_WHEN" => "N",
