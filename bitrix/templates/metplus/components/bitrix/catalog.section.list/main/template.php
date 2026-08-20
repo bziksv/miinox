@@ -37,7 +37,7 @@ $promoItems = array(
 );
 ?><div class="category-section">
     <div class="container">
-        <ul class="category-list category-list_photo">
+        <ul class="category-list category-list_photo category-list_photo-lg">
             <? foreach ($arResult['SECTIONS'] as &$arSection):
                 $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
                 $this->AddDeleteAction($arSection['ID'], $arSection['DELETE_LINK'], $strSectionDelete, $arSectionDeleteParams);
@@ -52,7 +52,7 @@ $promoItems = array(
                     );
                 }
                 ?>
-                <li class="category-item category-item_photo" id="<?=$this->GetEditAreaId($arSection['ID']);?>">
+                <li class="category-item category-item_photo category-item_photo-lg" id="<?=$this->GetEditAreaId($arSection['ID']);?>">
                     <? if($arSection['UF_IN_STOCK']): ?>
                         <div class="badge main">
                             <span class="in-stock" data-text="В наличии"></span>

@@ -31,7 +31,7 @@ $APPLICATION->SetTitle("Поиск");
 			0 => "all",
 		),
 		"arrFILTER_iblock_1c_catalog" => array(
-			0 => "39",
+			0 => "40",
 		),
 		"SHOW_WHERE" => "N",
 		"SHOW_WHEN" => "N",

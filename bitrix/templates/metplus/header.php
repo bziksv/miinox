@@ -10,7 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=brand84" rel="stylesheet" />
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=brand85" rel="stylesheet" />
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
 </head>
@@ -77,9 +77,9 @@
                             ),
                             "CATEGORY_0_TITLE" => "",
                             "CATEGORY_0_iblock_1c_catalog" => array(
-                                0 => "39",
+                                0 => "40",
                             ),
-                            "IBLOCK_ID" => "39",
+                            "IBLOCK_ID" => "40",
                             "IBLOCK_TYPE" => "1c_catalog",
                             "CHECK_DATES" => "N",
                             "CONTAINER_ID" => "title-search",
@@ -139,7 +139,7 @@
                     "MENU_CACHE_USE_GROUPS" => "Y",	// Учитывать права доступа
                     "MENU_THEME" => "site",	// Тема меню
                     "CACHE_SELECTED_ITEMS" => "N",
-                    "IBLOCK_ID" => "39",
+                    "IBLOCK_ID" => "40",
                     "MENU_CACHE_GET_VARS" => "",	// Значимые переменные запроса
                     "MAX_LEVEL" => "3",	// Уровень вложенности меню
                     "CHILD_MENU_TYPE" => "left",	// Тип меню для остальных уровней
@@ -169,9 +169,9 @@
                         ),
                         "CATEGORY_0_TITLE" => "",	// Название категории
                         "CATEGORY_0_iblock_1c_catalog" => array(
-                            0 => "39",
+                            0 => "40",
                         ),
-                        "IBLOCK_ID" => "39",
+                        "IBLOCK_ID" => "40",
                         "IBLOCK_TYPE" => "1c_catalog",
                         "CHECK_DATES" => "N",	// Искать только в активных по дате документах
                         "CONTAINER_ID" => "title-search-mobile",	// ID контейнера, по ширине которого будут выводиться результаты

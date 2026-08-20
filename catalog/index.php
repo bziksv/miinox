@@ -3,7 +3,7 @@ define("HIDE_SIDEBAR", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "В разделе представлен каталог продукции Металлинвест Плюс, специализирующейся на поставках нержавейки и цветного металла");
 $APPLICATION->SetTitle("Каталог продукции Металлинвест Плюс");
-$IBLOCK_ID = 39;
+$IBLOCK_ID = 40;
 
 $link = explode('/', $APPLICATION->GetCurPage(false));
 TrimArr($link);
@@ -34,7 +34,7 @@ if($code &&  $cat == "catalog"){
 	"catalog", 
 	array(
 		"IBLOCK_TYPE" => "1c_catalog",
-		"IBLOCK_ID" => "39",
+		"IBLOCK_ID" => "40",
 		"TEMPLATE_THEME" => "site",
 		"HIDE_NOT_AVAILABLE" => "N",
 		"BASKET_URL" => "/personal/cart/",

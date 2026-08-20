@@ -49,6 +49,8 @@ if (!function_exists('miinoxResolveCategoryIcon')) {
 			'elektrody' => 'category-icon_nineteen',
 			'nerzhaveyushchaya_stal' => 'category-icon_eight',
 			'1_1_nerzhaveyushchaya_stal' => 'category-icon_eight',
+			'1_nerzhaveyushchaya_stal' => 'category-icon_eight',
+			'2_tsvetnye_metally' => 'category-icon_six',
 			'nekonditsiya' => 'category-icon_tw',
 		);
 
@@ -95,6 +97,8 @@ if (!function_exists('miinoxResolveMenuIcon')) {
 			'elektrody' => 'menu-icon_fifteen',
 			'nerzhaveyushchaya_stal' => 'menu-icon_sv',
 			'1_1_nerzhaveyushchaya_stal' => 'menu-icon_sv',
+			'1_nerzhaveyushchaya_stal' => 'menu-icon_sv',
+			'2_tsvetnye_metally' => 'menu-icon_nine',
 			'nekonditsiya' => 'menu-icon_sv',
 		);
 
@@ -217,6 +221,12 @@ if (!function_exists('miinoxResolveSubcategoryImageSrc')) {
 			'рифлен' => 'riflenye_nerzhaveyushchie_listy',
 			'горячекат' => 'goryachekatannye_nerzhaveyushchie_listy',
 			'холоднокат' => 'kholodnokatannye_nerzhaveyushchie_listy',
+			'цветн' => '2_tsvetnye_metally',
+			'цветны' => '2_tsvetnye_metally',
+			'медн' => '2_tsvetnye_metally',
+			'алюмин' => '2_tsvetnye_metally',
+			'латун' => '2_tsvetnye_metally',
+			'бронз' => '2_tsvetnye_metally',
 			'лист' => 'listy_nerzhaveyushchie',
 			'гайк' => 'gayki_shestigrannye_narzhaveyushchie',
 			'шайб' => 'shayby_nerzhaveyushchie',

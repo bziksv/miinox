@@ -32,19 +32,7 @@ if(CModule::IncludeModule('iblock'))
 				"CACHE_TYPE" => "N",
 			), false, Array('HIDE_ICONS' => 'Y'));
 
-			// Один корневой раздел 1С — в выпадающем меню показываем его детей как пункты первого уровня
-			$filtered = array();
-			foreach ($aMenuLinksExt as $link)
-			{
-				$depth = intval($link[3]["DEPTH_LEVEL"]);
-				if ($depth < 2)
-					continue;
-				$link[3]["DEPTH_LEVEL"] = $depth - 1;
-				$filtered[] = $link;
-			}
-			if (!empty($filtered))
-				$aMenuLinksExt = $filtered;
-
+			// В каталоге два корня (нерж / цветные) — в меню показываем их как 1-й уровень
 			require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icons.php";
 			miinoxApplyMenuIconFallbacks($aMenuLinksExt);
 		}
