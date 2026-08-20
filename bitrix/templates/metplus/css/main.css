@@ -4778,7 +4778,7 @@ h3,
 }
 
 .catalog-submenu {
-  padding-left: calc(58px + 0.55em);
+  padding-left: 0;
   display: none;
   margin-top: 6px;
 }
