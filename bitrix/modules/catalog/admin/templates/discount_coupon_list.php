@@ -150,9 +150,8 @@ if (($arID = $lAdmin->GroupAction()) && !$boolCouponsReadOnly)
 	}
 }
 
-$CAdminCalendar_ShowScript = '';
 if (true == B_ADMIN_SUBCOUPONS_LIST)
-	$CAdminCalendar_ShowScript = CAdminCalendar::ShowScript();
+	CAdminCalendar::ShowScript();
 
 $lAdmin->AddHeaders(array(
 	array(
@@ -245,9 +244,10 @@ $strNameFormat = CSite::GetNameFormat(true);
 
 if (!(false == B_ADMIN_SUBCOUPONS_LIST && $bCopy))
 {
-	$arNavParams = (isset($_REQUEST['mode']) && 'excel' == $_REQUEST["mode"]
-		? false
-		: array("nPageSize" => CAdminSubResult::GetNavSize($sTableID, 20, $lAdmin->GetListUrl(true)))
+	$arNavParams = (
+		$lAdmin->isExportMode()
+			? false
+			: array("nPageSize" => CAdminSubResult::GetNavSize($sTableID, 20, $lAdmin->GetListUrl(true)))
 	);
 
 	$dbResultList = CCatalogDiscountCoupon::GetList(
@@ -412,7 +412,7 @@ if (!(false == B_ADMIN_SUBCOUPONS_LIST && $bCopy))
 
 	if (!isset($_REQUEST["mode"]) || ('excel' != $_REQUEST["mode"] && 'subsettings' != $_REQUEST["mode"]))
 	{
-		?><script type="text/javascript">
+		?><script>
 function ShowNewCoupons(id, multi)
 {
 	var PostParams = {
@@ -470,11 +470,6 @@ function ShowNewCoupons(id, multi)
 		$lAdmin->AddAdminContextMenu($aContext);
 	}
 	$lAdmin->CheckListMode();
-
-	if (true == B_ADMIN_SUBCOUPONS_LIST)
-	{
-		echo $CAdminCalendar_ShowScript;
-	}
 
 	$lAdmin->DisplayList(B_ADMIN_SUBCOUPONS_LIST);
 }

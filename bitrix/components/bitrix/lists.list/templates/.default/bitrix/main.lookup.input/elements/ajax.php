@@ -11,8 +11,6 @@ if(!CModule::IncludeModule('lists'))
 	die();
 }
 
-CUtil::JSPostUnescape();
-
 $iblock_id = intval($_REQUEST["IBLOCK_ID"]);
 
 $lists_perm = CListPermissions::CheckAccess(
@@ -80,7 +78,7 @@ if($_REQUEST['MODE'] == 'SEARCH')
 				die();
 			}
 		}
-		elseif(strlen($matches[1]) > 0)
+		elseif($matches[1] <> '')
 		{
 			$search = $matches[1];
 		}

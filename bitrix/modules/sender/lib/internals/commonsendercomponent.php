@@ -69,7 +69,7 @@ abstract class CommonSenderComponent extends CBitrixComponent
 		$this->arParams['PATH_TO_LIST'] = $this->arParams['PATH_TO_LIST'] ?? '';
 		$this->arParams['PATH_TO_USER_PROFILE'] = $this->arParams['PATH_TO_USER_PROFILE'] ?? '';
 		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ?
-			\CAllSite::GetNameFormat(false) :
+			\CSite::GetNameFormat(false) :
 			str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
 
 		$this->arParams['RENDER_FILTER_INTO_VIEW'] = $this->arParams['RENDER_FILTER_INTO_VIEW'] ?? '';
@@ -109,7 +109,8 @@ abstract class CommonSenderComponent extends CBitrixComponent
 	{
 		foreach ($this->errors as $error)
 		{
-			ShowError($error->getMessage());
+			$message = $error->getMessage() ?? '';
+			ShowError($message);
 		}
 	}
 
@@ -182,7 +183,10 @@ abstract class CommonSenderComponent extends CBitrixComponent
 			exit();
 		}
 
-		$this->printErrors();
+		if (!$this->errors->isEmpty())
+		{
+			$this->printErrors();
+		}
 
 		if(!is_null($template))
 		{

@@ -23,12 +23,11 @@
 					<!-- End Figure -->
 
 					<!-- Figure Info -->
-					<div class="landing-block-node-employee-post landing-semantic-subtitle-small-primary d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Photographer</div>
-					<h4 class="landing-block-node-employee-name landing-semantic-subtitle-medium text-uppercase g-font-weight-700 g-mb-7">
-						Ralf
-						Smith</h4>
-					<div class="landing-block-node-employee-subtitle landing-semantic-text-small mb-0">head
-						photographer</div>
+					<div class="landing-block-node-employee-post d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Photographer</div>
+					<h4 class="landing-block-node-employee-name text-uppercase g-font-weight-700 g-mb-7">
+						Ralf Smith
+					</h4>
+					<div class="landing-block-node-employee-subtitle mb-0">head photographer</div>
 					<!-- End Figure Info-->
 				</div>
 			</div>
@@ -53,12 +52,11 @@
 					<!-- End Figure -->
 
 					<!-- Figure Info -->
-					<div class="landing-block-node-employee-post landing-semantic-subtitle-small-primary d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Designer</div>
-					<h4 class="landing-block-node-employee-name landing-semantic-subtitle-medium text-uppercase g-font-weight-700 g-mb-7">
-						Monica
-						Gaudy</h4>
-					<div class="landing-block-node-employee-subtitle landing-semantic-text-small mb-0">head
-						photographer</div>
+					<div class="landing-block-node-employee-post d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Designer</div>
+					<h4 class="landing-block-node-employee-name text-uppercase g-font-weight-700 g-mb-7">
+						Monica Gaudy
+					</h4>
+					<div class="landing-block-node-employee-subtitle mb-0">head photographer</div>
 					<!-- End Figure Info-->
 				</div>
 			</div>
@@ -83,12 +81,11 @@
 					<!-- End Figure -->
 
 					<!-- Figure Info -->
-					<div class="landing-block-node-employee-post landing-semantic-subtitle-small-primary d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Co-founder</div>
-					<h4 class="landing-block-node-employee-name landing-semantic-subtitle-medium text-uppercase g-font-weight-700 g-mb-7">
-						Julia
-						Exon</h4>
-					<div class="landing-block-node-employee-subtitle landing-semantic-text-small mb-0">head
-						photographer</div>
+					<div class="landing-block-node-employee-post d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Co-founder</div>
+					<h4 class="landing-block-node-employee-name text-uppercase g-font-weight-700 g-mb-7">
+						Julia Exon
+					</h4>
+					<div class="landing-block-node-employee-subtitle mb-0">head photographer</div>
 					<!-- End Figure Info-->
 				</div>
 			</div>
@@ -113,12 +110,11 @@
 					<!-- End Figure -->
 
 					<!-- Figure Info -->
-					<div class="landing-block-node-employee-post landing-semantic-subtitle-small-primary d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Co-founder</div>
-					<h4 class="landing-block-node-employee-name landing-semantic-subtitle-medium text-uppercase g-font-weight-700 g-mb-7">
-						Jacob
-						Assange</h4>
-					<div class="landing-block-node-employee-subtitle landing-semantic-text-small mb-0">head
-						photographer</div>
+					<div class="landing-block-node-employee-post d-block text-uppercase g-font-style-normal g-font-weight-700 g-color-primary g-mb-5">Co-founder</div>
+					<h4 class="landing-block-node-employee-name text-uppercase g-font-weight-700 g-mb-7">
+						Jacob Assange
+					</h4>
+					<div class="landing-block-node-employee-subtitle mb-0">head photographer</div>
 					<!-- End Figure Info-->
 				</div>
 			</div>

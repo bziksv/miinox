@@ -1,12 +1,8 @@
 <?php
-$MESS["DOCUMENT_LIST_ACTION_CANCEL_TEXT"] = "Cancel processing";
-$MESS["DOCUMENT_LIST_ACTION_CANCEL_TITLE"] = "Cancel processing";
-$MESS["DOCUMENT_LIST_ACTION_CONDUCT_TEXT"] = "Process";
-$MESS["DOCUMENT_LIST_ACTION_CONDUCT_TITLE"] = "Process";
+$MESS["DOCUMENT_LIST_ACTION_CANCEL_TEXT_2"] = "Cancel processing";
+$MESS["DOCUMENT_LIST_ACTION_CONDUCT_TEXT_2"] = "Process";
 $MESS["DOCUMENT_LIST_ACTION_DELETE_TEXT"] = "Delete";
-$MESS["DOCUMENT_LIST_ACTION_DELETE_TITLE"] = "Delete";
 $MESS["DOCUMENT_LIST_ACTION_OPEN_TEXT"] = "Open";
-$MESS["DOCUMENT_LIST_ACTION_OPEN_TITLE"] = "Open";
 $MESS["DOCUMENT_LIST_ADD_DOCUMENT_BUTTON_2"] = "Create";
 $MESS["DOCUMENT_LIST_ADD_DOCUMENT_BUTTON_DISABLE_HINT"] = "Insufficient permission to create document.";
 $MESS["DOCUMENT_LIST_CANCEL_GROUP_ACTION"] = "Cancel processing";
@@ -21,6 +17,7 @@ $MESS["DOCUMENT_LIST_EMPTY_STORE_TITLE"] = "<Untitled>";
 $MESS["DOCUMENT_LIST_ERR_ACCESS_DENIED"] = "Insufficient permissions to view \"#DOCUMENT_TYPE_NAME#\" area.";
 $MESS["DOCUMENT_LIST_ERR_ACCESS_DENIED_BOX"] = "You do not have permission to access Inventory Management. Please contact your Bitrix24 administrator to get access. <a href=\"https://training.bitrix24.com/support/training/course/index.php?COURSE_ID=178&LESSON_ID=25118\" target=\"_blank\">Learn more</a> ";
 $MESS["DOCUMENT_LIST_ERR_ACCESS_DENIED_CLOUD"] = "You do not have permission to access Inventory Management. Please contact your Bitrix24 administrator to get access. The administrator will have to assign you the Manager role in the CRM settings. <a onclick=\"top.BX.Helper.show('redirect=detail&code=15955386')\" style=\"cursor: pointer; \">Learn more</a>";
+$MESS["DOCUMENT_LIST_FIELDS_SETTINGS"] = "Custom fields settings";
 $MESS["DOCUMENT_LIST_NO_VIEW_RIGHTS_ERROR"] = "Insufficient permissions to view inventory object list.";
 $MESS["DOCUMENT_LIST_SELECT_GROUP_ACTION"] = "Select action";
 $MESS["DOCUMENT_LIST_STATUS_CANCELLED"] = "Canceled";
@@ -38,7 +35,7 @@ $MESS["DOCUMENT_LIST_STUB_LINK_QUICKSTART"] = "How to get started with inventory
 $MESS["DOCUMENT_LIST_STUB_LINK_SHIPMENT"] = "How to work with sales orders";
 $MESS["DOCUMENT_LIST_STUB_MIGRATION_LINK"] = "Migrate";
 $MESS["DOCUMENT_LIST_STUB_MIGRATION_MORE"] = "and more";
-$MESS["DOCUMENT_LIST_STUB_MIGRATION_TITLE"] = "Migrate your documents from third-party systems to Bitrix24";
+$MESS["DOCUMENT_LIST_STUB_MIGRATION_TITLE_MSGVER_1"] = "Migrate your data from third-party systems to Bitrix24";
 $MESS["DOCUMENT_LIST_STUB_NO_DATA_DESCRIPTION"] = "Try resetting the filter or change the search phrase.";
 $MESS["DOCUMENT_LIST_STUB_NO_DATA_TITLE"] = "Your search request returned no results.";
 $MESS["DOCUMENT_LIST_STUB_TITLE_ARRIVAL"] = "Create your first stock receipt";

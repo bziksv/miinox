@@ -4,9 +4,17 @@ namespace Bitrix\Rest\Controller;
 
 use Bitrix\Main\Engine\Controller;
 use Bitrix\Main\Engine\ActionFilter;
+use Bitrix\Main\Engine\Response\AjaxJson;
+use Bitrix\Main\Engine\Response\Zip;
 use Bitrix\Main\Engine\Response\Zip\Archive;
-use Bitrix\Main\Engine\Response\Zip\ArchiveEntry;
+use Bitrix\Main\Error;
+use Bitrix\Main\Errorable;
+use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Response;
+use Bitrix\Main\Web\HttpClient;
+use Bitrix\Main\Web\Json;
+use Bitrix\Main\Web\Uri;
 use Bitrix\Rest\Configuration\Helper;
 use Bitrix\Rest\Configuration\Setting;
 use Bitrix\Rest\Configuration\Structure;
@@ -14,7 +22,7 @@ use Bitrix\Rest\Configuration\Manifest;
 
 Loc::loadLanguageFile(__FILE__);
 
-class Configuration extends Controller
+class Configuration extends Controller implements Errorable
 {
 	/**
 	 * Download zip export.
@@ -27,12 +35,12 @@ class Configuration extends Controller
 			$postfix = $this->getRequest()->getQuery('postfix');
 			if (!empty($postfix))
 			{
-				$context = Helper::getInstance()->getContextUser($postfix);
-				$setting = new Setting($context);
+				$userContext = Helper::getInstance()->getContextUser($postfix);
+				$setting = new Setting($userContext);
 				$access = Manifest::checkAccess(Manifest::ACCESS_TYPE_EXPORT, $setting->get(Setting::MANIFEST_CODE));
 				if ($access['result'] === true)
 				{
-					$structure = new Structure($context);
+					$structure = new Structure($userContext);
 
 					$name = $structure->getArchiveName();
 					if(empty($name))
@@ -45,22 +53,23 @@ class Configuration extends Controller
 
 					$files = [];
 					$fileList = $structure->getFileList();
+					$archiveEntryBuilder = new Zip\EntryBuilder();
 					if (is_array($fileList))
 					{
 						$folderName = Helper::STRUCTURE_FILES_NAME;
 						foreach ($fileList as $file)
 						{
 							$id = (int)$file['ID'];
-							$entry = ArchiveEntry::createFromFileId($id);
-							if ($entry)
+							$fileArray = \CFile::getFileArray($id);
+							if ($fileArray)
 							{
+								$entry = $archiveEntryBuilder->createFromFileArray($fileArray, $folderName . '/' . $id);
 								$files[$id] = array_merge(
 									[
-										'NAME' => $entry->getName(),
+										'NAME' => $fileArray['ORIGINAL_NAME'],
 									],
 									$file
 								);
-								$entry->setName($folderName . '/' . $id);
 								$archive->addEntry($entry);
 							}
 						}
@@ -80,10 +89,9 @@ class Configuration extends Controller
 					$folderFiles = $structure->getConfigurationFileList();
 					foreach ($folderFiles as $file)
 					{
-						$entry = ArchiveEntry::createFromFileId((int)$file['ID']);
+						$entry = $archiveEntryBuilder->createFromFileId((int)$file['ID'], $file['NAME']);
 						if ($entry)
 						{
-							$entry->setName($file['NAME']);
 							$archive->addEntry($entry);
 						}
 					}

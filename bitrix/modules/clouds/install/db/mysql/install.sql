@@ -25,7 +25,7 @@ CREATE TABLE b_clouds_file_bucket
 CREATE TABLE b_clouds_file_upload
 (
 	ID VARCHAR(32) NOT NULL,
-	TIMESTAMP_X TIMESTAMP NOT NULL,
+	TIMESTAMP_X DATETIME NOT NULL,
 	FILE_PATH VARCHAR(500) NOT NULL,
 	FILE_SIZE BIGINT NULL,
 	TMP_FILE VARCHAR(500) NULL,
@@ -40,8 +40,8 @@ CREATE TABLE b_clouds_file_upload
 CREATE TABLE b_clouds_file_resize
 (
 	ID INT(11) NOT NULL auto_increment,
-	TIMESTAMP_X TIMESTAMP NOT NULL,
-	ERROR_CODE CHAR(1) NOT NULL DEFAULT '0',
+	TIMESTAMP_X DATETIME NOT NULL,
+	ERROR_CODE INT NOT NULL DEFAULT 0,
 	FILE_ID INT(11),
 	PARAMS TEXT,
 	FROM_PATH VARCHAR(500),
@@ -49,13 +49,14 @@ CREATE TABLE b_clouds_file_resize
 	PRIMARY KEY pk_b_file_resize(ID),
 	INDEX ix_b_file_resize_ts (TIMESTAMP_X),
 	INDEX ix_b_file_resize_path (TO_PATH(100)),
-	INDEX ix_b_file_resize_file (FILE_ID)
+	INDEX ix_b_file_resize_file (FILE_ID),
+	INDEX ix_b_clouds_file_resize_cleanup (ERROR_CODE, TIMESTAMP_X)
 );
 
 CREATE TABLE b_clouds_copy_queue
 (
 	ID INT(32) NOT NULL auto_increment,
-	TIMESTAMP_X TIMESTAMP NOT NULL,
+	TIMESTAMP_X DATETIME NOT NULL,
 	OP CHAR(1) NOT NULL,
 	SOURCE_BUCKET_ID INT(11) NOT NULL,
 	SOURCE_FILE_PATH VARCHAR(500) NOT NULL,
@@ -72,7 +73,7 @@ CREATE TABLE b_clouds_copy_queue
 CREATE TABLE b_clouds_delete_queue
 (
 	ID INT(32) NOT NULL auto_increment,
-	TIMESTAMP_X TIMESTAMP NOT NULL,
+	TIMESTAMP_X DATETIME NOT NULL,
 	BUCKET_ID INT(11) NOT NULL,
 	FILE_PATH VARCHAR(500) NOT NULL,
 	PRIMARY KEY pk_b_clouds_delete_queue(ID),
@@ -82,7 +83,7 @@ CREATE TABLE b_clouds_delete_queue
 CREATE TABLE b_clouds_file_save
 (
 	ID INT(32) NOT NULL auto_increment,
-	TIMESTAMP_X TIMESTAMP NOT NULL,
+	TIMESTAMP_X DATETIME NOT NULL,
 	BUCKET_ID INT(11) NOT NULL,
 	SUBDIR VARCHAR(255),
 	FILE_NAME VARCHAR(255) not null,
@@ -102,4 +103,13 @@ CREATE TABLE b_clouds_file_hash
 	FILE_HASH VARCHAR(50),
 	PRIMARY KEY pk_b_clouds_file_hash(ID),
 	INDEX ix_b_clouds_file_hash(BUCKET_ID, FILE_PATH(190))
+);
+
+CREATE TABLE b_clouds_size_queue
+(
+	ID BIGINT NOT NULL auto_increment,
+	BUCKET_ID INT NOT NULL,
+	FILE_COUNT INT NOT NULL,
+	FILE_SIZE BIGINT,
+	PRIMARY KEY pk_b_clouds_size_queue(ID)
 );

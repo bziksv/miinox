@@ -2,6 +2,7 @@
 
 namespace Bitrix\Iblock\Controller\Property\Action;
 
+use Bitrix\Iblock\Integration\UI\EntityEditor\FriendlyPropertyProvider;
 use Bitrix\Iblock\Model\PropertyFeature;
 use Bitrix\Iblock\PropertyFeatureTable;
 use Bitrix\Iblock\PropertyTable;
@@ -66,6 +67,16 @@ final class SaveAction extends Action
 		$fields = $this->processFeatureFields($fields, $oldFields);
 		$fields = $this->processEnumFields($fields, $oldFields);
 
+		if (\CIBlock::GetArrayByID($iblockId, 'SECTION_PROPERTY') !== 'Y')
+		{
+			if (($fields['SMART_FILTER'] ?? 'N') === 'Y')
+			{
+				$iblock = new \CIBlock;
+				$iblock->Update($iblockId, ['SECTION_PROPERTY' => 'Y']);
+				unset($iblock);
+			}
+		}
+
 		$entity = new CIBlockProperty();
 		if ($propertyId > 0)
 		{
@@ -110,6 +121,44 @@ final class SaveAction extends Action
 	}
 
 	/**
+	 * Convert phantom feature 'Show in online store'
+	 *
+	 * @param array $fields
+	 *
+	 * @return array
+	 */
+	private function convertPublicFeature(array $fields): array
+	{
+		if (!isset($fields[FriendlyPropertyProvider::FEATURE_PUBLIC_PROPERTY]))
+		{
+			return $fields;
+		}
+
+		$features = $fields['FEATURES'] ?? [];
+		if (!is_array($features))
+		{
+			$features = [];
+		}
+
+		$listIndex = PropertyFeature::getIndex([
+			'MODULE_ID' => 'iblock',
+			'FEATURE_ID' => PropertyFeature::FEATURE_ID_LIST_PAGE_SHOW,
+		]);
+		$detailIndex = PropertyFeature::getIndex([
+			'MODULE_ID' => 'iblock',
+			'FEATURE_ID' => PropertyFeature::FEATURE_ID_DETAIL_PAGE_SHOW,
+		]);
+
+		$features[$listIndex] = $fields[FriendlyPropertyProvider::FEATURE_PUBLIC_PROPERTY];
+		$features[$detailIndex] = $fields[FriendlyPropertyProvider::FEATURE_PUBLIC_PROPERTY];
+		unset($fields[FriendlyPropertyProvider::FEATURE_PUBLIC_PROPERTY]);
+
+		$fields['FEATURES'] = $features;
+
+		return $fields;
+	}
+
+	/**
 	 * Process features fields.
 	 *
 	 * @param array $fields
@@ -119,6 +168,8 @@ final class SaveAction extends Action
 	 */
 	private function processFeatureFields(array $fields, ?array $oldFields): array
 	{
+		$fields = $this->convertPublicFeature($fields);
+
 		$features = $fields['FEATURES'] ?? null;
 		if (!isset($features) || !is_array($features))
 		{
@@ -281,7 +332,7 @@ final class SaveAction extends Action
 			'MULTIPLE',
 			'IS_REQUIRED',
 			'SEARCHABLE',
-			'FILTERABLE',
+			'FILTRABLE',
 			'WITH_DESCRIPTION',
 			'MULTIPLE_CNT',
 			'HINT',
@@ -300,6 +351,7 @@ final class SaveAction extends Action
 			'VALUES',
 			'FEATURES',
 			'USER_TYPE_SETTINGS',
+			'IS_PUBLIC',
 		], true);
 
 		return array_intersect_key($fields, $availableFields);

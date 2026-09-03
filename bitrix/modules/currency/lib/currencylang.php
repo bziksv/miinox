@@ -1,9 +1,12 @@
 <?php
+
 namespace Bitrix\Currency;
 
-use Bitrix\Main;
+use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\ORM;
+use Bitrix\Main\Type;
+use Bitrix\Main\Event;
 
 /**
  * Class CurrencyLangTable
@@ -34,9 +37,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_CurrencyLang_Query query()
- * @method static EO_CurrencyLang_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_CurrencyLang_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_CurrencyLang_Result getById($id)
- * @method static EO_CurrencyLang_Result getList(array $parameters = array())
+ * @method static EO_CurrencyLang_Result getList(array $parameters = [])
  * @method static EO_CurrencyLang_Entity getEntity()
  * @method static \Bitrix\Currency\EO_CurrencyLang createObject($setDefaultValues = true)
  * @method static \Bitrix\Currency\EO_CurrencyLang_Collection createCollection()
@@ -44,14 +47,14 @@ Loc::loadMessages(__FILE__);
  * @method static \Bitrix\Currency\EO_CurrencyLang_Collection wakeUpCollection($rows)
  */
 
-class CurrencyLangTable extends Main\Entity\DataManager
+class CurrencyLangTable extends ORM\Data\DataManager
 {
 	/**
 	 * Returns DB table name for entity
 	 *
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_catalog_currency_lang';
 	}
@@ -61,162 +64,191 @@ class CurrencyLangTable extends Main\Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
-		return array(
-			'CURRENCY' => new Main\Entity\StringField('CURRENCY', array(
-				'primary' => true,
-				'validation' => array(__CLASS__, 'validateCurrency'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_CURRENCY_FIELD')
-			)),
-			'LID' => new Main\Entity\StringField('LID', array(
-				'primary' => true,
-				'validation' => array(__CLASS__, 'validateLid'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_LID_FIELD'),
-			)),
-			'FORMAT_STRING' => new Main\Entity\StringField('FORMAT_STRING', array(
-				'required' => true,
-				'validation' => array(__CLASS__, 'validateFormatString'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_FORMAT_STRING_FIELD')
-			)),
-			'FULL_NAME' => new Main\Entity\StringField('FULL_NAME', array(
-				'validation' => array(__CLASS__, 'validateFullName'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_FULL_NAME_FIELD')
-			)),
-			'DEC_POINT' => new Main\Entity\StringField('DEC_POINT', array(
-				'default_value' => '.',
-				'validation' => array(__CLASS__, 'validateDecPoint'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_DEC_POINT_FIELD')
-			)),
-			'THOUSANDS_SEP' => new Main\Entity\StringField('THOUSANDS_SEP', array(
-				'default_value' => ' ',
-				'validation' => array(__CLASS__, 'validateThousandsSep'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_THOUSANDS_SEP_FIELD')
-			)),
-			'DECIMALS' => new Main\Entity\IntegerField('DECIMALS', array(
-				'default_value' => 2,
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_DECIMALS_FIELD')
-			)),
-			'THOUSANDS_VARIANT' => new Main\Entity\StringField('THOUSANDS_VARIANT', array(
-				'validation' => array(__CLASS__, 'validateThousandsVariant'),
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_THOUSANDS_VARIANT_FIELD')
-			)),
-			'HIDE_ZERO' => new Main\Entity\BooleanField('HIDE_ZERO', array(
-				'values' => array('N', 'Y'),
-				'default_value' => 'N',
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_HIDE_ZERO_FIELD')
-			)),
-			'CREATED_BY' => new Main\Entity\IntegerField('CREATED_BY', array(
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_CREATED_BY_FIELD')
-			)),
-			'DATE_CREATE' => new Main\Entity\DatetimeField('DATE_CREATE', array(
-				'default_value' => function(){ return new Main\Type\DateTime(); },
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_DATE_CREATE_FIELD')
-			)),
-			'MODIFIED_BY' => new Main\Entity\IntegerField('MODIFIED_BY', array(
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_MODIFIED_BY_FIELD')
-			)),
-			'TIMESTAMP_X' => new Main\Entity\DatetimeField('TIMESTAMP_X', array(
-				'required' => true,
-				'default_value' => function(){ return new Main\Type\DateTime(); },
-				'title' => Loc::getMessage('CURRENCY_LANG_ENTITY_TIMESTAMP_X_FIELD')
-			)),
-			'CREATED_BY_USER' => array(
-				'data_type' => 'Bitrix\Main\User',
-				'reference' => array('=this.CREATED_BY' => 'ref.ID'),
-			),
-			'MODIFIED_BY_USER' => array(
-				'data_type' => 'Bitrix\Main\User',
-				'reference' => array('=this.MODIFIED_BY' => 'ref.ID'),
-			),
-			'LANGUAGE' => array(
-				'data_type' => 'Bitrix\Main\Localization\Language',
-				'reference' => array('=this.LID' => 'ref.LID'),
-			),
-		);
+		return [
+			'CURRENCY' => (new ORM\Fields\StringField('CURRENCY'))
+				->configurePrimary(true)
+				->addValidator(new ORM\Fields\Validators\LengthValidator(null, 3))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_CURRENCY_FIELD'))
+			,
+			'LID' => (new ORM\Fields\StringField('LID'))
+				->configurePrimary(true)
+				->addValidator(new ORM\Fields\Validators\LengthValidator(2, 2))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_LID_FIELD'))
+			,
+			'FORMAT_STRING' => (new ORM\Fields\StringField('FORMAT_STRING'))
+				->configureRequired(true)
+				->addValidator(new ORM\Fields\Validators\LengthValidator(null, 50))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_FORMAT_STRING_FIELD'))
+			,
+			'FULL_NAME' => (new ORM\Fields\StringField('FULL_NAME'))
+				->addValidator(new ORM\Fields\Validators\LengthValidator(null, 50))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_FULL_NAME_FIELD'))
+			,
+			'DEC_POINT' => (new ORM\Fields\StringField('DEC_POINT'))
+				->configureDefaultValue('.')
+				->addValidator(new ORM\Fields\Validators\LengthValidator(null, 16))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_DEC_POINT_FIELD'))
+			,
+			'THOUSANDS_SEP' => (new ORM\Fields\StringField('THOUSANDS_SEP'))
+				->configureDefaultValue(' ')
+				->addValidator(new ORM\Fields\Validators\LengthValidator(null, 16))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_THOUSANDS_SEP_FIELD'))
+			,
+			'DECIMALS' => (new ORM\Fields\IntegerField('DECIMALS'))
+				->configureDefaultValue(2)
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_DECIMALS_FIELD'))
+			,
+			'THOUSANDS_VARIANT' => (new ORM\Fields\StringField('THOUSANDS_VARIANT'))
+				->addValidator(new ORM\Fields\Validators\LengthValidator(null, 1))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_THOUSANDS_VARIANT_FIELD'))
+			,
+			'HIDE_ZERO' => (new ORM\Fields\BooleanField('HIDE_ZERO'))
+				->configureValues('N', 'Y')
+				->configureDefaultValue('N')
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_HIDE_ZERO_FIELD'))
+			,
+			'CREATED_BY' => (new ORM\Fields\IntegerField('CREATED_BY'))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_CREATED_BY_FIELD'))
+			,
+			'DATE_CREATE' => (new ORM\Fields\DatetimeField('DATE_CREATE'))
+				->configureDefaultValue(static fn() => new Type\DateTime())
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_DATE_CREATE_FIELD'))
+			,
+			'MODIFIED_BY' => (new ORM\Fields\IntegerField('MODIFIED_BY'))
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_MODIFIED_BY_FIELD'))
+			,
+			'TIMESTAMP_X' => (new ORM\Fields\DatetimeField('TIMESTAMP_X'))
+				->configureRequired(true)
+				->configureDefaultValue(static fn() => new Type\DateTime())
+				->configureTitle(Loc::getMessage('CURRENCY_LANG_ENTITY_TIMESTAMP_X_FIELD'))
+			,
+			'CREATED_BY_USER' => (new ORM\Fields\Relations\Reference(
+					'CREATED_BY_USER',
+					'Bitrix\Main\User',
+					ORM\Query\Join::on('this.CREATED_BY', 'ref.ID')
+				))->configureJoinType(ORM\Query\Join::TYPE_LEFT)
+			,
+			'MODIFIED_BY_USER' => (new ORM\Fields\Relations\Reference(
+					'MODIFIED_BY_USER',
+					'Bitrix\Main\User',
+					ORM\Query\Join::on('this.MODIFIED_BY', 'ref.ID')
+				))->configureJoinType(ORM\Query\Join::TYPE_LEFT)
+			,
+			'LANGUAGE' => (new ORM\Fields\Relations\Reference(
+				'LANGUAGE',
+				'Bitrix\Main\Localization\Language',
+				ORM\Query\Join::on('this.LID', 'ref.LID')
+			))->configureJoinType(ORM\Query\Join::TYPE_LEFT)
+			,
+		];
 	}
 
 	/**
-	 * Returns validators for CURRENCY field.
+	 * Removes all language localizations for a currency.
 	 *
-	 * @return array
+	 * @param string $currency Deleted currency id.
+	 * @return void
 	 */
-	public static function validateCurrency()
+	public static function deleteByCurrency(string $currency): void
 	{
-		return array(
-			new Main\Entity\Validator\Length(null, 3),
+		$currency = trim($currency);
+		if ($currency === '')
+		{
+			return;
+		}
+		$conn = Application::getConnection();
+		$helper = $conn->getSqlHelper();
+		$conn->queryExecute(
+			'delete from ' . $helper->quote(self::getTableName())
+				. ' where ' . $helper->quote('CURRENCY') . ' = \'' . $helper->forSql($currency) . '\''
 		);
+		unset($helper, $conn);
+
+		static::cleanCache();
 	}
 
 	/**
-	 * Returns validators for LID field.
+	 * Clears tablet cache.
 	 *
-	 * @return array
+	 * @return void
 	 */
-	public static function validateLid()
+	public static function cleanCache(): void
 	{
-		return array(
-			new Main\Entity\Validator\Length(2, 2),
-		);
+		parent::cleanCache();
+		CurrencyTable::cleanCache();
 	}
 
-	/**
-	 * Returns validators for FORMAT_STRING field.
-	 *
-	 * @return array
-	 */
-	public static function validateFormatString()
+	public static function onLanguageAddHandler(array|Event $event): void
 	{
-		return array(
-			new Main\Entity\Validator\Length(null, 50),
-		);
+		if ($event instanceof Event)
+		{
+			$primary = $event->getParameter('primary');
+			$languageId = $primary['LID'] ?? null;
+		}
+		else
+		{
+			$languageId = $event['LID'] ?? null;
+		}
+
+		if (!$languageId)
+		{
+			return;
+		}
+
+		self::addCurrencyLanguagesByLanguageId((string)$languageId);
 	}
 
-	/**
-	 * Returns validators for FULL_NAME field.
-	 *
-	 * @return array
-	 */
-	public static function validateFullName()
+	private static function addCurrencyLanguagesByLanguageId(string $languageId): void
 	{
-		return array(
-			new Main\Entity\Validator\Length(null, 50),
-		);
-	}
+		$existCurrencies = \Bitrix\Currency\CurrencyTable::getList(['select' => ['CURRENCY']])->fetchAll();
+		foreach ($existCurrencies as $existCurrency)
+		{
+			$existsCurrencyCode = $existCurrency['CURRENCY'];
+			$currencyLangData = CurrencyLangTable::getRow(
+				[
+					'select' => ['CURRENCY', 'LID'],
+					'filter' => [
+						'=CURRENCY' => $existsCurrencyCode,
+						'=LID' => $languageId,
+					],
+				],
+			);
+			if ($currencyLangData)
+			{
+				continue;
+			}
 
-	/**
-	 * Returns validators for DEC_POINT field.
-	 *
-	 * @return array
-	 */
-	public static function validateDecPoint()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 16),
-		);
-	}
+			$currencyClassifierData = CurrencyClassifier::getCurrency(
+				$existsCurrencyCode,
+				[$languageId]
+			);
+			if (!$currencyClassifierData)
+			{
+				continue;
+			}
 
-	/**
-	 * Returns validators for THOUSANDS_SEP field.
-	 *
-	 * @return array
-	 */
-	public static function validateThousandsSep()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 16),
-		);
-	}
-
-	/**
-	 * Returns validators for THOUSANDS_VARIANT field.
-	 *
-	 * @return array
-	 */
-	public static function validateThousandsVariant()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 1),
-		);
+			$languageData = $currencyClassifierData[mb_strtoupper($languageId)];
+			$datetimeEntity = new \Bitrix\Main\DB\SqlExpression(
+				\Bitrix\Main\Application::getConnection()->getSqlHelper()->getCurrentDateTimeFunction()
+			);
+			self::add([
+				'CURRENCY' => $existsCurrencyCode,
+				'LID' => $languageId,
+				'FORMAT_STRING' => str_replace('#VALUE#', '#', $languageData['FORMAT_STRING']),
+				'FULL_NAME' => $languageData['FULL_NAME'],
+				'DEC_POINT' => $languageData['DEC_POINT'],
+				'THOUSANDS_SEP' => null,
+				'DECIMALS' => $languageData['DECIMALS'],
+				'THOUSANDS_VARIANT' => $languageData['THOUSANDS_VARIANT'],
+				'HIDE_ZERO' => 'Y',
+				'CREATED_BY' => null,
+				'DATE_CREATE' => $datetimeEntity,
+				'MODIFIED_BY' => null,
+				'TIMESTAMP_X' => $datetimeEntity,
+			]);
+			\Bitrix\Currency\CurrencyManager::clearCurrencyCache();
+		}
 	}
 }

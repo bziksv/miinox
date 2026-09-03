@@ -1,10 +1,12 @@
-import ColumnItemOptions from "../../columnitem";
-import {Event, Text, Tag, Dom, Type, Loc} from 'main.core';
-import {Dialog, Item} from 'ui.entity-selector';
+import ColumnItemOptions from '../../columnitem';
+import { Event, Text, Tag, Dom, Type, Loc } from 'main.core';
+import { BaseEvent } from 'main.core.events';
+import { Dialog, Item } from 'ui.entity-selector';
 
-import Changer from "../changer";
-import {EventEmitter} from "main.core.events";
-import Footer from "./footer";
+import Changer from '../changer';
+import { ChangerOpts } from '../base';
+import { EventEmitter } from 'main.core.events';
+import Footer from './footer';
 import 'ui.hint';
 
 type VariableItem = {
@@ -12,9 +14,16 @@ type VariableItem = {
 	title: string,
 }
 
+interface MultiSelectorChangerOpts extends ChangerOpts {
+	disableSelectAll?: boolean;
+	useSelectedActions?: boolean;
+}
+
 export default class MultiSelector extends Changer
 {
 	static TYPE = 'multivariables';
+
+	changerOptions: MultiSelectorChangerOpts;
 
 	constructor(options: ColumnItemOptions)
 	{
@@ -23,16 +32,21 @@ export default class MultiSelector extends Changer
 		this.enableSearch = options.enableSearch ?? false;
 		this.placeholder = options.placeholder || '';
 		this.hintTitle = options.hintTitle || '';
-		this.allSelectedCode = Text.toNumber(options.allSelectedCode || -1);
+		this.allSelectedCode = String(options.allSelectedCode || -1);
 		this.showAvatars = options.showAvatars ?? true;
 		this.compactView = options.compactView ?? false;
-		this.currentValue = Type.isArray(options.currentValue) ? options.currentValue : [];
-		this.currentValue = this.currentValue.map(value => Text.toNumber(value));
-		this.selectedValues = this.currentValue;
+		this.currentValue = Type.isArray(options.currentValue) ? options.currentValue.map((item) => String(item)) : [];
+
+		this.selectedValues = this.currentValue.filter((val) => Boolean(val));
 
 		this.variables = this.variables.map((item) => {
 			item.entityId = item.entityId || 'editor-right-item';
 			item.tabs = 'recents';
+			if (item.selectedAction)
+			{
+				item.customData = { ...item.customData, selectedAction: item.selectedAction };
+			}
+
 			return item;
 		});
 
@@ -58,11 +72,11 @@ export default class MultiSelector extends Changer
 			showAvatars: this.showAvatars,
 			selectedItems: this.getSelected(),
 			searchOptions: {
-				allowCreateItem: false
+				allowCreateItem: false,
 			},
 			events: {
-				'Item:onSelect': this.setSelectedInputs.bind(this),
-				'Item:onDeselect': this.setSelectedInputs.bind(this),
+				'Item:onSelect': this.#obSelectItem.bind(this),
+				'Item:onDeselect': this.#onDeselectItem.bind(this),
 			},
 			entities: [
 				{
@@ -70,7 +84,7 @@ export default class MultiSelector extends Changer
 				}
 			],
 			items: this.variables,
-			footer: Footer,
+			footer: this.#getDialogFooter(),
 		});
 	}
 
@@ -119,9 +133,9 @@ export default class MultiSelector extends Changer
 			const hintTitle =
 				Type.isStringFilled(this.hintTitle)
 					? this.hintTitle
-					: Loc.getMessage('JS_UI_ACCESSRIGHTS_SELECTED_ITEMS_TITLE')
+					: Loc.getMessage('JS_UI_ACCESSRIGHTS_SELECTED_ITEMS_TITLE_MSGVER_1')
 			;
-			hint += '<p>' + hintTitle + ':</p>';
+			hint += '<p>' + hintTitle + '</p>';
 			hint += '<ul>';
 			this.selector.getSelectedItems().forEach((item: Item) => hint += '<li>' + Text.encode(item.getTitle()))
 			hint += '</ul>';
@@ -138,6 +152,9 @@ export default class MultiSelector extends Changer
 		Dom.append(variablesValue, this.getChanger());
 
 		BX.UI.Hint.init(this.getChanger());
+
+		this.selector.setTargetNode(this.getChanger());
+
 		return this.getChanger();
 	}
 
@@ -145,7 +162,7 @@ export default class MultiSelector extends Changer
 	{
 		if (this.isModify)
 		{
-			this.currentValue = this.selectedValues;
+			this.currentValue = [...this.selectedValues];
 			this.reset();
 		}
 	}
@@ -154,7 +171,7 @@ export default class MultiSelector extends Changer
 	{
 		if (this.isModify)
 		{
-			this.selectedValues = this.currentValue;
+			this.selectedValues = [...this.currentValue];
 			this.selector = this.createSelector();
 			this.getChanger().innerHTML = '';
 			this.adjustChanger();
@@ -172,9 +189,9 @@ export default class MultiSelector extends Changer
 		return this.variables.filter(variable => this.includesSelected(variable.id));
 	}
 
-	includesSelected(item): boolean
+	includesSelected(itemId): boolean
 	{
-		return this.selectedValues.includes(Text.toNumber(item));
+		return this.selectedValues.some((id) => String(id) === String(itemId));
 	}
 
 	showSelector(event: Event): void
@@ -182,30 +199,147 @@ export default class MultiSelector extends Changer
 		this.selector.show();
 	}
 
-	setSelectedInputs(): void
+	#obSelectItem(event: BaseEvent): void
 	{
-		const selected = this.selector.getSelectedItems();
-		this.selectedValues = [];
-		if (selected.length === this.variables.length)
+		const addedItem = event.getData().item;
+		const addedId = String(addedItem.id);
+
+		if (this.changerOptions.useSelectedActions)
 		{
-			this.selectedValues.push(this.allSelectedCode);
+			this.#useSelectedActionLogic(addedItem);
+		}
+
+		if (!this.selectedValues.includes(addedId))
+		{
+			this.selectedValues.push(addedId);
+		}
+
+		if (this.selectedValues.length === this.variables.length)
+		{
+			this.selectedValues = [this.allSelectedCode];
+		}
+
+		this.#afterSetupItems();
+	}
+
+	#onDeselectItem(event: BaseEvent): void
+	{
+		const removedItem = event.getData().item;
+		const removedId = String(removedItem.id);
+
+		if (this.selectedValues.includes(this.allSelectedCode))
+		{
+			const allWithoutRemoved = this.variables
+				.map((variable) => String(variable.id))
+				.filter((id) => id !== removedId)
+			;
+
+			this.selectedValues = allWithoutRemoved;
 		}
 		else
 		{
-			selected.forEach((item) => {
-				this.selectedValues.push(Text.toNumber(item.id));
-			});
+			this.selectedValues = this.selectedValues.filter((id) => id !== removedId);
 		}
 
+		this.#afterSetupItems();
+	}
+
+	#afterSetupItems(): void
+	{
+		this.isModify = !this.#isArraysEqual(this.selectedValues, this.currentValue);
+
 		this.getChanger().innerHTML = '';
-		if (!this.isModify)
+		if (this.isModify)
 		{
-			this.adjustChanger();
+			this.addChangerHtmlClass();
+		}
+		else
+		{
+			this.removeChangerHtmlClass();
 		}
 
 		this.render();
 
 		EventEmitter.emit('BX.UI.AccessRights.ColumnItem:update', this);
 		EventEmitter.emit('BX.UI.AccessRights.ColumnItem:selectAccessItems', this);
+	}
+
+	#getDialogFooter(): ?Footer
+	{
+		if (this.changerOptions.disableSelectAll)
+		{
+			return null;
+		}
+
+		return Footer;
+	}
+
+	#useSelectedActionLogic(addedItem: Item): void
+	{
+		const selectedAction = addedItem.customData.get('selectedAction', null);
+
+		if (selectedAction === 'clear-other')
+		{
+			const selected = this.selector.getSelectedItems();
+			for (const item of selected)
+			{
+				if (addedItem.id === item.id)
+				{
+					continue;
+				}
+
+				item.deselect();
+			}
+		}
+		else
+		{
+			const selected = this.selector.getSelectedItems();
+			for (const item of selected)
+			{
+				if (addedItem.id === item.id)
+				{
+					continue;
+				}
+
+				const currSelectedAction = item.customData.get('selectedAction', null);
+				if (currSelectedAction)
+				{
+					item.deselect();
+				}
+			}
+		}
+	}
+
+	#isArraysEqual(a, b: ?string[]): boolean
+	{
+		if (a === b)
+		{
+			return true;
+		}
+
+		if (a === null || b === null)
+		{
+			return false;
+		}
+
+		if (a.length !== b.length)
+		{
+			return false;
+		}
+
+		const aClone = [...a];
+		const bClone = [...b];
+		aClone.sort();
+		bClone.sort();
+
+		for (let i = 0; i < a.length; i++)
+		{
+			if (aClone[i] !== bClone[i])
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

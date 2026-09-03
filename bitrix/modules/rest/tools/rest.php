@@ -2,6 +2,7 @@
 
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ModuleManager;
 use Bitrix\Market\Subscription\Trial;
 use Bitrix\Rest\Marketplace\Application;
 
@@ -63,23 +64,17 @@ if($request->isPost() && check_bitrix_sessid() && Loader::includeModule('rest'))
 		break;
 
 		case 'activate_demo':
-			if ($admin)
+			$subscription = new \Bitrix\Rest\Internal\Integration\Market\Subscription();
+			$subscriptionResult = $subscription->activateDemo();
+
+			if ($subscriptionResult->isSuccess())
 			{
-				if (Loader::includeModule('market') && Trial::isAvailable())
-				{
-					$result = Trial::activate();
-				}
-				else
-				{
-					$result = [
-						'error' => Loc::getMessage('REST_MP_CONFIG_ACTIVATE_ERROR'),
-					];
-				}
+				$result = $subscriptionResult->getData();
 			}
 			else
 			{
 				$result = [
-					'error' => Loc::getMessage('REST_ACTIVATE_DEMO_ACCESS_DENIED'),
+					'error' => Loc::getMessage('REST_MP_CONFIG_ACTIVATE_ERROR'),
 				];
 			}
 

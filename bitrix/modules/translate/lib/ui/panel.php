@@ -6,6 +6,9 @@ use Bitrix\Main\Localization;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Translate;
 
+/**
+ * @internal
+ */
 
 class Panel
 {
@@ -130,7 +133,7 @@ class Panel
 		$popup->jsPopup = self::DIALOG_ID;
 
 		?>
-		<script type="text/javascript">
+		<script>
 			var <?= self::DIALOG_ID ?> = new BX.CDebugDialog();
 		</script>
 		<?
@@ -296,7 +299,7 @@ class Panel
 		if ($searchString !== null)
 		{
 			?>
-			<script type="text/javascript">BX.ready(function(){ <?= self::DIALOG_ID ?>.Show(); });</script>
+			<script>BX.ready(function(){ <?= self::DIALOG_ID ?>.Show(); });</script>
 			<?
 		}
 

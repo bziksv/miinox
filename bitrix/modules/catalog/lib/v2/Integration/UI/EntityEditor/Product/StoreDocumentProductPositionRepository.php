@@ -8,7 +8,7 @@ use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Catalog\Config\State;
 use Bitrix\Iblock\Url\AdminPage\BuilderManager;
 use Bitrix\Main\Loader;
-use Bitrix\Sale\PriceMaths;
+use Bitrix\Catalog\Product\Price\Calculation;
 
 /**
  * Class StoreDocumentProductPositionRepository
@@ -79,18 +79,35 @@ final class StoreDocumentProductPositionRepository
 		}
 
 		$documentProductListData = \CCatalogStoreDocsElement::getList(
-			['ID' => 'ASC'],
-			['DOC_ID' => $documentId],
+			[
+				'ID' => 'ASC',
+			],
+			[
+				'=DOC_ID' => $documentId,
+			],
 			false,
 			false,
-			['ELEMENT_ID', 'ELEMENT_NAME', 'AMOUNT', 'PURCHASING_PRICE', 'BASE_PRICE']
+			[
+				'ID',
+				'ELEMENT_ID',
+				'ELEMENT_NAME',
+				'AMOUNT',
+				'PURCHASING_PRICE',
+				'BASE_PRICE',
+			]
 		);
 
 		$documentProductList = [];
 		while ($product = $documentProductListData->Fetch())
 		{
+			unset($product['ID']);
+			$product['ELEMENT_ID'] = (int)$product['ELEMENT_ID'];
 			$documentProductList[] = $this->formProductPositionData($product);
 		}
+		unset(
+			$product,
+			$documentProductListData,
+		);
 
 		$this->documentProductPositionListCollection[$documentId] = $documentProductList;
 		return $documentProductList;
@@ -100,7 +117,7 @@ final class StoreDocumentProductPositionRepository
 	{
 		$productPositionData = [
 			'PRODUCT_NAME' => $product['ELEMENT_NAME'],
-			'SUM' =>  PriceMaths::roundPrecision((float)$product[self::PRODUCT_PRICE_TYPE] * (float)$product['AMOUNT']),
+			'SUM' =>  Calculation::roundPrecision((float)$product[self::PRODUCT_PRICE_TYPE] * (float)$product['AMOUNT']),
 		];
 
 		$productId = $product['ELEMENT_ID'];

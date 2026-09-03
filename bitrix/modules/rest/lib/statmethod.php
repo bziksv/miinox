@@ -19,9 +19,9 @@ use Bitrix\Main;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_StatMethod_Query query()
- * @method static EO_StatMethod_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_StatMethod_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_StatMethod_Result getById($id)
- * @method static EO_StatMethod_Result getList(array $parameters = array())
+ * @method static EO_StatMethod_Result getList(array $parameters = [])
  * @method static EO_StatMethod_Entity getEntity()
  * @method static \Bitrix\Rest\EO_StatMethod createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_StatMethod_Collection createCollection()
@@ -120,7 +120,7 @@ class StatMethodTable extends Main\Entity\DataManager
 
 	}
 
-	protected static function addMethod($methodName, $methodType)
+	protected static function addMethod($methodName, $methodType): void
 	{
 		$connection = Main\Application::getConnection();
 		$helper = $connection->getSqlHelper();
@@ -137,7 +137,11 @@ class StatMethodTable extends Main\Entity\DataManager
 			]
 		) ? $methodType : self::METHOD_TYPE_METHOD;
 
-		$query = "INSERT IGNORE INTO {$sqlTableName} (NAME, METHOD_TYPE) VALUES ('{$sqlMethodName}', '{$sqlMethodType}')";
+		$query = $helper->getInsertIgnore(
+			$sqlTableName,
+			'(NAME, METHOD_TYPE)',
+			"VALUES ('{$sqlMethodName}', '{$sqlMethodType}')"
+		);
 		$connection->query($query);
 	}
 

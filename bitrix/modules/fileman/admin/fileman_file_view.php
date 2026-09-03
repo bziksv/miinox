@@ -7,17 +7,16 @@ if (!($USER->CanDoOperation('fileman_admin_files') || $USER->CanDoOperation('fil
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/include.php");
 IncludeModuleLangFile(__FILE__);
+$logical = $logical ?? null;
 $addUrl = 'lang='.LANGUAGE_ID.($logical == "Y"?'&logical=Y':'');
 
 $strWarning = "";
 
+$site ??= $_REQUEST['site'] ?? null;
 $site = CFileMan::__CheckSite($site);
 $DOC_ROOT = CSite::GetSiteDocRoot($site);
 
 $io = CBXVirtualIo::GetInstance();
-
-if (CUtil::DetectUTF8($path))
-	CUtil::decodeURIComponent($path);
 
 $path = $io->CombinePath("/", $path);
 $arParsedPath = CFileMan::ParsePath(Array($site, $path), false, false, "", $logical == "Y");

@@ -1,17 +1,18 @@
+/* eslint-disable */
 this.BX = this.BX || {};
 (function (exports) {
 	'use strict';
 
+	var DEFAULT_CANCEL_CALLBACK_DELAY = 1000;
 	var Uploader = /*#__PURE__*/function () {
 	  function Uploader() {
+	    var _params$cancelCallbac;
 	    var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 	    babelHelpers.classCallCheck(this, Uploader);
 	    this.container = params.container;
-
 	    if (this.container && typeof params.blurElement === 'undefined') {
 	      params.blurElement = this.container.firstElementChild;
 	    }
-
 	    this.blurElement = params.blurElement;
 	    this.direction = Uploader.direction[params.direction] ? params.direction : Uploader.direction.vertical;
 	    params.sizes = params.sizes && babelHelpers["typeof"](params.sizes) === 'object' ? params.sizes : {};
@@ -33,17 +34,15 @@ this.BX = this.BX || {};
 	    this.icon = Uploader.icon[params.icon] ? params.icon : !this.cancelCallback ? Uploader.icon.cloud : Uploader.icon.cancel;
 	    this.inited = !!this.container;
 	    this.destroing = false;
+	    this.cancelCallbackDelay = (_params$cancelCallbac = params.cancelCallbackDelay) !== null && _params$cancelCallbac !== void 0 ? _params$cancelCallbac : DEFAULT_CANCEL_CALLBACK_DELAY;
 	  }
-
 	  babelHelpers.createClass(Uploader, [{
 	    key: "start",
 	    value: function start() {
 	      var _this = this;
-
 	      if (!this.inited) {
 	        return false;
 	      }
-
 	      clearTimeout(this.timeoutSetIcon);
 	      clearTimeout(this.timeout);
 	      this.active = true;
@@ -56,57 +55,44 @@ this.BX = this.BX || {};
 	      this.processLoaderIcon = this.wrapper.getElementsByClassName('ui-file-progressbar-icon')[0];
 	      this.processStatus = this.wrapper.getElementsByClassName('ui-file-progressbar-progress')[0];
 	      this.proccesLabel = this.wrapper.getElementsByClassName('ui-file-progressbar-label')[0];
-
 	      if (this.direction === Uploader.direction.horizontal) {
 	        this.wrapper.classList.add('ui-file-progressbar-loader-horizontal');
 	      }
-
 	      this.container.classList.add('ui-file-progressbar-container-relative');
 	      this.container.insertBefore(this.wrapper, this.container.firstChild);
-
 	      if (this.blurElement) {
 	        this.blurElement.classList.add("ui-file-progressbar-item-blurred");
 	      }
-
 	      var processLoaderStyle = "width: ".concat(this.sizes.circle, "px; height: ").concat(this.sizes.circle, "px;");
-
 	      if (this.sizes.margin) {
 	        processLoaderStyle = processLoaderStyle + "margin: ".concat(this.sizes.margin, "px;");
 	        this.proccesLabel.style = "margin: ".concat(this.sizes.margin, "px;");
 	      }
-
 	      this.processLoader.style = processLoaderStyle;
-
 	      if (this.cancelCallback) {
 	        this.processLoader.addEventListener('click', function (event) {
 	          if (_this.cancelCallbackDisabled) {
 	            return false;
 	          }
-
 	          _this.setProgress(0);
-
 	          if (_this.labels.canceled) {
 	            _this.setProgressTitle(_this.labels.canceled);
 	          }
-
 	          _this.canceled = event;
 	          _this.active = false;
 	          clearTimeout(_this.timeout);
 	          _this.timeout = setTimeout(function () {
 	            return _this.destroy();
-	          }, 1000);
+	          }, _this.cancelCallbackDelay);
 	          return true;
 	        });
-
 	        if (this.labels.cancelTitle) {
 	          this.processLoader.title = this.labels.cancelTitle;
 	        }
 	      }
-
 	      if (!this.labels.loading) {
 	        this.setProgressTitleVisibility(false);
 	      }
-
 	      this.setIcon(this.icon, true);
 	      this.bar = new BX.ProgressBarJs.Circle(this.processStatus, {
 	        easing: "linear",
@@ -125,9 +111,7 @@ this.BX = this.BX || {};
 	              if (_this.labels.completed) {
 	                _this.setProgressTitle(_this.labels.completed);
 	              }
-
 	              _this.setIcon(Uploader.icon.done);
-
 	              clearTimeout(_this.timeout);
 	              _this.timeout = setTimeout(function () {
 	                return _this.destroy();
@@ -142,7 +126,6 @@ this.BX = this.BX || {};
 	    value: function setCancelDisable() {
 	      var value = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
 	      this.cancelCallbackDisabled = !!value;
-
 	      if (this.labels.cancelTitle) {
 	        this.processLoader.title = this.cancelCallbackDisabled ? '' : this.labels.cancelTitle;
 	      }
@@ -151,28 +134,22 @@ this.BX = this.BX || {};
 	    key: "setIcon",
 	    value: function setIcon(icon) {
 	      var _this2 = this;
-
 	      var force = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 	      this.processLoaderIcon.style.transform = "scale(0)";
 	      clearTimeout(this.timeoutSetIcon);
 	      this.timeoutSetIcon = setTimeout(function () {
 	        _this2.processLoaderIcon.classList.remove("ui-file-progressbar-cancel", "ui-file-progressbar-done", "ui-file-progressbar-cloud", "ui-file-progressbar-error");
-
 	        if (icon === Uploader.icon.done) {
 	          _this2.processLoaderIcon.classList.add("ui-file-progressbar-done");
-
 	          _this2.processLoaderIcon.style.transform = "scale(1)";
 	        } else if (icon === Uploader.icon.cancel) {
 	          _this2.processLoaderIcon.classList.add("ui-file-progressbar-cancel");
-
 	          _this2.processLoaderIcon.style.transform = "scale(1)";
 	        } else if (icon === Uploader.icon.error) {
 	          _this2.processLoaderIcon.classList.add("ui-file-progressbar-error");
-
 	          _this2.processLoaderIcon.style.transform = "scale(1)";
 	        } else {
 	          _this2.processLoaderIcon.classList.add("ui-file-progressbar-cloud");
-
 	          _this2.processLoaderIcon.style.transform = "scale(1)";
 	        }
 	      }, force ? 0 : 200);
@@ -184,7 +161,6 @@ this.BX = this.BX || {};
 	      if (!this.active || this.canceled) {
 	        return false;
 	      }
-
 	      this.bar.animate(percent / 100, {
 	        duration: 500
 	      });
@@ -195,7 +171,6 @@ this.BX = this.BX || {};
 	      if (!this.proccesLabel) {
 	        return false;
 	      }
-
 	      this.proccesLabel.innerHTML = text;
 	    }
 	  }, {
@@ -204,18 +179,15 @@ this.BX = this.BX || {};
 	      if (!this.proccesLabel) {
 	        return;
 	      }
-
 	      if (visible) {
 	        if (this.direction === Uploader.direction.horizontal) {
 	          this.wrapper.classList.add('ui-file-progressbar-loader-horizontal');
 	        }
-
 	        this.proccesLabel.style.display = 'block';
 	      } else {
 	        if (this.direction === Uploader.direction.horizontal) {
 	          this.wrapper.classList.remove('ui-file-progressbar-loader-horizontal');
 	        }
-
 	        this.proccesLabel.style.display = 'none';
 	      }
 	    }
@@ -225,46 +197,36 @@ this.BX = this.BX || {};
 	      if (this.canceled) {
 	        return false;
 	      }
-
 	      this.setProgressTitle((sent / 1024 / 1024).toFixed(2) + " " + this.labels.megabyte + " " + " / " + (total / 1024 / 1024).toFixed(2) + " " + this.labels.megabyte);
 	    }
 	  }, {
 	    key: "destroy",
 	    value: function destroy() {
 	      var _this3 = this;
-
 	      var animated = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
 	      clearTimeout(this.timeoutSetIcon);
 	      clearTimeout(this.timeout);
-
 	      if (this.destroing) {
 	        return true;
 	      }
-
 	      this.active = false;
 	      this.destroing = true;
 	      this.processLoader.style.transform = "scale(0)";
-
 	      if (this.proccesLabel) {
 	        this.proccesLabel.style.transform = "scale(0)";
 	      }
-
 	      if (this.bar) {
 	        this.bar.destroy();
 	      }
-
 	      if (this.blurElement) {
 	        this.blurElement.classList.remove("ui-file-progressbar-item-blurred");
 	      }
-
 	      if (this.canceled && !this.cancelCallbackDisabled) {
 	        if (this.cancelCallback) {
 	          this.cancelCallback(this.canceled);
 	        }
-
 	        this.canceled = false;
 	      }
-
 	      if (animated) {
 	        this.timeout = setTimeout(function () {
 	          return _this3.destroyFinally();
@@ -280,7 +242,6 @@ this.BX = this.BX || {};
 	        this.container.classList.remove('ui-file-progressbar-container-relative');
 	        this.container.removeChild(this.wrapper);
 	      }
-
 	      if (this.destroyCallback) {
 	        this.destroyCallback();
 	      }

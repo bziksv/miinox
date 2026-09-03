@@ -1,9 +1,9 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @var array $arParams */
 /** @var array $arResult */
-/** @global \CAllMain $APPLICATION */
-/** @global \CAllUser $USER */
-/** @global \CAllDatabase $DB */
+/** @global CMain $APPLICATION */
+/** @global CUser $USER */
+/** @global CDatabase $DB */
 /** @var CBitrixComponentTemplate $this */
 /** @var string $templateName */
 /** @var string $templateFile */
@@ -74,7 +74,7 @@ $containerId = 'ui-tile-list-';
 $containerId .= $arParams['ID'] ?: 'def';
 
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		new BX.UI.TileList.Manager(<?=Json::encode(array(
 			'containerId' => $containerId,

@@ -1,14 +1,12 @@
 <?php
 
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2002-2005 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
-*/
-global $DOCUMENT_ROOT, $MESS;
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage fileman
+ * @copyright 2001-2025 Bitrix
+ */
+
 IncludeModuleLangFile(__FILE__);
 define("DEBUG_FILE_MAN", false);
 if(!defined("CACHED_stickers_count")) define("CACHED_stickers_count", 36000000);
@@ -94,9 +92,12 @@ class CFileMan
 {
 	public static function OnPanelCreate()
 	{
-		global $APPLICATION, $REQUEST_URI;
+		global $APPLICATION;
+
 		if($APPLICATION->GetGroupRight("fileman")<="D")
 			return;
+
+		$requestUri = $_SERVER['REQUEST_URI'];
 
 		$cur_page = $APPLICATION->GetCurPage(true);
 		$cur_dir = $APPLICATION->GetCurDir();
@@ -132,7 +133,7 @@ class CFileMan
 		if ($sect_permission>="W")
 		{
 			// New page
-			$href = "/bitrix/admin/fileman_".$editor_type."_edit.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&path=".UrlEncode($APPLICATION->GetCurDir())."&new=Y&templateID=".urlencode(SITE_TEMPLATE_ID)."&back_url=".UrlEncode($REQUEST_URI);
+			$href = "/bitrix/admin/fileman_".$editor_type."_edit.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&path=".UrlEncode($APPLICATION->GetCurDir())."&new=Y&templateID=".urlencode(SITE_TEMPLATE_ID)."&back_url=".UrlEncode($requestUri);
 			$APPLICATION->AddPanelButtonMenu('create', array("SEPARATOR"=>true, "SORT"=>99));
 			$APPLICATION->AddPanelButtonMenu('create', array(
 				"TEXT" => GetMessage("fileman_panel_admin"),
@@ -142,7 +143,7 @@ class CFileMan
 			));
 
 			//New folder
-			$href = "/bitrix/admin/fileman_newfolder.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&path=". UrlEncode($APPLICATION->GetCurDir())."&back_url=".UrlEncode($REQUEST_URI);
+			$href = "/bitrix/admin/fileman_newfolder.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&path=". UrlEncode($APPLICATION->GetCurDir())."&back_url=".UrlEncode($requestUri);
 			$APPLICATION->AddPanelButtonMenu('create_section', array("SEPARATOR"=>true, "SORT"=>99));
 			$APPLICATION->AddPanelButtonMenu('create_section', array(
 				"TEXT" => GetMessage("fileman_panel_admin"),
@@ -154,7 +155,7 @@ class CFileMan
 		// Edit page
 		if ($page_permission>="W")
 		{
-			$href = "/bitrix/admin/fileman_".$editor_type."_edit.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&templateID=".urlencode(SITE_TEMPLATE_ID).$full_src."&path=".UrlEncode(isset($_SERVER["REAL_FILE_PATH"]) && $_SERVER["REAL_FILE_PATH"]<>""? $_SERVER["REAL_FILE_PATH"] : $cur_page)."&back_url=".UrlEncode($REQUEST_URI);
+			$href = "/bitrix/admin/fileman_".$editor_type."_edit.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&templateID=".urlencode(SITE_TEMPLATE_ID).$full_src."&path=".UrlEncode(isset($_SERVER["REAL_FILE_PATH"]) && $_SERVER["REAL_FILE_PATH"]<>""? $_SERVER["REAL_FILE_PATH"] : $cur_page)."&back_url=".UrlEncode($requestUri);
 			$APPLICATION->AddPanelButtonMenu('edit', array("SEPARATOR"=>true, "SORT"=>99));
 			$APPLICATION->AddPanelButtonMenu('edit', array(
 				"TEXT" => GetMessage("fileman_panel_admin"),
@@ -168,7 +169,7 @@ class CFileMan
 		$alt = GetMessage("FILEMAN_FOLDER_PROPS");
 		if ($sect_permission>="W")
 		{
-			$href = "/bitrix/admin/fileman_folder.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&path=".UrlEncode($APPLICATION->GetCurDir())."&back_url=".UrlEncode($REQUEST_URI);
+			$href = "/bitrix/admin/fileman_folder.php?lang=".LANGUAGE_ID."&site=".SITE_ID."&path=".UrlEncode($APPLICATION->GetCurDir())."&back_url=".UrlEncode($requestUri);
 			$APPLICATION->AddPanelButtonMenu('edit_section', array("SEPARATOR"=>true, "SORT"=>99));
 			$APPLICATION->AddPanelButtonMenu('edit_section', array(
 				"TEXT" => GetMessage("fileman_panel_admin"),
@@ -273,25 +274,27 @@ class CFileMan
 			if($i>1)
 				$strMenuLinksTmp .= ",";
 
+			$strMenuLinkHref = $arMenuItem[1] ?? '';
+
 			$strMenuLinksTmp .= "\n".
 				"	Array(\n".
-				"		\"".CFileMan::EscapePHPString($arMenuItem[0])."\", \n".
-				"		\"".CFileMan::EscapePHPString($arMenuItem[1])."\", \n".
+				"		\"".CFileMan::EscapePHPString(($arMenuItem[0] ?? null))."\", \n".
+				"		\"".CFileMan::EscapePHPString($strMenuLinkHref)."\", \n".
 				"		Array(";
 
-			if(is_array($arMenuItem[2]))
+			if(is_array(($arMenuItem[2] ?? null)))
 			{
-				for($j = 0, $l = count($arMenuItem[2]); $j < $l; $j++)
+				for($j = 0, $l = count(($arMenuItem[2] ?? [])); $j < $l; $j++)
 				{
 					if($j>0)
 						$strMenuLinksTmp .= ", ";
-					$strMenuLinksTmp .= "\"".CFileMan::EscapePHPString($arMenuItem[2][$j])."\"";
+					$strMenuLinksTmp .= "\"".CFileMan::EscapePHPString($arMenuItem[2][$j] ?? null)."\"";
 				}
 			}
 			$strMenuLinksTmp .= "), \n";
 
 			$strMenuLinksTmp .= "		Array(";
-			if(is_array($arMenuItem[3]))
+			if(is_array($arMenuItem[3] ?? null))
 			{
 				$arParams = array_keys($arMenuItem[3]);
 				for($j = 0, $l = count($arParams); $j < $l; $j++)
@@ -303,7 +306,7 @@ class CFileMan
 			}
 
 			$strMenuLinksTmp .= "), \n".
-				"		\"".CFileMan::EscapePHPString($arMenuItem[4])."\" \n".
+				"		\"".CFileMan::EscapePHPString($arMenuItem[4] ?? null)."\" \n".
 				"	)";
 
 			$strMenuLinks .= $strMenuLinksTmp;
@@ -321,7 +324,17 @@ class CFileMan
 
 		$io = CBXVirtualIo::GetInstance();
 		if ($io->FileExists($abs_path))
-			include($io->GetPhysicalName($abs_path));
+		{
+			global $APPLICATION;
+			$arrMenuContent = $APPLICATION->GetFileContent($io->GetPhysicalName($abs_path));
+			$arrMenuContent = str_replace(['<?php', '<?', '?>'], '', $arrMenuContent);
+			if (SITE_DIR === '')
+			{
+				$arrMenuContent = str_replace('SITE_DIR."', '"/', $arrMenuContent);
+			}
+
+			eval($arrMenuContent);
+		}
 
 		return Array("aMenuLinks"=>$aMenuLinks, "sMenuTemplate" => $sMenuTemplate);
 	}
@@ -345,7 +358,7 @@ class CFileMan
 
 		$path = $io->CombinePath($path);
 
-		$p = mb_strrpos($path, "/");
+		$p = mb_strrpos($path ?? '', "/");
 
 		while($p!==false)
 		{
@@ -537,6 +550,9 @@ class CFileMan
 		$DOC_ROOT_TO = CSite::GetSiteDocRoot($site_to);
 		$strWarning = '';
 
+		$path_from = Rel2Abs('/', $path_from);
+		$path_to = Rel2Abs('/', $path_to);
+
 		//check: if we copy to the same directory
 		if(mb_strpos($DOC_ROOT_TO.$path_to."/", $DOC_ROOT_FROM.$path_from."/") === 0)
 			return GetMessage("FILEMAN_LIB_BAD_FOLDER").": \"".$path_from."\".\n";
@@ -571,8 +587,10 @@ class CFileMan
 				return GetMessage("FILEMAN_FILEMAN_FILE_READ_DENY")." \"".$path_from."\".\n";
 
 			// Copying php or system file without PHP or LPA access
-			if (!($USER->CanDoOperation('edit_php') || $USER->CanDoFileOperation('fm_lpa', $arPath) || !(HasScriptExtension($Elem["NAME"]) || mb_substr($Elem["NAME"], 0, 1) == ".")))
+			if (!($USER->CanDoOperation('edit_php') || $USER->CanDoFileOperation('fm_lpa', [$site_from, $path_from]) || !(HasScriptExtension($path_from) || mb_substr($path_from, 0, 1) == ".")))
+			{
 				return GetMessage("FILEMAN_FILEMAN_FILE_READ_DENY")." \"".$path_from."\".\n";
+			}
 
 			// If we can't move source-file
 			if($bDeleteAfterCopy &&  !$USER->CanDoFileOperation('fm_delete_file', Array($site_from, $path_from)))
@@ -942,7 +960,7 @@ class CFileMan
 		if (isset($Params['public']) && $Params['public'] == 'Y')
 		{
 			?>
-			<script type="text/javascript">
+			<script>
 				window.location = '<?= CUtil::JSEscape(CHTTP::URN2URI(GetDirPath($Params['path'])))?>';
 			</script>
 		<?
@@ -1045,7 +1063,7 @@ class CFileMan
 		if ($textType == 'html')
 		{
 			$curType = CUserOptions::GetOption('html_editor', "type_selector_".$name.$key, false, $USER->GetId());
-			$curType = $curType['type'];
+			$curType = $curType['type'] ?? null;
 			if ($curType && in_array($curType, array('html', 'editor')))
 			{
 				$textType = $curType;
@@ -1330,7 +1348,7 @@ class CFileMan
 		$strTextValue = htmlspecialcharsback($strTextValue);
 		$dontShowTA = isset($arAdditionalParams['dontshowta']) ? $arAdditionalParams['dontshowta'] : false;
 
-		if ($arAdditionalParams['hideTypeSelector'])
+		if ($arAdditionalParams['hideTypeSelector'] ?? null)
 		{
 			$textType = $strTextTypeValue == 'html' ? 'editor' : 'text';
 			?><input type="hidden" name="<?= $strTextTypeFieldName?>" value="<?= $strTextTypeValue?>"/><?
@@ -1339,10 +1357,10 @@ class CFileMan
 		{
 			$textType = CFileMan::ShowTypeSelector(array(
 				'name' => $strTextFieldName,
-				'key' => $arAdditionalParams['saveEditorKey'],
+				'key' => ($arAdditionalParams['saveEditorKey'] ?? null),
 				'strTextTypeFieldName' => $strTextTypeFieldName,
 				'strTextTypeValue' => $strTextTypeValue,
-				'bSave' => $arAdditionalParams['saveEditorState'] !== false
+				'bSave' => ($arAdditionalParams['saveEditorState'] ?? null) !== false
 			));
 		}
 
@@ -1357,7 +1375,7 @@ class CFileMan
 		else if (!$arTaskbars)
 			$arTaskbars = Array("BXPropertiesTaskbar", "BXSnippetsTaskbar", "BXComponents2Taskbar");
 
-		$minHeight = $arAdditionalParams['minHeight'] ? intval($arAdditionalParams['minHeight']) : 450;
+		$minHeight = ($arAdditionalParams['minHeight'] ?? null) ? intval($arAdditionalParams['minHeight']) : 450;
 		$arParams = Array(
 			"bUseOnlyDefinedStyles"=>COption::GetOptionString("fileman", "show_untitled_styles", "N")!="Y",
 			"bFromTextarea" => true,
@@ -1427,7 +1445,7 @@ class CFileMan
 		}
 
 		static $bFirstUsed;
-		$template = $arParams["templateID"];
+		$template = $arParams["templateID"] ?? null;
 
 		if (!isset($template) && defined('SITE_TEMPLATE_ID'))
 		{
@@ -1466,7 +1484,7 @@ class CFileMan
 				'name' => $name,
 				'id' => $name,
 				'siteId' => $arParams["site"],
-				'width' => $arParams["width"],
+				'width' => ($arParams["width"]  ?? null),
 				'height' => $arParams["height"],
 				'content' => $content,
 				'bAllowPhp' => !$arParams["bWithoutPHP"] && $USER->CanDoOperation('edit_php'),
@@ -1485,7 +1503,11 @@ class CFileMan
 		//Toolbars
 		$arToolbars = (isset($arParams["arToolbars"])) ? $arParams["arToolbars"] : false;
 		// Toolbar config
-		$arParams["toolbarConfig"] = (is_array($arParams["toolbarConfig"])) ? $arParams["toolbarConfig"] : false;
+		$arParams["toolbarConfig"] =
+			is_array($arParams["toolbarConfig"] ?? null)
+				? $arParams["toolbarConfig"]
+				: false
+		;
 
 		$arParams["use_advanced_php_parser"] = COption::GetOptionString("fileman", "use_advanced_php_parser", "Y");
 		$arParams["ar_entities"] = COption::GetOptionString("fileman", "ar_entities", 'umlya,greek,other');
@@ -1507,8 +1529,10 @@ class CFileMan
 
 		$arResult = CFileman::GetAllTemplateParams($template, $site, ($arParams["bWithoutPHP"] != true),$arAdditionalParams);
 		$arParams["TEMPLATE"] = $arResult;
-		if($bUseOnlyDefinedStyles && !is_set($arResult, "STYLES_TITLE"))
+		if(($bUseOnlyDefinedStyles ?? null) && !is_set($arResult, "STYLES_TITLE"))
+		{
 			$bUseOnlyDefinedStyles = false;
+		}
 
 		$arParams["body_class"] = COption::GetOptionString("fileman", "editor_body_class", "");
 		$arParams["body_id"] = COption::GetOptionString("fileman", "editor_body_id", "");
@@ -1588,16 +1612,16 @@ class CFileMan
 					$arr[] = $arJS[$i];
 			}
 			?>
-			<script type="text/javascript" src="/bitrix/admin/fileman_js.php?lang=<?=LANGUAGE_ID?>&v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/fileman/lang/'.LANGUAGE_ID.'/admin/fileman_js.php')?>"></script>
-			<script type="text/javascript" src="/bitrix/admin/fileman_common_js.php?s=<?=$str_taskbars?>"></script>
+			<script src="/bitrix/admin/fileman_js.php?lang=<?=LANGUAGE_ID?>&v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/fileman/lang/'.LANGUAGE_ID.'/admin/fileman_js.php')?>"></script>
+			<script src="/bitrix/admin/fileman_common_js.php?s=<?=$str_taskbars?>"></script>
 			<?
 			for($i = 0, $l = count($arr); $i < $l; $i++)
 			{
 				$script_filename = $arr[$i];
-				?><script type="text/javascript" src="/bitrix/admin/htmleditor2/<?=$script_filename?>?v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/admin/htmleditor2/'.$script_filename)?>"></script><?
+				?><script src="/bitrix/admin/htmleditor2/<?=$script_filename?>?v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/admin/htmleditor2/'.$script_filename)?>"></script><?
 			}
 			?>
-			<script type="text/javascript" src="/bitrix/js/main/popup_menu.js?v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/main/popup_menu.js')?>"></script>
+			<script src="/bitrix/js/main/popup_menu.js?v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/main/popup_menu.js')?>"></script>
 			<?
 			for($i = 0, $l = count($arCSS); $i < $l; $i++) // Additional CSS files from event OnBeforeHtmlEditorScriptGet
 			{
@@ -1654,10 +1678,12 @@ class CFileMan
 				BX("<?= $name?>_object").style.display = "none";
 		</script>
 		<?
-		if(!$arParams["bFromTextarea"])
+		if(!($arParams["bFromTextarea"] ?? null))
+		{
 			echo '<input type="hidden" name="'.$name.'" id="bxed_'.$name.'" value="'.htmlspecialcharsbx($content).'">';
+		}
 
-		if($arParams["bDisplay"] !== false)
+		if(($arParams["bDisplay"] ?? null) !== false)
 		{
 			setEditorEventHandlers($name);
 			?>
@@ -1788,9 +1814,9 @@ class CFileMan
 					}
 				}
 
-				$arResult["STYLES"] = $ar_templ["STYLES"];
-				$arResult["STYLES_TITLE"] = $ar_templ["STYLES_TITLE"];
-				$arResult["EDITOR_STYLES"] = $ar_templ["EDITOR_STYLES"];
+				$arResult["STYLES"] = $ar_templ["STYLES"] ?? '';
+				$arResult["STYLES_TITLE"] = $ar_templ["STYLES_TITLE"] ?? '';
+				$arResult["EDITOR_STYLES"] = $ar_templ["EDITOR_STYLES"] ?? '';
 			}
 		}
 		else
@@ -2184,52 +2210,6 @@ class CFileMan
 				return $arConfig;
 		}
 		return false;
-	}
-
-	public static function decodePdfViewerLangFiles()
-	{
-		if(!\Bitrix\Main\Application::isUtfMode())
-		{
-			return;
-		}
-		$localePath = \Bitrix\Main\Application::getDocumentRoot().'/bitrix/components/bitrix/pdf.viewer/pdfjs/locale/';
-		if(!\Bitrix\Main\IO\Directory::isDirectoryExists($localePath))
-		{
-			return;
-		}
-		$filesToDecode = [
-			$localePath.'de/viewer.properties' => 'iso-8859-1',
-			$localePath.'ru/viewer.properties' => 'windows-1251',
-			$localePath.'ua/viewer.properties' => 'windows-1251',
-		];
-		foreach($filesToDecode as $path => $charset)
-		{
-			static::decodeLangFile($path, $charset);
-		}
-	}
-
-	/**
-	 * @param $path
-	 * @param $charsetFrom
-	 * @throws \Bitrix\Main\IO\FileNotFoundException
-	 */
-	protected static function decodeLangFile($path, $charsetFrom)
-	{
-		if(!\Bitrix\Main\Application::isUtfMode())
-		{
-			return;
-		}
-		$file = new \Bitrix\Main\IO\File($path);
-		if($file->isExists())
-		{
-			$content = $file->getContents();
-			if(\Bitrix\Main\Text\Encoding::detectUtf8($content))
-			{
-				return;
-			}
-			$content = \Bitrix\Main\Text\Encoding::convertEncoding($content, $charsetFrom, 'UTF-8');
-			$file->putContents($content);
-		}
 	}
 }
 

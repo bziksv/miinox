@@ -42,7 +42,6 @@ class BundleCollection extends BasketItemCollection
 	/**
 	 * @param CollectableEntity $item
 	 * @return CollectableEntity
-	 * @throws Main\ArgumentTypeException
 	 */
 	public function addItem(CollectableEntity $item)
 	{
@@ -148,7 +147,7 @@ class BundleCollection extends BasketItemCollection
 	 * @throws Main\ObjectNotFoundException
 	 * @throws \Exception
 	 */
-	public function createClone(\SplObjectStorage $cloneEntity = null)
+	public function createClone(?\SplObjectStorage $cloneEntity = null)
 	{
 		if ($cloneEntity === null)
 		{

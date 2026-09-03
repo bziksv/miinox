@@ -2,18 +2,128 @@
 
 namespace Bitrix\Landing\PublicAction;
 
+use Bitrix\Landing\AI\SiteBuilder\Tailwind\TailwindRuntimeInitService;
+use Bitrix\Landing\AI\SiteBuilder\Tailwind\TailwindRuntimeEligibilityService;
+use Bitrix\Landing\AI\SiteBuilder\Tailwind\TailwindRuntimeStateService;
 use Bitrix\Landing;
 use Bitrix\Landing\PublicActionResult;
+use Bitrix\Landing\Template;
+use Bitrix\Landing\TemplateRef;
+use Bitrix\Main\Diag\ExceptionHandlerFormatter;
 
+/**
+ * Work with history
+ */
 class History
 {
+	/**
+	 * Event log type for Tailwind runtime failures after history commands.
+	 */
+	private const LOG_TYPE_TAILWIND_RUNTIME_ERROR = 'LANDING_TAILWIND_RUNTIME_ERROR';
+
 	public static function getForLanding(int $lid): PublicActionResult
 	{
 		$result = new PublicActionResult();
-		$history = new Landing\History($lid, Landing\History::ENTITY_TYPE_LANDING);
+		$histories = [];
+
+		$historyMain = new Landing\History($lid, Landing\History::ENTITY_TYPE_LANDING);
+		$histories[$lid] = [
+			'stack' => $historyMain->getJsStack(),
+			'step' => $historyMain->getStep(),
+		];
+
+		$isMultiArea = false;
+
+		if (!TemplateRef::landingIsArea($lid))
+		{
+			$landing = Landing\Landing::createInstance($lid);
+			$template = Template::getList([
+				'select' => [
+					'AREA_COUNT'
+				],
+				'filter' => [
+					'ID' => $landing->getTplId()
+				]
+			])->fetch();
+			if ($template && $template['AREA_COUNT'] > 0)
+			{
+				foreach ($landing->getAreas() as $areaLid)
+				{
+					if (count($histories) > $template['AREA_COUNT'])
+					{
+						break;
+					}
+
+					$isMultiArea = true;
+					$historyArea = new Landing\History($areaLid, Landing\History::ENTITY_TYPE_LANDING);
+
+					$histories[$areaLid] = [
+						'stack' => $historyArea->getJsStack(),
+						'step' => $historyArea->getStep(),
+					];
+				}
+			}
+		}
+
+		if ($isMultiArea)
+		{
+			// Find max step of all areas
+			$maxStepId = 0;
+			foreach ($histories as $history)
+			{
+				foreach ($history['stack'] as $item)
+				{
+					if ($item['current'])
+					{
+						if ($item['id'] > $maxStepId)
+						{
+							$maxStepId = $item['id'];
+						}
+					}
+				}
+			}
+
+			// Make and sort complex multi area stack.
+			$multiAreaStack = [];
+			$multiAreaStep = 0;
+			foreach ($histories as $history)
+			{
+				foreach ($history['stack'] as $item)
+				{
+					$multiAreaStack[$item['id']] = $item;
+
+					// math new step
+					if ($item['id'] <= $maxStepId)
+					{
+						$multiAreaStep++;
+					}
+				}
+			}
+			ksort($multiAreaStack);
+
+			$result->setResult([
+				'stack' => array_values($multiAreaStack),
+				'step' => $multiAreaStep,
+			]);
+		}
+
+		// Just single landing history
+		else
+		{
+			$result->setResult($histories[$lid]);
+		}
+
+		return $result;
+	}
+
+	public static function getForDesignerBlock(int $blockId): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		$history = new Landing\History($blockId, Landing\History::ENTITY_TYPE_DESIGNER_BLOCK);
+
 		$result->setResult([
-			'stackCount' => $history->getStackCount(),
-			'step' => $history->getCurrentStep(),
+			'stack' => $history->getJsStack(),
+			'step' => $history->getStep(),
 		]);
 
 		return $result;
@@ -49,6 +159,11 @@ class History
 		return self::clearForEntity(Landing\History::ENTITY_TYPE_DESIGNER_BLOCK, $blockId);
 	}
 
+	public static function clearFutureForLanding(int $landingId): PublicActionResult
+	{
+		return self::clearFutureForEntity(Landing\History::ENTITY_TYPE_LANDING, $landingId);
+	}
+
 	protected static function undoForEntity(string $entityType, int $entityId): PublicActionResult
 	{
 		$result = new PublicActionResult();
@@ -62,7 +177,7 @@ class History
 			$command = $history->getJsCommand();
 			if ($history->undo())
 			{
-				$result->setResult($command);
+				$result->setResult(self::prepareCommandAfterHistory($command, $entityType, $entityId));
 			}
 			else
 			{
@@ -98,7 +213,7 @@ class History
 			$command = $history->getJsCommand(false);
 			if ($history->redo())
 			{
-				$result->setResult($command);
+				$result->setResult(self::prepareCommandAfterHistory($command, $entityType, $entityId));
 			}
 			else
 			{
@@ -119,6 +234,73 @@ class History
 		}
 
 		return $result;
+	}
+
+	private static function prepareCommandAfterHistory(array $command, string $entityType, int $entityId): array
+	{
+		$tailwindRuntime = self::prepareTailwindRuntimeAfterLandingHistory($entityType, $entityId);
+		if ($tailwindRuntime !== [])
+		{
+			$command['tailwindRuntime'] = $tailwindRuntime;
+		}
+
+		return $command;
+	}
+
+	private static function prepareTailwindRuntimeAfterLandingHistory(string $entityType, int $entityId): array
+	{
+		if ($entityType !== Landing\History::ENTITY_TYPE_LANDING || $entityId <= 0)
+		{
+			return [];
+		}
+		if (!(new TailwindRuntimeEligibilityService())->isLandingSupported($entityId))
+		{
+			return [];
+		}
+
+		$stateService = new TailwindRuntimeStateService();
+		$currentState = $stateService->getLandingState($entityId);
+		$currentStage = trim((string)($currentState['stage'] ?? ''));
+		if (!in_array($currentStage, [
+			TailwindRuntimeStateService::STAGE_RUNTIME_INITIALIZED,
+			TailwindRuntimeStateService::STAGE_CSS_SAVED,
+		], true))
+		{
+			return [];
+		}
+
+		try
+		{
+			$runtimeState = (new TailwindRuntimeInitService($stateService))->initializeLanding($entityId, true);
+		}
+		catch (\Throwable $exception)
+		{
+			Landing\Debug::log(
+				'History::tailwindRuntimeInit',
+				ExceptionHandlerFormatter::format($exception),
+				self::LOG_TYPE_TAILWIND_RUNTIME_ERROR
+			);
+
+			return [
+				'rebuildRequired' => false,
+				'landingId' => $entityId,
+				'success' => false,
+				'error' => 'tailwind_runtime_init_failed',
+			];
+		}
+
+		$runtimeStage = trim((string)($runtimeState['stage'] ?? ''));
+		$success = !empty($runtimeState['success']) || in_array($runtimeStage, [
+			TailwindRuntimeStateService::STAGE_RUNTIME_INITIALIZED,
+			TailwindRuntimeStateService::STAGE_CSS_SAVED,
+		], true);
+
+		return [
+			'rebuildRequired' => $success,
+			'landingId' => $entityId,
+			'success' => $success,
+			'state' => $runtimeState,
+		];
 	}
 
 	protected static function pushForEntity(
@@ -180,6 +362,41 @@ class History
 				$error->addError(
 					'HISTORY_CLEAR_ERROR',
 					"History operation Clear fail for entity {$entityType}_{$entityId}"
+				);
+				$result->setError($error);
+			}
+		}
+		else
+		{
+			$error->addError(
+				'HISTORY_WRONG_TYPE',
+				'Wrong history entity type'
+			);
+			$result->setError($error);
+		}
+
+		return $result;
+	}
+
+	protected static function clearFutureForEntity(string $entityType, int $entityId): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		$error = new \Bitrix\Landing\Error;
+
+		Landing\Landing::setEditMode(true);
+
+		if (in_array($entityType, Landing\History::AVAILABLE_TYPES))
+		{
+			$history = new Landing\History($entityId, $entityType);
+			if ($history->clearFuture())
+			{
+				$result->setResult(true);
+			}
+			else
+			{
+				$error->addError(
+					'HISTORY_CLEAR_FUTURE_ERROR',
+					"History operation Clear future fail for entity {$entityType}_{$entityId}"
 				);
 				$result->setError($error);
 			}

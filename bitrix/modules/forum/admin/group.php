@@ -32,7 +32,7 @@ if ($forumModulePermissions >= "W")
 	}
 	else if (($arID = $lAdmin->GroupAction()))
 	{
-		if ($_REQUEST['action_target']=='selected')
+		if (isset($_REQUEST['action_target']) && $_REQUEST['action_target']=='selected')
 		{
 			$arID = array();
 			$dbResultList = CForumGroup::GetList( array($by => $order), $arFilter );
@@ -61,8 +61,10 @@ if ($forumModulePermissions >= "W")
 							else
 								$lAdmin->AddGroupError(GetMessage("ERROR_DEL_GROUP"), $ID);
 						}
-
-						$DB->Commit();
+						else
+						{
+							$DB->Commit();
+						}
 
 						break;
 				}

@@ -1,5 +1,6 @@
 <?php
 
+use Bitrix\Main;
 use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sale;
@@ -7,25 +8,29 @@ use Bitrix\Catalog;
 use Bitrix\Main\Config\Option;
 
 require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_before.php');
-/** @var CAllUser $USER */
-/** @var CAllMain $APPLICATION */
+/** @var CUser $USER */
+/** @var CMain $APPLICATION */
 global $USER, $APPLICATION;
 
 Loc::loadMessages(__FILE__);
 
-if (!$USER->IsAdmin() || !\Bitrix\Main\Loader::includeModule('catalog') || !\Bitrix\Main\Loader::includeModule('sale'))
+if (
+	!$USER->IsAdmin()
+	|| !Main\Loader::includeModule('catalog')
+	|| !Main\Loader::includeModule('sale')
+)
 {
 	$APPLICATION->AuthForm(GetMessage('ACCESS_DENIED'));
 }
 
-final class DiscountCatalogMigratorLogger extends \Bitrix\Main\Diag\FileExceptionHandlerLog
+final class DiscountCatalogMigratorLogger extends Main\Diag\FileExceptionHandlerLog
 {
 	const MAX_LOG_SIZE = 10000000;
 	const DEFAULT_LOG_FILE = "bitrix/modules/sale_migrator.log";
 
-	public function writeToLog($text)
+	public function writeToLog($text): void
 	{
-		return parent::writeToLog($text);
+		parent::writeToLog($text);
 	}
 }
 
@@ -67,11 +72,11 @@ final class DiscountCatalogMigrator
 		$this->connection = \Bitrix\Main\Application::getInstance()->getConnection();
 		$this->sqlHelper = $this->connection->getSqlHelper();
 
-		$this->isOracle = $this->connection instanceof \Bitrix\Main\DB\OracleConnection;
-		$this->isMysql = $this->connection instanceof \Bitrix\Main\DB\MysqlCommonConnection;
-		$this->isMssql = $this->connection instanceof \Bitrix\Main\DB\MssqlConnection;
+		$this->isOracle = $this->connection instanceof Main\DB\OracleConnection;
+		$this->isMysql = $this->connection instanceof Main\DB\MysqlCommonConnection;
+		$this->isMssql = $this->connection instanceof Main\DB\MssqlConnection;
 
-		\Bitrix\Sale\Discount\Preset\Manager::getInstance()->registerAutoLoader();
+		Sale\Discount\Preset\Manager::getInstance()->registerAutoLoader();
 	}
 
 	public function log($data)
@@ -193,14 +198,18 @@ final class DiscountCatalogMigrator
 
 	protected function checkRequired()
 	{
-		if(!\Bitrix\Main\Loader::includeModule('catalog'))
+		if (!$this->isMysql)
 		{
-			throw new Exception('Bad include catalog');
+			throw new Main\NotSupportedException('Only for mysql');
+		}
+		if(!Main\Loader::includeModule('catalog'))
+		{
+			throw new Main\SystemException('Bad include catalog');
 		}
 
-		if(!\Bitrix\Main\Loader::includeModule('sale'))
+		if(!Main\Loader::includeModule('sale'))
 		{
-			throw new Exception('Bad include sale');
+			throw new Main\SystemException('Bad include sale');
 		}
 	}
 
@@ -211,7 +220,7 @@ final class DiscountCatalogMigrator
 
 		if(!$this->isMysql)
 		{
-			throw new Exception('Revert command is available only on MySql');
+			throw new Main\NotSupportedException('Revert command is available only on MySql');
 		}
 
 		$this->connection->queryExecute(
@@ -333,7 +342,7 @@ final class DiscountCatalogMigrator
 
 	protected function moveDiscounts()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -345,7 +354,7 @@ final class DiscountCatalogMigrator
 				'TYPE' => \CCatalogDiscount::ENTITY_ID,
 				'=ACTIVE' => 'Y',
 			),
-		    'order' => array('ID' => 'ASC'),
+			'order' => array('ID' => 'ASC'),
 		));
 
 		$this->migrateDiscounts($discountIterator);
@@ -478,7 +487,7 @@ final class DiscountCatalogMigrator
 
 	protected function moveCumulativeDiscounts()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -490,7 +499,7 @@ final class DiscountCatalogMigrator
 				'TYPE' => \CCatalogDiscountSave::ENTITY_ID,
 				'=ACTIVE' => 'Y',
 			),
-		    'order' => array('ID' => 'ASC'),
+			'order' => array('ID' => 'ASC'),
 		));
 
 		$this->migrateDiscounts($discountIterator);
@@ -593,7 +602,7 @@ final class DiscountCatalogMigrator
 
 	protected function moveCoupons()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -681,7 +690,7 @@ final class DiscountCatalogMigrator
 
 	protected function fillShortDescription()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -694,7 +703,7 @@ final class DiscountCatalogMigrator
 				'>ID' => $counter,
 				'=SHORT_DESCRIPTION_STRUCTURE' => null,
 			),
-		    'order' => array('ID' => 'ASC'),
+			'order' => array('ID' => 'ASC'),
 		));
 
 		while($discount = $discountIterator->fetch())
@@ -720,7 +729,7 @@ final class DiscountCatalogMigrator
 
 	protected function recalculatePriority()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -732,11 +741,11 @@ final class DiscountCatalogMigrator
 			$sql = "
 				UPDATE b_sale_discount t1 
 				INNER JOIN (
-	                  SELECT (@i := @i + 20) NN, ID
-	                  FROM b_sale_discount
-	                  ORDER BY PRIORITY_BACKUP DESC, SORT ASC, ID ASC
-	            ) t2 ON t1.ID = t2.ID
-				SET PRIORITY = NN;			
+					SELECT (@i := @i + 20) NN, ID
+					FROM b_sale_discount
+					ORDER BY PRIORITY_BACKUP DESC, SORT ASC, ID ASC
+				) t2 ON t1.ID = t2.ID
+				SET PRIORITY = NN;
 			";
 		}
 		elseif($this->isMssql || $this->isOracle)
@@ -745,7 +754,7 @@ final class DiscountCatalogMigrator
 				UPDATE b_sale_discount SET PRIORITY = rowNumber FROM b_sale_discount
 					INNER JOIN	
 						(SELECT ID, row_number() OVER (ORDER BY PRIORITY_BACKUP DESC, SORT ASC, ID ASC) AS rowNumber FROM b_sale_discount) 
-							t2 ON t2.ID = b_sale_discount.ID			
+							t2 ON t2.ID = b_sale_discount.ID
 			";
 		}
 
@@ -756,7 +765,7 @@ final class DiscountCatalogMigrator
 
 	protected function addBackupPriorityColumn()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -782,7 +791,7 @@ final class DiscountCatalogMigrator
 
 	protected function backupPriorityColumn()
 	{
- 		if($this->isStepFinished(__METHOD__))
+		if($this->isStepFinished(__METHOD__))
 		{
 			return;
 		}
@@ -1061,7 +1070,7 @@ final class DiscountCatalogMigrator
 	}
 }
 
-class TimeExecutionException extends \Bitrix\Main\SystemException
+class TimeExecutionException extends Main\SystemException
 {}
 
 IncludeModuleLangFile(__FILE__);
@@ -1078,8 +1087,6 @@ if (!empty($_REQUEST['revert']))
 
 if (isset($_REQUEST['migrator_process']) && ($_REQUEST['migrator_process'] === 'Y'))
 {
-	CUtil::JSPostUnescape();
-
 	require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_js.php');
 
 	$totalCount = 8; //count of steps
@@ -1098,7 +1105,7 @@ if (isset($_REQUEST['migrator_process']) && ($_REQUEST['migrator_process'] === '
 		$status = DiscountCatalogMigrator::STATUS_TIME_EXPIRED;
 		$processedSummary += $migrator->countSuccessfulSteps;
 	}
-	catch (Exception $e)
+	catch (Main\SystemException $e)
 	{
 		throw $e;
 		$status = DiscountCatalogMigrator::STATUS_ERROR;
@@ -1194,7 +1201,7 @@ else
 
 	//check currency <> SITE_ID sale currency
 	$connection = Application::getConnection();
-	$isMysql = $connection instanceof \Bitrix\Main\DB\MysqlCommonConnection;
+	$isMysql = $connection instanceof Main\DB\MysqlCommonConnection;
 	$discountWithOtherCurrency = $connection->query('
 		SELECT ID FROM b_catalog_discount d 
 					INNER JOIN b_sale_lang l ON d.SITE_ID = l.LID 
@@ -1274,7 +1281,7 @@ else
 			background:url("/bitrix/panel/main/images/bx-admin-sprite.png") no-repeat 4px -88px;
 		}
 	</style>
-	<script type="text/javascript">
+	<script>
 	var wd_stop;
 	var wd_dialog;
 
@@ -1296,7 +1303,10 @@ else
 			width: 450,
 			heght: 400,
 			buttons: [
-				<? if(!$listNonSupportedFeatures){ ?>
+				<?php
+				if (!$listNonSupportedFeatures)
+				{
+					?>
 				{
 					title: '<?= GetMessageJS('DISCOUNT_CATALOG_MIGRATOR_CONVERT_START_BUTTON')?>',
 					id: 'run',
@@ -1310,7 +1320,9 @@ else
 						this.parentWindow.Close();
 					}
 				},
-				<? } ?>
+				<?php
+				}
+				?>
 				{
 					title: BX.message('JS_CORE_WINDOW_CLOSE'),
 					id: 'close',
@@ -1429,8 +1441,8 @@ else
 		?>
 
 		<input type='button' id='start_button'
-			value='<?php echo GetMessage('DISCOUNT_CATALOG_MIGRATOR_CONVERT_START_BUTTON')?>'
-			onclick='ShowConvert();');>
+			value='<?php echo GetMessage('DISCOUNT_CATALOG_MIGRATOR_CONVERT_START_BUTTON'); ?>'
+			onclick='ShowConvert();'>
 		<?php
 		$tabControl->End();
 		?>

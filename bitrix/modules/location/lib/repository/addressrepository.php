@@ -6,6 +6,7 @@ use Bitrix\Location\Entity;
 use Bitrix\Location\Model;
 use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\Result;
+use Bitrix\Main\Application;
 
 /**
  * Class Address
@@ -20,6 +21,9 @@ class AddressRepository
 	/** @var Model\AddressLinkTable  */
 	protected $linkTableClass = Model\AddressLinkTable::class;
 
+	/** @var array<int, Entity\Address|null> */
+	protected static array $findByIdCache = [];
+
 	/**
 	 * @param int $id
 	 * @return Entity\Address|null
@@ -31,9 +35,14 @@ class AddressRepository
 	 */
 	public function findById(int $id)
 	{
+		if (array_key_exists($id, static::$findByIdCache))
+		{
+			return static::$findByIdCache[$id];
+		}
+
 		$res = $this->tableClass::getList([
 			'select' => ['*', 'FIELDS', 'LOCATION', 'LOCATION.NAME', 'LINKS'],
-			'filter' => ['=ID' => $id]
+			'filter' => ['=ID' => $id],
 		])->fetchObject();
 
 		if(!$res)
@@ -44,6 +53,8 @@ class AddressRepository
 		{
 			$result = Entity\Address\Converter\OrmConverter::convertFromOrm($res);
 		}
+
+		static::$findByIdCache[$id] = $result;
 
 		return $result;
 	}
@@ -62,8 +73,8 @@ class AddressRepository
 			'select' => ['*', 'FIELDS', 'LOCATION', 'LOCATION.NAME', 'LOCATION.FIELDS', 'LINKS'],
 			'filter' => [
 				'=LINKS.ENTITY_ID' => $entityId,
-				'=LINKS.ENTITY_TYPE' => $entityType
-			]
+				'=LINKS.ENTITY_TYPE' => $entityType,
+			],
 		])->fetchCollection();
 
 		return Entity\Address\Converter\OrmConverter::convertCollectionFromOrm($res);
@@ -104,62 +115,95 @@ class AddressRepository
 			}
 		}
 
-		if($address->getId() <= 0 || !$result->isSuccess())
+		if ($address->getId() <= 0 || !$result->isSuccess())
 		{
 			return  $result;
 		}
 
-		$res = $this->saveFieldCollection($address);
+		$this->saveFieldCollection($address);
+		$this->saveLinkCollection($address);
 
-		if(!$res->isSuccess())
-		{
-			$result->addErrors($res->getErrors());
-		}
-
-		$res = $this->saveLinkCollection($address);
-
-		if(!$res->isSuccess())
-		{
-			$result->addErrors($res->getErrors());
-		}
+		unset(static::$findByIdCache[$address->getId()]);
 
 		return $result;
 	}
 
-	/**
-	 * @param Entity\Address $address
-	 * @return \Bitrix\Main\ORM\Data\Result
-	 * @throws \Bitrix\Main\Db\SqlQueryException
-	 */
-	protected function saveFieldCollection(Entity\Address $address): \Bitrix\Main\ORM\Data\Result
+	protected function saveFieldCollection(Entity\Address $address): void
 	{
-		if($address->getId() <= 0)
+		if ($address->getId() <= 0)
 		{
 			throw new ArgumentNullException('Address Id');
 		}
 
-		$fieldsCollection = Entity\Address\Converter\OrmConverter::convertFieldsToOrm($address);
+		$connection = Application::getConnection();
 
 		$this->fieldTableClass::deleteByAddressId($address->getId());
-		return $fieldsCollection->save();
+
+		$fields = [];
+		/** @var Entity\Address\Field $field */
+		foreach ($address->getFieldCollection() as $field)
+		{
+			$value = $field->getValue();
+
+			$fields[] = [
+				'TYPE' => $field->getType(),
+				'VALUE' => $value,
+				'ADDRESS_ID' => $address->getId(),
+				'VALUE_NORMALIZED' => Entity\Address\Normalizer\Builder::build($address->getLanguageId())
+					->normalize($value)
+				,
+			];
+		}
+
+		$sqls = $connection->getSqlHelper()->prepareMergeMultiple(
+			$this->fieldTableClass::getTableName(),
+			[
+				'ADDRESS_ID',
+				'TYPE',
+			],
+			$fields
+		);
+		foreach ($sqls as $sql)
+		{
+			$connection->query($sql);
+		}
 	}
 
-	/**
-	 * @param Entity\Address $address
-	 * @return \Bitrix\Main\ORM\Data\Result
-	 * @throws ArgumentNullException
-	 * @throws \Bitrix\Main\Db\SqlQueryException
-	 */
-	protected function saveLinkCollection(Entity\Address $address): \Bitrix\Main\ORM\Data\Result
+	protected function saveLinkCollection(Entity\Address $address)
 	{
-		if($address->getId() <= 0)
+		if ($address->getId() <= 0)
 		{
 			throw new ArgumentNullException('Address Id');
 		}
 
+		$connection = Application::getConnection();
+
 		$this->linkTableClass::deleteByAddressId($address->getId());
-		$collectionLinks = Entity\Address\Converter\OrmConverter::convertLinksToOrm($address);
-		return $collectionLinks->save();
+
+		$links = [];
+		/** @var Entity\Address\IAddressLink $link */
+		foreach ($address->getLinks() as $link)
+		{
+			$links[] = [
+				'ADDRESS_ID' => $address->getId(),
+				'ENTITY_ID' => $link->getAddressLinkEntityId(),
+				'ENTITY_TYPE' => $link->getAddressLinkEntityType(),
+			];
+		}
+
+		$sqls = $connection->getSqlHelper()->prepareMergeMultiple(
+			$this->linkTableClass::getTableName(),
+			[
+				'ADDRESS_ID',
+				'ENTITY_ID',
+				'ENTITY_TYPE',
+			],
+			$links
+		);
+		foreach ($sqls as $sql)
+		{
+			$connection->query($sql);
+		}
 	}
 
 	public function delete(int $addressId)
@@ -172,6 +216,9 @@ class AddressRepository
 		$result = $this->tableClass::delete($addressId);
 		$this->fieldTableClass::deleteByAddressId($addressId);
 		$this->linkTableClass::deleteByAddressId($addressId);
+
+		unset(static::$findByIdCache[$addressId]);
+
 		return $result;
 	}
 }

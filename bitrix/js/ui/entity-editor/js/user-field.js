@@ -1,9 +1,12 @@
+/* eslint-disable */
+
 BX.namespace("BX.UI");
 
 if(typeof BX.UI.EntityUserFieldType === "undefined")
 {
 	BX.UI.EntityUserFieldType =
 	{
+		address: "address",
 		string: "string",
 		integer: "integer",
 		double: "double",
@@ -13,6 +16,8 @@ if(typeof BX.UI.EntityUserFieldType === "undefined")
 		datetime: "datetime",
 		enumeration: "enumeration",
 		employee: "employee",
+		iblockElement: "iblock_element",
+		iblockSection: "iblock_section",
 		crm: "crm",
 		crmStatus: "crm_status",
 		file: "file",
@@ -111,6 +116,10 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 			{
 				return BX.message("UI_ENTITY_EDITOR_UF_DATETIME_LABEL");
 			}
+			else if(typeId === "date")
+			{
+				return BX.message("UI_ENTITY_EDITOR_UF_DATE_LABEL");
+			}
 			else if(typeId === "enumeration")
 			{
 				return BX.message("UI_ENTITY_EDITOR_UF_ENUMERATION_LABEL");
@@ -137,6 +146,7 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 			items.push({ name: "string", title: BX.message("UI_ENTITY_EDITOR_UF_STRING_TITLE"), legend: BX.message("UI_ENTITY_EDITOR_UF_STRING_LEGEND") });
 			items.push({ name: "enumeration", title: BX.message("UI_ENTITY_EDITOR_UF_ENUM_TITLE"), legend: BX.message("UI_ENTITY_EDITOR_UF_ENUM_LEGEND") });
 			items.push({ name: "datetime", title: BX.message("UI_ENTITY_EDITOR_UF_DATETIME_TITLE"), legend: BX.message("UI_ENTITY_EDITOR_UF_DATETIME_LEGEND") });
+			items.push({ name: "date", title: BX.message("UI_ENTITY_EDITOR_UF_DATE_TITLE"), legend: BX.message("UI_ENTITY_EDITOR_UF_DATE_LEGEND") });
 			items.push({ name: "address", title: BX.message("UI_ENTITY_EDITOR_UF_ADDRESS_TITLE_2"), legend: BX.message("UI_ENTITY_EDITOR_UF_ADDRESS_LEGEND_2") });
 
 			items.push({ name: "url", title: BX.message("UI_ENTITY_EDITOR_UF_URL_TITLE"), legend: BX.message("UI_ENTITY_EDITOR_UF_URL_LEGEND") });
@@ -319,6 +329,11 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 		{
 			fieldData["ENTITY_ID"] = this._fieldEntityId;
 			fieldData["SIGNATURE"] = this._creationSignature;
+
+			if (BX.type.isNotEmptyString(fieldData['HELP_MESSAGE']))
+			{
+				this.addFieldLabel('HELP_MESSAGE', fieldData['HELP_MESSAGE'], fieldData);
+			}
 
 			if(BX.type.isNotEmptyString(fieldData["EDIT_FORM_LABEL"]))
 			{
@@ -556,6 +571,8 @@ if(typeof BX.UI.EntityUserFieldLayoutLoader === "undefined")
 			this._mode = BX.prop.getInteger(this._settings, "mode", BX.UI.EntityEditorMode.view);
 			this._enableBatchMode = BX.prop.getBoolean(this._settings, "enableBatchMode", true);
 			this._owner = BX.prop.get(this._settings, "owner", null);
+
+			this.eventsNamespace = "BX.UI.EntityUserFieldLayoutLoader";
 		},
 		getId: function()
 		{
@@ -573,20 +590,30 @@ if(typeof BX.UI.EntityUserFieldLayoutLoader === "undefined")
 		{
 			if(!this._enableBatchMode)
 			{
-				this.startRequest();
+				(new Promise((resolve, reject)=> {
+					this.startRequest({resolve, reject});
+				})).then(() => {
+					BX.onCustomEvent(window, this.eventsNamespace + ":onUserFieldDeployed", [ this ]);
+				});
 			}
 		},
-		runBatch: function()
+		runBatch: function(options)
 		{
 			if(this._enableBatchMode)
 			{
-				this.startRequest();
+				return new Promise((resolve, reject)=> {
+					this.startRequest({resolve, reject});
+				});
 			}
 		},
-		startRequest: function()
+
+		startRequest: function(options)
 		{
+			const resolve = options && options.resolve ? options.resolve : (() => {});
+
 			if(this._items.length === 0)
 			{
+				resolve();
 				return;
 			}
 
@@ -601,18 +628,24 @@ if(typeof BX.UI.EntityUserFieldLayoutLoader === "undefined")
 
 			if(fields.length === 0)
 			{
-				return;
+				resolve();
+				return null;
 			}
 
 			var data = { "FIELDS": fields, "FORM": this._id, "CONTEXT": "UI_EDITOR" };
 
+			const onRequestCompleteWrapper = (result) => {
+				this.onRequestComplete(result);
+				resolve();
+			}
+
 			if(this._mode === BX.UI.EntityEditorMode.view)
 			{
-				BX.Main.UF.Manager.getView(data, BX.delegate(this.onRequestComplete, this));
+				BX.Main.UF.Manager.getView(data, onRequestCompleteWrapper);
 			}
 			else
 			{
-				BX.Main.UF.Manager.getEdit(data, BX.delegate(this.onRequestComplete, this));
+				BX.Main.UF.Manager.getEdit(data, onRequestCompleteWrapper);
 			}
 		},
 		onRequestComplete: function(result)
@@ -692,6 +725,10 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 	BX.UI.EntityEditorUserField.prototype.getEntityValueId = function()
 	{
 		return BX.prop.getString(this.getFieldInfo(), "ENTITY_VALUE_ID", "");
+	};
+	BX.UI.EntityEditorUserField.prototype.getAdditional = function()
+	{
+		return BX.prop.getObject(this.getFieldInfo(), "ADDITIONAL", {});
 	};
 	BX.UI.EntityEditorUserField.prototype.getFieldValue = function()
 	{
@@ -920,24 +957,24 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 					);
 				}
 
-				var fieldParams = BX.clone(fieldInfo);
+				const fieldParams = BX.clone(fieldInfo);
 				fieldParams["SIGNATURE"] = signature;
-				if(fieldType === BX.UI.EntityUserFieldType.file && BX.type.isObject(fieldParams["ADDITIONAL"]))
+				if (fieldType === BX.UI.EntityUserFieldType.file && BX.type.isObject(fieldParams["ADDITIONAL"]))
 				{
-					var ownerToken = BX.prop.getString(
+					const ownerToken = BX.prop.getString(
 						BX.prop.getObject(fieldData, "EXTRAS", {}),
 						"OWNER_TOKEN",
-						""
+						"",
 					);
-					if(ownerToken !== "")
+					if (ownerToken !== "")
 					{
 						fieldParams["ADDITIONAL"]["URL_TEMPLATE"] += "&owner_token=" + encodeURIComponent(ownerToken);
 					}
 				}
-				if(this.checkIfNotEmpty(fieldData))
+				if (this.checkIfNotEmpty(fieldData))
 				{
-					var value = BX.prop.getArray(fieldData, "VALUE", null);
-					if(value === null)
+					let value = BX.prop.getArray(fieldData, "VALUE", null);
+					if (value === null)
 					{
 						value = BX.prop.getString(fieldData, "VALUE", "");
 					}
@@ -977,14 +1014,17 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 			fieldParams["SETTINGS"]["LABEL_CHECKBOX"] = this.getTitle();
 		}
 
-		//HACK: We have to assign fake ENTITY_VALUE_ID for render predefined value of new entity
 		if(isLayoutContext
 			&& typeof fieldParams["VALUE"] !== "undefined"
 			&& this._mode === BX.UI.EntityEditorMode.edit
 			&& BX.prop.getInteger(fieldParams, "ENTITY_VALUE_ID") <= 0
 		)
 		{
-			fieldParams["ENTITY_VALUE_ID"] = 1;
+			if (!BX.type.isObject(fieldParams['ADDITIONAL']))
+			{
+				fieldParams['ADDITIONAL'] = {}
+			}
+			fieldParams['ADDITIONAL']['FORCE_USE_VALUE'] = 'Y'; //We have to force for render predefined value of new entity
 		}
 
 	};
@@ -1025,7 +1065,7 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 				function()
 				{
 					this.onLayoutSuccess();
-
+					this.doFieldValueIcon();
 					this._isLoaded = true;
 					if(this._focusOnLoad === true)
 					{
@@ -1097,6 +1137,39 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 
 		this.addExternalEventsHandlers();
 	};
+
+	BX.UI.EntityEditorUserField.prototype.doFieldValueIcon = function()
+	{
+		if (this.getMode() === BX.UI.EntityEditorMode.edit)
+		{
+			return;
+		}
+
+		const fieldIcon = new BX.UI.EntityFieldIcon({
+			editor: this._editor,
+			mode: this.getMode(),
+			fieldId: this.getId(),
+			fieldType: this.getFieldType(),
+			isFieldMultiple: this.isMultiple(),
+			fieldInnerWrapper: this._innerWrapper,
+			isUserField: true,
+		});
+
+		if (this.getFieldType() === BX.UI.EntityUserFieldType.address)
+		{
+			BX.Event.EventEmitter.unsubscribe(
+				'BX.Fileman.UserField.AddressField:onInitiated',
+				fieldIcon.onAddressFieldInitiated,
+			);
+			BX.Event.EventEmitter.subscribe(
+				'BX.Fileman.UserField.AddressField:onInitiated',
+				fieldIcon.onAddressFieldInitiated,
+			);
+		}
+
+		fieldIcon.renderFieldValueIcon();
+	};
+
 	BX.UI.EntityEditorUserField.prototype.doClearLayout = function(options)
 	{
 		this._innerWrapper = null;
@@ -1390,7 +1463,7 @@ if(typeof(BX.UI.UserFieldTypeMenu) === "undefined")
 
 			BX.bind(this._innerWrapper, "scroll", this._scrollHandler);
 
-			window.setTimeout(this.adjust.bind(this), 100);
+			window.setTimeout(this.adjust.bind(this), 200);
 		},
 		onPopupClose: function()
 		{
@@ -1618,6 +1691,9 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 
 		this._enableMandatoryControl = true;
 		this._mandatoryConfigurator = null;
+
+		this._userFieldFileViewConfigurator = null;
+		this._fileViewCheckBox = null;
 	};
 
 	BX.extend(BX.UI.EntityEditorUserFieldConfigurator, BX.UI.EntityEditorFieldConfigurator);
@@ -1841,7 +1917,7 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 			)
 		);
 
-		if(isNew && (this._typeId === "datetime" || this._typeId === "date"))
+		if(isNew && this._typeId === "datetime")
 		{
 			this._isTimeEnabledCheckBox = this.createOption({ caption: BX.message("UI_ENTITY_EDITOR_UF_ENABLE_TIME") });
 		}
@@ -1877,20 +1953,45 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 				}
 			}
 
-			if(isNew)
+			if(isNew && this._editor._canBeMultipleFields)
 			{
 				this._isMultipleCheckBox = this.createOption({ caption: BX.message("UI_ENTITY_EDITOR_UF_MULTIPLE_FIELD") });
 			}
 		}
 
 		//region Show Always
-		this._showAlwaysCheckBox = this.createOption(
-			{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS"), helpCode: "9627471" }
-		);
+		if (this.getEditor().isShowAlwaysFeautureEnabled())
+		{
+			this._showAlwaysCheckBox = this.createOption(
+				{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS"), helpCode: "22048980" }
+			);
+		}
+		else
+		{
+			this._showAlwaysCheckBox = { checked: false };
+		}
 		this._showAlwaysCheckBox.checked = isNew
 			? BX.prop.getBoolean(this._settings, "showAlways", true)
 			: this._field.checkOptionFlag(BX.UI.EntityEditorControlOptions.showAlways);
 		//endregion
+
+		//region Tooltip configurator
+		if (this.tooltipConfigurator)
+		{
+			this.tooltipConfiguratorCheckBox = this.createOption({
+				caption: this.tooltipConfigurator.getCaption(),
+				elements: [this.tooltipConfigurator.getInput().prepareLayout()],
+			});
+			this.tooltipConfigurator.getInput().adjustVisibility();
+			this.tooltipConfigurator.setCheckBox(this.tooltipConfiguratorCheckBox);
+		}
+		//endregion
+
+		if (this.isFileViewSettingsAvailable())
+		{
+			this._userFieldFileViewConfigurator = new BX.UI.EntityEditorUserFieldFileViewConfigurator(this);
+			this._fileViewCheckBox = this._userFieldFileViewConfigurator.getOption();
+		}
 
 		return this._optionWrapper;
 	};
@@ -1909,6 +2010,12 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 			params["innerConfig"] = (this._field) ? this._field.getInnerConfig() : {};
 			params["enumeration"] = this._enumConfigurator.prepareSaveParams();
 			params['display'] = this._enumConfigurator.getDisplaySelectValue();
+		}
+
+		if (this.isFileViewSettingsAvailable())
+		{
+			params['settings'] ??= {};
+			params['settings']['DEFAULT_VIEW'] = this._fileViewCheckBox.checked ? this._userFieldFileViewConfigurator.getSettingsValue() : false;
 		}
 
 		if (this._field)
@@ -1934,6 +2041,8 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 				params["enableTime"] = this._isTimeEnabledCheckBox.checked;
 			}
 		}
+
+		params['additional'] = this.getField()?.getAdditional() ?? {};
 
 		return params;
 	};
@@ -1976,6 +2085,28 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 		return checkBox;
 	};
 
+	BX.UI.EntityEditorUserFieldConfigurator.prototype.isFileViewSettingsAvailable = function ()
+	{
+		const isFile = this._typeId === BX.UI.EntityUserFieldType.file;
+		if (!isFile || !this.getEditor().canChangeCommonConfiguration())
+		{
+			return false;
+		}
+
+		const entityEditorSettings = BX.Extension.getSettings('ui.entity-editor');
+
+		const isViewingModesAvailable = entityEditorSettings.get('isFileUserFieldViewingModesAvailable');
+		if (!isViewingModesAvailable)
+		{
+			return false;
+		}
+
+		const isAllowSwitchViewAvailable = entityEditorSettings.get('isFileUserFieldIsAllowSwitchViewAvailable');
+		const isAllowSwitchView = this.getField()?.getAdditional()?.['IS_ALLOW_SWITCH_VIEW'] === 'Y';
+
+		return !isAllowSwitchViewAvailable || isAllowSwitchView;
+	};
+
 	BX.UI.EntityEditorUserFieldConfigurator.create = function(id, settings)
 	{
 		var self = new BX.UI.EntityEditorUserFieldConfigurator();
@@ -2016,4 +2147,219 @@ if (typeof BX.UI.EntityEditorUserFieldEnumConfigurator === "undefined")
 		self.initialize(settings);
 		return self;
 	};
+}
+
+if (typeof BX.UI.EntityEditorUserFieldFileView === 'undefined')
+{
+	BX.UI.EntityEditorUserFieldFileView = {};
+
+	BX.UI.EntityEditorUserFieldFileView.TILE = {
+		id: 'tile',
+		title: BX.message('UI_ENTITY_EDITOR_UF_FILE_VIEW_TITLE_TILE'),
+		icon: BX.UI.ButtonIcon.APPS,
+	};
+
+	BX.UI.EntityEditorUserFieldFileView.LIST = {
+		id: 'list',
+		title: BX.message('UI_ENTITY_EDITOR_UF_FILE_VIEW_TITLE_LIST'),
+		icon: BX.UI.ButtonIcon.LIST,
+	};
+
+	BX.UI.EntityEditorUserFieldFileView.ADAPTIVE = {
+		id: 'adaptive',
+		title: BX.message('UI_ENTITY_EDITOR_UF_FILE_VIEW_TITLE_ADAPTIVE'),
+		icon: BX.UI.ButtonIcon.IMAGE,
+	};
+
+	BX.UI.EntityEditorUserFieldFileView.getAll = function ()
+	{
+		return [
+			BX.UI.EntityEditorUserFieldFileView.TILE,
+			BX.UI.EntityEditorUserFieldFileView.LIST,
+			BX.UI.EntityEditorUserFieldFileView.ADAPTIVE,
+		];
+	};
+
+	BX.UI.EntityEditorUserFieldFileView.getMap = function ()
+	{
+		const views = BX.UI.EntityEditorUserFieldFileView.getAll();
+		const map = new Map();
+		views.forEach((view) => {
+			map.set(view.id, view);
+		})
+
+		return map;
+	};
+
+	BX.UI.EntityEditorUserFieldFileView.default = function ()
+	{
+		return BX.UI.EntityEditorUserFieldFileView.TILE;
+	};
+}
+
+if (typeof BX.UI.EntityEditorUserFieldFileViewConfigurator === 'undefined')
+{
+	BX.UI.EntityEditorUserFieldFileViewConfigurator = function (baseConfigurator)
+	{
+		this._baseConfigurator = baseConfigurator;
+		this._currentView = this.getViewFromSettingsOrDefault();
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.views = function ()
+	{
+		return BX.UI.EntityEditorUserFieldFileView;
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.currentView = function ()
+	{
+		return this._currentView;
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.getOption = function ()
+	{
+		if (!this._option)
+		{
+			this._option = this._baseConfigurator.createOption({
+				caption: BX.message('UI_ENTITY_EDITOR_UF_FILE_VIEW_CONFIGURE_VIEW_DEFAULT_OPTION_TITLE'),
+				containerSettings: {
+					props: {
+						className: 'ui-entity-editor-userfield-file-default-view',
+					},
+				},
+				elements: [
+					this.getViewSelectorButton().getContainer(),
+				],
+			});
+
+			this._option.checked = this.getViewFromSettings() !== null;
+
+			const button = this.getViewSelectorButton();
+			button.setDisabled(!this._option.checked);
+
+			this._option.onchange = () => {
+				const isChecked = this._option.checked;
+				if (!isChecked)
+				{
+					this._currentView = this.views().default();
+					this.adjust();
+				}
+
+				button.setDisabled(!isChecked);
+			};
+		}
+
+		return this._option;
+	}
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.getSettingsValue = function ()
+	{
+		return this.currentView().id;
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.getViewFromSettingsOrDefault = function ()
+	{
+		return this.getViewFromSettings() ?? this.views().default();
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.getViewFromSettings = function ()
+	{
+		const field = this._baseConfigurator.getField();
+		if (!field)
+		{
+			return null;
+		}
+
+		const settings = BX.prop.getObject(field.getFieldInfo(), 'SETTINGS', {});
+		const viewId = BX.prop.getString(settings, 'DEFAULT_VIEW', null);
+
+		const view = this.views().getMap().get(viewId);
+		if (!view)
+		{
+			return null;
+		}
+
+		return view;
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.getViewSelectorButton = function ()
+	{
+		if (!this._viewSelectorButton)
+		{
+			this._viewSelectorButton = new BX.UI.Button({
+				text: this.currentView().title,
+				icon: this.currentView().icon,
+				round: true,
+				noCaps: true,
+				dropdown: true,
+				size: BX.UI.ButtonSize.EXTRA_SMALL,
+				color: BX.UI.ButtonColor.BASE_LIGHT,
+			});
+
+			this._viewSelectorButton.setMenu({
+				items: this.getMenuItems(),
+			});
+		}
+
+		return this._viewSelectorButton;
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.getMenuItems = function ()
+	{
+		return this.views().getAll().map((view) => this.buildMenuItemByView(view));
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.buildMenuItemByView = function (view)
+	{
+		const classList = [
+			'menu-popup-icon',
+		];
+
+		if (view.id === this.currentView().id)
+		{
+			classList.push('menu-popup-item-accept');
+		}
+
+		return {
+			id: view.id,
+			text: view.title,
+			className: classList.join(' '),
+			onclick: this.handleMenuItemClick.bind(this),
+		};
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.handleMenuItemClick = function (event, selectedMenuItem)
+	{
+		const view = this.views().getMap().get(selectedMenuItem.id);
+		if (!view)
+		{
+			return;
+		}
+
+		this._currentView = view;
+		this.adjust();
+	};
+
+	BX.UI.EntityEditorUserFieldFileViewConfigurator.prototype.adjust = function ()
+	{
+		const button = this.getViewSelectorButton();
+		const currentView = this.currentView();
+
+		button.setText(currentView.title);
+		button.setIcon(currentView.icon);
+		button
+			.getMenuWindow()
+			.getMenuItems()
+			.forEach((item) => {
+				const itemClassList = item.getLayout().item.classList;
+
+				if (item.id === currentView.id)
+				{
+					itemClassList.add('menu-popup-item-accept');
+
+					return;
+				}
+
+				itemClassList.remove('menu-popup-item-accept');
+			});
+	}
 }

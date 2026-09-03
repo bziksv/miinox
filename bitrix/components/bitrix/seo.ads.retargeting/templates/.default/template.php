@@ -6,6 +6,8 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
+use Bitrix\Ui\Buttons\Button;
+use Bitrix\UI\Buttons\Color;
 
 /** @var array $arParams */
 
@@ -15,7 +17,7 @@ Extension::load([
 	'ui.hint',
 	'seo.ads.client_selector',
 	'seo.ads.login',
-	'ui.forms'
+	'ui.forms',
 ]);
 
 $containerNodeId = $arParams['CONTAINER_NODE_ID'];
@@ -65,12 +67,16 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 				</div>
 			<?php
 			else: ?>
-				<span
-					id="seo-ads-login-btn"
-					class="webform-small-button webform-small-button-transparent"
-				>
-					<?= Loc::getMessage('CRM_ADS_RTG_LOGIN') ?>
-				</span>
+				<?=
+					(new Button([
+						'text' => Loc::getMessage('CRM_ADS_RTG_LOGIN'),
+						'color' => Color::LIGHT_BORDER,
+					]))
+						->addAttribute("id", "seo-ads-login-btn")
+						->addAttribute("type", "button")
+						->render(false)
+					;
+				?>
 			<?php
 			endif; ?>
 		</div>
@@ -111,9 +117,15 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 			<?endif;?>
 			<br>
 			<br>
-			<span data-bx-ads-refresh-btn="" class="webform-small-button webform-small-button-transparent">
-				<?= Loc::getMessage('CRM_ADS_RTG_REFRESH') ?>
-			</span>
+			<?=
+				(new Button([
+					'text' => Loc::getMessage('CRM_ADS_RTG_REFRESH'),
+					'color' => Color::LIGHT_BORDER,
+				]))
+					->addAttribute("data-bx-ads-refresh-btn", "")
+					->render(false)
+				;
+			?>
 		</div>
 	</div>
 
@@ -166,7 +178,7 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 									</div>
 									<?php if ($provider['IS_SUPPORT_ADD_AUDIENCE']):?>
 										<div>
-											<span style="display: none;" class="ui-btn ui-btn-link ui-btn-xs" data-bx-ads-audience-add=""><?= Loc::getMessage(htmlspecialcharsbx("CRM_ADS_RTG_AUDIENCE_ADD")) ?></span>
+											<span style="display: none;" class="ui-btn ui-btn-link" data-bx-ads-audience-add=""><?= Loc::getMessage(htmlspecialcharsbx("CRM_ADS_RTG_AUDIENCE_ADD")) ?></span>
 										</div>
 									<?php endif ?>
 								</td>
@@ -282,12 +294,23 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 				if ($provider['IS_SUPPORT_MULTI_TYPE_CONTACTS']):?>
 					<div class="crm-ads-rtg-popup-settings">
 						<div class="crm-ads-rtg-popup-settings-title-full crm-ads-rtg-popup-settings-title-with-hint">
-							<?= Loc::getMessage('CRM_ADS_RTG_SELECT_AUDIENCE') ?>:
-							<span data-hint="<?= htmlspecialcharsbx(
-								Loc::getMessage('CRM_ADS_RTG_AUDIENCE_TYPE_HINT_' . $typeUpped)
-								. ' ' . Loc::getMessage('CRM_ADS_RTG_AUDIENCE_ADD_HINT_' . $typeUpped,
-									['#BR#' => '<br>'])
-							) ?>" data-hint-html=""></span>
+							<?= (($type === 'vkontakte')
+								? Loc::getMessage('CRM_ADS_RTG_SELECT_USER_LIST')
+								: Loc::getMessage('CRM_ADS_RTG_SELECT_AUDIENCE'))
+							?>:
+							<?php if ($type === 'vkontakte'): ?>
+								<span data-hint="<?= htmlspecialcharsbx(
+									Loc::getMessage('CRM_ADS_RTG_AUDIENCE_TYPE_HINT_' . $typeUpped . '_1')
+									. ' ' . Loc::getMessage('CRM_ADS_RTG_AUDIENCE_ADD_HINT_' . $typeUpped . '_1',
+										['#BR#' => '<br>'])
+								) ?>" data-hint-html=""></span>
+							<?php else: ?>
+								<span data-hint="<?= htmlspecialcharsbx(
+									Loc::getMessage('CRM_ADS_RTG_AUDIENCE_TYPE_HINT_' . $typeUpped)
+									. ' ' . Loc::getMessage('CRM_ADS_RTG_AUDIENCE_ADD_HINT_' . $typeUpped,
+										['#BR#' => '<br>'])
+								) ?>" data-hint-html=""></span>
+							<?php endif; ?>
 						</div>
 
 					<table class="crm-ads-rtg-table">
@@ -299,7 +322,12 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 							<td>
 								<?if ($provider['IS_SUPPORT_ADD_AUDIENCE']):?>
 								<div>
-									<span  style="display: none;" class="ui-btn ui-btn-link ui-btn-xs" data-bx-ads-audience-add=""><?= Loc::getMessage("CRM_ADS_RTG_AUDIENCE_ADD") ?></span>
+									<span  style="display: none;" class="ui-btn ui-btn-link" data-bx-ads-audience-add="">
+										<?= (($type === 'vkontakte')
+											? Loc::getMessage("CRM_ADS_RTG_USER_LIST_ADD")
+											: Loc::getMessage("CRM_ADS_RTG_AUDIENCE_ADD"))
+										?>
+									</span>
 								</div>
 								<?endif?>
 							</td>
@@ -412,49 +440,21 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 					</div>
 				<?php
 				endif ?>
-
-
-				<?php
-					$audienceName = in_array($type, [\Bitrix\Seo\Retargeting\Service::TYPE_GOOGLE], true)
-						? Loc::getMessage('CRM_ADS_RTG_CABINET_' . $typeUpped . '_1')
-						: Loc::getMessage('CRM_ADS_RTG_CABINET_' . $typeUpped)
-					;
-				?>
-				<div data-bx-ads-audience-not-found="" class="crm-ads-rtg-popup-settings" style="display: none;">
-					<div class="crm-ads-rtg-popup-settings-alert">
-						<?= Loc::getMessage(
-							'CRM_ADS_RTG_ERROR_NO_AUDIENCES',
-							[
-								'%name%' => '<a data-bx-ads-audience-create-link="" href="'
-									. htmlspecialcharsbx($provider['URL_AUDIENCE_LIST'])
-									. '" '
-									. 'target="_blank">'
-									. $audienceName
-									. '</a>',
-							]
-						) ?>
-					</div>
-				</div>
-			<?php
-			endif; ?>
+			<?php endif; ?>
 		</div>
 
 		<div class="crm-ads-rtg-popup-settings">
 			<a data-bx-ads-audience-create-link="" class="crm-ads-rtg-popup-link" href="<?= htmlspecialcharsbx($provider['URL_AUDIENCE_LIST']) ?>" target="_blank">
-				<?php if (in_array($type, [\Bitrix\Seo\Retargeting\Service::TYPE_GOOGLE], true)): ?>
+				<?php if (in_array($type, [
+					\Bitrix\Seo\Retargeting\Service::TYPE_GOOGLE,
+					\Bitrix\Seo\Retargeting\Service::TYPE_VKONTAKTE,
+				], true)): ?>
 					<?= Loc::getMessage('CRM_ADS_RTG_CABINET_' . $typeUpped . '_1') ?>
 				<?php else: ?>
 					<?= Loc::getMessage('CRM_ADS_RTG_CABINET_' . $typeUpped) ?>
 				<?php endif ?>
 			</a>
 		</div>
-
-		<?php
-		if ($multiClients):?>
-			<span class="ui-btn ui-btn-light-border ui-btn-xs" data-bx-ads-client-add-btn=""><?= Loc::getMessage("CRM_ADS_RTG_ADD_CLIENT_BTN") ?></span>
-			<br><br>
-		<?php
-		endif ?>
 	</div>
 
 </script>
@@ -486,8 +486,12 @@ $multiClients = array_key_exists('CLIENTS', $arParams['PROVIDER']);
 					'dlgBtnApply' => Loc::getMessage('CRM_ADS_RTG_APPLY'),
 					'dlgBtnCancel' => Loc::getMessage('CRM_ADS_RTG_CANCEL_ALT'),
 					'newAudiencePopupTitle' => Loc::getMessage('CRM_ADS_RTG_AUDIENCE_ADD'),
-					'newAudienceNameLabel' => Loc::getMessage('CRM_ADS_RTG_NEW_AUDIENCE_NAME_LABEL'),
-					'chooseAudience' => Loc::getMessage('CRM_ADS_RTG_CHOOSE_AUDIENCE'),
+					'newAudienceNameLabel' => (($type === 'vkontakte')
+						? Loc::getMessage('CRM_ADS_RTG_NEW_USER_LIST_NAME_LABEL')
+						: Loc::getMessage('CRM_ADS_RTG_NEW_AUDIENCE_NAME_LABEL')),
+					'chooseAudience' => (($type === 'vkontakte')
+						? Loc::getMessage('CRM_ADS_RTG_CHOOSE_USER_LIST')
+						: Loc::getMessage('CRM_ADS_RTG_CHOOSE_AUDIENCE')),
 				],
 			])?>;
 			new CrmAdsRetargeting(params);

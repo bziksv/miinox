@@ -1,3 +1,4 @@
+/* eslint-disable */
 this.BX = this.BX || {};
 (function (exports,ui_buttons,ui_dialogs_messagebox,main_core) {
 	'use strict';
@@ -57,9 +58,13 @@ this.BX = this.BX || {};
 	  babelHelpers.createClass(Errors, [{
 	    key: "show",
 	    value: function show(errors) {
-	      this.errorsMessage.innerHTML = errors.map(function (i) {
-	        return i.message;
-	      }).join("\n");
+	      if (main_core.Type.isArray(errors)) {
+	        this.errorsMessage.innerHTML = errors.map(function (i) {
+	          return i.message;
+	        }).join("\n");
+	      } else {
+	        this.errorsMessage.innerHTML = 'Unknown error';
+	      }
 	      this.errorsWrapper.style.display = 'block';
 	    }
 	  }, {
@@ -290,8 +295,8 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "stylizationSettingsControls",
 	    value: function stylizationSettingsControls() {
-	      var buttonInputTypes = ['button', 'submit', 'reset'];
-	      var flagInputTypes = ['checkbox', 'radio'];
+	      var buttonInputTypes = new Set(['button', 'submit', 'reset']);
+	      var flagInputTypes = new Set(['checkbox', 'radio']);
 	      var isOnlyChild = function isOnlyChild(control) {
 	        var childs = control.parentNode.childNodes;
 	        childs = Array.prototype.filter.call(childs, function (item) {
@@ -304,31 +309,41 @@ this.BX = this.BX || {};
 	      };
 	      var prepareControl = function prepareControl(control) {
 	        // skip `ui.forms` controls
-	        if (control.classList.contains('ui-ctl-element')) {
+	        if (control.classList.contains('ui-ctl-element') || control.classList.contains('ui-tag-selector-item')) {
 	          return;
 	        }
-	        if (control.nodeName === 'INPUT') {
-	          var type = control.type || 'text';
-	          if (buttonInputTypes.includes(type)) {
-	            return;
-	          } else if (flagInputTypes.includes(type)) ; else if (type === 'hidden') ; else {
-	            control.classList.add('ui-ctl-element');
-	            if (!isOnlyChild(control)) {
-	              control.classList.add('ui-ctl-inline');
-	            } else {
-	              control.classList.add('ui-ctl-w100');
+	        switch (control.nodeName) {
+	          case 'INPUT':
+	            {
+	              var type = control.type || 'text';
+	              if (buttonInputTypes.has(type)) ; else if (flagInputTypes.has(type)) ; else if (type === 'hidden') ; else {
+	                control.classList.add('ui-ctl-element');
+	                if (isOnlyChild(control)) {
+	                  control.classList.add('ui-ctl-w100');
+	                } else {
+	                  control.classList.add('ui-ctl-inline');
+	                }
+	              }
+	              break;
 	            }
-	          }
-	        } else if (control.nodeName === 'SELECT') {
-	          control.classList.add('ui-ctl-element');
-	          if (!isOnlyChild(control)) {
-	            control.classList.add('ui-ctl-inline');
-	          }
-	        } else if (control.nodeName === 'TEXTAREA') {
-	          control.classList.add('ui-ctl-element');
-	          control.classList.add('ui-ctl-textarea');
+	          case 'SELECT':
+	            {
+	              control.classList.add('ui-ctl-element');
+	              if (!isOnlyChild(control)) {
+	                control.classList.add('ui-ctl-inline');
+	              }
+	              break;
+	            }
+	          case 'TEXTAREA':
+	            {
+	              control.classList.add('ui-ctl-element');
+	              control.classList.add('ui-ctl-textarea');
+	              break;
+	            }
+	          // No default
 	        }
 	      };
+
 	      var settingsContainer = this.getAdditionalTab().querySelector('.iblock-property-details-settings-table');
 	      if (settingsContainer) {
 	        settingsContainer.querySelectorAll('input, select, textarea').forEach(prepareControl);
@@ -387,10 +402,11 @@ this.BX = this.BX || {};
 	          return false;
 	        }
 	        _classPrivateMethodGet(_this3, _getSlider, _getSlider2).call(_this3).close();
+	        top.BX.Event.EventEmitter.emit('IblockPropertyDetails:saved', [response.data]);
 	        return true;
 	      })["catch"](function (response) {
 	        _this3.progress.stop();
-	        _this3.errors.show(response.errors);
+	        _this3.errors.show(response.errors || []);
 	        return false;
 	      });
 	    }

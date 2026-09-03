@@ -1,8 +1,9 @@
 <?php
 namespace Bitrix\Landing\Internals;
 
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Main\Entity;
+use Bitrix\Main\Application;
+use Bitrix\Main\Entity;
+use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
@@ -13,9 +14,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_FilterEntity_Query query()
- * @method static EO_FilterEntity_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_FilterEntity_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_FilterEntity_Result getById($id)
- * @method static EO_FilterEntity_Result getList(array $parameters = array())
+ * @method static EO_FilterEntity_Result getList(array $parameters = [])
  * @method static EO_FilterEntity_Entity getEntity()
  * @method static \Bitrix\Landing\Internals\EO_FilterEntity createObject($setDefaultValues = true)
  * @method static \Bitrix\Landing\Internals\EO_FilterEntity_Collection createCollection()
@@ -129,20 +130,32 @@ class FilterEntityTable extends Entity\DataManager
 	}
 
 	/**
-	 * Remove not used filters.
+	 * Removes not used filters.
 	 * @return void
 	 */
-	protected static function actualFilters()
+	protected static function actualFilters(): void
 	{
-		$connection = \Bitrix\Main\Application::getConnection();
-		$connection->query('
-			delete F from 
-				b_landing_filter_entity F
-			left join 
-				b_landing_filter_block B on B.FILTER_ID = F.ID
-			where 
-				B.ID is null;
-		');
-		unset($connection);
+		$connection = Application::getConnection();
+		if ($connection->getType() === 'pgsql')
+		{
+			$connection->query('
+				DELETE FROM b_landing_filter_entity
+				WHERE ID IN (
+				    SELECT F.ID
+				    FROM b_landing_filter_entity F
+				    LEFT JOIN b_landing_filter_block B ON B.FILTER_ID = F.ID
+				    WHERE B.ID IS NULL
+				);
+			');
+		} else {
+			$connection->query('
+				DELETE F FROM 
+					b_landing_filter_entity F
+				LEFT JOIN 
+					b_landing_filter_block B ON B.FILTER_ID = F.ID
+				WHERE 
+					B.ID IS NULL;
+			');
+		}
 	}
 }

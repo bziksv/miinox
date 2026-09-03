@@ -1,6 +1,13 @@
-<?
-use \Bitrix\Rest\RestException;
-use \Bitrix\Rest\AccessException;
+<?php
+
+use Bitrix\Iblock\Public\Service\RestValidator as IblockRestValidator;
+use Bitrix\Main\Application;
+use Bitrix\Main\DB\SqlQueryException;
+use Bitrix\Rest\Exceptions\ArgumentException;
+use Bitrix\Rest\RestException;
+use Bitrix\Rest\AccessException;
+use Bitrix\Rest\Exceptions\ArgumentNullException;
+use Bitrix\Main\Web\Uri;
 
 class CBitrixRestEntity extends IRestService
 {
@@ -78,15 +85,32 @@ class CBitrixRestEntity extends IRestService
 				);
 
 				$ib = new \CIBlock();
-				$ID = $ib->Add($arIBlockFields);
-				if($ID > 0)
+
+				$conn = Application::getConnection();
+				$conn->startTransaction();
+				$error = '';
+				try
 				{
-					//$server->setStatus(\CRestServer::STATUS_CREATED);
+					$ID = $ib->Add($arIBlockFields);
+					if (!$ID)
+					{
+						$error = $ib->getLastError();
+					}
+				}
+				catch (SqlQueryException)
+				{
+					$error = 'Internal error adding entity. Try adding again.';
+				}
+				if ($error === '')
+				{
+					$conn->commitTransaction();
+
 					return true;
 				}
 				else
 				{
-					throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+					$conn->rollbackTransaction();
+					throw new RestException($error, RestException::ERROR_CORE);
 				}
 			}
 			else
@@ -220,14 +244,35 @@ class CBitrixRestEntity extends IRestService
 					if(count($arIBlockFields) > 0)
 					{
 						$ib = new \CIBlock();
-						if(!$ib->Update($arIBlock['ID'], $arIBlockFields))
+
+						$conn = Application::getConnection();
+						$conn->startTransaction();
+						$error = '';
+						try
 						{
-							throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+							if (!$ib->Update($arIBlock['ID'], $arIBlockFields))
+							{
+								$error = $ib->getLastError();
+							}
+							if ($error === '' && $recalcRights)
+							{
+								$obIBlockRights = new CIBlockRights($arIBlock['ID']);
+								$obIBlockRights->Recalculate();
+								unset($obIBlockRights);
+							}
 						}
-						elseif($recalcRights)
+						catch (SqlQueryException)
 						{
-							$obIBlockRights = new CIBlockRights($arIBlock['ID']);
-							$obIBlockRights->Recalculate();
+							$error = 'Internal error updating entity. Try updating again.';
+						}
+						if ($error === '')
+						{
+							$conn->commitTransaction();
+						}
+						else
+						{
+							$conn->rollbackTransaction();
+							throw new RestException($error, RestException::ERROR_CORE);
 						}
 					}
 					return true;
@@ -246,6 +291,9 @@ class CBitrixRestEntity extends IRestService
 
 	public static function entityDelete($params, $n, $server)
 	{
+		/** @global CMain $APPLICATION */
+		global $APPLICATION;
+
 		if(self::checkParams($params))
 		{
 			$arIBlock = self::getIBlock(self::getEntityIBlockCode($params['ENTITY'], $server));
@@ -253,11 +301,38 @@ class CBitrixRestEntity extends IRestService
 			{
 				if(\CIBlockRights::UserHasRightTo($arIBlock['ID'], $arIBlock['ID'], 'iblock_edit'))
 				{
-					$ib = new \CIBlock();
-					if(!$ib->Delete($arIBlock['ID']))
+					$conn = Application::getConnection();
+					$conn->startTransaction();
+					$error = '';
+					try
 					{
-						throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+						if (!CIBlock::Delete($arIBlock['ID']))
+						{
+							$ex = $APPLICATION->GetException();
+							$error =
+								$ex
+									? $ex->GetString()
+									: 'Unable to delete iblock'
+							;
+							unset(
+								$ex,
+							);
+						}
 					}
+					catch (SqlQueryException)
+					{
+						$error = 'Internal error deleting entity. Try deleting again.';
+					}
+					if ($error === '')
+					{
+						$conn->commitTransaction();
+					}
+					else
+					{
+						$conn->rollbackTransaction();
+						throw new RestException($error, RestException::ERROR_CORE);
+					}
+
 					return true;
 				}
 				else
@@ -347,16 +422,33 @@ class CBitrixRestEntity extends IRestService
 					$arSectionFields = self::prepareSection($params, $arIBlock, $server);
 
 					$ib = new \CIBlockSection();
-					$ID = $ib->Add($arSectionFields);
 
-					if($ID > 0)
+					$conn = Application::getConnection();
+					$conn->startTransaction();
+					$ID = false;
+					$error = '';
+					try
 					{
-						//$server->setStatus(\CRestServer::STATUS_CREATED);
+						$ID = $ib->Add($arSectionFields);
+						if (!$ID)
+						{
+							$error = $ib->getLastError();
+						}
+					}
+					catch (SqlQueryException)
+					{
+						$error = 'Internal error adding entity section. Try adding again.';
+					}
+					if ($ID)
+					{
+						$conn->commitTransaction();
+
 						return $ID;
 					}
 					else
 					{
-						throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+						$conn->rollbackTransaction();
+						throw new RestException($error, RestException::ERROR_CORE);
 					}
 				}
 				else
@@ -378,7 +470,7 @@ class CBitrixRestEntity extends IRestService
 			$params['ID'] = intval($params['ID']);
 			if($params['ID'] <= 0)
 			{
-				throw new \Bitrix\Main\ArgumentNullException("ID");
+				throw new ArgumentNullException("ID");
 			}
 			else
 			{
@@ -400,10 +492,29 @@ class CBitrixRestEntity extends IRestService
 							if(count($arSectionFields) > 0)
 							{
 								$ib = new \CIBlockSection();
-								$res = $ib->Update($arRes['ID'], $arSectionFields);
-								if(!$res)
+
+								$conn = Application::getConnection();
+								$conn->startTransaction();
+								$error = '';
+								try
 								{
-									throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+									if (!$ib->Update($arRes['ID'], $arSectionFields))
+									{
+										$error = $ib->getLastError();
+									}
+								}
+								catch (SqlQueryException)
+								{
+									$error = 'Internal error updating entity section. Try updating again.';
+								}
+								if ($error === '')
+								{
+									$conn->commitTransaction();
+								}
+								else
+								{
+									$conn->rollbackTransaction();
+									throw new RestException($error, RestException::ERROR_CORE);
 								}
 							}
 
@@ -429,12 +540,15 @@ class CBitrixRestEntity extends IRestService
 
 	public static function entitySectionDelete($params, $n, $server)
 	{
+		/** @global CMain $APPLICATION */
+		global $APPLICATION;
+
 		if(self::checkSectionParams($params))
 		{
 			$params['ID'] = intval($params['ID']);
 			if($params['ID'] <= 0)
 			{
-				throw new \Bitrix\Main\ArgumentNullException("ID");
+				throw new ArgumentNullException("ID");
 			}
 			else
 			{
@@ -450,9 +564,36 @@ class CBitrixRestEntity extends IRestService
 						$arRes = $dbRes->Fetch();
 						if($arRes)
 						{
-							if(!\CIBlockSection::Delete($params['ID']))
+							$conn = Application::getConnection();
+							$conn->startTransaction();
+							$error = '';
+							try
 							{
-								throw new RestException('Unable to delete section', RestException::ERROR_CORE);
+								if (!\CIBlockSection::Delete($params['ID']))
+								{
+									$ex = $APPLICATION->GetException();
+									$error =
+										$ex
+											? $ex->GetString()
+											: 'Unable to delete section'
+									;
+									unset(
+										$ex,
+									);
+								}
+							}
+							catch (SqlQueryException)
+							{
+								$error = 'Internal error deleting entity section. Try deleting again.';
+							}
+							if ($error === '')
+							{
+								$conn->commitTransaction();
+							}
+							else
+							{
+								$conn->rollbackTransaction();
+								throw new RestException($error, RestException::ERROR_CORE);
 							}
 
 							return true;
@@ -477,107 +618,117 @@ class CBitrixRestEntity extends IRestService
 
 	public static function entityItemGet($params, $n, $server)
 	{
-		if(self::checkItemParams($params))
+		if(!self::checkItemParams($params))
 		{
-			$arIBlock = self::getIBlock(self::getEntityIBlockCode($params['ENTITY'], $server));
-			if($arIBlock)
-			{
-				$arFields = array();
-
-				$dbRes = self::getItemProperties($params['ENTITY'], $server);
-				while ($arField = $dbRes->Fetch())
-				{
-					$arFields[$arField['CODE']] = $arField['ID'];
-				}
-
-				$arSort = array('ID' => 'ASC');
-				$arFilter = array();
-
-				if(isset($params['SORT']) && is_array($params['SORT']))
-				{
-					$arSort = array_change_key_case($params['SORT'], CASE_UPPER);
-				}
-
-				if(isset($params['FILTER']) && is_array($params['FILTER']))
-				{
-					$arFilter = array_change_key_case($params['FILTER'], CASE_UPPER);
-				}
-
-				$arFilter = self::checkFilter($arFilter);
-				$arFilter['IBLOCK_ID'] = $arIBlock['ID'];
-				$arFilter['CHECK_PERMISSIONS'] = 'Y';
-
-				$dbRes = \CIBlockElement::GetList(
-					$arSort,
-					$arFilter,
-					false,
-					self::getNavData($n),
-					array('ID', 'IBLOCK_ID', 'TIMESTAMP_X', 'MODIFIED_BY', 'DATE_CREATE', 'CREATED_BY', 'ACTIVE', 'DATE_ACTIVE_FROM', 'DATE_ACTIVE_TO', 'SORT', 'NAME', 'PREVIEW_PICTURE', 'PREVIEW_TEXT', 'DETAIL_PICTURE', 'DETAIL_TEXT', 'CODE', 'IBLOCK_SECTION_ID')
-				);
-
-				$result = array();
-				while ($el = $dbRes->GetNextElement(false))
-				{
-					$res = $el->GetFields();
-					$arProps = $el->GetProperties();
-
-					foreach($res as $key => $value)
-					{
-						if(array_key_exists('~'.$key, $res))
-						{
-							$res[$key] = $res['~'.$key];
-							unset($res['~'.$key]);
-						}
-					}
-
-					$res['ENTITY'] = $params['ENTITY'];
-					$res['SECTION'] = $res['IBLOCK_SECTION_ID'];
-
-					if(!empty($arProps))
-					{
-						$res['PROPERTY_VALUES'] = array();
-						foreach($arProps as $prop)
-						{
-							if($prop['PROPERTY_TYPE'] == 'F')
-							{
-								if($prop['VALUE'] > 0)
-								{
-									$prop['~VALUE'] = self::getFile($prop['~VALUE']);
-								}
-							}
-
-							$res['PROPERTY_VALUES'][$prop['CODE']] = $prop['~VALUE'];
-						}
-					}
-
-					$res['DATE_ACTIVE_FROM'] = CRestUtil::ConvertDateTime($res['DATE_ACTIVE_FROM']);
-					$res['DATE_ACTIVE_TO'] = CRestUtil::ConvertDateTime($res['DATE_ACTIVE_TO']);
-					$res['TIMESTAMP_X'] = CRestUtil::ConvertDateTime($res['TIMESTAMP_X']);
-					$res['DATE_CREATE'] = CRestUtil::ConvertDateTime($res['DATE_CREATE']);
-
-					if($res['PREVIEW_PICTURE'] > 0)
-						$res['PREVIEW_PICTURE'] = self::getFile($res['PREVIEW_PICTURE']);
-
-					if($res['DETAIL_PICTURE'] > 0)
-						$res['DETAIL_PICTURE'] = self::getFile($res['DETAIL_PICTURE']);
-
-					unset($res['IBLOCK_ID']);
-					unset($res['IBLOCK_SECTION_ID']);
-					unset($res['DETAIL_TEXT_TYPE']);
-					unset($res['PREVIEW_TEXT_TYPE']);
-					unset($res['ACTIVE_FROM']);
-					unset($res['ACTIVE_TO']);
-
-					$result[] = $res;
-				}
-
-				return self::setNavData($result, $dbRes);
-			}
-			else
-			{
-				throw new RestException('Entity not found', self::ERROR_ENTITY_NOT_FOUND);
-			}
+			return;
 		}
+		$iBlockCode = self::getEntityIBlockCode($params['ENTITY'], $server);
+
+		$iBlockId = \Bitrix\Iblock\IblockTable::resolveIdByCode($iBlockCode);
+		if(is_null($iBlockId))
+		{
+			throw new RestException('Entity not found', self::ERROR_ENTITY_NOT_FOUND);
+		}
+		$arFields = array();
+
+		$dbRes = self::getItemProperties($params['ENTITY'], $server);
+		while ($arField = $dbRes->Fetch())
+		{
+			$arFields[$arField['CODE']] = $arField['ID'];
+		}
+
+		$arSort = array('ID' => 'ASC');
+		$arFilter = array();
+
+		if(isset($params['SORT']) && is_array($params['SORT']))
+		{
+			$arSort = array_change_key_case($params['SORT'], CASE_UPPER);
+		}
+
+		if(isset($params['FILTER']) && is_array($params['FILTER']))
+		{
+			$arFilter = array_change_key_case($params['FILTER'], CASE_UPPER);
+		}
+
+		$arFilter = self::checkFilter($arFilter);
+		$arFilter['IBLOCK_ID'] = $iBlockId;
+		$arFilter['CHECK_PERMISSIONS'] = 'Y';
+
+		$validator = IblockRestValidator\Format\ElementFilterFieldValidator::getInstance();
+		$internalResult = $validator->run($arFilter);
+		if (!$internalResult->isSuccess())
+		{
+			throw new RestException(
+				implode(' ', $internalResult->getErrorMessages()),
+				RestException::ERROR_ARGUMENT
+			);
+		}
+
+		$dbRes = \CIBlockElement::GetList(
+			$arSort,
+			$arFilter,
+			false,
+			self::getNavData($n),
+			array('ID', 'IBLOCK_ID', 'TIMESTAMP_X', 'MODIFIED_BY', 'DATE_CREATE', 'CREATED_BY', 'ACTIVE', 'DATE_ACTIVE_FROM', 'DATE_ACTIVE_TO', 'SORT', 'NAME', 'PREVIEW_PICTURE', 'PREVIEW_TEXT', 'DETAIL_PICTURE', 'DETAIL_TEXT', 'CODE', 'IBLOCK_SECTION_ID')
+		);
+
+		$result = array();
+		while ($el = $dbRes->GetNextElement(false))
+		{
+			$res = $el->GetFields();
+			$arProps = $el->GetProperties();
+
+			foreach($res as $key => $value)
+			{
+				if(array_key_exists('~'.$key, $res))
+				{
+					$res[$key] = $res['~'.$key];
+					unset($res['~'.$key]);
+				}
+			}
+
+			$res['ENTITY'] = $params['ENTITY'];
+			$res['SECTION'] = $res['IBLOCK_SECTION_ID'];
+
+			if(!empty($arProps))
+			{
+				$res['PROPERTY_VALUES'] = array();
+				foreach($arProps as $prop)
+				{
+					if($prop['PROPERTY_TYPE'] == 'F')
+					{
+						if($prop['VALUE'] > 0)
+						{
+							$prop['~VALUE'] = self::getFile($prop['~VALUE']);
+						}
+					}
+
+					$res['PROPERTY_VALUES'][$prop['CODE']] = $prop['~VALUE'];
+				}
+			}
+
+			$res['DATE_ACTIVE_FROM'] = CRestUtil::ConvertDateTime($res['DATE_ACTIVE_FROM']);
+			$res['DATE_ACTIVE_TO'] = CRestUtil::ConvertDateTime($res['DATE_ACTIVE_TO']);
+			$res['TIMESTAMP_X'] = CRestUtil::ConvertDateTime($res['TIMESTAMP_X']);
+			$res['DATE_CREATE'] = CRestUtil::ConvertDateTime($res['DATE_CREATE']);
+
+			if($res['PREVIEW_PICTURE'] > 0)
+				$res['PREVIEW_PICTURE'] = self::getFile($res['PREVIEW_PICTURE']);
+
+			if($res['DETAIL_PICTURE'] > 0)
+				$res['DETAIL_PICTURE'] = self::getFile($res['DETAIL_PICTURE']);
+
+			unset($res['IBLOCK_ID']);
+			unset($res['IBLOCK_SECTION_ID']);
+			unset($res['DETAIL_TEXT_TYPE']);
+			unset($res['PREVIEW_TEXT_TYPE']);
+			unset($res['ACTIVE_FROM']);
+			unset($res['ACTIVE_TO']);
+
+			$result[] = $res;
+		}
+
+		return self::setNavData($result, $dbRes);
 	}
 
 	public static function entityItemAdd($params, $n, $server)
@@ -589,19 +740,47 @@ class CBitrixRestEntity extends IRestService
 			{
 				if(\CIBlockRights::UserHasRightTo($arIBlock['ID'], $arIBlock['ID'], 'element_edit'))
 				{
+					$validator = IblockRestValidator\Format\ElementFieldValidator::getInstance();
+					$validator->setFileValidator(new IblockRestValidator\Format\Type\SkipFile());
+					$internalResult = $validator->run($params);
+					if (!$internalResult->isSuccess())
+					{
+						throw new RestException(
+							implode(' ', $internalResult->getErrorMessages()),
+							RestException::ERROR_ARGUMENT
+						);
+					}
+
 					$arItemFields = self::prepareItem($params, $arIBlock, $server);
 
 					$ib = new \CIBlockElement();
-					$ID = $ib->Add($arItemFields);
 
-					if($ID > 0)
+					$conn = Application::getConnection();
+					$conn->startTransaction();
+					$ID = false;
+					$error = '';
+					try
 					{
-						//$server->setStatus(\CRestServer::STATUS_CREATED);
+						$ID = $ib->Add($arItemFields);
+						if (!$ID)
+						{
+							$error = $ib->getLastError();
+						}
+					}
+					catch (SqlQueryException)
+					{
+						$error = 'Internal error adding entity item. Try adding again.';
+					}
+					if ($error === '')
+					{
+						$conn->commitTransaction();
+
 						return $ID;
 					}
 					else
 					{
-						throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+						$conn->rollbackTransaction();
+						throw new RestException($error, RestException::ERROR_CORE);
 					}
 				}
 				else
@@ -623,7 +802,7 @@ class CBitrixRestEntity extends IRestService
 			$params['ID'] = intval($params['ID']);
 			if($params['ID'] <= 0)
 			{
-				throw new \Bitrix\Main\ArgumentNullException("ID");
+				throw new ArgumentNullException("ID");
 			}
 			else
 			{
@@ -640,6 +819,17 @@ class CBitrixRestEntity extends IRestService
 
 						if($arRes)
 						{
+							$validator = IblockRestValidator\Format\ElementFieldValidator::getInstance();
+							$validator->setFileValidator(new IblockRestValidator\Format\Type\SkipFile());
+							$internalResult = $validator->run($params);
+							if (!$internalResult->isSuccess())
+							{
+								throw new RestException(
+									implode(' ', $internalResult->getErrorMessages()),
+									RestException::ERROR_ARGUMENT
+								);
+							}
+
 							$arItemFields = self::prepareItem($params, $arIBlock, $server);
 
 							if(count($arItemFields) > 0)
@@ -663,17 +853,36 @@ class CBitrixRestEntity extends IRestService
 									$arItemFields["DETAIL_PICTURE"] = array("del" => "Y");
 								}
 
-								$res = $ib->Update($arRes['ID'], $arItemFields);
-								if($res)
+								$conn = Application::getConnection();
+								$conn->startTransaction();
+								$error = '';
+								try
 								{
-									if($PROPS)
+									$res = $ib->Update($arRes['ID'], $arItemFields);
+									if ($res)
 									{
-										\CIBlockElement::SetPropertyValuesEx($arRes['ID'], $arIBlock['ID'], $PROPS);
+										if ($PROPS)
+										{
+											\CIBlockElement::SetPropertyValuesEx($arRes['ID'], $arIBlock['ID'], $PROPS);
+										}
 									}
+									else
+									{
+										$error = $ib->getLastError();
+									}
+								}
+								catch (SqlQueryException)
+								{
+									$error = 'Internal error updating entity item. Try updating again.';
+								}
+								if ($error === '')
+								{
+									$conn->commitTransaction();
 								}
 								else
 								{
-									throw new RestException($ib->LAST_ERROR, RestException::ERROR_CORE);
+									$conn->rollbackTransaction();
+									throw new RestException($error, RestException::ERROR_CORE);
 								}
 							}
 
@@ -699,12 +908,15 @@ class CBitrixRestEntity extends IRestService
 
 	public static function entityItemDelete($params, $n, $server)
 	{
+		/** @global CMain $APPLICATION */
+		global $APPLICATION;
+
 		if(self::checkItemParams($params))
 		{
 			$params['ID'] = intval($params['ID']);
 			if($params['ID'] <= 0)
 			{
-				throw new \Bitrix\Main\ArgumentNullException("ID");
+				throw new ArgumentNullException("ID");
 			}
 			else
 			{
@@ -713,16 +925,51 @@ class CBitrixRestEntity extends IRestService
 				{
 					if(\CIBlockRights::UserHasRightTo($arIBlock['ID'], $arIBlock['ID'], 'element_delete'))
 					{
-						$dbRes = \CIBlockElement::GetList(array(), array(
-							'ID' => $params['ID'],
-							'IBLOCK_ID' => $arIBlock['ID']
-						));
+						$dbRes = \CIBlockElement::GetList(
+							[],
+							[
+								'ID' => $params['ID'],
+								'IBLOCK_ID' => $arIBlock['ID']
+							],
+							false,
+							false,
+							[
+								'ID',
+							]
+						);
 						$arRes = $dbRes->Fetch();
 						if($arRes)
 						{
-							if(!\CIBlockElement::Delete($params['ID']))
+							$conn = Application::getConnection();
+							$conn->startTransaction();
+							$error = '';
+							try
 							{
-								throw new RestException('Unable to delete item', RestException::ERROR_CORE);
+								if (!\CIBlockElement::Delete($params['ID']))
+								{
+									$ex = $APPLICATION->GetException();
+									$error =
+										$ex
+											? $ex->GetString()
+											: 'Unable to delete item'
+									;
+									unset(
+										$ex,
+									);
+								}
+							}
+							catch (SqlQueryException)
+							{
+								$error = 'Internal error deleting entity item. Try deleting again.';
+							}
+							if ($error === '')
+							{
+								$conn->commitTransaction();
+							}
+							else
+							{
+								$conn->rollbackTransaction();
+								throw new RestException($error, RestException::ERROR_CORE);
 							}
 
 							return true;
@@ -799,7 +1046,7 @@ class CBitrixRestEntity extends IRestService
 			{
 				if(!isset($params['PROPERTY']))
 				{
-					throw new \Bitrix\Main\ArgumentNullException('PROPERTY');
+					throw new ArgumentNullException('PROPERTY');
 				}
 
 				$arIBlock = self::getIBlock(self::getEntityIBlockCode($params['ENTITY'], $server));
@@ -822,13 +1069,33 @@ class CBitrixRestEntity extends IRestService
 						}
 
 						$ibp = new \CIBlockProperty;
-						$propId = $ibp->Add($arFields);
-						if($propId <= 0)
+
+						$conn = Application::getConnection();
+						$conn->startTransaction();
+						$propId = false;
+						$error = '';
+						try
 						{
-							throw new RestException($ibp->LAST_ERROR, RestException::ERROR_CORE);
+							$propId = $ibp->Add($arFields);
+							if (!$propId)
+							{
+								$error = $ibp->getLastError();
+							}
+						}
+						catch (SqlQueryException)
+						{
+							$error = 'Internal error adding entity property. Try adding again.';
+						}
+						if ($error === '')
+						{
+							$conn->commitTransaction();
+						}
+						else
+						{
+							$conn->rollbackTransaction();
+							throw new RestException($error, RestException::ERROR_CORE);
 						}
 
-						//$server->setStatus(\CRestServer::STATUS_CREATED);
 						return true;
 					}
 					else
@@ -898,10 +1165,31 @@ class CBitrixRestEntity extends IRestService
 						}
 
 						$ibp = new \CIBlockProperty;
-						if(!$ibp->Update($arField['ID'], $arPropFields))
+
+						$conn = Application::getConnection();
+						$conn->startTransaction();
+						$error = '';
+						try
 						{
-							throw new RestException($ibp->LAST_ERROR, RestException::ERROR_CORE);
+							if (!$ibp->Update($arField['ID'], $arPropFields))
+							{
+								$error = $ibp->getLastError();
+							}
 						}
+						catch (SqlQueryException)
+						{
+							$error = 'Internal error updating entity property. Try updating again.';
+						}
+						if ($error === '')
+						{
+							$conn->commitTransaction();
+						}
+						else
+						{
+							$conn->rollbackTransaction();
+							throw new RestException($error, RestException::ERROR_CORE);
+						}
+
 						return true;
 					}
 					else
@@ -923,6 +1211,9 @@ class CBitrixRestEntity extends IRestService
 
 	public static function entityItemPropertyDelete($params, $n, $server)
 	{
+		/** @global CMain $APPLICATION */
+		global $APPLICATION;
+
 		if(self::checkItemPropertyParams($params))
 		{
 			if(self::checkEntity($params['ENTITY'], $server))
@@ -932,10 +1223,36 @@ class CBitrixRestEntity extends IRestService
 				{
 					if(\CIBlockRights::UserHasRightTo($arField['IBLOCK_ID'], $arField['IBLOCK_ID'], 'iblock_edit'))
 					{
-						$ibp = new \CIBlockProperty;
-						if(!$ibp->Delete($arField['ID']))
+						$conn = Application::getConnection();
+						$conn->startTransaction();
+						$error = '';
+						try
 						{
-							throw new RestException($ibp->LAST_ERROR, RestException::ERROR_CORE);
+							if (!CIBlockProperty::Delete($arField['ID']))
+							{
+								$ex = $APPLICATION->GetException();
+								$error =
+									$ex
+										? $ex->GetString()
+										: 'Unable to delete item'
+								;
+								unset(
+									$ex,
+								);
+							}
+						}
+						catch (SqlQueryException)
+						{
+							$error = 'Internal error deleting entity property. Try deleting again.';
+						}
+						if ($error === '')
+						{
+							$conn->commitTransaction();
+						}
+						else
+						{
+							$conn->rollbackTransaction();
+							throw new RestException($error, RestException::ERROR_CORE);
 						}
 
 						return true;
@@ -1064,7 +1381,7 @@ class CBitrixRestEntity extends IRestService
 
 			if($params['ENTITY'] == '')
 			{
-				throw new \Bitrix\Main\ArgumentNullException("ENTITY");
+				throw new ArgumentNullException("ENTITY");
 			}
 
 			if(isset($params['ENTITY_NEW']))
@@ -1074,7 +1391,7 @@ class CBitrixRestEntity extends IRestService
 		}
 		else
 		{
-			throw new \Bitrix\Main\ArgumentNullException("ENTITY");
+			throw new ArgumentNullException("ENTITY");
 		}
 
 		return true;
@@ -1120,10 +1437,10 @@ class CBitrixRestEntity extends IRestService
 
 			if(isset($params['TYPE']))
 			{
-				$params['TYPE'] = ToUpper($params['TYPE']);
+				$params['TYPE'] = mb_strtoupper($params['TYPE']);
 				if(!in_array($params['TYPE'], array('S', 'N', 'F'/*, 'L'*/)))
 				{
-					throw new \Bitrix\Main\ArgumentException('Wrong entity item property type', "TYPE");
+					throw new ArgumentException('Wrong entity item property type', "TYPE");
 				}
 			}
 
@@ -1182,7 +1499,16 @@ class CBitrixRestEntity extends IRestService
 			throw new AccessException("Application context required");
 		}
 
-		return self::ENTITY_IBLOCK_CODE_PREFIX."_".$server->getClientId()."_".$entity;
+		$code = self::ENTITY_IBLOCK_CODE_PREFIX . '_' . $server->getClientId() . '_' . $entity;
+
+		if (strlen($code) > 50)
+		{
+			$requiredLength = 50 - strlen(self::ENTITY_IBLOCK_CODE_PREFIX . '_' . $server->getClientId() . '_');
+
+			throw new ArgumentException("Entity code is too long. Max length is $requiredLength characters.");
+		}
+
+		return $code;
 	}
 
 	protected static function getIBlockType()
@@ -1443,7 +1769,7 @@ class CBitrixRestEntity extends IRestService
 		$arFile = CFile::GetFileArray($fileId);
 		if(is_array($arFile))
 		{
-			return \CHTTP::URN2URI($arFile['SRC']);
+			return (string)(new Uri($arFile['SRC']))->toAbsolute();
 		}
 		else
 		{
@@ -1451,4 +1777,3 @@ class CBitrixRestEntity extends IRestService
 		}
 	}
 }
-?>

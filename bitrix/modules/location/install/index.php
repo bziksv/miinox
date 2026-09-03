@@ -3,7 +3,6 @@
 use Bitrix\Main\Event;
 use Bitrix\Main\EventResult;
 use \Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ModuleManager;
 
 Loc::loadMessages(__FILE__);
 
@@ -82,9 +81,8 @@ Class location extends CModule
 	{
 		global $DB;
 
-		$DB->query(
-			"
-				INSERT IGNORE INTO b_location_source (
+		$DB->query("
+				INSERT INTO b_location_source (
 					CODE,
 					NAME,
 					CONFIG
@@ -120,11 +118,10 @@ Class location extends CModule
 						]
 					)) . "'
 				 );
-			"
-		);
+		", true);
 
 		$DB->query("
-			INSERT IGNORE INTO b_location_source (
+			INSERT INTO b_location_source (
 				CODE,
 				NAME,
 				CONFIG
@@ -152,7 +149,7 @@ Class location extends CModule
 				]
 			)) . "'
 			)
-		");
+		", true);
 	}
 
 	public function installAreas()
@@ -175,21 +172,21 @@ Class location extends CModule
 		\CTimeZone::Enable();
 	}
 
-	public function installConfigurer()
+	public function installRecentAddressesCleaner()
 	{
 		\CTimeZone::Disable();
 
 		/**
-		 * @see \Bitrix\Location\Source\Osm\Configurer::configure()
+		 * @see \Bitrix\Location\Infrastructure\Service\RecentAddressesService::cleanUp()
 		 */
 		CAgent::AddAgent(
-			"\\Bitrix\\Location\\Source\\Osm\\Configurer::configure();",
+			"\\Bitrix\\Location\\Infrastructure\\Service\\RecentAddressesService::cleanUp();",
 			'location',
 			'N',
-			2,
+			86400,
 			'',
 			'Y',
-			\ConvertTimeStamp(time() + \CTimeZone::GetOffset() + 2, 'FULL')
+			\ConvertTimeStamp(time() + \CTimeZone::GetOffset() + 3600, 'FULL')
 		);
 
 		\CTimeZone::Enable();
@@ -224,11 +221,12 @@ Class location extends CModule
 	public function InstallDB()
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
 
-		if(!$DB->Query("SELECT 'x' FROM b_location", true))
+		if (!$DB->TableExists('b_location'))
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/location/install/db/mysql/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/location/install/db/' . $connection->getType() . '/install.sql');
 		}
 
 		if($this->errors !== false)
@@ -248,7 +246,7 @@ Class location extends CModule
 
 		$this->installSources();
 		$this->installAreas();
-		$this->installConfigurer();
+		$this->installRecentAddressesCleaner();
 		$this->setDefaultFormatCode();
 
 		return true;
@@ -257,11 +255,12 @@ Class location extends CModule
 	public function UnInstallDB($arParams = Array())
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
 
 		if (array_key_exists('savedata', $arParams) && $arParams['savedata'] !== 'Y')
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"] . '/bitrix/modules/location/install/db/mysql/uninstall.sql');
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/location/install/db/".$connection->getType()."/uninstall.sql");
 		}
 
 		if ($this->errors !== false)
@@ -277,20 +276,14 @@ Class location extends CModule
 
 	public function InstallFiles($arParams = array())
 	{
-		if (!isset($_ENV['COMPUTERNAME']) || $_ENV['COMPUTERNAME'] !== 'BX')
-		{
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/location/install/js', $_SERVER['DOCUMENT_ROOT'].'/bitrix/js', true, true);
-		}
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/location/install/js', $_SERVER['DOCUMENT_ROOT'].'/bitrix/js', true, true);
 
 		return true;
 	}
 
 	public function UnInstallFiles()
 	{
-		if (!isset($_ENV['COMPUTERNAME']) || $_ENV['COMPUTERNAME'] !== 'BX')
-		{
-			DeleteDirFilesEx('/bitrix/js/location/');
-		}
+		DeleteDirFilesEx('/bitrix/js/location/');
 
 		return true;
 	}

@@ -87,6 +87,7 @@
 			BX.bind(input, 'keydown', BX.delegate(this._onKeyDown, this));
 			BX.bind(input, 'input', BX.delegate(this._onInput, this));
 			BX.bind(popupContainer, 'click', BX.delegate(this._onPopupClick, this));
+			BX.bind(popupContainer, 'mousedown', BX.delegate(this._onPopupMouseDown, this));
 			BX.bind(node, 'click', BX.delegate(this._onControlClick, this));
 			this.controlValueDeleteButton();
 		},
@@ -627,6 +628,14 @@
 			this.inputFocus();
 		},
 
+		_onPopupMouseDown: function(event)
+		{
+			event.stopPropagation();
+			event.preventDefault();
+
+			this.inputFocus();
+		},
+
 		_onFocus: function()
 		{
 			var popup = this.getPopup();
@@ -979,7 +988,8 @@
 					closeIcon : false,
 					closeByEsc : false,
 					noAllPaddings: true,
-					zIndex: 2000
+					zIndex: 2000,
+					focusTrap: false,
 				});
 
 				BX.style(this.popup.popupContainer, 'width', nodeRect.width + 'px');

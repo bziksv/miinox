@@ -147,8 +147,15 @@ class CBitrixComponent
 		{
 			$this->setSiteId(SITE_ID);
 			$this->setLanguageId(LANGUAGE_ID);
-			if (defined('SITE_TEMPLATE_ID'))
+
+			if (defined('DEFAULT_COMPONENT_TEMPLATE_ID'))
+			{
+				$this->setSiteTemplateId(DEFAULT_COMPONENT_TEMPLATE_ID);
+			}
+			else if (defined('SITE_TEMPLATE_ID'))
+			{
 				$this->setSiteTemplateId(SITE_TEMPLATE_ID);
+			}
 		}
 
 		$this->request = \Bitrix\Main\Context::getCurrent()->getRequest();
@@ -514,7 +521,15 @@ class CBitrixComponent
 		$p = $arParams; //this avoids endless loop
 		foreach($p as $k => $v)
 		{
+			if (str_starts_with($k, '~'))
+			{
+				// already stored raw value
+				continue;
+			}
+
+			// store raw value
 			$arParams["~".$k] = $v;
+
 			if (isset($v))
 			{
 				if (is_string($v))
@@ -1426,7 +1441,7 @@ class CBitrixComponent
 		if (!($arParams['ICON'] ?? '') && !($arParams['SRC'] ?? '') && !($arParams['IMAGE'] ?? ''))
 			$arParams['ICON'] = 'bx-context-toolbar-delete-icon';
 
-		if (mb_substr($deleteLink, 0, 11) != 'javascript:')
+		if (!str_starts_with($deleteLink, 'javascript:'))
 		{
 			if (false === mb_strpos($deleteLink, 'return_url='))
 				$deleteLink.= '&return_url='.urlencode($APPLICATION->getCurPageParam());

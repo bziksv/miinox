@@ -31,6 +31,7 @@ class Text extends \Bitrix\Landing\Field
 		$this->searchable = isset($params['searchable']) && $params['searchable'] === true;
 		$this->placeholder = isset($params['placeholder']) ? $params['placeholder'] : '';
 		$this->maxlength = isset($params['maxlength']) ? (int)$params['maxlength'] : 0;
+		$this->fetchModificator = isset($params['fetch_data_modification']) ? $params['fetch_data_modification'] : null;
 	}
 
 	/**
@@ -54,6 +55,7 @@ class Text extends \Bitrix\Landing\Field
 	{
 		?>
 		<input type="text" <?
+		?><?= isset($params['autocomplete']) ? 'autocomplete="'. $params['autocomplete'] . '" ' : ''?><?
 		?><?= isset($params['additional']) ? $params['additional'] . ' ' : ''?><?
 		?><?= isset($params['id']) ? 'id="' . \htmlspecialcharsbx($params['id']) . '" ' : ''?><?
 		?><?= $this->maxlength > 0 ? 'maxlength="'. $this->maxlength . '" ' : ''?><?

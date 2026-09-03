@@ -3,9 +3,8 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
-use Bitrix\Main\Web\Json;
 
-/** @var \CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
@@ -16,9 +15,15 @@ Extension::load(
 		"ui.icons",
 		"ui.info-helper",
 		'ui.feedback.form',
-		'crm.ads.conversion'
+		'crm.ads.conversion',
+		'ui.tour'
 	]
 );
+
+$APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+	'ID' => 'sender-start-helper',
+	'LIST' => [],
+]);
 
 $containerId = 'sender-start-container';
 ?>
@@ -108,23 +113,19 @@ $containerId = 'sender-start-container';
 			<div data-role="tile/items" class="ui-tile-list-list">
 				<div
 					class="ui-tile-list-item sender-ui-tile-custom-list-item"
+					data-forms='<?= \Bitrix\Main\Web\Json::encode($arResult['FEEDBACK_FORMS_DATA']) ?>'
 					style=""
 					onclick="BX.UI.Feedback.Form.open(
 						{
-						title:'<?= CUtil::addslashes(Loc::getMessage('SENDER_START_CONFIGURATION_NEED_HELP')) ?>',
-						forms: [
-						{zones: ['en', 'eu', 'in', 'uk'], id: 986, lang: 'en', sec: 'bb83fq'},
-						{zones: ['de'], id: 988, lang: 'de', sec: 'c59qtl'},
-						{zones: ['la', 'co', 'mx'], id: 990, lang: 'es', sec: 'kqcqnn'},
-						{zones: ['com.br'], id: 992, lang: 'br', sec: '74yrxg'},
-						{zones: ['pl'], id: 994, lang: 'pl', sec: 'qtxmku'},
-						{zones: ['ua'], id: 977, lang: 'ua', sec: '23hkre'},
-						{zones: ['by'], id: 980, lang: 'by', sec: 'yfkacy'},
-						{zones: ['kz'], id: 975, lang: 'kz', sec: 'z1ocbi'},
-						{zones: ['ru'], id: 974, lang: 'ru', sec: 'flmbhs'},
-						],
+						title:'<?= htmlspecialcharsbx(CUtil::JSescape(
+						Loc::getMessage('SENDER_START_CONFIGURATION_NEED_HELP')
+						)) ?>',
+						forms: JSON.parse(this.dataset.forms),
 						id:'sender-configuration-help',
-						portalUri: 'https://bitrix24.team'
+						portalUri: '<?= htmlspecialcharsbx(CUtil::JSescape($arResult['FEEDBACK_FORM_URI'])) ?>',
+						presets: {
+						source: 'sender',
+						},
 						}
 						);"
 				>
@@ -137,13 +138,15 @@ $containerId = 'sender-start-container';
 			</div>
 		</div>
 	</div>
-
-	<script type="text/javascript">
-		BX.ready(function () {
-			BX.Sender.Start.init(<?=Json::encode(array(
-				'containerId' => $containerId
-			))?>);
+	<script>
+		BX.ready(() => {
+			BX.message(<?= CUtil::phpToJsObject(Loc::loadLanguageFile(__FILE__)) ?>);
+			BX.Sender.Start.init(<?= CUtil::PhpToJSObject([
+				'containerId' => $containerId,
+				'needShowMasterYandexInitialTour' => $arResult['SHOW_MASTER_YANDEX_INITIAL_TOUR'] ?? false,
+				'masterYandexInitialTourId' => $arResult['MASTER_YANDEX_INITIAL_TOUR_ID'],
+				'masterYandexInitialTourHelpdeskCode' => $arResult['MASTER_YANDEX_INITIAL_TOUR_HELPDESK_CODE'],
+			]) ?>);
 		});
 	</script>
-
 </div>

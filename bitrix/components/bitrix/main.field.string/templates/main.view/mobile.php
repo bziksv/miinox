@@ -1,10 +1,13 @@
 <?php
 
+use Bitrix\Main\Web\Json;
+
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 /**
  * @var StringUfComponent $component
  * @var array $arResult
+ * @var array $arParams
  */
 
 $component = $this->getComponent();
@@ -47,13 +50,13 @@ $isFirst = true;
 	BX.ready(function ()
 	{
 		new BX.Mobile.Field.String(
-			<?=CUtil::PhpToJSObject([
+			<?= Json::encode([
 				'name' => 'BX.Mobile.Field.String',
 				'nodes' => $nodes,
 				'restrictedMode' => true,
 				'formId' => $arParams['additionalParameters']['formId'],
 				'gridId' => $arParams['additionalParameters']['gridId']
-			])?>
+			]) ?>
 		);
 	});
 </script>

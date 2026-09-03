@@ -4,7 +4,6 @@
  * @global CMain $APPLICATION
  */
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "utilities/log_notifications.php");
 
 if(!$USER->CanDoOperation('view_event_log'))
@@ -117,7 +116,7 @@ while($notification = $notifyList->fetch())
 {
 	$id = htmlspecialcharsbx($notification["ID"]);
 
-	$row = &$adminList->AddRow($id, $notification, "log_notification_edit.php?ID=".$id."&lang=".LANGUAGE_ID, Loc::getMessage("log_notifications_edit"));
+	$row = $adminList->AddRow($id, $notification, "log_notification_edit.php?ID=".$id."&lang=".LANGUAGE_ID, Loc::getMessage("log_notifications_edit"));
 	$row->AddViewField("ID", $id);
 	$row->AddCheckField("ACTIVE");
 	$row->AddInputField("NAME");

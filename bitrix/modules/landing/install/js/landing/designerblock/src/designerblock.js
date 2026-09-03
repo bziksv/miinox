@@ -87,7 +87,6 @@ export class DesignerBlock
 		this.designAllowed = !!Env.getInstance().getOptions().design_block_allowed;
 		this.cardSelectors.push('');// for without cards elements
 		this.nodeMap = new WeakMap();
-		this.metrika = new Metrika(true);
 		this.repoManager = new RepoManager({
 			repository: options.repository,
 			onElementSelect: this.addElement.bind(this)
@@ -99,7 +98,6 @@ export class DesignerBlock
 
 		BX.addCustomEvent('Landing.Editor:load', () => {
 			this.preventEvents();
-			// todo: force reinit history instance with D type
 			this.initHistoryEvents();
 			this.initTopPanel();
 			this.initNodes();
@@ -118,7 +116,9 @@ export class DesignerBlock
 			.replace(/\s*data-(landingwrapper)="[^"]+"\s*/g, ' ')
 			.replace(/\s*[\w-_]+--type-wrapper\s*/g, ' ')
 			.replace(/<div[\s]*>[\s]*<\/div>/g, '')
-			.replace(/\s*style=""/g, '');
+			.replace(/\s*style=""/g, '')
+			.replace(/cursor: pointer;/g, '')
+			.replace(/user-select: none;/g, '');
 	}
 
 	preventEvents()
@@ -172,12 +172,6 @@ export class DesignerBlock
 				if (elementAdded)
 				{
 					this.refreshManifest();
-					setTimeout(() => {
-						this.sendLabel(
-							'designerBlock',
-							'onHistoryAddNode'
-						);
-					}, 0);
 				}
 			}
 		);
@@ -190,12 +184,6 @@ export class DesignerBlock
 					);
 				});
 				this.refreshManifest();
-				setTimeout(() => {
-					this.sendLabel(
-						'designerBlock',
-						'onHistoryRemoveNode'
-					);
-				}, 0);
 			}
 		);
 	}
@@ -218,7 +206,7 @@ export class DesignerBlock
 			}
 			if (!this.designAllowed)
 			{
-				top.BX.UI.InfoHelper.show('limit_crm_free_superblock1');
+				top.BX.UI.InfoHelper.show('limit_crm_superblock');
 				return;
 			}
 
@@ -256,13 +244,6 @@ export class DesignerBlock
 					this.saving = false;
 					finishCallback();
 				});
-
-			this.sendLabel(
-				'designerBlock',
-				'save' +
-				'&designed=' + (this.designed ? 'Y' : 'N') +
-				'&code=' + this.blockCode
-			);
 		});
 	}
 
@@ -455,12 +436,6 @@ export class DesignerBlock
 		return element.parentElement.tagName === 'A';
 	}
 
-	sendLabel(key: string, value: string)
-	{
-		this.metrika.clearSendedLabel();
-		this.metrika.sendLabel(null, key, value);
-	}
-
 	addElement(repoElement: RepoElementType)
 	{
 		const activeNode = this.activeNode;
@@ -477,14 +452,6 @@ export class DesignerBlock
 				insertAfterSelector: BX.Landing.Utils.getCSSSelector(insertAfter)
 			});
 		});
-
-		this.sendLabel(
-			'designerBlock',
-			'addElement' +
-			'&code=' + this.blockCode +
-			'&name=' + repoElement.code +
-			'&preset=' + (Object.keys(repoElement.manifest.nodes).length === 1 ? 'N' : 'Y')
-		);
 
 		this.changed = true;
 		this.refreshManifest(repoElement.manifest.nodes);
@@ -511,14 +478,6 @@ export class DesignerBlock
 		this.highlight.hide();
 
 		setTimeout(() => {
-
-			this.sendLabel(
-				'designerBlock',
-				'removeElement' +
-				'&tagName=' + this.activeNode.getElement().tagName +
-				'&code=' + this.blockCode
-			);
-
 			[...document.body.querySelectorAll(this.activeNode.getSelector())].map(node => {
 				tags.push({
 					elementHtml: this.clearHtml(node.outerHTML),

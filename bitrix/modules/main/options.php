@@ -1,9 +1,9 @@
-<?
+<?php
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2016 Bitrix
+ * @copyright 2001-2025 Bitrix
  */
 
 /**
@@ -17,6 +17,7 @@ use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Authentication\Policy;
 use Bitrix\Main\Authentication\Device;
 use Bitrix\Main\Application;
+use Bitrix\Main\Web\Json;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -140,11 +141,69 @@ if(isset($smsSenders[$currentSmsSender]))
 
 //countries for phone formatting
 $countriesReference = GetCountryArray();
-$countriesArray = array();
+$countriesArray = [
+	"" => GetMessage('main_options_select_country'),
+];
 foreach ($countriesReference['reference_id'] as $k => $v)
 {
 	$countriesArray[$v] = $countriesReference['reference'][$k];
 }
+
+// acsess dialog
+CJSCore::Init(array('access'));
+
+//show the public panel for users
+$arCodes = unserialize(COption::GetOptionString("main", "show_panel_for_users"), ['allowed_classes' => false]);
+if(!is_array($arCodes))
+{
+	$arCodes = array();
+}
+
+//hide the public panel for users
+$arHideCodes = unserialize(COption::GetOptionString("main", "hide_panel_for_users"), ['allowed_classes' => false]);
+if(!is_array($arHideCodes))
+{
+	$arHideCodes = array();
+}
+
+// new device notify users
+$deviceNotifyCodes = unserialize(COption::GetOptionString("main", "user_device_notify_codes"), ['allowed_classes' => false]);
+if(!is_array($deviceNotifyCodes))
+{
+	$deviceNotifyCodes = [];
+}
+
+$access = new CAccess();
+$arNames = $access->GetNames(array_merge($arCodes, $arHideCodes, $deviceNotifyCodes));
+
+$panel = "
+<div id=\"bx_access_div\">
+";
+foreach($arCodes as $code)
+{
+	$panel .= '<div style="margin-bottom:4px"><input type="hidden" name="show_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
+}
+$panel .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="ShowPanelFor()">'.GetMessage("main_sett_add_users").'</a>';
+
+$panelHide = "
+<div id=\"bx_access_hide_div\">
+";
+foreach($arHideCodes as $code)
+{
+	$panelHide .= '<div style="margin-bottom:4px"><input type="hidden" name="hide_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
+}
+$panelHide .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="HidePanelFor()">'.GetMessage("main_sett_add_users").'</a>';
+
+$deviceNotify = "
+<div id=\"bx_access_notify_div\">
+";
+foreach($deviceNotifyCodes as $code)
+{
+	$deviceNotify .= '<div style="margin-bottom:4px"><input type="hidden" name="user_device_notify_codes[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
+}
+$deviceNotify .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="DeviceNotifyFor()">'.GetMessage("main_sett_add_users").'</a>';
+
+$SERVER_NAME = $_SERVER['SERVER_NAME'] ?? '';
 
 $arAllOptions = array(
 	"main" => Array(
@@ -198,6 +257,21 @@ $arAllOptions = array(
 
 		GetMessage('main_options_geo'),
 		array("collect_geonames", GetMessage('main_options_geo_collect_names'), "N", array("checkbox", "Y")),
+
+		GetMessage("main_options_map"),
+		Array("map_top_menu_type", GetMessage("MAIN_TOP_MENU_TYPE"), "top", Array("text", 30)),
+		Array("map_left_menu_type", GetMessage("MAIN_LEFT_MENU_TYPE"), "left", Array("text", 30)),
+
+		GetMessage("MAIN_OPTIONS_URL_PREVIEW"),
+		Array("url_preview_enable", GetMessage("MAIN_OPTION_URL_PREVIEW_ENABLE"), "N", array("checkbox", "Y")),
+		Array("url_preview_save_images", GetMessage("MAIN_OPTION_URL_PREVIEW_SAVE_IMAGES"), "N", array("checkbox", "Y")),
+
+		GetMessage("MAIN_OPTIONS_IMAGE_EDITOR"),
+		Array("imageeditor_proxy_enabled", GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED"), "N", array("selectbox", [
+			"N" => GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED_NO"),
+			"Y" => GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED_YES_FOR_ALL"),
+			"YWL" => GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED_YES_FROM_WHITE_LIST"),
+		])),
 	),
 	"mail" => array(
 		GetMessage("main_options_mail"),
@@ -255,11 +329,17 @@ $arAllOptions = array(
 		Array("event_log_user_edit", GetMessage("MAIN_EVENT_LOG_USER_EDIT"), "N", Array("checkbox", "Y")),
 		Array("event_log_user_delete", GetMessage("MAIN_EVENT_LOG_USER_DELETE"), "N", Array("checkbox", "Y")),
 		Array("event_log_user_groups", GetMessage("MAIN_EVENT_LOG_USER_GROUPS"), "N", Array("checkbox", "Y")),
+		Array("event_log_group_edit", GetMessage('MAIN_EVENT_LOG_GROUP_EDIT'), "N", Array("checkbox", "Y")),
 		Array("event_log_group_policy", GetMessage("MAIN_EVENT_LOG_GROUP_POLICY"), "N", Array("checkbox", "Y")),
 		Array("event_log_module_access", GetMessage("MAIN_EVENT_LOG_MODULE_ACCESS"), "N", Array("checkbox", "Y")),
 		Array("event_log_file_access", GetMessage("MAIN_EVENT_LOG_FILE_ACCESS"), "N", Array("checkbox", "Y")),
 		Array("event_log_task", GetMessage("MAIN_EVENT_LOG_TASK"), "N", Array("checkbox", "Y")),
 		Array("event_log_marketplace", GetMessage("MAIN_EVENT_LOG_MARKETPLACE"), "N", Array("checkbox", "Y")),
+
+		GetMessage('main_option_additional_log_title'),
+		Array("event_log_syslog", GetMessage('main_option_event_log_syslog'), "N", Array("checkbox", "Y")),
+		Array("event_log_filelog", GetMessage('main_option_event_log_file'), "N", Array("checkbox", "Y")),
+		Array("event_log_filelog_path", GetMessage('main_option_event_log_file_path'), "", Array("text", 30)),
 
 		GetMessage("MAIN_OPT_PROFILE"),
 		Array("user_profile_history", GetMessage("MAIN_OPT_PROFILE_HYSTORY"), "N", Array("checkbox", "Y")),
@@ -270,11 +350,14 @@ $arAllOptions = array(
 		Array('device_history_cleanup_days', GetMessage('main_options_device_history_days'), '180', ['text', 5]),
 		Array('user_device_geodata', GetMessage('main_options_device_geoip'), 'N', ['checkbox', 'Y']),
 		Array('user_device_notify', GetMessage('main_options_device_history_notify', ['#EMAIL_TEMPLATES_URL#' => '/bitrix/admin/message_admin.php?lang=' . LANGUAGE_ID . '&amp;set_filter=Y&amp;find_type_id=' . Device::EMAIL_EVENT]), 'N', ['checkbox', 'Y']),
+		Array('user_device_notify_im', GetMessage('main_options_device_history_notify_im'), 'N', ['checkbox', 'Y']),
+		Array("", GetMessage('main_options_device_history_notify_only'), $deviceNotify, Array("statichtml")),
 		Array('note' => GetMessage('main_options_device_history_note')),
 	),
 	"update" => Array(
 		Array("update_devsrv", GetMessage("MAIN_OPTIONS_UPDATE_DEVSRV"), "N", Array("checkbox", "Y")),
-		Array("update_site", GetMessage("MAIN_UPDATE_SERVER"), "www.bitrixsoft.com", Array("text", 30)),
+		Array("update_site", GetMessage("MAIN_UPDATE_SERVER"), "www.1c-bitrix.ru", Array("text", 30)),
+		Array("update_use_https", GetMessage('MAIN_UPDATE_USE_HTTPS'), "N", Array("checkbox", "Y")),
 		Array("update_site_proxy_addr", GetMessage("MAIN_UPDATE_SERVER_PR_AD"), "", Array("text", 30)),
 		Array("update_site_proxy_port", GetMessage("MAIN_UPDATE_SERVER_PR_PR"), "", Array("text", 30)),
 		Array("update_site_proxy_user", GetMessage("MAIN_UPDATE_SERVER_PR_US"), "", Array("text", 30, "noautocomplete"=>true)),
@@ -284,8 +367,9 @@ $arAllOptions = array(
 		Array("stable_versions_only", GetMessage("MAIN_STABLEVERSIONS"), "Y", Array("checkbox", "Y")),
 		Array("update_autocheck", GetMessage("MAIN_OPTIONS_AUTOCHECK"), "", Array("selectbox", Array(""=>GetMessage("MAIN_OPTIONS_AUTOCHECK_NO"), "1"=>GetMessage("MAIN_OPTIONS_AUTOCHECK_1"), "7"=>GetMessage("MAIN_OPTIONS_AUTOCHECK_7"), "30"=>GetMessage("MAIN_OPTIONS_AUTOCHECK_30")))),
 		Array("update_stop_autocheck", GetMessage("MAIN_OPTIONS_STOP_AUTOCHECK"), "N", Array("checkbox", "Y")),
-		Array("update_is_gzip_installed", GetMessage("MAIN_UPDATE_IS_GZIP_INSTALLED"), "Y", Array("checkbox", "Y")),
+		Array("update_is_gzip_installed", GetMessage("MAIN_UPDATE_IS_GZIP_INSTALLED1"), "Y", Array("checkbox", "Y")),
 		Array("update_load_timeout", GetMessage("MAIN_UPDATE_LOAD_TIMEOUT"), "30", Array("text", "30")),
+		Array("update_system_expert_mode", GetMessage("SUP_MENU_TURN_EXPERT_MODE_ON"), "N", Array("checkbox", "Y")),
 	),
 	"controller_auth" => Array(
 		Array("auth_controller_prefix", GetMessage("MAIN_OPTION_CTRL_PREF"), "controller", Array("text", "30")),
@@ -293,52 +377,28 @@ $arAllOptions = array(
 	),
 );
 
-if (\Bitrix\Main\Analytics\SiteSpeed::isOn())
-{
-	$arAllOptions["main"][] = GetMessage("MAIN_CATALOG_STAT_SETTINGS");
-	$arAllOptions["main"][] = array("gather_catalog_stat", GetMessage("MAIN_GATHER_CATALOG_STAT"), "Y", Array("checkbox", "Y"));
-}
-
-$arAllOptions["main"][] = GetMessage("main_options_map");
-$arAllOptions["main"][] = Array("map_top_menu_type", GetMessage("MAIN_TOP_MENU_TYPE"), "top", Array("text", 30));
-$arAllOptions["main"][] = Array("map_left_menu_type", GetMessage("MAIN_LEFT_MENU_TYPE"), "left", Array("text", 30));
-
-$arAllOptions["main"][] = GetMessage("MAIN_OPTIONS_URL_PREVIEW");
-$arAllOptions["main"][] = Array("url_preview_enable", GetMessage("MAIN_OPTION_URL_PREVIEW_ENABLE"), "N", array("checkbox", "Y"));
-$arAllOptions["main"][] = Array("url_preview_save_images", GetMessage("MAIN_OPTION_URL_PREVIEW_SAVE_IMAGES"), "N", array("checkbox", "Y"));
-
-$arAllOptions["main"][] = GetMessage("MAIN_OPTIONS_IMAGE_EDITOR");
-$imageEditorOptions = array();
-$imageEditorOptions["N"] = GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED_NO");
-$imageEditorOptions["Y"] = GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED_YES_FOR_ALL");
-$imageEditorOptions["YWL"] = GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED_YES_FROM_WHITE_LIST");
-$arAllOptions["main"][] = Array("imageeditor_proxy_enabled", GetMessage("MAIN_OPTION_IMAGE_EDITOR_PROXY_ENABLED"), "N", array("selectbox", $imageEditorOptions));
-
 $allowedHostsList = unserialize(COption::GetOptionString("main", "imageeditor_proxy_white_list"), ['allowed_classes' => false]);
 
 if (!is_array($allowedHostsList) || empty($allowedHostsList))
 {
-	$allowedHostsList = [];
-	$allowedHostsList[] = '';
+	$allowedHostsList = [''];
 }
-
-$allowedWhiteListLabel = GetMessage("MAIN_OPTIONS_IMAGE_EDITOR_PROXY_WHITE_LIST");
-$allowedWhiteListPlaceholder = GetMessage("MAIN_OPTIONS_IMAGE_EDITOR_PROXY_WHITE_LIST_PLACEHOLDER");
 
 foreach($allowedHostsList as $key => $item)
 {
-	$arAllOptions["main"][] = Array("imageeditor_proxy_white_list", $key === 0 ? $allowedWhiteListLabel : "", $item, Array("text", 30));
+	$arAllOptions["main"][] = Array("imageeditor_proxy_white_list", $key === 0 ? GetMessage("MAIN_OPTIONS_IMAGE_EDITOR_PROXY_WHITE_LIST") : "", $item, Array("text", 30));
 }
 
 $addAllowedHost = "
     <script>
-        var whiteListValues = ".CUtil::phpToJsObject($allowedHostsList).";
+        var whiteListValues = " . Json::encode($allowedHostsList) . ";
+        var allowedWhiteListPlaceholder = '" . GetMessageJS("MAIN_OPTIONS_IMAGE_EDITOR_PROXY_WHITE_LIST_PLACEHOLDER") . "';
         var firstWhiteListInputs = [].slice.call(document.querySelectorAll('input[name=\'imageeditor_proxy_white_list\']'));
 
         if (firstWhiteListInputs.length)
         {
             firstWhiteListInputs.forEach(function(item, index) {
-            	item.setAttribute('placeholder', '".htmlspecialcharsbx($allowedWhiteListPlaceholder)."');
+            	item.setAttribute('placeholder', allowedWhiteListPlaceholder);
             	item.name = 'imageeditor_proxy_white_list[]';
             	item.setAttribute('value', whiteListValues[index]);
 
@@ -415,107 +475,24 @@ $addAllowedHost = "
 
             var button = document.querySelector('.adm-add-allowed-host');
 
-            if (event.currentTarget.value !== 'YWL')
-            {
-                button.style.pointerEvents = 'none';
-                button.style.opacity = .4;
-            }
-            else
-            {
-            	button.removeAttribute('style');
-            }
-
+            if (button)
+			{
+				if (event.currentTarget.value !== 'YWL')
+				{
+					button.style.pointerEvents = 'none';
+					button.style.opacity = .4;
+				}
+				else
+				{
+					button.removeAttribute('style');
+				}
+			}
         }
     </script>
 ";
 
 $addAllowedHost .= "<a href=\"javascript:void(0)\" onclick=\"addProxyAllowedHost(this)\" hidefocus=\"true\" class=\"adm-btn adm-add-allowed-host\">".GetMessage("MAIN_OPTIONS_IMAGE_EDITOR_PROXY_WHITE_LIST_ADD_HOST")."</a>";
 $arAllOptions["main"][] = Array("", "", $addAllowedHost, Array("statichtml"));
-
-
-CJSCore::Init(array('access'));
-
-//show the public panel for users
-$arCodes = unserialize(COption::GetOptionString("main", "show_panel_for_users"), ['allowed_classes' => false]);
-if(!is_array($arCodes))
-	$arCodes = array();
-
-//hide the public panel for users
-$arHideCodes = unserialize(COption::GetOptionString("main", "hide_panel_for_users"), ['allowed_classes' => false]);
-if(!is_array($arHideCodes))
-	$arHideCodes = array();
-
-$access = new CAccess();
-$arNames = $access->GetNames(array_merge($arCodes, $arHideCodes));
-
-$panel = "
-<script type=\"text/javascript\">
-
-function InsertAccess(arRights, divId, hiddenName)
-{
-	var div = BX(divId);
-	for(var provider in arRights)
-	{
-		for(var id in arRights[provider])
-		{
-			var pr = BX.Access.GetProviderPrefix(provider, id);
-			var newDiv = document.createElement('DIV');
-			newDiv.style.marginBottom = '4px';
-			newDiv.innerHTML = '<input type=\"hidden\" name=\"'+hiddenName+'\" value=\"'+id+'\">' + (pr? pr+': ':'') + BX.util.htmlspecialchars(arRights[provider][id].name) + '&nbsp;<a href=\"javascript:void(0);\" onclick=\"DeleteAccess(this, \\''+id+'\\')\" class=\"access-delete\"></a>';
-			div.appendChild(newDiv);
-		}
-	}
-}
-
-function DeleteAccess(ob, id)
-{
-	var div = BX.findParent(ob, {'tag':'div'});
-	div.parentNode.removeChild(div);
-}
-
-function ShowPanelFor()
-{
-	BX.Access.Init({
-		other: {disabled:true}
-	});
-	BX.Access.SetSelected({});
-	BX.Access.ShowForm({
-		callback: function(obSelected)
-		{
-			InsertAccess(obSelected, 'bx_access_div', 'show_panel_for_users[]');
-		}
-	});
-}
-
-function HidePanelFor()
-{
-	BX.Access.Init();
-	BX.Access.SetSelected({});
-	BX.Access.ShowForm({
-		callback: function(obSelected)
-		{
-			InsertAccess(obSelected, 'bx_access_hide_div', 'hide_panel_for_users[]');
-		}
-	});
-}
-</script>
-
-<div id=\"bx_access_div\">
-";
-
-foreach($arCodes as $code)
-	$panel .= '<div style="margin-bottom:4px"><input type="hidden" name="show_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
-
-$panel .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="ShowPanelFor()">'.GetMessage("main_sett_add_users").'</a>';
-
-$panelHide = "
-<div id=\"bx_access_hide_div\">
-";
-
-foreach($arHideCodes as $code)
-	$panelHide .= '<div style="margin-bottom:4px"><input type="hidden" name="hide_panel_for_users[]" value="'.$code.'">'.($arNames[$code]["provider"] <> ''? $arNames[$code]["provider"].': ':'').htmlspecialcharsbx($arNames[$code]["name"]).'&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''.$code.'\')" class="access-delete"></a></div>';
-
-$panelHide .= '</div><a href="javascript:void(0)" class="bx-action-href" onclick="HidePanelFor()">'.GetMessage("main_sett_add_users").'</a>';
 
 $arAllOptions["main"][] = GetMessage("main_sett_public_panel");
 $arAllOptions["main"][] = Array("", GetMessage("main_sett_public_panel_show"), $panel, Array("statichtml"));
@@ -568,6 +545,7 @@ $arAllOptions["auth"][] = array("new_user_agreement", GetMessage("MAIN_REGISTER_
 $arAllOptions["auth"][] = GetMessage("main_options_restrictions");
 $arAllOptions["auth"][] = Array("inactive_users_block_days", GetMessage("main_options_block_inactive"), "0", Array("text", 5));
 $arAllOptions["auth"][] = Array("secure_logout", GetMessage("main_options_secure_logout"), "N", Array("checkbox", "Y"));
+$arAllOptions["auth"][] = Array("secure_auth_forms", GetMessage('main_options_secure_auth_forms'), "N", Array("checkbox", "Y"));
 
 $arAllOptions["auth"][] = GetMessage("MAIN_OPTION_SESS");
 $arAllOptions["auth"][] = Array("session_expand", GetMessage("MAIN_OPTION_SESS_EXPAND"), "Y", Array("checkbox", "Y"));
@@ -608,12 +586,14 @@ if($_SERVER["REQUEST_METHOD"]=="POST" && !empty($_POST["Update"]) && ($USER->Can
 	COption::SetOptionString("main", "admin_lid", $_POST["admin_lid"] ?? '');
 	COption::SetOptionString("main", "show_panel_for_users", serialize($_POST["show_panel_for_users"] ?? ''));
 	COption::SetOptionString("main", "hide_panel_for_users", serialize($_POST["hide_panel_for_users"] ?? ''));
+	COption::SetOptionString("main", "user_device_notify_codes", serialize($_POST["user_device_notify_codes"] ?? ''));
 	COption::SetOptionString("main", "imageeditor_proxy_white_list", serialize($_POST["imageeditor_proxy_white_list"] ?? ''));
+	COption::SetOptionString("main", "cookie_name", \Bitrix\Main\Web\Cookie::normalizeName($_POST["cookie_name"]));
 
-	$module_id = "main";
-	COption::SetOptionString($module_id, "GROUP_DEFAULT_TASK", $GROUP_DEFAULT_TASK, "Task for groups by default");
+	$GROUP_DEFAULT_TASK = $_POST['GROUP_DEFAULT_TASK'] ?? '';
+	COption::SetOptionString("main", "GROUP_DEFAULT_TASK", $GROUP_DEFAULT_TASK, "Task for groups by default");
 	$letter = ($l = CTask::GetLetter($GROUP_DEFAULT_TASK)) ? $l : 'D';
-	COption::SetOptionString($module_id, "GROUP_DEFAULT_RIGHT", $letter, "Right for groups by default");
+	COption::SetOptionString("main", "GROUP_DEFAULT_RIGHT", $letter, "Right for groups by default");
 
 	$nID = COperation::GetIDByName('edit_subordinate_users');
 	$nID2 = COperation::GetIDByName('view_subordinate_users');
@@ -632,12 +612,12 @@ if($_SERVER["REQUEST_METHOD"]=="POST" && !empty($_POST["Update"]) && ($USER->Can
 
 		$rt = ($tid) ? CTask::GetLetter($tid) : '';
 		if ($rt <> '' && $rt != "NOT_REF")
-			$APPLICATION->SetGroupRight($module_id, $value["ID"], $rt);
+			$APPLICATION->SetGroupRight("main", $value["ID"], $rt);
 		else
-			$APPLICATION->DelGroupRight($module_id, array($value["ID"]));
+			$APPLICATION->DelGroupRight("main", array($value["ID"]));
 	}
 
-	CGroup::SetTasksForModule($module_id, $arTasksInModule);
+	CGroup::SetTasksForModule("main", $arTasksInModule);
 
 	if(!empty($_REQUEST["back_url_settings"]) && empty($_REQUEST["Apply"]))
 		LocalRedirect($_REQUEST["back_url_settings"]);
@@ -670,20 +650,80 @@ function ShowParamsHTMLByArray($arParams)
 	}
 }
 ?>
-<form name="main_options" method="POST" action="<?echo $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?echo LANG?>">
+<script>
+
+function InsertAccess(arRights, divId, hiddenName)
+{
+	var div = BX(divId);
+	for(var provider in arRights)
+	{
+		for(var id in arRights[provider])
+		{
+			var pr = BX.Access.GetProviderPrefix(provider, id);
+			var newDiv = document.createElement('DIV');
+			newDiv.style.marginBottom = '4px';
+			newDiv.innerHTML = '<input type="hidden" name="'+hiddenName+'" value="'+id+'">' + (pr? pr+': ':'') + BX.util.htmlspecialchars(arRights[provider][id].name) + '&nbsp;<a href="javascript:void(0);" onclick="DeleteAccess(this, \''+id+'\')" class="access-delete"></a>';
+			div.appendChild(newDiv);
+		}
+	}
+}
+
+function DeleteAccess(ob, id)
+{
+	var div = BX.findParent(ob, {'tag':'div'});
+	div.parentNode.removeChild(div);
+}
+
+function ShowPanelFor()
+{
+	BX.Access.Init();
+	BX.Access.SetSelected({});
+	BX.Access.ShowForm({
+		callback: function(obSelected)
+		{
+			InsertAccess(obSelected, 'bx_access_div', 'show_panel_for_users[]');
+		}
+	});
+}
+
+function HidePanelFor()
+{
+	BX.Access.Init();
+	BX.Access.SetSelected({});
+	BX.Access.ShowForm({
+		callback: function(obSelected)
+		{
+			InsertAccess(obSelected, 'bx_access_hide_div', 'hide_panel_for_users[]');
+		}
+	});
+}
+
+function DeviceNotifyFor()
+{
+	BX.Access.Init();
+	BX.Access.SetSelected({});
+	BX.Access.ShowForm({
+		callback: function(obSelected)
+		{
+			InsertAccess(obSelected, 'bx_access_notify_div', 'user_device_notify_codes[]');
+		}
+	});
+}
+</script>
+<form name="main_options" method="POST" action="<?= $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?= LANG?>">
 <?=bitrix_sessid_post()?>
-<?
+	<?php
 $tabControl->Begin();
 $tabControl->BeginNextTab();
 ?>
 	<tr class="heading">
-		<td colspan="2"><b><?echo GetMessage("main_options_sys")?></b></td>
+		<td colspan="2"><b><?= GetMessage("main_options_sys")?></b></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_ADMIN_DEFAULT_LANG")?></td>
+		<td><?= GetMessage("MAIN_ADMIN_DEFAULT_LANG")?></td>
 		<td><?=CLangAdmin::SelectBox("admin_lid", COption::GetOptionString("main", "admin_lid", "en"));?></td>
 	</tr>
-<?
+<?php
 ShowParamsHTMLByArray($arAllOptions["main"]);
 
 $tabControl->BeginNextTab();
@@ -696,11 +736,11 @@ ShowParamsHTMLByArray($arAllOptions["auth"]);
 
 if(COption::GetOptionString("main", "controller_member", "N")=="Y")
 {
-	?>
+?>
 	<tr class="heading">
-		<td colspan="2"><b><?echo GetMessage("MAIN_OPTION_CTRL_REM")?></b></td>
+		<td colspan="2"><b><?= GetMessage("MAIN_OPTION_CTRL_REM")?></b></td>
 	</tr>
-	<?
+<?php
 	ShowParamsHTMLByArray($arAllOptions["controller_auth"]);
 }
 
@@ -710,33 +750,32 @@ ShowParamsHTMLByArray($arAllOptions["event_log"]);
 $tabControl->BeginNextTab();
 ?>
 	<tr>
-		<td width="50%"><?echo GetMessage("MAIN_OPTION_LICENSE_KEY")?></td>
-		<td width="50%"><input type="text" size="30" maxlength="40" value="<?echo ($USER->CanDoOperation('edit_other_settings') ? htmlspecialcharsbx($SET_LICENSE_KEY) : "XXX-XX-XXXXXXXXXXXXX")?>" name="SET_LICENSE_KEY">
+		<td width="50%"><?= GetMessage("MAIN_OPTION_LICENSE_KEY")?></td>
+		<td width="50%"><input type="text" size="30" maxlength="40" value="<?= ($USER->CanDoOperation('edit_other_settings') ? htmlspecialcharsbx($SET_LICENSE_KEY) : "XXX-XX-XXXXXXXXXXXXX")?>" name="SET_LICENSE_KEY">
 		</td>
 	</tr>
 
-<?
+<?php
 ShowParamsHTMLByArray($arAllOptions["update"]);
 
 $tabControl->BeginNextTab();
 
-$module_id="main";
-$GROUP_DEFAULT_TASK = COption::GetOptionString($module_id, "GROUP_DEFAULT_TASK", "");
+$GROUP_DEFAULT_TASK = COption::GetOptionString("main", "GROUP_DEFAULT_TASK", "");
 
 if ($GROUP_DEFAULT_TASK == '')
 {
-	$GROUP_DEFAULT_RIGHT = COption::GetOptionString($module_id, "GROUP_DEFAULT_RIGHT", "D");
-	$GROUP_DEFAULT_TASK = CTask::GetIdByLetter($GROUP_DEFAULT_RIGHT,$module_id,'module');
+	$GROUP_DEFAULT_RIGHT = COption::GetOptionString("main", "GROUP_DEFAULT_RIGHT", "D");
+	$GROUP_DEFAULT_TASK = CTask::GetIdByLetter($GROUP_DEFAULT_RIGHT, 'main', 'module');
 	if ($GROUP_DEFAULT_TASK)
-		COption::SetOptionString($module_id, "GROUP_DEFAULT_TASK", $GROUP_DEFAULT_TASK);
+		COption::SetOptionString("main", "GROUP_DEFAULT_TASK", $GROUP_DEFAULT_TASK);
 }
 ?>
 	<tr>
 		<td width="50%"><b><?=GetMessage("MAIN_BY_DEFAULT");?></b></td>
 		<td width="50%">
 		<script>var arSubordTasks = [];</script>
-		<?
-		$arTasksInModule = CTask::GetTasksInModules(true,$module_id,'module');
+		<?php
+		$arTasksInModule = CTask::GetTasksInModules(true, 'main', 'module');
 		$nID = COperation::GetIDByName('edit_subordinate_users');
 		$nID2 = COperation::GetIDByName('view_subordinate_users');
 		$arTasks = $arTasksInModule['main'];
@@ -754,7 +793,7 @@ if ($GROUP_DEFAULT_TASK == '')
 				$arSubordTasks[] = $arTaskIds[$i];
 				?><script>
 				arSubordTasks.push(<?=$arTaskIds[$i]?>);
-				</script><?
+				</script><?php
 			}
 		}
 
@@ -780,7 +819,7 @@ if ($GROUP_DEFAULT_TASK == '')
 		</script>
 		</td>
 	</tr>
-<?
+<?php
 $arUsedGroups = array();
 $arTaskInModule = CGroup::GetTasksForModule('main');
 foreach($arGROUPS as $value):
@@ -792,53 +831,53 @@ foreach($arGROUPS as $value):
 	<tr valign="top">
 		<td><?=$value["NAME"]." [<a title=\"".GetMessage("MAIN_USER_GROUP_TITLE")."\" href=\"/bitrix/admin/group_edit.php?ID=".$value["ID"]."&amp;lang=".LANGUAGE_ID."\">".$value["ID"]."</a>]:"?></td>
 		<td>
-		<?
+		<?php
 		echo SelectBoxFromArray("TASKS_".$value["ID"], $arTasks, $v, GetMessage("MAIN_DEFAULT"), 'onchange="taskSelectOnchange(this)"');
 		$show_subord = (in_array($v,$arSubordTasks));
 		?>
-		<div<?echo $show_subord? '' : ' style="display:none"';?>>
+		<div<?= $show_subord? '' : ' style="display:none"';?>>
 			<div style="padding:6px 0 6px 0"><?=GetMessage('SUBORDINATE_GROUPS');?>:</div>
 			<select name="subordinate_groups_<?=$value["ID"]?>[]" multiple size="6">
-			<?
+			<?php
 			$arSubordinateGroups = CGroup::GetSubordinateGroups($value["ID"]);
 			foreach($arGROUPS as $v_gr)
 			{
 				if ($v_gr['ID'] == $value["ID"])
 					continue;
-				?><option value="<?=$v_gr['ID']?>" <?echo (in_array($v_gr['ID'],$arSubordinateGroups)) ? 'selected' : ''?>><? echo $v_gr['NAME'].' ['.$v_gr['ID'].']'?></option><?
+				?><option value="<?=$v_gr['ID']?>" <?= (in_array($v_gr['ID'],$arSubordinateGroups)) ? 'selected' : ''?>><?= $v_gr['NAME'].' ['.$v_gr['ID'].']'?></option><?php
 			}
 			?>
 			</select>
 		</div>
 		</td>
 	</tr>
-<?endforeach;?>
+<?php endforeach;?>
 
-<?
+<?php
 if(count($arGROUPS) > count($arUsedGroups)):
 ?>
 <tr valign="top">
 	<td><select onchange="settingsSetGroupID(this)">
-		<option value=""><?echo GetMessage("group_rights_select")?></option>
-<?
+		<option value=""><?= GetMessage("group_rights_select")?></option>
+<?php
 foreach($arGROUPS as $group):
 	if(isset($arUsedGroups[$group["ID"]]) && $arUsedGroups[$group["ID"]])
 		continue;
 ?>
 		<option value="<?=$group["ID"]?>"><?=$group["NAME"]." [".$group["ID"]."]"?></option>
-<?endforeach?>
+<?php endforeach?>
 	</select></td>
 		<td>
-		<?
+		<?php
 		echo SelectBoxFromArray("", $arTasks, "", GetMessage("MAIN_DEFAULT"), 'onchange="taskSelectOnchange(this)"');
 		?>
 		<div style="display:none">
 			<div style="padding:6px 0 6px 0"><?=GetMessage('SUBORDINATE_GROUPS');?>:</div>
 			<select name="" multiple size="6">
-			<?
+			<?php
 			foreach($arGROUPS as $v_gr)
 			{
-				?><option value="<?=$v_gr['ID']?>"><? echo $v_gr['NAME'].' ['.$v_gr['ID'].']'?></option><?
+				?><option value="<?=$v_gr['ID']?>"><?= $v_gr['NAME'].' ['.$v_gr['ID'].']'?></option><?php
 			}
 			?>
 			</select>
@@ -847,7 +886,7 @@ foreach($arGROUPS as $group):
 </tr>
 <tr>
 	<td colspan="2">
-<script type="text/javascript">
+<script>
 function settingsSetGroupID(el)
 {
 	var tr = jsUtils.FindParentObject(el, "tr");
@@ -881,25 +920,27 @@ function settingsAddRights(a)
 	sel.selectedIndex = 0;
 }
 </script>
-<a href="javascript:void(0)" onclick="settingsAddRights(this)" hidefocus="true" class="bx-action-href"><?echo GetMessage("group_rights_add")?></a>
+<a href="javascript:void(0)" onclick="settingsAddRights(this)" hidefocus="true" class="bx-action-href"><?= GetMessage("group_rights_add")?></a>
 	</td>
 </tr>
-<?endif?>
+<?php endif?>
 
-<?$tabControl->Buttons();?>
+<?php
+$tabControl->Buttons();
+?>
 
-<script type="text/javascript">
+<script>
 function RestoreDefaults()
 {
-	if(confirm('<?echo AddSlashes(GetMessage("MAIN_HINT_RESTORE_DEFAULTS_WARNING"))?>'))
-		window.location = "<?echo $APPLICATION->GetCurPage()?>?RestoreDefaults=Y&lang=<?=LANGUAGE_ID?>&mid=<?echo urlencode($mid)?>&<?echo bitrix_sessid_get()?>";
+	if(confirm('<?= AddSlashes(GetMessage("MAIN_HINT_RESTORE_DEFAULTS_WARNING"))?>'))
+		window.location = "<?= $APPLICATION->GetCurPage()?>?RestoreDefaults=Y&lang=<?=LANGUAGE_ID?>&mid=<?= urlencode($mid)?>&<?= bitrix_sessid_get()?>";
 }
 
 function onChangeSmsService(event)
 {
 	var select = event.target;
 	var sendersSelect = select.form.sms_default_sender;
-	var senders = <?=CUtil::PhpToJSObject($smsSenders)?>;
+	var senders = <?=Json::encode($smsSenders)?>;
 	var selected = select.options[select.selectedIndex].value;
 
 	for(var i = sendersSelect.length - 1; i >= 0; i--)
@@ -948,26 +989,28 @@ BX.ready(
 );
 
 </script>
-<?if (!empty($_REQUEST["back_url_settings"])):?>
-<input <?if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> type="submit" name="Save" value="<?echo GetMessage("MAIN_SAVE")?>" title="<?echo GetMessage("MAIN_OPT_SAVE_TITLE")?>" class="adm-btn-save">
-<?endif?>
-<input <?if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> type="submit" name="Apply" value="<?echo GetMessage("MAIN_OPT_APPLY")?>" title="<?echo GetMessage("MAIN_OPT_APPLY_TITLE")?>"<?if($_REQUEST["back_url_settings"] == ""):?>  class="adm-btn-save"<?endif?>>
-<?if (!empty($_REQUEST["back_url_settings"])):?>
-<input type="button" name="" value="<?echo GetMessage("MAIN_OPT_CANCEL")?>" title="<?echo GetMessage("MAIN_OPT_CANCEL_TITLE")?>" onclick="window.location='<?echo htmlspecialcharsbx(CUtil::JSEscape($_REQUEST["back_url_settings"]))?>'">
-<?endif?>
-<input <?if (!$USER->IsAdmin()) echo "disabled" ?> type="button" title="<?echo GetMessage("MAIN_HINT_RESTORE_DEFAULTS")?>" OnClick="RestoreDefaults();" value="<?echo GetMessage("MAIN_RESTORE_DEFAULTS")?>">
+<?php if (!empty($_REQUEST["back_url_settings"])):?>
+<input <?php if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> type="submit" name="Save" value="<?= GetMessage("MAIN_SAVE")?>" title="<?= GetMessage("MAIN_OPT_SAVE_TITLE")?>" class="adm-btn-save">
+<?php endif?>
+<input <?php if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> type="submit" name="Apply" value="<?= GetMessage("MAIN_OPT_APPLY")?>" title="<?= GetMessage("MAIN_OPT_APPLY_TITLE")?>"<?php if($_REQUEST["back_url_settings"] == ""):?>  class="adm-btn-save"<?php endif?>>
+<?php if (!empty($_REQUEST["back_url_settings"])):?>
+<input type="button" name="" value="<?= GetMessage("MAIN_OPT_CANCEL")?>" title="<?= GetMessage("MAIN_OPT_CANCEL_TITLE")?>" onclick="window.location='<?= htmlspecialcharsbx(CUtil::JSEscape($_REQUEST["back_url_settings"]))?>'">
+<?php endif?>
+<input <?php if (!$USER->IsAdmin()) echo "disabled" ?> type="button" title="<?= GetMessage("MAIN_HINT_RESTORE_DEFAULTS")?>" OnClick="RestoreDefaults();" value="<?= GetMessage("MAIN_RESTORE_DEFAULTS")?>">
 <input type="hidden" name="Update" value="Y">
-<input type="hidden" name="back_url_settings" value="<?echo htmlspecialcharsbx($_REQUEST["back_url_settings"])?>">
-<?$tabControl->End();?>
+<input type="hidden" name="back_url_settings" value="<?= htmlspecialcharsbx($_REQUEST["back_url_settings"])?>">
+<?php
+$tabControl->End();
+?>
 </form>
 
-<?
+<?php
 $message = null;
 
 if(
 	!IsModuleInstalled("controller")
 	&& $_SERVER["REQUEST_METHOD"] == "POST"
-	&& ($_POST["controller_join"] <> '' || $_POST["controller_remove"] <> '' || $_POST["controller_save_proxy"] <> '')
+	&& (!empty($_POST["controller_join"]) || !empty($_POST["controller_remove"]) || !empty($_POST["controller_save_proxy"]))
 	&& $USER->IsAdmin()
 	&& check_bitrix_sessid()
 )
@@ -975,13 +1018,21 @@ if(
 	COption::SetOptionString("main", "controller_proxy_url", $_POST["controller_proxy_url"]);
 	COption::SetOptionString("main", "controller_proxy_port", $_POST["controller_proxy_port"]);
 	COption::SetOptionString("main", "controller_proxy_user", $_POST["controller_proxy_user"]);
-	COption::SetOptionString("main", "controller_proxy_password", $_POST["controller_proxy_password"]);
+
+	if (isset($_POST['controller_proxy_password_delete']) && $_POST['controller_proxy_password_delete'] == "Y")
+	{
+		COption::SetOptionString("main", "controller_proxy_password", '');
+	}
+	elseif (!empty($_POST["controller_proxy_password"]))
+	{
+		COption::SetOptionString("main", "controller_proxy_password", $_POST["controller_proxy_password"]);
+	}
 }
 
 if(
 	!IsModuleInstalled("controller")
 	&& $_SERVER["REQUEST_METHOD"] == "POST"
-	&& ($_POST["controller_join"] <> '' && $_POST["controller_save_proxy"] == '')
+	&& (!empty($_POST["controller_join"]) && empty($_POST["controller_save_proxy"]))
 	&& $USER->IsAdmin()
 	&& check_bitrix_sessid()
 	&& COption::GetOptionString("main", "controller_member", "N") != "Y"
@@ -991,7 +1042,7 @@ if(
 	{
 		if($_POST["controller_login"] == '' || $_POST["controller_password"] == '')
 		{
-			list($member_id, $member_secret_id, $ticket_id) = CControllerClient::InitTicket($_POST["controller_url"]);
+			[$member_id, $member_secret_id, $ticket_id] = CControllerClient::InitTicket($_POST["controller_url"]);
 			LocalRedirect($_POST["controller_url"]."/bitrix/admin/controller_member_edit.php?lang=".LANGUAGE_ID.'&URL='.urlencode($_POST["site_url"]).'&NAME='.urlencode($_POST["site_name"]).'&MEMBER_ID='.$member_id.'&SECRET_ID='.$member_secret_id.'&TICKET_ID='.$ticket_id.'&back_url='.urlencode(($APPLICATION->IsHTTPS()?"https://":"http://").$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']));
 		}
 		else
@@ -1013,7 +1064,7 @@ $bControllerRemoveError = false;
 if(
 	!IsModuleInstalled("controller")
 	&& $_SERVER["REQUEST_METHOD"] == "POST"
-	&& ($_POST["controller_remove"] <> '' && $_POST["controller_save_proxy"] == '')
+	&& (!empty($_POST["controller_remove"]) && empty($_POST["controller_save_proxy"]))
 	&& $USER->IsAdmin()
 	&& check_bitrix_sessid()
 	&& COption::GetOptionString("main", "controller_member", "N") == "Y"
@@ -1045,7 +1096,7 @@ if($message)
 	echo $message->Show();
 ?>
 <h2><?=GetMessage("MAIN_SUB2")?></h2>
-<?
+<?php
 $aTabs = array(
 	array("DIV" => "fedit2", "TAB" => GetMessage("MAIN_TAB_4"), "ICON" => "main_settings", "TITLE" => GetMessage("MAIN_OPTION_PUBL"))
 );
@@ -1065,43 +1116,46 @@ $tabControl = new CAdminTabControl("tabControl2", $aTabs, true, true);
 
 $tabControl->Begin();
 ?>
-<form method="POST" action="<?echo $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?echo LANG?>">
+<form method="POST" action="<?= $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?= LANG?>">
 <?=bitrix_sessid_post()?>
 <input type="hidden" name="tabControl2_active_tab" value="fedit2">
 
-<?$tabControl->BeginNextTab();?>
+<?php
+$tabControl->BeginNextTab();?>
 <tr>
 	<td colspan="2" align="left">
-		<?if(COption::GetOptionString("main", "site_stopped", "N")=="Y"):?>
-			<span style="color:red;"><?echo GetMessage("MAIN_OPTION_PUBL_CLOSES")?></span>
-		<?else:?>
-			<span style="color:green;"><?echo GetMessage("MAIN_OPTION_PUBL_OPENED")?></span>
-		<?endif?>
+		<?php if(COption::GetOptionString("main", "site_stopped", "N")=="Y"):?>
+			<span style="color:red;"><?= GetMessage("MAIN_OPTION_PUBL_CLOSES")?></span>
+		<?php else:?>
+			<span style="color:green;"><?= GetMessage("MAIN_OPTION_PUBL_OPENED")?></span>
+		<?php endif?>
 		<br><br>
 	</td>
 </tr>
 <tr>
 	<td colspan="2" align="left">
-		<?if(COption::GetOptionString("main", "site_stopped", "N")=="Y"):?>
+		<?php if(COption::GetOptionString("main", "site_stopped", "N")=="Y"):?>
 			<input type="hidden" name="start_site" value="Y">
-			<input type="submit" <?if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> name="start_siteb" value="<?echo GetMessage("MAIN_OPTION_PUBL_OPEN")?>">
-		<?else:?>
+			<input type="submit" <?php if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> name="start_siteb" value="<?= GetMessage("MAIN_OPTION_PUBL_OPEN")?>">
+		<?php else:?>
 			<input type="hidden" name="stop_site" value="Y">
-			<input type="submit" <?if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> name="stop_siteb" value="<?echo GetMessage("MAIN_OPTION_PUBL_CLOSE")?>">
-		<?endif?>
+			<input type="submit" <?php if (!$USER->CanDoOperation('edit_other_settings')) echo "disabled" ?> name="stop_siteb" value="<?= GetMessage("MAIN_OPTION_PUBL_CLOSE")?>">
+		<?php endif?>
 	</td>
 </tr>
 
-<?$tabControl->EndTab();?>
+<?php
+$tabControl->EndTab();?>
 </form>
 
-<?if(!IsModuleInstalled("controller")):?>
-<form method="POST" action="<?echo $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?echo LANG?>">
+<?php if(!IsModuleInstalled("controller")):?>
+<form method="POST" action="<?= $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?= LANG?>">
 <?=bitrix_sessid_post()?>
 <input type="hidden" name="tabControl2_active_tab" value="fedit4">
-<?$tabControl->BeginNextTab();?>
-<?
-if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
+<?php
+$tabControl->BeginNextTab();?>
+<?php
+if (COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	if(!isset($site_url) || $site_url == '')
 		$site_url = ($APPLICATION->IsHTTPS()?"https://":"http://").$_SERVER['HTTP_HOST'];
 ?>
@@ -1117,36 +1171,36 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	}
 	</script>
 	<tr class="adm-detail-required-field">
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_URL")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_URL")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_url"] ?? '');?>" name="controller_url" id="controller_url"></td>
 	</tr>
 	<tr class="heading">
-		<td colspan="2"><b><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADDIT_SECT")?></b></td>
+		<td colspan="2"><b><?= GetMessage("MAIN_OPTION_CONTROLLER_ADDIT_SECT")?></b></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_LOGIN")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_ADM_LOGIN")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_login"] ?? '');?>" name="controller_login" id="controller_login"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_PASSWORD")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_ADM_PASSWORD")?></td>
 		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_password"] ?? '');?>" name="controller_password" id="controller_password"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_SITENAME")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_SITENAME")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["site_name"] ?? '');?>" name="site_name" id="site_name"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_SITEURL")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_SITEURL")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["site_url"] ?? '');?>" name="site_url" id="site_url"></td>
 	</tr>
 	<tr>
 		<td>&nbsp;</td>
 		<td>
 			<input type="hidden" name="controller_join" value="Y">
-			<input type="submit" name="controller_join" value="<?echo GetMessage("MAIN_OPTION_CONTROLLER_ADD_BUTT")?>" <?if (!$USER->IsAdmin()) echo "disabled" ?> class="adm-btn-save">
+			<input type="submit" name="controller_join" value="<?= GetMessage("MAIN_OPTION_CONTROLLER_ADD_BUTT")?>" <?php if (!$USER->IsAdmin()) echo "disabled" ?> class="adm-btn-save">
 		</td>
 	</tr>
-<?else: //if(COption::GetOptionString("main", "controller_member", "N")!="Y"?>
+<?php else: //if(COption::GetOptionString("main", "controller_member", "N")!="Y"?>
 	<script>
 	function __ClickContrlMemb()
 	{
@@ -1154,70 +1208,78 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	}
 	</script>
 	<tr>
-		<td><span class="required">*</span><?echo GetMessage("MAIN_OPTION_CONTROLLER_INFO")?></td>
+		<td><span class="required">*</span><?= GetMessage("MAIN_OPTION_CONTROLLER_INFO")?></td>
 		<td><?=htmlspecialcharsbx(COption::GetOptionString("main", "controller_url", ""));?></td>
 	</tr>
 	<tr>
 		<td>&nbsp;</td>
 		<td>
 			<input type="hidden" name="controller_remove" value="Y">
-			<input type="submit" name="controller_remove" value="<?echo GetMessage("MAIN_OPTION_CONTROLLER_UN_BUTT")?>" <?if (!$USER->IsAdmin()) echo "disabled" ?>>
+			<input type="submit" name="controller_remove" value="<?= GetMessage("MAIN_OPTION_CONTROLLER_UN_BUTT")?>" <?php if (!$USER->IsAdmin()) echo "disabled" ?>>
 		</td>
 	</tr>
-	<?if($bControllerRemoveError):?>
+	<?php if($bControllerRemoveError):?>
 	<tr>
-		<td><label for="remove_anywhere"><?echo GetMessage("MAIN_OPTION_CONTROLLER_UN_CHECKB")?></label></td>
+		<td><label for="remove_anywhere"><?= GetMessage("MAIN_OPTION_CONTROLLER_UN_CHECKB")?></label></td>
 		<td><input type="checkbox" name="remove_anywhere" id="remove_anywhere" value="Y"></td>
 	</tr>
-	<?endif;?>
+	<?php endif;?>
 	<tr class="heading">
-		<td colspan="2"><b><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADDIT_SECT")?></b></td>
+		<td colspan="2"><b><?= GetMessage("MAIN_OPTION_CONTROLLER_ADDIT_SECT")?></b></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_LOGIN")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_ADM_LOGIN")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_login"] ?? '');?>" name="controller_login" id="controller_login"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_ADM_PASSWORD")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_ADM_PASSWORD")?></td>
 		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx($_POST["controller_password"] ?? '');?>" name="controller_password" id="controller_password"></td>
 	</tr>
-<?endif; //if(COption::GetOptionString("main", "controller_member", "N")!="Y"?>
+<?php endif; //if(COption::GetOptionString("main", "controller_member", "N")!="Y"?>
 	<tr class="heading">
-		<td colspan="2"><b><?echo GetMessage("MAIN_OPTION_CONTROLLER_PROXY_SECTION")?></b></td>
+		<td colspan="2"><b><?= GetMessage("MAIN_OPTION_CONTROLLER_PROXY_SECTION")?></b></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_PROXY_ADDR")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_PROXY_ADDR")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx(COption::GetOptionString("main", "controller_proxy_url"));?>" name="controller_proxy_url" id="controller_proxy_url"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_PROXY_PORT")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_PROXY_PORT")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx(COption::GetOptionString("main", "controller_proxy_port"));?>" name="controller_proxy_port" id="controller_proxy_port"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_PROXY_USER")?></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_PROXY_USER")?></td>
 		<td><input type="text" size="30" maxlength="255" value="<?=htmlspecialcharsbx(COption::GetOptionString("main", "controller_proxy_user"));?>" name="controller_proxy_user" id="controller_proxy_user"></td>
 	</tr>
 	<tr>
-		<td><?echo GetMessage("MAIN_OPTION_CONTROLLER_PROXY_PASSWORD")?></td>
-		<td><input type="password" size="30" maxlength="255" value="<?=htmlspecialcharsbx(COption::GetOptionString("main", "controller_proxy_password"));?>" name="controller_proxy_password" id="controller_proxy_password"></td>
+		<td><?= GetMessage("MAIN_OPTION_CONTROLLER_PROXY_PASSWORD")?></td>
+		<td>
+			<?php
+				$val = COption::GetOptionString("main", "controller_proxy_password");
+			?>
+			<input type="password" size="30" maxlength="255" value="" name="controller_proxy_password" id="controller_proxy_password"<?php if ($val != ''):?> placeholder="<?= GetMessage('MAIN_OPTION_CONTROLLER_PROXY_PASS_SET') ?>"<?php endif; ?> autocomplete="new-password">
+			<?php if ($val != ''):?><label><input type="checkbox" name="controller_proxy_password_delete" value="Y" title="<?= GetMessage('MAIN_OPTION_CONTROLLER_PROXY_PASS_DEL_TITLE') ?>"> <?= GetMessage('MAIN_OPTION_CONTROLLER_PROXY_PASS_DEL') ?></label><?php endif?>
+		</td>
 	</tr>
 	<tr>
 		<td>&nbsp;</td>
 		<td>
-			<input type="submit" name="controller_save_proxy" value="<?echo GetMessage("MAIN_OPTION_CONTROLLER_PROXY_SAVE")?>" <?if (!$USER->IsAdmin()) echo "disabled" ?>>
+			<input type="submit" name="controller_save_proxy" value="<?= GetMessage("MAIN_OPTION_CONTROLLER_PROXY_SAVE")?>" <?php if (!$USER->IsAdmin()) echo "disabled" ?>>
 		</td>
 	</tr>
-<?$tabControl->EndTab();?>
+<?php
+$tabControl->EndTab();?>
 </form>
-<?endif; //if(IsModuleInstalled("controller"))?>
+<?php endif; //if(IsModuleInstalled("controller"))?>
 
-<?if ($diskSpace > 0):?>
-<?$tabControl->BeginNextTab();?>
+<?php if ($diskSpace > 0):?>
+<?php
+	$tabControl->BeginNextTab();?>
 <tr>
 <td align="left">
 <IFRAME style="width:0; height:0; border:none;" src="javascript:void(0)" name="frame_disk_quota" id="frame_disk_quota"></IFRAME>
-<?
-	$arParam = array();
+<?php
+$arParam = array();
 	$usedSpace = 0;
 	$quota = new CDiskQuota();
 
@@ -1248,7 +1310,7 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	(<span id="div_time_db"><?=date(CDatabase::DateFormatToPHP(CLang::GetDateFormat("FULL", LANG)), $arParam["db"]["time"])?></span>)
 	</label></td></tr>
 	<tr><td><div class="pbar-mark-green"></div></td><td><input type="radio" name="size" id="files" value="files" onclick="CheckButtons(this);" /><input type="hidden" name="result_files" id="result_files" value="<?=$arParam["files"]["status"]?>" /> <label for="files"><?=GetMessage("MAIN_OPTION_SIZE_DISTR")?>: <span id="div_files"><?=round(($arParam["files"]["size"]/1048576), 2)?></span>Mb</label>
-	(<span id="div_time_files"><?=date(CDatabase::DateFormatToPHP(CLang::GetDateFormat("FULL", LANG)), $arParam["files"]["time"])?></span>)</td></tr></table><?
+	(<span id="div_time_files"><?=date(CDatabase::DateFormatToPHP(CLang::GetDateFormat("FULL", LANG)), $arParam["files"]["time"])?></span>)</td></tr></table><?php
 	$usedSpace = intval(($usedSpace/$diskSpace)*100);
 ?><div class="pbar-outer">
 		<div id="pb_db" class="pbar-inner-red<?=($arParam["db"]["status"] == "done" ? "" : "-error")?>" style="width:<?=intval($arParam["db"]["size_in_per"]*350)?>px; padding-left:<?=intval($arParam["db"]["size_in_per"]*350)?>px;">&nbsp;</div><div id="pb_files" class="pbar-inner-green<?=($arParam["files"]["status"] == "done" ? "" : "-error")?>" style="width:<?=intval($arParam["files"]["size_in_per"]*350)?>px; padding-left:<?=intval($arParam["files"]["size_in_per"]*350)?>px;">&nbsp;</div>
@@ -1260,8 +1322,8 @@ if(COption::GetOptionString("main", "controller_member", "N")!="Y"):
 	</td>
 </tr>
 
-<?if ($USER->CanDoOperation('edit_other_settings')):?>
-<script language="JavaScript">
+<?php if ($USER->CanDoOperation('edit_other_settings')):?>
+<script>
 var result = {'stop':false, 'done':true, 'error':false, 'db':{'size': <?=intval($arParam["db"]["size"])?>}, 'files':{'size':<?=intval($arParam["files"]["size"])?>}};
 diskSpace = <?=$diskSpace?>;
 window.onStepDone = function(name){
@@ -1381,7 +1443,7 @@ function DoNext(name, id, recount)
 			result['done'] = false;
 			if (recount == 'begin')
 				str = '&recount=begin';
-			document.getElementById('frame_disk_quota').src='/bitrix/admin/quota.php?name=' + id + '&id=' + name + str + '&<?echo bitrix_sessid_get()?>';
+			document.getElementById('frame_disk_quota').src='/bitrix/admin/quota.php?name=' + id + '&id=' + name + str + '&<?= bitrix_sessid_get()?>';
 		}
 	}
 	else
@@ -1393,27 +1455,29 @@ function DoNext(name, id, recount)
 }
 CheckButtons();
 </script>
-<?endif;?>
+<?php endif;?>
 
-<?$tabControl->EndTab();?>
-<?endif;?>
+<?php
+	$tabControl->EndTab();?>
+<?php endif;?>
 
-<form method="POST" action="<?echo $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?echo LANG?>" enctype="multipart/form-data">
+<form method="POST" action="<?= $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialcharsbx($mid)?>&amp;lang=<?= LANG?>" enctype="multipart/form-data">
 <?=bitrix_sessid_post()?>
 <input type="hidden" name="tabControl2_active_tab" value="fedit5">
 
-<?$tabControl->BeginNextTab();?>
-<?
+<?php
+$tabControl->BeginNextTab();?>
+<?php
 $customWeakPasswords = COption::GetOptionString('main', 'custom_weak_passwords', 'N');
 ?>
 <tr>
 	<td>
-		<label><input type="radio" name="custom_weak_passwords" value="N"<?= ($customWeakPasswords !== 'Y' ? ' checked' : '')?>><?echo GetMessage("main_options_weak_pass_use_default")?></label>
+		<label><input type="radio" name="custom_weak_passwords" value="N"<?= ($customWeakPasswords !== 'Y' ? ' checked' : '')?>><?= GetMessage("main_options_weak_pass_use_default")?></label>
 	</td>
 </tr>
 <tr>
 	<td>
-		<label><input type="radio" name="custom_weak_passwords" value="Y"<?= ($customWeakPasswords === 'Y' ? ' checked' : '')?>><?echo GetMessage("main_options_weak_pass_use_custom")?></label>
+		<label><input type="radio" name="custom_weak_passwords" value="Y"<?= ($customWeakPasswords === 'Y' ? ' checked' : '')?>><?= GetMessage("main_options_weak_pass_use_custom")?></label>
 	</td>
 </tr>
 <tr>
@@ -1425,16 +1489,18 @@ $customWeakPasswords = COption::GetOptionString('main', 'custom_weak_passwords',
 <tr>
 	<td>
 		<?= BeginNote()?>
-		<?echo GetMessage("main_options_weak_pass_note")?>
+		<?= GetMessage("main_options_weak_pass_note")?>
 		<?= EndNote()?>
 	</td>
 </tr>
 <tr>
 	<td>
-		<input type="submit" <?if (!$USER->CanDoOperation('edit_php')) echo "disabled" ?> name="save_passwords" value="<?echo GetMessage("MAIN_SAVE")?>" class="adm-btn-save">
+		<input type="submit" <?php if (!$USER->CanDoOperation('edit_php')) echo "disabled" ?> name="save_passwords" value="<?= GetMessage("MAIN_SAVE")?>" class="adm-btn-save">
 	</td>
 </tr>
-<?$tabControl->EndTab();?>
+<?php
+$tabControl->EndTab();?>
 </form>
 
-<?$tabControl->End();?>
+<?php
+$tabControl->End();?>

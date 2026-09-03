@@ -3,11 +3,9 @@ namespace Bitrix\Pull;
 
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Config\Option;
-use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Security\Random;
 use Bitrix\Pull\SharedServer\Client;
-
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\Web\Uri;
 
 class Config
 {
@@ -42,11 +40,8 @@ class Config
 
 		if ($userId !== 0)
 		{
-			if (\CPullOptions::GetQueueServerVersion() < 5)
-			{
-				$privateChannelType = $params['CUSTOM_TYPE'] ?? \CPullChannel::TYPE_PRIVATE;
-				$privateChannel = \CPullChannel::Get($userId, $cache, $reopen, $privateChannelType);
-			}
+			$privateChannelType = $params['CUSTOM_TYPE'] ?? \CPullChannel::TYPE_PRIVATE;
+			$privateChannel = \CPullChannel::Get($userId, $cache, $reopen, $privateChannelType);
 			$sharedChannelType = $params['CUSTOM_TYPE'] ?? \CPullChannel::TYPE_SHARED;
 			$sharedChannel = \CPullChannel::GetShared($cache, $reopen, $sharedChannelType);
 		}
@@ -68,6 +63,7 @@ class Config
 			'VERSION' => $isSharedMode ? \Bitrix\Pull\SharedServer\Config::getServerVersion(): \CPullOptions::GetQueueServerVersion(),
 			'SERVER_ENABLED' => \CPullOptions::GetQueueServerStatus(),
 			'MODE' => \CPullOptions::GetQueueServerMode(),
+			'HOSTNAME' => Config::getHostname(),
 			'LONG_POLLING' => $isSharedMode ? \Bitrix\Pull\SharedServer\Config::getLongPollingUrl(): \CPullOptions::GetListenUrl(),
 			'LONG_POOLING_SECURE' => $isSharedMode ? \Bitrix\Pull\SharedServer\Config::getLongPollingUrl() : \CPullOptions::GetListenSecureUrl(),
 			'WEBSOCKET_ENABLED' => $isSharedMode ? true : \CPullOptions::GetWebSocket(),
@@ -141,11 +137,21 @@ class Config
 			{
 				$channelsForToken[] = $sharedChannel['CHANNEL_ID'];
 			}
-			if ($privateChannel)
+			if ($privateChannel && $userId == 0)
 			{
 				$channelsForToken[] = $privateChannel['CHANNEL_ID'];
+				if ($privateChannel['CHANNEL_PUBLIC_ID'] != '')
+				{
+					$channelsForToken[] = $privateChannel['CHANNEL_PUBLIC_ID'];
+				}
 			}
-			$config['JWT'] = \Bitrix\Pull\Auth\Jwt::create($channelsForToken, $userId);
+			[$config['JWT'], $config['EXP']] = \Bitrix\Pull\Auth\Jwt::create($channelsForToken, $userId, [
+				'ttl' => \CPullOptions::GetConfigTtl()
+			]);
+		}
+		if (\CPullOptions::GetConfigTtl() > 0 && !isset($config['EXP']))
+		{
+			$config['EXP'] = time() + \CPullOptions::GetConfigTtl();
 		}
 
 		if ($params['JSON'])
@@ -169,6 +175,10 @@ class Config
 			if (isset($config['JWT']))
 			{
 				$result['jwt'] = $config['JWT'];
+			}
+			if (isset($config['EXP']))
+			{
+				$result['exp'] = $config['EXP'];
 			}
 
 			$result['publicChannels'] = $config['PUBLIC_CHANNELS'];
@@ -202,7 +212,7 @@ class Config
 			$params["CHANNEL_ID"] = $channelId;
 		}
 
-		return \CHTTP::urlAddParams($result, $params);
+		return (string)(new Uri($result))->addParams($params);
 	}
 
 	public static function getJsonRpcUrl()
@@ -218,7 +228,21 @@ class Config
 			$result = \CPullOptions::GetJsonRpcUrl();
 		}
 
-		return \CHTTP::urlAddParams($result, $params);
+		return (string)(new Uri($result))->addParams($params);
+	}
+
+	public static function getHostname(): string
+	{
+		if (defined('BX24_HOST_NAME'))
+		{
+			return BX24_HOST_NAME;
+		}
+		else if (defined('SITE_SERVER_NAME') && SITE_SERVER_NAME)
+		{
+			return SITE_SERVER_NAME;
+		}
+
+		return Option::get('main', 'server_name', '');
 	}
 
 	public static function getHostId()

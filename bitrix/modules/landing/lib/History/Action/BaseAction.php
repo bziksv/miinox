@@ -1,6 +1,8 @@
 <?php
 namespace Bitrix\Landing\History\Action;
 
+use Bitrix\Landing\History\ActionParamsGuard;
+
 abstract class BaseAction
 {
 	protected const JS_COMMAND = '';
@@ -25,8 +27,50 @@ abstract class BaseAction
 		return $this->params;
 	}
 
-	abstract public function execute(bool $undo = true): bool;
+	/**
+	 * Security gate → domain apply. Final: no step may reach its sink bypassing the gate.
+	 * (1) universal raw-`<?` marker over the whole params tree (covers non-declaring actions
+	 * and MULTIPLY children); (2) XSS audit of declared HTML keys, mirroring History::push.
+	 */
+	final public function execute(bool $undo = true): bool
+	{
+		if (ActionParamsGuard::containsUnneutralizedPhpOpenTagDeep($this->params))
+		{
+			return false;
+		}
+
+		$sanitizableParamKeys = static::getSanitizableParamKeys();
+		if (
+			$sanitizableParamKeys !== []
+			&& !ActionParamsGuard::validateParams($this->params, $sanitizableParamKeys, static::class)
+		)
+		{
+			return false;
+		}
+
+		return $this->doExecute($undo);
+	}
+
+	abstract protected function doExecute(bool $undo = true): bool;
 	abstract public static function enrichParams(array $params): array;
+
+	/**
+	 * Param keys that may carry user HTML and must pass ActionParamsGuard.
+	 *
+	 * @return list<string>
+	 */
+	public static function getSanitizableParamKeys(): array
+	{
+		return [];
+	}
+
+	/**
+	 * Normalize param value before sanitization check (e.g. emoji decode in stored params).
+	 */
+	public static function normalizeSanitizableParam(string $key, mixed $value): mixed
+	{
+		return $value;
+	}
 
 	/**
 	 * If need - do preliminary operations before del from table
@@ -43,6 +87,7 @@ abstract class BaseAction
 	 */
 	public function isNeedPush(): bool
 	{
+		// todo: compare valuebefore||valueafter (see examples in some actions)
 		return !empty($this->params);
 	}
 
@@ -56,6 +101,15 @@ abstract class BaseAction
 			'command' => static::JS_COMMAND,
 			'params' => $this->params,
 		];
+	}
+
+	/**
+	 * Get name of JS action command
+	 * @return string
+	 */
+	public static function getJsCommandName(): string
+	{
+		return static::JS_COMMAND;
 	}
 
 	/**

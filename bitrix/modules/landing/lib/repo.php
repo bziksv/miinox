@@ -1,6 +1,8 @@
 <?php
 namespace Bitrix\Landing;
 
+use Bitrix\Landing\Block\BlockRepo;
+use Bitrix\Landing\Site\Type;
 use \Bitrix\Rest\AppTable;
 
 class Repo extends \Bitrix\Landing\Internals\BaseTable
@@ -10,6 +12,12 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 	 * @var string
 	 */
 	public static $internalClass = 'RepoTable';
+
+	/**
+	 * Per-request cache of self::getBlock.
+	 * @var array
+	 */
+	private static $blockManifestCache = [];
 
 	/**
 	 * Create new record and return it new id.
@@ -69,11 +77,11 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 	 */
 	public static function getRepository()
 	{
-		$items = array();
+		$items = [];
 		$siteId = Manager::getMainSiteId();
 		$siteTemplateId = Manager::getTemplateId($siteId);
 		$langPortal = LANGUAGE_ID;
-		if (in_array($langPortal, ['ru', 'kz', 'by']))
+		if (in_array($langPortal, ['ru', 'kz', 'by', 'uz']))
 		{
 			$langPortal = 'ru';
 		}
@@ -119,18 +127,22 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 				$row['NAME'] = $manifest['lang']['en'][$row['NAME']];
 			}
 
-			$items['repo_'. $row['ID']] = array(
+			$blockManifest = [
 				'id' => null,
+				'new' => (time() - $row['DATE_CREATE_TIMESTAMP']) < BlockRepo::NEW_BLOCK_LT,
 				'name' => $row['NAME'],
-				'namespace' => $row['APP_CODE'],
-				'new' => (time() - $row['DATE_CREATE_TIMESTAMP']) < Block::NEW_BLOCK_LT,
-				'section' => explode(',', $row['SECTIONS']),
 				'description' => $row['DESCRIPTION'],
+				'namespace' => $row['APP_CODE'],
+				'type' => (array)($manifest['block']['type'] ?? []),
+				'section' => explode(',', $row['SECTIONS']),
 				'preview' => $row['PREVIEW'],
 				'restricted' => true,
 				'repo_id' => $row['ID'],
-				'app_code' => $row['APP_CODE']
-			);
+				'app_code' => $row['APP_CODE'],
+			];
+
+			$blockManifest = Type::prepareBlockManifest(['block' => $blockManifest]);
+			$items['repo_'. $row['ID']] = $blockManifest['block'];
 		}
 
 		return $items;
@@ -143,11 +155,9 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 	 */
 	public static function getBlock($id)
 	{
-		static $manifest = array();
-
-		if (!isset($manifest[$id]))
+		if (!isset(self::$blockManifestCache[$id]))
 		{
-			$manifest[$id] = array();
+			self::$blockManifestCache[$id] = array();
 			if (($block = self::getById($id)->fetch()))
 			{
 				$manifestLocal = unserialize($block['MANIFEST'], ['allowed_classes' => false]);
@@ -166,29 +176,42 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 					'name' => $block['NAME'],
 					'description' => $block['DESCRIPTION'],
 					'namespace' => $block['APP_CODE'],
+					'type' => (array)($blockDesc['type'] ?? []),
 					'section' => explode(',', $block['SECTIONS']),
 					'preview' => $block['PREVIEW'],
 					'restricted' => true,
 					'repo_id' => $block['ID'],
 					'xml_id' => $block['XML_ID'],
-					'app_code' => $block['APP_CODE']
+					'app_code' => $block['APP_CODE'],
 				);
 				if (isset($blockDesc['subtype']))
 				{
 					$manifestLocal['block']['subtype'] = $blockDesc['subtype'];
+					$manifestLocal['block']['subtype_params'] = $blockDesc['subtype_params'] ?? [];
 				}
-				$manifest[$id] = $manifestLocal;
-				$manifest[$id]['timestamp'] = $block['DATE_MODIFY']->getTimeStamp();
+
+				self::$blockManifestCache[$id] = Type::prepareBlockManifest($manifestLocal);
+				self::$blockManifestCache[$id]['timestamp'] = $block['DATE_MODIFY']->getTimeStamp();
 			}
 		}
 
-		return $manifest[$id];
+		return self::$blockManifestCache[$id];
+	}
+
+	/**
+	 * Clear per-request cache of self::getBlock for one repo row.
+	 * @param int $id Repo row id.
+	 * @return void
+	 */
+	public static function clearBlockCache(int $id): void
+	{
+		unset(self::$blockManifestCache[$id]);
 	}
 
 	/**
 	 * Get row by Id.
 	 * @param int $id Id.
-	 * @return Bitrix\Main\DB\Result
+	 * @return \Bitrix\Main\DB\Result
 	 */
 	public static function getById($id)
 	{
@@ -233,7 +256,7 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 	 * @param array|int $id Repo block id(s).
 	 * @return array
 	 */
-	public static function getAppInfo($id)
+	public static function getAppInfo(array|int $id): ?array
 	{
 		$isArray = is_array($id);
 		if (!$isArray)
@@ -282,7 +305,7 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 			return $isArray ? $id : array_pop($id);
 		}
 
-		return $apps;
+		return $apps ?? null;
 	}
 
 	/**
@@ -305,8 +328,10 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 			{
 				$row['APP_STATUS'] = AppTable::getAppStatusInfo($row, '');
 				$apps[$row['CODE']] = array(
+					'ID' => $row['ID'],
 					'CODE' => $row['CODE'],
 					'APP_NAME' => $row['APP_NAME'],
+					'CLIENT_ID' => $row['CLIENT_ID'],
 					'VERSION' => $row['VERSION'],
 					'DATE_FINISH' => $row['DATE_FINISH'],
 					'PAYMENT_ALLOW' => $row['APP_STATUS']['PAYMENT_ALLOW']

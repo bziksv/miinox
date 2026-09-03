@@ -8,7 +8,7 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Web\Json;
 use Bitrix\Sender\Internals\PrettyDate;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 $containerId = 'bx-sender-trigger-chain';
@@ -41,7 +41,7 @@ $dictionaryTimeList = array(
 	),
 );
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Sender.Letter.Chain.init(<?=Json::encode([
 			'containerId' => $containerId,
@@ -158,11 +158,11 @@ $getSenderItemContainer = function (array $letter = []) use ($arParams)
 	</script>
 
 	<?
-	$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' => array(
-		array('type' => 'buttons', 'list' => array(
-			array('type' => 'feedback')
-		)),
-	)));
+	$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", ['LIST' => [
+		['type' => 'buttons', 'list' => [
+			['type' => 'feedback']
+		]],
+	]]);
 	?>
 
 	<div id="SENDER_TIME_DIALOG" class="sender-time-dialog">

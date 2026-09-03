@@ -1,4 +1,4 @@
-<?
+<?php
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
@@ -47,8 +47,8 @@ class MainUserSelectorComponent extends CBitrixComponent
 		$this->arParams['READONLY'] = isset($this->arParams['READONLY']) ? (bool) $this->arParams['READONLY'] : false;
 		$this->arParams['BUTTON_SELECT_CAPTION'] = $this->arParams['BUTTON_SELECT_CAPTION'] ?? null;
 		$this->arParams['BUTTON_SELECT_CAPTION_MORE'] = $this->arParams['BUTTON_SELECT_CAPTION_MORE'] ?? $this->arParams['BUTTON_SELECT_CAPTION'];
-		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? \CAllSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
-		$this->arParams['SELECTOR_OPTIONS'] = is_array($this->arParams['SELECTOR_OPTIONS']) ? $this->arParams['SELECTOR_OPTIONS'] : [];
+		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
+		$this->arParams['SELECTOR_OPTIONS'] = isset($this->arParams['SELECTOR_OPTIONS']) && is_array($this->arParams['SELECTOR_OPTIONS']) ? $this->arParams['SELECTOR_OPTIONS'] : [];
 		$this->arParams['FIRE_CLICK_EVENT'] = isset($this->arParams['FIRE_CLICK_EVENT']) && $this->arParams['FIRE_CLICK_EVENT'] == 'Y' ? 'Y' : 'N';
 		$this->arParams['LOCK'] = isset($this->arParams['LOCK']) ? (bool) $this->arParams['LOCK'] : false;
 
@@ -127,7 +127,7 @@ class MainUserSelectorComponent extends CBitrixComponent
 				? $this->arParams['UNDELETABLE']
 				: []
 		);
-		$this->arResult['IS_INPUT_MULTIPLE'] = mb_substr($this->arParams['INPUT_NAME'], -2) == '[]';
+		$this->arResult['IS_INPUT_MULTIPLE'] = str_ends_with($this->arParams['INPUT_NAME'], '[]');
 		$this->arResult['FIRE_CLICK_EVENT'] = (
 			$this->arParams['FIRE_CLICK_EVENT'] == 'Y'
 			&& empty($this->arParams['LIST'])
@@ -239,7 +239,7 @@ class MainUserSelectorComponent extends CBitrixComponent
 			}
 
 			// format name
-			$userName = \CAllUser::FormatName(
+			$userName = CUser::FormatName(
 				$this->arParams['NAME_TEMPLATE'],
 				[
 					'LOGIN' => $userData['LOGIN'],

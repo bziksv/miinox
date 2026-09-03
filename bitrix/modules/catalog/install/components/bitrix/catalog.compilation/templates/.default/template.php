@@ -99,8 +99,8 @@ $arParams['~MESS_BTN_COMPARE'] = $arParams['~MESS_BTN_COMPARE'] ?: Loc::getMessa
 $arParams['~MESS_BTN_SUBSCRIBE'] = $arParams['~MESS_BTN_SUBSCRIBE'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_SUBSCRIBE');
 $arParams['~MESS_BTN_ADD_TO_BASKET'] = $arParams['~MESS_BTN_ADD_TO_BASKET'] ?: Loc::getMessage('CT_BCS_TPL_MESS_BTN_ADD_TO_BASKET');
 $arParams['~MESS_NOT_AVAILABLE'] = $arParams['~MESS_NOT_AVAILABLE'] ?: Loc::getMessage('CT_BCS_TPL_MESS_PRODUCT_NOT_AVAILABLE');
-$arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] = $arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CONTINUE_SHOPPING');
-$arParams['~BTN_MESSAGE_CREATE_ORDER'] = $arParams['~BTN_MESSAGE_CREATE_ORDER'] ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CREATE_ORDER');
+$arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] = ($arParams['~BTN_MESSAGE_CONTINUE_SHOPPING'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CONTINUE_SHOPPING');
+$arParams['~BTN_MESSAGE_CREATE_ORDER'] = ($arParams['~BTN_MESSAGE_CREATE_ORDER'] ?? '') ?: Loc::getMessage('CT_BCS_CATALOG_BTN_MESSAGE_CREATE_ORDER');
 $arParams['~MESS_SHOW_MAX_QUANTITY'] = $arParams['~MESS_SHOW_MAX_QUANTITY'] ?: Loc::getMessage('CT_BCS_CATALOG_SHOW_MAX_QUANTITY');
 $arParams['~MESS_RELATIVE_QUANTITY_MANY'] = $arParams['~MESS_RELATIVE_QUANTITY_MANY'] ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_MANY');
 $arParams['MESS_RELATIVE_QUANTITY_MANY'] = $arParams['MESS_RELATIVE_QUANTITY_MANY'] ?: Loc::getMessage('CT_BCS_CATALOG_RELATIVE_QUANTITY_MANY');
@@ -170,7 +170,7 @@ $themeClass = isset($arParams['TEMPLATE_THEME']) ? ' bx-'.$arParams['TEMPLATE_TH
 		{
 			foreach ($arResult['ITEMS'] as $item)
 			{
-				$uniqueId = $item['ID'].'_'.md5($this->randString().$component->getAction()).$arResult['AREA_ID_ADDITIONAL_SALT'];
+				$uniqueId = $item['ID'] . '_' . md5($this->randString() . $component->getAction());
 				$this->addEditAction($uniqueId, $item['EDIT_LINK'], $elementEdit);
 				$this->addDeleteAction($uniqueId, $item['DELETE_LINK'], $elementDelete, $elementDeleteParams);
 

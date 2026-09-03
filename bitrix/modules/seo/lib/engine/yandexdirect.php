@@ -8,7 +8,6 @@
 namespace Bitrix\Seo\Engine;
 
 use Bitrix\Main\ArgumentNullException;
-use Bitrix\Main\Context;
 use Bitrix\Main\Application;
 use Bitrix\Main\Entity\ExpressionField;
 use Bitrix\Main\SystemException;
@@ -19,7 +18,6 @@ use Bitrix\Seo\Adv\YandexBannerTable;
 use Bitrix\Seo\Adv\YandexCampaignTable;
 use Bitrix\Seo\Engine;
 use Bitrix\Seo\IEngine;
-use Bitrix\Main\Text;
 use Bitrix\Seo\Service;
 
 // to use Yandex.Direct Sandbox
@@ -132,8 +130,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	 */
 	public function addCampaign(array $campaignParam)
 	{
-		$result = $this->getProxy()->getInterface()->addCampaign(static::ENGINE_ID, $campaignParam);
-		
+		$result = $this->getProxy()?->getInterface()?->addCampaign(static::ENGINE_ID, $campaignParam);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -154,8 +153,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	 */
 	public function updateCampaign(array $campaignParam)
 	{
-		$result = $this->getProxy()->getInterface()->updateCampaign(static::ENGINE_ID, $campaignParam);
-		
+		$result = $this->getProxy()?->getInterface()?->updateCampaign(static::ENGINE_ID, $campaignParam);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -193,8 +193,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 		{
 			$currentCampaigns = array_slice($campaignsId, $offset, static::CAMPAIGN_LIMIT);
 			
-			$currentResult = $this->getProxy()->getInterface()->getCampaign(static::ENGINE_ID, $currentCampaigns);
-			
+			$currentResult = $this->getProxy()?->getInterface()?->getCampaign(static::ENGINE_ID, $currentCampaigns);
+ 			$currentResult = $currentResult ?? [];
+
 			if (!empty($currentResult['error']))
 			{
 				throw new YandexDirectException($currentResult);
@@ -211,8 +212,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 //	get ALL campaigns for current client
 	public function getCampaignList()
 	{
-		$result = $this->getProxy()->getInterface()->getCampaignList(static::ENGINE_ID);
-		
+		$result = $this->getProxy()?->getInterface()?->getCampaignList(static::ENGINE_ID);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -228,8 +230,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			throw new ArgumentNullException("campaignId");
 		}
 		
-		$result = $this->getProxy()->getInterface()->archiveCampaign(static::ENGINE_ID, $campaignId);
-		
+		$result = $this->getProxy()?->getInterface()?->archiveCampaign(static::ENGINE_ID, $campaignId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -245,8 +248,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			throw new ArgumentNullException("campaignId");
 		}
 		
-		$result = $this->getProxy()->getInterface()->unArchiveCampaign(static::ENGINE_ID, $campaignId);
-		
+		$result = $this->getProxy()?->getInterface()?->unArchiveCampaign(static::ENGINE_ID, $campaignId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -262,8 +266,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			throw new ArgumentNullException("campaignId");
 		}
 		
-		$result = $this->getProxy()->getInterface()->resumeCampaign(static::ENGINE_ID, $campaignId);
-		
+		$result = $this->getProxy()?->getInterface()?->resumeCampaign(static::ENGINE_ID, $campaignId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -279,8 +284,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			throw new ArgumentNullException("campaignId");
 		}
 		
-		$result = $this->getProxy()->getInterface()->stopCampaign(static::ENGINE_ID, $campaignId);
-		
+		$result = $this->getProxy()?->getInterface()?->stopCampaign(static::ENGINE_ID, $campaignId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -296,8 +302,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			throw new ArgumentNullException("campaignId");
 		}
 		
-		$result = $this->getProxy()->getInterface()->deleteCampaign(static::ENGINE_ID, $campaignId);
-		
+		$result = $this->getProxy()?->getInterface()?->deleteCampaign(static::ENGINE_ID, $campaignId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -318,8 +325,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	 */
 	public function addBanner(array $bannerParam)
 	{
-		$result = $this->getProxy()->getInterface()->addBanner(static::ENGINE_ID, $bannerParam);
-		
+		$result = $this->getProxy()?->getInterface()?->addBanner(static::ENGINE_ID, $bannerParam);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -340,8 +348,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	 */
 	public function updateBanner(array $bannerParam)
 	{
-		$result = $this->getProxy()->getInterface()->updateBanner(static::ENGINE_ID, $bannerParam);
-		
+		$result = $this->getProxy()?->getInterface()?->updateBanner(static::ENGINE_ID, $bannerParam);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -362,10 +371,11 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			$bannerId = array($bannerId);
 		}
 		
-		$result = $this->getProxy()->getInterface()->getBannerList(static::ENGINE_ID, array(
+		$result = $this->getProxy()?->getInterface()?->getBannerList(static::ENGINE_ID, array(
 			'BannerIDS' => $bannerId,
 		));
-		
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -386,10 +396,11 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			$campaignId = array($campaignId);
 		}
 		
-		$result = $this->getProxy()->getInterface()->getBannerList(static::ENGINE_ID, array(
+		$result = $this->getProxy()?->getInterface()?->getBannerList(static::ENGINE_ID, array(
 			'CampaignIDS' => $campaignId,
 		));
-		
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -410,8 +421,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			'BannerIDS' => $bannerIDs,
 		);
 		
-		$result = $this->getProxy()->getInterface()->moderateBanners(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->moderateBanners(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -433,8 +445,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 		);
 		
 		
-		$result = $this->getProxy()->getInterface()->stopBanners(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->stopBanners(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -455,8 +468,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			'BannerIDS' => $bannerIDs,
 		);
 		
-		$result = $this->getProxy()->getInterface()->resumeBanners(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->resumeBanners(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -477,8 +491,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			'BannerIDS' => $bannerIDs,
 		);
 		
-		$result = $this->getProxy()->getInterface()->archiveBanners(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->archiveBanners(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -499,8 +514,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			'BannerIDS' => $bannerIDs,
 		);
 		
-		$result = $this->getProxy()->getInterface()->unArchiveBanners(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->unArchiveBanners(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -521,8 +537,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			'BannerIDS' => $bannerIDs,
 		);
 		
-		$result = $this->getProxy()->getInterface()->deleteBanners(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->deleteBanners(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -540,7 +557,8 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	 */
 	public function getRegions()
 	{
-		$result = $this->getProxy()->getInterface()->getRegions(static::ENGINE_ID);
+		$result = $this->getProxy()?->getInterface()?->getRegions(static::ENGINE_ID);
+		$result = $result ?? [];
 		
 		if (!empty($result['error']))
 		{
@@ -560,16 +578,23 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 		}
 		else
 		{
-			$result = $this->getProxy()->getInterface()->getClientsSettings(static::ENGINE_ID);
+			$result = $this->getProxy()?->getInterface()?->getClientsSettings(static::ENGINE_ID);
 		}
+		$result = $result ?? [];
 		
-		if(!is_array($result) || empty($result))
+		if (!is_array($result) || empty($result))
+		{
 			$result = array('error' => 'No authentication.');
-		
+		}
+
 		if (!empty($result['error']))
+		{
 			throw new YandexDirectException($result);
+		}
 		else
+		{
 			$cacheManager->set(self::CACHE_ID, $result);
+		}
 		
 		return $result;
 	}
@@ -585,8 +610,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			$queryData['GeoID'] = $geo;
 		}
 		
-		$result = $this->getProxy()->getInterface()->createWordstatReport(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->createWordstatReport(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -597,8 +623,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public function deleteWordstatReport($reportId)
 	{
-		$result = $this->getProxy()->getInterface()->deleteWordstatReport(static::ENGINE_ID, $reportId);
-		
+		$result = $this->getProxy()?->getInterface()?->deleteWordstatReport(static::ENGINE_ID, $reportId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -609,8 +636,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public function getWordstatReport($reportId)
 	{
-		$result = $this->getProxy()->getInterface()->getWordstatReport(static::ENGINE_ID, $reportId);
-		
+		$result = $this->getProxy()?->getInterface()?->getWordstatReport(static::ENGINE_ID, $reportId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -621,8 +649,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public function getWordstatReportList()
 	{
-		$result = $this->getProxy()->getInterface()->getWordstatReportList(static::ENGINE_ID);
-		
+		$result = $this->getProxy()?->getInterface()?->getWordstatReportList(static::ENGINE_ID);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -642,8 +671,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			$queryData['GeoID'] = $geo;
 		}
 		
-		$result = $this->getProxy()->getInterface()->createForecastReport(static::ENGINE_ID, $queryData);
-		
+		$result = $this->getProxy()?->getInterface()?->createForecastReport(static::ENGINE_ID, $queryData);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -654,8 +684,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public function deleteForecastReport($reportId)
 	{
-		$result = $this->getProxy()->getInterface()->deleteForecastReport(static::ENGINE_ID, $reportId);
-		
+		$result = $this->getProxy()?->getInterface()?->deleteForecastReport(static::ENGINE_ID, $reportId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -666,8 +697,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public function getForecastReport($reportId)
 	{
-		$result = $this->getProxy()->getInterface()->getForecastReport(static::ENGINE_ID, $reportId);
-		
+		$result = $this->getProxy()?->getInterface()?->getForecastReport(static::ENGINE_ID, $reportId);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -678,8 +710,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public function getForecastReportList()
 	{
-		$result = $this->getProxy()->getInterface()->getForecastReportList(static::ENGINE_ID);
-		
+		$result = $this->getProxy()?->getInterface()?->getForecastReportList(static::ENGINE_ID);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -701,8 +734,9 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	 */
 	public function getBannerStats(array $params)
 	{
-		$result = $this->getProxy()->getInterface()->getBannerStats(static::ENGINE_ID, $params);
-		
+		$result = $this->getProxy()?->getInterface()?->getBannerStats(static::ENGINE_ID, $params);
+		$result = $result ?? [];
+
 		if (!empty($result['error']))
 		{
 			throw new YandexDirectException($result);
@@ -754,10 +788,10 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 			LogTable::add(array(
 				'ENGINE_ID' => $this->getId(),
 				'REQUEST_URI' => static::API_URL,
-				'REQUEST_DATA' => Text\Encoding::convertEncoding($postData, 'UTF-8', SITE_CHARSET),
+				'REQUEST_DATA' => $postData,
 				'RESPONSE_TIME' => microtime(true) - $ts,
 				'RESPONSE_STATUS' => $http->getStatus(),
-				'RESPONSE_DATA' => Text\Encoding::convertEncoding($http->getResult(), 'UTF-8', SITE_CHARSET),
+				'RESPONSE_DATA' => $http->getResult(),
 			));
 			
 			if ($http->getStatus() == 401 && !$skipRefreshAuth)
@@ -1099,7 +1133,15 @@ class YandexDirect extends Engine\YandexBase implements IEngine
 	
 	public static function updateAgent()
 	{
-		$engine = new self();
+		try
+		{
+			$engine = new self();
+		}
+		catch (\Bitrix\Main\SystemException $e)
+		{
+			return __CLASS__ . "::updateAgent();";
+		}
+
 		if ($engine->getAuthSettings())
 		{
 			try

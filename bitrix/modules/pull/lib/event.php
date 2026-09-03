@@ -10,6 +10,7 @@ use Bitrix\Pull\DTO\Message;
 class Event
 {
 	const SHARED_CHANNEL = 0;
+	private static bool $isSendingScheduled = false;
 
 	private static bool $backgroundContext = false;
 
@@ -117,12 +118,13 @@ class Event
 			self::addMessage(self::$messages, $entities['channels'], $entities['users'], $parameters);
 		}
 
-		if (
-			self::$backgroundContext
-			|| defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG')
-		)
+		if (defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG'))
 		{
 			self::send();
+		}
+		else
+		{
+			self::scheduleSending();
 		}
 
 		if ($pushParameters || $pushParametersCallback)
@@ -268,7 +270,7 @@ class Event
 		}
 
 		$pushCode = self::getParamsCode($parameters['push']);
-		if (self::$push[$pushCode])
+		if (isset(self::$push[$pushCode]))
 		{
 			self::$push[$pushCode]['users'] = array_unique(array_merge(self::$push[$pushCode]['users'], array_values($users)));
 		}
@@ -283,12 +285,13 @@ class Event
 			self::$push[$pushCode]['users'] = array_unique(array_values($users));
 		}
 
-		if (
-			self::$backgroundContext
-			|| defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG')
-		)
+		if (defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG'))
 		{
 			self::send();
+		}
+		else
+		{
+			self::scheduleSending();
 		}
 
 		return true;
@@ -338,7 +341,7 @@ class Event
 			$data = $parameters['push'];
 		}
 
-		$data['message'] = str_replace("\n", " ", trim($data['message']));
+		$data['message'] = str_replace("\n", " ", trim($data['message'] ?? ''));
 		$data['params'] = $data['params'] ?? [];
 		$data['advanced_params'] = $data['advanced_params'] ?? [];
 		$data['advanced_params']['extra'] = $parameters['extra'] ?? [];
@@ -347,8 +350,8 @@ class Event
 		$data['tag'] = $data['tag'] ?? '';
 		$data['sub_tag'] = $data['sub_tag'] ?? '';
 		$data['app_id'] = $data['app_id'] ?? '';
-		$data['send_immediately'] = $data['send_immediately'] == 'Y' ? 'Y' : 'N';
-		$data['important'] = $data['important'] == 'Y' ? 'Y' : 'N';
+		$data['send_immediately'] = isset($data['send_immediately']) && $data['send_immediately'] == 'Y' ? 'Y' : 'N';
+		$data['important'] = isset($data['important']) && $data['important'] == 'Y' ? 'Y' : 'N';
 
 		$users = [];
 		foreach ($parameters['users'] as $userId)
@@ -364,7 +367,7 @@ class Event
 		$manager = new \CPushManager();
 		$manager->AddQueue([
 			'USER_ID' => $users,
-			'SKIP_USERS' => is_array($data['skip_users']) ? $data['skip_users'] : [],
+			'SKIP_USERS' => isset($data['skip_users']) && is_array($data['skip_users']) ? $data['skip_users'] : [],
 			'MESSAGE' => $data['message'],
 			'EXPIRY' => $data['expiry'],
 			'PARAMS' => $data['params'],
@@ -388,15 +391,24 @@ class Event
 			self::processDeferredMessages();
 		}
 
-		static::executeEvents();
+		$executeResult = static::executeEvents();
+		if (!$executeResult->isSuccess())
+		{
+			foreach ($executeResult->getErrors() as $error)
+			{
+				$message = $error->getCode() ? $error->getCode() . ": " . $error->getMessage() : $error->getMessage();
+				trigger_error("Pull send error; {$message}; remote endpoint: {$executeResult->getRemoteAddress()}", E_USER_WARNING);
+			}
+		}
+
 		static::executePushEvents();
 
 		return true;
 	}
 
-	public static function executeEvents(): Main\Result
+	public static function executeEvents(): TransportResult
 	{
-		$result = new Main\Result();
+		$result = new TransportResult();
 		if (empty(self::$messages))
 		{
 			return $result;
@@ -414,13 +426,14 @@ class Event
 		if (Config::isJsonRpcUsed())
 		{
 			$messageList = self::convertEventsToMessages(self::$messages);
-			$sendResult = JsonRpcTransport::sendMessages($messageList);
+			$sendResult = (new JsonRpcTransport())->sendMessages($messageList);
 			if ($sendResult->isSuccess())
 			{
 				self::$messages = [];
 			}
 			else
 			{
+				$result->withRemoteAddress($sendResult->getRemoteAddress());
 				$result->addErrors($sendResult->getErrors());
 			}
 		}
@@ -431,6 +444,7 @@ class Event
 				$sendResult = ProtobufTransport::sendMessages(self::$messages);
 				if (!$sendResult->isSuccess())
 				{
+					$result->withRemoteAddress($sendResult->getRemoteAddress());
 					$result->addErrors($sendResult->getErrors());
 				}
 			}
@@ -517,14 +531,26 @@ class Event
 
 	public static function onAfterEpilog()
 	{
-		Main\Application::getInstance()->addBackgroundJob([__CLASS__, "sendInBackground"]);
+		self::scheduleSending();
 		return true;
+	}
+
+	protected static function scheduleSending(): void
+	{
+		if (self::$isSendingScheduled)
+		{
+			return;
+		}
+
+		self::$isSendingScheduled = true;
+		Main\Application::getInstance()->addBackgroundJob([__CLASS__, "sendInBackground"], [], Main\Application::JOB_PRIORITY_LOW);
 	}
 
 	public static function sendInBackground()
 	{
 		self::$backgroundContext = true;
 		self::send();
+		self::$isSendingScheduled = false;
 	}
 
 	public static function fillChannels(array &$messages)
@@ -546,13 +572,20 @@ class Event
 
 	public static function getChannelIds(array $users, $type = \CPullChannel::TYPE_PRIVATE)
 	{
+		if (empty($users))
+		{
+			return [];
+		}
+
+		$rows = \CPullChannel::getMany($users, $type);
+
 		$result = [];
 		foreach ($users as $userId)
 		{
-			$data = \CPullChannel::Get($userId, true, false, $type);
-			if ($data)
+			$userId = (int)$userId;
+			if (!empty($rows[$userId]['CHANNEL_ID']))
 			{
-				$result[] = $data['CHANNEL_ID'];
+				$result[] = $rows[$userId]['CHANNEL_ID'];
 			}
 		}
 

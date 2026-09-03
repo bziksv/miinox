@@ -1,8 +1,13 @@
-<?
+<?php
 //**********************************************************************/
 //**    DO NOT MODIFY THIS FILE                                       **/
 //**    MODIFICATION OF THIS FILE WILL ENTAIL SITE FAILURE            **/
 //**********************************************************************/
+
+/**
+ * @global CUser $USER
+ */
+
 if (!defined("UPD_INTERNAL_CALL") || UPD_INTERNAL_CALL != "Y")
 {
 	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
@@ -42,10 +47,9 @@ if (!in_array($queryType, array("M", "L", "H")))
 
 $arRequestedModules = array();
 $arRequestedLangs = array();
-$arRequestedHelps = array();
 
 if (
-	\CUpdateExpertMode::isEnabled()
+	CUpdateExpertMode::isEnabled()
 	&& $_SERVER["REQUEST_METHOD"] === "POST"
 	&& isset($_POST['expertModules'])
 )
@@ -84,25 +88,13 @@ if (empty($arRequestedModules))
 			}
 		}
 	}
-	if (array_key_exists("requested_helps", $_REQUEST))
-	{
-		$arRequestedHelpsTmp = explode(",", $_REQUEST["requested_helps"]);
-		for ($i = 0, $cnt = count($arRequestedHelpsTmp); $i < $cnt; $i++)
-		{
-			if (!in_array($arRequestedHelpsTmp[$i], $arRequestedHelps))
-			{
-				$arRequestedHelps[] = $arRequestedHelpsTmp[$i];
-			}
-		}
-	}
 }
 
-COption::SetOptionString("main", "update_system_update", Date($GLOBALS["DB"]->DateFormatToPHP(CSite::GetDateFormat("FULL")), time()));
+COption::SetOptionString("main", "update_system_update_time", time());
 
 /************************************/
 if ($queryType == "M")
 {
-	$arUpdatedModulesList = array();
 	$loadResult = CUpdateClient::LoadModulesUpdates($errorMessage, $arUpdateDescription, LANG, $stableVersionsOnly, $arRequestedModules);
 	if ($loadResult == "S")
 	{
@@ -133,8 +125,7 @@ if ($queryType == "M")
 	{
 		CUpdateClient::AddMessage2Log("Finish - NOUPDATES", "STEP");
 
-		$bIntranet = CModule::IncludeModule('intranet');
-		if ($bIntranet)
+		if (IsModuleInstalled('intranet'))
 		{
 			CAdminNotify::Add(array(
 				'MODULE_ID' => 'main',
@@ -170,7 +161,7 @@ if ($queryType == "M")
 	if ($errorMessage == '')
 	{
 		$isB24Mode = defined("US_BITRIX24_MODE") && US_BITRIX24_MODE;
-		if (!CUpdateClient::UpdateStepModules($temporaryUpdatesDir, $errorMessage, $isB24Mode, $isB24Mode))
+		if (!CUpdateClient::UpdateStepModules($temporaryUpdatesDir, $errorMessage, $isB24Mode))
 		{
 			$errorMessage .= "[CL04] ".GetMessage("SUPC_ME_UPDATE").". ";
 			CUpdateClient::AddMessage2Log(GetMessage("SUPC_ME_UPDATE"), "CL04");
@@ -195,20 +186,11 @@ if ($queryType == "M")
 		$bFirst = true;
 		for ($i = 0, $cnt = count($arUpdateDescription["DATA"]["#"]["ITEM"]); $i < $cnt; $i++)
 		{
-			$strModuleDescr = "";
-			if ($arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["DESCR"] <> '')
-			{
-				$strModuleDescr = "<br>".htmlspecialcharsback($arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["DESCR"]);
-				$strModuleDescr = preg_replace("#</?pre>#i", " ", $strModuleDescr);
-				$strModuleDescr = preg_replace("/[\s\n\r]+/", " ", $strModuleDescr);
-				$strModuleDescr = addslashes($strModuleDescr);
-			}
-
-			CUpdateClient::AddMessage2Log("Updated: ".$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["NAME"].(($arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"] != "0") ? " (".$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"].")" : "").$strModuleDescr, "UPD_SUCCESS");
-
 			echo ($bFirst ? "" : ", ").$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["NAME"].(($arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"] != "0") ? " (".$arUpdateDescription["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"].")" : "");
 			$bFirst = false;
 		}
+
+		CUpdateClient::logUpdates($arUpdateDescription["DATA"]["#"]["ITEM"]);
 
 		CUpdateClient::finalizeModuleUpdate($arUpdateDescription["DATA"]["#"]["ITEM"]);
 	}
@@ -247,15 +229,9 @@ elseif ($queryType == "L")
 		die("FIN");
 	}
 
-	/*if (!CUpdateClient::GetNextStepLangUpdates($errorMessage, LANG, $arRequestedLangs))
-	{
-		$errorMessage .= "[CL01] ".GetMessage("SUPC_ME_LOAD").". ";
-		CUpdateClient::AddMessage2Log(GetMessage("SUPC_ME_LOAD"), "CL01");
-	}*/
-
+	$temporaryUpdatesDir = "";
 	if ($errorMessage == '')
 	{
-		$temporaryUpdatesDir = "";
 		if (!CUpdateClient::UnGzipArchive($temporaryUpdatesDir, $errorMessage, true))
 		{
 			$errorMessage .= "[CL02] ".GetMessage("SUPC_ME_PACK").". ";
@@ -264,10 +240,6 @@ elseif ($queryType == "L")
 	}
 
 	$arStepUpdateInfo = $arUpdateDescription;
-	/*if (strlen($errorMessage) <= 0)
-	{
-		$arStepUpdateInfo = CUpdateClient::GetStepUpdateInfo($temporaryUpdatesDir, $errorMessage);
-	}*/
 
 	if ($errorMessage == '')
 	{
@@ -275,16 +247,6 @@ elseif ($queryType == "L")
 		{
 			for ($i = 0, $cnt = count($arStepUpdateInfo["DATA"]["#"]["ERROR"]); $i < $cnt; $i++)
 				$errorMessage .= "[".$arStepUpdateInfo["DATA"]["#"]["ERROR"][$i]["@"]["TYPE"]."] ".$arStepUpdateInfo["DATA"]["#"]["ERROR"][$i]["#"];
-		}
-	}
-
-	$arItemsUpdated = array();
-	if ($errorMessage == '')
-	{
-		if (isset($arStepUpdateInfo["DATA"]["#"]["ITEM"]))
-		{
-			for ($i = 0, $cnt = count($arStepUpdateInfo["DATA"]["#"]["ITEM"]); $i < $cnt; $i++)
-				$arItemsUpdated[$arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["ID"]] = $arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["NAME"];
 		}
 	}
 
@@ -369,6 +331,15 @@ elseif ($queryType == "L")
 					}
 				}
 
+				$arItemsUpdated = array();
+				if (isset($arStepUpdateInfo["DATA"]["#"]["ITEM"]))
+				{
+					for ($i = 0, $cnt = count($arStepUpdateInfo["DATA"]["#"]["ITEM"]); $i < $cnt; $i++)
+					{
+						$arItemsUpdated[$arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["ID"]] = $arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["NAME"];
+					}
+				}
+
 				echo "STP";
 				echo count($arItemsUpdated)."|";
 				$bFirst = true;
@@ -389,95 +360,9 @@ elseif ($queryType == "L")
 		echo "ERR".$errorMessage;
 	}
 }
-else
-{
-	if (!CUpdateClient::GetNextStepHelpUpdates($errorMessage, LANG, $arRequestedHelps))
-	{
-		$errorMessage .= "[CL01] ".GetMessage("SUPC_ME_LOAD").". ";
-		CUpdateClient::AddMessage2Log(GetMessage("SUPC_ME_LOAD"), "CL01");
-	}
-
-	if ($errorMessage == '')
-	{
-		$temporaryUpdatesDir = "";
-		if (!CUpdateClient::UnGzipArchive($temporaryUpdatesDir, $errorMessage, true))
-		{
-			$errorMessage .= "[CL02] ".GetMessage("SUPC_ME_PACK").". ";
-			CUpdateClient::AddMessage2Log(GetMessage("SUPC_ME_PACK"), "CL02");
-		}
-	}
-
-	$arStepUpdateInfo = array();
-	if ($errorMessage == '')
-	{
-		$arStepUpdateInfo = CUpdateClient::GetStepUpdateInfo($temporaryUpdatesDir, $errorMessage);
-	}
-
-	if ($errorMessage == '')
-	{
-		if (isset($arStepUpdateInfo["DATA"]["#"]["ERROR"]))
-		{
-			for ($i = 0, $cnt = count($arStepUpdateInfo["DATA"]["#"]["ERROR"]); $i < $cnt; $i++)
-				$errorMessage .= "[".$arStepUpdateInfo["DATA"]["#"]["ERROR"][$i]["@"]["TYPE"]."] ".$arStepUpdateInfo["DATA"]["#"]["ERROR"][$i]["#"];
-		}
-	}
-
-	$arItemsUpdated = array();
-	if ($errorMessage == '')
-	{
-		if (isset($arStepUpdateInfo["DATA"]["#"]["ITEM"]))
-		{
-			for ($i = 0, $cnt = count($arStepUpdateInfo["DATA"]["#"]["ITEM"]); $i < $cnt; $i++)
-				$arItemsUpdated[$arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["NAME"]] = $arStepUpdateInfo["DATA"]["#"]["ITEM"][$i]["@"]["VALUE"];
-		}
-	}
-
-	if ($errorMessage == '')
-	{
-		if (isset($arStepUpdateInfo["DATA"]["#"]["NOUPDATES"]))
-		{
-			CUpdateClient::ClearUpdateFolder($_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$temporaryUpdatesDir);
-			CUpdateClient::AddMessage2Log("Finish - NOUPDATES", "STEP");
-			echo "FIN";
-		}
-		else
-		{
-			if (!CUpdateClient::UpdateStepHelps($temporaryUpdatesDir, $errorMessage))
-			{
-				$errorMessage .= "[CL04] ".GetMessage("SUPC_HE_UPD").". ";
-				CUpdateClient::AddMessage2Log(GetMessage("SUPC_HE_UPD"), "CL04");
-			}
-
-			if ($errorMessage <> '')
-			{
-				CUpdateClient::AddMessage2Log("Error: ".$errorMessage, "UPD_ERROR");
-				echo "ERR".$errorMessage;
-			}
-			else
-			{
-				echo "STP";
-				echo count($arItemsUpdated)."|";
-				$bFirst = true;
-				foreach ($arItemsUpdated as $key => $value)
-				{
-					CUpdateClient::AddMessage2Log("Updated: ".$key.(($value <> '') ? "(".$value.")" : ""), "UPD_SUCCESS");
-					echo ($bFirst ? "" : ", ").$key.(($value <> '') ? "(".$value.")" : "");
-					$bFirst = false;
-				}
-			}
-		}
-	}
-	else
-	{
-		CUpdateClient::AddMessage2Log("Error: ".$errorMessage, "UPD_ERROR");
-		echo "ERR".$errorMessage;
-	}
-}
 /************************************/
-
 
 if (!defined("UPD_INTERNAL_CALL") || UPD_INTERNAL_CALL != "Y")
 {
 	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_after.php");
 }
-?>

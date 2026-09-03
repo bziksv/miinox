@@ -3,6 +3,7 @@ namespace Bitrix\Rest;
 
 use Bitrix\Main;
 use Bitrix\Main\DB\SqlQueryException;
+use Bitrix\Main\SystemException;
 
 /**
  * Class UsageStatTable
@@ -44,9 +45,9 @@ use Bitrix\Main\DB\SqlQueryException;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_UsageStat_Query query()
- * @method static EO_UsageStat_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_UsageStat_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_UsageStat_Result getById($id)
- * @method static EO_UsageStat_Result getList(array $parameters = array())
+ * @method static EO_UsageStat_Result getList(array $parameters = [])
  * @method static EO_UsageStat_Entity getEntity()
  * @method static \Bitrix\Rest\EO_UsageStat createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_UsageStat_Collection createCollection()
@@ -198,7 +199,10 @@ class UsageStatTable extends Main\Entity\DataManager
 
 	public static function log(\CRestServer $server)
 	{
-		if (Main\ModuleManager::isModuleInstalled('oauth'))
+		if (
+			\Bitrix\Rest\Integration\OAuthModule::isSupported()
+			&& !defined('REST_FORCE_USAGE_STAT')
+		)
 		{
 			return;
 		}
@@ -312,6 +316,36 @@ class UsageStatTable extends Main\Entity\DataManager
 		);
 	}
 
+	public static function logAI(string $clientId, string $type): void
+	{
+		static::increment(
+			UsageEntityTable::ENTITY_TYPE_APPLICATION,
+			$clientId,
+			UsageEntityTable::SUB_ENTITY_TYPE_AI,
+			$type
+		);
+	}
+
+	public static function logBISuperset(string $clientId, string $type): void
+	{
+		static::increment(
+			UsageEntityTable::ENTITY_TYPE_APPLICATION,
+			$clientId,
+			UsageEntityTable::SUB_ENTITY_TYPE_BI_SUPERSET,
+			$type
+		);
+	}
+
+	public static function logLandingWidget(string $clientId, string $type): void
+	{
+		static::increment(
+			UsageEntityTable::ENTITY_TYPE_APPLICATION,
+			$clientId,
+			UsageEntityTable::SUB_ENTITY_TYPE_LANDING_WIDGET,
+			$type
+		);
+	}
+
 	protected static function incrementByCount($entityType, $entityId, $subEntityType, $subEntityName, int $count)
 	{
 		$entityKey = static::getEntityKey($entityType, $entityId, $subEntityType, $subEntityName);
@@ -339,7 +373,10 @@ class UsageStatTable extends Main\Entity\DataManager
 
 	public static function finalize()
 	{
-		if (Main\ModuleManager::isModuleInstalled('oauth'))
+		if (
+			\Bitrix\Rest\Integration\OAuthModule::isSupported()
+			&& !defined('REST_FORCE_USAGE_STAT')
+		)
 		{
 			return;
 		}
@@ -365,23 +402,23 @@ class UsageStatTable extends Main\Entity\DataManager
 
 			if ($statId)
 			{
-				$insertFields = array(
+				$insertFields = [
 					'STAT_DATE' => $curDateSql,
 					'ENTITY_ID' => $statId,
 					'HOUR_'.$hour => $count,
-				);
-				$updateFields = array(
-					'HOUR_'.$hour => new Main\DB\SqlExpression('?#+?i', 'HOUR_'.$hour, $count)
-				);
+				];
+				$updateFields = [
+					'HOUR_'.$hour => new Main\DB\SqlExpression('?#.?# + ?i', static::getTableName(), 'HOUR_' . $hour, $count)
+				];
 
-				$queries = $helper->prepareMerge(static::getTableName(), array(
+				$queries = $helper->prepareMerge(static::getTableName(), [
 						'STAT_DATE',
 						'ENTITY_ID'
-					), $insertFields, $updateFields);
+					], $insertFields, $updateFields);
 
 				foreach ($queries as $query)
 				{
-					$connection->queryExecute($query);
+                    $connection->queryExecute($query);
 				}
 			}
 		}
@@ -511,7 +548,7 @@ class UsageStatTable extends Main\Entity\DataManager
 		$usage = array();
 		while ($dayStat = $statList->fetch())
 		{
-			if ($dayStat["ENTITY_CODE"] && $dayStat["STAT_DATE"])
+			if ($dayStat["STAT_DATE"])
 			{
 				$dayStat["STAT_DATE"] = $dayStat["STAT_DATE"]->format("Y-m-d");
 				$dayStat['HOUR_TOTAL'] = 0;
@@ -526,8 +563,26 @@ class UsageStatTable extends Main\Entity\DataManager
 
 		if ($usage)
 		{
-			$response = \Bitrix\Rest\OAuthService::getEngine()->getClient()->sendApplicationUsage($usage);
-			$return = is_array($response) && $response['result'] === true;
+			if (!OAuthService::getEngine()?->isRegistered())
+			{
+				try
+				{
+					OAuthService::register();
+				}
+				catch (SystemException)
+				{
+				}
+			}
+
+			if (OAuthService::getEngine()?->isRegistered())
+			{
+				$response = OAuthService::getEngine()?->getClient()->sendApplicationUsage($usage);
+				$return = is_array($response) && $response['result'] === true;
+			}
+			else
+			{
+				$return = false;
+			}
 		}
 
 		return $return;

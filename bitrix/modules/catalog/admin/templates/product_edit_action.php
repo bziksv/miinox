@@ -2,6 +2,7 @@
 
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Product\Price\Calculation;
 use Bitrix\Main;
 use Bitrix\Catalog;
 
@@ -14,20 +15,6 @@ use Bitrix\Catalog;
 /** @var bool $bCreateRecord */
 /** @var array $arShowTabs */
 
-/** @global string $CAT_BASE_WEIGHT */
-/** @global string $CAT_BASE_WIDTH */
-/** @global string $CAT_BASE_LENGTH */
-/** @global string $CAT_BASE_HEIGHT */
-/** @global string $CAT_MEASURE */
-/** @global string $CAT_BASE_QUANTITY */
-/** @global string $CAT_PRICE_TYPE */
-/** @global string $CAT_RECUR_SCHEME_TYPE */
-/** @global string $CAT_RECUR_SCHEME_LENGTH */
-/** @global string $CAT_TRIAL_PRICE_ID */
-/** @global string $CAT_WITHOUT_ORDER */
-/** @global string $CAT_MEASURE_RATIO */
-/** @global string $CAT_VAT_ID */
-/** @global string $CAT_VAT_INCLUDED */
 /** @global array $arCatalogBaseGroup */
 /** @global array $arCatalogBasePrices */
 /** @global array $arCatalogPrices */
@@ -41,6 +28,12 @@ $IBLOCK_ID = (int)$IBLOCK_ID;
 $ID = (int)$ID;
 $userId = (int)$USER->GetID();
 if ($IBLOCK_ID <= 0 || $ID <= 0)
+{
+	return;
+}
+
+$catalog = CCatalogSku::GetInfoByIBlock($IBLOCK_ID);
+if (empty($catalog))
 {
 	return;
 }
@@ -274,19 +267,24 @@ if ($allowEdit)
 				}
 	}
 
+	$vatIncluded = $_POST['CAT_VAT_INCLUDED'] ?? null;
+	if ($vatIncluded !== 'Y')
+	{
+		$vatIncluded = 'N';
+	}
 	$productFields = [
-		'WIDTH' => $CAT_BASE_WIDTH ?? null,
-		'LENGTH' => $CAT_BASE_LENGTH ?? null,
-		'HEIGHT' => $CAT_BASE_HEIGHT ?? null,
-		'VAT_ID' => $CAT_VAT_ID,
-		'VAT_INCLUDED' => $CAT_VAT_INCLUDED,
+		'WIDTH' => $_POST['CAT_BASE_WIDTH'] ?? null,
+		'LENGTH' => $_POST['CAT_BASE_LENGTH'] ?? null,
+		'HEIGHT' => $_POST['CAT_BASE_HEIGHT'] ?? null,
+		'VAT_ID' => $_POST['CAT_VAT_ID'] ?? null,
+		'VAT_INCLUDED' => $vatIncluded,
 		'PRICE_TYPE' => false,
 		'RECUR_SCHEME_TYPE' => false,
 		'RECUR_SCHEME_LENGTH' => false,
 		'TRIAL_PRICE_ID' => false,
 		'WITHOUT_ORDER' => false,
 		'BARCODE_MULTI' => $barcodeMultiply,
-		'MEASURE' => $CAT_MEASURE,
+		'MEASURE' => $_POST['CAT_MEASURE'] ?? null,
 	];
 	if ($quantityTrace !== null)
 	{
@@ -327,24 +325,42 @@ if ($allowEdit)
 
 	if(!$bUseStoreControl && !$isService)
 	{
-		$productFields['QUANTITY'] = $CAT_BASE_QUANTITY;
+		$productFields['QUANTITY'] = $_POST['CAT_BASE_QUANTITY'] ?? null;
 		if ($productFields['QUANTITY'] === '' || $productFields['QUANTITY'] === null)
-			unset($productFields['QUANTITY']);
-		if ($bEnableReservation && isset($CAT_BASE_QUANTITY_RESERVED))
 		{
-			$productFields['QUANTITY_RESERVED'] = $CAT_BASE_QUANTITY_RESERVED;
-			if ($productFields['QUANTITY_RESERVED'] === '' || $productFields['QUANTITY_RESERVED'] === null)
+			unset($productFields['QUANTITY']);
+		}
+		else
+		{
+			if (is_string($productFields['QUANTITY']))
+			{
+				$productFields['QUANTITY'] = str_replace(',', '.', $productFields['QUANTITY']);
+			}
+		}
+		if ($bEnableReservation && isset($_POST['CAT_BASE_QUANTITY_RESERVED']))
+		{
+			$productFields['QUANTITY_RESERVED'] = $_POST['CAT_BASE_QUANTITY_RESERVED'];
+			if ($productFields['QUANTITY_RESERVED'] === '')
+			{
 				unset($productFields['QUANTITY_RESERVED']);
+			}
+			else
+			{
+				if (is_string($productFields['QUANTITY_RESERVED']))
+				{
+					$productFields['QUANTITY_RESERVED'] = str_replace(',', '.', $productFields['QUANTITY_RESERVED']);
+				}
+			}
 		}
 	}
 
-	if ($arCatalog["SUBSCRIPTION"] == "Y")
+	if ($arCatalog['SUBSCRIPTION'] === 'Y')
 	{
-		$productFields["PRICE_TYPE"] = $CAT_PRICE_TYPE;
-		$productFields["RECUR_SCHEME_TYPE"] = $CAT_RECUR_SCHEME_TYPE;
-		$productFields["RECUR_SCHEME_LENGTH"] = $CAT_RECUR_SCHEME_LENGTH;
-		$productFields["TRIAL_PRICE_ID"] = $CAT_TRIAL_PRICE_ID;
-		$productFields["WITHOUT_ORDER"] = $CAT_WITHOUT_ORDER;
+		$productFields["PRICE_TYPE"] = $_POST['CAT_PRICE_TYPE'] ?? null;
+		$productFields["RECUR_SCHEME_TYPE"] = $_POST['CAT_RECUR_SCHEME_TYPE'] ?? null;
+		$productFields["RECUR_SCHEME_LENGTH"] = $_POST['CAT_RECUR_SCHEME_LENGTH'] ?? null;
+		$productFields["TRIAL_PRICE_ID"] = $_POST['CAT_TRIAL_PRICE_ID'] ?? null;
+		$productFields["WITHOUT_ORDER"] = $_POST['CAT_WITHOUT_ORDER'] ?? null;
 		$productFields["QUANTITY_TRACE"] = Catalog\ProductTable::STATUS_NO;
 		$productFields["CAN_BUY_ZERO"] = Catalog\ProductTable::STATUS_NO;
 	}
@@ -355,7 +371,11 @@ if ($allowEdit)
 
 	if ($currentTab === \CCatalogAdminTools::TAB_CATALOG)
 	{
-		$productFields['TYPE'] = Catalog\ProductTable::TYPE_PRODUCT;
+			$productFields['TYPE'] =
+				$catalog['CATALOG_TYPE'] === CCatalogSku::TYPE_OFFERS
+					? Catalog\ProductTable::TYPE_OFFER
+					: Catalog\ProductTable::TYPE_PRODUCT
+			;
 	}
 	elseif ($currentTab === \CCatalogAdminTools::TAB_SERVICE)
 	{
@@ -413,14 +433,14 @@ if ($allowEdit)
 	$ratioList = [];
 	$arMeasureRatio = [
 		'PRODUCT_ID' => $PRODUCT_ID,
-		'RATIO' => $CAT_MEASURE_RATIO,
-		'IS_DEFAULT' => 'Y'
+		'RATIO' => $_POST['CAT_MEASURE_RATIO'] ?? 1,
+		'IS_DEFAULT' => 'Y',
 	];
 	$newRatio = true;
 	$currentRatioID = 0;
 	if (isset($_POST['CAT_MEASURE_RATIO_ID']))
 		$currentRatioID = (int)$_POST['CAT_MEASURE_RATIO_ID'];
-	$ratioFilter = ['=PRODUCT_ID' => $PRODUCT_ID, '=RATIO' => $CAT_MEASURE_RATIO];
+	$ratioFilter = ['=PRODUCT_ID' => $PRODUCT_ID, '=RATIO' => $arMeasureRatio['RATIO']];
 	$ratioIterator = Catalog\MeasureRatioTable::getList([
 		'select' => ['*'],
 		'filter' => $ratioFilter
@@ -469,6 +489,8 @@ if ($allowEdit)
 
 	if ($arCatalog["SUBSCRIPTION"] == "Y")
 	{
+		$request = Main\Context::getCurrent()->getRequest();
+
 		$arCurProductGroups = array();
 
 		$dbProductGroups = CCatalogProductGroups::GetList(
@@ -508,14 +530,14 @@ if ($allowEdit)
 
 			if (isset($arCurProductGroups[$arGroup["ID"]]))
 			{
-				if (isset(${"CAT_USER_GROUP_ID_".$arGroup["ID"]}) && ${"CAT_USER_GROUP_ID_".$arGroup["ID"]} == "Y")
+				if ($request->getPost("CAT_USER_GROUP_ID_".$arGroup["ID"]) === "Y")
 				{
-					if ((int)(${"CAT_ACCESS_LENGTH_".$arGroup["ID"]}) != (int)($arCurProductGroups[$arGroup["ID"]]["ACCESS_LENGTH"])
-						|| ${"CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"]} != $arCurProductGroups[$arGroup["ID"]]["ACCESS_LENGTH_TYPE"])
+					if ((int)$request->getPost("CAT_ACCESS_LENGTH_".$arGroup["ID"]) != (int)($arCurProductGroups[$arGroup["ID"]]["ACCESS_LENGTH"])
+						|| $request->getPost("CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"]) != $arCurProductGroups[$arGroup["ID"]]["ACCESS_LENGTH_TYPE"])
 					{
 						$arCatalogFields = array(
-							"ACCESS_LENGTH" => (int)(${"CAT_ACCESS_LENGTH_".$arGroup["ID"]}),
-							"ACCESS_LENGTH_TYPE" => ${"CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"]}
+							"ACCESS_LENGTH" => (int)$request->getPost("CAT_ACCESS_LENGTH_".$arGroup["ID"]),
+							"ACCESS_LENGTH_TYPE" => $request->getPost("CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"])
 						);
 						CCatalogProductGroups::Update($arCurProductGroups[$arGroup["ID"]]["ID"], $arCatalogFields);
 					}
@@ -527,13 +549,13 @@ if ($allowEdit)
 			}
 			else
 			{
-				if (isset(${"CAT_USER_GROUP_ID_".$arGroup["ID"]}) && ${"CAT_USER_GROUP_ID_".$arGroup["ID"]} == "Y")
+				if ($request->getPost("CAT_USER_GROUP_ID_".$arGroup["ID"]) === "Y")
 				{
 					$arCatalogFields = array(
 						"PRODUCT_ID" => $ID,
 						"GROUP_ID" => $arGroup["ID"],
-						"ACCESS_LENGTH" => (int)(${"CAT_ACCESS_LENGTH_".$arGroup["ID"]}),
-						"ACCESS_LENGTH_TYPE" => ${"CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"]}
+						"ACCESS_LENGTH" => (int)$request->getPost("CAT_ACCESS_LENGTH_".$arGroup["ID"]),
+						"ACCESS_LENGTH_TYPE" => $request->getPost("CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"])
 					);
 					CCatalogProductGroups::Add($arCatalogFields);
 				}
@@ -592,6 +614,8 @@ if ($allowEdit)
 // region Save prices
 if ($allowEditPrices)
 {
+	$request = Main\Context::getCurrent()->getRequest();
+
 	$enableQuantityRanges = Catalog\Config\Feature::isPriceQuantityRangesEnabled();
 
 	if ($enableQuantityRanges)
@@ -611,14 +635,17 @@ if ($allowEditPrices)
 
 		for ($i = 0; $i < $intBasePriceCount; $i++)
 		{
-			${"CAT_PRICE_".$arCatGroups["ID"]."_".$arCatalogBasePrices[$i]["IND"]} = str_replace([' ', ','], ['', '.'], ${"CAT_PRICE_".$arCatGroups["ID"]."_".$arCatalogBasePrices[$i]["IND"]});
+			$priceGroupId = $arCatGroups["ID"];
+			$priceInd = $arCatalogBasePrices[$i]["IND"];
+			$typePrice = str_replace([' ', ','], ['', '.'], (string)$request->getPost("CAT_PRICE_".$priceGroupId."_".$priceInd));
+			$typeIdList = $request->getPost("CAT_ID_".$priceGroupId);
+			$typeExtraId = $request->getPost("CAT_EXTRA_".$priceGroupId."_".$priceInd);
+			$typeCurrency = $request->getPost("CAT_CURRENCY_".$priceGroupId."_".$priceInd);
 			$arCatalogPrice_tmp[$i] = array(
-				"ID" => (int)(${"CAT_ID_".$arCatGroups["ID"]}[$arCatalogBasePrices[$i]["IND"]]),
-				"EXTRA_ID" => ${"CAT_EXTRA_".$arCatGroups["ID"]."_".$arCatalogBasePrices[$i]["IND"]}
-					? (int)(${"CAT_EXTRA_".$arCatGroups["ID"]."_".$arCatalogBasePrices[$i]["IND"]})
-					: 0,
-				"PRICE" => ${"CAT_PRICE_".$arCatGroups["ID"]."_".$arCatalogBasePrices[$i]["IND"]},
-				"CURRENCY" => trim(${"CAT_CURRENCY_".$arCatGroups["ID"]."_".$arCatalogBasePrices[$i]["IND"]}),
+				"ID" => (int)(is_array($typeIdList) ? ($typeIdList[$priceInd] ?? 0) : 0),
+				"EXTRA_ID" => $typeExtraId ? (int)$typeExtraId : 0,
+				"PRICE" => $typePrice,
+				"CURRENCY" => trim((string)$typeCurrency),
 				"QUANTITY_FROM" => $arCatalogBasePrices[$i]["QUANTITY_FROM"],
 				"QUANTITY_TO" => $arCatalogBasePrices[$i]["QUANTITY_TO"]
 			);
@@ -634,7 +661,7 @@ if ($allowEditPrices)
 				{
 					$arCatalogPrice_tmp[$i]["CURRENCY"] = $arCatalogBasePrices[$i]["CURRENCY"];
 					$arCatalogExtra = CExtra::GetByID($arCatalogPrice_tmp[$i]["EXTRA_ID"]);
-					$arCatalogPrice_tmp[$i]["PRICE"] = roundEx($arCatalogBasePrices[$i]["PRICE"] * (1 + (float)$arCatalogExtra["PERCENTAGE"] / 100), CATALOG_VALUE_PRECISION);
+					$arCatalogPrice_tmp[$i]["PRICE"] = Calculation::roundPrecision($arCatalogBasePrices[$i]["PRICE"] * (1 + (float)$arCatalogExtra["PERCENTAGE"] / 100));
 				}
 				else
 				{

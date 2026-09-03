@@ -7,11 +7,11 @@ interface CBitrixCloudMonitoring_Access extends Iterator, ArrayAccess
 
 class CBitrixCloudMonitoringTest
 {
-	private $name = "";
-	private $status = "";
+	private $name = '';
+	private $status = '';
 	private $time = 0;
-	private $uptime = "";
-	private $result = "";
+	private $uptime = '';
+	private $result = '';
 
 	/**
 	 *
@@ -90,10 +90,10 @@ class CBitrixCloudMonitoringTest
 	public static function fromXMLNode(CDataXMLNode $node)
 	{
 		return new CBitrixCloudMonitoringTest(
-			$node->getAttribute("id"),
-			$node->getAttribute("status") == 2? CBitrixCloudMonitoringResult::RED_LAMP: CBitrixCloudMonitoringResult::GREEN_LAMP,
-			strtotime($node->getAttribute("time")),
-			$node->getAttribute("uptime"),
+			$node->getAttribute('id'),
+			$node->getAttribute('status') == 2 ? CBitrixCloudMonitoringResult::RED_LAMP : CBitrixCloudMonitoringResult::GREEN_LAMP,
+			strtotime($node->getAttribute('time')),
+			$node->getAttribute('uptime'),
 			$node->textContent()
 		);
 	}
@@ -102,10 +102,9 @@ class CBitrixCloudMonitoringTest
 class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Access
 {
 	/** @var string $name */
-	private $name = "";
-	/** @var array[int]CBitrixCloudMonitoringTest $tests */
-	private $tests = /*.(array[int]CBitrixCloudMonitoringTest.*/
-		array();
+	private $name = '';
+	/** @var CBitrixCloudMonitoringTest[] $tests */
+	private $tests = [];
 
 	/**
 	 *
@@ -124,10 +123,13 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 	 */
 	public function getStatus()
 	{
-		foreach ($this->tests as $testName => $testResult)
+		/* @var CBitrixCloudMonitoringTest $testResult */
+		foreach ($this->tests as $testResult)
 		{
 			if ($testResult->getStatus() === CBitrixCloudMonitoringResult::RED_LAMP)
+			{
 				return CBitrixCloudMonitoringResult::RED_LAMP;
+			}
 		}
 		return CBitrixCloudMonitoringResult::GREEN_LAMP;
 	}
@@ -135,7 +137,7 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 	/**
 	 *
 	 * @param string $name
-	 * @param array [int]CBitrixCloudMonitoringTest $tests
+	 * @param CBitrixCloudMonitoringTest[] $tests
 	 * @return void
 	 *
 	 */
@@ -158,7 +160,7 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 
 	/**
 	 *
-	 * @return array[int]CBitrixCloudMonitoringTest
+	 * @return CBitrixCloudMonitoringTest[]
 	 *
 	 */
 	public function getTests()
@@ -168,7 +170,7 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 
 	/**
 	 *
-	 * @param array [int]CBitrixCloudMonitoringTest $tests
+	 * @param CBitrixCloudMonitoringTest[] $tests
 	 * @return CBitrixCloudMonitoringDomainResult
 	 *
 	 */
@@ -176,35 +178,31 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 	{
 		foreach ($tests as $test)
 		{
-			if (
-				is_object($test)
-				&& $test instanceof CBitrixCloudMonitoringTest
-			)
-			{
-				$this->tests[$test->getName()] = $test;
-			}
+			$this->tests[$test->getName()] = $test;
 		}
+
 		return $this;
 	}
 
 	public function saveToOptions(CBitrixCloudOption $option)
 	{
-		$tests = array();
+		$tests = [];
+		/* @var CBitrixCloudMonitoringTest $testResult */
 		foreach ($this->tests as $testName => $testResult)
 		{
-			$tests[$testName] = serialize(array(
-				"status" => $testResult->getStatus(),
-				"time" => $testResult->getTime(),
-				"uptime" => $testResult->getUptime(),
-				"result" => $testResult->getResult(),
-			));
+			$tests[$testName] = serialize([
+				'status' => $testResult->getStatus(),
+				'time' => $testResult->getTime(),
+				'uptime' => $testResult->getUptime(),
+				'result' => $testResult->getResult(),
+			]);
 		}
 		$option->setArrayValue($tests);
 	}
 
 	public static function loadFromOptions($name, CBitrixCloudOption $option)
 	{
-		$tests = array();
+		$tests = [];
 		foreach ($option->getArrayValue() as $testName => $testResult)
 		{
 			$testResult = unserialize($testResult, ['allowed_classes' => false]);
@@ -212,10 +210,10 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 			{
 				$test = new CBitrixCloudMonitoringTest(
 					$testName,
-					$testResult["status"],
-					$testResult["time"],
-					$testResult["uptime"],
-					$testResult["result"]
+					$testResult['status'],
+					$testResult['time'],
+					$testResult['uptime'],
+					$testResult['result']
 				);
 				$tests[$test->getName()] = $test;
 			}
@@ -231,8 +229,8 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 	 */
 	public static function fromXMLNode(CDataXMLNode $node)
 	{
-		$name = $node->getAttribute("name");
-		$tests = array();
+		$name = $node->getAttribute('name');
+		$tests = [];
 		foreach ($node->children() as $nodeTest)
 		{
 			$tests[] = CBitrixCloudMonitoringTest::fromXMLNode($nodeTest);
@@ -240,32 +238,32 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 		return new CBitrixCloudMonitoringDomainResult($name, $tests);
 	}
 
-	public function rewind()
+	public function rewind(): void
 	{
 		reset($this->tests);
 	}
 
-	public function current()
+	public function current(): mixed
 	{
 		return current($this->tests);
 	}
 
-	public function key()
+	public function key(): mixed
 	{
 		return key($this->tests);
 	}
 
-	public function next()
+	public function next(): void
 	{
 		next($this->tests);
 	}
 
-	public function valid()
+	public function valid(): bool
 	{
 		return key($this->tests) !== null;
 	}
 
-	public function offsetSet($offset, $value)
+	public function offsetSet($offset, $value): void
 	{
 		if (is_null($offset))
 		{
@@ -277,19 +275,19 @@ class CBitrixCloudMonitoringDomainResult implements CBitrixCloudMonitoring_Acces
 		}
 	}
 
-	public function offsetExists($offset)
+	public function offsetExists($offset): bool
 	{
 		return isset($this->tests[$offset]);
 	}
 
-	public function offsetUnset($offset)
+	public function offsetUnset($offset): void
 	{
 		unset($this->tests[$offset]);
 	}
 
-	public function offsetGet($offset)
+	public function offsetGet($offset): mixed
 	{
-		return isset($this->tests[$offset])? $this->tests[$offset]: null;
+		return $this->tests[$offset] ?? null;
 	}
 }
 
@@ -299,7 +297,7 @@ class CBitrixCloudMonitoringResult implements CBitrixCloudMonitoring_Access
 	const RED_LAMP = 'red';
 
 	private $domains = /*.(array[string]CBitrixCloudMonitoringDomainResult).*/
-		array();
+		[];
 
 	/**
 	 *
@@ -331,40 +329,42 @@ class CBitrixCloudMonitoringResult implements CBitrixCloudMonitoring_Access
 	 */
 	public function getStatus()
 	{
-		foreach ($this->domains as $domainName => $domainResult)
+		foreach ($this->domains as $domainResult)
 		{
 			if ($domainResult->getStatus() === CBitrixCloudMonitoringResult::RED_LAMP)
+			{
 				return CBitrixCloudMonitoringResult::RED_LAMP;
+			}
 		}
 		return CBitrixCloudMonitoringResult::GREEN_LAMP;
 	}
 
 	public static function isExpired()
 	{
-		$time = CBitrixCloudOption::getOption("monitoring_expire_time")->getIntegerValue();
+		$time = CBitrixCloudOption::getOption('monitoring_expire_time')->getIntegerValue();
 		return ($time < time());
 	}
 
 	public static function getExpirationTime()
 	{
-		return CBitrixCloudOption::getOption("monitoring_expire_time")->getIntegerValue();
+		return CBitrixCloudOption::getOption('monitoring_expire_time')->getIntegerValue();
 	}
 
 	public static function setExpirationTime($time)
 	{
 		$time = intval($time);
-		CBitrixCloudOption::getOption("monitoring_expire_time")->setStringValue($time);
+		CBitrixCloudOption::getOption('monitoring_expire_time')->setStringValue($time);
 		return $time;
 	}
 
 	public static function loadFromOptions()
 	{
 		$domains = new CBitrixCloudMonitoringResult;
-		foreach (CBitrixCloudOption::getOption("monitoring_result")->getArrayValue() as $i => $domainName)
+		foreach (CBitrixCloudOption::getOption('monitoring_result')->getArrayValue() as $i => $domainName)
 		{
 			$domains->addDomainResult(CBitrixCloudMonitoringDomainResult::loadFromOptions(
 				$domainName,
-				CBitrixCloudOption::getOption("monitoring_result_$i")
+				CBitrixCloudOption::getOption('monitoring_result_' . $i)
 			));
 		}
 		return $domains;
@@ -373,11 +373,11 @@ class CBitrixCloudMonitoringResult implements CBitrixCloudMonitoring_Access
 	public function saveToOptions()
 	{
 		$domainNames = array_keys($this->domains);
-		CBitrixCloudOption::getOption("monitoring_result")->setArrayValue($domainNames);
+		CBitrixCloudOption::getOption('monitoring_result')->setArrayValue($domainNames);
 		foreach ($domainNames as $i => $domainName)
 		{
 			$this->domains[$domainName]->saveToOptions(
-				CBitrixCloudOption::getOption("monitoring_result_$i")
+				CBitrixCloudOption::getOption('monitoring_result_' . $i)
 			);
 		}
 	}
@@ -401,32 +401,32 @@ class CBitrixCloudMonitoringResult implements CBitrixCloudMonitoring_Access
 		return $domains;
 	}
 
-	public function rewind()
+	public function rewind(): void
 	{
 		reset($this->domains);
 	}
 
-	public function current()
+	public function current(): mixed
 	{
 		return current($this->domains);
 	}
 
-	public function key()
+	public function key(): mixed
 	{
 		return key($this->domains);
 	}
 
-	public function next()
+	public function next(): void
 	{
 		next($this->domains);
 	}
 
-	public function valid()
+	public function valid(): bool
 	{
 		return key($this->domains) !== null;
 	}
 
-	public function offsetSet($offset, $value)
+	public function offsetSet($offset, $value): void
 	{
 		if (is_null($offset))
 		{
@@ -438,18 +438,18 @@ class CBitrixCloudMonitoringResult implements CBitrixCloudMonitoring_Access
 		}
 	}
 
-	public function offsetExists($offset)
+	public function offsetExists($offset): bool
 	{
 		return isset($this->domains[$offset]);
 	}
 
-	public function offsetUnset($offset)
+	public function offsetUnset($offset): void
 	{
 		unset($this->domains[$offset]);
 	}
 
-	public function offsetGet($offset)
+	public function offsetGet($offset): mixed
 	{
-		return isset($this->domains[$offset])? $this->domains[$offset]: null;
+		return $this->domains[$offset] ?? null;
 	}
 }

@@ -401,7 +401,7 @@ class OrderBasket
 			"SALE_ORDER_BASKET_POSITION_EXISTS", "SALE_ORDER_BASKET_ADD_COUPON_ERROR", "SALE_ORDER_BASKET_NO_NAME",
 			"SALE_ORDER_BASKET_PRODUCT_UNAVAILABLE"
 		);
-		$result = '<script type="text/javascript">';
+		$result = '<script>';
 
 		foreach($langPhrases as $phrase)
 			$result .= ' BX.message({'.$phrase.': "'.\CUtil::jsEscape(Loc::getMessage($phrase)).'"});';
@@ -605,8 +605,10 @@ class OrderBasket
 
 			foreach($productsParams["ITEMS"] as $params)
 			{
-				if($params['MODULE'] != 'catalog')
+				if (($params['MODULE'] ?? '') !== 'catalog')
+				{
 					continue;
+				}
 
 				$productIds[] = $params['PRODUCT_ID'];
 
@@ -657,10 +659,12 @@ class OrderBasket
 
 			foreach($productsParams["ITEMS"] as &$params)
 			{
-				if($params['MODULE'] != 'catalog')
+				if (($params['MODULE'] ?? '') !== 'catalog')
+				{
 					continue;
+				}
 
-				if(!isset(self::$productsOffersSkuParams[$params["PRODUCT_ID"]]) || !isset(self::$productsOffersSkuParams[$params["PRODUCT_ID"]]))
+				if (!isset(self::$productsOffersSkuParams[$params["PRODUCT_ID"]]))
 				{
 					if(isset($tmpPropsOff[$params["PRODUCT_ID"]]))
 					{
@@ -691,39 +695,6 @@ class OrderBasket
 							}
 						}
 					}
-					else
-					{
-						$res = \CIBlockElement::GetPropertyValues($params["IBLOCK_ID"], array('ID' => $params['PRODUCT_ID']));
-						$tmpProps = $res->Fetch();
-
-						if(is_array($tmpProps))
-						{
-							foreach($tmpProps as $id => $val)
-							{
-								if(!empty($val))
-								{
-									if(!isset($iblockPropsUsed[$id]))
-										$iblockPropsUsed[$id] = array();
-
-									if(is_array($val))
-									{
-										$iblockPropsUsed[$id] = array_merge(
-											$iblockPropsUsed[$id],
-											array_diff(
-												$val,
-												$iblockPropsUsed[$id]
-											)
-										);
-									}
-									else
-									{
-										if(!in_array($val, $iblockPropsUsed[$id]))
-											$iblockPropsUsed[$id][] = $val;
-									}
-								}
-							}
-						}
-					}
 				}
 			}
 
@@ -732,8 +703,10 @@ class OrderBasket
 
 			foreach($productsParams["ITEMS"] as &$params)
 			{
-				if($params['MODULE'] != 'catalog')
+				if (($params['MODULE'] ?? '') !== 'catalog')
+				{
 					continue;
+				}
 
 				$possibleSku = array();
 
@@ -742,15 +715,6 @@ class OrderBasket
 					self::$iblockPropsParams[$params["OFFERS_IBLOCK_ID"]] = static::getPropsParams(
 						$params["OFFERS_IBLOCK_ID"],
 						array(),
-						$iblockPropsUsed
-					);
-				}
-
-				if(intval($params["IBLOCK_ID"]) > 0 && !isset(self::$iblockPropsParams[$params["IBLOCK_ID"]]))
-				{
-					self::$iblockPropsParams[$params["IBLOCK_ID"]] = static::getPropsParams(
-						$params["IBLOCK_ID"],
-						$visibleColumns,
 						$iblockPropsUsed
 					);
 				}
@@ -811,8 +775,10 @@ class OrderBasket
 				{
 					foreach($productsParams["ITEMS"] as $key => $params)
 					{
-						if($params['MODULE'] != 'catalog')
+						if (($params['MODULE'] ?? '') !== 'catalog')
+						{
 							continue;
+						}
 
 						$productsParams["ITEMS"][$key]["SKU_PROPS_POSSIBLE_VALUES"] = $possibleSkuProps[$params['OFFER_ID']] ?? [];
 					}
@@ -1715,7 +1681,7 @@ class OrderBasket
 			Catalog\Product\Price\Calculation::pushConfig();
 			Catalog\Product\Price\Calculation::setConfig(array(
 				'CURRENCY' => Sale\Internals\SiteCurrencyTable::getSiteCurrency($LID),
-				'PRECISION' => (int)Main\Config\Option::get('sale', 'value_precision'),
+				'PRECISION' => Sale\PriceMaths::getCurrentPrecision(),
 				'USE_DISCOUNTS' => !$isSetItem,
 				'RESULT_WITH_VAT' => true
 			));

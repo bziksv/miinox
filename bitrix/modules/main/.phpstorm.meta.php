@@ -5,46 +5,54 @@ namespace PHPSTORM_META
 
 	registerArgumentsSet('bitrix_main_serviceLocator_codes',
 		'exceptionHandler',
+		'main.validation.service',
 	);
 
 	expectedArguments(\Bitrix\Main\DI\ServiceLocator::get(), 0, argumentsSet('bitrix_main_serviceLocator_codes'));
 
 	override(\Bitrix\Main\DI\ServiceLocator::get(0), map([
 		'exceptionHandler' => \Bitrix\Main\Diag\ExceptionHandler::class,
+		'main.validation.service' => \Bitrix\Main\Validation\ValidationService::class,
 	]));
 
 	exitPoint(\Bitrix\Main\Application::end());
 	exitPoint(\Bitrix\Main\Application::terminate());
-	exitPoint(\CAllMain::FinalActions());
+	exitPoint(\CMain::FinalActions());
 	exitPoint(\LocalRedirect());
 
 	registerArgumentsSet(
 		'bitrix_main_modules_list',
 		'abtest',
 		'advertising',
+		'ai',
+		'aiassistant',
 		'assistant',
 		'b24connector',
+		'b24manager',
 		'b24network',
-		'bitrix24',
-		'bitrixcloud',
+		'baas',
+		'biconnector',
 		'bitrix.eshop',
 		'bitrix.giphybot',
 		'bitrix.propertiesbot',
-		'bitrix.sitecommunity',
 		'bitrix.sitecorporate',
-		'bitrix.siteinfoportal',
-		'bitrix.sitepersonal',
+		'bitrix24',
+		'bitrixcloud',
 		'bizcard',
 		'bizcardcontroller',
 		'bizproc',
 		'bizprocdesigner',
+		'bizprocmobile',
 		'blog',
 		'botcontroller',
-		'bxmobile',
 		'bxtest',
 		'calendar',
-		'cases',
+		'calendarmobile',
+		'call',
+		'callcontroller',
+		'callmobile',
 		'catalog',
+		'catalogmobile',
 		'clouds',
 		'cluster',
 		'controller',
@@ -57,34 +65,35 @@ namespace PHPSTORM_META
 		'documentgenerator',
 		'documentproxy',
 		'extranet',
-		'faceid',
-		'faceidcontroller',
 		'fileman',
 		'form',
 		'forum',
 		'highloadblock',
+		'humanresources',
 		'iblock',
 		'idea',
 		'im',
 		'imbot',
 		'imconnector',
+		'imconnectormobile',
 		'imconnectorserver',
-		'imopenlines',
 		'immobile',
+		'imopenlines',
 		'intranet',
+		'intranetmobile',
 		'landing',
 		'ldap',
 		'learning',
 		'lists',
+		'listsmobile',
 		'location',
 		'mail',
 		'mailcontroller',
 		'main',
+		'market',
 		'meeting',
 		'messageservice',
 		'microservice',
-		'ml',
-		'mlserver',
 		'mobile',
 		'mobileapp',
 		'notifications',
@@ -96,10 +105,8 @@ namespace PHPSTORM_META
 		'photogallery',
 		'propertiesservice',
 		'pull',
-		'queue',
+		'rag',
 		'recyclebin',
-		'replica',
-		'replicaserver',
 		'report',
 		'rest',
 		'rpa',
@@ -113,12 +120,19 @@ namespace PHPSTORM_META
 		'sender',
 		'seo',
 		'seoproxy',
+		'sign',
+		'signmobile',
+		'signproxy',
+		'signsafe',
 		'socialnetwork',
 		'socialservices',
 		'sqs',
+		'stafftrack',
+		'stafftrackmobile',
 		'statistic',
 		'storeassist',
 		'subscribe',
+		'supersetproxy',
 		'support',
 		'tasks',
 		'tasksmobile',
@@ -127,12 +141,9 @@ namespace PHPSTORM_META
 		'transformercontroller',
 		'translate',
 		'ui',
-		'update',
+		'up',
 		'updateserver',
 		'updateserverlight',
-		'video',
-		'videomost',
-		'videoport',
 		'vote',
 		'voximplant',
 		'voximplantadmin',
@@ -152,4 +163,27 @@ namespace PHPSTORM_META
 	expectedArguments(\Bitrix\Main\Config\Option::get(), 0, argumentsSet('bitrix_main_modules_list'));
 	expectedArguments(\Bitrix\Main\Config\Option::set(), 0, argumentsSet('bitrix_main_modules_list'));
 	expectedArguments(\Bitrix\Main\Config\Configuration::getInstance(), 0, argumentsSet('bitrix_main_modules_list'));
+	expectedArguments(\Bitrix\Main\DI\ServiceLocator::registerByModuleSettings(), 0, argumentsSet('bitrix_main_modules_list'));
+
+	expectedArguments(
+		\Bitrix\Main\UpdateSystem\Migration\Table::create(),
+		0,
+		function (\Bitrix\Main\UpdateSystem\Migration\CreateTableBuilder $table) {
+
+},
+	);
+	expectedArguments(
+		\Bitrix\Main\UpdateSystem\Migration\Table::alter(),
+		0,
+		function (\Bitrix\Main\UpdateSystem\Migration\AlterTableBuilder $table) {
+
+},
+	);
+	expectedArguments(
+		\Bitrix\Main\UpdateSystem\Migration\Table::drop(),
+		0,
+		function (\Bitrix\Main\UpdateSystem\Migration\DropTableBuilder $table) {
+
+},
+	);
 }

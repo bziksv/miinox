@@ -1,236 +1,261 @@
+/* eslint-disable */
 this.BX = this.BX || {};
-(function (exports,main_core,landing_pageobject,landing_ui_highlight,landing_main) {
+(function (exports, landing_main, landing_pageobject, landing_backend, landing_env, landing_tailwind_runtimesync, main_core, landing_ui_highlight) {
 	'use strict';
 
-	var RESOLVED = 'resolved';
-	var PENDING = 'pending';
-
-	var _BX$Landing$Utils = BX.Landing.Utils,
-	    scrollTo = _BX$Landing$Utils.scrollTo,
-	    highlight = _BX$Landing$Utils.highlight;
-	/**
-	 * @param {object} entry
-	 * @return {Promise}
-	 */
-
-	var editNode = function editNode(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-
-	    if (!block) {
-	      return Promise.reject();
-	    }
-
-	    block.forceInit();
-	    var node = block.nodes.getBySelector(entry.selector);
-
-	    if (!node) {
-	      return Promise.reject();
-	    }
-
-	    return scrollTo(node.node).then(highlight.bind(null, node.node, editNode.useRangeRect)).then(function () {
-	      return node.setValue(entry.params.value, false, true);
-	    });
-	  });
+	const RESOLVED = 'resolved';
+	const PENDING = 'pending';
+	const HISTORY_TYPES = {
+		landing: 'L',
+		designerBlock: 'D'
 	};
 
+	const {
+		scrollTo: scrollTo$d,
+		highlight: highlight$c
+	} = BX.Landing.Utils;
+
+	/**
+	 * @param {object} entry
+	 * @return {Promise}
+	 */
+	const editNode = function (entry) {
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			if (!block) {
+				return Promise.reject();
+			}
+			block.forceInit();
+			const node = block.nodes.getBySelector(entry.selector);
+			if (!node) {
+				return Promise.reject();
+			}
+			return scrollTo$d(node.node).then(highlight$c.bind(null, node.node, editNode.useRangeRect)).then(() => {
+				return node.setValue(entry.params.value, false, true);
+			});
+		});
+	};
 	editNode.useRangeRect = true;
 
-	var editText = editNode;
+	const editText = editNode;
 
-	var editEmbed = editNode;
+	const editEmbed = editNode;
 
-	var editMap = editNode;
+	const editMap = editNode;
 
-	var editImage = editNode;
+	const editImage = editNode;
 	editImage.useRangeRect = false;
 
-	var editIcon = editImage;
+	const editIcon = editImage;
 
-	var editLink = editNode;
+	const editLink = editNode;
 	editLink.useRangeRect = false;
 
-	var _BX$Landing$Utils$1 = BX.Landing.Utils,
-	    scrollTo$1 = _BX$Landing$Utils$1.scrollTo,
-	    highlight$1 = _BX$Landing$Utils$1.highlight;
+	const {
+		scrollTo: scrollTo$c,
+		highlight: highlight$b
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function changeNodeName(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-
-	    if (!block) {
-	      return Promise.reject();
-	    }
-
-	    block.forceInit();
-	    var node = block.nodes.getBySelector(entry.selector);
-
-	    if (!node) {
-	      return Promise.reject();
-	    }
-
-	    return scrollTo$1(node.node).then(function () {
-	      return highlight$1(node.node);
-	    }).then(function () {
-	      if (node.onChangeTag) {
-	        node.onChangeTag(entry.params.value, true);
-	      }
-
-	      return true;
-	    });
-	  });
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			if (!block) {
+				return Promise.reject();
+			}
+			block.forceInit();
+			const node = block.nodes.getBySelector(entry.selector);
+			if (!node) {
+				return Promise.reject();
+			}
+			return scrollTo$c(node.node).then(() => {
+				return highlight$b(node.node);
+			}).then(() => {
+				if (node.onChangeTag) {
+					node.onChangeTag(entry.params.value, true);
+				}
+				return true;
+			});
+		});
 	}
 
-	var _BX$Landing$Utils$2 = BX.Landing.Utils,
-	    scrollTo$2 = _BX$Landing$Utils$2.scrollTo,
-	    highlight$2 = _BX$Landing$Utils$2.highlight;
+	const {
+		scrollTo: scrollTo$b,
+		highlight: highlight$a
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function sortBlock(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-	    block.forceInit();
-	    return scrollTo$2(block.node).then(highlight$2.bind(null, block.node)).then(function () {
-	      return block[entry.params.direction](true);
-	    });
-	  });
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			block.forceInit();
+			return scrollTo$b(block.node).then(highlight$a.bind(null, block.node)).then(() => {
+				return block[entry.params.direction](true);
+			});
+		});
 	}
 
-	var _BX$Landing$Utils$3 = BX.Landing.Utils,
-	    scrollTo$3 = _BX$Landing$Utils$3.scrollTo,
-	    highlight$3 = _BX$Landing$Utils$3.highlight;
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
+	function moveBlock(entry) {
+		const {
+			scrollTo,
+			highlight
+		} = BX.Landing.Utils;
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const order = Array.isArray(entry.params.order) ? entry.params.order.map(blockId => parseInt(blockId, 10)).filter(blockId => blockId > 0) : [];
+			if (order.length === 0) {
+				return Promise.reject();
+			}
+			const reorderedBlocks = order.map(blockId => blocks.get(blockId));
+			if (reorderedBlocks.some(block => !block || !block.node || !block.node.parentNode)) {
+				return Promise.reject();
+			}
+			const container = reorderedBlocks[0].node.parentNode;
+			reorderedBlocks.forEach(block => {
+				block.forceInit();
+				container.appendChild(block.node);
+			});
+			blocks.clear();
+			reorderedBlocks.forEach(block => {
+				blocks.add(block);
+			});
+			const movedIds = Array.isArray(entry.params.movedIds) ? entry.params.movedIds.map(blockId => parseInt(blockId, 10)).filter(blockId => blockId > 0) : [];
+			const focusBlock = blocks.get(movedIds[0] || order[0]);
+			if (!focusBlock) {
+				return Promise.resolve();
+			}
+			return scrollTo(focusBlock.node).then(() => {
+				void highlight(focusBlock.node);
+			});
+		});
+	}
 
+	const {
+		scrollTo: scrollTo$a,
+		highlight: highlight$9
+	} = BX.Landing.Utils;
+
+	/**
+	 * @param {object} entry
+	 * @return {Promise}
+	 */
 	function addBlock(entry) {
-	  return landing_pageobject.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.params.currentBlock);
-	    return new Promise(function (resolve) {
-	      if (block) {
-	        block.forceInit();
-	        return scrollTo$3(block.node).then(highlight$3.bind(null, block.node, false, true)).then(resolve);
-	      }
-
-	      resolve();
-	    }).then(function () {
-	      var landing = BX.Landing.Main.getInstance();
-	      landing.currentBlock = block;
-	      return landing_pageobject.PageObject.getInstance().view().then(function (iframe) {
-	        landing.currentArea = iframe.contentDocument.body.querySelector("[data-landing=\"".concat(entry.params.lid, "\"]"));
-	        landing.insertBefore = entry.params.insertBefore;
-	        return landing.onAddBlock(entry.params.code, entry.block, true);
-	      });
-	    });
-	  });
+		return landing_pageobject.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.params.currentBlock);
+			return new Promise(resolve => {
+				if (block) {
+					block.forceInit();
+				}
+				resolve();
+			}).then(() => {
+				const landing = BX.Landing.Main.getInstance();
+				landing.currentBlock = block;
+				return landing_pageobject.PageObject.getInstance().view().then(iframe => {
+					landing.currentArea = iframe.contentDocument.body.querySelector(`[data-landing="${entry.params.lid}"]`);
+					landing.insertBefore = entry.params.insertBefore;
+					return landing.onAddBlock(entry.params.code, entry.block, true).then(newBlock => {
+						return scrollTo$a(newBlock).then(highlight$9.bind(null, newBlock, false, false));
+					});
+				});
+			});
+		});
 	}
 
-	var _BX$Landing$Utils$4 = BX.Landing.Utils,
-	    scrollTo$4 = _BX$Landing$Utils$4.scrollTo,
-	    highlight$4 = _BX$Landing$Utils$4.highlight;
+	const {
+		scrollTo: scrollTo$9,
+		highlight: highlight$8
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function removeBlock(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-	    block.forceInit();
-	    return scrollTo$4(block.node).then(function () {
-	      highlight$4(block.node);
-	      return block.deleteBlock(true);
-	    });
-	  });
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			block.forceInit();
+			return scrollTo$9(block.node).then(() => {
+				highlight$8(block.node);
+				return block.deleteBlock(true);
+			});
+		});
 	}
 
-	var _BX$Landing$Utils$5 = BX.Landing.Utils,
-	    scrollTo$5 = _BX$Landing$Utils$5.scrollTo,
-	    highlight$5 = _BX$Landing$Utils$5.highlight;
+	const {
+		scrollTo: scrollTo$8,
+		highlight: highlight$7
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {string} state
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function addCard(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-
-	    if (block) {
-	      block.forceInit();
-	    }
-
-	    if (!block) {
-	      return Promise.reject();
-	    }
-
-	    return block;
-	  }).then(function (block) {
-	    return BX.Landing.PageObject.getInstance().view().then(function (iframe) {
-	      var parentNode = iframe.contentDocument.querySelector(entry.params.selector).parentNode;
-	      return [block, parentNode];
-	    });
-	  }).then(function (elements) {
-	    return scrollTo$5(elements[1]).then(function () {
-	      return elements;
-	    });
-	  }).then(function (elements) {
-	    var block = elements[0];
-	    return block.addCard({
-	      index: entry.params.position,
-	      container: elements[1],
-	      content: entry.params.content,
-	      selector: entry.params.selector
-	    }, true).then(function () {
-	      var card = block.cards.getBySelector(entry.params.selector);
-
-	      if (!card) {
-	        return Promise.reject();
-	      }
-
-	      return highlight$5(card.node);
-	    });
-	  })["catch"](function () {});
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			if (block) {
+				block.forceInit();
+			}
+			if (!block) {
+				return Promise.reject();
+			}
+			const parentNode = block.node.querySelector(entry.params.selector).parentNode;
+			return scrollTo$8(parentNode).then(() => {
+				return block.addCard({
+					index: entry.params.position,
+					container: parentNode,
+					content: entry.params.content,
+					selector: entry.params.selector
+				}, true).then(() => {
+					const cardSelector = entry.params.selector + '@' + entry.params.position;
+					const card = block.cards.getBySelector(cardSelector);
+					if (!card) {
+						return Promise.reject();
+					}
+					return highlight$7(card.node);
+				});
+			});
+		}).catch(err => {
+			console.log("Error in history action addCard", err);
+		});
 	}
 
-	var _BX$Landing$Utils$6 = BX.Landing.Utils,
-	    scrollTo$6 = _BX$Landing$Utils$6.scrollTo,
-	    highlight$6 = _BX$Landing$Utils$6.highlight;
+	const {
+		scrollTo: scrollTo$7,
+		highlight: highlight$6
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {string} state
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function removeCard(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-	    block.forceInit();
-
-	    if (!block) {
-	      return Promise.reject();
-	    }
-
-	    var relativeSelector = entry.params.selector + '@' + (entry.params.position + 1);
-	    var card = block.cards.getBySelector(relativeSelector);
-
-	    if (!card) {
-	      return Promise.reject();
-	    }
-
-	    return scrollTo$6(card.node).then(highlight$6.bind(null, card.node)).then(function () {
-	      return block.removeCard(relativeSelector, true);
-	    });
-	  });
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			block.forceInit();
+			if (!block) {
+				return Promise.reject();
+			}
+			const relativeSelector = entry.params.selector + '@' + (entry.params.position + 1);
+			const card = block.cards.getBySelector(relativeSelector);
+			if (!card) {
+				return Promise.reject();
+			}
+			return scrollTo$7(card.node).then(highlight$6.bind(null, card.node)).then(() => {
+				return block.removeCard(relativeSelector, true);
+			});
+		});
 	}
 
 	/**
@@ -239,14 +264,13 @@ this.BX = this.BX || {};
 	 * @return {Promise}
 	 */
 	function addNode(entry) {
-	  var _this = this;
+		// entry.block === null >> designer mode
 
-	  // entry.block === null >> designer mode
-	  return new Promise(function (resolve, reject) {
-	    var tags = entry.params.tags || {};
-	    top.BX.onCustomEvent(_this, 'Landing:onHistoryAddNode', [tags]);
-	    resolve();
-	  });
+		return new Promise((resolve, reject) => {
+			const tags = entry.params.tags || {};
+			top.BX.onCustomEvent(this, 'Landing:onHistoryAddNode', [tags]);
+			resolve();
+		});
 	}
 
 	/**
@@ -255,162 +279,295 @@ this.BX = this.BX || {};
 	 * @return {Promise}
 	 */
 	function removeNode(entry) {
-	  var _this = this;
+		// entry.block === null >> designer mode
 
-	  // entry.block === null >> designer mode
-	  return new Promise(function (resolve, reject) {
-	    var tags = entry.params.tags || {};
-	    top.BX.onCustomEvent(_this, 'Landing:onHistoryRemoveNode', [tags]);
-	    resolve();
-	  });
+		return new Promise((resolve, reject) => {
+			const tags = entry.params.tags || {};
+			top.BX.onCustomEvent(this, 'Landing:onHistoryRemoveNode', [tags]);
+			resolve();
+		});
 	}
 
-	var _BX$Landing$Utils$7 = BX.Landing.Utils,
-	    scrollTo$7 = _BX$Landing$Utils$7.scrollTo,
-	    slice = _BX$Landing$Utils$7.slice;
+	const {
+		scrollTo: scrollTo$6,
+		slice
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function editStyle(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			if (!block) {
+				return Promise.reject();
+			}
+			block.forceInit();
+			block.initStyles();
+			return block;
+		}).then(block => {
+			return scrollTo$6(block.node).then(() => {
+				return block;
+			});
+		}).then(block => {
+			let elements = slice(block.node.querySelectorAll(entry.selector));
+			if (entry.params.isWrapper) {
+				elements = [block.content];
+				entry.selector += ' > :first-child';
+			}
+			elements.forEach((element, pos) => {
+				if (entry.params.position >= 0 && entry.params.position !== pos) {
+					return;
+				}
+				element.className = entry.params.value.className;
+				if (entry.params.value.style && entry.params.value.style !== '') {
+					element.style = entry.params.value.style;
+				} else {
+					element.removeAttribute('style');
+				}
+			});
+			return block;
+		}).then(block => {
+			const form = block.forms.find(currentForm => {
+				return currentForm.selector === entry.selector || currentForm.relativeSelector === entry.selector;
+			});
+			if (form) {
+				form.fields.forEach(field => {
+					field.reset();
+					field.onFrameLoad();
+				});
+			}
 
-	    if (!block) {
-	      return Promise.reject();
-	    }
-
-	    block.forceInit();
-	    block.initStyles();
-	    return block;
-	  }).then(function (block) {
-	    return scrollTo$7(block.node).then(function () {
-	      return block;
-	    });
-	  }).then(function (block) {
-	    var elements = slice(block.node.querySelectorAll(entry.selector));
-
-	    if (block.selector === entry.selector) {
-	      elements = [block.content];
-	    }
-
-	    elements.forEach(function (element) {
-	      element.className = entry.params.value.className;
-
-	      if (entry.params.value.style && entry.params.value.style !== '') {
-	        element.style = entry.params.value.style;
-	      } else {
-	        element.removeAttribute('style');
-	      }
-	    });
-	    return block;
-	  }).then(function (block) {
-	    var form = block.forms.find(function (currentForm) {
-	      return currentForm.selector === entry.selector || currentForm.relativeSelector === entry.selector;
-	    });
-
-	    if (form) {
-	      form.fields.forEach(function (field) {
-	        field.reset();
-	        field.onFrameLoad();
-	      });
-	    } // todo: relative selector? position?
-
-
-	    var styleNode = block.styles.find(function (style) {
-	      return style.selector === entry.selector || style.relativeSelector === entry.selector;
-	    });
-
-	    if (styleNode) {
-	      if (entry.params.affect && entry.params.affect.length > 0) {
-	        styleNode.setAffects(entry.params.affect);
-	      }
-
-	      block.onStyleInputWithDebounce({
-	        node: styleNode.node,
-	        data: styleNode.getValue()
-	      }, true);
-	    }
-	  });
+			// todo: relative selector? position?
+			const styleNode = block.styles.find(style => {
+				return style.selector === entry.selector || style.relativeSelector === entry.selector;
+			});
+			if (styleNode) {
+				if (entry.params.affect && entry.params.affect.length > 0) {
+					styleNode.setAffects(entry.params.affect);
+				}
+				block.onStyleInputWithDebounce({
+					node: styleNode.node,
+					data: styleNode.getValue()
+				}, true);
+			}
+		});
 	}
 
-	var _BX$Landing$Utils$8 = BX.Landing.Utils,
-	    scrollTo$8 = _BX$Landing$Utils$8.scrollTo,
-	    highlight$7 = _BX$Landing$Utils$8.highlight;
+	const {
+		scrollTo: scrollTo$5,
+		highlight: highlight$5
+	} = BX.Landing.Utils;
+
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
+	function editAttributes(entry) {
+		return landing_pageobject.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			return new Promise((resolve, reject) => {
+				if (block) {
+					block.forceInit();
+					resolve(block);
+				} else {
+					reject();
+				}
+			}).then(block => {
+				return scrollTo$5(block.node).then(() => {
+					return block.applyAttributeChanges({
+						[entry.params.selector]: {
+							attrs: {
+								[entry.params.attribute]: entry.params.value
+							}
+						}
+					});
+				}).then(highlight$5.bind(null, block.node, false, false));
+			});
+		});
+	}
 
+	class Entry {
+		constructor(options) {
+			this.block = options.block;
+			this.selector = options.selector;
+			this.command = main_core.Type.isStringFilled(options.command) ? options.command : '#invalidCommand';
+			this.params = options.params;
+			this.onAfterCommand = typeof options.onAfterCommand === 'function' ? options.onAfterCommand : null;
+		}
+	}
+
+	const {
+		scrollTo: scrollTo$4,
+		highlight: highlight$4
+	} = BX.Landing.Utils;
+	const editComponent = entry => {
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			/**
+			 * @type {BX.Landing.Block}
+			 */
+			const block = blocks.get(entry.block);
+			if (!block) {
+				return Promise.reject();
+			}
+			block.forceInit();
+			if (!block.node) {
+				return Promise.reject();
+			}
+			return scrollTo$4(block.node).then(() => {
+				return block.applyAttributeChanges({
+					[entry.params.selector]: {
+						attrs: entry.params.value
+					}
+				}, true);
+			}).then(block.reload.bind(block)).then(highlight$4.bind(null, block.node, false, false));
+		});
+	};
+
+	const {
+		scrollTo: scrollTo$3,
+		highlight: highlight$3
+	} = BX.Landing.Utils;
+
+	/**
+	 * @param {object} entry
+	 * @return {Promise}
+	 */
 	function updateContent(entry) {
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(entry.block);
-	    block.forceInit();
-	    return scrollTo$8(block.node).then(function () {
-	      void highlight$7(block.node);
-	      return block.updateContent(entry.params.content, true);
-	    });
-	  });
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.block);
+			block.forceInit();
+			return scrollTo$3(block.node).then(() => {
+				void highlight$3(block.node);
+				return block.updateContent(entry.params.content, true);
+			});
+		});
 	}
 
-	var _BX$Landing$Utils$9 = BX.Landing.Utils,
-	    scrollTo$9 = _BX$Landing$Utils$9.scrollTo,
-	    highlight$8 = _BX$Landing$Utils$9.highlight;
+	const {
+		scrollTo: scrollTo$2,
+		highlight: highlight$2
+	} = BX.Landing.Utils;
+	const commands = {
+		updateContent,
+		addBlock,
+		removeBlock,
+		moveBlock
+	};
+	commands.__contract = 'const commands = { updateContent, addBlock, removeBlock, moveBlock };';
+
 	/**
 	 * @param {object} entry
 	 * @return {Promise}
 	 */
-
 	function multiply(entry) {
-	  var blockId = null;
-	  var updateBlockStateData = {};
-	  entry.params.forEach(function (singleAction) {
-	    if (!blockId && singleAction.params.block) {
-	      blockId = singleAction.params.block;
-	    }
+		let blockId = null;
+		const updateBlockStateData = {};
+		const commandQueue = [];
+		entry.params.forEach(singleAction => {
+			if (!blockId && singleAction.params.block) {
+				blockId = singleAction.params.block;
+			}
+			if (singleAction.command === 'editText' || singleAction.command === 'editImage' || singleAction.command === 'editEmbed' || singleAction.command === 'editMap' || singleAction.command === 'editIcon' || singleAction.command === 'editLink') {
+				updateBlockStateData[singleAction.params.selector] = singleAction.params.value;
+			}
+			if (singleAction.command === 'updateDynamic') {
+				updateBlockStateData.dynamicParams = singleAction.params.dynamicParams;
+				updateBlockStateData.dynamicState = singleAction.params.dynamicState;
+			}
+			if (singleAction.command === 'changeAnchor') {
+				updateBlockStateData.settings = {
+					id: singleAction.params.value
+				};
+			}
+			if (commands[singleAction.command]) {
+				commandQueue.push(() => commands[singleAction.command]({
+					block: singleAction.params.block,
+					selector: singleAction.params.selector,
+					command: singleAction.command,
+					params: singleAction.params
+				}).then(() => {
+					if (typeof entry.onAfterCommand === 'function') {
+						return entry.onAfterCommand(singleAction);
+					}
+					return null;
+				}));
+			}
+		});
+		return BX.Landing.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(blockId);
+			if (block) {
+				block.forceInit();
+				return scrollTo$2(block.node).then(() => {
+					void highlight$2(block.node);
+					if (Object.keys(updateBlockStateData).length > 0) {
+						block.updateBlockState(updateBlockStateData, true);
+					}
+				});
+			}
+		}).then(() => {
+			return commandQueue.reduce((promise, command) => {
+				return promise.then(command);
+			}, Promise.resolve());
+		});
+	}
+	multiply.__contract = 'commandQueue.reduce((promise, command) => promise.then(command), Promise.resolve());';
 
-	    if (singleAction.command === 'editText' || singleAction.command === 'editImage' || singleAction.command === 'editEmbed' || singleAction.command === 'editMap' || singleAction.command === 'editIcon' || singleAction.command === 'editLink') {
-	      updateBlockStateData[singleAction.params.selector] = singleAction.params.value;
-	    }
+	const {
+		scrollTo: scrollTo$1,
+		highlight: highlight$1
+	} = BX.Landing.Utils;
 
-	    if (singleAction.command === 'updateDynamic') {
-	      updateBlockStateData.dynamicParams = singleAction.params.dynamicParams;
-	      updateBlockStateData.dynamicState = singleAction.params.dynamicState;
-	    }
+	/**
+	 * @param {object} entry
+	 * @return {Promise}
+	 */
+	function replaceLanding(entry) {
+		return new Promise((resolve, reject) => {
+			top.window.location.reload();
+			resolve();
+		});
+	}
 
-	    if (singleAction.command === 'changeAnchor') {
-	      updateBlockStateData.settings = {
-	        id: singleAction.params.value
-	      };
-	    }
-	  });
-	  return BX.Landing.PageObject.getInstance().blocks().then(function (blocks) {
-	    var block = blocks.get(blockId);
+	const {
+		scrollTo,
+		highlight
+	} = BX.Landing.Utils;
 
-	    if (block) {
-	      block.forceInit();
-	      return scrollTo$9(block.node).then(function () {
-	        void highlight$8(block.node);
-
-	        if (Object.keys(updateBlockStateData).length > 0) {
-	          block.updateBlockState(updateBlockStateData, true);
-	        }
-	      });
-	    }
-	  });
+	/**
+	 * @param {object} entry
+	 * @return {Promise}
+	 */
+	function changeAnchor(entry) {
+		return landing_pageobject.PageObject.getInstance().blocks().then(blocks => {
+			const block = blocks.get(entry.params.currentBlock);
+			return new Promise((resolve, reject) => {
+				if (block) {
+					block.forceInit();
+					resolve(block);
+				} else {
+					reject();
+				}
+			}).then(block => {
+				scrollTo(block).then(highlight.bind(null, block, false, false));
+			});
+		});
 	}
 
 	/**
 	 * Implements interface for works with command of history
 	 * @param {{id: string, undo: function, redo: function}} options
 	 */
-
-	var Command = function Command(options) {
-	  babelHelpers.classCallCheck(this, Command);
-	  this.id = main_core.Type.isStringFilled(options.id) ? options.id : '#invalidCommand';
-	  this.command = main_core.Type.isFunction(options.command) ? options.command : function () {};
-	};
+	class Command {
+		constructor(options) {
+			this.id = main_core.Type.isStringFilled(options.id) ? options.id : '#invalidCommand';
+			this.command = main_core.Type.isFunction(options.command) ? options.command : () => {};
+			this.onBeforeCommand = main_core.Type.isFunction(options.onBeforeCommand) ? options.onBeforeCommand : () => {
+				return Promise.resolve();
+			};
+		}
+	}
 
 	/**
 	 * Registers base internal commands
@@ -418,107 +575,141 @@ this.BX = this.BX || {};
 	 * @return {Promise<History>}
 	 */
 	function registerBaseCommands(history) {
-	  history.registerCommand(new Command({
-	    id: 'editText',
-	    command: editText
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'editImage',
-	    command: editImage
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'editEmbed',
-	    command: editEmbed
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'editMap',
-	    command: editMap
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'editIcon',
-	    command: editIcon
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'editLink',
-	    command: editLink
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'cnangeNodeName',
-	    command: changeNodeName
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'sortBlock',
-	    command: sortBlock
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'addBlock',
-	    command: addBlock
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'removeBlock',
-	    command: removeBlock
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'updateStyle',
-	    command: editStyle
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'addCard',
-	    command: addCard
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'removeCard',
-	    command: removeCard
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'addNode',
-	    command: addNode
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'removeNode',
-	    command: removeNode
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'updateContent',
-	    command: updateContent
-	  }));
-	  history.registerCommand(new Command({
-	    id: 'multiply',
-	    command: multiply
-	  }));
-	  return Promise.resolve(history);
+		history.registerCommand(new Command({
+			id: 'editText',
+			command: editText
+		}));
+		history.registerCommand(new Command({
+			id: 'editImage',
+			command: editImage
+		}));
+		history.registerCommand(new Command({
+			id: 'editEmbed',
+			command: editEmbed
+		}));
+		history.registerCommand(new Command({
+			id: 'editMap',
+			command: editMap
+		}));
+		history.registerCommand(new Command({
+			id: 'editIcon',
+			command: editIcon
+		}));
+		history.registerCommand(new Command({
+			id: 'editLink',
+			command: editLink
+		}));
+		history.registerCommand(new Command({
+			id: 'cnangeNodeName',
+			command: changeNodeName
+		}));
+		history.registerCommand(new Command({
+			id: 'sortBlock',
+			command: sortBlock
+		}));
+		history.registerCommand(new Command({
+			id: 'moveBlock',
+			command: moveBlock
+		}));
+		history.registerCommand(new Command({
+			id: 'addBlock',
+			command: addBlock
+		}));
+		history.registerCommand(new Command({
+			id: 'removeBlock',
+			command: removeBlock
+		}));
+		history.registerCommand(new Command({
+			id: 'updateStyle',
+			command: editStyle
+		}));
+		history.registerCommand(new Command({
+			id: 'addCard',
+			command: addCard
+		}));
+		history.registerCommand(new Command({
+			id: 'removeCard',
+			command: removeCard
+		}));
+		history.registerCommand(new Command({
+			id: 'addNode',
+			command: addNode
+		}));
+		history.registerCommand(new Command({
+			id: 'removeNode',
+			command: removeNode
+		}));
+		history.registerCommand(new Command({
+			id: 'updateContent',
+			command: updateContent
+		}));
+		history.registerCommand(new Command({
+			id: 'replaceLanding',
+			command: replaceLanding,
+			onBeforeCommand: () => {
+				return main_core.Runtime.loadExtension('main.loader').then(() => {
+					const editor = BX.Landing.PageObject.getEditorWindow();
+					if (editor) {
+						const container = main_core.Tag.render`<div class="landing-ui-modal"></div>`;
+						main_core.Dom.append(container, editor.document.body);
+						const loader = new BX.Loader({
+							target: container
+						});
+						loader.show();
+					}
+					return Promise.resolve();
+				});
+			}
+		}));
+		history.registerCommand(new Command({
+			id: 'changeAnchor',
+			command: changeAnchor
+		}));
+		history.registerCommand(new Command({
+			id: 'editAttributes',
+			command: editAttributes
+		}));
+		history.registerCommand(new Command({
+			id: 'editComponent',
+			command: editComponent
+		}));
+		history.registerCommand(new Command({
+			id: 'multiply',
+			command: multiply
+		}));
+		return Promise.resolve(history);
 	}
 
-	var worker = new Worker('/bitrix/js/landing/history/src/worker/json-parse-worker.js');
+	const worker$1 = new Worker('/bitrix/js/landing/history/src/worker/json-parse-worker.js');
+
 	/**
 	 * Parses json string
 	 * @param {string} str
 	 * @return {Promise<?Object|array>}
 	 */
-
 	function asyncJsonParse(str) {
-	  return new Promise(function (resolve) {
-	    worker.postMessage(str);
-	    worker.addEventListener('message', function (event) {
-	      resolve(event.data);
-	    });
-	  });
+		return new Promise(resolve => {
+			worker$1.postMessage(str);
+			worker$1.addEventListener('message', event => {
+				resolve(event.data);
+			});
+		});
 	}
 
-	var worker$1 = new Worker('/bitrix/js/landing/history/src/worker/json-stringify-worker.js');
+	const worker = new Worker('/bitrix/js/landing/history/src/worker/json-stringify-worker.js');
+
 	/**
 	 * Serializes object
 	 * @param {Object|array} obj
 	 * @return {Promise<?String>}
 	 */
-
 	function asyncJsonStringify(obj) {
-	  return new Promise(function (resolve) {
-	    worker$1.postMessage(obj);
-	    worker$1.addEventListener('message', function (event) {
-	      resolve(event.data);
-	    });
-	  });
+		return new Promise(resolve => {
+			worker.postMessage(obj);
+			worker.addEventListener('message', event => {
+				resolve(event.data);
+			});
+		});
 	}
 
 	/**
@@ -528,90 +719,17 @@ this.BX = this.BX || {};
 	 * @return {Promise<History>}
 	 */
 	function removePageHistory(pageId, history) {
-	  return asyncJsonParse(window.localStorage.history).then(function (historyData) {
-	    return main_core.Type.isPlainObject(historyData) ? historyData : {};
-	  }).then(function (all) {
-	    if (pageId in all) {
-	      delete all[pageId];
-	    }
-
-	    return all;
-	  }).then(asyncJsonStringify).then(function (allString) {
-	    window.localStorage.history = allString;
-	    return history;
-	  });
-	}
-
-	/**
-	 * Loads history from storage
-	 * @param {History} history
-	 * @return {Promise<History>}
-	 */
-	function loadStack(history) {
-	  var currentPageId;
-
-	  try {
-	    currentPageId = landing_main.Main.getInstance().id;
-	  } catch (err) {
-	    currentPageId = -1;
-	  } // todo: if design - no?
-
-
-	  return BX.Landing.Backend.getInstance().action("History::getForLanding", {
-	    lid: currentPageId
-	  }).then(function (data) {
-	    history.stack = main_core.Text.toNumber(data.stackCount);
-	    history.step = Math.min(main_core.Text.toNumber(data.step), history.stack);
-	    return history;
-	  })["catch"](function (e) {
-	    return history;
-	  });
-	}
-
-	/**
-	 * Fetches entities from entries
-	 * @param {BX.Landing.History.Entry[]} items
-	 * @return {Promise<any>}
-	 */
-	function fetchEntities(items) {
-	  var entities = {
-	    blocks: [],
-	    images: []
-	  };
-	  items.forEach(function (item) {
-	    if (item.command === 'addBlock') {
-	      entities.blocks.push(item.block);
-	    }
-
-	    if (item.command === 'editImage') {
-	      entities.images.push({
-	        block: item.block,
-	        id: item.redo.id
-	      });
-	    }
-	  });
-	  return Promise.resolve(entities);
-	}
-
-	/**
-	 * Makes request with removed entities
-	 * @param {{
-	 * 		blocks: int[],
-	 * 		images: {block: int, id: int}[]
-	 * 	}} entities
-	 * @param {History} history
-	 * @return {Promise<History>}
-	 */
-	function removeEntities(entities, history) {
-	  // if (entities.blocks.length || entities.images.length)
-	  // {
-	  // 	return BX.Landing.Backend.getInstance().action("Landing::removeEntities", {data: entities})
-	  // 		.then(function() {
-	  // 			return onNewBranch(history);
-	  // 		})
-	  // 		.then(onUpdate);
-	  // }
-	  return Promise.resolve(history);
+		return asyncJsonParse(window.localStorage.history).then(historyData => {
+			return main_core.Type.isPlainObject(historyData) ? historyData : {};
+		}).then(all => {
+			if (pageId in all) {
+				delete all[pageId];
+			}
+			return all;
+		}).then(asyncJsonStringify).then(allString => {
+			window.localStorage.history = allString;
+			return history;
+		});
 	}
 
 	/**
@@ -620,10 +738,9 @@ this.BX = this.BX || {};
 	 * @return {Promise<History>}
 	 */
 	function clear(history) {
-	  history.stack = [];
-	  history.step = -1;
-	  history.commandState = RESOLVED;
-	  return Promise.resolve(history);
+		history.stack = null;
+		history.commandState = RESOLVED;
+		return Promise.resolve(history);
 	}
 
 	/**
@@ -632,9 +749,9 @@ this.BX = this.BX || {};
 	 * @return {Promise<History>}
 	 */
 	function onUpdate(history) {
-	  var rootWindow = BX.Landing.PageObject.getRootWindow();
-	  BX.onCustomEvent(rootWindow.window, 'BX.Landing.History:update', [history]);
-	  return Promise.resolve(history);
+		const rootWindow = BX.Landing.PageObject.getRootWindow();
+		BX.onCustomEvent(rootWindow.window, 'BX.Landing.History:update', [history]);
+		return Promise.resolve(history);
 	}
 
 	/**
@@ -643,372 +760,656 @@ this.BX = this.BX || {};
 	 * @return {Promise<History>}
 	 */
 	function onInit(history) {
-	  var rootWindow = BX.Landing.PageObject.getRootWindow();
-	  BX.onCustomEvent(rootWindow.window, 'BX.Landing.History:init', [history]);
-	  return Promise.resolve(history);
+		const rootWindow = BX.Landing.PageObject.getRootWindow();
+		BX.onCustomEvent(rootWindow.window, 'BX.Landing.History:init', [history]);
+		return Promise.resolve(history);
 	}
 
-	var Entry = function Entry(options) {
-	  babelHelpers.classCallCheck(this, Entry);
-	  this.block = options.block;
-	  this.selector = options.selector;
-	  this.command = main_core.Type.isStringFilled(options.command) ? options.command : '#invalidCommand';
-	  this.params = options.params;
-	};
+	class Stack {
+		/**
+		 * ID and type of main entity (landing or design block)
+		 */
 
-	var Highlight = /*#__PURE__*/function (_HighlightNode) {
-	  babelHelpers.inherits(Highlight, _HighlightNode);
+		items = [];
+		/**
+		 * All entities in stack and them current steps
+		 */
+		entitySteps = {};
+		constructor(entityId, entityType = HISTORY_TYPES.landing) {
+			this.mainEntityId = entityId;
+			this.entityType = entityType;
+		}
+		init() {
+			return this.#loadFromBackend().then(this.#adjustMultiPage.bind(this));
+		}
+		reload() {
+			this.items = [];
+			this.step = 0;
+			return this.#loadFromBackend();
+		}
+		#loadFromBackend() {
+			return BX.Landing.Backend.getInstance().action(this.#getLoadBackendActionName(), this.#getLoadBackendParams()).then(data => {
+				const items = main_core.Type.isArray(data.stack) ? data.stack : [];
+				items.forEach(item => {
+					if (item.entityId && main_core.Type.isNumber(item.entityId) && item.command && main_core.Type.isString(item.command)) {
+						this.items.push({
+							entityId: item.entityId,
+							command: item.command
+						});
+						if (item.current && item.current === true) {
+							this.entitySteps[item.entityId] = this.items.length;
+						}
+					}
+				});
+				const step = main_core.Text.toNumber(data.step);
+				this.step = Math.min(this.items.length, step);
+				this.step = Math.max(0, this.step);
+			}).catch(e => {
+				console.error('History load error', e);
+				return history;
+			});
+		}
+		#getLoadBackendActionName() {
+			if (this.entityType === HISTORY_TYPES.designerBlock) {
+				return "History::getForDesignerBlock";
+			}
+			return "History::getForLanding";
+		}
+		#getLoadBackendParams() {
+			if (this.entityType === HISTORY_TYPES.designerBlock) {
+				return {
+					blockId: this.mainEntityId
+				};
+			}
+			return {
+				lid: this.mainEntityId
+			};
+		}
+		#adjustMultiPage() {
+			const currentItem = this.items[this.step - 1];
+			if (currentItem && this.entityType === HISTORY_TYPES.landing && this.#isMultiPage()) {
+				const entitiesToClearFuture = [];
+				this.items.forEach((item, index) => {
+					const step = index + 1;
+					if (step >= this.step) {
+						return;
+					}
 
-	  function Highlight() {
-	    var _this;
+					// Clear future for all entities, except current, that have future (have steps after own current)
+					if (item.entityId !== currentItem.entityId && this.entitySteps[item.entityId] < step) {
+						entitiesToClearFuture.push(item.entityId);
+					}
+				});
+				if (entitiesToClearFuture.length > 0) {
+					const backend = landing_backend.Backend.getInstance();
+					const promises = [];
+					entitiesToClearFuture.forEach(entityId => {
+						promises.push(backend.action('History::clearFutureForLanding', {
+							landingId: entityId
+						}));
+					});
+					return Promise.all(promises).then(this.reload.bind(this));
+				}
+			}
+			return Promise.resolve();
+		}
+		#isMultiPage() {
+			return Object.keys(this.entitySteps).length > 1;
+		}
+		setTypeDesignerBlock(blockId) {
+			this.mainEntityId = blockId;
+			this.entityType = HISTORY_TYPES.designerBlock;
+			return this.reload();
+		}
+		getCommandName(undo = true) {
+			let step = undo ? this.step : this.step + 1;
+			step--; // array index correction
 
-	    babelHelpers.classCallCheck(this, Highlight);
-	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Highlight).call(this));
+			return this.items[step] ? this.items[step].command : null;
+		}
+		getCommandEntityId(undo = true) {
+			let step = undo ? this.step : this.step + 1;
+			step--; // array index correction
 
-	    _this.layout.classList.add('landing-ui-highlight-animation');
+			return this.items[step] ? this.items[step].entityId : null;
+		}
 
-	    _this.animationDuration = 300;
-	    return _this;
-	  }
+		/**
+		 * Check is stack undoable
+		 * @return {boolean}
+		 */
+		canUndo() {
+			return this.step > 0 && this.step <= this.items.length;
+		}
 
-	  babelHelpers.createClass(Highlight, [{
-	    key: "show",
-	    value: function show(element, rect) {
-	      var _this2 = this;
+		/**
+		 * Check is stack reduable
+		 * @return {boolean}
+		 */
+		canRedo() {
+			return this.step >= 0 && this.step < this.items.length;
+		}
 
-	      BX.Landing.UI.Highlight.prototype.show.call(this, element, rect);
-	      return new Promise(function (resolve) {
-	        setTimeout(resolve, _this2.animationDuration);
+		/**
+		 * Change stack when undo or redo
+		 * @param undo - if false - redo
+		 * @return {Promise}
+		 */
+		offset(undo = true) {
+			const newStep = undo ? this.step - 1 : this.step + 1;
+			if (newStep >= 0 && newStep <= this.items.length) {
+				this.step = newStep;
+			}
+			return Promise.resolve();
+		}
+		push() {
+			// For some types actions history.push called before backend changes. Need add input timeout
+			return new Promise(resolve => {
+				setTimeout(() => {
+					// change values before load
+					if (this.step < this.items.length) {
+						this.items = this.items.slice(0, this.step - 1);
+					}
+					this.step++;
+					this.items.push(this.items[this.step - 1]);
+					return this.reload().then(resolve);
+				}, 500);
+			});
+		}
+	}
 
-	        _this2.hide();
-	      });
-	    }
-	  }], [{
-	    key: "getInstance",
-	    value: function getInstance() {
-	      var rootWindow = landing_pageobject.PageObject.getRootWindow();
+	class Highlight extends landing_ui_highlight.Highlight {
+		constructor() {
+			super();
+			this.layout.classList.add('landing-ui-highlight-animation');
+			this.animationDuration = 300;
+		}
+		static getInstance() {
+			const rootWindow = landing_pageobject.PageObject.getRootWindow();
+			if (!rootWindow.BX.Landing.History.Highlight.instance) {
+				rootWindow.BX.Landing.History.Highlight.instance = new Highlight();
+			}
+			return rootWindow.BX.Landing.History.Highlight.instance;
+		}
+		show(element, rect) {
+			BX.Landing.UI.Highlight.prototype.show.call(this, element, rect);
+			return new Promise(resolve => {
+				setTimeout(resolve, this.animationDuration);
+				this.hide();
+			});
+		}
+	}
 
-	      if (!rootWindow.BX.Landing.History.Highlight.instance) {
-	        rootWindow.BX.Landing.History.Highlight.instance = new Highlight();
-	      }
-
-	      return rootWindow.BX.Landing.History.Highlight.instance;
-	    }
-	  }]);
-	  return Highlight;
-	}(landing_ui_highlight.Highlight);
+	const TAILWIND_HISTORY_PENDING_ATTRIBUTE = 'data-history-tailwind-pending';
+	const TAILWIND_HISTORY_PENDING_VISIBILITY_ATTRIBUTE = 'data-history-tailwind-pending-visibility';
+	const TAILWIND_HISTORY_PENDING_STYLE_ID = 'history-tailwind-pending-style';
 
 	/**
 	 * Implements interface for works with landing history
 	 * Implements singleton pattern use as BX.Landing.History.getInstance()
 	 * @memberOf BX.Landing
 	 */
+	class History {
+		/**
+		 * Stack of action commands
+		 */
+		stack = null;
 
-	var History = /*#__PURE__*/function () {
-	  function History() {
-	    babelHelpers.classCallCheck(this, History);
-	    babelHelpers.defineProperty(this, "designerBlockId", null);
-	    this.type = History.TYPE_LANDING;
-	    this.stack = 0;
-	    this.commands = {};
-	    this.step = 0;
-	    this.commandState = RESOLVED;
-	    this.onStorage = this.onStorage.bind(this);
+		/**
+		 * Key - command name, value - a Command object
+		 */
+		commands = {};
 
-	    try {
-	      this.landingId = landing_main.Main.getInstance().id;
-	    } catch (err) {
-	      this.landingId = -1;
-	    }
+		/**
+		 * If command now running - set to PENDING
+		 * @type {string}
+		 */
+		commandState = RESOLVED;
 
-	    main_core.Event.bind(window, 'storage', this.onStorage);
-	    registerBaseCommands(this).then(loadStack).then(onInit);
-	  }
+		/**
+		 * Type of current entity
+		 * @type {string}
+		 */
+		entityType = HISTORY_TYPES.landing;
 
-	  babelHelpers.createClass(History, [{
-	    key: "setTypeDesignerBlock",
+		/**
+		 * Landing or Block ID in relation to type
+		 * @type {number}
+		 */
 
-	    /**
-	     * Set special type for designer block
-	     * @param blockId
-	     * @return {Promise<BX.Landing.History>|*}
-	     */
-	    value: function setTypeDesignerBlock(blockId) {
-	      this.type = History.TYPE_DESIGNER_BLOCK;
-	      this.designerBlockId = blockId;
-	      return loadStack(this);
-	    }
-	  }, {
-	    key: "getUndoAction",
-	    value: function getUndoAction() {
-	      if (this.type === History.TYPE_DESIGNER_BLOCK) {
-	        return "History::undoDesignerBlock";
-	      }
+		constructor() {
+			try {
+				this.entityId = landing_main.Main.getInstance().id;
+			} catch (err) {
+				this.entityId = -1;
+			}
+			this.stack = new Stack(this.entityId);
+			this.stack.init().then(() => {
+				return registerBaseCommands(this);
+			}).then(onInit);
+		}
+		static Command = Command;
+		static Entry = Entry;
+		static Highlight = Highlight; // not delete - just for export
 
-	      return "History::undoLanding";
-	    }
-	  }, {
-	    key: "getRedoAction",
-	    value: function getRedoAction() {
-	      if (this.type === History.TYPE_DESIGNER_BLOCK) {
-	        return "History::redoDesignerBlock";
-	      }
+		static getInstance() {
+			const rootWindow = landing_pageobject.PageObject.getRootWindow();
+			if (!rootWindow.BX.Landing.History.instance) {
+				rootWindow.BX.Landing.History.instance = new BX.Landing.History();
+			}
+			return rootWindow.BX.Landing.History.instance;
+		}
 
-	      return "History::redoLanding";
-	    }
-	  }, {
-	    key: "getActionParams",
-	    value: function getActionParams() {
-	      if (this.type === History.TYPE_DESIGNER_BLOCK && this.designerBlockId) {
-	        return {
-	          blockId: this.designerBlockId
-	        };
-	      }
+		/**
+		 * Set special type for designer block history
+		 * @param blockId
+		 * @return {Promise<BX.Landing.History>|*}
+		 */
+		setTypeDesignerBlock(blockId) {
+			this.entityType = HISTORY_TYPES.designerBlock;
+			this.entityId = blockId;
+			return this.stack.setTypeDesignerBlock(blockId).then(() => {
+				return this;
+			});
+		}
+		getEntityId() {
+			return this.entityId;
+		}
+		beforeUndo() {
+			const commandName = this.stack.getCommandName();
+			if (commandName && this.commands[commandName]) {
+				const command = this.commands[commandName];
+				return command.onBeforeCommand();
+			}
+			return Promise.resolve();
+		}
+		beforeRedo() {
+			const commandName = this.stack.getCommandName(false);
+			if (commandName && this.commands[commandName]) {
+				const command = this.commands[commandName];
+				return command.onBeforeCommand();
+			}
+			return Promise.resolve();
+		}
 
-	      return {
-	        lid: this.landingId
-	      };
-	    }
-	    /**
-	     * Applies preview history entry
-	     * @return {Promise}
-	     */
+		/**
+		 * Applies preview history entry
+		 * @return {Promise}
+		 */
+		undo() {
+			if (this.canUndo()) {
+				const entityId = this.stack.getCommandEntityId(true);
+				let historyCommand = null;
+				let tailwindBatchSync = null;
+				this.commandState = PENDING;
+				return this.beforeUndo().then(() => {
+					return landing_backend.Backend.getInstance().action(this.getBackendActionName(true), this.getBackendActionParams(true));
+				}).then(command => {
+					if (command) {
+						historyCommand = command;
+						const params = command.params;
+						const entry = new Entry({
+							block: params.block,
+							selector: params.selector,
+							command: command.command,
+							params: params,
+							onAfterCommand: null
+						});
+						return this.prepareTailwindRuntimeBeforeHistoryCommand(entityId, historyCommand).then(() => {
+							return this.prepareTailwindRuntimeBatchBeforeHistoryCommand(entityId, historyCommand);
+						}).then(batchSync => {
+							tailwindBatchSync = batchSync;
+							entry.onAfterCommand = this.createTailwindRuntimeAfterHistoryCommandCallback(entityId, historyCommand, tailwindBatchSync);
+							return this.runCommand(entry);
+						});
+					}
+					return Promise.reject();
+				}).then(() => {
+					return this.offset();
+				}).then(onUpdate).then(history => {
+					return this.rebuildTailwindAfterHistoryCommand(history, entityId, historyCommand, tailwindBatchSync);
+				}).then(history => {
+					return this.publicationAfterHistoryCommand(history, entityId, historyCommand);
+				});
+			}
+			return Promise.resolve(this);
+		}
 
-	  }, {
-	    key: "undo",
-	    value: function undo() {
-	      var _this = this;
+		/**
+		 * Applies preview next history entry
+		 * @return {Promise}
+		 */
+		redo() {
+			if (this.canRedo()) {
+				const entityId = this.stack.getCommandEntityId(false);
+				let historyCommand = null;
+				let tailwindBatchSync = null;
+				this.commandState = PENDING;
+				return this.beforeRedo().then(() => {
+					return landing_backend.Backend.getInstance().action(this.getBackendActionName(false), this.getBackendActionParams(false));
+				}).then(command => {
+					if (command) {
+						historyCommand = command;
+						const params = command.params;
+						const entry = new Entry({
+							block: params.block,
+							selector: params.selector,
+							command: command.command,
+							params: params,
+							onAfterCommand: null
+						});
+						return this.prepareTailwindRuntimeBeforeHistoryCommand(entityId, historyCommand).then(() => {
+							return this.prepareTailwindRuntimeBatchBeforeHistoryCommand(entityId, historyCommand);
+						}).then(batchSync => {
+							tailwindBatchSync = batchSync;
+							entry.onAfterCommand = this.createTailwindRuntimeAfterHistoryCommandCallback(entityId, historyCommand, tailwindBatchSync);
+							return this.runCommand(entry);
+						});
+					}
+					return Promise.reject();
+				}).then(() => {
+					return this.offset(false);
+				}).then(onUpdate).then(history => {
+					return this.rebuildTailwindAfterHistoryCommand(history, entityId, historyCommand, tailwindBatchSync);
+				}).then(history => {
+					return this.publicationAfterHistoryCommand(history, entityId, historyCommand);
+				});
+			}
+			return Promise.resolve(this);
+		}
 
-	      if (this.canUndo()) {
-	        return BX.Landing.Backend.getInstance().action(this.getUndoAction(), this.getActionParams()).then(function (command) {
-	          if (command) {
-	            var params = command.params;
-	            var entry = new Entry({
-	              block: params.block,
-	              selector: params.selector,
-	              command: command.command,
-	              params: params
-	            });
-	            return _this.runCommand(entry, -1);
-	          }
+		/**
+		 * Get name for backend action
+		 * @param {boolean} undo - true, if need undo, false for redo
+		 * @return {string}
+		 */
+		getBackendActionName(undo = true) {
+			if (this.entityType === HISTORY_TYPES.designerBlock) {
+				return undo ? 'History::undoDesignerBlock' : 'History::redoDesignerBlock';
+			}
+			return undo ? 'History::undoLanding' : 'History::redoLanding';
+		}
 
-	          return Promise.reject();
-	        }).then(function (res) {
-	          return _this.offset(-1).then(onUpdate);
-	        });
-	      }
+		/**
+		 * Get id for entity for backend action
+		 * @param {boolean} undo - true, if need undo, false for redo
+		 * @return {string}
+		 */
+		getBackendActionParams(undo = true) {
+			if (this.entityType === HISTORY_TYPES.designerBlock) {
+				return {
+					blockId: this.entityId
+				};
+			}
+			return {
+				lid: this.stack.getCommandEntityId(undo)
+			};
+		}
+		isAutoPublicationEnabled() {
+			const rootWindow = landing_pageobject.PageObject.getRootWindow();
+			const topWindow = rootWindow && rootWindow.top ? rootWindow.top : window.top;
+			if (topWindow && topWindow.window && typeof topWindow.window.autoPublicationEnabled === 'boolean') {
+				return topWindow.window.autoPublicationEnabled;
+			}
+			const option = landing_env.Env.getInstance().getOptions().autoPublicationEnabled;
+			return option === true || option === 'Y' || option === 1 || option === '1';
+		}
+		isTailwindRuntimeEnabled() {
+			const option = landing_env.Env.getInstance().getOptions().tailwindRuntimeEnabled;
+			return option === true || option === 'Y' || option === 1 || option === '1';
+		}
+		publicationAfterHistoryCommand(history, entityId, command) {
+			const landingId = this.resolveTailwindRuntimeLandingId(entityId, command) || entityId || this.entityId;
+			if (this.entityType !== HISTORY_TYPES.landing || !this.isAutoPublicationEnabled() || !landingId || this.isTailwindRebuildFailed(command)) {
+				return Promise.resolve(history);
+			}
+			return landing_backend.Backend.getInstance().action('Landing::publication', {
+				lid: landingId
+			}).then(() => history).catch(() => history);
+		}
+		prepareTailwindRuntimeBeforeHistoryCommand(entityId, command) {
+			if (!this.isTailwindRuntimeEnabled()) {
+				return Promise.resolve();
+			}
+			const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+			const pendingBlockIds = landing_tailwind_runtimesync.getPendingBlockIds(this.normalizeTailwindHistoryOperations(command));
+			if (!landingId || pendingBlockIds.size <= 0) {
+				return Promise.resolve();
+			}
+			return landing_pageobject.PageObject.getInstance().view().then(iframe => {
+				return landing_tailwind_runtimesync.TailwindRuntimeSync.preloadRuntimeForWindow(iframe?.contentWindow, {
+					helpersBasePath: this.resolveTailwindRuntimeHelpersBasePath()
+				});
+			}).catch(err => {
+				this.commandState = RESOLVED;
+				console.error('History Tailwind runtime preload failed.', err);
+				return Promise.reject(err);
+			});
+		}
+		prepareTailwindRuntimeBatchBeforeHistoryCommand(entityId, command) {
+			if (!this.isTailwindRuntimeEnabled()) {
+				return Promise.resolve(null);
+			}
+			const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+			const operations = this.normalizeTailwindHistoryOperations(command);
+			const pendingBlockIds = landing_tailwind_runtimesync.getPendingBlockIds(operations);
+			if (!landingId || pendingBlockIds.size <= 0) {
+				return Promise.resolve(null);
+			}
+			return landing_pageobject.PageObject.getInstance().view().then(iframe => {
+				const targetDocument = this.resolveTailwindRuntimeDocument(iframe);
+				if (!targetDocument?.head) {
+					return Promise.reject(new Error('History Tailwind visual guard target document is not available.'));
+				}
+				return this.resolveTailwindRuntimeBlocks().then(blocks => {
+					const batchSync = new landing_tailwind_runtimesync.TailwindRuntimeBatchSync({
+						landingId,
+						targetWindow: iframe?.contentWindow,
+						targetDocument,
+						helpersBasePath: this.resolveTailwindRuntimeHelpersBasePath(),
+						pendingStyleId: TAILWIND_HISTORY_PENDING_STYLE_ID,
+						pendingAttribute: TAILWIND_HISTORY_PENDING_ATTRIBUTE,
+						pendingVisibilityAttribute: TAILWIND_HISTORY_PENDING_VISIBILITY_ATTRIBUTE,
+						operations,
+						finalRebuildRequired: true,
+						resolveBlockNode: blockId => this.resolveTailwindRuntimeBlockNode(blocks, blockId),
+						onFailure: err => {
+							if (command && command.tailwindRuntime) {
+								command.tailwindRuntime.rebuildFailed = true;
+							}
+							console.error('History Tailwind CSS rebuild failed.', err);
+							this.reloadEditorWindowAfterTailwindRuntimeFailure();
+						}
+					});
+					return batchSync.prepare().then(() => batchSync);
+				});
+			}).catch(err => {
+				this.commandState = RESOLVED;
+				console.error('History Tailwind visual guard failed.', err);
+				return Promise.reject(err);
+			});
+		}
+		rebuildTailwindAfterHistoryCommand(history, entityId, command, batchSync = null) {
+			const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+			if (!batchSync || !this.isTailwindRuntimeEnabled() || !landingId || this.isTailwindRebuildFailed(command) || typeof batchSync.finalize !== 'function') {
+				return Promise.resolve(history);
+			}
+			return batchSync.finalize().then(() => history).then(result => result);
+		}
+		createTailwindRuntimeAfterHistoryCommandCallback(entityId, command, batchSync) {
+			const commandName = String(command?.command || '').trim();
+			const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+			if (commandName !== 'multiply' || !this.isTailwindRuntimeEnabled() || !landingId || !batchSync || typeof batchSync.afterOperation !== 'function' || batchSync.getPendingBlockIds().size <= 0) {
+				return null;
+			}
+			return singleCommand => {
+				return batchSync.afterOperation(this.normalizeTailwindHistoryOperation(singleCommand));
+			};
+		}
+		reloadEditorWindowAfterTailwindRuntimeFailure() {
+			const editorWindow = landing_pageobject.PageObject.getEditorWindow();
+			if (editorWindow?.location && typeof editorWindow.location.reload === 'function') {
+				landing_tailwind_runtimesync.TailwindRuntimeSync.reloadWindow(editorWindow);
+				return;
+			}
+			landing_tailwind_runtimesync.TailwindRuntimeSync.reloadWindow(window);
+		}
+		resolveTailwindRuntimeDocument(iframe) {
+			return iframe?.contentDocument || iframe?.contentWindow?.document || document;
+		}
+		resolveTailwindRuntimeHelpersBasePath() {
+			try {
+				const bx = landing_pageobject.PageObject.getRootWindow()?.BX;
+				if (typeof bx?.message !== 'function') {
+					return null;
+				}
+				const templatePath = String(bx.message('SITE_TEMPLATE_PATH') || '').trim().replace(/\/+$/, '');
+				if (templatePath === '') {
+					return null;
+				}
+				return `${templatePath}/assets/js/helpers`;
+			} catch (error) {
+				return null;
+			}
+		}
+		resolveTailwindRuntimeBlocks() {
+			return landing_pageobject.PageObject.getInstance().blocks().catch(() => null);
+		}
+		resolveTailwindRuntimeBlockNode(blocks, blockId) {
+			const block = blocks && typeof blocks.get === 'function' ? blocks.get(blockId) : null;
+			return block?.node || null;
+		}
+		normalizeTailwindHistoryOperation(command) {
+			if (!command) {
+				return null;
+			}
+			const typeMap = {
+				updateContent: 'update_block',
+				addBlock: 'add_block',
+				removeBlock: 'delete_block',
+				moveBlock: 'move_block'
+			};
+			const commandName = String(command.command || '').trim();
+			const type = typeMap[commandName] || null;
+			const blockId = parseInt(command?.params?.block, 10);
+			if (!type || !(blockId > 0)) {
+				return null;
+			}
+			return {
+				type,
+				blockId,
+				raw: command
+			};
+		}
+		normalizeTailwindHistoryOperations(command) {
+			if (!command) {
+				return [];
+			}
+			const commandName = String(command.command || '').trim();
+			if (commandName === 'multiply' && Array.isArray(command.params)) {
+				return command.params.flatMap(singleCommand => this.normalizeTailwindHistoryOperations(singleCommand));
+			}
+			const operation = this.normalizeTailwindHistoryOperation(command);
+			return operation ? [operation] : [];
+		}
+		resolveTailwindRuntimeLandingId(entityId, command) {
+			const tailwindRuntime = command && command.tailwindRuntime;
+			const landingId = tailwindRuntime && tailwindRuntime.landingId || entityId || this.entityId;
+			if (this.entityType !== HISTORY_TYPES.landing || !tailwindRuntime || tailwindRuntime.rebuildRequired !== true || !landingId) {
+				return null;
+			}
+			return landingId;
+		}
+		isTailwindRebuildFailed(command) {
+			return Boolean(command && command.tailwindRuntime && command.tailwindRuntime.rebuildRequired === true && command.tailwindRuntime.rebuildFailed === true);
+		}
+		runCommand(entry) {
+			if (entry) {
+				const command = this.commands[entry.command];
+				if (command) {
+					this.commandState = PENDING;
+					return command.command(entry).then(() => {
+						this.commandState = RESOLVED;
+						return this;
+					}).catch(err => {
+						console.error(`History error in command ${command.id}.`, err);
+						this.commandState = RESOLVED;
+						return this;
+					});
+				}
+			}
+		}
+		offset(undo = true) {
+			if (this.commandState === PENDING) {
+				return Promise.resolve(this);
+			}
+			return this.stack.offset(undo).then(() => {
+				return this;
+			});
+		}
 
-	      return Promise.resolve(this);
-	    }
-	    /**
-	     * Applies preview next history entry
-	     * @return {Promise}
-	     */
+		/**
+		 * Check that there are actions to undo
+		 * @returns {boolean}
+		 */
+		canUndo() {
+			return this.commandState !== PENDING && this.stack.canUndo();
+		}
 
-	  }, {
-	    key: "redo",
-	    value: function redo() {
-	      var _this2 = this;
+		/**
+		 * Check that there are actions to redo
+		 * @returns {boolean}
+		 */
+		canRedo() {
+			return this.commandState !== PENDING && this.stack.canRedo();
+		}
 
-	      if (this.canRedo()) {
-	        return BX.Landing.Backend.getInstance().action(this.getRedoAction(), this.getActionParams()).then(function (command) {
-	          if (command) {
-	            var params = command.params;
-	            var entry = new Entry({
-	              block: params.block,
-	              selector: params.selector,
-	              command: command.command,
-	              params: params
-	            });
-	            return _this2.runCommand(entry, 1);
-	          }
+		/**
+		 * Adds entry to history stack
+		 */
+		push() {
+			return this.stack.push().then(() => {
+				return onUpdate(this);
+			});
+		}
+		reload() {
+			return this.stack.reload().then(() => {
+				return onUpdate(this);
+			});
+		}
 
-	          return Promise.reject();
-	        }).then(function (res) {
-	          return _this2.offset(1).then(onUpdate);
-	        });
-	      }
+		/**
+		 * Registers unique history command
+		 * @param {Command} command
+		 */
+		registerCommand(command) {
+			if (command instanceof Command) {
+				this.commands[command.id] = command;
+			}
+		}
 
-	      return Promise.resolve(this);
-	    }
-	  }, {
-	    key: "offset",
-	    value: function offset(offsetValue) {
-	      if (this.commandState === PENDING) {
-	        return Promise.resolve(this);
-	      }
-
-	      var step = this.step + offsetValue;
-
-	      if (step >= 0 && step <= this.stack) {
-	        this.step = step;
-	      }
-
-	      return Promise.resolve(this);
-	    }
-	  }, {
-	    key: "runCommand",
-	    value: function runCommand(entry, offsetValue) {
-	      var _this3 = this;
-
-	      if (entry) {
-	        var command = this.commands[entry.command];
-
-	        if (command) {
-	          this.commandState = PENDING;
-	          return command.command(entry).then(function () {
-	            _this3.commandState = RESOLVED;
-	            return _this3;
-	          })["catch"](function () {
-	            _this3.commandState = RESOLVED; // todo: how check and process error
-
-	            return _this3.offset(offsetValue);
-	          });
-	        }
-	      }
-	    }
-	    /**
-	     * Check that there are actions to undo
-	     * @returns {boolean}
-	     */
-
-	  }, {
-	    key: "canUndo",
-	    value: function canUndo() {
-	      return this.commandState !== PENDING && this.step > 0 && this.stack > 0 && this.step <= this.stack;
-	    }
-	    /**
-	     * Check that there are actions to redo
-	     * @returns {boolean}
-	     */
-
-	  }, {
-	    key: "canRedo",
-	    value: function canRedo() {
-	      return this.commandState !== PENDING && this.step < this.stack && this.step >= 0;
-	    }
-	    /**
-	     * Adds entry to history stack
-	     * @param {BX.Landing.History.Entry} entry
-	     */
-
-	  }, {
-	    key: "push",
-	    value: function push(entry) {
-	      if (this.step < this.stack) {
-	        this.stack = this.step;
-	      }
-
-	      this.step++;
-	      this.stack++;
-	      onUpdate(this);
-	    }
-	    /**
-	     * Registers unique history command
-	     * @param {Command} command
-	     */
-
-	  }, {
-	    key: "registerCommand",
-	    value: function registerCommand(command) {
-	      if (command instanceof Command) {
-	        this.commands[command.id] = command;
-	      }
-	    }
-	    /**
-	     * Removes page history from storage
-	     * @param {int} pageId
-	     * @return {Promise<BX.Landing.History>}
-	     */
-
-	  }, {
-	    key: "removePageHistory",
-	    value: function removePageHistory$$1(pageId) {
-	      // todo: publication clear method
-	      return removePageHistory(pageId, this).then(function (history) {
-	        var currentPageId;
-
-	        try {
-	          currentPageId = BX.Landing.Main.getInstance().id;
-	        } catch (err) {
-	          currentPageId = -1;
-	        }
-
-	        if (currentPageId === pageId) {
-	          return clear(history);
-	        }
-
-	        return Promise.reject();
-	      }).then(onUpdate)["catch"](function () {});
-	    }
-	    /**
-	     * Handles storage event
-	     * @param {StorageEvent} event
-	     */
-
-	  }, {
-	    key: "onStorage",
-	    value: function onStorage(event) {
-	      if (event.key === null) {
-	        if (!window.localStorage.history) {
-	          clear(this).then(onUpdate);
-	        }
-	      }
-	    }
-	    /**
-	     * Handles new branch events
-	     * @param {BX.Landing.History.Entry[]} entries
-	     * @return {Promise<History>}
-	     */
-
-	  }, {
-	    key: "onNewBranch",
-	    value: function onNewBranch(entries) {
-	      var _this4 = this;
-
-	      return fetchEntities(entries, this).then(function (entities) {
-	        return removeEntities(entities, _this4);
-	      });
-	    }
-	  }], [{
-	    key: "getInstance",
-	    // todo: need?
-	    // static Action = {
-	    // 	editText,
-	    // 	editEmbed,
-	    // 	editMap,
-	    // 	editImage,
-	    // 	editIcon,
-	    // 	editLink,
-	    // 	sortBlock,
-	    // 	addBlock,
-	    // 	removeBlock,
-	    // 	addCard,
-	    // 	removeCard,
-	    // 	editStyle,
-	    // 	addNode,
-	    // 	removeNode,
-	    // 	updateContent
-	    // };
-	    value: function getInstance() {
-	      var rootWindow = landing_pageobject.PageObject.getRootWindow();
-
-	      if (!rootWindow.BX.Landing.History.instance) {
-	        rootWindow.BX.Landing.History.instance = new BX.Landing.History();
-	      }
-
-	      return rootWindow.BX.Landing.History.instance;
-	    }
-	  }]);
-	  return History;
-	}();
-	babelHelpers.defineProperty(History, "TYPE_LANDING", 'L');
-	babelHelpers.defineProperty(History, "TYPE_DESIGNER_BLOCK", 'D');
-	babelHelpers.defineProperty(History, "Command", Command);
-	babelHelpers.defineProperty(History, "Entry", Entry);
-	babelHelpers.defineProperty(History, "Highlight", Highlight);
+		/**
+		 * Removes page history from storage
+		 * @param {int} pageId
+		 * @return {Promise<BX.Landing.History>}
+		 */
+		removePageHistory(pageId) {
+			return removePageHistory(pageId, this).then(history => {
+				let currentPageId;
+				try {
+					currentPageId = BX.Landing.Main.getInstance().id;
+				} catch (err) {
+					currentPageId = -1;
+				}
+				if (currentPageId === pageId) {
+					return clear(history);
+				}
+				return Promise.reject();
+			}).then(onUpdate).catch(() => {});
+		}
+	}
 
 	exports.History = History;
 
-}((this.BX.Landing = this.BX.Landing || {}),BX,BX.Landing,BX.Landing.UI,BX.Landing));
+})(this.BX.Landing = this.BX.Landing || {}, BX.Landing, BX.Landing, BX.Landing, BX.Landing, BX.Landing, BX, BX.Landing.UI);
 //# sourceMappingURL=history.bundle.js.map

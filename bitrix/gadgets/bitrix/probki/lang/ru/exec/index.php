@@ -1,6 +1,11 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
+/**
+ * @global CMain $APPLICATION
+ * @var array $arGadgetParams
+ */
+
 $APPLICATION->SetAdditionalCSS('/bitrix/gadgets/bitrix/probki/styles.css');
 
 if($arGadgetParams["CITY"]!='')
@@ -17,7 +22,6 @@ $http->setTimeout(10);
 $res = $http->get("https://export.yandex.ru/bar/reginfo.xml?".$url);
 
 $res = str_replace("\xE2\x88\x92", "-", $res);
-$res = \Bitrix\Main\Text\Encoding::convertEncoding($res, 'UTF-8', SITE_CHARSET);
 
 $xml = new CDataXML();
 $xml->LoadString($res);
@@ -27,12 +31,12 @@ $node = $xml->SelectNodes('/info/traffic/title');
 <h3><?=$node->content?></h3>
 <table width="90%"><tr>
 <td width="80%" nowrap>
-<?$node = $xml->SelectNodes('/info/traffic/region/hint');?>
+<?php $node = $xml->SelectNodes('/info/traffic/region/hint');?>
 <span class="gdtrafic"><?=$node->content?></span><br>
 <span class="gdtrafinfo">
-<?$node = $xml->SelectNodes('/info/traffic/region/length');?>
+<?php $node = $xml->SelectNodes('/info/traffic/region/length');?>
 Протяженность: <?=$node->content?> м<br>
-<?$node = $xml->SelectNodes('/info/traffic/region/time');?>
+<?php $node = $xml->SelectNodes('/info/traffic/region/time');?>
 Последнее обновление: <?=$node->content?>
 
 </span>
@@ -44,10 +48,10 @@ $t = intval($node->content);
 <td nowrap="yes" width="20%"><span class="traf<?=intval(($t+1)/2)?>"><?=$t?></span></td>
 </tr>
 </table>
-<?if($arGadgetParams["SHOW_URL"]=="Y"):?>
+<?php if($arGadgetParams["SHOW_URL"]=="Y"):?>
 <br />
-<?$node = $xml->SelectNodes('/info/traffic/region/url');?>
+<?php $node = $xml->SelectNodes('/info/traffic/region/url');?>
 <a href="<?=htmlspecialcharsbx($node->content)?>">Подробнее</a> <a href="<?=htmlspecialcharsbx($node->content)?>"><img width="7" height="7" border="0" src="/bitrix/components/bitrix/desktop/images/arrows.gif" /></a>
 <br />
-<?endif?>
-<?$cache->EndDataCache();?>
+<?php endif?>
+<?php $cache->EndDataCache();?>

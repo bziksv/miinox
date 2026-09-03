@@ -90,14 +90,19 @@ class DefaultElement extends Controller
 	 * @param array               $order
 	 * @param PageNavigation|null $pageNavigation
 	 *
-	 * @return Page
+	 * @return Page|null
 	 * @throws ArgumentException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public function listAction($iblock, $select = ['*'], $filter = [], $order = [], PageNavigation $pageNavigation = null)
+	public function listAction($iblock, $select = ['*'], $filter = [], $order = [], ?PageNavigation $pageNavigation = null)
 	{
 		$elementEntity = IblockTable::compileEntity($iblock);
+		if (!$elementEntity)
+		{
+			return null;
+		}
+
 		$elementDataClass = $elementEntity->getDataClass();
 
 		if (!$elementEntity->getIblock()->fillRestOn())

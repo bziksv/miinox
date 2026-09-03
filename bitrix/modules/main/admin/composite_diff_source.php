@@ -1,4 +1,5 @@
-<?
+<?php
+
 use Bitrix\Main\Composite\Debug\Model\LogTable;
 use Bitrix\Main\Composite\Internals\Model\PageTable;
 use Bitrix\Main\Composite\Page;
@@ -6,12 +7,11 @@ use Bitrix\Main\Context;
 use Bitrix\Main\Localization\Loc;
 
 /**
- * @global \CUser $USER
- * @global \CMain $APPLICATION
+ * @global CUser $USER
+ * @global CMain $APPLICATION
  */
 
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 
 if (!$USER->canDoOperation("view_other_settings"))
 {
@@ -88,4 +88,4 @@ if (!$sourceContent)
 </body>
 </html>
 
-<?require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_after.php");
+<?php require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_after.php");

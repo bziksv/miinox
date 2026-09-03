@@ -1,524 +1,564 @@
+/* eslint-disable */
 this.BX = this.BX || {};
-(function (exports,ui_fonts_opensans,main_core) {
+(function (exports, main_core, ui_fonts_opensans, ui_designTokens_air, ui_system_typography) {
 	'use strict';
 
 	/**
 	 * @namespace {BX.UI}
 	 */
-	var ProgressRoundColor = function ProgressRoundColor() {
-	  babelHelpers.classCallCheck(this, ProgressRoundColor);
-	};
-
-	babelHelpers.defineProperty(ProgressRoundColor, "DEFAULT", 'ui-progressround-default');
-	babelHelpers.defineProperty(ProgressRoundColor, "DANGER", "ui-progressround-danger");
-	babelHelpers.defineProperty(ProgressRoundColor, "SUCCESS", "ui-progressround-success");
-	babelHelpers.defineProperty(ProgressRoundColor, "PRIMARY", "ui-progressround-primary");
-	babelHelpers.defineProperty(ProgressRoundColor, "WARNING", "ui-progressround-warning");
+	class ProgressRoundColor {
+		static DEFAULT = 'ui-progressround-default';
+		static DANGER = "ui-progressround-danger";
+		static SUCCESS = "ui-progressround-success";
+		static PRIMARY = "ui-progressround-primary";
+		static WARNING = "ui-progressround-warning";
+	}
 
 	/**
 	 * @namespace {BX.UI}
 	 */
-	var ProgressRoundStatus = function ProgressRoundStatus() {
-	  babelHelpers.classCallCheck(this, ProgressRoundStatus);
-	};
-
-	babelHelpers.defineProperty(ProgressRoundStatus, "COUNTER", "COUNTER");
-	babelHelpers.defineProperty(ProgressRoundStatus, "PERCENT", "PERCENT");
-	babelHelpers.defineProperty(ProgressRoundStatus, "INCIRCLE", "INCIRCLE");
-	babelHelpers.defineProperty(ProgressRoundStatus, "INCIRCLECOUNTER", "INCIRCLECOUNTER");
-	babelHelpers.defineProperty(ProgressRoundStatus, "NONE", "NONE");
-
-	var _templateObject, _templateObject2, _templateObject3, _templateObject4, _templateObject5, _templateObject6;
-
-	function _classPrivateMethodInitSpec(obj, privateSet) { _checkPrivateRedeclaration(obj, privateSet); privateSet.add(obj); }
-
-	function _checkPrivateRedeclaration(obj, privateCollection) { if (privateCollection.has(obj)) { throw new TypeError("Cannot initialize the same private elements twice on an object"); } }
-
-	function _classPrivateMethodGet(receiver, privateSet, fn) { if (!privateSet.has(receiver)) { throw new TypeError("attempted to get private field on non-instance"); } return fn; }
-
-	var _setCustomColors = /*#__PURE__*/new WeakSet();
-
-	var ProgressRound // extends BX.UI.ProgressRound
-	= /*#__PURE__*/function () {
-	  function ProgressRound(options) {
-	    babelHelpers.classCallCheck(this, ProgressRound);
-
-	    _classPrivateMethodInitSpec(this, _setCustomColors);
-
-	    this.options = main_core.Type.isPlainObject(options) ? options : {};
-	    this.value = main_core.Type.isNumber(this.options.value) ? this.options.value : 0;
-	    this.maxValue = main_core.Type.isNumber(this.options.maxValue) ? this.options.maxValue : 100;
-	    this.bar = null;
-	    this.container = null;
-	    this.width = main_core.Type.isNumber(this.options.width) ? this.options.width : 100;
-	    this.lineSize = main_core.Type.isNumber(this.options.lineSize) ? this.options.lineSize : 5;
-	    this.status = null;
-	    this.statusType = main_core.Type.isString(this.options.statusType) ? this.options.statusType : BX.UI.ProgressRound.Status.NONE;
-	    this.statusPercent = "0%";
-	    this.statusCounter = "0 / 0";
-	    this.textBefore = main_core.Type.isString(this.options.textBefore) ? this.options.textBefore : null;
-	    this.textBeforeContainer = null;
-	    this.textAfter = main_core.Type.isString(this.options.textAfter) ? this.options.textAfter : null;
-	    this.textAfterContainer = null;
-	    this.fill = false;
-	    this.finished = false;
-	    this.rotation = main_core.Type.isBoolean(this.options.rotation) ? this.options.rotation : false;
-	    this.colorTrack = main_core.Type.isString(this.options.colorTrack) ? this.options.colorTrack : null;
-	    this.colorBar = main_core.Type.isString(this.options.colorBar) ? this.options.colorBar : null;
-	    this.color = main_core.Type.isString(this.options.color) ? this.options.color : BX.UI.ProgressRound.Color.PRIMARY;
-	  } //region Parameters
-
-
-	  babelHelpers.createClass(ProgressRound, [{
-	    key: "setValue",
-	    value: function setValue(value) {
-	      if (main_core.Type.isNumber(value)) {
-	        this.value = value > this.maxValue ? this.maxValue : value;
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "getValue",
-	    value: function getValue() {
-	      return this.value;
-	    }
-	  }, {
-	    key: "setMaxValue",
-	    value: function setMaxValue(value) {
-	      if (main_core.Type.isNumber(value)) {
-	        this.maxValue = value;
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "getMaxValue",
-	    value: function getMaxValue() {
-	      return this.maxValue;
-	    }
-	  }, {
-	    key: "finish",
-	    value: function finish() {
-	      this.update(this.maxValue);
-	    }
-	  }, {
-	    key: "isFinish",
-	    value: function isFinish() {
-	      return this.finished;
-	    }
-	  }, {
-	    key: "setWidth",
-	    value: function setWidth(value) {
-	      if (main_core.Type.isNumber(value)) {
-	        this.width = value;
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "getWidth",
-	    value: function getWidth() {
-	      return this.width;
-	    }
-	  }, {
-	    key: "setLineSize",
-	    value: function setLineSize(value) {
-	      if (main_core.Type.isNumber(value)) {
-	        this.lineSize = value > this.width / 2 ? this.width / 2 : value;
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "getLineSize",
-	    value: function getLineSize() {
-	      return this.lineSize;
-	    }
-	  }, {
-	    key: "setColor",
-	    value: function setColor(color) {
-	      if (main_core.Type.isStringFilled(color)) {
-	        if (this.container === null) {
-	          this.createContainer();
-	        }
-
-	        main_core.Dom.removeClass(this.container, this.color);
-	        this.color = color;
-	        main_core.Dom.addClass(this.container, this.color);
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "setColorBar",
-	    value: function setColorBar(color) {
-	      if (main_core.Type.isStringFilled(color)) {
-	        this.colorBar = color;
-	        color = "--ui-current-round-color:" + color + ";";
-
-	        _classPrivateMethodGet(this, _setCustomColors, _setCustomColors2).call(this, color);
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "setColorTrack",
-	    value: function setColorTrack(color) {
-	      if (main_core.Type.isStringFilled(color)) {
-	        this.colorTrack = color;
-	        this.setFill(true);
-	        color = "--ui-current-round-bg-track-color:" + color + ";";
-
-	        _classPrivateMethodGet(this, _setCustomColors, _setCustomColors2).call(this, color);
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "setFill",
-	    value: function setFill(fill) {
-	      if (this.container === null) {
-	        this.createContainer();
-	      }
-
-	      if (main_core.Type.isBoolean(fill)) {
-	        this.fill = fill;
-
-	        if (fill === true) {
-	          main_core.Dom.addClass(this.container, "ui-progressround-bg");
-	        } else {
-	          main_core.Dom.removeClass(this.container, "ui-progressround-bg");
-	        }
-	      }
-
-	      return this;
-	    }
-	  }, {
-	    key: "setRotation",
-	    value: function setRotation(rotation) {
-	      if (this.container === null) {
-	        this.createContainer();
-	      }
-
-	      if (main_core.Type.isBoolean(rotation)) {
-	        this.rotation = rotation;
-
-	        if (rotation === true) {
-	          main_core.Dom.addClass(this.container, "ui-progressround-rotation");
-	        } else {
-	          main_core.Dom.removeClass(this.container, "ui-progressround-rotation");
-	        }
-	      }
-
-	      return this;
-	    } //endregion
-	    //region Text
-
-	  }, {
-	    key: "setTextBefore",
-	    value: function setTextBefore(text) {
-	      if (main_core.Type.isStringFilled(text)) {
-	        this.textBefore = text;
-
-	        if (!this.textBeforeContainer) {
-	          this.createTextBefore(text);
-	        } else {
-	          main_core.Dom.adjust(this.textBeforeContainer, {
-	            html: text
-	          });
-	        }
-	      }
-	    }
-	  }, {
-	    key: "createTextBefore",
-	    value: function createTextBefore(text) {
-	      if (!this.textBeforeContainer && main_core.Type.isStringFilled(text)) {
-	        this.textBeforeContainer = main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-progressround-text-before\">", "</div>\n\t\t\t"])), text);
-	      }
-	    }
-	  }, {
-	    key: "getTextBefore",
-	    value: function getTextBefore() {
-	      if (!this.textBeforeContainer) {
-	        this.createTextBefore(this.textBefore);
-	      }
-
-	      return this.textBeforeContainer;
-	    }
-	  }, {
-	    key: "setTextAfter",
-	    value: function setTextAfter(text) {
-	      if (main_core.Type.isStringFilled(text)) {
-	        this.textAfter = text;
-
-	        if (!this.textAfterContainer) {
-	          this.createTextAfter(text);
-	        } else {
-	          main_core.Dom.adjust(this.textAfterContainer, {
-	            html: text
-	          });
-	        }
-	      }
-	    }
-	  }, {
-	    key: "createTextAfter",
-	    value: function createTextAfter(text) {
-	      if (!this.textAfterContainer && main_core.Type.isStringFilled(text)) {
-	        this.textAfterContainer = main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-progressround-text-after\">", "</div>\n\t\t\t"])), text);
-	      }
-	    }
-	  }, {
-	    key: "getTextAfter",
-	    value: function getTextAfter() {
-	      if (!this.textAfterContainer) {
-	        this.createTextAfter(this.textAfter);
-	      }
-
-	      return this.textAfterContainer;
-	    } //endregion
-	    // region Status
-
-	  }, {
-	    key: "setStatus",
-	    value: function setStatus() {
-	      if (this.getStatusType() === BX.UI.ProgressRound.Status.COUNTER) {
-	        main_core.Dom.adjust(this.status, {
-	          text: this.getStatusCounter()
-	        });
-	      } else if (this.getStatusType() === BX.UI.ProgressRound.Status.PERCENT) {
-	        main_core.Dom.adjust(this.status, {
-	          text: this.getStatusPercent()
-	        });
-	      } else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLE) {
-	        main_core.Dom.adjust(this.status, {
-	          text: this.getStatusPercent()
-	        });
-	      } else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLECOUNTER) {
-	        main_core.Dom.adjust(this.status, {
-	          text: this.getStatusCounter()
-	        });
-	      }
-	    }
-	  }, {
-	    key: "getStatus",
-	    value: function getStatus() {
-	      if (!this.status) {
-	        if (this.getStatusType() === BX.UI.ProgressRound.Status.COUNTER) {
-	          this.status = main_core.Tag.render(_templateObject3 || (_templateObject3 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t\t<div class=\"ui-progressround-status\">", "</div>\n\t\t\t\t"])), this.getStatusCounter());
-	        } else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLE) {
-	          this.status = main_core.Tag.render(_templateObject4 || (_templateObject4 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t\t<div class=\"ui-progressround-status-percent-incircle\">", "</div>\n\t\t\t\t"])), this.getStatusPercent());
-	        } else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLECOUNTER) {
-	          this.status = main_core.Tag.render(_templateObject5 || (_templateObject5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t\t<div class=\"ui-progressround-status-incircle\">", "</div>\n\t\t\t\t"])), this.getStatusCounter());
-	        } else if (this.getStatusType() === BX.UI.ProgressRound.Status.PERCENT) {
-	          this.status = main_core.Tag.render(_templateObject6 || (_templateObject6 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t\t<div class=\"ui-progressround-status-percent\">", "</div>\n\t\t\t\t"])), this.getStatusPercent());
-	        } else {
-	          this.status = main_core.Dom.create("span", {});
-	        }
-	      }
-
-	      return this.status;
-	    }
-	  }, {
-	    key: "getStatusPercent",
-	    value: function getStatusPercent() {
-	      if (this.maxValue === 0) {
-	        return "0%";
-	      }
-
-	      this.statusPercent = Math.round(this.getValue() / (this.getMaxValue() / 100));
-
-	      if (this.statusPercent > 100) {
-	        this.statusPercent = 100;
-	      }
-
-	      return this.statusPercent + "%";
-	    }
-	  }, {
-	    key: "getStatusCounter",
-	    value: function getStatusCounter() {
-	      if (Math.round(this.getValue()) > Math.round(this.getMaxValue())) {
-	        this.statusCounter = Math.round(this.getMaxValue()) + " / " + Math.round(this.getMaxValue());
-	      } else {
-	        this.statusCounter = Math.round(this.getValue()) + " / " + Math.round(this.getMaxValue());
-	      }
-
-	      return this.statusCounter;
-	    }
-	  }, {
-	    key: "getStatusType",
-	    value: function getStatusType() {
-	      return this.statusType;
-	    }
-	  }, {
-	    key: "setStatusType",
-	    value: function setStatusType(type) {
-	      if (main_core.Type.isStringFilled(type)) {
-	        this.statusType = type;
-	      }
-	    } //endregion
-	    // region ProgressRound
-
-	  }, {
-	    key: "createContainer",
-	    value: function createContainer() {
-	      if (this.container === null) {
-	        this.container = main_core.Dom.create("div", {
-	          props: {
-	            className: "ui-progressround"
-	          },
-	          children: [this.getTextAfter(), this.getTextBefore(), main_core.Dom.create("div", {
-	            props: {
-	              className: "ui-progressround-track"
-	            },
-	            children: [this.getStatus(), this.getBar()]
-	          })]
-	        });
-	        this.setStatusType(this.statusType);
-	        this.setColor(this.color);
-	        this.setRotation(this.rotation);
-	        this.setFill(this.fill);
-	        this.setColorTrack(this.colorTrack);
-	        this.setColorBar(this.colorBar);
-	      }
-	    }
-	  }, {
-	    key: "getCircleFerence",
-	    value: function getCircleFerence() {
-	      return (this.width / 2 - this.lineSize / 2) * 2 * 3.14;
-	    }
-	  }, {
-	    key: "getCircleProgress",
-	    value: function getCircleProgress() {
-	      return this.getCircleFerence() - this.getCircleFerence() / this.maxValue * this.value;
-	    }
-	  }, {
-	    key: "getBar",
-	    value: function getBar() {
-	      var factRadius = this.width / 2 - this.lineSize / 2;
-	      this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-	      this.svg.setAttributeNS(null, 'class', 'ui-progressround-track-bar');
-	      this.svg.setAttributeNS(null, 'viewport', '0 0 ' + this.width + ' ' + this.width);
-	      this.svg.setAttributeNS(null, 'width', this.width);
-	      this.svg.setAttributeNS(null, 'height', this.width);
-	      this.progressBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-	      this.progressBg.setAttributeNS(null, 'r', factRadius);
-	      this.progressBg.setAttributeNS(null, 'cx', this.width / 2);
-	      this.progressBg.setAttributeNS(null, 'cy', this.width / 2);
-	      this.progressBg.setAttributeNS(null, 'stroke-width', this.lineSize);
-	      this.progressBg.setAttributeNS(null, 'class', 'ui-progressround-track-bar-bg');
-	      this.svg.appendChild(this.progressBg);
-	      this.progressMove = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-	      this.progressMove.setAttributeNS(null, 'r', factRadius);
-	      this.progressMove.setAttributeNS(null, 'cx', this.width / 2);
-	      this.progressMove.setAttributeNS(null, 'cy', this.width / 2);
-	      this.progressMove.setAttributeNS(null, 'stroke-width', this.lineSize);
-	      this.progressMove.setAttributeNS(null, 'stroke-dasharray', this.getCircleFerence());
-	      this.progressMove.setAttributeNS(null, 'stroke-dashoffset', this.getCircleFerence());
-	      this.progressMove.setAttributeNS(null, 'class', 'ui-progressround-track-bar-progress');
-	      this.svg.appendChild(this.progressMove);
-	      return this.svg;
-	    }
-	  }, {
-	    key: "animateProgressBar",
-	    value: function animateProgressBar() {
-	      this.svg.setAttributeNS(null, 'class', 'task-report-circle-bar task-report-circle-bar-animate');
-	      var progressDashoffset = this.maxValue === 0 ? this.getCircleFerence() : this.getCircleProgress();
-	      this.progressMove.setAttributeNS(null, 'stroke-dashoffset', progressDashoffset);
-	    }
-	  }, {
-	    key: "update",
-	    value: function update(value) {
-	      if (this.container === null) {
-	        this.createContainer();
-	      }
-
-	      this.setValue(value);
-
-	      if (value >= this.maxValue) {
-	        setTimeout(function () {
-	          main_core.Dom.addClass(this.container, "ui-progressround-finished");
-	        }.bind(this), 300);
-	        this.finished = true;
-	      } else {
-	        main_core.Dom.removeClass(this.container, "ui-progressround-finished");
-	        this.finished = false;
-	      }
-
-	      this.setStatus();
-
-	      if (this.svg === null) {
-	        this.getBar();
-	      }
-
-	      this.animateProgressBar();
-	    } //endregion
-
-	  }, {
-	    key: "getContainer",
-	    value: function getContainer() {
-	      if (this.container === null) {
-	        this.createContainer();
-	      }
-
-	      this.animateProgressBar();
-	      return this.container;
-	    }
-	  }, {
-	    key: "renderTo",
-	    value: function renderTo(node) {
-	      if (main_core.Type.isDomNode(node)) {
-	        return node.appendChild(this.getContainer());
-	      }
-
-	      return null;
-	    }
-	  }, {
-	    key: "destroy",
-	    value: function destroy() {
-	      main_core.Dom.remove(this.container);
-	      this.container = null;
-	      this.finished = false;
-	      this.textAfterContainer = null;
-	      this.textBeforeContainer = null;
-	      this.bar = null;
-	      this.svg = null;
-
-	      for (var property in this) {
-	        if (this.hasOwnProperty(property)) {
-	          delete this[property];
-	        }
-	      }
-
-	      Object.setPrototypeOf(this, null);
-	    }
-	  }]);
-	  return ProgressRound;
-	}();
-
-	function _setCustomColors2(value) {
-	  if (this.container === null) {
-	    this.createContainer();
-	  }
-
-	  var currentAttribute = this.container.getAttribute('style'),
-	      customColorsValue = !currentAttribute ? value : currentAttribute + value;
-	  this.container.setAttribute('style', customColorsValue);
+	class ProgressRoundStatus {
+		static COUNTER = "COUNTER";
+		static PERCENT = "PERCENT";
+		static INCIRCLE = "INCIRCLE";
+		static INCIRCLECOUNTER = "INCIRCLECOUNTER";
+		static NONE = "NONE";
 	}
 
-	babelHelpers.defineProperty(ProgressRound // extends BX.UI.ProgressRound
-	, "Color", ProgressRoundColor);
-	babelHelpers.defineProperty(ProgressRound // extends BX.UI.ProgressRound
-	, "Status", ProgressRoundStatus);
+	class ProgressRound // extends BX.UI.ProgressRound
+	{
+		static Color = ProgressRoundColor;
+		static Status = ProgressRoundStatus;
+		constructor(options) {
+			this.options = main_core.Type.isPlainObject(options) ? options : {};
+			this.value = main_core.Type.isNumber(this.options.value) ? this.options.value : 0;
+			this.maxValue = main_core.Type.isNumber(this.options.maxValue) ? this.options.maxValue : 100;
+			this.bar = null;
+			this.container = null;
+			this.width = main_core.Type.isNumber(this.options.width) ? this.options.width : 100;
+			this.useAirDesign = this.options.useAirDesign === true;
+			this.lineSize = main_core.Type.isNumber(this.options.lineSize) ? this.options.lineSize : this.useAirDesign ? 8 : 5;
+			this.status = null;
+			this.statusType = main_core.Type.isString(this.options.statusType) ? this.options.statusType : BX.UI.ProgressRound.Status.NONE;
+			this.statusPercent = "0%";
+			this.statusCounter = "0 / 0";
+			this.textBefore = main_core.Type.isString(this.options.textBefore) ? this.options.textBefore : null;
+			this.textBeforeContainer = null;
+			this.textAfter = main_core.Type.isString(this.options.textAfter) ? this.options.textAfter : null;
+			this.textAfterContainer = null;
+			this.fill = false;
+			this.finished = false;
+			this.rotation = main_core.Type.isBoolean(this.options.rotation) ? this.options.rotation : false;
+			this.colorTrack = main_core.Type.isString(this.options.colorTrack) ? this.options.colorTrack : null;
+			this.colorBar = main_core.Type.isString(this.options.colorBar) ? this.options.colorBar : null;
+			this.color = main_core.Type.isString(this.options.color) ? this.options.color : BX.UI.ProgressRound.Color.PRIMARY;
+		}
+		isAirDesign() {
+			return this.useAirDesign;
+		}
 
-	var UI = main_core.Reflection.namespace('BX.UI');
+		//region Parameters
+		setValue(value) {
+			if (main_core.Type.isNumber(value)) {
+				this.value = value > this.maxValue ? this.maxValue : value;
+			}
+			return this;
+		}
+		getValue() {
+			return this.value;
+		}
+		setMaxValue(value) {
+			if (main_core.Type.isNumber(value)) {
+				this.maxValue = value;
+			}
+			return this;
+		}
+		getMaxValue() {
+			return this.maxValue;
+		}
+		finish() {
+			this.update(this.maxValue);
+		}
+		isFinish() {
+			return this.finished;
+		}
+		setWidth(value) {
+			if (main_core.Type.isNumber(value)) {
+				this.width = value;
+			}
+			return this;
+		}
+		getWidth() {
+			return this.width;
+		}
+		setLineSize(value) {
+			if (main_core.Type.isNumber(value)) {
+				this.lineSize = value > this.width / 2 ? this.width / 2 : value;
+			}
+			return this;
+		}
+		getLineSize() {
+			return this.lineSize;
+		}
+		setColor(color) {
+			if (main_core.Type.isStringFilled(color)) {
+				if (this.container === null) {
+					this.createContainer();
+				}
+				main_core.Dom.removeClass(this.container, this.color);
+				this.color = color;
+				main_core.Dom.addClass(this.container, this.color);
+			}
+			return this;
+		}
+		setColorBar(color) {
+			if (main_core.Type.isStringFilled(color)) {
+				this.colorBar = color;
+				color = "--ui-current-round-color:" + color + ";";
+				this.#setCustomColors(color);
+			}
+			return this;
+		}
+		setColorTrack(color) {
+			if (main_core.Type.isStringFilled(color)) {
+				this.colorTrack = color;
+				this.setFill(true);
+				color = "--ui-current-round-bg-track-color:" + color + ";";
+				this.#setCustomColors(color);
+			}
+			return this;
+		}
+		#setCustomColors(value) {
+			if (this.container === null) {
+				this.createContainer();
+			}
+			let currentAttribute = this.container.getAttribute('style'),
+				customColorsValue = !currentAttribute ? value : currentAttribute + value;
+			this.container.setAttribute('style', customColorsValue);
+		}
+		setFill(fill) {
+			if (this.container === null) {
+				this.createContainer();
+			}
+			if (main_core.Type.isBoolean(fill)) {
+				this.fill = fill;
+				if (fill === true) {
+					main_core.Dom.addClass(this.container, "ui-progressround-bg");
+				} else {
+					main_core.Dom.removeClass(this.container, "ui-progressround-bg");
+				}
+			}
+			return this;
+		}
+		setRotation(rotation) {
+			if (this.container === null) {
+				this.createContainer();
+			}
+			if (main_core.Type.isBoolean(rotation)) {
+				this.rotation = rotation;
+				if (rotation === true) {
+					main_core.Dom.addClass(this.container, "ui-progressround-rotation");
+				} else {
+					main_core.Dom.removeClass(this.container, "ui-progressround-rotation");
+				}
+			}
+			return this;
+		}
+
+		//endregion
+
+		//region Text
+		setTextBefore(text) {
+			if (main_core.Type.isStringFilled(text)) {
+				this.textBefore = text;
+				if (!this.textBeforeContainer) {
+					this.createTextBefore(text);
+				} else {
+					main_core.Dom.adjust(this.textBeforeContainer, this.useAirDesign ? {
+						text
+					} : {
+						html: text
+					});
+				}
+			}
+		}
+		createTextBefore(text) {
+			if (!this.textBeforeContainer && main_core.Type.isStringFilled(text)) {
+				if (this.useAirDesign) {
+					this.textBeforeContainer = ui_system_typography.Text.render(text, {
+						size: 'md',
+						tag: 'div',
+						className: 'ui-progressround-text-before'
+					});
+				} else {
+					this.textBeforeContainer = main_core.Tag.render`
+					<div class="ui-progressround-text-before">${text}</div>
+				`;
+				}
+			}
+		}
+		getTextBefore() {
+			if (!this.textBeforeContainer) {
+				this.createTextBefore(this.textBefore);
+			}
+			return this.textBeforeContainer;
+		}
+		setTextAfter(text) {
+			if (main_core.Type.isStringFilled(text)) {
+				this.textAfter = text;
+				if (!this.textAfterContainer) {
+					this.createTextAfter(text);
+				} else {
+					main_core.Dom.adjust(this.textAfterContainer, this.useAirDesign ? {
+						text
+					} : {
+						html: text
+					});
+				}
+			}
+		}
+		createTextAfter(text) {
+			if (!this.textAfterContainer && main_core.Type.isStringFilled(text)) {
+				if (this.useAirDesign) {
+					this.textAfterContainer = ui_system_typography.Text.render(text, {
+						size: 'md',
+						tag: 'div',
+						className: 'ui-progressround-text-after'
+					});
+				} else {
+					this.textAfterContainer = main_core.Tag.render`
+					<div class="ui-progressround-text-after">${text}</div>
+				`;
+				}
+			}
+		}
+		getTextAfter() {
+			if (!this.textAfterContainer) {
+				this.createTextAfter(this.textAfter);
+			}
+			return this.textAfterContainer;
+		}
+
+		//endregion
+
+		// region Status
+		setStatus() {
+			if (this.useAirDesign) {
+				this.#updateAirStatus();
+				return;
+			}
+			if (this.getStatusType() === BX.UI.ProgressRound.Status.COUNTER) {
+				main_core.Dom.adjust(this.status, {
+					text: this.getStatusCounter()
+				});
+			} else if (this.getStatusType() === BX.UI.ProgressRound.Status.PERCENT) {
+				main_core.Dom.adjust(this.status, {
+					text: this.getStatusPercent()
+				});
+			} else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLE) {
+				main_core.Dom.adjust(this.status, {
+					text: this.getStatusPercent()
+				});
+			} else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLECOUNTER) {
+				main_core.Dom.adjust(this.status, {
+					text: this.getStatusCounter()
+				});
+			}
+		}
+		getStatus() {
+			if (!this.status) {
+				if (this.useAirDesign) {
+					this.status = this.#createAirStatus();
+				} else if (this.getStatusType() === BX.UI.ProgressRound.Status.COUNTER) {
+					this.status = main_core.Tag.render`
+					<div class="ui-progressround-status">${this.getStatusCounter()}</div>
+				`;
+				} else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLE) {
+					this.status = main_core.Tag.render`
+					<div class="ui-progressround-status-percent-incircle">${this.getStatusPercent()}</div>
+				`;
+				} else if (this.getStatusType() === BX.UI.ProgressRound.Status.INCIRCLECOUNTER) {
+					this.status = main_core.Tag.render`
+					<div class="ui-progressround-status-incircle">${this.getStatusCounter()}</div>
+				`;
+				} else if (this.getStatusType() === BX.UI.ProgressRound.Status.PERCENT) {
+					this.status = main_core.Tag.render`
+					<div class="ui-progressround-status-percent">${this.getStatusPercent()}</div>
+				`;
+				} else {
+					this.status = main_core.Dom.create("span", {});
+				}
+			}
+			return this.status;
+		}
+		getStatusPercent() {
+			if (this.maxValue === 0) {
+				return "0%";
+			}
+			this.statusPercent = Math.round(this.getValue() / (this.getMaxValue() / 100));
+			if (this.statusPercent > 100) {
+				this.statusPercent = 100;
+			}
+			return this.statusPercent + "%";
+		}
+		getStatusCounter() {
+			if (Math.round(this.getValue()) > Math.round(this.getMaxValue())) {
+				this.statusCounter = Math.round(this.getMaxValue()) + " / " + Math.round(this.getMaxValue());
+			} else {
+				this.statusCounter = Math.round(this.getValue()) + " / " + Math.round(this.getMaxValue());
+			}
+			return this.statusCounter;
+		}
+		getStatusType() {
+			return this.statusType;
+		}
+		setStatusType(type) {
+			if (main_core.Type.isStringFilled(type)) {
+				this.statusType = type;
+			}
+		}
+		#createAirStatus() {
+			const type = this.getStatusType();
+			let className = null;
+			if (type === BX.UI.ProgressRound.Status.COUNTER) {
+				className = 'ui-progressround-status';
+			} else if (type === BX.UI.ProgressRound.Status.PERCENT) {
+				className = 'ui-progressround-status-percent';
+			} else if (type === BX.UI.ProgressRound.Status.INCIRCLE) {
+				className = 'ui-progressround-status-percent-incircle';
+			} else if (type === BX.UI.ProgressRound.Status.INCIRCLECOUNTER) {
+				className = 'ui-progressround-status-incircle';
+			}
+			if (className === null) {
+				return main_core.Dom.create('span', {});
+			}
+			return main_core.Dom.create('div', {
+				props: {
+					className
+				},
+				children: this.#renderAirStatusContent()
+			});
+		}
+		#updateAirStatus() {
+			if (!this.status || this.getStatusType() === BX.UI.ProgressRound.Status.NONE) {
+				return;
+			}
+			main_core.Dom.clean(this.status);
+			this.#renderAirStatusContent().forEach(node => {
+				main_core.Dom.append(node, this.status);
+			});
+		}
+		#renderAirStatusContent() {
+			const type = this.getStatusType();
+			if (type === BX.UI.ProgressRound.Status.COUNTER || type === BX.UI.ProgressRound.Status.INCIRCLECOUNTER) {
+				const current = Math.min(Math.round(this.getValue()), Math.round(this.getMaxValue()));
+				const max = Math.round(this.getMaxValue());
+				return [ui_system_typography.Text.render(String(current), {
+					size: 'md',
+					tag: 'span',
+					accent: true
+				}), ui_system_typography.Text.render('/', {
+					size: 'md',
+					tag: 'span',
+					className: 'ui-progressround-status-divider'
+				}), ui_system_typography.Text.render(String(max), {
+					size: 'md',
+					tag: 'span',
+					accent: true
+				})];
+			}
+			const percent = this.getMaxValue() === 0 ? 0 : Math.min(100, Math.round(this.getValue() / (this.getMaxValue() / 100)));
+			if (type === BX.UI.ProgressRound.Status.INCIRCLE) {
+				return [ui_system_typography.Headline.render(String(percent), {
+					size: 'xl',
+					tag: 'span'
+				}), ui_system_typography.Text.render('%', {
+					size: 'md',
+					tag: 'span',
+					className: 'ui-progressround-status-symbol'
+				})];
+			}
+			return [ui_system_typography.Text.render(String(percent), {
+				size: 'md',
+				tag: 'span',
+				accent: true
+			}), ui_system_typography.Text.render('%', {
+				size: 'md',
+				tag: 'span',
+				className: 'ui-progressround-status-symbol'
+			})];
+		}
+
+		//endregion
+
+		// region ProgressRound
+		createContainer() {
+			if (this.container === null) {
+				this.container = main_core.Dom.create("div", {
+					props: {
+						className: "ui-progressround"
+					},
+					children: [this.getTextAfter(), this.getTextBefore(), main_core.Dom.create("div", {
+						props: {
+							className: "ui-progressround-track"
+						},
+						children: [this.getStatus(), this.getBar()]
+					})]
+				});
+				if (this.useAirDesign) {
+					main_core.Dom.addClass(this.container, '--air');
+					this.container.style.setProperty('--ui-progressround-air-bg-inset', this.lineSize + 'px');
+					this.#setCustomColors('--ui-progressround-air-bar-stroke:url(#' + this.airBarGradientId + ');' + '--ui-progressround-air-track-stroke:url(#' + this.airTrackGradientId + ');');
+				}
+				this.setStatusType(this.statusType);
+				this.setColor(this.color);
+				this.setRotation(this.rotation);
+				this.setFill(this.fill);
+				this.setColorTrack(this.colorTrack);
+				this.setColorBar(this.colorBar);
+			}
+		}
+		getCircleFerence() {
+			return (this.width / 2 - this.lineSize / 2) * 2 * 3.14;
+		}
+		getCircleProgress() {
+			return this.getCircleFerence() - this.getCircleFerence() / this.maxValue * this.value;
+		}
+		getBar() {
+			var factRadius = this.width / 2 - this.lineSize / 2;
+			this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			this.svg.setAttributeNS(null, 'class', 'ui-progressround-track-bar');
+			this.svg.setAttributeNS(null, 'viewport', '0 0 ' + this.width + ' ' + this.width);
+			this.svg.setAttributeNS(null, 'width', this.width);
+			this.svg.setAttributeNS(null, 'height', this.width);
+			if (this.useAirDesign) {
+				this.svg.appendChild(this.#createAirGradientDefs());
+			}
+			this.progressBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+			this.progressBg.setAttributeNS(null, 'r', factRadius);
+			this.progressBg.setAttributeNS(null, 'cx', this.width / 2);
+			this.progressBg.setAttributeNS(null, 'cy', this.width / 2);
+			this.progressBg.setAttributeNS(null, 'stroke-width', this.lineSize);
+			this.progressBg.setAttributeNS(null, 'class', 'ui-progressround-track-bar-bg');
+			this.svg.appendChild(this.progressBg);
+			this.progressMove = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+			this.progressMove.setAttributeNS(null, 'r', factRadius);
+			this.progressMove.setAttributeNS(null, 'cx', this.width / 2);
+			this.progressMove.setAttributeNS(null, 'cy', this.width / 2);
+			this.progressMove.setAttributeNS(null, 'stroke-width', this.lineSize);
+			this.progressMove.setAttributeNS(null, 'stroke-dasharray', this.getCircleFerence());
+			this.progressMove.setAttributeNS(null, 'stroke-dashoffset', this.getCircleFerence());
+			this.progressMove.setAttributeNS(null, 'class', 'ui-progressround-track-bar-progress');
+			this.svg.appendChild(this.progressMove);
+			return this.svg;
+		}
+		#createAirGradientDefs() {
+			const ns = 'http://www.w3.org/2000/svg';
+			this.airBarGradientId = 'ui-progressround-air-bar-' + main_core.Text.getRandom(8);
+			this.airTrackGradientId = 'ui-progressround-air-track-' + main_core.Text.getRandom(8);
+			const defs = document.createElementNS(ns, 'defs');
+			const barGradient = document.createElementNS(ns, 'linearGradient');
+			barGradient.setAttributeNS(null, 'id', this.airBarGradientId);
+			barGradient.setAttributeNS(null, 'gradientUnits', 'userSpaceOnUse');
+			barGradient.setAttributeNS(null, 'x1', String(this.width * 0.924));
+			barGradient.setAttributeNS(null, 'y1', String(this.width * 0.674));
+			barGradient.setAttributeNS(null, 'x2', String(this.width * 0.076));
+			barGradient.setAttributeNS(null, 'y2', String(this.width * 0.229));
+			const barStop1 = document.createElementNS(ns, 'stop');
+			barStop1.setAttributeNS(null, 'offset', '0%');
+			barStop1.setAttributeNS(null, 'class', 'ui-progressround-air-stop-1');
+			const barStop2 = document.createElementNS(ns, 'stop');
+			barStop2.setAttributeNS(null, 'offset', '100%');
+			barStop2.setAttributeNS(null, 'class', 'ui-progressround-air-stop-2');
+			barGradient.appendChild(barStop1);
+			barGradient.appendChild(barStop2);
+			const trackGradientRadius = this.width * 0.772;
+			const trackGradientOffset = this.width * 0.364;
+			const trackOffsetComponent = trackGradientOffset * 0.7071;
+			const trackGradient = document.createElementNS(ns, 'radialGradient');
+			trackGradient.setAttributeNS(null, 'id', this.airTrackGradientId);
+			trackGradient.setAttributeNS(null, 'gradientUnits', 'userSpaceOnUse');
+			trackGradient.setAttributeNS(null, 'cx', String(this.width / 2 + trackOffsetComponent));
+			trackGradient.setAttributeNS(null, 'cy', String(this.width / 2 + trackOffsetComponent));
+			trackGradient.setAttributeNS(null, 'r', String(trackGradientRadius));
+			const trackStop1 = document.createElementNS(ns, 'stop');
+			trackStop1.setAttributeNS(null, 'offset', '0%');
+			trackStop1.setAttributeNS(null, 'class', 'ui-progressround-air-track-stop-1');
+			const trackStop2 = document.createElementNS(ns, 'stop');
+			trackStop2.setAttributeNS(null, 'offset', '100%');
+			trackStop2.setAttributeNS(null, 'class', 'ui-progressround-air-track-stop-2');
+			trackGradient.appendChild(trackStop1);
+			trackGradient.appendChild(trackStop2);
+			defs.appendChild(barGradient);
+			defs.appendChild(trackGradient);
+			return defs;
+		}
+		animateProgressBar() {
+			this.svg.setAttributeNS(null, 'class', 'task-report-circle-bar task-report-circle-bar-animate');
+			var progressDashoffset = this.maxValue === 0 ? this.getCircleFerence() : this.getCircleProgress();
+			this.progressMove.setAttributeNS(null, 'stroke-dashoffset', progressDashoffset);
+		}
+		update(value) {
+			if (this.container === null) {
+				this.createContainer();
+			}
+			this.setValue(value);
+			if (value >= this.maxValue) {
+				setTimeout(function () {
+					main_core.Dom.addClass(this.container, "ui-progressround-finished");
+				}.bind(this), 300);
+				this.finished = true;
+			} else {
+				main_core.Dom.removeClass(this.container, "ui-progressround-finished");
+				this.finished = false;
+			}
+			this.setStatus();
+			if (this.svg === null) {
+				this.getBar();
+			}
+			this.animateProgressBar();
+		}
+
+		//endregion
+
+		getContainer() {
+			if (this.container === null) {
+				this.createContainer();
+			}
+			this.animateProgressBar();
+			return this.container;
+		}
+		renderTo(node) {
+			if (main_core.Type.isDomNode(node)) {
+				return node.appendChild(this.getContainer());
+			}
+			return null;
+		}
+		destroy() {
+			main_core.Dom.remove(this.container);
+			this.container = null;
+			this.finished = false;
+			this.textAfterContainer = null;
+			this.textBeforeContainer = null;
+			this.bar = null;
+			this.svg = null;
+			for (const property in this) {
+				if (this.hasOwnProperty(property)) {
+					delete this[property];
+				}
+			}
+			Object.setPrototypeOf(this, null);
+		}
+	}
+
+	const UI = main_core.Reflection.namespace('BX.UI');
+
 	/** @deprecated use BX.UI.ProgressRound or import { ProgressRound } from 'ui.progressround' */
-
 	UI.Progressround = ProgressRound;
 
 	exports.ProgressRound = ProgressRound;
 	exports.ProgressRoundColor = ProgressRoundColor;
 	exports.ProgressRoundStatus = ProgressRoundStatus;
 
-}((this.BX.UI = this.BX.UI || {}),BX,BX));
+})(this.BX.UI = this.BX.UI || {}, BX, BX, window, BX.UI.System.Typography);
 //# sourceMappingURL=progressround.bundle.js.map

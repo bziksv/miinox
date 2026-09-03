@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["TRANS_CHAIN_FOLDER"] = "Klicken Sie, um in den Ordner zu wechseln";
 $MESS["TRANS_CHAIN_FOLDER_ROOT"] = "Klicken Sie, um in das Root-Verzeichnis zu wechseln";
 $MESS["TRANS_DELETE"] = "löschen:";
@@ -25,12 +25,17 @@ $MESS["TR_EXPORT_CSV_DLG_CANCELED"] = "Export wurde abgebrochen.";
 $MESS["TR_EXPORT_CSV_DLG_COMPLETED"] = "Nachrichten wurden exportiert.";
 $MESS["TR_EXPORT_CSV_DLG_SUMMARY"] = "Lokalisierungsnachrichten werden in eine CSV-Datei exportiert. Das kann einige Zeit in Anspruch nehmen.";
 $MESS["TR_EXPORT_CSV_DLG_TITLE"] = "Nachrichten nach CSV exportieren";
+$MESS["TR_EXPORT_CSV_PARAM_APPEND_SAMPLES"] = "Existierende Nachrichten in der Übersetzungsdatenbank finden";
 $MESS["TR_EXPORT_CSV_PARAM_CONVERT_UTF8"] = "In UTF-8 konvertieren";
 $MESS["TR_EXPORT_CSV_PARAM_LANGUAGES"] = "Exportsprache auswählen";
 $MESS["TR_EXPORT_CSV_PARAM_LANGUAGES_ALL"] = "Alle";
+$MESS["TR_EXPORT_CSV_PARAM_SAMPLES_COUNT"] = "Maximum an gefundenen Übersetzungen pro Nachricht";
+$MESS["TR_EXPORT_CSV_PARAM_SAMPLES_RESTRICTION"] = "Existierende Übersetzungen nur in den ausgewählten Ordnern suchen";
 $MESS["TR_EXPORT_CSV_PARAM_UNTRANSLATED"] = "Nur nicht übersetzte Nachrichten exportieren";
 $MESS["TR_EXPORT_DLG_CLEAR"] = "Exportdatei löschen";
+$MESS["TR_EXPORT_DLG_CLEAR_MULTI"] = "Exportierte Dateien löschen";
 $MESS["TR_EXPORT_DLG_DOWNLOAD"] = "Exportdatei herunterladen";
+$MESS["TR_EXPORT_DLG_DOWNLOAD_MULTI"] = "Exportierte Dateien herunterladen";
 $MESS["TR_FILENAME"] = "Dateiname:";
 $MESS["TR_FILEPATH"] = "Voller Pfad:";
 $MESS["TR_FILE_EDIT"] = "Als PHP bearbeiten";
@@ -40,4 +45,3 @@ $MESS["TR_PHRASE_COUNT"] = "Nachrichten:";
 $MESS["TR_TOTAL_MESSAGES"] = "Nachrichten gesamt:";
 $MESS["TR_TRANSLATION_FILE_OK"] = "Lokalisierungsdatei gefunden";
 $MESS["TR_UNCOMPATIBLE_ENCODING"] = "Die Codierung der aktuellen Seite ist mit der Codierung der Lokalisierung nicht kompatibel. Nachricht kann nicht bearbeitet werden. Einige Zeichen können nicht korrekt sein.";
-?>

@@ -3,6 +3,7 @@ namespace Bitrix\Landing\Internals;
 
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Main\Entity;
+use \Bitrix\Main\ORM;
 
 Loc::loadMessages(__FILE__);
 
@@ -13,16 +14,16 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Block_Query query()
- * @method static EO_Block_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Block_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Block_Result getById($id)
- * @method static EO_Block_Result getList(array $parameters = array())
+ * @method static EO_Block_Result getList(array $parameters = [])
  * @method static EO_Block_Entity getEntity()
  * @method static \Bitrix\Landing\Internals\EO_Block createObject($setDefaultValues = true)
  * @method static \Bitrix\Landing\Internals\EO_Block_Collection createCollection()
  * @method static \Bitrix\Landing\Internals\EO_Block wakeUpObject($row)
  * @method static \Bitrix\Landing\Internals\EO_Block_Collection wakeUpCollection($rows)
  */
-class BlockTable extends Entity\DataManager
+class BlockTable extends ORM\Data\DataManager
 {
 	/**
 	 * Returns DB table name for entity.
@@ -60,9 +61,6 @@ class BlockTable extends Entity\DataManager
 			'CODE' => new Entity\StringField('CODE', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CODE'),
 				'required' => true
-			)),
-			'CODE_ORIGINAL' => new Entity\StringField('CODE_ORIGINAL', array(
-				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CODE_ORIGINAL'),
 			)),
 			'TPL_CODE' => new Entity\StringField('TPL_CODE', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_TPL_CODE'),
@@ -124,7 +122,8 @@ class BlockTable extends Entity\DataManager
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_FAVORITE_META')
 			)))->configureSerializationPhp(),
 			'HISTORY_STEP_DESIGNER' => new Entity\IntegerField('HISTORY_STEP_DESIGNER', array(
-				'title' => Loc::getMessage('LANDING_TABLE_FIELD_HISTORY_STEP_DESIGNER')
+				'title' => 'History step for design block',
+				'default_value' => 0,
 			)),
 			'CREATED_BY_ID' => new Entity\IntegerField('CREATED_BY_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CREATED_BY_ID'),

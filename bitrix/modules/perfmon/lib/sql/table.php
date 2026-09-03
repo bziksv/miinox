@@ -1,9 +1,11 @@
 <?php
 namespace Bitrix\Perfmon\Sql;
+
 use Bitrix\Main\NotSupportedException;
 
 class Table extends BaseObject
 {
+	public $checkExists = false;
 	/** @var Collection */
 	public $columns = null;
 	/** @var Collection */
@@ -16,7 +18,7 @@ class Table extends BaseObject
 	/**
 	 * @param string $name Index name.
 	 */
-	function __construct($name = '')
+	public function __construct($name = '')
 	{
 		parent::__construct($name);
 		$this->columns = new Collection;
@@ -68,8 +70,8 @@ class Table extends BaseObject
 	 * And registers index in the table index registry.
 	 *
 	 * @param Tokenizer $tokenizer Tokens collection.
-	 * @param boolean $unique Uniqueness flag.
-	 * @param boolean $fulltext Fulltext flag.
+	 * @param bool $unique Uniqueness flag.
+	 * @param bool $fulltext Fulltext flag.
 	 * @param string $indexName Optional name of the index.
 	 *
 	 * @return Table
@@ -95,9 +97,32 @@ class Table extends BaseObject
 	 */
 	public function createColumn(Tokenizer $tokenizer)
 	{
-		$column = Column::create($tokenizer);
-		$column->setParent($this);
+		$column = Column::create($tokenizer, $this);
 		$this->columns->add($column);
+		return $this;
+	}
+
+	/**
+	 * Alters column object from tokens.
+	 *
+	 * @param Tokenizer $tokenizer Tokens collection.
+	 *
+	 * @return Table
+	 * @see Column::create
+	 */
+	public function modifyColumn(Tokenizer $tokenizer)
+	{
+		$column = Column::create($tokenizer);
+		if ($column !== null)
+		{
+			$column->setParent($this);
+			$columnIndex = $this->columns->searchIndex($column->name);
+			if ($columnIndex === null)
+			{
+				throw new NotSupportedException('Column ' . $this->name . '.' . $column->name . ' not found line:' . $tokenizer->getCurrentToken()->line);
+			}
+			$this->columns->set($columnIndex, $column);
+		}
 		return $this;
 	}
 
@@ -113,6 +138,7 @@ class Table extends BaseObject
 	 */
 	public static function create(Tokenizer $tokenizer)
 	{
+		$checkExists = false;
 		$tokenizer->skipWhiteSpace();
 
 		if ($tokenizer->testUpperText('IF'))
@@ -120,13 +146,19 @@ class Table extends BaseObject
 			$tokenizer->skipWhiteSpace();
 
 			if ($tokenizer->testUpperText('NOT'))
+			{
 				$tokenizer->skipWhiteSpace();
+			}
 
 			if ($tokenizer->testUpperText('EXISTS'))
+			{
 				$tokenizer->skipWhiteSpace();
+				$checkExists = true;
+			}
 		}
 
 		$table = new Table($tokenizer->getCurrentToken()->text);
+		$table->checkExists = $checkExists;
 
 		$tokenizer->nextToken();
 		$tokenizer->skipWhiteSpace();
@@ -151,25 +183,35 @@ class Table extends BaseObject
 				{
 					$tokenizer->skipWhiteSpace();
 					if ($tokenizer->testUpperText('KEY'))
+					{
 						$tokenizer->skipWhiteSpace();
+					}
 					elseif ($tokenizer->testUpperText('INDEX'))
+					{
 						$tokenizer->skipWhiteSpace();
+					}
 					$table->createIndex($tokenizer, true);
 				}
 				elseif ($tokenizer->testUpperText('FULLTEXT'))
 				{
 					$tokenizer->skipWhiteSpace();
 					if ($tokenizer->testUpperText('KEY'))
+					{
 						$tokenizer->skipWhiteSpace();
+					}
 					elseif ($tokenizer->testUpperText('INDEX'))
+					{
 						$tokenizer->skipWhiteSpace();
+					}
 					$table->createIndex($tokenizer, false, true);
 				}
 				elseif ($tokenizer->testUpperText('PRIMARY'))
 				{
 					$tokenizer->skipWhiteSpace();
 					if (!$tokenizer->testUpperText('KEY'))
-						throw new NotSupportedException("'KEY' expected. line:".$tokenizer->getCurrentToken()->line);
+					{
+						throw new NotSupportedException("'KEY' expected. line:" . $tokenizer->getCurrentToken()->line);
+					}
 
 					$tokenizer->putBack(); //KEY
 					$tokenizer->putBack(); //WS
@@ -196,7 +238,7 @@ class Table extends BaseObject
 					}
 					else
 					{
-						throw new NotSupportedException("'PRIMARY KEY' expected. line:".$tokenizer->getCurrentToken()->line);
+						throw new NotSupportedException("'PRIMARY KEY' expected. line:" . $tokenizer->getCurrentToken()->line);
 					}
 				}
 				elseif ($tokenizer->testUpperText(')'))
@@ -212,18 +254,23 @@ class Table extends BaseObject
 
 				$token = $tokenizer->getCurrentToken();
 
-				if ($token->level == $level && $token->text == ',')
+				if ($token->level == $level && $token->text === ',')
 				{
 					$token = $tokenizer->nextToken();
 				}
-				elseif ($token->level < $level && $token->text == ')')
+				elseif ($token->level < $level && $token->text === ')')
 				{
 					$tokenizer->nextToken();
 					break;
 				}
 				else
 				{
-					throw new NotSupportedException("',' or ')' expected got (".$token->text."). line:".$token->line);
+					if ($token === null)
+					{
+						$token = $tokenizer->getPrevToken();
+						$token->text = ';';
+					}
+					throw new NotSupportedException("',' or ')' expected got (" . $token->text . '). line:' . $token->line);
 				}
 
 				$tokenizer->skipWhiteSpace();
@@ -237,11 +284,13 @@ class Table extends BaseObject
 				$tokenizer->nextToken();
 			}
 			if ($suffix)
+			{
 				$table->setBody($suffix);
+			}
 		}
 		else
 		{
-			throw new NotSupportedException("'(' expected. line:".$tokenizer->getCurrentToken()->line);
+			throw new NotSupportedException("'(' expected. line:" . $tokenizer->getCurrentToken()->line);
 		}
 
 		return $table;
@@ -256,33 +305,44 @@ class Table extends BaseObject
 	 */
 	public function getCreateDdl($dbType = '')
 	{
-		$result = array();
+		$result = [];
 
-		$items = array();
+		$items = [];
 		/** @var Column $column */
 		foreach ($this->columns->getList() as $column)
 		{
-			$items[] = $column->name." ".$column->body;
+			$items[] = $column->name . ' ' . $column->body;
 		}
-		if ($dbType !== 'MSSQL')
+
+		if ($dbType === 'MYSQL')
 		{
-			/** @var Constraint $constraint */
-			foreach ($this->constraints->getList() as $constraint)
+			/** @var Index $index */
+			foreach ($this->indexes->getList() as $index)
 			{
-				if ($constraint->name === '')
-					$items[] = $constraint->body;
-				else
-					$items[] = "CONSTRAINT ".$constraint->name." ".$constraint->body;
+				$items[] = ($index->fulltext ? 'FULLTEXT ' : '') . ($index->unique ? 'UNIQUE ' : '') . 'KEY ' . $index->name . ' (' . $index->body . ')';
 			}
 		}
-		$result[] = "CREATE TABLE ".$this->name."(\n\t".implode(",\n\t", $items)."\n)".$this->body;
 
-		if ($dbType === 'MSSQL')
+		/** @var Constraint $constraint */
+		foreach ($this->constraints->getList() as $constraint)
 		{
-			/** @var Constraint $constraint */
-			foreach ($this->constraints->getList() as $constraint)
+			if ($constraint->name === '')
 			{
-				$result[] = $constraint->getCreateDdl($dbType);
+				$items[] = $constraint->body;
+			}
+			else
+			{
+				$items[] = 'CONSTRAINT ' . $constraint->name . ' ' . $constraint->body;
+			}
+		}
+
+		$result[] = 'CREATE TABLE ' . ($this->checkExists ? 'IF NOT EXISTS ' : '') . $this->name . "(\n\t" . implode(",\n\t", $items) . "\n)" . $this->body;
+
+		if ($dbType !== 'MYSQL')
+		{
+			foreach ($this->indexes->getList() as $index)
+			{
+				$result[] = $index->getCreateDdl($dbType);
 			}
 		}
 
@@ -298,6 +358,6 @@ class Table extends BaseObject
 	 */
 	public function getDropDdl($dbType = '')
 	{
-		return "DROP TABLE ".$this->name;
+		return 'DROP TABLE ' . $this->name;
 	}
 }

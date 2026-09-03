@@ -1,12 +1,11 @@
-<?
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2004 - 2006 Bitrix           #
-# http://www.bitrix.ru                       #
-# mailto:admin@bitrix.ru                     #
-##############################################
-*/
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage form
+ * @copyright 2001-2025 Bitrix
+ */
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
@@ -288,7 +287,10 @@ if ($lAdmin->EditAction() && /*$FORM_RIGHT>="W"*/ $F_RIGHT >= 20 && check_bitrix
 
 			$DB->Rollback();
 		}
-		$DB->Commit();
+		else
+		{
+			$DB->Commit();
+		}
 	}
 }
 
@@ -325,7 +327,10 @@ if(($arID = $lAdmin->GroupAction()) && /*$FORM_RIGHT>="W"*/ $F_RIGHT >= 20 && ch
 					else
 						$lAdmin->AddGroupError(GetMessage("FORM_DELETE_ERROR").$ID, $ID);
 				}
-				$DB->Commit();
+				else
+				{
+					$DB->Commit();
+				}
 				break;
 		}
 
@@ -374,7 +379,7 @@ else
 		$headers[] = array("id"=>"STAT_SESSION_ID", "content"=>GetMessage("FORM_SESSION_ID"), "sort"=>"s_session_id", "default"=>true);
 	}
 
-	if ($_GET['mode']=='excel')
+	if (isset($_GET['mode']) && $_GET['mode'] == 'excel')
 		$arFilter = array("IN_EXCEL_TABLE" => "Y");
 	else
 		$arFilter = array("IN_RESULTS_TABLE" => "Y");
@@ -819,7 +824,7 @@ else
 
 if (is_array($arFormCrmLink)):
 ?>
-<script type="text/javascript">
+<script>
 function sendToCrm(FORM_ID, RESULT_ID)
 {
 	BX.ajax.loadJSON('/bitrix/admin/form_crm.php?action=add_lead&FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=' + parseInt(RESULT_ID) + '&<?=bitrix_sessid_get()?>', function(result){

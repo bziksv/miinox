@@ -1,11 +1,11 @@
 <?php
-define("NO_AGENT_CHECK", true);
-define("NO_AGENT_STATISTIC", true);
-define("NOT_CHECK_PERMISSIONS", true);
+const NO_AGENT_CHECK = true;
+const NO_AGENT_STATISTIC = true;
+const NOT_CHECK_PERMISSIONS = true;
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
-use \Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Localization\Loc;
 Loc::loadMessages(__FILE__);
 
 $arResult = array();
@@ -45,10 +45,6 @@ if(isset($arResult["ERROR"]))
 	$arResult["RESULT"] = "ERROR";
 else
 	$arResult["RESULT"] = "OK";
-
-/** @global CMain $APPLICATION */
-if(mb_strtolower(SITE_CHARSET) != 'utf-8')
-	$arResult = $APPLICATION -> ConvertCharsetArray($arResult, SITE_CHARSET, 'utf-8');
 
 header('Content-Type: application/json');
 echo json_encode($arResult);

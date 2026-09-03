@@ -1,10 +1,4 @@
-<?
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2002-2006 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
+<?php
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
@@ -150,7 +144,7 @@ $APPLICATION->SetTitle(GetMessage("SAS1_SEARCH"));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_popup_admin.php");
 ?>
 
-<script language="JavaScript">
+<script>
 <!--
 function SelEl(id)
 {

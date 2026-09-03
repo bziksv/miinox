@@ -15,6 +15,7 @@ use Bitrix\Main\NotImplementedException;
 use Bitrix\Main\NotSupportedException;
 use Bitrix\Main\ObjectNotFoundException;
 use Bitrix\Main\SystemException;
+use Bitrix\Sale;
 use Bitrix\Sale\Internals;
 use Bitrix\Currency;
 use Bitrix\Sale\Reservation\Configuration\ReserveCondition;
@@ -825,7 +826,7 @@ abstract class ProviderBase
 	 * @return array
 	 * @throws NotSupportedException
 	 */
-	public static function getProductAvailableQuantity(Basket $basketCollection, BasketItem $refreshItem = null)
+	public static function getProductAvailableQuantity(Basket $basketCollection, ?BasketItem $refreshItem = null)
 	{
 
 		static $proxyProductAvailableQuantity = array();
@@ -979,7 +980,7 @@ abstract class ProviderBase
 	 * @throws NotSupportedException
 	 * @throws ObjectNotFoundException
 	 */
-	public static function getProductData(BasketItemCollection $basketCollection, array $select = array(), BasketItem $refreshItem = null)
+	public static function getProductData(BasketItemCollection $basketCollection, array $select = array(), ?BasketItem $refreshItem = null)
 	{
 		$resultList = array();
 
@@ -1062,9 +1063,8 @@ abstract class ProviderBase
 	 *
 	 * @return Result
 	 */
-	public static function getProductDataByList(array $products, $providerClassName = null, array $select = array(), array $context, array $options = array())
+	public static function getProductDataByList(array $products, $providerClassName, array $select, array $context, array $options = array())
 	{
-
 		$result = new Result();
 		$resultList = array();
 
@@ -2202,7 +2202,7 @@ abstract class ProviderBase
 				$resultList[$basketCode] = $resultProduct;
 
 			}
-			elseif (class_exists($providerName))
+			elseif ($providerName && class_exists($providerName))
 			{
 				/** @var ShipmentCollection $shipmentCollection */
 				$shipmentCollection = $shipment->getCollection();
@@ -2589,7 +2589,7 @@ abstract class ProviderBase
 	 *
 	 * @return array
 	 */
-	protected static function makeArrayFromBasketCollection(BasketItemCollection $basketCollection, BasketItem $refreshItem = null)
+	protected static function makeArrayFromBasketCollection(BasketItemCollection $basketCollection, ?BasketItem $refreshItem = null)
 	{
 		$basketList = array();
 		/** @var BasketItem $basketItem */
@@ -5072,7 +5072,7 @@ abstract class ProviderBase
 
 				if ($userId === null)
 				{
-					$userId = \CSaleUser::GetUserID($basket->getFUserId());
+					$userId = Sale\Fuser::getUserIdById($basket->getFUserId());
 				}
 
 				if ($userId > 0)

@@ -16,9 +16,9 @@
 
 /*******************************************************************/
 	$arFilter = array();
-	$ID = intval($ID);
-	$TITLE = trim($TITLE);
-$TYPE = mb_strtoupper(trim($_REQUEST["TYPE"]));
+	$ID = isset($ID) ? intval($ID) : null;
+	$TITLE = isset($TITLE) ? trim($TITLE) : "";
+    $TYPE = isset($_REQUEST["TYPE"]) ? mb_strtoupper(trim($_REQUEST["TYPE"])) : null;
 	$arFilter = array("TYPE" => $TYPE);
 	if ($TITLE <> '')
 		$arFilter = array_merge($arFilter, array("%TITLE" => "%".$TITLE."%"));
@@ -27,10 +27,10 @@ $TYPE = mb_strtoupper(trim($_REQUEST["TYPE"]));
 	{
 		foreach ($FIELDS as $ID => $arFields)
 		{
-			$DB->StartTransaction();
 			$ID = intval($ID);
 			if (!$lAdmin->IsUpdated($ID))
 				continue;
+			$DB->StartTransaction();
 			if (!CFilterDictionary::Update($ID, array("TITLE" => $arFields["TITLE"])))
 			{
 				if ($ex = $APPLICATION->GetException())
@@ -39,13 +39,16 @@ $TYPE = mb_strtoupper(trim($_REQUEST["TYPE"]));
 					$lAdmin->AddUpdateError(str_replace("##", $ID, GetMessage("FLT_NOT_UPDATE")), $ID);
 				$DB->Rollback();
 			}
-			$DB->Commit();
+			else
+			{
+				$DB->Commit();
+			}
 		}
 	}
 /*******************************************************************/
 	if($arID = $lAdmin->GroupAction())
 	{
-		if($_REQUEST['action_target']=='selected')
+		if(isset($_REQUEST['action_target']) && $_REQUEST['action_target']=='selected')
 		{
 			$rsData = CFilterDictionary::GetList(array($by=>$order), $arFilter);
 			while($arRes = $rsData->Fetch())

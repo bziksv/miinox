@@ -5,6 +5,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+use Bitrix\Catalog\Restriction\ToolAvailabilityManager;
 use Bitrix\Main\Loader;
 use Bitrix\Catalog\Config\Feature;
 
@@ -22,12 +23,18 @@ class CatalogStoreEntityController extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		if (Loader::includeModule('catalog'))
+		if (!Loader::includeModule('catalog'))
 		{
-			if (!Feature::isInventoryManagementEnabled())
-			{
-				LocalRedirect('/shop/');
-			}
+			ShowError(\Bitrix\Main\Localization\Loc::getMessage('CATALOG_STORE_ENTITY_CONTROLLER_MODULE_CATALOG_NOT_INSTALLED'));
+			return;
+		}
+
+		$availabilityManager = ToolAvailabilityManager::getInstance();
+		if (!$availabilityManager->checkInventoryManagementAvailability())
+		{
+			$this->includeComponentTemplate('tool_disabled');
+
+			return;
 		}
 
 		$this->initResult();
@@ -45,6 +52,7 @@ class CatalogStoreEntityController extends CBitrixComponent
 	{
 		return [
 			'list' => '',
+			'uf' => 'user-fields/',
 			'details' => 'details/#ID#/',
 		];
 	}

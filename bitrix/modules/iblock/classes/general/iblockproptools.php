@@ -22,7 +22,6 @@ class CIBlockPropertyTools
 	public const CODE_VOTE_RATING_OLD = 'rating';
 	public const CODE_ARTNUMBER = 'ARTNUMBER';
 	public const CODE_BACKGROUND_IMAGE = 'BACKGROUND_IMAGE';
-	public const CODE_BRAND_FOR_FACEBOOK = 'BRAND_FOR_FACEBOOK';
 
 	public const XML_MORE_PHOTO = 'CML2_PICTURES';
 	public const XML_SKU_LINK = 'CML2_LINK';
@@ -30,7 +29,6 @@ class CIBlockPropertyTools
 	public const XML_BLOG_COMMENTS_COUNT = 'BLOG_COMMENTS_CNT';
 	public const XML_ARTNUMBER = 'CML2_ARTICLE';
 	public const XML_BACKGROUND_IMAGE = 'BACKGROUND_IMAGE';
-	public const XML_BRAND_FOR_FACEBOOK = 'BRAND_FOR_FACEBOOK';
 
 	/** @deprecated use CIBlockPropertySKU::USER_TYPE */
 	public const USER_TYPE_SKU_LINK = CIBlockPropertySKU::USER_TYPE;
@@ -153,25 +151,9 @@ class CIBlockPropertyTools
 		switch($code)
 		{
 			case self::CODE_MORE_PHOTO:
-				$name = Loc::getMessage('IBPT_PROP_TITLE_MORE_PHOTO');
-				if (isset($fields['IBLOCK_ID']))
-				{
-					if (Loader::includeModule('catalog'))
-					{
-						$catalog = CCatalogSku::GetInfoByIBlock($fields['IBLOCK_ID']);
-						if (!empty($catalog))
-						{
-							$name =
-								$catalog['CATALOG_TYPE'] === CCatalogSku::TYPE_OFFERS
-								? Loc::getMessage('IBPT_PROP_TITLE_PRODUCT_VARIATION_MORE_PHOTO')
-								: Loc::getMessage('IBPT_PROP_TITLE_PRODUCT_MORE_PHOTO')
-							;
-						}
-					}
-				}
 				$property = [
 					'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_FILE,
-					'NAME' => $name,
+					'NAME' => Loc::getMessage('IBPT_PROP_TITLE_MORE_PHOTO_MSGVER_1'),
 					'CODE' => self::CODE_MORE_PHOTO,
 					'XML_ID' => self::XML_MORE_PHOTO,
 					'MULTIPLE' => 'Y',
@@ -222,19 +204,6 @@ class CIBlockPropertyTools
 					'XML_ID' => self::XML_BACKGROUND_IMAGE,
 				];
 				break;
-			case self::CODE_BRAND_FOR_FACEBOOK:
-				$property = [
-					'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_STRING,
-					'NAME' => Loc::getMessage('IBPT_PROP_TITLE_BRAND_FOR_FACEBOOK'),
-					'CODE' => self::CODE_BRAND_FOR_FACEBOOK,
-					'XML_ID' => self::XML_BRAND_FOR_FACEBOOK,
-					'MULTIPLE' => 'Y',
-					'USER_TYPE' => 'directory',
-					'USER_TYPE_SETTINGS' => [
-						'TABLE_NAME' => 'b_catalog_facebook_brand_reference',
-					],
-				];
-				break;
 			default:
 				$property = null;
 				break;
@@ -245,6 +214,7 @@ class CIBlockPropertyTools
 				'ACTIVE' => 'Y',
 				'SORT' => 500,
 				'MULTIPLE' => 'N',
+				'IS_REQIRED' => 'N',
 				'USER_TYPE' => null,
 			];
 			if (!empty($fields))
@@ -296,7 +266,6 @@ class CIBlockPropertyTools
 			case self::CODE_MORE_PHOTO:
 			case self::CODE_BLOG_POST:
 			case self::CODE_BLOG_COMMENTS_COUNT:
-			case self::CODE_BRAND_FOR_FACEBOOK:
 				$checkResult = true;
 				break;
 			default:

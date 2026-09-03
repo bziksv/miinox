@@ -25,9 +25,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Word_Query query()
- * @method static EO_Word_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Word_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Word_Result getById($id)
- * @method static EO_Word_Result getList(array $parameters = array())
+ * @method static EO_Word_Result getList(array $parameters = [])
  * @method static EO_Word_Entity getEntity()
  * @method static \Bitrix\Sale\Location\Search\EO_Word createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Location\Search\EO_Word_Collection createCollection()
@@ -37,8 +37,9 @@ Loc::loadMessages(__FILE__);
 final class WordTable extends Entity\DataManager implements \Serializable
 {
 	protected $procData = 		array();
-	protected $word2LocationInserter = 	null;
-	protected $dictionaryInserter = 	null;
+	protected BlockInserter $word2LocationInserter;
+	protected BlockInserter $dictionaryInserter;
+	protected BlockInserter $dictionaryResorter;
 
 	protected $dictionaryIndex = 		array();
 
@@ -166,17 +167,16 @@ final class WordTable extends Entity\DataManager implements \Serializable
 
 		Helper::dropTable(static::getTableName());
 
-		$binary = ToLower($dbConnection->getType()) == 'mysql' ? 'binary' : ''; // http://bugs.mysql.com/bug.php?id=34096
+		$binary = mb_strtolower($dbConnection->getType()) == 'mysql' ? 'binary' : ''; // http://bugs.mysql.com/bug.php?id=34096
 
 		// ORACE: OK, MSSQL: OK
 		Main\HttpApplication::getConnection()->query("create table ".static::getTableName()." (
 
-			ID ".Helper::getSqlForDataType('int')." not null ".Helper::getSqlForAutoIncrement()." primary key,
+			ID ".Helper::getSqlForDataType('int')." not null ".Helper::getSqlForAutoIncrement().",
 			WORD ".Helper::getSqlForDataType('varchar', 50)." ".$binary." not null,
-			POSITION ".Helper::getSqlForDataType('int')." default '0'
+			POSITION ".Helper::getSqlForDataType('int')." default '0',
+			primary key (ID)
 		)");
-
-		Helper::addAutoIncrement(static::getTableName()); // only for ORACLE
 
 		Helper::createIndex(static::getTableName(), 'TMP', array('WORD'), true);
 		Helper::dropTable(static::getTableNameWord2Location());
@@ -209,7 +209,7 @@ final class WordTable extends Entity\DataManager implements \Serializable
 		$result = array();
 		foreach($words as $k => &$word)
 		{
-			$word = ToUpper(trim($word));
+			$word = mb_strtoupper(trim($word));
 			$word = str_replace('%', '', $word);
 
 			if($word == '')
@@ -225,7 +225,7 @@ final class WordTable extends Entity\DataManager implements \Serializable
 
 	public static function parseString($query)
 	{
-		$query = ToUpper(Trim($query));
+		$query = mb_strtoupper(Trim($query));
 
 		//$query = str_replace(array_keys(static::$blackList), static::$blackList, ' '.$query.' ');
 		$query = str_replace(array(')', '(', '%', '_'), array('', '', '', ''), $query);
@@ -414,7 +414,7 @@ final class WordTable extends Entity\DataManager implements \Serializable
 		$word = trim($word);
 
 		$dbConnection = Main\HttpApplication::getConnection();
-		$sql = "select MIN(POSITION) as INF, MAX(POSITION) as SUP from ".static::getTableName()." where WORD like '".ToUpper($dbConnection->getSqlHelper()->forSql($word))."%'";
+		$sql = "select MIN(POSITION) as INF, MAX(POSITION) as SUP from ".static::getTableName()." where WORD like '".mb_strtoupper($dbConnection->getSqlHelper()->forSql($word))."%'";
 
 		return $dbConnection->query($sql)->fetch();
 	}
@@ -474,7 +474,8 @@ final class WordTable extends Entity\DataManager implements \Serializable
 
 			'ID' => array(
 				'data_type' => 'integer',
-				'primary' => true
+				'primary' => true,
+				'autocomplete' => true,
 			),
 			'WORD' => array(
 				'data_type' => 'string',

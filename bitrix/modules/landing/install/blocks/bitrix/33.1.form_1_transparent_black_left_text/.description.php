@@ -47,26 +47,34 @@ return array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_SUBTITLE'),
 			'type' => 'text',
 		),
-		'.landing-block-card-contact-icon' => array(
-			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_ICON'),
-			'type' => 'icon',
-		),
 		'.landing-block-node-contact-text' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_TEXT'),
 			'type' => 'text',
 		),
-		'.landing-block-node-contact-link' => array(
-			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_LINK'),
-			'type' => 'link',
+		'.landing-block-node-contact-icon' => array(
+			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_ICON'),
+			'type' => 'icon',
 		),
 		'.landing-block-card-linkcontact-link' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_LINK'),
 			'type' => 'link',
 		),
+		'.landing-block-card-contact-icon' => array(
+			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_ICON'),
+			'type' => 'icon',
+		),
 	),
 	'style' => array(
 		'block' => array(
-			'type' => ['background', 'block-default-background-overlay'],
+			'type' => [
+				'display',
+				'background',
+				'padding-top',
+				'padding-bottom',
+				'padding-left',
+				'padding-right',
+				'margin-top',
+			],
 		),
 		'nodes' => array(
 			'.landing-block-node-main-title' => array(
@@ -89,17 +97,9 @@ return array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_TEXT'),
 				'type' => 'typo',
 			),
-			'.landing-block-node-contact-link' => array(
-				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_LINK'),
-				'type' => 'typo',
-			),
 			'.landing-block-card-linkcontact-link' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_LINK'),
 				'type' => 'typo-link',
-			),
-			'.landing-block-node-bgimg' => array(
-				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_BGIMG'),
-				'type' => 'background-attachment',
 			),
 			'.landing-block-node-row' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33_1_NODE_BLOCK'),

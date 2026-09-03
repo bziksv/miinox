@@ -164,7 +164,7 @@ class CVoteUfComponent extends \CBitrixComponent
 	}
 
 	/**
-	 * @return Application|\Bitrix\Main\HttpApplication|\CAllMain|\CMain
+	 * @return Application|\Bitrix\Main\HttpApplication|CMain
 	 */
 	protected function getApplication()
 	{
@@ -173,7 +173,7 @@ class CVoteUfComponent extends \CBitrixComponent
 	}
 
 	/**
-	 * @return array|bool|\CAllUser|\CUser
+	 * @return array|bool|CUser
 	 */
 	protected function getUser()
 	{
@@ -184,7 +184,7 @@ class CVoteUfComponent extends \CBitrixComponent
 	protected function prepareParams()
 	{
 		$this->editMode = isset($this->arParams["EDIT"]) && $this->arParams["EDIT"] === "Y";
-		if (array_key_exists("PARAMS", $this->arParams) && array_key_exists("PARAMS", $this->arParams))
+		if (array_key_exists("PARAMS", $this->arParams) && array_key_exists("RESULT", $this->arParams))
 		{
 			$this->arResult = $this->arParams["RESULT"];
 			$this->arParams = $this->arParams["PARAMS"];

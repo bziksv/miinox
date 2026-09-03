@@ -1,9 +1,15 @@
 <?php
 $MESS["JS_UI_VIEWER_DEFAULT_ERROR_TITLE"] = "Das ist ein Fehler.";
-$MESS["JS_UI_VIEWER_IMAGE_VIEW_FULL_SIZE"] = "Vollgröße anzeigen";
+$MESS["JS_UI_VIEWER_IMAGE_VIEW_FULL_SIZE_MSGVER_1"] = "Ursprüngliche Datei anzeigen";
+$MESS["JS_UI_VIEWER_ITEM_ACTION_COPY_LINK"] = "Link kopieren";
+$MESS["JS_UI_VIEWER_ITEM_ACTION_COPY_LINK_ERROR"] = "Fehler beim Kopieren des Links.";
+$MESS["JS_UI_VIEWER_ITEM_ACTION_COPY_LINK_SUCCESS"] = "Link wurde kopiert.";
 $MESS["JS_UI_VIEWER_ITEM_ACTION_DELETE"] = "Löschen";
 $MESS["JS_UI_VIEWER_ITEM_ACTION_DOWNLOAD"] = "Herunterladen";
 $MESS["JS_UI_VIEWER_ITEM_ACTION_EDIT"] = "Bearbeiten";
+$MESS["JS_UI_VIEWER_ITEM_ACTION_INFO"] = "Mehr";
+$MESS["JS_UI_VIEWER_ITEM_ACTION_PRINT"] = "Drucken";
+$MESS["JS_UI_VIEWER_ITEM_ACTION_ROTATE"] = "Drehen";
 $MESS["JS_UI_VIEWER_ITEM_ACTION_SHARE"] = "Teilen";
 $MESS["JS_UI_VIEWER_ITEM_PREPARING_TO_PRINT"] = "Dokument zum Drucken vorbereiten: #PROGRESS#%";
 $MESS["JS_UI_VIEWER_ITEM_TRANSFORMATION_ERROR"] = "Konvertierung fehlgeschlagen: die Datei kann nicht geöffnet werden";

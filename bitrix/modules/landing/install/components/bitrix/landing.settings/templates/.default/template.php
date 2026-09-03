@@ -18,14 +18,14 @@ use Bitrix\Main\Application;
 use Bitrix\Main\Loader;
 use Bitrix\Main\UI;
 use Bitrix\Main\UI\Extension;
-use Bitrix\Main\Web\Uri;
+use Bitrix\Landing\Metrika;
 
 /** @var array $arParams */
 /** @var array $arResult */
 /** @var string $templateFolder */
 /** @var \LandingSiteTileComponent $component */
 
-Extension::load(['sidepanel', 'main.qrcode', 'ui.dialogs.messagebox', 'marketplace', 'applayout', 'ui.fonts.opensans']);
+Extension::load(['sidepanel', 'main.qrcode', 'ui.dialogs.messagebox', 'marketplace', 'applayout', 'ui.fonts.opensans', 'ui.analytics']);
 Loader::includeModule("ui");
 
 $isAjax = $component->isAjax();
@@ -36,6 +36,12 @@ if(Loader::includeModule('ui'))
 {
 	UI\Extension::load('ui.buttons');
 	UI\Extension::load('main.loader');
+}
+
+// Tool availability (by intranet settings)
+if (!$component->isToolAvailable())
+{
+	echo $component->getToolUnavailableInfoScript();
 }
 ?>
 
@@ -118,6 +124,7 @@ if(Loader::includeModule('ui'))
 	];
 	$buttonCancel = [
 		'TYPE' => 'cancel',
+		'ID' => 'landing-settings-cancel-btn',
 	];
 
 	$APPLICATION->IncludeComponent(
@@ -137,6 +144,9 @@ if(Loader::includeModule('ui'))
 					'menuId' => 'landing-settings-sidemenu',
 					'containerId' => 'landing-settings-content',
 					'saveButtonId' => 'landing-settings-save-btn',
+					'cancelButtonId' => 'landing-settings-cancel-btn',
+					'type' => $arParams['TYPE'],
+					'tool' => Metrika\Tools::getBySiteType($arParams['TYPE'])->value,
 				]) ?>,
 			);
 		});

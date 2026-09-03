@@ -299,12 +299,23 @@ BX.JCCalendar = function()
 
 	this._create = function(params)
 	{
-		this.popup = new BX.PopupWindow('calendar_popup_' + Math.random(), params.node, {
+		const paramsForPopupWindow = {
 			closeByEsc: true,
 			autoHide: false,
 			content: this._get_content(),
-			bindOptions: {forceBindPosition: true}
-		});
+			bindOptions: { forceBindPosition: true },
+			focusTrap: false,
+		};
+		if (Boolean(params.fixed) && params.fixed)
+		{
+			paramsForPopupWindow.fixed = params.fixed;
+		}
+
+		this.popup = new BX.PopupWindow(
+			'calendar_popup_' + Math.random(),
+			params.node,
+			paramsForPopupWindow,
+		);
 
 		BX.bind(this.popup.popupContainer, 'click', function(event) {
 			event.stopPropagation();
@@ -750,6 +761,7 @@ BX.JCCalendar = function()
 					offsetTop: -29,
 					offsetLeft: -1,
 					className: this.month_popup_classname,
+					focusTrap: false,
 					events: {
 						onPopupShow: BX.delegate(function() {
 							if (this.popup_year)
@@ -810,6 +822,7 @@ BX.JCCalendar = function()
 					offsetTop: -29,
 					offsetLeft: -1,
 					className: this.year_popup_classname,
+					focusTrap: false,
 					events: {
 						onPopupShow: BX.delegate(function() {
 							if (this.popup_month)
@@ -1335,8 +1348,9 @@ BX.CClockSelector = function(params)
 			offsetTop: -135,
 			autoHide: true,
 			closeIcon: true,
-			closeByEsc: true
-		}
+			closeByEsc: true,
+			focusTrap: false,
+		},
 	);
 
 	this.SHOW = false;
@@ -1440,3 +1454,4 @@ BX.CClockSelector.prototype.onPopupClose = function()
 };
 
 })();
+

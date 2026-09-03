@@ -1,15 +1,14 @@
-<?
-use Bitrix\Main\localization\Loc,
-	Bitrix\Main,
-	Bitrix\Iblock,
-	Bitrix\Catalog,
-	Bitrix\Currency;
+<?php
 
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\localization\Loc;
+use Bitrix\Main;
+use Bitrix\Iblock;
+use Bitrix\Catalog;
+use Bitrix\Currency;
 
 class CCatalogStepOperations
 {
-	const DEFAULT_SESSION_PREFIX = 'CC';
+	public const DEFAULT_SESSION_PREFIX = 'CC';
 
 	protected $sessID = '';
 	protected $errorCounter = 0;
@@ -226,7 +225,7 @@ class CCatalogProductSetAvailable extends CCatalogStepOperations
 		global $DB;
 
 		$tableName = '';
-		switch (ToUpper($DB->type))
+		switch (mb_strtoupper($DB->type))
 		{
 			case 'MYSQL':
 				$tableName = 'b_catalog_product_sets';
@@ -269,7 +268,7 @@ class CCatalogProductSetAvailable extends CCatalogStepOperations
 			if (!empty($strUpdate))
 			{
 				$strQuery = "update ".$tableName." set ".$strUpdate." where ID = ".$productSet['ID'];
-				$DB->Query($strQuery, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strQuery);
 			}
 			$this->setLastId($productSet['ID']);
 			if ($this->isStopOperation())
@@ -1570,7 +1569,7 @@ class CCatalogProductSettings extends CCatalogProductAvailable
 		global $DB;
 
 		$tableName = '';
-		switch (ToUpper($DB->type))
+		switch (mb_strtoupper($DB->type))
 		{
 			case 'MYSQL':
 				$tableName = 'b_catalog_product_sets';
@@ -1608,13 +1607,13 @@ class CCatalogProductSettings extends CCatalogProductAvailable
 			CCatalogProductSet::recalculateSet($productSet['ID'], $productSet['ITEM_ID']);
 			$arTimeFields = array(
 				'~TIMESTAMP_X' => $DB->CharToDateFunction($productSet['TIMESTAMP_X'], "FULL"),
-				'~MODIFIED_BY' => $productSet['MODIFIED_BY']
+				'MODIFIED_BY' => $productSet['MODIFIED_BY']
 			);
 			$strUpdate = $DB->PrepareUpdate($tableName, $arTimeFields);
 			if (!empty($strUpdate))
 			{
 				$strQuery = "update ".$tableName." set ".$strUpdate." where ID = ".$productSet['ID'];
-				$DB->Query($strQuery, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strQuery);
 			}
 			$this->setLastId($productSet['ID']);
 			if ($this->isStopOperation())

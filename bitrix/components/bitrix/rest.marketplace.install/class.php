@@ -1,4 +1,4 @@
-<?
+<?php
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
@@ -8,6 +8,7 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Context;
 use Bitrix\Main\Loader;
+use Bitrix\Rest\Internal\Integration\UI\CopilotService;
 USE Bitrix\Rest\Marketplace\Client;
 use Bitrix\Rest\AppTable;
 use Bitrix\Rest\Engine\ScopeManager;
@@ -129,6 +130,9 @@ class RestMarketplaceInstallComponent extends CBitrixComponent
 
 		$scopeList = ScopeManager::getInstance()->listScope();
 		Loc::loadMessages($_SERVER['DOCUMENT_ROOT'].BX_ROOT.'/modules/rest/scope.php');
+		$copilotReplacements = [
+			'#COPILOT_NAME#' => CopilotService::getName(),
+		];
 		$result['SCOPE_DENIED'] = [];
 		if (is_array($result['APP']['RIGHTS']))
 		{
@@ -139,10 +143,15 @@ class RestMarketplaceInstallComponent extends CBitrixComponent
 					$title = Loc::getMessage('REST_SCOPE_LOG_MSGVER_1') ?: $scope;
 					$description = Loc::getMessage("REST_SCOPE_LOG_DESCRIPTION_MSGVER_1");
 				}
+				elseif (mb_strtoupper($key) === 'AI_ADMIN')
+				{
+					$title = Loc::getMessage('REST_SCOPE_AI_ADMIN_MSGVER_1', $copilotReplacements) ?: $scope;
+					$description = Loc::getMessage("REST_SCOPE_AI_ADMIN_DESCRIPTION", $copilotReplacements);
+				}
 				else
 				{
-					$title = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key)) ?: $scope;
-					$description = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key)."_DESCRIPTION");
+					$title = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key), $copilotReplacements) ?: $scope;
+					$description = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key)."_DESCRIPTION", $copilotReplacements);
 				}
 				$result['APP']['RIGHTS'][$key] = [
 					'TITLE' => $title,
@@ -157,10 +166,9 @@ class RestMarketplaceInstallComponent extends CBitrixComponent
 
 		if (
 			Loader::IncludeModule('bitrix24')
-			&& !in_array(\CBitrix24::getLicensePrefix(), array('ru', 'ua', 'kz', 'by'))
 		)
 		{
-			$result['TERMS_OF_SERVICE_LINK'] = Loc::getMessage('REST_MARKETPLACE_TERMS_OF_SERVICE_LINK');
+			$result['TERMS_OF_SERVICE_LINK'] = (string)\Bitrix\Rest\Infrastructure\Market\MarketUrl::createByDefault()->getTermsUrl();
 		}
 
 		$result['IS_HTTPS'] = Context::getCurrent()->getRequest()->isHttps();

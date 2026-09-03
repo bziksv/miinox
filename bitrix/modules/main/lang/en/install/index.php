@@ -2,10 +2,10 @@
 $MESS["MAIN_ADMIN_GROUP_DESC"] = "Full access.";
 $MESS["MAIN_ADMIN_GROUP_NAME"] = "Administrators";
 $MESS["MAIN_DEFAULT_LANGUAGE_AM_VALUE"] = "am";
+$MESS["MAIN_DEFAULT_LANGUAGE_CODE"] = "en";
 $MESS["MAIN_DEFAULT_LANGUAGE_DAY_MONTH_FORMAT"] = "F j";
 $MESS["MAIN_DEFAULT_LANGUAGE_DAY_OF_WEEK_MONTH_FORMAT"] = "l, F j";
 $MESS["MAIN_DEFAULT_LANGUAGE_DAY_SHORT_MONTH_FORMAT"] = "M j";
-$MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_CHARSET"] = "iso-8859-1";
 $MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_DATE"] = "MM/DD/YYYY";
 $MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_DATETIME"] = "MM/DD/YYYY H:MI:SS T";
 $MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_NAME"] = "#NAME# #LAST_NAME#";
@@ -14,7 +14,6 @@ $MESS["MAIN_DEFAULT_LANGUAGE_LONG_DATE_FORMAT"] = "F j, Y";
 $MESS["MAIN_DEFAULT_LANGUAGE_LONG_TIME_FORMAT"] = "g:i:s a";
 $MESS["MAIN_DEFAULT_LANGUAGE_MEDIUM_DATE_FORMAT"] = "M j, Y";
 $MESS["MAIN_DEFAULT_LANGUAGE_NAME"] = "English";
-$MESS["MAIN_DEFAULT_LANGUAGE_CODE"] = "en";
 $MESS["MAIN_DEFAULT_LANGUAGE_NUMBER_DECIMAL_SEPARATOR"] = ".";
 $MESS["MAIN_DEFAULT_LANGUAGE_NUMBER_THOUSANDS_SEPARATOR"] = ",";
 $MESS["MAIN_DEFAULT_LANGUAGE_PM_VALUE"] = "pm";
@@ -22,7 +21,6 @@ $MESS["MAIN_DEFAULT_LANGUAGE_SHORT_DATE_FORMAT"] = "n/j/Y";
 $MESS["MAIN_DEFAULT_LANGUAGE_SHORT_DAY_OF_WEEK_MONTH_FORMAT"] = "D, F j";
 $MESS["MAIN_DEFAULT_LANGUAGE_SHORT_DAY_OF_WEEK_SHORT_MONTH_FORMAT"] = "D, M j";
 $MESS["MAIN_DEFAULT_LANGUAGE_SHORT_TIME_FORMAT"] = "g:i a";
-$MESS["MAIN_DEFAULT_SITE_FORMAT_CHARSET"] = "iso-8859-1";
 $MESS["MAIN_DEFAULT_SITE_FORMAT_DATE"] = "MM/DD/YYYY";
 $MESS["MAIN_DEFAULT_SITE_FORMAT_DATETIME"] = "MM/DD/YYYY H:MI:SS T";
 $MESS["MAIN_DEFAULT_SITE_FORMAT_NAME"] = "#NAME# #LAST_NAME#";
@@ -38,7 +36,7 @@ $MESS["MAIN_DESKTOP_RESPONSIBLE_KEY"] = "Administrator";
 $MESS["MAIN_DESKTOP_RESPONSIBLE_VALUE"] = "John Doe";
 $MESS["MAIN_DESKTOP_RSS_TITLE"] = "Bitrix News";
 $MESS["MAIN_DESKTOP_URL_KEY"] = "Website URL";
-$MESS["MAIN_DESKTOP_URL_VALUE"] = "<a href=\"http://www.bitrixsoft.com\">www.bitrixsoft.com</a>";
+$MESS["MAIN_DESKTOP_URL_VALUE"] = "<a href=\"https://www.bitrixsoft.com\">www.bitrixsoft.com</a>";
 $MESS["MAIN_EVENT_MESS_NOTIFICATION"] = "Event log notification: #NAME#";
 $MESS["MAIN_EVENT_MESS_NOTIFICATION_TEXT"] = "Log events matching the notification parameters are found:
 
@@ -57,7 +55,6 @@ Go to event log:
 http://#SERVER_NAME#/bitrix/admin/event_log.php?set_filter=Y&find_audit_type_id=#AUDIT_TYPE_ID#";
 $MESS["MAIN_EVERYONE_GROUP_DESC"] = "All users (including non-authorized users).";
 $MESS["MAIN_EVERYONE_GROUP_NAME"] = "All users (with non-authorized users)";
-$MESS["MAIN_INSTALL_DB_ERROR"] = "Cannot connect to the database. Please check the parameters.";
 $MESS["MAIN_INSTALL_EVENT_MESSAGE_NEW_DEVICE_LOGIN"] = "Hello #NAME#,
 
 a new device has just signed in using your login #LOGIN#.
@@ -94,6 +91,7 @@ $MESS["MAIN_INSTALL_EVENT_TYPE_NEW_DEVICE_LOGIN_DESC"] = "#USER_ID# - User ID
 #DEVICE# - Device
 #BROWSER# - Browser
 #PLATFORM# - Platform
+#DEVICE_INFO# - Device, Browser, Platform 
 #USER_AGENT# - User agent
 #IP# - IP address
 #DATE# - Date
@@ -193,7 +191,7 @@ $MESS["MAIN_NEW_USER_TYPE_DESC"] = "
 
 #USER_ID# - User ID
 #LOGIN# - Login
-#EMAIL# - EMail
+#EMAIL# - Email
 #NAME# - Name
 #LAST_NAME# - Last Name
 #USER_IP# - User IP
@@ -236,7 +234,7 @@ $MESS["MAIN_USER_INFO_TYPE_DESC"] = "
 #MESSAGE# - Message for user
 #LOGIN# - Login
 #URL_LOGIN# - Encoded login for use in URL
-#CHECKWORD# - Check string for password change
+#CHECKWORD# - Checkword for password change
 #NAME# - Name
 #LAST_NAME# - Last Name
 #EMAIL# - User E-Mail
@@ -263,11 +261,11 @@ $MESS["MAIN_USER_INVITE_EVENT_NAME"] = "#SITE_NAME#: Invitation to site";
 $MESS["MAIN_USER_INVITE_TYPE_DESC"] = "#ID# - User ID
 #LOGIN# - Login
 #URL_LOGIN# - Encoded login for use in URL
-#EMAIL# - EMail
+#EMAIL# - Email
 #NAME# - Name
 #LAST_NAME# - Last Name
 #PASSWORD# - User password 
-#CHECKWORD# - Password check string
+#CHECKWORD# - Password checkword
 #XML_ID# - User ID to link with external data sources
 
 ";

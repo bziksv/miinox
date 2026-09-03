@@ -63,7 +63,7 @@ class TradeBindingEntity extends Internals\CollectableEntity
 	 * @throws Main\ArgumentException
 	 * @throws Main\SystemException
 	 */
-	public static function create(TradeBindingCollection $collection, TradingPlatform\Platform $platform = null)
+	public static function create(TradeBindingCollection $collection, ?TradingPlatform\Platform $platform = null)
 	{
 		/** @var TradeBindingEntity $entity */
 		$entity = static::createEntityObject();
@@ -200,22 +200,10 @@ class TradeBindingEntity extends Internals\CollectableEntity
 	 */
 	public function getTradePlatform()
 	{
-		if ($this->tradePlatform === null)
+		$tradingPlatformId = (int)$this->getField('TRADING_PLATFORM_ID');
+		if (($this->tradePlatform === null) && $tradingPlatformId > 0)
 		{
-			if ($this->getField('TRADING_PLATFORM_ID') > 0)
-			{
-				$dbRes = TradingPlatformTable::getList([
-					'select' => ['CODE'],
-					'filter' => [
-						'=ID' => $this->getField('TRADING_PLATFORM_ID')
-					]
-				]);
-
-				if ($item = $dbRes->fetch())
-				{
-					$this->tradePlatform = TradingPlatform\Landing\Landing::getInstanceByCode($item['CODE']);
-				}
-			}
+			$this->tradePlatform = TradingPlatform\Manager::getObjectById($tradingPlatformId);
 		}
 
 		return $this->tradePlatform;

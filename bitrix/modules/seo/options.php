@@ -26,21 +26,18 @@ $bShowYandexServices =
 	&& \Bitrix\Main\Localization\Loc::getDefaultLang(LANGUAGE_ID) == 'ru';
 
 
-$aTabs = array();
-
-if($bShowYandexServices)
+$aTabs = [];
+if ($bShowYandexServices)
 {
-	$aTabs[] = array("DIV" => "edit0", "TAB" => GetMessage('SEO_OPT_TAB_CLOUDADV'), "ICON" => "seo_settings", "TITLE" => GetMessage('SEO_OPT_TAB_CLOUDADV_TITLE'));
+	$aTabs[] = ["DIV" => "edit0", "TAB" => GetMessage('SEO_OPT_TAB_CLOUDADV'), "ICON" => "seo_settings", "TITLE" => GetMessage('SEO_OPT_TAB_CLOUDADV_TITLE')];
 }
-
-
-$aTabs[] = array("DIV" => "edit1", "TAB" => GetMessage('SEO_OPT_TAB_PROP'), "ICON" => "seo_settings", "TITLE" => GetMessage('SEO_OPT_TAB_PROP_TITLE'));
-$aTabs[] = array("DIV" => "edit3", "TAB" => GetMessage('SEO_OPT_TAB_SEARCHERS'), "ICON" => "seo_settings", "TITLE" => GetMessage('SEO_OPT_TAB_SEARCHERS_TITLE'));
-$aTabs[] = array("DIV" => "edit2", "TAB" => GetMessage("MAIN_TAB_RIGHTS"), "ICON" => "seo_settings", "TITLE" => GetMessage("MAIN_TAB_TITLE_RIGHTS"));
+$aTabs[] = ["DIV" => "edit1", "TAB" => GetMessage('SEO_OPT_TAB_PROP'), "ICON" => "seo_settings", "TITLE" => GetMessage('SEO_OPT_TAB_PROP_TITLE')];
+$aTabs[] = ["DIV" => "edit3", "TAB" => GetMessage('SEO_OPT_TAB_SEARCHERS'), "ICON" => "seo_settings", "TITLE" => GetMessage('SEO_OPT_TAB_SEARCHERS_TITLE')];
+$aTabs[] = ["DIV" => "edit2", "TAB" => GetMessage("MAIN_TAB_RIGHTS"), "ICON" => "seo_settings", "TITLE" => GetMessage("MAIN_TAB_TITLE_RIGHTS")];
 
 $tabControl = new CAdminTabControl("tabControl", $aTabs);
 
-if($REQUEST_METHOD=="POST" && $Update.$Apply.$RestoreDefaults <> '' && check_bitrix_sessid())
+if($_SERVER['REQUEST_METHOD']=="POST" && $Update.$Apply.$RestoreDefaults <> '' && check_bitrix_sessid())
 {
 	if ($RestoreDefaults <> '')
 	{
@@ -187,34 +184,42 @@ $tabControl->BeginNextTab();
 		<td width="30%" valign="top"><?echo GetMessage('SEO_OPT_COUNTERS')?>: </td>
 		<td width="70%"><textarea cols="50" rows="7" name="counters"><?echo htmlspecialcharsbx($counters)?></textarea></td>
 	</tr>
-	<tr>
-		<td width="30%" valign="top"><?echo GetMessage('SEO_OPT_SEARCHERS')?>: </td>
-		<td width="70%">
-<?
-if (CModule::IncludeModule('statistic'))
-{
-	if (count($arCurrentSearchers) > 0)
-		echo GetMessage('SEO_OPT_SEARCHERS_SELECTED'),": <b>",implode(', ', $arCurrentSearchers).'</b><br /><br />';
 
-	echo SelectBoxM("arSearchersList[]", CSearcher::GetDropdownList(), $arSearchersList, "", false, 20);
-}
-else
-{
-	CAdminMessage::ShowMessage(GetMessage('SEO_OPT_ERR_NO_STATS'));
-}
-?>
+	<?php global $DB; ?>
+	<?php if ($DB->type !== 'PGSQL'): ?>
+	<tr>
+		<td width="30%" valign="top">
+			<?= GetMessage('SEO_OPT_SEARCHERS')?>:
+		</td>
+		<td width="70%">
+		<?php
+			if (CModule::IncludeModule('statistic'))
+			{
+				if (count($arCurrentSearchers) > 0)
+				{
+					echo GetMessage('SEO_OPT_SEARCHERS_SELECTED'),": <b>",implode(', ', $arCurrentSearchers).'</b><br /><br />';
+				}
+				echo SelectBoxM("arSearchersList[]", CSearcher::GetDropdownList(), $arSearchersList, "", false, 20);
+			}
+			else
+			{
+				CAdminMessage::ShowMessage(GetMessage('SEO_OPT_ERR_NO_STATS'));
+			}
+		?>
 		</td>
 	</tr>
-<?
+	<?php endif; ?>
 
-$tabControl->BeginNextTab();
+<?php
+	$tabControl->BeginNextTab();
 
-//group_rights2 work some strange
-//require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights2.php");
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights.php");
+	//group_rights2 work some strange
+	//require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights2.php");
+	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin/group_rights.php");
 
-$tabControl->Buttons();?>
-<script language="JavaScript">
+	$tabControl->Buttons();
+?>
+<script>
 function confirmRestoreDefaults()
 {
 	return confirm('<?echo AddSlashes(GetMessage("MAIN_HINT_RESTORE_DEFAULTS_WARNING"))?>');

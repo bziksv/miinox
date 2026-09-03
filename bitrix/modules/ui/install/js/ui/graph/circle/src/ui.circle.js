@@ -1,5 +1,8 @@
-import {Event, Dom} from "main.core";
+import { Dom } from "main.core";
 import 'ui.fonts.opensans';
+import './css/style.css';
+
+let isStop = false;
 
 export class Circle
 {
@@ -144,6 +147,10 @@ export class Circle
 
 		function draw()
 		{
+			if (isStop)
+			{
+				return;
+			}
 
 			requestAnimationFrame(draw);
 			now = Date.now();
@@ -260,6 +267,8 @@ export class Circle
 
 	show()
 	{
+		isStop = false;
+
 		Dom.append(this.createWrapper(), this.domNode);
 
 		setTimeout(function() {
@@ -284,5 +293,10 @@ export class Circle
 				this.animateWavesBlock(this.fixCounter);
 			}
 		}.bind(this), 500);
+	}
+
+	stop()
+	{
+		isStop = true;
 	}
 }

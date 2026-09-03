@@ -1,11 +1,11 @@
 <?
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/interface/init_admin.php");
 
 __IncludeLang($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/map.yandex.search/lang/'.LANGUAGE_ID.'/settings.php');
 
-//if(!$USER->IsAdmin())
-//	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+if(!$USER->IsAdmin())
+	CMain::FinalActions();
 
 $obJSPopup = new CJSPopup('',
 	array(
@@ -18,18 +18,17 @@ $obJSPopup = new CJSPopup('',
 $arData = array();
 if ($_REQUEST['MAP_DATA'])
 {
-	CUtil::JSPostUnescape();
 	if (CheckSerializedData($_REQUEST['MAP_DATA']))
 	{
 		$arData = unserialize($_REQUEST['MAP_DATA'], ['allowed_classes' => false]);
 	}
 }
 ?>
-<script type="text/javascript" src="/bitrix/components/bitrix/map.yandex.search/settings/settings_load.js"></script>
-<script type="text/javascript">
+<script src="/bitrix/components/bitrix/map.yandex.search/settings/settings_load.js"></script>
+<script>
 jsUtils.loadCSSFile('/bitrix/components/bitrix/map.yandex.search/settings/settings.css');
 var arPositionData = <?echo is_array($arData) && count($arData) > 0 ? CUtil::PhpToJsObject($arData) : '{}'?>;
-window._global_BX_UTF = <?echo defined('BX_UTF') && BX_UTF == true ? 'true' : 'false'?>;
+window._global_BX_UTF = true;
 window.jsYandexMess = {
 	noname: '<?echo CUtil::JSEscape(GetMessage('MYMV_SET_NONAME'))?>',
 	MAP_VIEW_MAP: '<?echo CUtil::JSEscape(GetMessage('MYMS_PARAM_INIT_MAP_TYPE_MAP'))?>',
@@ -63,7 +62,7 @@ $APPLICATION->IncludeComponent('bitrix:map.yandex.system', '', array(
 	'CONTROLS' => array('TOOLBAR', 'TYPECONTROL', 'ZOOM'),
 	'OPTIONS' => array('ENABLE_SCROLL_ZOOM', 'ENABLE_DBLCLICK_ZOOM', 'ENABLE_DRAGGING'),
 	'MAP_ID' => 'system_search_edit',
-	'API_KEY' => $arParams['API_KEY'],
+	'API_KEY' => $arParams['API_KEY'] ?? null,
 	'DEV_MODE' => 'Y',
 	'ONMAPREADY' => 'jsYandexCE_search.init',
 	'ONMAPREADY_PROPERTY' => 'jsYandexCE_search.map',
@@ -83,7 +82,7 @@ $APPLICATION->IncludeComponent('bitrix:map.yandex.system', '', array(
 			</ul>
 	</div>
 </div>
-<script type="text/javascript">
+<script>
 if (null != window.jsYandexCESearch)
 	jsYandexCESearch.clear();
 </script>

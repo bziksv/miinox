@@ -14,20 +14,32 @@ export default class Zeroing extends EventEmitter
 		this.cache = new Cache.MemoryCache();
 		this.setEventNamespace('BX.Landing.UI.Field.Color.Zeroing');
 		Event.bind(this.getLayout(), 'click', () => this.onClick());
+		Event.bind(this.getLayout(), 'keydown', this.onKeyDown.bind(this));
 	}
 
-	getLayout(): HTMLElement
+	getLayout(): HTMLElement | null
 	{
 		let textCode = 'LANDING_FIELD_COLOR-ZEROING_TITLE_2';
 		if (this.options)
 		{
+			if (!this.options.styleNode)
+			{
+				return null;
+			}
+
 			if (this.options.textCode)
 			{
 				textCode = this.options.textCode;
 			}
 		}
+
 		return this.cache.remember('layout', () => {
-			return Tag.render`<div class="landing-ui-field-color-zeroing">
+			return Tag.render`<div
+				class="landing-ui-field-color-zeroing"
+				role="button"
+				tabindex="0"
+				aria-pressed="false"
+			>
 				<div class="landing-ui-field-color-zeroing-preview">
 					<div class="landing-ui-field-color-zeroing-state"></div>
 				</div>
@@ -43,14 +55,25 @@ export default class Zeroing extends EventEmitter
 		this.emit('onChange', {color: null});
 	}
 
+	onKeyDown(event: KeyboardEvent)
+	{
+		if (event.key === 'Enter' || event.key === ' ')
+		{
+			event.preventDefault();
+			this.onClick();
+		}
+	}
+
 	setActive()
 	{
 		Dom.addClass(this.getLayout(), Zeroing.ACTIVE_CLASS);
+		Dom.attr(this.getLayout(), 'aria-pressed', 'true');
 	}
 
 	unsetActive()
 	{
 		Dom.removeClass(this.getLayout(), Zeroing.ACTIVE_CLASS);
+		Dom.attr(this.getLayout(), 'aria-pressed', 'false');
 	}
 
 	isActive(): boolean

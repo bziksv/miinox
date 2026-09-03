@@ -17,7 +17,7 @@ class CUpdateSystem
 		return (!defined("US_BITRIX24_MODE") || !US_BITRIX24_MODE) && file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/update_db_updater.php");
 	}
 
-	/** Подписка на информацию об обновлениях **/
+	/** РџРѕРґРїРёСЃРєР° РЅР° РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± РѕР±РЅРѕРІР»РµРЅРёСЏС… **/
 	public static function SubscribeUpdates($strEmails, &$strError, $lang = false)
 	{
 		$strError_tmp = "";
@@ -48,7 +48,7 @@ class CUpdateSystem
 		$strError .= $strError_tmp;
 	}
 
-	/** Активирует лицензионный ключ **/
+	/** РђРєС‚РёРІРёСЂСѓРµС‚ Р»РёС†РµРЅР·РёРѕРЅРЅС‹Р№ РєР»СЋС‡ **/
 	public static function AddSites($strCheck, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -85,9 +85,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME AddSites.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME AddSites.getHTTPPage ".round(microtime(true)-$stime,3)." sec");
 
 			if ($content == '')
 				$strError_tmp .= "[UAS02] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
@@ -130,85 +130,7 @@ class CUpdateSystem
 			return true;
 	}
 
-	/** Активирует лицензионный ключ **/
-	public static function ActivateLicenseKey($arFields, &$strError, $lang = false, $stableVersionsOnly = "Y")
-	{
-		$strError_tmp = "";
-
-		CUpdateSystem::AddMessage2Log("exec CUpdateSystem::ActivateLicenseKey");
-
-		$stableVersionsOnly = (($stableVersionsOnly == "N") ? "N" : "Y");
-
-		if ($lang===false)
-			$lang = LANGUAGE_ID;
-
-		$GLOBALS["DB"]->GetVersion();
-
-		$strVars = "LICENSE_KEY=".urlencode(md5(CUpdateSystem::GetLicenseKey())).
-			"&CLIENT_SITE=".urlencode($_SERVER["SERVER_NAME"]).
-			"&CANGZIP=".urlencode((CUpdateSystem::IsGzipInstalled()) ? "Y" : "N").
-			"&UTYPES=".urlencode("A").
-			"&COUNT_ONLY=".urlencode("N").
-			"&SUPD_STS=".urlencode(CUpdateSystem::GetFooPath("GetList")).
-			"&SUPD_DBS=".urlencode($GLOBALS["DB"]->type).
-			"&XE=".urlencode((isset($GLOBALS["DB"]->XE) && $GLOBALS["DB"]->XE) ? "Y" : "N").
-			"&SUPD_VER=".urlencode(UPDATE_SYSTEM_VERSION).
-			"&CLIENT_PHPVER=".urlencode(phpversion()).
-			"&stable=".urlencode($stableVersionsOnly).
-			"&lang=".urlencode($lang);
-
-		foreach ($arFields as $key => $value)
-		{
-			$strVars .= "&".$key."=".urlencode($value);
-		}
-
-		CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
-
-		$stime = CUpdateSystem::getmicrotime();
-		$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-		CUpdateSystem::AddMessage2Log("TIME ActivateLicenseKey.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
-
-		if ($content == '')
-			$strError_tmp .= "[UALK01] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
-
-		if ($strError_tmp == '')
-		{
-			$arRes = Array();
-			CUpdateSystem::ParseServerData($content, $arRes, $strError_tmp);
-		}
-
-		if ($strError_tmp == '')
-		{
-			if (isset($arRes["DATA"]["#"]["ERROR"])
-				&& is_array($arRes["DATA"]["#"]["ERROR"])
-				&& !empty($arRes["DATA"]["#"]["ERROR"]))
-			{
-				for ($i = 0, $n = count($arRes["DATA"]["#"]["ERROR"]); $i < $n; $i++)
-				{
-					if ($arRes["DATA"]["#"]["ERROR"][$i]["@"]["TYPE"] <> '')
-						$strError_tmp .= "[".$arRes["DATA"]["#"]["ERROR"][$i]["@"]["TYPE"]."] ";
-
-					$strError_tmp .= $arRes["DATA"]["#"]["ERROR"][$i]["#"].".<br>";
-				}
-			}
-		}
-
-		if ($strError_tmp == '')
-		{
-			CUpdateSystem::AddMessage2Log("License key activated successfully!", "CUALK");
-		}
-
-		if ($strError_tmp <> '')
-		{
-			CUpdateSystem::AddMessage2Log($strError_tmp, "CUALK");
-			$strError .= $strError_tmp;
-			return false;
-		}
-		else
-			return true;
-	}
-
-	// Регистрирует копию продукта, если можно
+	// Р РµРіРёСЃС‚СЂРёСЂСѓРµС‚ РєРѕРїРёСЋ РїСЂРѕРґСѓРєС‚Р°, РµСЃР»Рё РјРѕР¶РЅРѕ
 	public static function RegisterVersion(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -238,9 +160,9 @@ class CUpdateSystem
 
 		CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-		$stime = CUpdateSystem::getmicrotime();
+		$stime = microtime(true);
 		$fcontent = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-		CUpdateSystem::AddMessage2Log("TIME RegisterVersion.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+		CUpdateSystem::AddMessage2Log("TIME RegisterVersion.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 
 		if ($fcontent == '')
 			$strError_tmp .= "[URV01] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
@@ -370,7 +292,7 @@ class CUpdateSystem
 	}
 
 
-	// Обновляет систему обновлений
+	// РћР±РЅРѕРІР»СЏРµС‚ СЃРёСЃС‚РµРјСѓ РѕР±РЅРѕРІР»РµРЅРёР№
 	public static function UpdateUpdate(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -468,10 +390,7 @@ class CUpdateSystem
 		if ($strError_tmp == '')
 		{
 			$aFiles = array(
-				//"UUU071"=>"update_update.php",
 				"UUU072"=>"update_class.php",
-				"UUU073"=>"update_list.php",
-				//"UUU074"=>"update_update5.php",
 				"UUU075"=>"update_log.php",
 			);
 			foreach($aFiles as $err=>$file)
@@ -523,7 +442,7 @@ class CUpdateSystem
 			return true;
 	}
 
-	// Закачивает исходники продукта, если можно
+	// Р—Р°РєР°С‡РёРІР°РµС‚ РёСЃС…РѕРґРЅРёРєРё РїСЂРѕРґСѓРєС‚Р°, РµСЃР»Рё РјРѕР¶РЅРѕ
 	public static function LoadSources(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -557,9 +476,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$fcontent = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME LoadSources.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME LoadSources.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 
 			if ($fcontent == '')
 				$strError_tmp .= "[ULS01] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
@@ -692,7 +611,7 @@ class CUpdateSystem
 	}
 
 
-	// Возвращает, что обновилось
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚, С‡С‚Рѕ РѕР±РЅРѕРІРёР»РѕСЃСЊ
 	public static function GetAvailableUpdateTypes(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
@@ -735,9 +654,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME GetAvailableUpdateTypes.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME GetAvailableUpdateTypes.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 		}
 
 		if ($strError_tmp == '')
@@ -817,7 +736,7 @@ class CUpdateSystem
 			return $arResult;
 	}
 
-	// Возвращает информацию по доступным обновлениям модулей на сервере
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ РґРѕСЃС‚СѓРїРЅС‹Рј РѕР±РЅРѕРІР»РµРЅРёСЏРј РјРѕРґСѓР»РµР№ РЅР° СЃРµСЂРІРµСЂРµ
 	public static function GetServerModuleUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
@@ -854,9 +773,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME GetServerModuleUpdates.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME GetServerModuleUpdates.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 		}
 
 		if ($strError_tmp == '')
@@ -923,7 +842,7 @@ class CUpdateSystem
 	}
 
 
-	// Возвращает информацию по доступным языкам на сервере
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ РґРѕСЃС‚СѓРїРЅС‹Рј СЏР·С‹РєР°Рј РЅР° СЃРµСЂРІРµСЂРµ
 	public static function GetServerLangsUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
@@ -959,9 +878,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME GetServerLangsUpdates.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME GetServerLangsUpdates.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 		}
 
 		if ($strError_tmp == '')
@@ -1028,7 +947,7 @@ class CUpdateSystem
 	}
 
 
-	// Возвращает информацию по доступным языкам на сервере
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ РґРѕСЃС‚СѓРїРЅС‹Рј СЏР·С‹РєР°Рј РЅР° СЃРµСЂРІРµСЂРµ
 	public static function GetServerHelpUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$arResult = array();
@@ -1064,9 +983,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME GetServerHelpUpdates.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME GetServerHelpUpdates.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 		}
 
 		if ($strError_tmp == '')
@@ -1133,7 +1052,7 @@ class CUpdateSystem
 	}
 
 
-	// Загружает обновление модулей $arModules в файл update_archive.gz
+	// Р—Р°РіСЂСѓР¶Р°РµС‚ РѕР±РЅРѕРІР»РµРЅРёРµ РјРѕРґСѓР»РµР№ $arModules РІ С„Р°Р№Р» update_archive.gz
 	public static function LoadModuleUpdates($arModules, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -1186,9 +1105,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME LoadModuleUpdates.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME LoadModuleUpdates.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 
 			if ($content == '')
 				$strError_tmp .= "[ULMU03] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
@@ -1225,7 +1144,7 @@ class CUpdateSystem
 	}
 
 
-	// Загружает обновления языков $arLangs в файл update_archive.gz
+	// Р—Р°РіСЂСѓР¶Р°РµС‚ РѕР±РЅРѕРІР»РµРЅРёСЏ СЏР·С‹РєРѕРІ $arLangs РІ С„Р°Р№Р» update_archive.gz
 	public static function LoadLangsUpdates($arLangs, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -1277,9 +1196,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME LoadLangsUpdates.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME LoadLangsUpdates.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 
 			if ($content == '')
 				$strError_tmp .= "[ULLU03] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
@@ -1316,7 +1235,7 @@ class CUpdateSystem
 	}
 
 
-	// Загружает обновление помощи $load_help в файл update_archive.gz
+	// Р—Р°РіСЂСѓР¶Р°РµС‚ РѕР±РЅРѕРІР»РµРЅРёРµ РїРѕРјРѕС‰Рё $load_help РІ С„Р°Р№Р» update_archive.gz
 	public static function LoadHelpUpdates($arHelp, &$strError, $lang = false, $stableVersionsOnly = "Y")
 	{
 		$strError_tmp = "";
@@ -1369,9 +1288,9 @@ class CUpdateSystem
 
 			CUpdateSystem::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strVars));
 
-			$stime = CUpdateSystem::getmicrotime();
+			$stime = microtime(true);
 			$content = CUpdateSystem::getHTTPPage("bit_sysserver.php", $strVars, $strError_tmp);
-			CUpdateSystem::AddMessage2Log("TIME LoadHelpUpdates.getHTTPPage ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+			CUpdateSystem::AddMessage2Log("TIME LoadHelpUpdates.getHTTPPage ".round(microtime(true)-$stime, 3)." sec");
 
 			if ($content == '')
 				$strError_tmp .= "[ULHU03] ".GetMessage("SUPP_AS_EMPTY_RESP").".<br>";
@@ -1405,13 +1324,13 @@ class CUpdateSystem
 			return true;
 	}
 
-	// Распаковывает архив файлов update_archive.gz в папкy $updates_dir
+	// Р Р°СЃРїР°РєРѕРІС‹РІР°РµС‚ Р°СЂС…РёРІ С„Р°Р№Р»РѕРІ update_archive.gz РІ РїР°РїРєy $updates_dir
 	public static function UnGzipArchive(&$updates_dir, &$strError, $DelArch = "Y")
 	{
 		$strError_tmp = "";
 
 		CUpdateSystem::AddMessage2Log("exec CUpdateSystem::UnGzipArchive");
-		$stime = CUpdateSystem::getmicrotime();
+		$stime = microtime(true);
 
 		if ($DelArch!="Y")
 			$DelArch = "N";
@@ -1587,7 +1506,7 @@ class CUpdateSystem
 				@unlink($archiveFileName);
 		}
 
-		CUpdateSystem::AddMessage2Log("TIME UnGzipArchive ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+		CUpdateSystem::AddMessage2Log("TIME UnGzipArchive ".round(microtime(true)-$stime, 3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -1600,13 +1519,13 @@ class CUpdateSystem
 	}
 
 
-	// Проверяет возможность обновления модулей $arModules
-	// на основании контроля версий VERSION_CONTROL
+	// РџСЂРѕРІРµСЂСЏРµС‚ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ РјРѕРґСѓР»РµР№ $arModules
+	// РЅР° РѕСЃРЅРѕРІР°РЅРёРё РєРѕРЅС‚СЂРѕР»СЏ РІРµСЂСЃРёР№ VERSION_CONTROL
 	public static function CheckVersions(&$arRes, &$strError, $arSelectedModules = false)
 	{
 		$strError_tmp = "";
 
-		$stime = CUpdateSystem::getmicrotime();
+		$stime = microtime(true);
 
 		if (!is_array($arRes)
 			|| !isset($arRes["MODULES"])
@@ -1708,7 +1627,7 @@ class CUpdateSystem
 			}
 		}
 
-		CUpdateSystem::AddMessage2Log("TIME CheckVersions ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+		CUpdateSystem::AddMessage2Log("TIME CheckVersions ".round(microtime(true)-$stime, 3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -1721,7 +1640,7 @@ class CUpdateSystem
 	}
 
 
-	// Возвращает информацию по загруженным в папку $updates_dir обновлениям модулей
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Рј РІ РїР°РїРєСѓ $updates_dir РѕР±РЅРѕРІР»РµРЅРёСЏРј РјРѕРґСѓР»РµР№
 	public static function CheckUpdatability($updates_dir, &$strError)
 	{
 		$strError_tmp = "";
@@ -1802,14 +1721,14 @@ class CUpdateSystem
 		$strError_tmp = "";
 
 		$destFolder = str_replace("\\", "/", $destFolder);
-		$destFolder = Trim($destFolder, " \t\n\r\0\x0B/\\");
+		$destFolder = trim($destFolder," \t\n\r\0\x0B/\\");
 		if ($destFolder <> '')
 			$destFolder = "/".$destFolder;
 
 		if ($srcFolder && $srcFolder <> '')
 		{
 			$srcFolder = str_replace("\\", "/", $srcFolder);
-			$srcFolder = Trim($srcFolder, " \t\n\r\0\x0B/\\");
+			$srcFolder = trim($srcFolder," \t\n\r\0\x0B/\\");
 			if ($srcFolder <> '')
 				$srcFolder = "/".$srcFolder;
 
@@ -1913,7 +1832,7 @@ class CUpdateSystem
 	}
 
 
-	// Возвращает информацию по загруженным в папку $updates_dir обновлениям модулей
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Рј РІ РїР°РїРєСѓ $updates_dir РѕР±РЅРѕРІР»РµРЅРёСЏРј РјРѕРґСѓР»РµР№
 	public static function GetLoadedModuleUpdates($updates_dir, &$strError)
 	{
 		$arResult = array();
@@ -2009,7 +1928,7 @@ class CUpdateSystem
 	}
 
 
-	// Возвращает информацию по загруженным в папку $updates_dir обновлениям языков
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Рј РІ РїР°РїРєСѓ $updates_dir РѕР±РЅРѕРІР»РµРЅРёСЏРј СЏР·С‹РєРѕРІ
 	public static function GetLoadedLangsUpdates($updates_dir, &$strError)
 	{
 		$arResult = array();
@@ -2104,7 +2023,7 @@ class CUpdateSystem
 			return $arResult;
 	}
 
-	// Возвращает информацию по загруженным в папку $updates_dir обновлениям помощи
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Рј РІ РїР°РїРєСѓ $updates_dir РѕР±РЅРѕРІР»РµРЅРёСЏРј РїРѕРјРѕС‰Рё
 	public static function GetLoadedHelpUpdates($updates_dir, &$strError)
 	{
 		$arResult = array();
@@ -2200,13 +2119,13 @@ class CUpdateSystem
 	}
 
 
-	// Обновляет модули $arModules продукта из папки $updates_dir
+	// РћР±РЅРѕРІР»СЏРµС‚ РјРѕРґСѓР»Рё $arModules РїСЂРѕРґСѓРєС‚Р° РёР· РїР°РїРєРё $updates_dir
 	public static function UpdateKernel($updates_dir, $arModules, &$strError, &$arErrorModules, &$arSuccessModules)
 	{
 		global $DB;
 		$strError_tmp = "";
 
-		$stime = CUpdateSystem::getmicrotime();
+		$stime = microtime(true);
 
 		$updates_dir_full = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updates_dir;
 
@@ -2353,6 +2272,15 @@ class CUpdateSystem
 
 				if ($strError_tmp1 == '')
 				{
+					$filesProcessor = new CUpdateFilesProcessor();
+					if (!$filesProcessor->process($from_dir, $arModules[$i]))
+					{
+						$strError_tmp1 = implode(', ', $filesProcessor->getErrorMessages());
+					}
+				}
+
+				if ($strError_tmp1 == '')
+				{
 					CUpdateSystem::CopyDirFiles($from_dir, $to_dir, $strError_tmp1);
 				}
 
@@ -2392,7 +2320,7 @@ class CUpdateSystem
 			CUpdateSystem::DeleteDirFilesEx($updates_dir_full);
 		}
 
-		CUpdateSystem::AddMessage2Log("TIME UpdateKernel ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+		CUpdateSystem::AddMessage2Log("TIME UpdateKernel ".round(microtime(true)-$stime, 3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -2405,13 +2333,13 @@ class CUpdateSystem
 	}
 
 
-	// Обновляет модули $arLangs продукта из папки $updates_dir
+	// РћР±РЅРѕРІР»СЏРµС‚ РјРѕРґСѓР»Рё $arLangs РїСЂРѕРґСѓРєС‚Р° РёР· РїР°РїРєРё $updates_dir
 	public static function UpdateLangs($updates_dir, $arLangs, &$strError, &$arErrorLangs, &$arSuccessLangs)
 	{
 		global $DB;
 		$strError_tmp = "";
 
-		$stime = CUpdateSystem::getmicrotime();
+		$stime = microtime(true);
 
 		$updates_dir_full = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updates_dir;
 
@@ -2584,7 +2512,7 @@ class CUpdateSystem
 					}
 				}
 
-				// Удалить старые файлы
+				// РЈРґР°Р»РёС‚СЊ СЃС‚Р°СЂС‹Рµ С„Р°Р№Р»С‹
 
 				if ($strError_tmp1 <> '')
 				{
@@ -2632,7 +2560,7 @@ class CUpdateSystem
 					}
 				}
 
-				// Удалить старые файлы
+				// РЈРґР°Р»РёС‚СЊ СЃС‚Р°СЂС‹Рµ С„Р°Р№Р»С‹
 
 				if ($strError_tmp1 <> '')
 				{
@@ -2647,7 +2575,7 @@ class CUpdateSystem
 			CUpdateSystem::DeleteDirFilesEx($updates_dir_full);
 		}
 
-		CUpdateSystem::AddMessage2Log("TIME UpdateLangs ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+		CUpdateSystem::AddMessage2Log("TIME UpdateLangs ".round(microtime(true)-$stime, 3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -2660,13 +2588,13 @@ class CUpdateSystem
 	}
 
 
-	// Обновляет систему помощи продукта из папки $updates_dir
+	// РћР±РЅРѕРІР»СЏРµС‚ СЃРёСЃС‚РµРјСѓ РїРѕРјРѕС‰Рё РїСЂРѕРґСѓРєС‚Р° РёР· РїР°РїРєРё $updates_dir
 	public static function UpdateHelp($updates_dir, $arHelp, &$strError, &$arErrorHelp, &$arSuccessHelp)
 	{
 		$strError_tmp = "";
 
 		CUpdateSystem::AddMessage2Log("exec CUpdateSystem::UpdateHelp");
-		$stime = CUpdateSystem::getmicrotime();
+		$stime = microtime(true);
 
 		$updates_dir_full = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updates_dir;
 		$help_dir_full = $_SERVER["DOCUMENT_ROOT"]."/bitrix/help";
@@ -2790,7 +2718,7 @@ class CUpdateSystem
 			CUpdateSystem::DeleteDirFilesEx($updates_dir_full);
 		}
 
-		CUpdateSystem::AddMessage2Log("TIME UpdateHelp ".Round(CUpdateSystem::getmicrotime()-$stime, 3)." sec");
+		CUpdateSystem::AddMessage2Log("TIME UpdateHelp ".round(microtime(true)-$stime, 3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -2842,11 +2770,11 @@ class CUpdateSystem
 
 
 	/*******************************************************************/
-	/********   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ   ******************************/
+	/********   Р’РЎРџРћРњРћР“РђРўР•Р›Р¬РќР«Р• Р¤РЈРќРљР¦РР   ******************************/
 	/*******************************************************************/
 
-	/** Проверяет на ошибки ответ сервера $strServerOutput **/
-	/** и парсит в массив $arRes                           **/
+	/** РџСЂРѕРІРµСЂСЏРµС‚ РЅР° РѕС€РёР±РєРё РѕС‚РІРµС‚ СЃРµСЂРІРµСЂР° $strServerOutput **/
+	/** Рё РїР°СЂСЃРёС‚ РІ РјР°СЃСЃРёРІ $arRes                           **/
 	public static function ParseServerData(&$strServerOutput, &$arRes, &$strError)
 	{
 		$strError_tmp = "";
@@ -2883,7 +2811,7 @@ class CUpdateSystem
 
 		if ($strError_tmp == '')
 		{
-			$CRCCode = $arRes["DATA"]["#"]["RESPONSE"][0]["@"]["CRC_CODE"];
+			$CRCCode = isset($arRes["DATA"]["#"]["RESPONSE"][0]["@"]["CRC_CODE"]) ? $arRes["DATA"]["#"]["RESPONSE"][0]["@"]["CRC_CODE"] : '';
 			if ($CRCCode <> '')
 				COption::SetOptionString("main", "crc_code", $CRCCode);
 			if (isset($arRes["DATA"]["#"]["CLIENT"][0]["@"]["DATE_TO_SOURCE"]))
@@ -2900,10 +2828,10 @@ class CUpdateSystem
 			return true;
 	}
 
-	/** Сравнение двух версий в формате XX.XX.XX  **/
-	/** Возвращает 1, если $strVers1 > $strVers2  **/
-	/** Возвращает -1, если $strVers1 < $strVers2 **/
-	/** Возвращает 0, если $strVers1 == $strVers2 **/
+	/** РЎСЂР°РІРЅРµРЅРёРµ РґРІСѓС… РІРµСЂСЃРёР№ РІ С„РѕСЂРјР°С‚Рµ XX.XX.XX  **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ 1, РµСЃР»Рё $strVers1 > $strVers2  **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ -1, РµСЃР»Рё $strVers1 < $strVers2 **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ 0, РµСЃР»Рё $strVers1 == $strVers2 **/
 	public static function CompareVersions($strVers1, $strVers2)
 	{
 		$strVers1 = trim($strVers1);
@@ -2930,7 +2858,7 @@ class CUpdateSystem
 		return -1;
 	}
 
-	/** Пишет сообщения в лог файл системы обновлений. Чистит лог, если нужно. **/
+	/** РџРёС€РµС‚ СЃРѕРѕР±С‰РµРЅРёСЏ РІ Р»РѕРі С„Р°Р№Р» СЃРёСЃС‚РµРјС‹ РѕР±РЅРѕРІР»РµРЅРёР№. Р§РёСЃС‚РёС‚ Р»РѕРі, РµСЃР»Рё РЅСѓР¶РЅРѕ. **/
 	public static function AddMessage2Log($sText, $sErrorCode = "")
 	{
 		$MAX_LOG_SIZE = 1000000;
@@ -2998,7 +2926,7 @@ class CUpdateSystem
 	}
 
 
-	/** Собирает из массива модулей строку запроса **/
+	/** РЎРѕР±РёСЂР°РµС‚ РёР· РјР°СЃСЃРёРІР° РјРѕРґСѓР»РµР№ СЃС‚СЂРѕРєСѓ Р·Р°РїСЂРѕСЃР° **/
 	public static function ModulesArray2Query($arClientModules, $pref = "bitm_")
 	{
 		$strRes = "";
@@ -3016,7 +2944,7 @@ class CUpdateSystem
 	}
 
 
-	/** Собирает клиентские модули с версиями **/
+	/** РЎРѕР±РёСЂР°РµС‚ РєР»РёРµРЅС‚СЃРєРёРµ РјРѕРґСѓР»Рё СЃ РІРµСЂСЃРёСЏРјРё **/
 	public static function GetModules(&$strError, $arSelected = false)
 	{
 		$arClientModules = array();
@@ -3078,7 +3006,7 @@ class CUpdateSystem
 	}
 
 
-	/** Собирает клиентские языки с датами **/
+	/** РЎРѕР±РёСЂР°РµС‚ РєР»РёРµРЅС‚СЃРєРёРµ СЏР·С‹РєРё СЃ РґР°С‚Р°РјРё **/
 	public static function GetLanguages(&$strError, $arSelected = false)
 	{
 		$arClientLangs = array();
@@ -3136,7 +3064,7 @@ class CUpdateSystem
 	}
 
 
-	/** Собирает клиентские help'ы с датами **/
+	/** РЎРѕР±РёСЂР°РµС‚ РєР»РёРµРЅС‚СЃРєРёРµ help'С‹ СЃ РґР°С‚Р°РјРё **/
 	public static function GetHelps(&$strError, $arSelected = false)
 	{
 		$arClientHelps = array();
@@ -3254,7 +3182,7 @@ class CUpdateSystem
 		}
 	}
 
-	/** Возвращает экземпляр класса-инсталятора модуля по абсолютному пути $path **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ СЌРєР·РµРјРїР»СЏСЂ РєР»Р°СЃСЃР°-РёРЅСЃС‚Р°Р»СЏС‚РѕСЂР° РјРѕРґСѓР»СЏ РїРѕ Р°Р±СЃРѕР»СЋС‚РЅРѕРјСѓ РїСѓС‚Рё $path **/
 	public static function GetModuleInfo($path)
 	{
 		$arModuleVersion = array();
@@ -3286,16 +3214,16 @@ class CUpdateSystem
 		*/
 	}
 
-	/** Запрашивает методом POST страницу $page со списком параметров **/
-	/** $strVars и возвращает тело ответа. В параметре $strError      **/
-	/** возвращается текст ошибки, если таковая была.                 **/
+	/** Р—Р°РїСЂР°С€РёРІР°РµС‚ РјРµС‚РѕРґРѕРј POST СЃС‚СЂР°РЅРёС†Сѓ $page СЃРѕ СЃРїРёСЃРєРѕРј РїР°СЂР°РјРµС‚СЂРѕРІ **/
+	/** $strVars Рё РІРѕР·РІСЂР°С‰Р°РµС‚ С‚РµР»Рѕ РѕС‚РІРµС‚Р°. Р’ РїР°СЂР°РјРµС‚СЂРµ $strError      **/
+	/** РІРѕР·РІСЂР°С‰Р°РµС‚СЃСЏ С‚РµРєСЃС‚ РѕС€РёР±РєРё, РµСЃР»Рё С‚Р°РєРѕРІР°СЏ Р±С‹Р»Р°.                 **/
 	public static function getHTTPPage($page, $strVars, &$strError)
 	{
 		global $SERVER_NAME, $DB;
 
 		CUpdateSystem::AddMessage2Log("exec CUpdateSystem::getHTTPPage");
 
-		$ServerIP = COption::GetOptionString("main", "update_site", "www.bitrixsoft.com");
+		$ServerIP = COption::GetOptionString("main", "update_site", "www.1c-bitrix.ru");
 		$ServerPort = 80;
 
 		$proxyAddr = COption::GetOptionString("main", "update_site_proxy_addr", "");
@@ -3384,12 +3312,12 @@ class CUpdateSystem
 				$maxReadSize = 4096;
 
 				$length = 0;
-				$line = FGets($FP, $maxReadSize);
-				$line = StrToLower($line);
+				$line = fgets($FP,$maxReadSize);
+				$line = strtolower($line);
 
 				$strChunkSize = "";
 				$i = 0;
-				while ($i < StrLen($line) && in_array($line[$i], array("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f")))
+				while ($i < strlen($line) && in_array($line[$i], array("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f")))
 				{
 					$strChunkSize .= $line[$i];
 					$i++;
@@ -3405,20 +3333,20 @@ class CUpdateSystem
 					while ($readSize > 0 && $line = fread($FP, $readSize))
 					{
 						$content .= $line;
-						$processedSize += StrLen($line);
+						$processedSize += strlen($line);
 						$newSize = $chunkSize - $processedSize;
 						$readSize = (($newSize > $maxReadSize) ? $maxReadSize : $newSize);
 					}
 					$length += $chunkSize;
 
-					$line = FGets($FP, $maxReadSize);
+					$line = fgets($FP,$maxReadSize);
 
-					$line = FGets($FP, $maxReadSize);
-					$line = StrToLower($line);
+					$line = fgets($FP,$maxReadSize);
+					$line = strtolower($line);
 
 					$strChunkSize = "";
 					$i = 0;
-					while ($i < StrLen($line) && in_array($line[$i], array("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f")))
+					while ($i < strlen($line) && in_array($line[$i], array("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f")))
 					{
 						$strChunkSize .= $line[$i];
 						$i++;
@@ -3441,32 +3369,32 @@ class CUpdateSystem
 			$strError .= GetMessage("SUPP_GHTTP_ER").": [".$errno."] ".$errstr.". ";
 			if (intval($errno)<=0) $strError .= GetMessage("SUPP_GHTTP_ER_DEF")." ";
 
-			CUpdateSystem::AddMessage2Log("Error connecting 2 ".$ServerIP.": [".$errno."] ".$errstr."", "ERRCONN");
+			CUpdateSystem::AddMessage2Log("Error connecting 2 ".$ServerIP.": [".$errno."] ".$errstr, "ERRCONN");
 		}
 		return $content;
 	}
 
-	/** Проверка на установку GZip компрессии **/
+	/** РџСЂРѕРІРµСЂРєР° РЅР° СѓСЃС‚Р°РЅРѕРІРєСѓ GZip РєРѕРјРїСЂРµСЃСЃРёРё **/
 	public static function IsGzipInstalled()
 	{
 		if (function_exists("gzcompress")) return true;
 		return false;
 	}
 
-	/** Создание путя, если его нет, и установка прав писать **/
+	/** РЎРѕР·РґР°РЅРёРµ РїСѓС‚СЏ, РµСЃР»Рё РµРіРѕ РЅРµС‚, Рё СѓСЃС‚Р°РЅРѕРІРєР° РїСЂР°РІ РїРёСЃР°С‚СЊ **/
 	public static function CheckDirPath($path, $bPermission = true)
 	{
 		$badDirs = Array();
 		$path = str_replace("\\", "/", $path);
 		$path = str_replace("//", "/", $path);
 
-		if ($path[strlen($path)-1] != "/") //отрежем имя файла
+		if ($path[strlen($path)-1] != "/") //РѕС‚СЂРµР¶РµРј РёРјСЏ С„Р°Р№Р»Р°
 		{
 			$p = CUpdateSystem::bxstrrpos($path, "/");
 			$path = substr($path, 0, $p);
 		}
 
-		while (strlen($path)>1 && $path[strlen($path)-1]=="/") //отрежем / в конце, если есть
+		while (strlen($path)>1 && $path[strlen($path)-1]=="/") //РѕС‚СЂРµР¶РµРј / РІ РєРѕРЅС†Рµ, РµСЃР»Рё РµСЃС‚СЊ
 			$path = substr($path, 0, strlen($path)-1);
 
 		$p = CUpdateSystem::bxstrrpos($path, "/");
@@ -3494,7 +3422,7 @@ class CUpdateSystem
 	}
 
 
-	/** Рекурсивное копирование из $path_from в $path_to **/
+	/** Р РµРєСѓСЂСЃРёРІРЅРѕРµ РєРѕРїРёСЂРѕРІР°РЅРёРµ РёР· $path_from РІ $path_to **/
 	public static function CopyDirFiles($path_from, $path_to, &$strError)
 	{
 		$strError_tmp = "";
@@ -3614,7 +3542,7 @@ class CUpdateSystem
 	}
 
 
-	/** Рекурсивное удаление $path **/
+	/** Р РµРєСѓСЂСЃРёРІРЅРѕРµ СѓРґР°Р»РµРЅРёРµ $path **/
 	public static function DeleteDirFilesEx($path)
 	{
 		if (!file_exists($path))
@@ -3648,7 +3576,7 @@ class CUpdateSystem
 	}
 
 
-	/** Удаляет старые временные папки, оставляя последние $iCnt **/
+	/** РЈРґР°Р»СЏРµС‚ СЃС‚Р°СЂС‹Рµ РІСЂРµРјРµРЅРЅС‹Рµ РїР°РїРєРё, РѕСЃС‚Р°РІР»СЏСЏ РїРѕСЃР»РµРґРЅРёРµ $iCnt **/
 	public static function EraseOldFolders($iCnt = 1)
 	{
 		$iCnt = intval($iCnt);
@@ -3692,24 +3620,19 @@ class CUpdateSystem
 		}
 	}
 
-	/** Запускает updater модуля **/
+	/** Р—Р°РїСѓСЃРєР°РµС‚ updater РјРѕРґСѓР»СЏ **/
 	public static function RunUpdaterScript($path, &$strError, $from_dir, $moduleID)
 	{
 		global $DBType, $DB, $APPLICATION, $USER;
 
-		if (!isset($GLOBALS["UPDATE_STRONG_UPDATE_CHECK"])
-			|| ($GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] != "Y" && $GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] != "N"))
-		{
-			$GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] = COption::GetOptionString("main", "strong_update_check", "Y");
-		}
-		$strongUpdateCheck = $GLOBALS["UPDATE_STRONG_UPDATE_CHECK"];
+		$strongUpdateCheck = COption::GetOptionString("main", "strong_update_check", "Y");
 
 		$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
 
 		$path = str_replace("\\", "/", $path);
 		$updaterPath = dirname($path);
 		$updaterPath = substr($updaterPath, strlen($_SERVER["DOCUMENT_ROOT"]));
-		$updaterPath = Trim($updaterPath, " \t\n\r\0\x0B/\\");
+		$updaterPath = trim($updaterPath," \t\n\r\0\x0B/\\");
 		if ($updaterPath <> '')
 			$updaterPath = "/".$updaterPath;
 
@@ -3718,12 +3641,16 @@ class CUpdateSystem
 		CUpdateSystem::AddMessage2Log("Run updater '".$updaterName."'", "CSURUS1");
 
 		$updater = new CUpdater();
-		$updater->Init($updaterPath, $DBType, $updaterName, $from_dir, $moduleID, "ALL");
+		$updater->Init($updaterPath, $DB->type, $updaterName, $from_dir, $moduleID, "ALL");
 
 		$errorMessage = "";
 
+		$updater->beforeIncludeUpdaterFile();
 		if(file_exists($path))
+		{
 			include($path);
+		}
+		$updater->afterIncludeUpdaterFile();
 
 		if ($errorMessage <> '')
 			$strError .= $errorMessage;
@@ -3733,26 +3660,34 @@ class CUpdateSystem
 		unset($updater);
 	}
 
-
-	/** Получение лицензионного ключа текущего клиента **/
+	/** РџРѕР»СѓС‡РµРЅРёРµ Р»РёС†РµРЅР·РёРѕРЅРЅРѕРіРѕ РєР»СЋС‡Р° С‚РµРєСѓС‰РµРіРѕ РєР»РёРµРЅС‚Р° **/
 	public static function GetLicenseKey()
 	{
-		if(defined("LICENSE_KEY"))
+		if (defined("LICENSE_KEY"))
+		{
 			return LICENSE_KEY;
-		if (!isset($GLOBALS["CACHE4UPDATESYS_LICENSE_KEY"])	|| $GLOBALS["CACHE4UPDATESYS_LICENSE_KEY"]=="")
+		}
+
+		static $key = null;
+
+		if ($key === null)
 		{
 			$LICENSE_KEY = "demo";
 			if (file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/license_key.php"))
+			{
 				include($_SERVER["DOCUMENT_ROOT"]."/bitrix/license_key.php");
-			$GLOBALS["CACHE4UPDATESYS_LICENSE_KEY"] = $LICENSE_KEY;
+			}
+			$key = $LICENSE_KEY;
 		}
-		return $GLOBALS["CACHE4UPDATESYS_LICENSE_KEY"];
+		return $key;
 	}
 
+	/**
+	 * @deprecated
+	 */
 	public static function getmicrotime()
 	{
-		list($usec, $sec) = explode(" ", microtime());
-		return ((float)$usec + (float)$sec);
+		return microtime(true);
 	}
 
 	public static function InsertSpaces($sText, $iMaxChar=80)
@@ -3788,7 +3723,7 @@ class CUpdateSystem
 		return str_replace("SS", "s", $strDBFormat);	// 00 - 59
 	}
 
-	/** Получение правильного окончания при выводе слова "обновление" **/
+	/** РџРѕР»СѓС‡РµРЅРёРµ РїСЂР°РІРёР»СЊРЅРѕРіРѕ РѕРєРѕРЅС‡Р°РЅРёСЏ РїСЂРё РІС‹РІРѕРґРµ СЃР»РѕРІР° "РѕР±РЅРѕРІР»РµРЅРёРµ" **/
 	public static function NumberEndings($num, $lang = false, $arEnds = false)
 	{
 		if ($lang===false)
@@ -3846,11 +3781,8 @@ class CUpdateSystem
 }
 
 /************************************************************************/
-/********************* Классы для разбора XML **************************/
+/********************* РљР»Р°СЃСЃС‹ РґР»СЏ СЂР°Р·Р±РѕСЂР° XML **************************/
 /************************************************************************/
-
-if (extension_loaded('mbstring') && function_exists('mb_strlen'))
-{
 
 /**********************************************************************/
 /*********   CUpdatesXMLNode   ****************************************/
@@ -3866,7 +3798,7 @@ class CUpdatesXMLNode
 	{
 	}
 
-	function &__toString()
+	function __toString()
 	{
 		$ret = "";
 
@@ -3923,7 +3855,7 @@ class CUpdatesXMLNode
 		return $ret;
 	}
 
-	function &__toArray()
+	function __toArray()
 	{
 		$arInd = array();
 		$retHash = array();
@@ -3980,7 +3912,7 @@ class CUpdatesXMLDocument
 	}
 
 	/* Returns a XML string of the DOM document */
-	function &__toString()
+	function __toString()
 	{
 		$ret = "<"."?xml";
 		if ($this->version <> '')
@@ -4001,7 +3933,7 @@ class CUpdatesXMLDocument
 	}
 
 	/* Returns an array of the DOM document */
-	function &__toArray()
+	function __toArray()
 	{
 		$arRetArray = array();
 
@@ -4016,8 +3948,6 @@ class CUpdatesXMLDocument
 		return $arRetArray;
 	}
 }
-
-
 
 /**********************************************************************/
 /*********   CUpdatesXML   **************************************************/
@@ -4040,7 +3970,7 @@ class CUpdatesXML
 		if (file_exists($file))
 		{
 			$content = file_get_contents($file);
-			$this->tree = &$this->__parse($content);
+			$this->tree = $this->__parse($content);
 			return true;
 		}
 
@@ -4053,34 +3983,34 @@ class CUpdatesXML
 
 		if ($text <> '')
 		{
-			$this->tree = &$this->__parse($text);
+			$this->tree = $this->__parse($text);
 			return true;
 		}
 
 		return false;
 	}
 
-	function &GetTree()
+	function GetTree()
 	{
 		return $this->tree;
 	}
 
-	function &GetArray()
+	function GetArray()
 	{
 		return $this->tree->__toArray();
 	}
 
-	function &GetString()
+	function GetString()
 	{
 		return $this->tree->__toString();
 	}
 
-	function &SelectNodes($strNode)
+	function SelectNodes($strNode)
 	{
 		if (!is_object($this->tree))
 			return false;
 
-		$result = &$this->tree;
+		$result = $this->tree;
 
 		$tmp = explode("/", $strNode);
 		for ($i = 1, $ni = count($tmp); $i < $ni; $i++)
@@ -4095,7 +4025,7 @@ class CUpdatesXML
 				{
 					if ($result->children[$j]->name==$tmp[$i])
 					{
-						$result = &$result->children[$j];
+						$result = $result->children[$j];
 						$bFound = true;
 						break;
 					}
@@ -4110,15 +4040,15 @@ class CUpdatesXML
 	}
 
 
-	/* Will return an DOM object tree from the well formed XML. */
-	function &__parse(&$strXMLText)
+	/* Will return an DOM object tree from the well-formed XML. */
+	function __parse($strXMLText)
 	{
 		$TagStack = array();
 
 		$oXMLDocument = new CUpdatesXMLDocument();
 
 		// stip the !doctype
-		$strXMLText = &preg_replace("%<\!DOCTYPE.*?>%is", "", $strXMLText);
+		$strXMLText = preg_replace("%<\!DOCTYPE.*?>%is", "", $strXMLText);
 
 		// get document version and encoding from header
 		preg_match_all("#<\?(.*?)\?>#i", $strXMLText, $arXMLHeader_tmp);
@@ -4131,37 +4061,37 @@ class CUpdatesXML
 				{
 					$arXMLAttribute_tmp = explode("=\"", $strXMLParam_tmp);
 					if ($arXMLAttribute_tmp[0]=="version")
-						$oXMLDocument->version = mb_substr($arXMLAttribute_tmp[1], 0, mb_strlen($arXMLAttribute_tmp[1]) - 1);
+						$oXMLDocument->version = substr($arXMLAttribute_tmp[1], 0, strlen($arXMLAttribute_tmp[1]) - 1);
 					elseif ($arXMLAttribute_tmp[0]=="encoding")
-						$oXMLDocument->encoding = mb_substr($arXMLAttribute_tmp[1], 0, mb_strlen($arXMLAttribute_tmp[1]) - 1);
+						$oXMLDocument->encoding = substr($arXMLAttribute_tmp[1], 0, strlen($arXMLAttribute_tmp[1]) - 1);
 				}
 			}
 		}
 
 		// strip header
-		$strXMLText = &preg_replace("#<\?.*?\?>#", "", $strXMLText);
+		$strXMLText = preg_replace("#<\?.*?\?>#", "", $strXMLText);
 
 		// strip comments
-		$strXMLText = &CUpdatesXML::__stripComments($strXMLText);
+		$strXMLText = CUpdatesXML::__stripComments($strXMLText);
 
-		$oXMLDocument->root = &$oXMLDocument->children;
-		$currentNode = &$oXMLDocument;
+		$oXMLDocument->root = $oXMLDocument->children;
+		$currentNode = $oXMLDocument;
 
 		$pos = 0;
 		$endTagPos = 0;
-		while ($pos < mb_strlen($strXMLText))
+		while ($pos < strlen($strXMLText))
 		{
-			$char = mb_substr($strXMLText, $pos, 1);
+			$char = substr($strXMLText, $pos, 1);
 			if ($char == "<")
 			{
 				// find tag name
-				$endTagPos = mb_strpos($strXMLText, ">", $pos);
+				$endTagPos = strpos($strXMLText, ">", $pos);
 
 				// tag name with attributes
-				$tagName = mb_substr($strXMLText, $pos + 1, $endTagPos - ($pos + 1));
+				$tagName = substr($strXMLText, $pos + 1, $endTagPos - ($pos + 1));
 
 				// check if it's an endtag </tagname>
-				if (mb_substr($tagName, 0, 1) == "/")
+				if (substr($tagName, 0, 1) == "/")
 				{
 					$lastNodeArray = array_pop($TagStack);
 					$lastTag = $lastNodeArray["TagName"];
@@ -4171,13 +4101,13 @@ class CUpdatesXML
 					unset($currentNode);
 					$currentNode = &$lastNode;
 
-					$tagName = mb_substr($tagName, 1, mb_strlen($tagName));
+					$tagName = substr($tagName, 1, strlen($tagName));
 
 					// strip out namespace; nameSpace:Name
-					$colonPos = mb_strpos($tagName, ":");
+					$colonPos = strpos($tagName, ":");
 
 					if ($colonPos > 0)
-						$tagName = mb_substr($tagName, $colonPos + 1, mb_strlen($tagName));
+						$tagName = substr($tagName, $colonPos + 1, strlen($tagName));
 
 					if ($lastTag != $tagName)
 					{
@@ -4187,8 +4117,8 @@ class CUpdatesXML
 				}
 				else
 				{
-					$firstSpaceEnd = mb_strpos($tagName, " ");
-					$firstNewlineEnd = mb_strpos($tagName, "\n");
+					$firstSpaceEnd = strpos($tagName, " ");
+					$firstNewlineEnd = strpos($tagName, "\n");
 
 					if ($firstNewlineEnd != false)
 					{
@@ -4213,36 +4143,31 @@ class CUpdatesXML
 						}
 					}
 
-					if ($tagNameEnd > 0)
-					{
-						$justName = mb_substr($tagName, 0, $tagNameEnd);
-					}
-					else
-						$justName = $tagName;
-
+					$justName = $tagNameEnd > 0 ? substr($tagName, 0, $tagNameEnd) : $tagName;
 
 					// strip out namespace; nameSpace:Name
-					$colonPos = mb_strpos($justName, ":");
+					$colonPos = strpos($justName, ":");
 
 					if ($colonPos > 0)
-						$justName = mb_substr($justName, $colonPos + 1, mb_strlen($justName));
-
-					// remove trailing / from the name if exists
-					if (mb_substr($justName, mb_strlen($justName) - 1, 1) == "/")
 					{
-						$justName = mb_substr($justName, 0, mb_strlen($justName) - 1);
+						$justName = substr($justName, $colonPos + 1, strlen($justName));
 					}
 
+					// remove trailing / from the name if exists
+					if (substr($justName, strlen($justName) - 1, 1) == "/")
+					{
+						$justName = substr($justName, 0, strlen($justName) - 1);
+					}
 
 					// check for CDATA
 					$cdataSection = "";
 					$isCDATASection = false;
-					$cdataPos = mb_strpos($strXMLText, "<![CDATA[", $pos);
+					$cdataPos = strpos($strXMLText, "<![CDATA[", $pos);
 					if ($cdataPos == $pos && $pos > 0)
 					{
 						$isCDATASection = true;
-						$endTagPos = mb_strpos($strXMLText, "]]>", $cdataPos);
-						$cdataSection = &mb_substr($strXMLText, $cdataPos + 9, $endTagPos - ( $cdataPos + 9));
+						$endTagPos = strpos($strXMLText, "]]>", $cdataPos);
+						$cdataSection = substr($strXMLText, $cdataPos + 9, $endTagPos - ( $cdataPos + 9));
 
 						// new CDATA node
 						unset($subNode);
@@ -4268,11 +4193,11 @@ class CUpdatesXML
 					// find attributes
 					if ($tagNameEnd > 0)
 					{
-						$attributePart = &mb_substr($tagName, $tagNameEnd, mb_strlen($tagName));
+						$attributePart = substr($tagName, $tagNameEnd, strlen($tagName));
 
 						// attributes
 						unset($attr);
-						$attr = &CUpdatesXML::__parseAttributes($attributePart);
+						$attr = CUpdatesXML::__parseAttributes($attributePart);
 
 						if ($attr != false)
 							$subNode->attributes = &$attr;
@@ -4280,41 +4205,36 @@ class CUpdatesXML
 
 					// check it it's a oneliner: <tagname /> or a cdata section
 					if ($isCDATASection == false)
-						if (mb_substr($tagName, mb_strlen($tagName) - 1, 1) != "/")
+					{
+						if (substr($tagName, strlen($tagName) - 1, 1) != "/")
 						{
-							array_push($TagStack,
-								array("TagName" => $justName, "ParentNodeObject" => &$currentNode));
+							array_push($TagStack, array("TagName" => $justName, "ParentNodeObject" => &$currentNode));
 
 							unset($currentNode);
 							$currentNode = &$subNode;
 						}
+					}
 				}
 			}
 
-			$pos = mb_strpos($strXMLText, "<", $pos + 1);
+			$pos = strpos($strXMLText, "<", $pos + 1);
 
-			if ($pos == false)
+			if ($pos === false)
 			{
 				// end of document
-				$pos = mb_strlen($strXMLText);
+				$pos = strlen($strXMLText);
 			}
 			else
 			{
 				// content tag
-				$tagContent = mb_substr($strXMLText, $endTagPos + 1, $pos - ($endTagPos + 1));
+				$tagContent = substr($strXMLText, $endTagPos + 1, $pos - ($endTagPos + 1));
 
 				if (($this->TrimWhiteSpace && (trim($tagContent)!="")) || !$this->TrimWhiteSpace)
 				{
 					unset($subNode);
 
 					// convert special chars
-					$tagContent = &str_replace("&gt;", ">", $tagContent);
-					$tagContent = &str_replace("&lt;", "<", $tagContent);
-					$tagContent = &str_replace("&apos;", "'", $tagContent);
-					$tagContent = &str_replace("&quot;", '"', $tagContent);
-					$tagContent = &str_replace("&amp;", "&", $tagContent);
-
-					$currentNode->content = $tagContent;
+					$currentNode->content = static::replaceSpecialChars($tagContent);
 				}
 			}
 		}
@@ -4322,14 +4242,23 @@ class CUpdatesXML
 		return $oXMLDocument;
 	}
 
+	protected function replaceSpecialChars($content)
+	{
+		return str_replace(
+			array("&gt;", "&lt;", "&apos;", "&quot;", "&amp;"),
+			array(">", "<", "'", '"', "&"),
+			$content
+		);
+	}
+
 	function __stripComments(&$str)
 	{
-		$str = &preg_replace("#<\!--.*?-->#s", "", $str);
+		$str = preg_replace("#<\!--.*?-->#s", "", $str);
 		return $str;
 	}
 
 	/* Parses the attributes. Returns false if no attributes in the supplied string is found */
-	function &__parseAttributes($attributeString)
+	function __parseAttributes($attributeString)
 	{
 		$ret = false;
 
@@ -4337,24 +4266,26 @@ class CUpdatesXML
 
 		foreach ($attributeArray[0] as $i => $attributePart)
 		{
-			$attributePart = $attributePart;
-
 			if (trim($attributePart) != "" && trim($attributePart) != "/")
 			{
 				$attributeName = $attributeArray[1][$i];
 
 				// strip out namespace; nameSpace:Name
-				$colonPos = mb_strpos($attributeName, ":");
+				$colonPos = strpos($attributeName, ":");
 
 				if ($colonPos > 0)
-					$attributeName = mb_substr($attributeName, $colonPos + 1, mb_strlen($attributeName));
+				{
+					$attributeName = substr($attributeName, $colonPos + 1, strlen($attributeName));
+				}
 
 				$attributeValue = $attributeArray[2][$i];
 
 				unset($attrNode);
 				$attrNode = new CUpdatesXMLNode();
 				$attrNode->name = $attributeName;
-				$attrNode->content = $attributeValue;
+
+				// convert special chars
+				$attrNode->content = static::replaceSpecialChars($attributeValue);
 
 				$ret[] = &$attrNode;
 			}
@@ -4363,544 +4294,29 @@ class CUpdatesXML
 	}
 }
 
-}
-else
-{
-
-
-	/**********************************************************************/
-	/*********   CUpdatesXMLNode   ****************************************/
-	/**********************************************************************/
-	class CUpdatesXMLNode
-	{
-		var $name;				// Name of the node
-		var $content;			// Content of the node
-		var $children;			// Subnodes
-		var $attributes;		// Attributes
-
-		public function __construct()
-		{
-		}
-
-		function &__toString()
-		{
-			$ret = "";
-
-			switch ($this->name)
-			{
-				case "cdata-section":
-					$ret = "<![CDATA[";
-					$ret .= $this->content;
-					$ret .= "]]>";
-					break;
-
-				default:
-					$isOneLiner = false;
-
-					if (empty($this->children) && ($this->content == ''))
-						$isOneLiner = true;
-
-					$attrStr = "";
-
-					if (!empty($this->attributes))
-					{
-						foreach ($this->attributes as $attr)
-						{
-							$attrStr .= " ".$attr->name."=\"".$attr->content."\" ";
-						}
-					}
-
-					if ($isOneLiner)
-						$oneLinerEnd = " /";
-					else
-						$oneLinerEnd = "";
-
-					$ret = "<".$this->name.$attrStr.$oneLinerEnd.">";
-
-					if (!empty($this->children))
-					{
-						foreach ($this->children as $child)
-						{
-							$ret .= $child->__toString();
-						}
-					}
-
-					if (!$isOneLiner)
-					{
-						if ($this->content <> '')
-							$ret .= $this->content;
-
-						$ret .= "</".$this->name.">";
-					}
-
-					break;
-			}
-
-			return $ret;
-		}
-
-		function &__toArray()
-		{
-			$arInd = array();
-			$retHash = array();
-
-			$retHash["@"] = array();
-			if (!empty($this->attributes) && is_array($this->attributes))
-				foreach ($this->attributes as $attr)
-				{
-					$retHash["@"][$attr->name] = $attr->content;
-				}
-
-			$retHash["#"] = "";
-			if ($this->content <> '')
-			{
-				$retHash["#"] = $this->content;
-			}
-			else
-			{
-				if (!empty($this->children) && is_array($this->children))
-				{
-					$ar = array();
-					foreach ($this->children as $child)
-					{
-						if (array_key_exists($child->name, $arInd))
-							$arInd[$child->name] = $arInd[$child->name] + 1;
-						else
-							$arInd[$child->name] = 0;
-
-						$ar[$child->name][$arInd[$child->name]] = $child->__toArray();
-					}
-					$retHash["#"] = $ar;
-				}
-			}
-
-			return $retHash;
-		}
-	}
-
-
-
-	/**********************************************************************/
-	/*********   CUpdatesXMLDocument   ******************************************/
-	/**********************************************************************/
-	class CUpdatesXMLDocument
-	{
-		var $version;				// XML version
-		var $encoding;				// XML encoding
-
-		var $children;
-		var $root;
-
-		public function __construct()
-		{
-		}
-
-		/* Returns a XML string of the DOM document */
-		function &__toString()
-		{
-			$ret = "<"."?xml";
-			if ($this->version <> '')
-				$ret .= " version=\"".$this->version."\"";
-			if ($this->encoding <> '')
-				$ret .= " encoding=\"".$this->encoding."\"";
-			$ret .= "?".">";
-
-			if (!empty($this->children))
-			{
-				foreach ($this->children as $child)
-				{
-					$ret .= $child->__toString();
-				}
-			}
-
-			return $ret;
-		}
-
-		/* Returns an array of the DOM document */
-		function &__toArray()
-		{
-			$arRetArray = array();
-
-			if (!empty($this->children))
-			{
-				foreach ($this->children as $child)
-				{
-					$arRetArray[$child->name] = $child->__toArray();
-				}
-			}
-
-			return $arRetArray;
-		}
-	}
-
-
-
-	/**********************************************************************/
-	/*********   CUpdatesXML   **************************************************/
-	/**********************************************************************/
-	class CUpdatesXML
-	{
-		var $tree;
-		var $TrimWhiteSpace;
-
-		public function __construct($TrimWhiteSpace = true)
-		{
-			$this->TrimWhiteSpace = ($TrimWhiteSpace ? true : false);
-			$this->tree = false;
-		}
-
-		function Load($file)
-		{
-			$this->tree = false;
-
-			if (file_exists($file))
-			{
-				$content = file_get_contents($file);
-				$this->tree = &$this->__parse($content);
-				return true;
-			}
-
-			return false;
-		}
-
-		function LoadString($text)
-		{
-			$this->tree = false;
-
-			if ($text <> '')
-			{
-				$this->tree = &$this->__parse($text);
-				return true;
-			}
-
-			return false;
-		}
-
-		function &GetTree()
-		{
-			return $this->tree;
-		}
-
-		function &GetArray()
-		{
-			return $this->tree->__toArray();
-		}
-
-		function &GetString()
-		{
-			return $this->tree->__toString();
-		}
-
-		function &SelectNodes($strNode)
-		{
-			if (!is_object($this->tree))
-				return false;
-
-			$result = &$this->tree;
-
-			$tmp = explode("/", $strNode);
-			for ($i = 1, $ni = count($tmp); $i < $ni; $i++)
-			{
-				if ($tmp[$i] != "")
-				{
-					if (!is_array($result->children))
-						return false;
-
-					$bFound = false;
-					for ($j = 0, $nj = count($result->children); $j < $nj; $j++)
-					{
-						if ($result->children[$j]->name==$tmp[$i])
-						{
-							$result = &$result->children[$j];
-							$bFound = true;
-							break;
-						}
-					}
-
-					if (!$bFound)
-						return false;
-				}
-			}
-
-			return $result;
-		}
-
-
-		/* Will return an DOM object tree from the well formed XML. */
-		function &__parse(&$strXMLText)
-		{
-			$TagStack = array();
-
-			$oXMLDocument = new CUpdatesXMLDocument();
-
-			// stip the !doctype
-			$strXMLText = &preg_replace("%<\!DOCTYPE.*?>%is", "", $strXMLText);
-
-			// get document version and encoding from header
-			preg_match_all("#<\?(.*?)\?>#i", $strXMLText, $arXMLHeader_tmp);
-			foreach ($arXMLHeader_tmp[0] as $strXMLHeader_tmp)
-			{
-				preg_match_all("/([a-zA-Z:]+=\".*?\")/i", $strXMLHeader_tmp, $arXMLParam_tmp);
-				foreach ($arXMLParam_tmp[0] as $strXMLParam_tmp)
-				{
-					if ($strXMLParam_tmp <> '')
-					{
-						$arXMLAttribute_tmp = explode("=\"", $strXMLParam_tmp);
-						if ($arXMLAttribute_tmp[0]=="version")
-							$oXMLDocument->version = substr($arXMLAttribute_tmp[1], 0, strlen($arXMLAttribute_tmp[1]) - 1);
-						elseif ($arXMLAttribute_tmp[0]=="encoding")
-							$oXMLDocument->encoding = substr($arXMLAttribute_tmp[1], 0, strlen($arXMLAttribute_tmp[1]) - 1);
-					}
-				}
-			}
-
-			// strip header
-			$strXMLText = &preg_replace("#<\?.*?\?>#", "", $strXMLText);
-
-			// strip comments
-			$strXMLText = &CUpdatesXML::__stripComments($strXMLText);
-
-			$oXMLDocument->root = &$oXMLDocument->children;
-			$currentNode = &$oXMLDocument;
-
-			$pos = 0;
-			$endTagPos = 0;
-			while ($pos < strlen($strXMLText))
-			{
-				$char = substr($strXMLText, $pos, 1);
-				if ($char == "<")
-				{
-					// find tag name
-					$endTagPos = strpos($strXMLText, ">", $pos);
-
-					// tag name with attributes
-					$tagName = substr($strXMLText, $pos + 1, $endTagPos - ($pos + 1));
-
-					// check if it's an endtag </tagname>
-					if (substr($tagName, 0, 1) == "/")
-					{
-						$lastNodeArray = array_pop($TagStack);
-						$lastTag = $lastNodeArray["TagName"];
-
-						$lastNode = &$lastNodeArray["ParentNodeObject"];
-
-						unset($currentNode);
-						$currentNode = &$lastNode;
-
-						$tagName = substr($tagName, 1, strlen($tagName));
-
-						// strip out namespace; nameSpace:Name
-						$colonPos = strpos($tagName, ":");
-
-						if ($colonPos > 0)
-							$tagName = substr($tagName, $colonPos + 1, strlen($tagName));
-
-						if ($lastTag != $tagName)
-						{
-							print("Error parsing XML, unmatched tags $tagName");
-							return false;
-						}
-					}
-					else
-					{
-						$firstSpaceEnd = strpos($tagName, " ");
-						$firstNewlineEnd = strpos($tagName, "\n");
-
-						if ($firstNewlineEnd != false)
-						{
-							if ($firstSpaceEnd != false)
-							{
-								$tagNameEnd = min($firstSpaceEnd, $firstNewlineEnd);
-							}
-							else
-							{
-								$tagNameEnd = $firstNewlineEnd;
-							}
-						}
-						else
-						{
-							if ($firstSpaceEnd != false)
-							{
-								$tagNameEnd = $firstSpaceEnd;
-							}
-							else
-							{
-								$tagNameEnd = 0;
-							}
-						}
-
-						if ($tagNameEnd > 0)
-						{
-							$justName = substr($tagName, 0, $tagNameEnd);
-						}
-						else
-							$justName = $tagName;
-
-
-						// strip out namespace; nameSpace:Name
-						$colonPos = strpos($justName, ":");
-
-						if ($colonPos > 0)
-							$justName = substr($justName, $colonPos + 1, strlen($justName));
-
-						// remove trailing / from the name if exists
-						if (substr($justName, strlen($justName) - 1, 1) == "/")
-						{
-							$justName = substr($justName, 0, strlen($justName) - 1);
-						}
-
-
-						// check for CDATA
-						$cdataSection = "";
-						$isCDATASection = false;
-						$cdataPos = strpos($strXMLText, "<![CDATA[", $pos);
-						if ($cdataPos == $pos && $pos > 0)
-						{
-							$isCDATASection = true;
-							$endTagPos = strpos($strXMLText, "]]>", $cdataPos);
-							$cdataSection = &substr($strXMLText, $cdataPos + 9, $endTagPos - ( $cdataPos + 9));
-
-							// new CDATA node
-							unset($subNode);
-							$subNode = new CUpdatesXMLNode();
-							$subNode->name = "cdata-section";
-							$subNode->content = $cdataSection;
-
-							$currentNode->children[] = &$subNode;
-
-							$pos = $endTagPos;
-							$endTagPos += 2;
-						}
-						else
-						{
-							// normal start tag
-							unset($subNode);
-							$subNode = new CUpdatesXMLNode();
-							$subNode->name = $justName;
-
-							$currentNode->children[] = &$subNode;
-						}
-
-						// find attributes
-						if ($tagNameEnd > 0)
-						{
-							$attributePart = &substr($tagName, $tagNameEnd, strlen($tagName));
-
-							// attributes
-							unset($attr);
-							$attr = &CUpdatesXML::__parseAttributes($attributePart);
-
-							if ($attr != false)
-								$subNode->attributes = &$attr;
-						}
-
-						// check it it's a oneliner: <tagname /> or a cdata section
-						if ($isCDATASection == false)
-							if (substr($tagName, strlen($tagName) - 1, 1) != "/")
-							{
-								array_push($TagStack,
-									array("TagName" => $justName, "ParentNodeObject" => &$currentNode));
-
-								unset($currentNode);
-								$currentNode = &$subNode;
-							}
-					}
-				}
-
-				$pos = strpos($strXMLText, "<", $pos + 1);
-
-				if ($pos == false)
-				{
-					// end of document
-					$pos = strlen($strXMLText);
-				}
-				else
-				{
-					// content tag
-					$tagContent = substr($strXMLText, $endTagPos + 1, $pos - ($endTagPos + 1));
-
-					if (($this->TrimWhiteSpace && (trim($tagContent)!="")) || !$this->TrimWhiteSpace)
-					{
-						unset($subNode);
-
-						// convert special chars
-						$tagContent = &str_replace("&gt;", ">", $tagContent);
-						$tagContent = &str_replace("&lt;", "<", $tagContent);
-						$tagContent = &str_replace("&apos;", "'", $tagContent);
-						$tagContent = &str_replace("&quot;", '"', $tagContent);
-						$tagContent = &str_replace("&amp;", "&", $tagContent);
-
-						$currentNode->content = $tagContent;
-					}
-				}
-			}
-
-			return $oXMLDocument;
-		}
-
-		function __stripComments(&$str)
-		{
-			$str = &preg_replace("#<\!--.*?-->#s", "", $str);
-			return $str;
-		}
-
-		/* Parses the attributes. Returns false if no attributes in the supplied string is found */
-		function &__parseAttributes($attributeString)
-		{
-			$ret = false;
-
-			preg_match_all("/(\\S+?)\\s*=\\s*[\"](.*?)[\"]/s", $attributeString, $attributeArray);
-
-			foreach ($attributeArray[0] as $i => $attributePart)
-			{
-				$attributePart = $attributePart;
-
-				if (trim($attributePart) != "" && trim($attributePart) != "/")
-				{
-					$attributeName = $attributeArray[1][$i];
-
-					// strip out namespace; nameSpace:Name
-					$colonPos = strpos($attributeName, ":");
-
-					if ($colonPos > 0)
-						$attributeName = substr($attributeName, $colonPos + 1, strlen($attributeName));
-
-					$attributeValue = $attributeArray[2][$i];
-
-					unset($attrNode);
-					$attrNode = new CUpdatesXMLNode();
-					$attrNode->name = $attributeName;
-					$attrNode->content = $attributeValue;
-
-					$ret[] = &$attrNode;
-				}
-			}
-			return $ret;
-		}
-	}
-
-}
-
 /************************************************************************/
-/********************* Класс для UPDATER'А ******************************/
+/********************* РљР»Р°СЃСЃ РґР»СЏ UPDATER'Рђ ******************************/
 /************************************************************************/
 
 class CUpdater
 {
 	var $errorMessage;
-	var $curPath;	// Путь к скрипту updater (без имени скрипта) относительно корня сайта
-	var $curModulePath;	// Путь к папке с обновлениями модуля
-	var $dbType;	// Тип базы данных
-	var $updater;	// Путь к скрипту updater (c именем скрипта) относительно корня сайта
-	var $moduleID;	// Модуль
-	var $callType; // Прямой вызов (ALL - все, KERNEL - ядро, PERSONAL - персональные файлы, DATABASE - база данных  // DB=PERSONAL+DATABASE)
-	var $kernelPath; // Путь к ядру
+	var $curPath;	// РџСѓС‚СЊ Рє СЃРєСЂРёРїС‚Сѓ updater (Р±РµР· РёРјРµРЅРё СЃРєСЂРёРїС‚Р°) РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєРѕСЂРЅСЏ СЃР°Р№С‚Р°
+	var $curModulePath;	// РџСѓС‚СЊ Рє РїР°РїРєРµ СЃ РѕР±РЅРѕРІР»РµРЅРёСЏРјРё РјРѕРґСѓР»СЏ
+	var $dbType;	// РўРёРї Р±Р°Р·С‹ РґР°РЅРЅС‹С…
+	var $updater;	// РџСѓС‚СЊ Рє СЃРєСЂРёРїС‚Сѓ updater (c РёРјРµРЅРµРј СЃРєСЂРёРїС‚Р°) РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєРѕСЂРЅСЏ СЃР°Р№С‚Р°
+	var $moduleID;	// РњРѕРґСѓР»СЊ
+	var $callType; // РџСЂСЏРјРѕР№ РІС‹Р·РѕРІ (ALL - РІСЃРµ, KERNEL - СЏРґСЂРѕ, PERSONAL - РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹Рµ С„Р°Р№Р»С‹, DATABASE - Р±Р°Р·Р° РґР°РЅРЅС‹С…  // DB=PERSONAL+DATABASE)
+	var $kernelPath; // РџСѓС‚СЊ Рє СЏРґСЂСѓ
+
+	static $config;
+	static $migrationErrors;
 
 	function Init($curPath, $dbType, $updater, $curDir, $moduleID, $callType = "ALL")
 	{
 		$this->errorMessage = array();
 		$this->curPath = $curPath;
-		$this->dbType = StrToUpper($dbType);
+		$this->dbType = strtoupper($dbType);
 		$this->updater = $updater;
 		$this->curModulePath = $curDir;
 		$this->moduleID = $moduleID;
@@ -4935,13 +4351,16 @@ class CUpdater
 					if (!in_array("DATABASE", $this->callType))
 						$this->callType[] = "DATABASE";
 					break;
+				case "DATABASE_DDL":
+					$this->callType = array("DATABASE_DDL");
+					break;
 			}
 		}
 
 		$this->kernelPath = US_SHARED_KERNEL_PATH;
 	}
 
-	// Устанавливает все компоненты
+	// РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ РІСЃРµ РєРѕРјРїРѕРЅРµРЅС‚С‹
 	// $arDeleteFiles = array("component.name" => array("/images/1.gif", "/templates/.default/style.css"), "component.name1" => array("/style.css"));
 	function InstallComponents($arDeleteFiles = array())
 	{
@@ -4997,8 +4416,8 @@ class CUpdater
 		return "/".str_replace(":", "/", $componentName);
 	}
 
-	// Устанавливает компонент по его имени
-	// $arDeleteFiles - удаляет файлы из массива ( Array("/images/1.gif", "/templates/.default/style.css") )
+	// РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ РєРѕРјРїРѕРЅРµРЅС‚ РїРѕ РµРіРѕ РёРјРµРЅРё
+	// $arDeleteFiles - СѓРґР°Р»СЏРµС‚ С„Р°Р№Р»С‹ РёР· РјР°СЃСЃРёРІР° ( Array("/images/1.gif", "/templates/.default/style.css") )
 	function InstallComponent($componentName, $arDeleteFiles = array())
 	{
 		if (!in_array("KERNEL", $this->callType))
@@ -5038,7 +4457,7 @@ class CUpdater
 	}
 
 
-	// Устанавливает все мастера
+	// РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ РІСЃРµ РјР°СЃС‚РµСЂР°
 	// $arDeleteFiles = array("component.name" => array("/images/1.gif", "/templates/.default/style.css"), "component.name1" => array("/style.css"));
 	function InstallWizards($arDeleteFiles = array())
 	{
@@ -5086,8 +4505,8 @@ class CUpdater
 		return $bFlag;
 	}
 
-	// Устанавливает мастер по его имени
-	// $arDeleteFiles - удаляет файлы из массива ( Array("/images/1.gif", "/templates/.default/style.css") )
+	// РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ РјР°СЃС‚РµСЂ РїРѕ РµРіРѕ РёРјРµРЅРё
+	// $arDeleteFiles - СѓРґР°Р»СЏРµС‚ С„Р°Р№Р»С‹ РёР· РјР°СЃСЃРёРІР° ( Array("/images/1.gif", "/templates/.default/style.css") )
 	function InstallWizard($wizardName, $arDeleteFiles = array())
 	{
 		if (!in_array("KERNEL", $this->callType))
@@ -5200,7 +4619,7 @@ class CUpdater
 			{
 				foreach ($query as $key => $value)
 				{
-					if ($this->dbType == StrToUpper($key))
+					if ($this->dbType == strtoupper($key))
 					{
 						$strQuery = $value;
 						break;
@@ -5251,7 +4670,7 @@ class CUpdater
 			{
 				foreach ($queryPath as $key => $value)
 				{
-					if ($this->dbType == StrToUpper($key))
+					if ($this->dbType == strtoupper($key))
 					{
 						$strQueryPath = $value;
 						break;
@@ -5290,33 +4709,71 @@ class CUpdater
 
 	function TableExists($tableName)
 	{
+		global $DB;
+
 		if (!in_array("DATABASE", $this->callType))
 			return false;
 
-		$tableName = preg_replace("/[^A-Za-z0-9%_]+/i", "", $tableName);
-		$tableName = trim($tableName);
-
+		$tableName = preg_replace("/[^A-Za-z0-9%_]+/", "", $tableName);
 		if ($tableName == '')
 			return false;
 
-		$strSql = "";
 		if ($this->dbType == "MYSQL")
-			$strSql = "SHOW TABLES LIKE '".strtolower($GLOBALS["DB"]->ForSql($tableName))."'";
+			$strSql = "SHOW TABLES LIKE '".strtolower($DB->ForSql($tableName))."'";
 		elseif ($this->dbType == "ORACLE")
-			$strSql = "SELECT TABLE_NAME FROM USER_TABLES WHERE TABLE_NAME LIKE UPPER('".strtoupper($GLOBALS["DB"]->ForSql($tableName))."')";
+			$strSql = "SELECT TABLE_NAME FROM USER_TABLES WHERE TABLE_NAME LIKE UPPER('".strtoupper($DB->ForSql($tableName))."')";
 		elseif ($this->dbType == "MSSQL")
-			$strSql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '".strtoupper($GLOBALS["DB"]->ForSql($tableName))."'";
+			$strSql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '".strtoupper($DB->ForSql($tableName))."'";
+		elseif ($this->dbType == "PGSQL")
+			$strSql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE '".strtolower($DB->ForSql($tableName))."'";
+		else
+			$strSql = "";
 
-		$dbResult = $GLOBALS["DB"]->Query($strSql);
-		if ($arResult = $dbResult->Fetch())
+		$dbResult = $DB->Query($strSql);
+		if ($dbResult->Fetch())
 			return true;
 		else
 			return false;
 	}
 
+	function ColumnExists($tableName, $columnName)
+	{
+		global $DB;
+
+		/**
+		 * @var \CDatabase $DB
+		 */
+
+		if (!$this->CanUpdateDatabase() || !$this->TableExists($tableName))
+		{
+			return false;
+		}
+
+		$re = '/[^A-Za-z0-9\_]+/';
+		$columnName = preg_replace($re, '', $columnName);
+		$tableName = preg_replace($re, '', $tableName);
+		if (empty($tableName) || empty($columnName))
+		{
+			return false;
+		}
+
+		$strSql = sprintf(
+			'SELECT %s FROM %s WHERE 1 = 0',
+			$DB->quote($columnName),
+			$DB->quote($tableName),
+		);
+
+		return $DB->Query($strSql, true) !== false;
+	}
+
 	function CanUpdateDatabase()
 	{
 		return (in_array("DATABASE", $this->callType));
+	}
+
+	function CanRunDdlQuery()
+	{
+		return (in_array("DATABASE_DDL", $this->callType));
 	}
 
 	function CanUpdateKernel()
@@ -5327,5 +4784,216 @@ class CUpdater
 	function CanUpdatePersonalFiles()
 	{
 		return (in_array("PERSONAL", $this->callType));
+	}
+
+	public static function getCurrentConfig()
+	{
+		return self::$config;
+	}
+
+	public static function addError($errorMessage)
+	{
+		if (!is_array(self::$migrationErrors))
+		{
+			self::$migrationErrors = array();
+		}
+
+		self::$migrationErrors[] = (string)$errorMessage;
+	}
+
+	public function beforeIncludeUpdaterFile()
+	{
+		self::$config = array(
+			'moduleId' => $this->moduleID,
+			'canUpdateDatabase' => $this->CanUpdateDatabase(),
+			'canUpdateKernel' => $this->CanUpdateKernel(),
+			'canUpdatePersonalFiles' => $this->CanUpdatePersonalFiles(),
+			'canRunDdlQuery' => $this->CanRunDdlQuery(),
+			'updaterFilename' => $this->updater,
+			'updaterRootDirectory' => $this->curModulePath,
+		);
+	}
+
+	public function afterIncludeUpdaterFile()
+	{
+		self::$config = null;
+
+		if (!empty(self::$migrationErrors))
+		{
+			$this->errorMessage = array_merge($this->errorMessage, self::$migrationErrors);
+		}
+		self::$migrationErrors = null;
+	}
+
+	public function canRunUpdater()
+	{
+		if (!in_array('DATABASE_DDL', $this->callType))
+		{
+			return true;
+		}
+
+		// Updater in DATABASE_DDL mode should not be executed for old updates and modules without modern migration_config.json support:
+		if (file_exists($_SERVER["DOCUMENT_ROOT"] . $this->curModulePath . '/migration_config.json'))
+		{
+			return true;
+		}
+		if (file_exists($_SERVER['DOCUMENT_ROOT'] . $this->kernelPath . '/modules/' . $this->moduleID . '/migration_config.json'))
+		{
+			return true;
+		}
+
+		return false;
+	}
+}
+
+class CUpdateFilesProcessor
+{
+	var $errorMessages;
+	var $moduleMigrationConfig;
+	var $updatesRootDirectory;
+	var $moduleId;
+
+	public function process($updatesRootDirectory, $moduleId)
+	{
+		$this->updatesRootDirectory = $updatesRootDirectory;
+		$this->moduleId = $moduleId;
+		$this->moduleMigrationConfig = $this->loadMigrationConfigFile();
+
+		$this->copyInstallFiles();
+		$this->copyPersonalFiles();
+		$this->deleteFiles();
+
+		return empty($this->errorMessages);
+	}
+
+	public function getErrorMessages()
+	{
+		return $this->errorMessages;
+	}
+
+	private function loadMigrationConfigFile()
+	{
+		$configCandidates = array(
+			$this->updatesRootDirectory . '/migration_config.json',
+			$_SERVER['DOCUMENT_ROOT'] . US_SHARED_KERNEL_PATH . '/modules/' . $this->moduleId . '/migration_config.json',
+		);
+
+		$moduleMigrationConfig = null;
+
+		foreach ($configCandidates as $configCandidate)
+		{
+			if (file_exists($configCandidate))
+			{
+				$moduleMigrationConfig = json_decode(file_get_contents($configCandidate), true);
+				if (is_array($moduleMigrationConfig))
+				{
+					break;
+				}
+				else
+				{
+					$moduleMigrationConfig = null;
+				}
+			}
+		}
+
+		return $moduleMigrationConfig;
+	}
+
+	private function copyInstallFiles()
+	{
+		if (!IsModuleInstalled($this->moduleId))
+		{
+			return;
+		}
+
+		$installFilesToCopy = $this->getMigrationConfigValue('installDirectoriesMapping');
+		foreach ($installFilesToCopy as $dirFrom => $dirTo)
+		{
+			if (file_exists($this->updatesRootDirectory . '/' . $dirFrom))
+			{
+				CUpdateSystem::AddMessage2Log("Process module '" . $this->moduleId . "': copyInstallFiles(" . $dirFrom . ", " . $dirTo . ")", 'CRUPDCF1');
+				$this->CopyFiles($this->updatesRootDirectory . '/' . $dirFrom, $_SERVER["DOCUMENT_ROOT"] . US_SHARED_KERNEL_PATH .  '/' . $dirTo);
+			}
+		}
+	}
+
+	private function copyPersonalFiles()
+	{
+		if (!IsModuleInstalled($this->moduleId))
+		{
+			return;
+		}
+
+		$personalFilesToCopy = $this->getMigrationConfigValue('publicDirectoriesMapping');
+		foreach ($personalFilesToCopy as $dirFrom => $dirTo)
+		{
+			if (file_exists($this->updatesRootDirectory . '/' . $dirFrom))
+			{
+				CUpdateSystem::AddMessage2Log("Process module '" . $this->moduleId . "': copyPersonalFiles(" . $dirFrom . ", " . $dirTo . ")", 'CRUPDCF1');
+				$this->CopyFiles($this->updatesRootDirectory . '/' . $dirFrom, $_SERVER["DOCUMENT_ROOT"] . '/' . $dirTo);
+			}
+		}
+
+	}
+
+	private function deleteFiles()
+	{
+		if ($handle = @opendir($this->updatesRootDirectory))
+		{
+			while (($file = readdir($handle)) !== false)
+			{
+				if ($file == '.' || $file == '..')
+				{
+					continue;
+				}
+
+				if (substr($file, 0, 13) === 'deleted_files' && substr($file, -4) === '.txt')
+				{
+					$fullFileName = $this->updatesRootDirectory . '/' . $file;
+					$filesToDelete = file($fullFileName, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+					if ($filesToDelete === false)
+					{
+						$this->errorMessages[] = str_replace("#FILE#", $fullFileName, GetMessage("SUPP_RV_READ_DESCR_FILE"));
+					} else
+					{
+						foreach ($filesToDelete as $fileName)
+						{
+							CUpdateSystem::deleteDirFilesEx($_SERVER['DOCUMENT_ROOT'] . US_SHARED_KERNEL_PATH . '/' . $fileName);
+						}
+					}
+					@unlink($fullFileName);
+				}
+			}
+		}
+	}
+
+	private function getMigrationConfigValue($key)
+	{
+		if (
+			is_array($this->moduleMigrationConfig)
+			&& isset($this->moduleMigrationConfig[$key])
+			&& is_array($this->moduleMigrationConfig[$key])
+		)
+		{
+			return $this->moduleMigrationConfig[$key];
+		}
+
+		return array();
+	}
+
+	private function copyFiles($fromDirFull, $toDirFull)
+	{
+		if (!file_exists($fromDirFull))
+		{
+			return;
+		}
+
+		$errorMessage = '';
+		$result = CUpdateSystem::CopyDirFiles($fromDirFull, $toDirFull, $errorMessage);
+
+		if (!$result)
+		{
+			$this->errorMessages[] = $errorMessage;
+		}
 	}
 }

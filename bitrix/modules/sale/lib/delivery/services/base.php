@@ -162,7 +162,7 @@ abstract class Base
 	 * @param array $extraServices .
 	 * @return \Bitrix\Sale\Delivery\CalculationResult
 	 */
-	public function calculate(\Bitrix\Sale\Shipment $shipment = null, $extraServices = array()) // null for compability with old configurable services api
+	public function calculate(?\Bitrix\Sale\Shipment $shipment = null, $extraServices = array()) // null for compability with old configurable services api
 	{
 		$result = new Delivery\CalculationResult();
 
@@ -333,7 +333,7 @@ abstract class Base
 
 				if (!empty($errors))
 				{
-					$strError .= Loc::getMessage("SALE_DLVR_BASE_FIELD")." \"".$iParams["NAME"]."\": ".implode("<br>\n", $errors)."<br>\n";
+					$strError .= Loc::getMessage("SALE_DLVR_BASE_FIELD")." ".implode("<br>\n", $errors)."<br>\n";
 				}
 			}
 		}

@@ -68,7 +68,6 @@
 			this.value = this.getValue();
 		},
 
-
 		getNode: function(all)
 		{
 			const elements = slice(this.iframe.document.querySelectorAll(this.relativeSelector));
@@ -88,7 +87,9 @@
 
 		getElementIndex: function(element)
 		{
-			return [].indexOf.call(this.getNode(true), element);
+			const index = [].indexOf.call(this.getNode(true), element);
+
+			return index === -1 ? 0 : index;
 		},
 
 
@@ -410,30 +411,43 @@
 		 */
 		getValue: function(isNeedComputed)
 		{
-			const node = this.getNode().length ? this.getNode()[0] : null;
+			const node = this.getNode()[0] || null;
 			const style = {};
 			if (node)
 			{
 				let isAllInlineProps = false;
-				if (this.inlineProperties.length)
+				let propValue = null;
+				if (this.inlineProperties.length > 0)
 				{
 					isAllInlineProps = true;
 					const styleObj = node.style;
-					this.inlineProperties.forEach(prop => {
-						style[prop] = styleObj.getPropertyValue(prop).trim() || null;
-						if (prop === 'background-image' && !!style[prop])
+					this.inlineProperties.forEach((prop) => {
+						propValue = styleObj.getPropertyValue(prop).trim() || null;
+						if (propValue !== null || prop === 'background-image')
 						{
-							style[prop] = style[prop].replaceAll('"', '\'');
+							style[prop] = propValue;
+							if (prop === 'background-image' && Boolean(style[prop]))
+							{
+								style[prop] = style[prop].replaceAll('"', '\'');
+							}
+							isAllInlineProps = isAllInlineProps && Boolean(style[prop]);
 						}
-						isAllInlineProps = isAllInlineProps && !!style[prop];
+
+						if (propValue === null)
+						{
+							style[prop] = null;
+						}
 					});
 				}
-				if (!!isNeedComputed && this.computedProperties.length && !isAllInlineProps)
+
+				if (Boolean(isNeedComputed) && this.computedProperties.length > 0 && !isAllInlineProps)
 				{
-					this.computedProperties.forEach(prop => {
-						style[prop] =
-							getComputedStyle(node, this.pseudoElement).getPropertyValue(prop)
-							|| null;
+					this.computedProperties.forEach((prop) => {
+						propValue = getComputedStyle(node, this.pseudoElement).getPropertyValue(prop) || null;
+						if (propValue !== null)
+						{
+							style[prop] = propValue;
+						}
 					});
 				}
 			}
@@ -441,7 +455,7 @@
 			return {
 				classList: node ? this.sanitizeClassList(slice(node.classList)) : [],
 				affect: this.affects.toArray(),
-				style: style,
+				style,
 			};
 		},
 

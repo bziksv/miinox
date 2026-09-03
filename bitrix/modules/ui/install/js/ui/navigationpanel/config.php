@@ -10,7 +10,15 @@ return [
 	'rel' => [
 		'main.core',
 		'main.core.events',
+		'ui.a11y',
+		'ui.actions-bar',
 		'ui.fonts.opensans',
+		'ui.icon-set.api.core',
+		'ui.icon-set.outline',
+		'ui.system.menu',
 	],
 	'skip_core' => false,
+	'settings' => [
+		'useAirDesign' => defined('AIR_SITE_TEMPLATE'),
+	]
 ];

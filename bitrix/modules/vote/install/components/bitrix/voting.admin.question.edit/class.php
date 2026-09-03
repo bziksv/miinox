@@ -117,7 +117,7 @@ namespace
 		}
 
 		/**
-		 * @return Application|\Bitrix\Main\HttpApplication|\CAllMain|\CMain
+		 * @return Application|\Bitrix\Main\HttpApplication|CMain
 		 */
 		protected function getApplication()
 		{
@@ -126,7 +126,7 @@ namespace
 		}
 
 		/**
-		 * @return array|bool|\CAllUser|\CUser
+		 * @return array|bool|CUser
 		 */
 		protected function getUser()
 		{
@@ -350,8 +350,6 @@ namespace Bitrix\Vote\Component
 {
 	use Bitrix\Main\Grid\Options;
 	use Bitrix\Main\NotImplementedException;
-	use Bitrix\Main\Web\PostDecodeFilter;
-	use \Bitrix\Main\Web\Json;
 	use Bitrix\Main\Error;
 	use Bitrix\Main\ErrorCollection;
 	use \Bitrix\Main\Localization\Loc;
@@ -588,7 +586,7 @@ namespace Bitrix\Vote\Component
 			return (++$this->maxId);
 		}
 		/**
-		 * @return \Application|\Bitrix\Main\HttpApplication|\CAllMain|\CMain
+		 * @return \Application|\Bitrix\Main\HttpApplication|CMain
 		 */
 		protected function getApplication()
 		{
@@ -642,8 +640,6 @@ namespace Bitrix\Vote\Component
 				$request->getPost("gridId") == $this->getGridId() &&
 				$request->getPost("gridInstanceId") == $this->getGridInstanceId())
 			{
-				$request->addFilter(new \Bitrix\Main\Web\PostDecodeFilter());
-
 				if ($request->getPost("action") == \Bitrix\Main\Grid\Actions::GRID_ADD_ROW)
 				{
 					$this->add($request->getPost("data"));

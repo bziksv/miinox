@@ -1,14 +1,11 @@
 <?php
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2004 Bitrix                  #
-# http://www.bitrix.ru                       #
-# mailto:admin@bitrix.ru                     #
-##############################################
-*/
 
-define("STOP_STATISTICS", true);
+/**
+ * @global CMain $APPLICATION
+ * @global CDatabase $DB
+ */
+
+const STOP_STATISTICS = true;
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 $saleModulePermissions = $APPLICATION->GetGroupRight("sale");
 if($saleModulePermissions=="D") $APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
@@ -28,17 +25,17 @@ if(!CBXFeatures::IsFeatureEnabled('SaleReports'))
 
 IncludeModuleLangFile(__FILE__);
 
-$width = intval($_GET["width"]);
+$width = (int)($_GET['width'] ?? 0);
 $max_width = COption::GetOptionInt("sale", "GRAPH_WEIGHT", 600);
 if($width <= 0 || $width > $max_width)
 	$width = $max_width;
 
-$height = intval($_GET["height"]);
+$height = (int)($_GET['height'] ?? 0);
 $max_height = COption::GetOptionInt("sale", "GRAPH_HEIGHT", 600);
 if($height <= 0 || $height > $max_height)
 	$height = $max_height;
-if($mode != "money")
-	$mode = "count";
+
+$mode = (($_REQUEST['mode'] ?? '') !== 'money' ? 'count' : 'money');
 
 $arColor = Array("08738C", "C6B59C", "0000FF", "FF0000", "FFFF00", "F7C684" ,"8CD694", "9CADCE", "B584BD", "C684BD", "FF94C6", "BDE794", "F7949C", "7BCE6B", "FF6342", "E2F86B", "A5DE63", "42BD6B", "52BDA5", "F79473", "5AC6DE", "94D6C6", "9C52AD", "BD52AD", "9C94C6", "FF63AD", "FF6384", "FE881D", "FF9C21", "FFAD7B", "EFFF29", "7BCE6B", "42BD6B", "52C6AD", "6B8CBD", "3963AD", "F7298C", "A51800", "9CA510", "528C21", "689EB9", "217B29", "6B8CC6", "D6496C", "C6A56B", "00B0A4", "AD844A", "9710B4", "946331", "AD3908", "734210", "008400", "3EC19A", "28D7D7", "6B63AD", "A4C13E", "7BCE31", "A5DE94", "94D6E7", "9C8C73", "FF8C4A", "A7588B", "03CF45", "F7B54A", "808040", "947BBD", "840084", "737373", "C48322", "809254", "1E8259", "63C6DE", "46128D", "8080C0");
 
@@ -62,6 +59,7 @@ while($arCur = $dbCur->GetNext())
 	$arCurrency[$arCur["CURRENCY"]] = $arCur["FULL_NAME"];
 }
 
+$arSite = [];
 $dbSite = CSite::GetList("sort", "desc", Array("ACTIVE" => "Y"));
 while($arSites = $dbSite->GetNext())
 {
@@ -69,32 +67,32 @@ while($arSites = $dbSite->GetNext())
 }
 
 $arFind = Array(
-		"find_canceled" => $find_canceled,
-		"find_allow_delivery" => $find_allow_delivery,
-		"find_payed" => $find_payed,
-		"find_all" => $find_all,
-		"filter_by" => $filter_by,
-		"mode" => $mode,
-	);
+	"find_canceled" => $_REQUEST['find_canceled'] ?? '',
+	"find_allow_delivery" => $_REQUEST['find_allow_delivery'] ?? '',
+	"find_payed" => $_REQUEST['find_payed'] ?? '',
+	"find_all" => $_REQUEST['find_all'] ?? '',
+	"filter_by" => $_REQUEST['filter_by'] ?? '',
+	"mode" => $mode,
+);
 
 foreach($arCurrency as $k1 => $v1)
 {
-	if(${"find_all_".$k1} == "Y")
-		$arFind["find_all_".$k1] = ${"find_all_".$k1};
-	if(${"find_payed_".$k1} == "Y")
-		$arFind["find_payed_".$k1] = ${"find_payed_".$k1};
-	if(${"find_allow_delivery_".$k1} == "Y")
-		$arFind["find_allow_delivery_".$k1] = ${"find_allow_delivery_".$k1};
-	if(${"find_canceled_".$k1} == "Y")
-		$arFind["find_canceled_".$k1] = ${"find_canceled_".$k1};
+	if(isset($_REQUEST["find_all_".$k1]) && $_REQUEST["find_all_".$k1] == "Y")
+		$arFind["find_all_".$k1] = "Y";
+	if(isset($_REQUEST["find_payed_".$k1]) && $_REQUEST["find_payed_".$k1] == "Y")
+		$arFind["find_payed_".$k1] = "Y";
+	if(isset($_REQUEST["find_allow_delivery_".$k1]) && $_REQUEST["find_allow_delivery_".$k1] == "Y")
+		$arFind["find_allow_delivery_".$k1] = "Y";
+	if(isset($_REQUEST["find_canceled_".$k1]) && $_REQUEST["find_canceled_".$k1] == "Y")
+		$arFind["find_canceled_".$k1] = "Y";
 
 	foreach($arStatus as $k2 => $v2)
 	{
-		if(${"find_status_".$k2} == "Y")
-			$arFind["find_status_".$k2] = ${"find_status_".$k2};
+		if(isset($_REQUEST["find_status_".$k2]) && $_REQUEST["find_status_".$k2] == "Y")
+			$arFind["find_status_".$k2] = "Y";
 
-		if(${"find_status_".$k2."_".$k1} == "Y")
-			$arFind["find_status_".$k2."_".$k1] = ${"find_status_".$k2."_".$k1};
+		if(isset($_REQUEST["find_status_".$k2."_".$k1]) && $_REQUEST["find_status_".$k2."_".$k1] == "Y")
+			$arFind["find_status_".$k2."_".$k1] = "Y";
 	}
 }
 
@@ -112,16 +110,17 @@ $arFilter=Array();
 				Plot data
 *******************************************************/
 
-if ($filter_date_from <> '')
+if (!empty($_REQUEST['filter_date_from']))
 {
-	$arFilter["DATE_FROM"] = Trim($filter_date_from);
+	$arFilter["DATE_FROM"] = trim($_REQUEST['filter_date_from']);
 }
 
-if ($filter_date_to <> '')
+$filter_date_to = '';
+if (!empty($_REQUEST['filter_date_to']))
 {
-	if ($arDate = ParseDateTime($filter_date_to, CSite::GetDateFormat("FULL", SITE_ID)))
+	if ($arDate = ParseDateTime($_REQUEST['filter_date_to'], CSite::GetDateFormat("FULL", SITE_ID)))
 	{
-		if (mb_strlen($filter_date_to) < 11)
+		if (mb_strlen($_REQUEST['filter_date_to']) < 11)
 		{
 			$arDate["HH"] = 23;
 			$arDate["MI"] = 59;
@@ -131,13 +130,9 @@ if ($filter_date_to <> '')
 		$filter_date_to = date($DB->DateFormatToPHP(CSite::GetDateFormat("FULL", SITE_ID)), mktime($arDate["HH"], $arDate["MI"], $arDate["SS"], $arDate["MM"], $arDate["DD"], $arDate["YYYY"]));
 		$arFilter["DATE_TO"] = $filter_date_to;
 	}
-	else
-	{
-		$filter_date_to = "";
-	}
 }
 
-if (isset($find_lid) && !empty($find_lid))
+if (!empty($find_lid))
 {
 	$filter_site_id = $find_lid;
 }
@@ -161,14 +156,14 @@ $arY = Array();
 $MinX = 0;
 $MaxX = 0;
 
-if($filter_date_from <> '')
-	$MinX = MakeTimeStamp($filter_date_from);
+if(!empty($_REQUEST['filter_date_from']))
+	$MinX = MakeTimeStamp($_REQUEST['filter_date_from']);
 if($filter_date_to <> '')
 	$MaxX = MakeTimeStamp($filter_date_to);
 else
 	$MaxX = mktime(0, 0, 0, date("n"), date("j"), date("Y"));
 
-function bxStatSort($a, $b)
+function bxStatSort($a, $b): int
 {
 	global $filter_by;
 	if($filter_by == "weekday")
@@ -176,18 +171,18 @@ function bxStatSort($a, $b)
 		if(intval($a["DATE"]) == intval($b["DATE"]))
 			return 0;
 		elseif(intval($a["DATE"]) > intval($b["DATE"]))
-			return ($order == "DESC") ? -1 : 1;
+			return 1;
 		else
-			return ($order == "DESC") ? 1 : -1;
+			return -1;
 	}
 	else
 	{
 		if(MakeTimeStamp($a["DATE"]) == MakeTimeStamp($b["DATE"]))
 			return 0;
 		elseif(MakeTimeStamp($a["DATE"]) > MakeTimeStamp($b["DATE"]))
-			return ($order == "DESC") ? -1 : 1;
+			return 1;
 		else
-			return ($order == "DESC") ? 1 : -1;
+			return -1;
 	}
 }
 
@@ -218,8 +213,12 @@ else
 {
 	$arSelectedFields = Array("ID", "PAYED", "DATE_PAYED", "CANCELED", "DATE_CANCELED", "STATUS_ID", "DATE_STATUS", "PRICE_DELIVERY", "ALLOW_DELIVERY", "DATE_ALLOW_DELIVERY", "PRICE", "CURRENCY", "DISCOUNT_VALUE", "PAY_SYSTEM_ID", "DELIVERY_ID", "DATE_INSERT", "TAX_VALUE", "LID");
 	$dbOrder = CSaleOrder::GetList(Array(), $arFilter, false, false, $arSelectedFields);
-	while($arOrder = $dbOrder->Fetch())
+	while ($arOrder = $dbOrder->Fetch())
 	{
+		$currency = $arOrder['CURRENCY'];
+		$statusId = $arOrder['STATUS_ID'];
+		$price = (float)$arOrder['PRICE'];
+
 		$arOrder["DATE_INSERT"] = ConvertDateTime($arOrder["DATE_INSERT"], FORMAT_DATE);
 
 		$tstm = MakeTimeStamp($arOrder["DATE_INSERT"], FORMAT_DATE);
@@ -267,60 +266,78 @@ else
 				$MinX = $tmp;
 		}
 
-		$arResult[$key]["DATE"] = $key;
-		if($arResult[$key]["COUNT"] <= 0)
-			$arResult[$key]["COUNT"] = 0;
-		$arResult[$key]["COUNT"]++;
+		$arResult[$key] ??= [];
+		$arResult[$key]['DATE'] = $key;
+		$arResult[$key]['COUNT'] ??= 0;
+		$arResult[$key]['PRICE'] ??= [];
+		$arResult[$key]['PRICE'][$currency] ??= 0;
 
-		if($arResult[$key]["PRICE"][$arOrder["CURRENCY"]] <= 0)
-			$arResult[$key]["PRICE"][$arOrder["CURRENCY"]] = 0;
-		$arResult[$key]["PRICE"][$arOrder["CURRENCY"]] += $arOrder["PRICE"];
+		$arResult[$key]['COUNT']++;
 
-		if($arFind["mode"] != "count")
+		$arResult[$key]['PRICE'][$currency] += $price;
+
+		if ($arFind["mode"] != "count")
 		{
-			if($arResult[$key]["PAYED"][$arOrder["CURRENCY"]] <= 0)
-				$arResult[$key]["PAYED"][$arOrder["CURRENCY"]] = 0;
-			if($arOrder["PAYED"] == "Y")
-				$arResult[$key]["PAYED"][$arOrder["CURRENCY"]] += $arOrder["PRICE"];
+			$arResult[$key]['PAYED'] ??= [];
+			$arResult[$key]['PAYED'][$currency] ??= 0;
 
-			if($arResult[$key]["CANCELED"][$arOrder["CURRENCY"]] <= 0)
-				$arResult[$key]["CANCELED"][$arOrder["CURRENCY"]] = 0;
-			if($arOrder["CANCELED"] == "Y")
-				$arResult[$key]["CANCELED"][$arOrder["CURRENCY"]] += $arOrder["PRICE"];
+			$arResult[$key]['CANCELED'] ??= [];
+			$arResult[$key]['CANCELED'][$currency] ??= 0;
 
-			if($arResult[$key]["ALLOW_DELIVERY"][$arOrder["CURRENCY"]] <= 0)
-				$arResult[$key]["ALLOW_DELIVERY"][$arOrder["CURRENCY"]] = 0;
-			if($arOrder["ALLOW_DELIVERY"] == "Y")
-				$arResult[$key]["ALLOW_DELIVERY"][$arOrder["CURRENCY"]] += $arOrder["PRICE"];
+			$arResult[$key]['ALLOW_DELIVERY'] ??= [];
+			$arResult[$key]['ALLOW_DELIVERY'][$currency] ??= 0;
 
-			if($arResult[$key]["STATUS"][$arOrder["STATUS_ID"]][$arOrder["CURRENCY"]] <= 0)
-				$arResult[$key]["STATUS"][$arOrder["STATUS_ID"]][$arOrder["CURRENCY"]] = 0;
-			$arResult[$key]["STATUS"][$arOrder["STATUS_ID"]][$arOrder["CURRENCY"]] += $arOrder["PRICE"];
+			$arResult[$key]['STATUS'] ??= [];
+			$arResult[$key]['STATUS'][$statusId] ??= [];
+			$arResult[$key]['STATUS'][$statusId][$currency] ??= 0;
+
+			if ($arOrder['PAYED'] === 'Y')
+			{
+				$arResult[$key]['PAYED'][$currency] += $price;
+			}
+
+			if ($arOrder['CANCELED'] === 'Y')
+			{
+				$arResult[$key]['CANCELED'][$currency] += $price;
+			}
+
+			if ($arOrder['ALLOW_DELIVERY'] === 'Y')
+			{
+				$arResult[$key]['ALLOW_DELIVERY'][$currency] += $price;
+			}
+
+			$arResult[$key]['STATUS'][$statusId][$currency] += $price;
 		}
 		else
 		{
-			if($arResult[$key]["PAYED"] <= 0)
-				$arResult[$key]["PAYED"] = 0;
-			if($arOrder["PAYED"] == "Y")
-				$arResult[$key]["PAYED"]++;
+			$arResult[$key]['PAYED'] ??= 0;
+			$arResult[$key]['CANCELED'] ??= 0;
+			$arResult[$key]['ALLOW_DELIVERY'] ??= 0;
+			$arResult[$key]['STATUS'] ??= [];
+			$arResult[$key]['STATUS'][$statusId] ??= 0;
 
-			if($arResult[$key]["CANCELED"] <= 0)
-				$arResult[$key]["CANCELED"] = 0;
-			if($arOrder["CANCELED"] == "Y")
-				$arResult[$key]["CANCELED"]++;
+			if ($arOrder['PAYED'] === 'Y')
+			{
+				$arResult[$key]['PAYED']++;
+			}
 
-			if($arResult[$key]["ALLOW_DELIVERY"] <= 0)
-				$arResult[$key]["ALLOW_DELIVERY"] = 0;
-			if($arOrder["ALLOW_DELIVERY"] == "Y")
-				$arResult[$key]["ALLOW_DELIVERY"]++;
+			if ($arOrder['CANCELED'] === 'Y')
+			{
+				$arResult[$key]['CANCELED']++;
+			}
 
-			if($arResult[$key]["STATUS"][$arOrder["STATUS_ID"]] <= 0)
-				$arResult[$key]["STATUS"][$arOrder["STATUS_ID"]] = 0;
-			$arResult[$key]["STATUS"][$arOrder["STATUS_ID"]]++;
+			if ($arOrder['ALLOW_DELIVERY'] === 'Y')
+			{
+				$arResult[$key]['ALLOW_DELIVERY']++;
+			}
+
+			$arResult[$key]['STATUS'][$statusId]++;
 		}
 
-		if(!in_array($arOrder["CURRENCY"], $arCurUsed))
-			$arCurUsed[] = $arOrder["CURRENCY"];
+		if (!in_array($currency, $arCurUsed))
+		{
+			$arCurUsed[] = $currency;
+		}
 	}
 
 	if($arFind["filter_by"] == "day" || $arFind["filter_by"] == "week" || $arFind["filter_by"] == "year")
@@ -358,10 +375,10 @@ else
 	}
 	elseif($arFind["filter_by"] == "month") // month
 	{
-		$minMonth = date("n", $MinX);
-		$minYear = date("Y", $MinX);
-		$maxMonth = date("n", $MaxX);
-		$maxYear = date("Y", $MaxX);
+		$minMonth = (int)date("n", $MinX);
+		$minYear = (int)date("Y", $MinX);
+		$maxMonth = (int)date("n", $MaxX);
+		$maxYear = (int)date("Y", $MaxX);
 		$m = ($maxYear-$minYear)*12 + ($maxMonth-$minMonth);
 		for($i = 0; $i <= $m; $i++)
 		{
@@ -393,6 +410,7 @@ else
 	$arCancelY = Array();
 	$arDelivY = Array();
 	$arStatusY = Array();
+	$arPriceY = [];
 
 	if($arFind["filter_by"] == "weekday")
 	{
@@ -421,32 +439,42 @@ else
 
 		if($arFind["mode"] == "count")
 		{
-			if($arFind["find_all"] == "Y")
+			if (($arFind['find_all'] ?? null) === 'Y')
 			{
-				$arY[] = intval($v["COUNT"]);
-				$arCountY[] = intval($v["COUNT"]);
+				$fieldValue = (int)($v['COUNT'] ?? 0);
+				$arY[] = $fieldValue;
+				$arCountY[] = $fieldValue;
+				unset($fieldValue);
 			}
-			if($arFind["find_payed"] == "Y")
+			if (($arFind['find_payed'] ?? null) === 'Y')
 			{
-				$arY[] = intval($v["PAYED"]);
-				$arPayedY[] = intval($v["PAYED"]);
+				$fieldValue = (int)($v['PAYED'] ?? 0);
+				$arY[] = $fieldValue;
+				$arPayedY[] = $fieldValue;
+				unset($fieldValue);
 			}
-			if($arFind["find_allow_delivery"] == "Y")
+			if (($arFind['find_allow_delivery'] ?? null) === 'Y')
 			{
-				$arY[] = intval($v["ALLOW_DELIVERY"]);
-				$arDelivY[] = intval($v["ALLOW_DELIVERY"]);
+				$fieldValue = (int)($v['ALLOW_DELIVERY'] ?? 0);
+				$arY[] = $fieldValue;
+				$arDelivY[] = $fieldValue;
+				unset($fieldValue);
 			}
-			if($arFind["find_canceled"] == "Y")
+			if (($arFind['find_canceled'] ?? null) === 'Y')
 			{
-				$arY[] = intval($v["CANCELED"]);
-				$arCancelY[] = intval($v["CANCELED"]);
+				$fieldValue = (int)($v['CANCELED'] ?? 0);
+				$arY[] = $fieldValue;
+				$arCancelY[] = $fieldValue;
+				unset($fieldValue);
 			}
 			foreach($arStatus as $k1 => $v1)
 			{
-				if($arFind["find_status_".$k1] == "Y")
+				if (($arFind['find_status_' . $k1] ?? null) === 'Y')
 				{
-					$arY[] = intval($v["STATUS"][$k1]);
-					$arStatusY[$k1][] = intval($v["STATUS"][$k1]);
+					$fieldValue = (int)($v['STATUS'][$k1] ?? 0);
+					$arY[] = $fieldValue;
+					$arStatusY[$k1][] = $fieldValue;
+					unset($fieldValue);
 				}
 			}
 		}
@@ -454,32 +482,42 @@ else
 		{
 			foreach($arCurrency as $k1 => $v1)
 			{
-				if($arFind["find_all_".$k1] == "Y")
+				if (($arFind['find_all_' . $k1] ?? null) === 'Y')
 				{
-					$arY[] = roundEx($v["PRICE"][$k1], SALE_VALUE_PRECISION);
-					$arPriceY[$k1][] = roundEx($v["PRICE"][$k1], SALE_VALUE_PRECISION);
+					$fieldValue = round($v['PRICE'][$k1] ?? 0, SALE_VALUE_PRECISION);
+					$arY[] = $fieldValue;
+					$arPriceY[$k1][] = $fieldValue;
+					unset($fieldValue);
 				}
-				if($arFind["find_payed_".$k1] == "Y")
+				if (($arFind['find_payed_' . $k1] ?? null) === 'Y')
 				{
-					$arY[] = roundEx($v["PAYED"][$k1], SALE_VALUE_PRECISION);
-					$arPayedY[$k1][] = roundEx($v["PAYED"][$k1], SALE_VALUE_PRECISION);
+					$fieldValue = round($v['PAYED'][$k1] ?? 0, SALE_VALUE_PRECISION);
+					$arY[] = $fieldValue;
+					$arPayedY[$k1][] = $fieldValue;
+					unset($fieldValue);
 				}
-				if($arFind["find_allow_delivery_".$k1] == "Y")
+				if (($arFind['find_allow_delivery_' . $k1] ?? null) === 'Y')
 				{
-					$arY[] = roundEx($v["ALLOW_DELIVERY"][$k1], SALE_VALUE_PRECISION);
-					$arDelivY[$k1][] = roundEx($v["ALLOW_DELIVERY"][$k1], SALE_VALUE_PRECISION);
+					$fieldValue = round($v['ALLOW_DELIVERY'][$k1] ?? 0, SALE_VALUE_PRECISION);
+					$arY[] = $fieldValue;
+					$arDelivY[$k1][] = $fieldValue;
+					unset($fieldValue);
 				}
-				if($arFind["find_canceled_".$k1] == "Y")
+				if (($arFind['find_canceled_' . $k1] ?? null) === 'Y')
 				{
-					$arY[] = roundEx($v["CANCELED"][$k1], SALE_VALUE_PRECISION);
-					$arCancelY[$k1][] = roundEx($v["CANCELED"][$k1], SALE_VALUE_PRECISION);
+					$fieldValue = round($v['CANCELED'][$k1] ?? 0, SALE_VALUE_PRECISION);
+					$arY[] = $fieldValue;
+					$arCancelY[$k1][] = $fieldValue;
+					unset($fieldValue);
 				}
 				foreach($arStatus as $k2 => $v2)
 				{
-					if($arFind["find_status_".$k2."_".$k1] == "Y")
+					if (($arFind['find_status_' . $k2 . '_' . $k1] ?? null) === 'Y')
 					{
-						$arY[] = roundEx($v["STATUS"][$k2][$k1], SALE_VALUE_PRECISION);
-						$arStatusY[$k2][$k1][] = roundEx($v["STATUS"][$k2][$k1], SALE_VALUE_PRECISION);
+						$fieldValue = round($v["STATUS"][$k2][$k1] ?? 0, SALE_VALUE_PRECISION);
+						$arY[] = $fieldValue;
+						$arStatusY[$k2][$k1][] = $fieldValue;
+						unset($fieldValue);
 					}
 				}
 			}
@@ -537,6 +575,7 @@ EchoGraphData($arrayX, $MinX, $MaxX, $arrayY, $MinY, $MaxY, $arX, $arY);
 die();
 */
 
+$arrTTF_FONT = false;
 if (($arFind["filter_by"]=="month" || $arFind["filter_by"]=="weekday") && LANGUAGE_ID!="en")
 {
 	$arrTTF_FONT["X"] = array(

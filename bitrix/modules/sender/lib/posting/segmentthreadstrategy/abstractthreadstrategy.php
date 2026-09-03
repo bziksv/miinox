@@ -9,6 +9,7 @@ use Bitrix\Main\DB\SqlQueryException;
 use Bitrix\Main\ORM\Query\Result;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Sender\Internals\Model\GroupThreadTable;
+use Bitrix\Sender\Internals\SqlBatch;
 use Bitrix\Sender\Posting\Locker;
 use Bitrix\Sender\PostingRecipientTable;
 
@@ -29,29 +30,27 @@ abstract class AbstractThreadStrategy implements ThreadStrategy
 
 
 	/**
+	 * Insert new group threads with ignore of conflicts
 	 *
-	 * @return array
+	 * @return void
 	 */
 	public function fillThreads(): void
 	{
-		$tableName = GroupThreadTable::getTableName();
-
 		$insertData = [];
+
+		\CTimeZone::Disable();
 		for ($thread = 0; $thread < static::THREADS_COUNT; $thread++)
 		{
-			$insertData[] = '(' . $thread . ', ' . $this->groupStateId . ', \'' . static::THREADS_COUNT . '\', 0)';
+			$insertData[] = [
+				'THREAD_ID' => $thread,
+				'GROUP_STATE_ID' => $this->groupStateId,
+				'THREAD_TYPE' => static::THREADS_COUNT,
+				'EXPIRE_AT' => new DateTime(),
+			];
 		}
-		$query = '
-				INSERT INTO `' . $tableName . '`(THREAD_ID, GROUP_STATE_ID, THREAD_TYPE, STEP)
-					VALUES ' . implode(',', $insertData) . '
-							';
 
-		try
-		{
-			Application::getConnection()->query($query);
-		} catch (SqlQueryException $e)
-		{
-		}
+		SqlBatch::insert(GroupThreadTable::getTableName(), $insertData);
+		\CTimeZone::Enable();
 	}
 
 	/**
@@ -67,6 +66,8 @@ abstract class AbstractThreadStrategy implements ThreadStrategy
 		{
 			return self::THREAD_UNAVAILABLE;
 		}
+
+		\CTimeZone::Disable();
 		$thread = GroupThreadTable::getList(
 			[
 				"select" => [
@@ -89,6 +90,7 @@ abstract class AbstractThreadStrategy implements ThreadStrategy
 				"limit" => 1
 			]
 		)->fetch();
+		\CTimeZone::Enable();
 
 		if (!isset($thread["THREAD_ID"]))
 		{
@@ -154,6 +156,8 @@ abstract class AbstractThreadStrategy implements ThreadStrategy
 
 		try
 		{
+			\CTimeZone::Disable();
+
 			$counter = (int)($status === GroupThreadTable::STATUS_IN_PROGRESS);
 			$tableName = GroupThreadTable::getTableName();
 			$expireAt = (new \DateTime())->modify("+10 minutes")->format('Y-m-d H:i:s');
@@ -166,9 +170,14 @@ abstract class AbstractThreadStrategy implements ThreadStrategy
 			THREAD_ID = ' . $this->threadId . ' 
 			AND GROUP_STATE_ID = ' . $this->groupStateId;
 			Application::getConnection()->query($updateQuery);
+
 		} catch (\Exception $e)
 		{
 			return false;
+		}
+		finally
+		{
+			\CTimeZone::Enable();
 		}
 
 		return true;
@@ -259,7 +268,8 @@ abstract class AbstractThreadStrategy implements ThreadStrategy
 		}
 
 		$tableName = GroupThreadTable::getTableName();
-		$query = 'DELETE FROM `' . $tableName . '` WHERE GROUP_STATE_ID=' . intval($this->groupStateId);
+		$sqlHelper = Application::getConnection()->getSqlHelper();
+		$query = 'DELETE FROM ' . $sqlHelper->quote($tableName) . ' WHERE GROUP_STATE_ID=' . intval($this->groupStateId);
 		try
 		{
 			Application::getConnection()->query($query);

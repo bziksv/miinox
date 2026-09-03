@@ -10,6 +10,8 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Security\Random;
 use Bitrix\Main\Entity\ReferenceField;
 use Bitrix\Rest\APAuth\PermissionTable;
+use Bitrix\Rest\Engine\Access\HoldEntity;
+use Bitrix\Rest\Enum\Integration\ElementCodeType;
 use Bitrix\Rest\Lang;
 use Bitrix\Rest\PlacementLangTable;
 use Bitrix\Rest\Preset\Data\Element;
@@ -24,6 +26,8 @@ use Bitrix\Rest\OAuthService;
 use Bitrix\Rest\Analytic;
 use Bitrix\Im\Model\BotTable;
 use Bitrix\Im\Bot;
+use Bitrix\Rest\Internal;
+use Bitrix\Main;
 
 /**
  * Class Provider
@@ -31,8 +35,10 @@ use Bitrix\Im\Bot;
  */
 class Provider
 {
-	public const URI_METHOD_INFO = 'https://util.bitrixsoft.com/example_b24/redirect.php';
-	public const URI_EXAMPLE_DOWNLOAD = 'https://util.bitrixsoft.com/example_b24/';
+	/** @deprecated */
+	public const URI_METHOD_INFO = '';
+	/** @deprecated */
+	public const URI_EXAMPLE_DOWNLOAD = '';
 	public const APP_MODE_SERVER = 'SERVER';
 	public const APP_MODE_ZIP = 'ZIP';
 
@@ -45,7 +51,7 @@ class Provider
 	 * @throws \Bitrix\Main\LoaderException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 */
-	public static function deleteIntegration($id)
+	public static function deleteIntegration($id, ?int $userId = null)
 	{
 		$result = [
 			'result' => 'success'
@@ -62,7 +68,9 @@ class Provider
 					'APP_ID',
 					'BOT_ID',
 					'PASSWORD_ID',
-					'USER_ID'
+					'USER_ID',
+					'ELEMENT_CODE',
+					'PASS' => 'PASSWORD.PASSWORD'
 				],
 				'limit' => 1
 			]
@@ -70,7 +78,8 @@ class Provider
 		if ($integration = $res->fetch())
 		{
 			global $USER;
-			if ($integration['USER_ID'] === $USER->GetID() || \CRestUtil::isAdmin())
+			$userId ??= $USER instanceof \CUser ? $USER->GetID() : null;
+			if (($userId !== null && (int)$integration['USER_ID'] === (int)$userId) || \CRestUtil::isAdmin())
 			{
 				$filterEvent = [
 					'=INTEGRATION_ID' => $integration['ID']
@@ -165,6 +174,14 @@ class Provider
 					if (!$res->isSuccess())
 					{
 						$errorList[] = $res->getErrorMessages();
+					}
+					else if (ElementCodeType::IN_WEBHOOK->value === $integration['ELEMENT_CODE'])
+					{
+						if (HoldEntity::is(HoldEntity::TYPE_WEBHOOK, $integration['PASS']))
+						{
+							HoldEntity::delete(HoldEntity::TYPE_WEBHOOK, $integration['PASS']);
+							HoldEntity::checkBlockCode(HoldEntity::TYPE_WEBHOOK);
+						}
 					}
 				}
 			}
@@ -339,32 +356,43 @@ class Provider
 	 * @throws \Bitrix\Main\LoaderException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 */
-	public static function saveIntegration($requestData, $elementCode = '', $id = 0)
+	public static function saveIntegration($requestData, $elementCode = '', $id = 0, ?int $userId = null)
 	{
-		global $USER;
 		$result = [
 			'status' => true,
 		];
 		$itemsEvent = [];
 		$errorList = [];
 		$id = (isset($requestData['ID']) && intVal($requestData['ID']) > 0) ? intVal($requestData['ID']) : $id;
-		$userId = $GLOBALS['USER']->getID();
-		$isAdmin = \CRestUtil::isAdmin();
-
+		$userId = $userId ?? $GLOBALS['USER']->getID();
+		$user = Internal\Access\User\Model\RestUserModel::createFromId((int)$userId);
+		$isAdmin = $user->isAdmin();
 		$presetData = Element::get($elementCode);
+		$integrationData = $id > 0 ? IntegrationTable::getById($id)->fetch() : null;
 
-		if (
-			!$isAdmin
-			&&
-			(
-				$presetData['ADMIN_ONLY'] === 'Y'
-				|| $presetData['OPTIONS']['WIDGET_NEEDED'] !== 'D'
-				|| $presetData['OPTIONS']['APPLICATION_NEEDED'] !== 'D'
-			)
-		)
+		$presetData['OPTIONS']['IS_APPLICATION_PERSONAL'] = $requestData['IS_APPLICATION_PERSONAL'] ?? 'N';
+
+		try
+		{
+			$accessChecker = new Internal\Access\Preset\PresetAccessChecker($user);
+			if (empty($integrationData))
+			{
+				$accessChecker->ensureCanCreateOwn($presetData);
+			}
+			else if ((int)$integrationData['USER_ID'] === (int)$userId)
+			{
+				$accessChecker->ensureCanEditOwn($presetData);
+			}
+			else
+			{
+				$accessChecker->ensureCanEdit($presetData);
+			}
+		}
+		catch (Main\SystemException $e)
 		{
 			$result['status'] = false;
-			$result['errors'][] = Loc::getMessage('INTEGRATION_PRESET_PROVIDER_ERROR_ACCESS_DENIED');
+			$result['errors'][] = $e->getMessage();
+
 			return $result;
 		}
 
@@ -387,19 +415,19 @@ class Provider
 
 		$saveData = [
 			'ELEMENT_CODE' => $elementCode,
-			'USER_ID' => $USER->GetID(),
+			'USER_ID' => $userId,
 			'TITLE' => $requestData['TITLE'],
 			'SCOPE' => is_array($requestData['SCOPE']) ? $requestData['SCOPE'] : [],
-			'QUERY' => $requestData['QUERY'],
+			'QUERY' => $requestData['QUERY'] ?? '',
 			'OUTGOING_HANDLER_URL' => trim($requestData['OUTGOING_HANDLER_URL'] ?? null),
-			'OUTGOING_EVENTS' => is_array($requestData['OUTGOING_EVENTS']) ? $requestData['OUTGOING_EVENTS'] : [],
+			'OUTGOING_EVENTS' => isset($requestData['OUTGOING_EVENTS']) && is_array($requestData['OUTGOING_EVENTS']) ? $requestData['OUTGOING_EVENTS'] : [],
 			'APPLICATION_ONLY_API' => (isset($requestData['APPLICATION_ONLY_API']) && $requestData['APPLICATION_ONLY_API'] === 'Y') ? 'Y' : 'N',
 			'APPLICATION_NEEDED' => (isset($requestData['APPLICATION_NEEDED']) && $requestData['APPLICATION_NEEDED'] === 'Y') ? 'Y' : 'N',
 			'APPLICATION_EVENTS' => (isset($requestData['APPLICATION_EVENTS']) && is_array($requestData['APPLICATION_EVENTS'])) ? $requestData['APPLICATION_EVENTS'] : [],
-			'OUTGOING_NEEDED' => ($requestData['OUTGOING_NEEDED'] === 'Y') ? 'Y' : 'N',
-			'WIDGET_NEEDED' => ($requestData['WIDGET_NEEDED'] === 'Y') ? 'Y' : 'N',
+			'OUTGOING_NEEDED' => (isset($requestData['OUTGOING_NEEDED']) && $requestData['OUTGOING_NEEDED'] === 'Y') ? 'Y' : 'N',
+			'WIDGET_NEEDED' => (isset($requestData['WIDGET_NEEDED']) && $requestData['WIDGET_NEEDED'] === 'Y') ? 'Y' : 'N',
 			'WIDGET_HANDLER_URL' => trim($requestData['WIDGET_HANDLER_URL'] ?? null),
-			'WIDGET_LIST' => $requestData['WIDGET_LIST'],
+			'WIDGET_LIST' => $requestData['WIDGET_LIST'] ?? null,
 			'WIDGET_LANG_LIST' => (isset($requestData['WIDGET_LANG_LIST']) && is_array($requestData['WIDGET_LANG_LIST'])) ? $requestData['WIDGET_LANG_LIST'] : [],
 			'BOT_HANDLER_URL' => trim($requestData['BOT_HANDLER_URL'] ?? null)
 		];
@@ -450,22 +478,10 @@ class Provider
 
 			if (!$isAdd)
 			{
-				$resIntegration = IntegrationTable::getList(
-					[
-						'filter' => [
-							'ID' => $id
-						]
-					]
-				);
-				if ($integrationData = $resIntegration->fetch())
+				if (!empty($integrationData))
 				{
-					if (!$isAdmin && $integrationData['USER_ID'] != $userId)
-					{
-						$result['status'] = false;
-						$result['errors'][] = Loc::getMessage('INTEGRATION_PRESET_PROVIDER_ERROR_ACCESS_DENIED');
-						return $result;
-					}
-					if ($integrationData['PASSWORD_ID'] > 0 && ($requestData['MODE'] === 'GEN_SAVE' || $integrationData['USER_ID'] != $userId))
+					if (
+						$integrationData['PASSWORD_ID'] > 0 && ($requestData['MODE'] === 'GEN_SAVE' || $integrationData['USER_ID'] != $userId))
 					{
 						Analytic::logToFile(
 							'integrationRegen',
@@ -608,7 +624,7 @@ class Provider
 									$res = EventTable::add(
 										[
 											'APP_ID' => '',
-											'EVENT_NAME' => toUpper($event),
+											'EVENT_NAME' => mb_strtoupper($event),
 											'EVENT_HANDLER' => $eventHandler,
 											'APPLICATION_TOKEN' => $clientId,
 											'USER_ID' => 0,
@@ -646,7 +662,7 @@ class Provider
 
 			if (!isset($presetData['QUERY_NEEDED']) || $presetData['QUERY_NEEDED'] !== 'D')
 			{
-				$webhook = static::getWebHook($saveData['SCOPE'], $saveData['PASSWORD_ID'] ?? null, $title);
+				$webhook = static::getWebHook($saveData['SCOPE'], $saveData['PASSWORD_ID'] ?? null, $title, $userId);
 				$saveData['PASSWORD_ID'] = $webhook['ID'];
 			}
 
@@ -775,14 +791,14 @@ class Provider
 			{
 				$app = static::saveApp(
 					[
-						'ID' => $saveData['APP_ID'],
+						'ID' => $saveData['APP_ID'] ?? 0,
 						'FIELDS' => [
 							'URL' => trim($requestData['APPLICATION_URL_HANDLER']),
 							'URL_INSTALL' => trim($requestData['APPLICATION_URL_INSTALL']),
 							'SCOPE' => $saveData['SCOPE'],
 							'ONLY_API' => ($saveData['APPLICATION_ONLY_API'] == 'Y') ? 'Y' : 'N',
 							'MOBILE' => ($saveData['APPLICATION_ONLY_API'] != 'Y'
-								&& $requestData['APPLICATION_MOBILE'] === 'Y') ? 'Y' : 'N',
+								&& ($requestData['APPLICATION_MOBILE'] ?? 'N') === 'Y') ? 'Y' : 'N',
 							'APP_NAME' => $saveData['TITLE'],
 						],
 						'LANG_NAME' => ($saveData['APPLICATION_ONLY_API'] != 'Y' && is_array($requestData['APPLICATION_LANG_NAME'])) ?
@@ -790,11 +806,11 @@ class Provider
 											:
 											[],
 						'INTEGRATION_CODE' => $saveData['ELEMENT_CODE'],
-						'INTEGRATION_ID' => $saveData['ID']
+						'INTEGRATION_ID' => $saveData['ID'] ?? 0
 					]
 				);
 
-				if ($app['ID'] > 0)
+				if (!empty($app['ID']))
 				{
 					$saveData['APP_ID'] = $app['ID'];
 				}
@@ -907,14 +923,14 @@ class Provider
 				$appFields = [
 					'URL' => $data['FIELDS']['URL'],
 					'URL_INSTALL' => $data['FIELDS']['URL_INSTALL'],
-					'CLIENT_ID' => $data['FIELDS']['CLIENT_ID'],
-					'CODE' => $data['FIELDS']['CLIENT_ID'],
+					'CLIENT_ID' => $data['FIELDS']['CLIENT_ID'] ?? '',
+					'CODE' => $data['FIELDS']['CLIENT_ID'] ?? '',
 					'SCOPE' => implode(',', $data['FIELDS']['SCOPE']),
 					'STATUS' => AppTable::STATUS_LOCAL,
 					'APP_NAME' => $data['FIELDS']['APP_NAME'],
 					'MOBILE' => $data['FIELDS']['MOBILE'],
 				];
-				if ($app['ID'] > 0)
+				if (!empty($app['ID']))
 				{
 					$result = AppTable::update($app['ID'], $appFields);
 				}
@@ -997,9 +1013,21 @@ class Provider
 							{
 								Sender::bind('rest', 'OnRestAppInstall');
 							}
+
+							$bindUserReady = EventTable::add(
+								[
+									'APP_ID' => $return['ID'],
+									'EVENT_NAME' => 'ONAPPUSERREADY',
+									'EVENT_HANDLER' => $data['FIELDS']['URL_INSTALL'],
+								]
+							);
+							if ($bindUserReady->isSuccess())
+							{
+								Sender::bind('rest', 'OnRestAppUserReady');
+							}
 						}
 
-						if ($app['ID'] <= 0)
+						if (empty($app['ID']))
 						{
 							AppTable::install($return['ID']);
 						}
@@ -1021,7 +1049,7 @@ class Provider
 				$errorList[] = $e->getMessage();
 			}
 
-			if (empty($errorList) && $data['PLACEMENTS'])
+			if (empty($errorList) && !empty($data['PLACEMENTS']))
 			{
 				$title = '';
 				$placementListOld = [];
@@ -1208,7 +1236,7 @@ class Provider
 		return $return;
 	}
 
-	private static function getWebHook($scopeList = [], $id = 0, $title = '')
+	private static function getWebHook($scopeList = [], $id = 0, $title = '', ?int $userId = null)
 	{
 		$password = [];
 		$id = intVal($id);
@@ -1280,7 +1308,7 @@ class Provider
 
 		if (empty($password))
 		{
-			$userId = $GLOBALS['USER']->GetID();
+			$userId = $userId ?? $GLOBALS['USER']->GetID();
 			$passwordCreat = PasswordTable::createPassword(
 				$userId,
 				$scopeList,

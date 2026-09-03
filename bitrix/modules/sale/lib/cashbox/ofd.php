@@ -16,6 +16,8 @@ abstract class Ofd
 	protected const EVENT_ON_GET_CUSTOM_OFD_HANDLERS = 'OnGetCustomOfdHandlers';
 	private const BX_OFD_PREFIX = 'bx_';
 
+	protected Cashbox $cashbox;
+
 	/**
 	 * @return array
 	 * @throws NotImplementedException
@@ -63,9 +65,11 @@ abstract class Ofd
 		];
 	}
 
-	/**
-	 * @return string
-	 */
+	final public static function doesHandlerExist(string $handlerClass): bool
+	{
+		return array_key_exists($handlerClass, self::getHandlerList());
+	}
+
 	final public static function getCode(): string
 	{
 		$reflectionOfdClass = new \ReflectionClass(static::class);
@@ -85,7 +89,7 @@ abstract class Ofd
 	public static function create(Cashbox $cashbox)
 	{
 		$handler = $cashbox->getField('OFD');
-		if (class_exists($handler))
+		if (is_string($handler) && $handler && self::doesHandlerExist($handler) && class_exists($handler))
 		{
 			return new $handler($cashbox);
 		}

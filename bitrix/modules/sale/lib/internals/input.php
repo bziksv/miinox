@@ -552,25 +552,25 @@ abstract class Base
 
 		$input['REQUIRED'] ??= 'N';
 		$input['MULTIPLE'] ??= 'N';
+		$input['NAME'] ??= $input['LABEL'];
+		$input['NAME'] ??= '';
 
 		if ($value === null && isset($input['VALUE']))
 		{
 			$value = $input['VALUE'];
 		}
 
-		$requireError = [
-			'REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'),
-		];
-
 		if ($input['MULTIPLE'] === 'Y')
 		{
-			if ($input['REQUIRED'] === 'Y')
+			if ($input['REQUIRED'] === 'Y' || $input['REQUIRED'] === true)
 			{
 				foreach (static::asMultiple($value) as $value)
 				{
 					if ($value === '' || $value === null)
 					{
-						$errors = $requireError;
+						$errors['REQUIRED'] = isset($input['NAME'])
+							? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+							: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE');
 						break;
 					}
 				}
@@ -582,9 +582,11 @@ abstract class Base
 
 			if ($value === '' || $value === null)
 			{
-				if ($input['REQUIRED'] === 'Y')
+				if ($input['REQUIRED'] === 'Y' || $input['REQUIRED'] === true)
 				{
-					$errors = $requireError;
+					$errors['REQUIRED'] = isset($input['NAME'])
+						? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+						: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE');
 				}
 			}
 		}
@@ -1047,13 +1049,17 @@ class EitherYN extends Base
 	public static function getErrorSingle(array $input, $value)
 	{
 		$input['REQUIRED'] ??= 'N';
+		$input['NAME'] ??= (string)($input['LABEL'] ?? '');
+
 		if (
-			$input['REQUIRED'] === 'Y'
+			($input['REQUIRED'] === 'Y' || $input['REQUIRED'] === true)
 			&& ($value === '' || $value === null)
 		)
 		{
 			return [
-				'REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'),
+				'REQUIRED' => isset($input['NAME'])
+					? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+					: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE'),
 			];
 		}
 
@@ -1073,6 +1079,9 @@ class EitherYN extends Base
 	{
 		$errors = parent::getRequiredError($input, $value);
 		$input['REQUIRED'] ??= 'N';
+		$input['NAME'] ??= $input['LABEL'];
+		$input['NAME'] ??= '';
+
 		if (!$errors)
 		{
 			if (
@@ -1080,7 +1089,11 @@ class EitherYN extends Base
 				&& $input['REQUIRED'] === 'Y'
 			)
 			{
-				$errors = ['REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR')];
+				$errors = [
+					'REQUIRED' => isset($input['NAME'])
+						? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+						: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE'),
+				];
 			}
 		}
 		return $errors;
@@ -1329,6 +1342,9 @@ class File extends Base
 	 * @param array $files - $_FILES
 	 * @return array       - post + fixed files
 	 */
+
+	private static array $temporaryFiles = [];
+
 	static function getPostWithFiles(array $post, array $files)
 	{
 		foreach ($files as $key => $file)
@@ -1430,8 +1446,24 @@ class File extends Base
 			&& isset($value['error'])
 			&& $value['error'] == UPLOAD_ERR_OK
 			&& isset($value['tmp_name'])
-			&& is_uploaded_file($value['tmp_name'])
+			&& (
+				is_uploaded_file($value['tmp_name'])
+				|| self::isTemporaryFile($value['tmp_name'])
+			)
 		;
+	}
+
+	public static function isTemporaryFile(string $temporaryName): bool
+	{
+		return in_array($temporaryName, self::$temporaryFiles, true);
+	}
+
+	public static function setTemporaryFile(string $temporaryName): void
+	{
+		if (!in_array($temporaryName, self::$temporaryFiles, true))
+		{
+			self::$temporaryFiles[] = $temporaryName;
+		}
 	}
 
 	// input methods ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1559,15 +1591,28 @@ class File extends Base
 	public static function getErrorSingle(array $input, $value)
 	{
 		$input['REQUIRED'] ??= 'N';
+		$input['NAME'] ??= $input['LABEL'];
+		$input['NAME'] ??= '';
+
 		if (is_array($value))
 		{
 			if (isset($value['DELETE']))
 			{
 				return $input['REQUIRED'] === 'Y'
-					? array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'))
-					: array();
+					? [
+						'REQUIRED' => isset($input['NAME'])
+							? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+							: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE'),
+					]
+					: [];
 			}
-			elseif (isset($value['tmp_name'])  && is_uploaded_file($value['tmp_name']))
+			elseif (
+				isset($value['tmp_name'])
+				&& (
+					is_uploaded_file($value['tmp_name'])
+					|| self::isTemporaryFile($value['tmp_name'])
+				)
+			)
 			{
 				$errors = array();
 
@@ -1596,8 +1641,12 @@ class File extends Base
 					case UPLOAD_ERR_NO_FILE:
 
 						return $input['REQUIRED'] === 'Y' && (! is_numeric($value['ID']) || isset($value['DELETE']))
-							? array('REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR'))
-							: array();
+							? [
+								'REQUIRED' => isset($input['NAME'])
+									? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+									: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE'),
+							]
+							: [];
 
 					// TODO case UPLOAD_ERR_NO_TMP_DIR  UPLOAD_ERR_CANT_WRITE  UPLOAD_ERR_EXTENSION
 					default: return array('INVALID' => Loc::getMessage('INPUT_INVALID_ERROR'));
@@ -1946,11 +1995,18 @@ class Address extends Base
 	public static function getErrorSingle(array $input, $value)
 	{
 		$input['REQUIRED'] ??= 'N';
+		$input['NAME'] ??= $input['LABEL'];
+		$input['NAME'] ??= '';
+
 		if ($input['REQUIRED'] === 'Y')
 		{
 			if (!(is_array($value) && !empty($value)))
 			{
-				return ['REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR')];
+				return [
+					'REQUIRED' => isset($input['NAME'])
+						? Loc::getMessage('INPUT_REQUIRED_ERROR_MSGVER_1', ['#NAME#' => $input['NAME']])
+						: Loc::getMessage('INPUT_REQUIRED_ERROR_WITHOUT_FIELD_TITLE'),
+				];
 			}
 		}
 
@@ -2076,7 +2132,7 @@ class ProductCategories extends Base
 		else
 		{
 			$addCategoryScript = "window.InS".md5('SECTIONS_IDS')."=function(id, name){{$input['JS_HANDLER']}.addRestrictionProductSection(id, name, '{$input['ID']}', this);};";
-			$url = 'cat_section_search.php?lang=ru&m=y&n=SECTIONS_IDS';
+			$url = 'cat_section_search.php?lang=' . LANGUAGE_ID . '&m=y&n=SECTIONS_IDS';
 		}
 
 		$editSection = "
@@ -2090,7 +2146,7 @@ class ProductCategories extends Base
 				{$addInputTranslate}
 			</a>
 			<br><br>
-			<script type='text/javascript'>
+			<script>
 				{$addCategoryScript}
 				BX.message({SALE_PRODUCT_CATEGORY_INP_DELETE: '{$deleteInputTranslate}'});
 			</script>
@@ -2249,7 +2305,7 @@ class ConcreteProduct extends Base
 				{$addInputTranslate}
 			</a>
 			<br><br>
-			<script type='text/javascript'>
+			<script>
 				{$addProductScript}
 				BX.message({SALE_CONCRETE_PRODUCT_INP_DELETE: '$deleteInputTranslate'});
 			</script>";

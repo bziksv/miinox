@@ -4,7 +4,6 @@
  * @global CMain $APPLICATION
  */
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/culture_admin.php");
 
 if(!$USER->CanDoOperation('edit_other_settings') && !$USER->CanDoOperation('view_other_settings'))
@@ -114,7 +113,7 @@ while($culture = $cultureList->fetch())
 	$id = htmlspecialcharsbx($culture["ID"]);
 	$name = htmlspecialcharsbx($culture["NAME"]);
 
-	$row = &$adminList->AddRow($id, $culture, "culture_edit.php?ID=".$id."&lang=".LANGUAGE_ID, Loc::getMessage("LANG_EDIT_TITLE"));
+	$row = $adminList->AddRow($id, $culture, "culture_edit.php?ID=".$id."&lang=".LANGUAGE_ID, Loc::getMessage("LANG_EDIT_TITLE"));
 	$row->AddViewField("ID", $id);
 	$row->AddField("NAME", '<a href="culture_edit.php?ID='.$id.'&amp;lang='.LANGUAGE_ID.'" title="'.Loc::getMessage("LANG_EDIT_TITLE").'">'.$name.'</a>', $name);
 	$row->AddInputField("CODE");

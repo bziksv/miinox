@@ -134,7 +134,7 @@ abstract class EntityProperty
 	 * @throws Main\ObjectPropertyException
 	 * @throws Main\SystemException
 	 */
-	public function __construct(array $property, array $relation = null)
+	public function __construct(array $property, ?array $relation = null)
 	{
 		if (isset($property['SETTINGS']) && is_array($property['SETTINGS']))
 		{
@@ -159,7 +159,10 @@ abstract class EntityProperty
 			}
 		}
 
-		$this->fields['DEFAULT_VALUE'] = $this->normalizeValue($this->fields['DEFAULT_VALUE']);
+		if (isset($this->fields['DEFAULT_VALUE']))
+		{
+			$this->fields['DEFAULT_VALUE'] = $this->normalizeValue($this->fields['DEFAULT_VALUE']);
+		}
 	}
 
 	/**
@@ -202,13 +205,7 @@ abstract class EntityProperty
 
 				try
 				{
-					$result = Main\Web\Json::decode(
-						Main\Text\Encoding::convertEncoding(
-							$value,
-							SITE_CHARSET,
-							'UTF-8'
-						)
-					);
+					$result = Main\Web\Json::decode($value);
 				}
 				catch (\Exception $exception)
 				{
@@ -222,7 +219,7 @@ abstract class EntityProperty
 		}
 		elseif ($this->fields['TYPE'] === "STRING")
 		{
-			if ($this->fields['IS_EMAIL'] === "Y" && !empty($value))
+			if (isset($this->fields['IS_EMAIL']) && $this->fields['IS_EMAIL'] === "Y" && !empty($value))
 			{
 				$value = trim((string)$value);
 			}
@@ -257,7 +254,8 @@ abstract class EntityProperty
 		$dbRes = Internals\OrderPropsVariantTable::getList([
 			'select' => ['VALUE', 'NAME'],
 			'filter' => ['ORDER_PROPS_ID' => $this->getId()],
-			'order' => ['SORT' => 'ASC']
+			'order' => ['SORT' => 'ASC'],
+			'cache' => ['ttl' => 86400],
 		]);
 
 		while ($data = $dbRes->fetch())
@@ -424,13 +422,13 @@ abstract class EntityProperty
 			{
 				foreach ($error as $message)
 				{
-					$result->addError(new ResultError($this->getField('NAME').' '.$message));
+					$result->addError(new ResultError($message));
 					$errors[$this->getId()][] = $message;
 				}
 			}
 			else
 			{
-				$result->addError(new ResultError($this->getName().' '.$error));
+				$result->addError(new ResultError($error));
 				$errors[$this->getId()][] = $error;
 			}
 		}
@@ -462,7 +460,9 @@ abstract class EntityProperty
 				{
 					if (Input\File::isUploadedSingle($file))
 					{
-						$fileId = \CFile::SaveFile(array('MODULE_ID' => 'sale') + $file, 'sale/order/properties');
+						$fileId = \CFile::SaveFile(
+							['MODULE_ID' => 'sale'] + $file, 'sale/order/properties',
+						);
 						if (is_numeric($fileId))
 						{
 							$file = $fileId;

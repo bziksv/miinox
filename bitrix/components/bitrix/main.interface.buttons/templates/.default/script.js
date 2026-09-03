@@ -1,3 +1,4 @@
+/* eslint-disable dot-notation */
 BX.namespace('BX.Main');
 
 if (typeof(BX.Main.interfaceButtons) === 'undefined')
@@ -105,6 +106,9 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 		;
 		this.tmp = {};
 		this.itemData = new WeakMap();
+		this.lastInputKey = null;
+		this.justFocused = false;
+		this.ariaCurrent = BX.Type.isStringFilled(params.ariaCurrent) ? params.ariaCurrent : 'page';
 
 		this.handleMoreMenuItemMouseEnter = this.handleMoreMenuItemMouseEnter.bind(this);
 
@@ -114,8 +118,13 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 		 * Public methods and properties
 		 */
 		return {
+			addMenuItem: this.addMenuItem.bind(this),
+			deleteMenuItem: this.deleteMenuItem.bind(this),
+			updateMenuItemText: this.updateMenuItemText.bind(this),
+
 			getItemById: this.getItemById.bind(this),
 			getAllItems: this.getAllItems.bind(this),
+			getAllItemsData: this.getAllItemsData.bind(this),
 			getHiddenItems: this.getHiddenItems.bind(this),
 			getVisibleItems: this.getVisibleItems.bind(this),
 			getDisabledItems: this.getDisabledItems.bind(this),
@@ -133,11 +142,14 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			showMoreMenu: this.showMoreMenu.bind(this),
 			closeMoreMenu: this.closeMoreMenu.bind(this),
 			refreshMoreMenu: this.refreshMoreMenu.bind(this),
+			reset: this.reset.bind(this),
 
 			getCurrentSettings: this.getCurrentSettings.bind(this),
 			saveSettings: this.saveSettings.bind(this),
 			updateCounter: this.updateCounter.bind(this),
 			getActive: this.getActive.bind(this),
+			setActive: this.setActive.bind(this),
+			unsetActive: this.unsetActive.bind(this),
 			isDisabled: this.isDisabled.bind(this),
 			isVisibleItem: this.isVisibleItem.bind(this),
 			isEditEnabled: this.isEditEnabled.bind(this),
@@ -217,9 +229,10 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 			this.adjustMoreButtonPosition();
 			this.bindEventsOnMoreButton();
-			this.bindOnResizeFrame();
+			this.bindOnResize();
 
 			BX.Event.bind(this.getContainer(), 'click', BX.delegate(this._onDocumentClick, this));
+			BX.Event.bind(this.getContainer(), 'keydown', this.handleKeyDown.bind(this));
 			BX.addCustomEvent("onPullEvent-main", BX.delegate(this._onPush, this));
 
 			this.updateMoreButtonCounter();
@@ -495,7 +508,90 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			if (this.isEditEnabled() && this.getMoreMenu())
 			{
 				this.getMoreMenu().getPopupWindow().setAutoHide(false);
+				this.getMoreMenu().getPopupWindow().setClosingByEsc(false);
 			}
+		},
+
+		handleKeyDown(event)
+		{
+			if (event.metaKey || event.ctrlKey || event.altKey)
+			{
+				return;
+			}
+
+			this.lastInputKey = event.key;
+
+			switch (event.key)
+			{
+				case 'ArrowUp':
+				{
+					const currentItem = this.getItem(event.target);
+					if (currentItem)
+					{
+						const currentItemData = this.getItemData(currentItem);
+						if ((currentItemData && currentItemData['HAS_MENU']) || currentItem === this.getMoreButton())
+						{
+							currentItem.click();
+						}
+					}
+
+					event.preventDefault();
+					break;
+				}
+
+				case 'ArrowDown':
+				{
+					const currentItem = this.getItem(event.target);
+					if (currentItem)
+					{
+						const currentItemData = this.getItemData(currentItem);
+						if ((currentItemData && currentItemData['HAS_MENU']) || currentItem === this.getMoreButton())
+						{
+							currentItem.click();
+						}
+					}
+
+					event.preventDefault();
+					break;
+				}
+
+				case 'ArrowLeft':
+				{
+					BX.UI.Accessibility.FocusNavigator.focusPrevious(this.getContainer());
+					event.preventDefault();
+					break;
+				}
+
+				case 'ArrowRight':
+				{
+					BX.UI.Accessibility.FocusNavigator.focusNext(this.getContainer());
+					event.preventDefault();
+					break;
+				}
+
+				case 'Home':
+				case 'PageUp':
+				{
+					BX.UI.Accessibility.FocusNavigator.focusFirst(this.getContainer());
+					event.preventDefault();
+					break;
+				}
+
+				case 'End':
+				case 'PageDown':
+				{
+					BX.UI.Accessibility.FocusNavigator.focusLast(this.getContainer());
+					event.preventDefault();
+					break;
+				}
+
+				default:
+				{
+					break;
+				}
+			}
+
+			this.lastInputKey = null;
 		},
 
 		/**
@@ -570,6 +666,122 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			return result;
 		},
 
+		setActive: function(itemId)
+		{
+			const items = this.getAllItemsData();
+			this.setActiveInternal(items, itemId);
+			if (this.isActiveInMoreMenu())
+			{
+				this.activateItem(this.moreButton);
+			}
+			else
+			{
+				this.deactivateItem(this.moreButton);
+			}
+		},
+
+		setActiveInternal: function(subItems, itemId, rootPath = [])
+		{
+			for (const subItem of subItems)
+			{
+				if (subItem['DATA_ID'] === itemId)
+				{
+					subItem['IS_ACTIVE'] = true;
+					subItem['IS_CURRENT'] = true;
+
+					this.activateItem(subItem.NODE);
+
+					if (BX.Type.isDomNode(subItem.NODE))
+					{
+						BX.Dom.attr(subItem.NODE.firstElementChild, 'aria-current', this.ariaCurrent);
+					}
+
+					if (subItem['IS_PINNED'] === true)
+					{
+						continue;
+					}
+
+					for (let index = rootPath.length - 1; index >= 0; index--)
+					{
+						const rootItem = rootPath[index];
+						const hasActiveSubItems = rootItem['ITEMS'].some((item) => {
+							return (
+								item['IS_ACTIVE'] === true
+								&& item['IS_PINNED'] !== true
+								&& item['IS_DELIMITER'] !== true
+							);
+						});
+
+						if (hasActiveSubItems)
+						{
+							rootItem['IS_ACTIVE'] = true;
+							this.activateItem(rootItem.NODE);
+						}
+					}
+				}
+
+				if (subItem['ITEMS'])
+				{
+					this.setActiveInternal(subItem['ITEMS'], itemId, [...rootPath, subItem]);
+				}
+			}
+		},
+
+		unsetActive: function(itemId)
+		{
+			const items = this.getAllItemsData();
+			this.unsetActiveInternal(items, itemId);
+			if (this.isActiveInMoreMenu())
+			{
+				this.activateItem(this.moreButton);
+			}
+			else
+			{
+				this.deactivateItem(this.moreButton);
+			}
+		},
+
+		unsetActiveInternal: function(subItems, itemId, parentItem = null)
+		{
+			for (const subItem of subItems)
+			{
+				if (subItem['DATA_ID'] === itemId || (parentItem !== null && parentItem['IS_ACTIVE'] === false))
+				{
+					subItem['IS_ACTIVE'] = false;
+					subItem['IS_CURRENT'] = false;
+
+					if (BX.Type.isDomNode(subItem.NODE))
+					{
+						BX.Dom.attr(subItem.NODE.firstElementChild, 'aria-current', null);
+					}
+
+					this.deactivateItem(subItem.NODE);
+				}
+
+				if (subItem['ITEMS'])
+				{
+					this.unsetActiveInternal(subItem['ITEMS'], itemId, subItem);
+				}
+
+				if (parentItem !== null)
+				{
+					const hasSelected = parentItem['ITEMS'].some((parentSubItem) => {
+						return (
+							parentSubItem['IS_ACTIVE'] === true
+							&& parentSubItem['IS_PINNED'] !== true
+							&& parentSubItem['IS_DELIMITER'] !== true
+						);
+					});
+
+					if (!hasSelected)
+					{
+						parentItem['IS_ACTIVE'] = false;
+						this.deactivateItem(parentItem.NODE);
+					}
+				}
+			}
+		},
+
 		/**
 		 * @param {HTMLElement} item
 		 * @return {boolean}
@@ -620,6 +832,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			{
 				const popup = menu.getPopupWindow();
 				popup.setAutoHide(false);
+				popup.setClosingByEsc(false);
 
 				BX.Dom.addClass(popup.getPopupContainer(), this.classEditState);
 			}
@@ -636,6 +849,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			{
 				const popup = menu.getPopupWindow();
 				popup.setAutoHide(true);
+				popup.setClosingByEsc(true);
 				BX.Dom.removeClass(popup.getPopupContainer(), this.classEditState);
 			}
 
@@ -799,27 +1013,32 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			return menu;
 		},
 
-		setHome: function()
+		addMenuItem: function(itemData)
 		{
-			const homeItem = this.getHomeItem();
-			if (!homeItem)
+			const item = this.createRootItem(itemData);
+			BX.Dom.append(item, this.listContainer);
+			this.initItem(item);
+		},
+
+		deleteMenuItem: function(itemElement)
+		{
+			this.itemData.delete(itemElement);
+			BX.Dom.remove(itemElement);
+		},
+
+		updateMenuItemText: function(itemElement, itemText)
+		{
+			if (!itemElement || !itemText)
 			{
 				return;
 			}
 
-			const { itemData, url: firstPageLink, firstVisibleItem } = homeItem;
-			if (!itemData)
-			{
-				return;
-			}
-
-			if (this.lastHomeLink !== firstPageLink)
-			{
-				this.saveOptions('firstPageLink', firstPageLink);
-				BX.onCustomEvent('BX.Main.InterfaceButtons:onFirstItemChange', [firstPageLink, firstVisibleItem]);
-			}
-
-			this.lastHomeLink = firstPageLink;
+			const itemData = this.getItemData(itemElement);
+			itemData.TEXT = itemText;
+			const item = this.getItemById(itemData.ID);
+			const classItemText = 'main-buttons-item-text-box';
+			const elementText = BX.Buttons.Utils.getByClass(item, classItemText);
+			elementText.innerText = itemText;
 		},
 
 		getHomeItem: function()
@@ -1211,16 +1430,25 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			BX.Event.bind(this.moreButton, 'click', this.handleMoreButtonClick.bind(this));
 			BX.Event.bind(this.moreButton, 'mouseenter', this.handleMoreButtonMouseEnter.bind(this));
 			BX.Event.bind(this.moreButton, 'mouseleave', this.handleMoreButtonMouseLeave.bind(this));
+			BX.Event.bind(this.moreButton, 'focusin', () => {
+				this.justFocused = true;
+				setTimeout(() => {
+					this.justFocused = false;
+				}, 100);
+			});
 		},
 
 		/**
-		 * Binds on tmp frame resize
-		 * @method bindOnResizeFrame
+		 * Binds on container/window resize
+		 * @method bindOnResize
 		 * @private
 		 */
-		bindOnResizeFrame: function()
+		bindOnResize: function()
 		{
-			window.frames["maininterfacebuttonstmpframe-"+this.getId()].onresize = BX.throttle(this._onResizeHandler, 20, this);
+			const onResize = BX.Runtime.throttle(this._onResizeHandler, 100, this);
+			const resizeObserver = new ResizeObserver(onResize);
+			resizeObserver.observe(this.listContainer.closest('.main-buttons'));
+			BX.Event.bind(window, 'resize', onResize);
 		},
 
 		/**
@@ -1372,6 +1600,14 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 		{
 			this.updateMoreButtonCounter();
 
+			this.getHiddenItems().forEach((item) => {
+				BX.Dom.removeClass(item, '--hidden');
+			});
+
+			this.getHiddenItems().forEach((item) => {
+				BX.Dom.addClass(item, '--hidden');
+			});
+
 			if (this.getMoreMenu())
 			{
 				this.getMoreMenu().getPopupWindow().adjustPosition();
@@ -1495,11 +1731,11 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			const classes = ['main-buttons-item-link', this.classExtraItemLink].join(' ').trim();
 			if (BX.Type.isStringFilled(options['URL']))
 			{
-				container = BX.Tag.render`<a class="${classes}" href="${BX.Text.encode(options['URL'])}"></a>`;
+				container = BX.Tag.render`<a class="${classes}" tabindex="0" href="${BX.Text.encode(options['URL'])}"></a>`;
 			}
 			else
 			{
-				container = BX.Tag.render`<span class="${classes}"></span>`;
+				container = BX.Tag.render`<button type="button" tabindex="0" class="${classes}"></button>`;
 			}
 
 			BX.Dom.append(this.createItemIcon(options), container);
@@ -1517,7 +1753,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			const url = BX.Type.isStringFilled(options['URL']) ? BX.Text.encode(options['URL']) : '';
 
 			return BX.Tag.render`
-				<a class="${this.classItemSublink}${className}" href="${url}"></a>
+				<a tabindex="-1" aria-hidden="true" class="${this.classItemSublink}${className}" href="${url}"></a>
 			`;
 		},
 
@@ -1720,6 +1956,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 					'ui-btn-no-caps',
 					'ui-btn-round',
 					'ui-btn-icon-main-buttons-apply',
+					this.theme === 'air' ? '--air --style-outline-accent-2 --with-left-icon' : '',
 				];
 
 				result.push({
@@ -1752,6 +1989,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 				{
 					result.push({
 						html: '<span>'+this.message('MIB_NO_HIDDEN')+'</span>',
+						focusable: false,
 						className: [
 							this.classSubmenuItem,
 							this.classSubmenuNoHiddenItem
@@ -1868,6 +2106,11 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 						title: item['TITLE'],
 						className: className.join(' '),
 					};
+				}
+
+				if (item['IS_CURRENT'] === true)
+				{
+					menuItem.attrs = { 'aria-current': this.ariaCurrent };
 				}
 
 				const ajaxMode = item.hasOwnProperty("AJAX_OPTIONS");
@@ -2004,89 +2247,134 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			const moreButton = this.moreButton;
 			const menuItems = this.getMoreMenuItems();
 
-			let params;
-			const maxHeight = 800;
+			const commonParams = {
+				autoHide: false,
+				compatibleMode: false,
+				maxHeight: 800,
+				offsetTop: 4,
+				cacheable: false,
+				bindOptions: {
+					position: 'bottom',
+					forceTop: true,
+				},
+				events: {
+					onClose: this.handleMoreMenuClose.bind(this),
+					onDestroy: this.handleMoreMenuClose.bind(this),
+					onFirstShow: this.handleMoreMenuFirstShow.bind(this),
+					onShow: this.handleMoreMenuShow.bind(this),
+				},
+				subMenuOptions: {
+					events: {
+						onFirstShow: this.handleMoreMenuFirstShow.bind(this),
+					},
+				},
+				focusTrap: true,
+				navigationOptions: {
+					onTab: (event, menu) => {
+						if (event.shiftKey)
+						{
+							this.closeMoreMenu();
+						}
+						else
+						{
+							BX.UI.Accessibility.FocusNavigator.focusNext(
+								this.getContainer().ownerDocument.body,
+								{ from: this.getMoreButton()?.firstElementChild },
+							);
+
+							this.getMoreMenu()?.getFocusTrap().setRestoreFocus(false);
+							this.closeMoreMenu();
+						}
+					},
+					initialFocusPosition: this.lastInputKey === 'ArrowUp' ? 'last' : null,
+				},
+			};
+
+			let params = null;
 			if (this.theme === 'default')
 			{
+				const menuClasses = [
+					'main-buttons-menu-popup',
+					'main-buttons-more-menu-popup',
+					'main-buttons__scope',
+					'ui-icon-set__scope',
+					`--${this.theme}`,
+				];
 				const maxWidth = 350;
 				const activeItemMargin = 25;
 				params = {
-					autoHide: false,
-					compatibleMode: false,
+					className: menuClasses.join(' '),
 					offsetLeft: -activeItemMargin,
-					offsetTop: 4,
-					cacheable: false,
-					className: 'main-buttons-menu-popup main-buttons-more-menu-popup',
 					minWidth: 240,
-					maxWidth: maxWidth,
-					maxHeight: maxHeight,
+					maxWidth,
 					subMenuOptions: {
-						className: 'main-buttons-menu-popup main-buttons-more-menu-popup --sub-menu',
+						className: `${menuClasses.join(' ')} --sub-menu`,
 						minWidth: 150,
-						maxWidth: maxWidth,
-						events: {
-							onFirstShow: this.handleMoreMenuFirstShow.bind(this),
-						}
-					},
-					bindOptions: {
-						position: 'bottom',
-						forceTop: true
+						maxWidth,
 					},
 					events: {
-						onClose: this.handleMoreMenuClose.bind(this),
-						onDestroy: this.handleMoreMenuClose.bind(this),
-						onFirstShow: this.handleMoreMenuFirstShow.bind(this),
-						onShow: this.handleMoreMenuShow.bind(this),
-						onBeforeAdjustPosition: this.handleAdjustPosition.bind(this, moreButton)
-					}
+						onBeforeAdjustPosition: this.handleAdjustPosition.bind(this, moreButton),
+					},
+				};
+			}
+			else if (this.theme === 'air')
+			{
+				const maxWidth = 350;
+				const menuClasses = [
+					'main-buttons-default-menu-popup',
+					'main-buttons-more-menu-popup',
+					'main-buttons__scope',
+					'ui-icon-set__scope',
+					`--${this.theme}`,
+				];
+
+				params = {
+					className: menuClasses.join(' '),
+					offsetLeft: -10,
+					offsetTop: -5,
+					minWidth: 240,
+					maxWidth,
+					subMenuOptions: {
+						className: `${menuClasses.join(' ')} --sub-menu`,
+					},
 				};
 			}
 			else
 			{
 				const moreButtonTitle = this.moreButton.querySelector('.main-buttons-item-text-title');
 				const targetNodeWidth = moreButtonTitle.offsetWidth;
-				const popupWidth = 250;
+				const popupWidth = 280;
 				const offsetLeft = (targetNodeWidth / 2) - (popupWidth / 2) + BX.Main.Popup.getOption('angleLeftOffset');
 				const angleShift = BX.Main.Popup.getOption('angleLeftOffset') - BX.Main.Popup.getOption('angleMinTop');
 				const angleOffset = popupWidth / 2 - angleShift;
+				const menuClasses = [
+					'main-buttons-default-menu-popup',
+					'main-buttons-more-menu-popup',
+					'main-buttons__scope',
+					'ui-icon-set__scope',
+					`--${this.theme}`,
+				];
 
 				params = {
-					autoHide: false,
-					compatibleMode: false,
-					offsetTop: 4,
-					offsetLeft: offsetLeft,
+					className: menuClasses.join(' '),
+					offsetLeft,
 					minWidth: popupWidth,
 					maxWidth: popupWidth,
-					maxHeight: maxHeight,
 					angle: {
 						position: 'top',
-						offset: angleOffset
+						offset: angleOffset,
 					},
-					className: 'main-buttons-default-menu-popup main-buttons-more-menu-popup',
 					subMenuOptions: {
-						className: 'main-buttons-default-menu-popup main-buttons-more-menu-popup --sub-menu',
-						minWidth: null,
-						events: {
-							onFirstShow: this.handleMoreMenuFirstShow.bind(this),
-						}
+						className: `${menuClasses.join(' ')} --sub-menu`,
 					},
-					cacheable: false,
-					bindOptions: {
-						position: 'bottom',
-						forceTop: true
-					},
-					events: {
-						onClose: this.handleMoreMenuClose.bind(this),
-						onDestroy: this.handleMoreMenuClose.bind(this),
-						onFirstShow: this.handleMoreMenuFirstShow.bind(this),
-						onShow: this.handleMoreMenuShow.bind(this)
-					}
 				};
 			}
 
+			params = BX.Runtime.merge(commonParams, params);
+
 			if (this.isEditEnabled())
 			{
-				params.className += ' ' + this.classEditState;
+				params.className += ` ${this.classEditState}`;
 			}
 
 			return [menuId, moreButton, menuItems, params];
@@ -2094,73 +2382,117 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 		getChildMenuArgs: function(item)
 		{
-			const maxHeight = 800;
+			const commonParams = {
+				autoHide: false,
+				compatibleMode: false,
+				offsetTop: 4,
+				cacheable: false,
+				maxHeight: 800,
+				bindOptions: {
+					position: 'bottom',
+					forceTop: true,
+				},
+				events: {
+					onFirstShow: this._onChildMenuFirstShow.bind(this),
+					onShow: this._onChildMenuShow.bind(this, item),
+					onClose: this._onChildMenuClose.bind(this, item),
+					onDestroy: this._onChildMenuClose.bind(this, item),
+				},
+				subMenuOptions: {
+					minWidth: null,
+					events: {
+						onFirstShow: this._onChildMenuFirstShow.bind(this),
+					},
+				},
+				focusTrap: true,
+				navigationOptions: {
+					onTab: (event, menu) => {
+						const rootMenuWindow = menu.getRootMenuWindow() || menu;
+						if (event.shiftKey)
+						{
+							rootMenuWindow?.getFocusTrap().setRestoreFocus(false);
+							rootMenuWindow.close();
+						}
+						else
+						{
+							BX.UI.Accessibility.FocusNavigator.focusNext(
+								this.getContainer().ownerDocument.body,
+								{ from: item.firstElementChild },
+							);
+
+							rootMenuWindow?.getFocusTrap().setRestoreFocus(false);
+							rootMenuWindow.close();
+						}
+					},
+					initialFocusPosition: this.lastInputKey === 'ArrowUp' ? 'last' : null,
+				},
+			};
+
+			let params = null;
 			if (this.theme === 'default')
 			{
 				const activeItemMargin = 25;
-				const maxWidth = 350;
+				const menuClasses = [
+					'main-buttons-menu-popup',
+					'main-buttons__scope',
+					'ui-icon-set__scope',
+					`--${this.theme}`,
+				];
 
-				return {
-					autoHide: false,
-					compatibleMode: false,
-					offsetLeft: -activeItemMargin,
-					offsetTop: 4,
-					cacheable: false,
-					className: 'main-buttons-menu-popup',
-					maxWidth: maxWidth,
+				params = {
+					className: menuClasses.join(' '),
+					maxWidth: 350,
 					minWidth: item.offsetWidth + activeItemMargin * 2 + 30,
-					maxHeight: maxHeight,
-					subMenuOptions: {
-						className: 'main-buttons-menu-popup --sub-menu',
-						minWidth: null,
-						events: {
-							onFirstShow: this._onChildMenuFirstShow.bind(this)
-						}
-					},
-					bindOptions: {
-						position: 'bottom',
-						forceTop: true
-					},
+					offsetLeft: -activeItemMargin,
 					events: {
-						onFirstShow: this._onChildMenuFirstShow.bind(this),
-						onShow: this._onChildMenuShow.bind(this, item),
-						onClose: this._onChildMenuClose.bind(this, item),
-						onDestroy: this._onChildMenuClose.bind(this, item),
-						onBeforeAdjustPosition: this.handleAdjustPosition.bind(this, item)
-					}
+						onBeforeAdjustPosition: this.handleAdjustPosition.bind(this, item),
+					},
+					subMenuOptions: {
+						className: `${menuClasses.join(' ')} --sub-menu`,
+					},
+				};
+			}
+			else if (this.theme === 'air')
+			{
+				const menuClasses = [
+					'main-buttons-default-menu-popup',
+					'main-buttons__scope',
+					'ui-icon-set__scope',
+					`--${this.theme}`,
+				];
+
+				params = {
+					className: menuClasses.join(' '),
+					offsetTop: -5,
+					offsetLeft: -10,
+					maxWidth: 350,
+					minWidth: 200,
+					subMenuOptions: {
+						className: `${menuClasses.join(' ')} --sub-menu`,
+					},
 				};
 			}
 			else
 			{
 				const maxWidth = 250;
-				return {
-					autoHide: false,
-					compatibleMode: false,
-					offsetTop: 4,
-					cacheable: false,
-					className: 'main-buttons-default-menu-popup',
+				const menuClasses = [
+					'main-buttons-default-menu-popup',
+					'main-buttons__scope',
+					'ui-icon-set__scope',
+					`--${this.theme}`,
+				];
+
+				params = {
+					className: menuClasses.join(' '),
+					maxWidth,
 					minWidth: Math.min(item.offsetWidth + 25 * 2 + 30, maxWidth),
-					maxWidth: maxWidth,
-					maxHeight: maxHeight,
-					bindOptions: {
-						position: 'bottom',
-						forceTop: true
-					},
 					subMenuOptions: {
-						className: 'main-buttons-default-menu-popup --sub-menu',
-						minWidth: null,
-						events: {
-							onFirstShow: this._onChildMenuFirstShow.bind(this)
-						}
+						className: `${menuClasses.join(' ')} --sub-menu`,
 					},
-					events: {
-						onFirstShow: this._onChildMenuFirstShow.bind(this),
-						onShow: this._onChildMenuShow.bind(this, item),
-						onClose: this._onChildMenuClose.bind(this, item),
-						onDestroy: this._onChildMenuClose.bind(this, item)
-					}
 				};
 			}
+
+			return BX.Runtime.merge(commonParams, params);
 		},
 
 		centerPopupArrow(popup, item)
@@ -2279,6 +2611,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			if (this.isEditEnabled())
 			{
 				submenu.getPopupWindow().setAutoHide(false);
+				submenu.getPopupWindow().setClosingByEsc(false);
 			}
 		},
 
@@ -2388,6 +2721,13 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			BX.Main.MenuManager.destroy(this.getChildMenuId());
 		},
 
+		reset: function()
+		{
+			this.disableEdit();
+			this.destroyMoreMenu();
+			this.destroyChildMenu();
+		},
+
 		/**
 		 * Refreshes submenu
 		 * @public
@@ -2473,6 +2813,8 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			{
 				BX.Dom.removeClass(item, this.classItemActive);
 			}
+
+			BX.Dom.attr(item.firstElementChild, 'aria-current', null);
 		},
 
 		/**
@@ -2586,12 +2928,27 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 				return;
 			}
 
-			if (BX.Type.isDomNode(this.listContainer))
+			if (BX.Type.isDomNode(this.listContainer) && 'id' in this.listContainer)
 			{
-				if ('id' in this.listContainer)
+				this.saveOptions(paramName, JSON.stringify(settings));
+				const homeItem = this.getHomeItem();
+				if (homeItem)
 				{
-					this.saveOptions(paramName, JSON.stringify(settings));
-					this.setHome();
+					const { itemData, url: firstPageLink, firstVisibleItem } = homeItem;
+					if (itemData)
+					{
+						if (this.lastHomeLink !== firstPageLink)
+						{
+							this.saveOptions('firstPageLink', firstPageLink);
+							this.sendOptions(); // force send
+							BX.onCustomEvent(
+								'BX.Main.InterfaceButtons:onFirstItemChange',
+								[firstPageLink, firstVisibleItem],
+							);
+						}
+
+						this.lastHomeLink = firstPageLink;
+					}
 				}
 			}
 		},
@@ -2884,6 +3241,12 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			BX.Event.bind(item, 'click', this._handleItemClick.bind(this));
 			BX.Event.bind(item, 'mouseenter', this.handleItemMouseEnter.bind(this));
 			BX.Event.bind(item, 'mouseleave', this.handleItemMouseLeave.bind(this));
+			BX.Event.bind(item, 'focusin', () => {
+				this.justFocused = true;
+				setTimeout(() => {
+					this.justFocused = false;
+				}, 100);
+			});
 		},
 
 		/**
@@ -3583,6 +3946,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 				const rootItemData = this.getItemData(rootNode);
 				this.recalculateItemsCounters([rootItemData]);
 
+				this.adjustMoreButtonPosition();
 				this.showMoreMenu();
 				this.updateMoreButtonCounter();
 				this.showChildMenu(rootNode);
@@ -3617,6 +3981,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 			const finalize = () => {
 				BX.Dom.remove(rootNode);
+				this.adjustMoreButtonPosition();
 				this.showMoreMenu();
 				this.updateMoreButtonCounter();
 				this.saveSettings();
@@ -3644,7 +4009,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 		pinItem: function(itemData, flag = true)
 		{
-			const itemId = itemData['ID']
+			const itemId = itemData['ID'];
 			const ids = itemId.split(':');
 
 			let rootItemId = '';
@@ -3834,18 +4199,24 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 			this.closeChildMenu();
 			this.destroyItemEditMenu();
-
-			if (this.isListItem(this.dragItem))
-			{
-				this.showMoreMenu();
-			}
-
 			this.setDragStyles();
 
-			if (!this.isEditEnabled())
-			{
-				this.enableEdit();
-			}
+			setTimeout(() => {
+				if (!this.onDragStarted)
+				{
+					return;
+				}
+
+				if (this.isListItem(this.dragItem))
+				{
+					this.showMoreMenu();
+				}
+
+				if (!this.isEditEnabled())
+				{
+					this.enableEdit();
+				}
+			}, 300);
 		},
 
 		/**
@@ -4108,10 +4479,15 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 		{
 			BX.Event.EventEmitter.emit('BX.Main.InterfaceButtons:onMenuShow');
 			BX.Event.EventEmitter.emit(this, 'BX.Main.InterfaceButtons:onMoreMenuShow', {event});
+
+			BX.Dom.attr(this.getMoreButton().firstElementChild, 'aria-expanded', 'true');
+			BX.Dom.attr(this.getMoreButton().firstElementChild, 'aria-controls', this.getMoreMenu().getId());
+
 			setTimeout(() => {
 				if (!this.isEditEnabled())
 				{
 					event.getTarget().setAutoHide(true);
+					event.getTarget().setClosingByEsc(true);
 				}
 			}, 500);
 		},
@@ -4120,6 +4496,9 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 		{
 			BX.Event.EventEmitter.emit(this, 'BX.Main.InterfaceButtons:onMoreMenuClose');
 			this.setMoreMenuShown(false);
+
+			BX.Dom.attr(this.getMoreButton().firstElementChild, 'aria-expanded', 'false');
+			BX.Dom.attr(this.getMoreButton().firstElementChild, 'aria-controls', null);
 
 			if (this.isEditEnabled())
 			{
@@ -4174,13 +4553,17 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 			BX.Event.EventEmitter.emit('BX.Main.InterfaceButtons:onMenuShow');
 			BX.Event.EventEmitter.emit(this, 'BX.Main.InterfaceButtons:onSubMenuShow', {item, event});
 
-			if (this.theme !== 'default')
+			BX.Dom.attr(item.firstElementChild, 'aria-expanded', 'true');
+			BX.Dom.attr(item.firstElementChild, 'aria-controls', event.getTarget().getId());
+
+			if (this.theme !== 'default' && this.theme !== 'air')
 			{
 				this.centerPopupArrow(event.getTarget(), item);
 			}
 
 			setTimeout(() => {
 				event.getTarget().setAutoHide(true);
+				event.getTarget().setClosingByEsc(true);
 			}, 500);
 		},
 
@@ -4188,6 +4571,10 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 		{
 			BX.Event.EventEmitter.emit(this, 'BX.Main.InterfaceButtons:onSubMenuClose');
 			BX.Dom.removeClass(item, this.classMenuShown);
+
+			BX.Dom.attr(item.firstElementChild, 'aria-expanded', 'false');
+			BX.Dom.attr(item.firstElementChild, 'aria-controls', null);
+
 			this.closePinHint();
 		},
 
@@ -4238,7 +4625,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 		handleMoreButtonMouseEnter: function(event)
 		{
-			if (this.enableItemMouseEnter)
+			if (this.enableItemMouseEnter && !this.justFocused)
 			{
 				clearTimeout(this.menuShowTimeout);
 				this.menuShowTimeout = setTimeout(() => {
@@ -4257,7 +4644,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 
 		handleItemMouseEnter: function(event)
 		{
-			if (!this.enableItemMouseEnter)
+			if (!this.enableItemMouseEnter || this.justFocused)
 			{
 				return;
 			}
@@ -4492,7 +4879,7 @@ if (typeof(BX.Main.interfaceButtons) === 'undefined')
 				return false;
 			}
 
-			return item.offsetTop === 0;
+			return item.offsetTop === 0 && !BX.Dom.hasClass(item, '--hidden');
 		},
 
 		/**

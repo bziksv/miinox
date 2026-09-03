@@ -1,7 +1,7 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-/** @var CAllMain $APPLICATION*/
+/** @var CMain $APPLICATION*/
 /** @var array $arResult*/
 /** @var array $arParams*/
 
@@ -24,8 +24,8 @@ $componentParameters = array(
 	'PATH_TO_CAMPAIGN_EDIT' => $arParams['PATH_TO_CAMPAIGN_EDIT'] ?? '',
 	'SHOW_CAMPAIGNS' => $arParams['SHOW_CAMPAIGNS'] ?? '',
 	'SET_TITLE' => 'Y',
-	'CAN_VIEW' => Security\Access::current()->canViewLetters(),
-	'CAN_EDIT' => Security\Access::current()->canModifyLetters(),
+	'CAN_VIEW' => Security\Access::current()->canViewRc(),
+	'CAN_EDIT' => Security\Access::current()->canModifyRc(),
 	'MESSAGE_CODE_LIST' => \Bitrix\Sender\Message\Factory::getTolokaMessageCodes()
 );
 
@@ -40,6 +40,6 @@ $APPLICATION->IncludeComponent(
 		'USE_PADDING' => false,
 		'PLAIN_VIEW' => false,
 		'PAGE_MODE' => false,
-		'PAGE_MODE_OFF_BACK_URL' => "/marketing/toloka/"
+		'PAGE_MODE_OFF_BACK_URL' => "/marketing/toloka/",
 	]
 );

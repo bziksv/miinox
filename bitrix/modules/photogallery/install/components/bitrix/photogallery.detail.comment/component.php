@@ -1,8 +1,14 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 if (!CModule::IncludeModule("photogallery"))
-	return ShowError(GetMessage("P_MODULE_IS_NOT_INSTALLED"));
+{
+	ShowError(GetMessage("P_MODULE_IS_NOT_INSTALLED"));
+	return;
+}
 elseif (!IsModuleInstalled("iblock"))
-	return ShowError(GetMessage("IBLOCK_MODULE_NOT_INSTALLED"));
+{
+	ShowError(GetMessage("IBLOCK_MODULE_NOT_INSTALLED"));
+	return;
+}
 
 /********************************************************************
 				Input params
@@ -16,7 +22,7 @@ elseif (!IsModuleInstalled("iblock"))
 	$arParams["IS_SOCNET"] = ($arParams["IS_SOCNET"] == "Y" ? "Y" : "N");
 
 	// For blog
-	$arParams["BLOG_URL"] = trim($arParams["BLOG_URL"]);
+	$arParams["BLOG_URL"] = trim($arParams["BLOG_URL"] ?? '');
 //***************** URL ********************************************/
 	$URL_NAME_DEFAULT = array("detail" => "PAGE_NAME=detail&SECTION_ID=#SECTION_ID#&ELEMENT_ID=#ELEMENT_ID#");
 	foreach ($URL_NAME_DEFAULT as $URL => $URL_VALUE)
@@ -36,8 +42,16 @@ elseif (!IsModuleInstalled("iblock"))
 	else
 		$arParams["CACHE_TIME"] = 0;
 
-	if (intval($_REQUEST['ELEMENT_ID']) > 0 && $_REQUEST['save_photo_comment'] == 'Y')
-		PClearComponentCacheEx($arParams["IBLOCK_ID"], array(0, $arParams["SECTION_ID"]));
+	if (
+		intval($_REQUEST['ELEMENT_ID'] ?? null) > 0
+		&& ($_REQUEST['save_photo_comment'] ?? null) == 'Y'
+	)
+	{
+		PClearComponentCacheEx(
+			$arParams["IBLOCK_ID"],
+			[0, $arParams["SECTION_ID"]]
+		);
+	}
 /********************************************************************
 				/Input params
 ********************************************************************/
@@ -45,11 +59,19 @@ elseif (!IsModuleInstalled("iblock"))
 				Default values
 ********************************************************************/
 if (!IsModuleInstalled($arParams["COMMENTS_TYPE"]))
-	return ShowError("Module is not installed (".$arParams["COMMENTS_TYPE"].")");
-elseif ($arParams["COMMENTS_TYPE"] == "blog" && empty($arParams["BLOG_URL"]))
-	return ShowError(GetMessage("P_EMPTY_BLOG_URL"));
-elseif ($arParams["ELEMENT_ID"] <= 0)
+{
+	ShowError("Module is not installed (".$arParams["COMMENTS_TYPE"].")");
 	return;
+}
+elseif ($arParams["COMMENTS_TYPE"] == "blog" && empty($arParams["BLOG_URL"]))
+{
+	ShowError(GetMessage("P_EMPTY_BLOG_URL"));
+	return;
+}
+elseif ($arParams["ELEMENT_ID"] <= 0)
+{
+	return;
+}
 
 $cache_path = str_replace(array(":", "//"), "/", "/".SITE_ID."/".$componentName."/".$arParams["IBLOCK_ID"]);
 

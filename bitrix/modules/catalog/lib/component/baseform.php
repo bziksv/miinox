@@ -5,6 +5,7 @@ namespace Bitrix\Catalog\Component;
 use Bitrix\Catalog;
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Integration\AI\Settings;
 use Bitrix\Catalog\Url;
 use Bitrix\Catalog\Config\State;
 use Bitrix\Catalog\Product;
@@ -15,9 +16,12 @@ use Bitrix\Catalog\v2\Property\HasPropertyCollection;
 use Bitrix\Catalog\v2\Property\Property;
 use Bitrix\Crm;
 use Bitrix\Currency\CurrencyManager;
+use Bitrix\Iblock;
 use Bitrix\Iblock\ElementTable;
 use Bitrix\Iblock\PropertyTable;
+use Bitrix\Iblock\UI\FileUploader\PropertyController;
 use Bitrix\Iblock\Url\AdminPage\BuilderManager;
+use Bitrix\Main;
 use Bitrix\Main\Config\Ini;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Context;
@@ -27,22 +31,20 @@ use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Fields\DateField;
 use Bitrix\Main\ORM\Fields\DatetimeField;
 use Bitrix\Main\ORM\Fields\EnumField;
-use Bitrix\Main\ORM\Fields\Field;
 use Bitrix\Main\ORM\Fields\FloatField;
 use Bitrix\Main\ORM\Fields\IntegerField;
 use Bitrix\Main\ORM\Fields\ScalarField;
 use Bitrix\Main\ORM\Fields\StringField;
 use Bitrix\Main\ORM\Fields\TextField;
 use Bitrix\Main\Page\Asset;
+use Bitrix\Main\Security\Random;
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\UI\FileInputUtility;
 use Bitrix\Main\UserField;
 use Bitrix\Main\UserFieldTable;
 use Bitrix\Highloadblock as Highload;
+use Bitrix\Main\Web\Json;
 use Bitrix\UI\EntityForm\Control;
-use CIBlockPropertyElementAutoComplete;
-use CIBlockPropertySKU;
-use CIBlockPropertyXmlID;
 
 abstract class BaseForm
 {
@@ -169,6 +171,11 @@ abstract class BaseForm
 		$this->urlBuilder->setIblockId($this->entity->getIblockId());
 	}
 
+	/**
+	 * Returns true, if public product card is allowed.
+	 *
+	 * @return bool
+	 */
 	public function isCardAllowed(): bool
 	{
 		switch ($this->params['SCOPE'])
@@ -191,14 +198,29 @@ abstract class BaseForm
 		return $result;
 	}
 
+	/**
+	 * Returns true, if current user can't modify product.
+	 *
+	 * @return bool
+	 */
 	public function isReadOnly(): bool
 	{
+		if (State::isExternalCatalog())
+		{
+			return true;
+		}
+
 		return
 			!$this->accessController->check(ActionDictionary::ACTION_PRODUCT_CARD_EDIT)
 			&& !$this->isAllowedEditFields()
 		;
 	}
 
+	/**
+	 * Returns true, if current user can create new product or modify existing product.
+	 *
+	 * @return bool
+	 */
 	public function isAllowedEditFields(): bool
 	{
 		if ($this->isEntityCreationForm())
@@ -209,16 +231,31 @@ abstract class BaseForm
 		return $this->accessController->check(ActionDictionary::ACTION_PRODUCT_EDIT);
 	}
 
+	/**
+	 * Returns true, if current user can modify card settings.
+	 *
+	 * @return bool
+	 */
 	public function isCardSettingsEditable(): bool
 	{
 		return $this->accessController->check(ActionDictionary::ACTION_PRODUCT_CARD_EDIT);
 	}
 
+	/**
+	 * Returns true, if current user can write card settings for all users.
+	 *
+	 * @return bool
+	 */
 	public function isEnabledSetSettingsForAll(): bool
 	{
 		return $this->accessController->check(ActionDictionary::ACTION_PRODUCT_CARD_SETTINGS_FOR_USERS_SET);
 	}
 
+	/**
+	 * Returns true, if current user can modify product prices.
+	 *
+	 * @return bool
+	 */
 	public function isPricesEditable(): bool
 	{
 		return
@@ -230,11 +267,21 @@ abstract class BaseForm
 		;
 	}
 
+	/**
+	 * Return true, if current user can view purchasing prices.
+	 *
+	 * @return bool
+	 */
 	public function isPurchasingPriceAllowed(): bool
 	{
 		return $this->accessController->check(ActionDictionary::ACTION_PRODUCT_PURCHASE_INFO_VIEW);
 	}
 
+	/**
+	 * Returns true, if current user can modify product's visibility.
+	 *
+	 * @return bool
+	 */
 	public function isVisibilityEditable(): bool
 	{
 		return
@@ -243,6 +290,11 @@ abstract class BaseForm
 		;
 	}
 
+	/**
+	 * Returns true, if current user can change inventory management setting.
+	 *
+	 * @return bool
+	 */
 	public function isInventoryManagementAccess(): bool
 	{
 		return $this->accessController->check(ActionDictionary::ACTION_INVENTORY_MANAGEMENT_ACCESS);
@@ -253,6 +305,11 @@ abstract class BaseForm
 		return $name;
 	}
 
+	/**
+	 * Returns controller's list for product card.
+	 *
+	 * @return array[]
+	 */
 	public function getControllers(): array
 	{
 		return [
@@ -291,10 +348,22 @@ abstract class BaseForm
 				'type' => 'iblock_element',
 				'config' => [],
 			],
+			[
+				'name' => 'FILE_CONTROLLER',
+				'type' => 'file',
+				'config' => [],
+			],
 		];
 	}
 
-	public function getValues(bool $allowDefaultValues = true, array $descriptions = null): array
+	/**
+	 * Returns product field values.
+	 *
+	 * @param bool $allowDefaultValues Can use default values.
+	 * @param array|null $descriptions Field descriptions.
+	 * @return array
+	 */
+	public function getValues(bool $allowDefaultValues = true, ?array $descriptions = null): array
 	{
 		$values = [];
 		if ($descriptions === null)
@@ -395,28 +464,6 @@ abstract class BaseForm
 				'desc' => $gridColumnSettings[$setting]['DESCRIPTION'] ?? Loc::getMessage('CATALOG_C_F_VARIATION_SETTINGS_' . $setting . '_DESC'),
 				'action' => isset($gridColumnSettings[$setting]) ? 'grid' : 'card',
 				'columns' => $gridColumnSettings[$setting] ?? null,
-			];
-		}
-
-		if (
-			($this->accessController->check(ActionDictionary::ACTION_CATALOG_SETTINGS_ACCESS))
-			&& $this->isInventoryButtonAllowed()
-		)
-		{
-			$isInventoryControlEnabled = UseStore::isUsed();
-			$sliderPath = \CComponentEngine::makeComponentPath('bitrix:catalog.warehouse.master.clear');
-			$sliderPath = getLocalPath('components' . $sliderPath . '/slider.php');
-
-			$items[] = [
-				'id' => 'SLIDER',
-				'checked' => $isInventoryControlEnabled,
-				'disabled' => $isInventoryControlEnabled,
-				'title' => Loc::getMessage('CATALOG_C_F_VARIATION_SETTINGS_WAREHOUSE_TITLE'),
-				'desc' => '',
-				'hint' => $isInventoryControlEnabled ? Loc::getMessage('CATALOG_C_F_VARIATION_SETTINGS_WAREHOUSE_HINT')
-					: '',
-				'url' => $sliderPath,
-				'action' => 'slider',
 			];
 		}
 
@@ -538,42 +585,91 @@ abstract class BaseForm
 				}
 				elseif ($propertySettings['PROPERTY_TYPE'] === PropertyTable::TYPE_ELEMENT)
 				{
-					$elementData = ElementTable::getList([
-						'select' => ['NAME'],
-						'filter' => ['ID' => $value],
-					]);
 					$namesList = [];
-					while ($element = $elementData->fetch())
+					Main\Type\Collection::normalizeArrayValuesByInt($value, false);
+					if (!empty($value))
 					{
-						$namesList[] = $element['NAME'];
+						$elementData = ElementTable::getList([
+							'select' => ['NAME'],
+							'filter' => ['ID' => $value],
+						]);
+						while ($element = $elementData->fetch())
+						{
+							$namesList[] = $element['NAME'];
+						}
+						unset($element, $elementData);
 					}
 					$viewValue = implode(', ', $namesList);
 					$additionalValues[$descriptionData['view']] = HtmlFilter::encode($viewValue);
-					$editMethod = ['CIBlockPropertyElementAutoComplete', 'GetUIEntityEditorPropertyEditHtml'];
-					if (is_callable($editMethod))
+					$paramsSingle = $propertySettings;
+					$paramsSingle['MULTIPLE'] = 'N';
+					$paramsMultiple = $propertySettings;
+					$paramsMultiple['MULTIPLE'] = 'Y';
+					$propertyConfig = [
+						'FIELD_NAME' => $description['name'],
+						'CHANGE_EVENTS' => [
+							'onChangeIblockElement',
+						],
+					];
+					$additionalValues[$descriptionData['edit']] = Iblock\UI\Input\Element::renderSelector(
+						$propertySettings,
+						$value,
+						$propertyConfig
+					);
+					$additionalValues[$descriptionData['editList']]['SINGLE'] = Iblock\UI\Input\Element::renderSelector(
+						$paramsSingle,
+						$value,
+						$propertyConfig
+					);
+					$additionalValues[$descriptionData['editList']]['MULTIPLE'] = Iblock\UI\Input\Element::renderSelector(
+						$paramsMultiple,
+						$value,
+						$propertyConfig
+					);
+				}
+				elseif ($propertySettings['PROPERTY_TYPE'] === PropertyTable::TYPE_SECTION)
+				{
+					$namesList = [];
+					Main\Type\Collection::normalizeArrayValuesByInt($value, false);
+					if (!empty($value))
 					{
-						$params = [
-							'SETTINGS' => $propertySettings,
-							'VALUE' => $value,
-							'FIELD_NAME' => $description['name'],
-						];
-						$paramsSingle = $params;
-						$paramsSingle['SETTINGS']['MULTIPLE'] = 'N';
-						$paramsMultiple = $params;
-						$paramsMultiple['SETTINGS']['MULTIPLE'] = 'Y';
-
-						$additionalValues[$descriptionData['edit']] = $editMethod($params);
-						$additionalValues[$descriptionData['editList']]['SINGLE'] = $editMethod($paramsSingle);
-						$additionalValues[$descriptionData['editList']]['MULTIPLE'] = $editMethod($paramsMultiple);
+						$elementData = Iblock\SectionTable::getList([
+							'select' => ['NAME'],
+							'filter' => ['ID' => $value],
+						]);
+						while ($element = $elementData->fetch())
+						{
+							$namesList[] = $element['NAME'];
+						}
+						unset($element, $elementData);
 					}
-					else
-					{
-						$additionalValues[$descriptionData['edit']] = $this->getElementPropertyEditHtml(
-							$description['name'],
-							$propertySettings,
-							$value
-						);
-					}
+					$viewValue = implode(', ', $namesList);
+					$additionalValues[$descriptionData['view']] = HtmlFilter::encode($viewValue);
+					$paramsSingle = $propertySettings;
+					$paramsSingle['MULTIPLE'] = 'N';
+					$paramsMultiple = $propertySettings;
+					$paramsMultiple['MULTIPLE'] = 'Y';
+					$propertyConfig = [
+						'FIELD_NAME' => $description['name'],
+						'CHANGE_EVENTS' => [
+							'onChangeIblockElement',
+						],
+					];
+					$additionalValues[$descriptionData['edit']] = Iblock\UI\Input\Section::renderSelector(
+						$propertySettings,
+						$value,
+						$propertyConfig
+					);
+					$additionalValues[$descriptionData['editList']]['SINGLE'] = Iblock\UI\Input\Section::renderSelector(
+						$paramsSingle,
+						$value,
+						$propertyConfig
+					);
+					$additionalValues[$descriptionData['editList']]['MULTIPLE'] = Iblock\UI\Input\Section::renderSelector(
+						$paramsMultiple,
+						$value,
+						$propertyConfig
+					);
 				}
 				elseif ($propertySettings['PROPERTY_TYPE'] === PropertyTable::TYPE_FILE)
 				{
@@ -582,7 +678,7 @@ abstract class BaseForm
 						$value = $this->getEntityViewPictureValues($this->entity);
 						$editValue = $this->getEntityEditPictureValues($this->entity);
 
-						if (!$description['multiple'])
+						if (!$description['multiple'] && isset($value[0]))
 						{
 							$value = $value[0];
 							$editValue = $editValue[0];
@@ -596,9 +692,11 @@ abstract class BaseForm
 					$isImageInput = $this->isImageProperty($description['settings']);
 
 					$descriptionSingle = $description;
-					$descriptionSingle['settings']['MULTIPLE'] = false;
+					$descriptionSingle['settings']['MULTIPLE'] = 'N';
+					$descriptionSingle['multiple'] = false;
 					$descriptionMultiple = $description;
-					$descriptionMultiple['settings']['MULTIPLE'] = true;
+					$descriptionMultiple['settings']['MULTIPLE'] = 'Y';
+					$descriptionMultiple['multiple'] = true;
 
 					if ($isImageInput)
 					{
@@ -611,21 +709,12 @@ abstract class BaseForm
 					}
 					else
 					{
-						// generate new IDs for new elements to avoid duplicate IDs in HTML inputs
-						$entityId = $this->entity->getId() ?? uniqid();
-						$controlId = $description['name'] . '_uploader_' . $entityId;
+						// for empty value fill as empty string - need for component extensions
+						$additionalValues[$descriptionData['view']] = $this->getFilePropertyViewHtml($description, $value);
+						$additionalValues[$descriptionData['viewList']]['SINGLE'] = $this->getFilePropertyViewHtml($description, is_array($value) ? $value[0] ?? null : $value, false);
+						$additionalValues[$descriptionData['viewList']]['MULTIPLE'] = $this->getFilePropertyViewHtml($description, is_array($value) ? $value : [$value], true);
 
-						$additionalValues[$descriptionData['view']] = '';
-						$additionalValues[$descriptionData['viewList']]['SINGLE'] = '';
-						$additionalValues[$descriptionData['viewList']]['MULTIPLE'] = '';
-
-						if (!empty($value))
-						{
-							$additionalValues[$descriptionData['view']] = $this->getFilePropertyViewHtml($description, $value, $controlId);
-							$additionalValues[$descriptionData['viewList']]['SINGLE'] = $this->getFilePropertyViewHtml($description, is_array($value) ? $value[0] ?? null : $value, $controlId, false);
-							$additionalValues[$descriptionData['viewList']]['MULTIPLE'] = $this->getFilePropertyViewHtml($description, is_array($value) ? $value : [$value], $controlId, true);
-						}
-
+						$controlId = $description['name'] . '_uploader';
 						$additionalValues[$descriptionData['edit']] = $this->getFilePropertyEditHtml($description, $value, $controlId);
 						$additionalValues[$descriptionData['editList']]['SINGLE'] = $this->getFilePropertyEditHtml($description, is_array($value) ? $value[0] ?? null : $value, $controlId, false);
 						$additionalValues[$descriptionData['editList']]['MULTIPLE'] = $this->getFilePropertyEditHtml($description, is_array($value) ? $value : [$value], $controlId, true);
@@ -801,13 +890,13 @@ abstract class BaseForm
 		}
 
 		$userTypes = [
-			CIBlockPropertyXmlID::USER_TYPE,
-			CIBlockPropertyElementAutoComplete::USER_TYPE,
-			'employee',
-			CIBlockPropertySKU::USER_TYPE,
+			PropertyTable::USER_TYPE_XML_ID => true,
+			PropertyTable::USER_TYPE_ELEMENT_AUTOCOMPLETE => true,
+			'employee' => true,
+			PropertyTable::USER_TYPE_SKU => true,
 		];
 
-		return in_array($property['USER_TYPE'], $userTypes, true);
+		return isset($userTypes[$property['USER_TYPE']]);
 	}
 
 	private function getAdditionalMoneyValues(string $value, callable $formatMethod): array
@@ -934,7 +1023,7 @@ abstract class BaseForm
 	{
 		$isQuantityTraceExplicitlyDisabled = $this->entity->getField('QUANTITY_TRACE') === 'N';
 		$isWithOrdersMode = Loader::includeModule('crm') && \CCrmSaleHelper::isWithOrdersMode();
-		$isInventoryManagementUsed = UseStore::isUsed();
+		$isInventoryManagementUsed = State::isUsedInventoryManagement();
 
 		return (!$isWithOrdersMode && !$isInventoryManagementUsed)
 			|| ($isInventoryManagementUsed && !$isQuantityTraceExplicitlyDisabled);
@@ -1209,6 +1298,37 @@ abstract class BaseForm
 
 				$description['data']['items'] = $vatList;
 				$description['type'] = 'list';
+			}
+			elseif ($fieldName === 'VAT_INCLUDED')
+			{
+				if (Option::get('catalog', 'default_product_vat_included') === 'Y')
+				{
+					$description['defaultValue'] = ProductTable::STATUS_YES;
+				}
+			}
+			elseif ($field instanceof TextField)
+			{
+				$description['buttons'] = [];
+				$description['postFormSettings'] = [
+					'isAiImageEnabled' => false,
+					'isDnDEnabled' => false,
+				];
+
+				if ($fieldName === 'DETAIL_TEXT')
+				{
+					$description['copilotIntegrationParams'] = [
+						'isMentionUnavailable' => true,
+						'isCopilotTextEnabledBySettings' => Settings::isTextProductCardAvailable(),
+						'copilotParams' => [
+							'contextId' => 'catalog_product_card_detail_description',
+							'moduleId' => 'catalog',
+							'category' => 'product_description',
+							'isCopilotEnabled' => true,
+						],
+					];
+
+					$description['buttons'][] = 'Copilot';
+				}
 			}
 
 			$descriptions[] = $description;
@@ -1721,7 +1841,7 @@ abstract class BaseForm
 		return [
 			'DiskFile',
 			'TopicID',
-			\CIBlockPropertySKU::USER_TYPE,
+			PropertyTable::USER_TYPE_SKU,
 		];
 	}
 
@@ -1753,7 +1873,7 @@ abstract class BaseForm
 			'type' => null,
 		];
 
-		if ($property->getUserType() === \CIBlockPropertySequence::USER_TYPE)
+		if ($property->getUserType() === Iblock\PropertyTable::USER_TYPE_SEQUENCE)
 		{
 			$userTypeSettings = $property->getSetting('USER_TYPE_SETTINGS');
 			$description['editable'] = $userTypeSettings['write'] === 'Y';
@@ -1771,6 +1891,8 @@ abstract class BaseForm
 		if ($description['propertyCode'] === self::MORE_PHOTO)
 		{
 			$description['optionFlags'] = 1; // showAlways
+			$description['hint'] = Loc::getMessage('CATALOG_PRODUCT_CARD_MORE_PHOTO_SIZE');
+			$description['hintHtml'] = true;
 		}
 
 		if ($description['multiple'] && !is_array($description['defaultValue']))
@@ -1840,6 +1962,7 @@ abstract class BaseForm
 
 			case PropertyTable::TYPE_ELEMENT:
 			case PropertyTable::TYPE_FILE:
+			case PropertyTable::TYPE_SECTION:
 				$fieldType = 'custom';
 				break;
 
@@ -1933,7 +2056,10 @@ abstract class BaseForm
 	{
 		$propertySettings = $this->getPropertySettings($property);
 
-		if ($property->getPropertyType() === 'S' && $property->getUserType() === 'HTML')
+		if (
+			$property->getPropertyType() === PropertyTable::TYPE_STRING
+			&& $property->getUserType() === PropertyTable::USER_TYPE_HTML
+		)
 		{
 			$defaultValue = $property->getDefaultValue();
 
@@ -2127,55 +2253,102 @@ abstract class BaseForm
 		return ob_get_clean();
 	}
 
-	protected function getFilePropertyEditHtml($description, $value, $controlId, bool $multipleForList = null): string
-	{
-		if ($multipleForList === null)
-		{
-			$multiple = $description['settings']['MULTIPLE'];
-		}
-		else
-		{
-			$multiple = $multipleForList ? 'Y' : 'N';
-		}
-
-		ob_start();
-
-		$this->getApplication()->IncludeComponent(
-			'bitrix:main.file.input',
-			'.default',
-			[
-				'INPUT_NAME' => $description['name'],
-				'INPUT_NAME_UNSAVED' => $description['name'] . '_tmp',
-				'INPUT_VALUE' => $value,
-				'MULTIPLE' => $multiple,
-				'MODULE_ID' => 'catalog',
-				'ALLOW_UPLOAD' => 'F',
-				'ALLOW_UPLOAD_EXT' => $description['settings']['FILE_TYPE'],
-				'MAX_FILE_SIZE' => Ini::unformatInt((string)ini_get('upload_max_filesize')),
-				'CONTROL_ID' => $controlId,
-			]
-		);
-
-		return ob_get_clean();
-	}
-
-	protected function getFilePropertyViewHtml($description, $value, $controlId, bool $multipleForList = null)
+	protected function getFilePropertyEditHtml($description, $value, $controlId, ?bool $multipleForList = null): string
 	{
 		$cid = FileInputUtility::instance()->registerControl('', $controlId);
-		$signer = new \Bitrix\Main\Security\Sign\Signer();
-		$signature = $signer->getSignature($cid, 'main.file.input');
-		if (is_array($value))
+		if (!empty($value))
 		{
-			foreach ($value as $elementOfValue)
+			if (is_array($value))
 			{
-				FileInputUtility::instance()->registerFile($cid, $elementOfValue);
+				foreach ($value as $elementOfValue)
+				{
+					FileInputUtility::instance()->registerFile($cid, $elementOfValue);
+				}
 			}
+			else
+			{
+				FileInputUtility::instance()->registerFile($cid, $value);
+			}
+		}
+
+		if ($multipleForList === null)
+		{
+			$multiple = $description['settings']['MULTIPLE'] === 'Y';
 		}
 		else
 		{
-			FileInputUtility::instance()->registerFile($cid, $value);
+			$multiple = $multipleForList;
 		}
 
+		if (!is_array($value))
+		{
+			$value = $value ? [$value] : [];
+		}
+
+		return $this->getFileUploaderHtml(
+			[
+				'FILES' => $value,
+				'MULTIPLE' => $multiple,
+				'IBLOCK_ID' => $this->entity->getIblockId(),
+				'PRODUCT_ID' => $this->entity->getId(),
+				'PROPERTY_ID' => $description['propertyId'],
+				'CONTROL_ID' => $controlId,
+			],
+		);
+	}
+
+	private function getFileUploaderHtml(array $options): string
+	{
+		$propertyName = 'PROPERTY_' . $options['PROPERTY_ID'];
+		$hiddenFieldName = $propertyName . '_tile_widget';
+		$hiddenFieldsContainer = 'file-input-' . Random::getString(10);
+
+		$options['PROPERTY_ID'] = Json::encode($options['PROPERTY_ID']);
+		$options['CONTROL_ID'] = Json::encode($options['CONTROL_ID']);
+		$options['FILES'] = Json::encode($options['FILES']);
+		$options['MULTIPLE'] = Json::encode($options['MULTIPLE']);
+
+		return <<<HTML
+			<input type="hidden" name="{$propertyName}" />
+			<div id="{$hiddenFieldsContainer}"></div>
+			<script>
+				(function() {
+					const tileWidget = new BX.UI.Uploader.TileWidget({
+						controller: 'iblock.UI.fileUploader.propertyController',
+						controllerOptions: {
+							propertyId: {$options['PROPERTY_ID']},
+							controlId: {$options['CONTROL_ID']},
+						},
+						hiddenFieldName: '{$hiddenFieldName}',
+						hiddenFieldsContainer: '#{$hiddenFieldsContainer}',
+
+						files: {$options['FILES']},
+						multiple: {$options['MULTIPLE']},
+						autoUpload: true,
+					});
+
+					tileWidget.renderTo(document.getElementById('{$hiddenFieldsContainer}'));
+					BX.Event.EventEmitter.subscribe(
+						tileWidget.getUploader(),
+						'File:onRemove',
+						() => {
+							BX.Event.EventEmitter.emit('Catalog.File.Input:onRemove');
+						},
+					);
+					BX.Event.EventEmitter.subscribe(
+						tileWidget.getUploader(),
+						'File:onUploadComplete',
+						() => {
+							BX.Event.EventEmitter.emit('Catalog.File.Input:onUploadComplete');
+						},
+					);
+				})();
+			</script>
+HTML;
+	}
+
+	protected function getFilePropertyViewHtml($description, $value, ?bool $multipleForList = null)
+	{
 		if ($multipleForList === null)
 		{
 			$multiple = $description['settings']['MULTIPLE'];
@@ -2193,22 +2366,32 @@ abstract class BaseForm
 			[
 				'userField' => [
 					'ID' => $description['settings']['ID'],
-					'VALUE' => $value,
-					'USER_TYPE_ID' => 'file',
+					'ENTITY_ID' => ProductTable::USER_FIELD_ENTITY_ID,
+					'FIELD_NAME' => $description['name'],
+					'USER_TYPE_ID' => UserField\Types\FileType::USER_TYPE_ID,
+					'XML_ID' => $description['settings']['XML_ID'],
+					'SORT' => $description['settings']['SORT'],
 					'MULTIPLE' => $multiple,
+					'MANDATORY' => $description['settings']['IS_REQUIRED'],
+					'SHOW_FILTER' => $description['settings']['FILTRABLE'],
+					'SHOW_IN_LIST' => 'Y',
+					'EDIT_IN_LIST' => 'Y',
+					'IS_SEARCHABLE' => $description['settings']['SEARCHABLE'],
+					'VALUE' => $value,
 				],
 				'additionalParameters' => [
 					'mode' => 'main.view',
 					'CONTEXT' => 'UI_EDITOR',
-					'URL_TEMPLATE' => '/bitrix/components/bitrix/main.file.input/ajax.php?'
-						. 'mfi_mode=down'
-						. '&fileID=#file_id#'
-						. '&cid=' . $cid
-						. '&sessid=' . bitrix_sessid()
-						. '&s=' . $signature,
 				],
 			]
 		);
+
+		if (empty($value))
+		{
+			ob_end_clean();
+
+			return '';
+		}
 
 		return ob_get_clean();
 	}
@@ -2217,7 +2400,7 @@ abstract class BaseForm
 	{
 		$inputName = $this->getFilePropertyInputName($property);
 
-		if ($value && !is_array($value))
+		if ($value && (!is_array($value) || isset($value['ID'])))
 		{
 			$value = [$value];
 		}
@@ -2276,139 +2459,6 @@ abstract class BaseForm
 		return $inputName;
 	}
 
-	protected function getElementPropertyEditHtml(string $name, array $propertyFields, $values, bool $valueFromForm = false, bool $isCopying = false): string
-	{
-		$name = htmlspecialcharsbx($name);
-
-		$index = 0;
-		$show = true;
-
-		$propertyFields['LINK_IBLOCK_ID'] = (int)$propertyFields['LINK_IBLOCK_ID'];
-		$multipleCount = (int)($propertyFields['MULTIPLE_CNT']);
-		if ($multipleCount <= 0 || $multipleCount > 30)
-		{
-			$multipleCount = 5;
-		}
-
-		$cnt = ($propertyFields['MULTIPLE'] === 'Y' ? $multipleCount : 1);
-
-		if (!is_array($values))
-		{
-			$values = [$values];
-		}
-
-		$fixIBlock = $propertyFields['LINK_IBLOCK_ID'] > 0;
-		$windowTableId = 'iblockprop-' . PropertyTable::TYPE_ELEMENT . '-' . $propertyFields['ID'] . '-' . $propertyFields['LINK_IBLOCK_ID'];
-
-		$searchParams = [
-			'IBLOCK_ID' => (string)$propertyFields['LINK_IBLOCK_ID'],
-			'n' => $name,
-			'tableId' => $windowTableId,
-		];
-		if ($fixIBlock)
-		{
-			$searchParams['iblockfix'] = 'y';
-		}
-
-		$result = '<table cellpadding="0" cellspacing="0" border="0" class="nopadding" width="100%" id="tb' . md5($name) . '">';
-		$key = '';
-		foreach ($values as $key => $val)
-		{
-			$show = false;
-			if ($isCopying)
-			{
-				$key = 'n' . $index;
-				$index++;
-			}
-
-			if (is_array($val) && array_key_exists('VALUE', $val))
-			{
-				$val = $val['VALUE'];
-			}
-
-			$element = ElementTable::getRow([
-				'select' => [
-					'NAME',
-				],
-				'filter' => [
-					'=ID' => $val
-				],
-			]);
-			$elementName = $element === null ? '' : $element['NAME'];
-
-			$currentSearchParams = $searchParams;
-			$currentSearchParams['k'] = $key;
-			$searchUrl = $this->urlBuilder->getElementSearchUrl($currentSearchParams);
-
-			$result .= '<tr><td>'
-				. '<input name="' . $name . '[' . $key . ']" id="' . $name . '[' . $key . ']" value="' . htmlspecialcharsbx($val) . '" size="5" type="text">'
-				. '<input type="button" value="..." onClick="jsUtils.OpenWindow(\'' . $searchUrl . '\', 900, 700);">'
-				. '&nbsp;<span id="sp_' . md5($name) . '_' . $key . '" >' . htmlspecialcharsbx($elementName) . '</span>'
-				. '</td></tr>';
-			unset($searchUrl, $currentSearchParams);
-
-			if ($propertyFields['MULTIPLE'] !== 'Y')
-			{
-				$valueFromForm = true;
-				break;
-			}
-		}
-
-		if (!$valueFromForm || $show)
-		{
-			for ($i = 0; $i < $cnt; $i++)
-			{
-				$val = '';
-				$key = 'n' . $index;
-				$index++;
-
-				$currentSearchParams = $searchParams;
-				$currentSearchParams['k'] = $key;
-				$searchUrl = $this->urlBuilder->getElementSearchUrl($currentSearchParams);
-
-				$result .= '<tr><td>'
-					. '<input name="' . $name . '[' . $key . ']" id="' . $name . '[' . $key . ']" value="' . htmlspecialcharsbx($val) . '" size="5" type="text">'
-					. '<input type="button" value="..." onClick="jsUtils.OpenWindow(\'' . $searchUrl . '\', 900, 700);">'
-					. '&nbsp;<span id="sp_' . md5($name) . '_' . $key . '"></span>'
-					. '</td></tr>';
-			}
-		}
-
-		if ($propertyFields['MULTIPLE'] === 'Y')
-		{
-			$currentSearchParams = $searchParams;
-			$currentSearchParams['k'] = $key;
-			$currentSearchParams['m'] = 'y';
-			$searchUrl = $this->urlBuilder->getElementSearchUrl($currentSearchParams);
-			$result .= '<tr><td>'
-				. '<input type="button" value="' . GetMessage('IBLOCK_AT_PROP_ADD') . '..." onClick="jsUtils.OpenWindow(\'' . $searchUrl . '\', 900, 700);">'
-				. '<span id="sp_' . md5($name) . '_' . $key . '" ></span>'
-				. '</td></tr>';
-		}
-
-		$searchUrl = $this->urlBuilder->getElementSearchUrl($searchParams, "&k=n'+MV_" . md5($name) . "+'");
-
-		$result .= '</table>';
-		$result .= '<script type="text/javascript">' . "\r\n";
-		$result .= 'var MV_' . md5($name) . ' = ' . $index . ";\r\n";
-		$result .= 'function InS' . md5($name) . "(id, name){ \r\n";
-		$result .= "	oTbl=document.getElementById('tb" . md5($name) . "');\r\n";
-		$result .= "	oRow=oTbl.insertRow(oTbl.rows.length-1); \r\n";
-		$result .= "	oCell=oRow.insertCell(-1); \r\n";
-		$result .= '	oCell.innerHTML='
-			. "'<input name=\"" . $name . "[n'+MV_" . md5($name) . "+']\" value=\"'+id+'\" id=\"" . $name . "[n'+MV_" . md5($name) . "+']\" size=\"5\" type=\"text\">'+\r\n"
-			. "'<input type=\"button\" value=\"...\" '+\r\n"
-			. "'onClick=\"jsUtils.OpenWindow(\'" . $searchUrl . "\', '+\r\n"
-			. "' 900, 700);\">'+"
-			. "'&nbsp;<span id=\"sp_" . md5($name) . "_n'+MV_" . md5($name) . "+'\" >'+name+'</span>"
-			. "';";
-		$result .= 'MV_' . md5($name) . '++;';
-		$result .= '}';
-		$result .= "\r\n</script>";
-
-		return $result;
-	}
-
 	protected function getProductFieldValue(array $field)
 	{
 		$value = $this->entity->getField($field['originalName']);
@@ -2436,9 +2486,25 @@ abstract class BaseForm
 			$value = self::NOT_SELECTED_VAT_ID_VALUE;
 		}
 
-		if (($field['originalName'] === 'ACTIVE_FROM' || $field['originalName'] === 'ACTIVE_TO')
+		if (
+			(
+				$field['originalName'] === 'ACTIVE_FROM'
+				|| $field['originalName'] === 'ACTIVE_TO'
+			)
 			&& !($this instanceof GridVariationForm)
-			&& !empty($value))
+			&& !empty($value)
+		)
+		{
+			$value = $value->format(\Bitrix\Main\Type\DateTime::getFormat());
+		}
+
+		if (
+			(
+				$field['originalName'] === 'TIMESTAMP_X'
+				|| $field['originalName'] === 'DATE_CREATE'
+			)
+			&& !empty($value)
+		)
 		{
 			$value = $value->format(\Bitrix\Main\Type\DateTime::getFormat());
 		}
@@ -2479,7 +2545,7 @@ abstract class BaseForm
 				$value = $value['TEXT'] ?? null;
 			}
 		}
-		elseif ($property && $property->getUserType() === \CIBlockPropertySequence::USER_TYPE)
+		elseif ($property && $property->getUserType() === PropertyTable::USER_TYPE_SEQUENCE)
 		{
 			if ($field['multiple'])
 			{
@@ -2569,22 +2635,17 @@ abstract class BaseForm
 
 	protected function getDefaultVat(): array
 	{
-		$emptyVat = null;
 		$iblockVatId = $this->entity->getIblockInfo()->getVatId();
 
 		foreach ($this->getVats() as $vat)
 		{
-			if ($vat['EXCLUDE_VAT'] === 'Y')
-			{
-				$emptyVat = $vat;
-			}
-
 			if ((int)$vat['ID'] === $iblockVatId)
 			{
 				$vat['NAME'] = Loc::getMessage(
-					"CATALOG_C_F_DEFAULT",
+					'CATALOG_C_F_DEFAULT',
 					['#VALUE#' => htmlspecialcharsbx($vat['NAME'])]
 				);
+
 				return $vat;
 			}
 		}
@@ -2594,9 +2655,9 @@ abstract class BaseForm
 			'RATE' => null,
 			'EXCLUDE_VAT' => null,
 			'NAME' => Loc::getMessage(
-				"CATALOG_C_F_DEFAULT",
-				['#VALUE#' => Loc::getMessage("CATALOG_PRODUCT_CARD_VARIATION_GRID_NOT_SELECTED")]
-			)
+				'CATALOG_C_F_DEFAULT',
+				['#VALUE#' => Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_NOT_SELECTED')]
+			),
 		];
 	}
 
@@ -2656,5 +2717,59 @@ abstract class BaseForm
 		}
 
 		return $result;
+	}
+
+	public function parseTileWidgetFileField(Property $property, string $controlId, mixed $field): array
+	{
+		$propertyId = $property->getId();
+		$isMultiple = $property->isMultiple();
+		$propertyController = new PropertyController([
+			'propertyId' => $propertyId,
+			'controlId' => $controlId,
+		]);
+		$uploader = new \Bitrix\UI\FileUploader\Uploader($propertyController);
+
+		if (!$isMultiple || !is_array($field))
+		{
+			if (is_numeric($field))
+			{
+				$field = [$field];
+				$field = \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+					$controlId,
+					$field
+				);
+			}
+			else
+			{
+				$pendingFiles = $uploader->getPendingFiles([$field]);
+				$pendingFiles->makePersistent();
+				$field = $pendingFiles->getFileIds();
+			}
+		}
+		else
+		{
+			$savedFiles = [];
+			$temporaryFiles = [];
+			foreach ($field as $fileId)
+			{
+				if (is_numeric($fileId))
+				{
+					$savedFiles[] = $fileId;
+				}
+				else
+				{
+					$temporaryFiles[] = $fileId;
+				}
+			}
+			$pendingFiles = $uploader->getPendingFiles($temporaryFiles);
+			$pendingFiles->makePersistent();
+			$savedFiles = \Bitrix\Main\UI\FileInputUtility::instance()->checkFiles(
+				$controlId,
+				$savedFiles
+			);
+			$field = array_merge($savedFiles, $pendingFiles->getFileIds());
+		}
+
+		return $field;
 	}
 }

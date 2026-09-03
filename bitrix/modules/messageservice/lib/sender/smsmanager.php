@@ -4,11 +4,16 @@ namespace Bitrix\MessageService\Sender;
 use Bitrix\Main;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventResult;
+use Bitrix\Main\ORM\Data\AddResult;
+use Bitrix\Main\Result;
 use Bitrix\MessageService\Internal\Entity\MessageTable;
 use Bitrix\MessageService\Message;
 use Bitrix\MessageService\MessageType;
-use Bitrix\Main\ORM\Data\AddResult;
+use Bitrix\MessageService\Sender\Result\SendMessage;
 
+/**
+ * @internal
+ */
 class SmsManager
 {
 	public const ON_MESSAGE_SUCCESSFULLY_SENT_EVENT = 'OnMessageSuccessfullySent';
@@ -83,6 +88,15 @@ class SmsManager
 				self::$senders[] = $sender;
 			}
 
+			if (Main\Loader::includeModule('imconnector'))
+			{
+				$sender = new Sms\Wazzup();
+				if (Sms\Wazzup::isSupported() || $sender->isRegistered())
+				{
+					self::$senders[] = $sender;
+				}
+			}
+
 			self::fireSendersEvent();
 		}
 		return self::$senders;
@@ -99,15 +113,18 @@ class SmsManager
 				continue;
 			}
 			$resultData = $result->getParameters();
-			foreach ($resultData as $sender)
+			if (is_array($resultData))
 			{
-				if (
-					$sender instanceof Base
-					&& $sender->getType() === MessageType::SMS
-					&& $sender::isSupported()
-				)
+				foreach ($resultData as $sender)
 				{
-					self::$senders[] = $sender;
+					if (
+						$sender instanceof Base
+						&& $sender->getType() === MessageType::SMS
+						&& $sender::isSupported()
+					)
+					{
+						self::$senders[] = $sender;
+					}
 				}
 			}
 		}
@@ -315,7 +332,7 @@ class SmsManager
 	/**
 	 * @param array $messageFields
 	 * @param Base|null $sender
-	 * @return AddResult
+	 * @return Result|AddResult
 	 * @throws Main\ArgumentTypeException
 	 */
 	public static function sendMessage(array $messageFields, Base $sender = null)
@@ -326,14 +343,14 @@ class SmsManager
 
 			if ($sender === null)
 			{
-				return (new AddResult())->addError(new Main\Error('Incorrect sender id.'));
+				return (new Result())->addError(new Main\Error('Incorrect sender id.'));
 			}
 		}
 		$message = static::createMessage($messageFields, $sender);
 
 		if ($message->getError() !== null)
 		{
-			return (new AddResult())->addError($message->getError());
+			return (new Result())->addError($message->getError());
 		}
 
 		$result = $message->send();
@@ -356,12 +373,13 @@ class SmsManager
 	/**
 	 * @param array $messageFields
 	 * @param Base|null $sender
-	 * @return Result\SendMessage
+	 * @return SendMessage
 	 * @throws Main\ArgumentTypeException
 	 */
 	public static function sendMessageDirectly(array $messageFields, Base $sender = null)
 	{
 		$message = static::createMessage($messageFields, $sender);
+
 		return $message->sendDirectly();
 	}
 

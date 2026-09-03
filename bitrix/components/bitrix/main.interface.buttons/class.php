@@ -84,6 +84,18 @@ class CMainInterfaceButtons
 			;
 
 			$arParams["THEME_ID"] = " --" . $arParams["THEME"];
+
+			$arParams["THEME_VARS"] =
+				isset($arParams["THEME_VARS"]) && is_array($arParams["THEME_VARS"]) ? $arParams["THEME_VARS"] : []
+			;
+
+			$arParams["ARIA_LABEL"] =
+				isset($arParams["ARIA_LABEL"]) && is_string($arParams["ARIA_LABEL"]) ? $arParams["ARIA_LABEL"] : ""
+			;
+
+			$arParams["ARIA_CURRENT"] =
+				isset($arParams["ARIA_CURRENT"]) && is_string($arParams["ARIA_CURRENT"]) ? $arParams["ARIA_CURRENT"] : "page"
+			;
 		}
 
 		return $arParams;
@@ -279,7 +291,13 @@ class CMainInterfaceButtons
 	 */
 	protected function prepareItemUrl($url)
 	{
-		return preg_match('#^(?:/|https?://)#', $url) ? (string)$url: '';
+		$url = trim((string)$url);
+		if (!preg_match('#^(?:/|https?://)#', $url))
+		{
+			return '';
+		}
+
+		return $url;
 	}
 
 	/**
@@ -481,8 +499,7 @@ class CMainInterfaceButtons
 
 			if (!$result && isset($item["ADDITIONAL_URL"]) && is_array($item["ADDITIONAL_URL"]))
 			{
-				$result = array_search($requestUri, $item["ADDITIONAL_URL"]);
-				$result = !is_null($result);
+				$result = (array_search($requestUri, $item["ADDITIONAL_URL"]) !== false);
 			}
 		}
 		else
@@ -603,8 +620,13 @@ class CMainInterfaceButtons
 			$item["URL"] = '';
 			$item["ON_CLICK"] = '';
 			$item["IS_ACTIVE"] = false;
+			$item["IS_CURRENT"] = false;
 
 			$this->prepareSubItems($item, $item['ITEMS']);
+		}
+		else
+		{
+			$item["IS_CURRENT"] = $item["IS_ACTIVE"];
 		}
 
 		return $item;
@@ -632,6 +654,7 @@ class CMainInterfaceButtons
 			if ($subItems[$i]['IS_ACTIVE'] && !$isPinned && !$isDelimiter)
 			{
 				$item['IS_ACTIVE'] = true;
+				$item['IS_CURRENT'] = false;
 			}
 
 			if (isset($subItems[$i]['COUNTER']) || isset($subItems[$i]['COUNTER_ID']))

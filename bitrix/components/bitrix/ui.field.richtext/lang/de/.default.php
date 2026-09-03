@@ -1,0 +1,7 @@
+<?php
+$MESS["UI_FIELD_RICH_TEXT_ADD"] = "Hinzufügen";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_DEFAULT_VALUE"] = "Standardwert";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_MAX_LENGTH"] = "Zeichen höchstens";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_MIN_LENGTH"] = "Zeichen mindestens";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_ROWS"] = "Anzahl der Zeilen";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_SIZE"] = "Feldbreite";

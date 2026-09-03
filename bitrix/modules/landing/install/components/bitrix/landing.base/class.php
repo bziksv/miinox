@@ -5,8 +5,10 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 }
 
 use \Bitrix\Crm\Integration\Landing\FormLanding;
+use Bitrix\Intranet\Settings\Tools\ToolsManager;
 use \Bitrix\Landing\Landing;
 use \Bitrix\Landing\Manager;
+use Bitrix\Landing\Restriction\ToolAvailabilityManager;
 use \Bitrix\Landing\Site;
 use \Bitrix\Main\Loader;
 use \Bitrix\Main\Application;
@@ -15,6 +17,7 @@ use \Bitrix\Main\Error;
 use \Bitrix\Main\Entity;
 use \Bitrix\Main\Page\Asset;
 use \Bitrix\Main\Service\GeoIp;
+use Bitrix\Main\UI\Extension;
 use \Bitrix\Main\UI\PageNavigation;
 use Bitrix\UI\Fonts;
 use Bitrix\Main\Web\Uri;
@@ -27,10 +30,8 @@ class LandingBaseComponent extends \CBitrixComponent
 	const B24_SERVICE_DETECT_IP = 'https://ip.bitrix24.site/getipforzone/?bx24_zone=';
 	const B24_DEFAULT_DNS_IP = '52.59.124.117';
 
-	/**
-	 * Manifest path template.
-	 */
-	const FILE_PATH_SITE_MANIFEST = '/bitrix/components/bitrix/landing.demo/data/site/#code#/.theme.php';
+	protected const MODULE_ID = 'landing';
+	private const FEEDBACK_KEY_PREFIX = 'landing-feedback-';
 
 	/**
 	 * Http status OK.
@@ -192,17 +193,38 @@ class LandingBaseComponent extends \CBitrixComponent
 	 * Returns feedback parameters.
 	 * @param string $id Feedback code.
 	 * @param array $presets Additional params.
+	 *
 	 * @return array|null
 	 */
 	public function getFeedbackParameters(string $id, array $presets = []): ?array
 	{
-		$id = 'landing-feedback-' . $id;
-		$tariffTtl = \Bitrix\Main\Config\Option::get('main', '~controller_group_till');
-		$tariffDate = $tariffTtl ? (string)\Bitrix\Main\Type\Date::createFromTimestamp((int)$tariffTtl) : null;
-		$partnerId = \Bitrix\Main\Config\Option::get('bitrix24', 'partner_id', 0);
-		$b24 = Loader::includeModule('bitrix24');
+		$key = self::FEEDBACK_KEY_PREFIX . $id;
 
-		$data = [
+		$data = $this->getPresetFeedbackData();
+		$feedbackParameters = $data[$key] ?? null;
+
+		if (!$feedbackParameters)
+		{
+			$data = $this->getPartnerFeedbackData();
+			$feedbackParameters = $data[$key] ?? null;
+		}
+
+		if ($presets && $feedbackParameters)
+		{
+			$feedbackParameters['PRESETS'] += $presets;
+		}
+
+		return $feedbackParameters;
+	}
+
+	/**
+	 * Returns preset feedback data array.
+	 *
+	 * @return array
+	 */
+	private function getPresetFeedbackData(): array
+	{
+		return [
 			'landing-feedback-designblock' => [
 				'ID' => 'landing-feedback-designblock',
 				'VIEW_TARGET' => null,
@@ -211,7 +233,7 @@ class LandingBaseComponent extends \CBitrixComponent
 					['zones' => ['es', 'la'], 'id' => '315','lang' => 'la', 'sec' => 'd3jam4'],
 					['zones' => ['de'], 'id' => '319','lang' => 'de', 'sec' => 'pr1z8q'],
 					['zones' => ['ua'], 'id' => '321','lang' => 'ua', 'sec' => 'm6etjp'],
-					['zones' => ['ru', 'by', 'kz'], 'id' => '311','lang' => 'ru', 'sec' => 'b8sbcz'],
+					['zones' => ['ru', 'by', 'kz', 'uz'], 'id' => '311','lang' => 'ru', 'sec' => 'b8sbcz'],
 					['zones' => ['en'], 'id' => '313','lang' => 'en', 'sec' => '9hdvqb']
 				],
 				'PRESETS' => [
@@ -226,106 +248,39 @@ class LandingBaseComponent extends \CBitrixComponent
 					['zones' => ['es', 'la'], 'id' => '277','lang' => 'la', 'sec' => 'eytrfo'],
 					['zones' => ['de'], 'id' => '281','lang' => 'de', 'sec' => '167ch0'],
 					['zones' => ['ua'], 'id' => '283','lang' => 'ua', 'sec' => 'ggoa61'],
-					['zones' => ['ru', 'by', 'kz'], 'id' => '273','lang' => 'ru', 'sec' => 'z71z93'],
+					['zones' => ['ru', 'by', 'kz', 'uz'], 'id' => '273','lang' => 'ru', 'sec' => 'z71z93'],
 					['zones' => ['en'], 'id' => '275','lang' => 'en', 'sec' => '5cs6v2']
 				],
 				'PRESETS' => [
 					'from_domain' => defined('BX24_HOST_NAME') ? BX24_HOST_NAME : $_SERVER['SERVER_NAME']
 				]
 			],
-			'landing-feedback-developer' => [
-				'ID' => 'landing-feedback-developer',
-				'VIEW_TARGET' => null,
-				'FORMS' => [
-					['zones' => ['en'], 'id' => '946','lang' => 'en', 'sec' => 'b3isk2'],
-					['zones' => ['de'], 'id' => '951','lang' => 'de', 'sec' => '34dwna'],
-					['zones' => ['es', 'la'], 'id' => '952','lang' => 'la', 'sec' => 'pkalm2'],
-					['zones' => ['br'], 'id' => '953','lang' => 'br', 'sec' => 'p9ty5r'],
-					['zones' => ['fr'], 'id' => '954','lang' => 'fr', 'sec' => 'udxiup'],
-					['zones' => ['pl'], 'id' => '955','lang' => 'pl', 'sec' => 'isnnbz'],
-					['zones' => ['it'], 'id' => '956','lang' => 'it', 'sec' => 'wnelcr'],
-					['zones' => ['tr'], 'id' => '957','lang' => 'tr', 'sec' => '6utlw2'],
-					['zones' => ['sc'], 'id' => '958','lang' => 'sc', 'sec' => '3bbec2'],
-					['zones' => ['tc'], 'id' => '959','lang' => 'tc', 'sec' => '4fo52q'],
-					['zones' => ['id'], 'id' => '960','lang' => 'id', 'sec' => 'jy3w82'],
-					['zones' => ['ms'], 'id' => '961','lang' => 'ms', 'sec' => 'pbmmy8'],
-					['zones' => ['th'], 'id' => '962','lang' => 'th', 'sec' => 'e587lw'],
-					['zones' => ['ja'], 'id' => '963','lang' => 'ja', 'sec' => 'hh20c2'],
-					['zones' => ['vn'], 'id' => '964','lang' => 'vn', 'sec' => '01bk91'],
-					['zones' => ['hi'], 'id' => '965','lang' => 'hi', 'sec' => 'io8koq'],
-					['zones' => ['ua'], 'id' => '969','lang' => 'ua', 'sec' => 'e5se9x'],
-					['zones' => ['ru'], 'id' => '891','lang' => 'ru', 'sec' => 'h208n3'],
-					['zones' => ['kz'], 'id' => '968','lang' => 'ru', 'sec' => '1312ws'],
-					['zones' => ['by'], 'id' => '971','lang' => 'ru', 'sec' => '023nxk']
-				],
-				'PRESETS' => [
-					'url' => defined('BX24_HOST_NAME') ? BX24_HOST_NAME : $_SERVER['SERVER_NAME'],
-					'tarif' => $b24 ? \CBitrix24::getLicenseType() : '',
-					'city' => $b24 ? implode(' / ', $this->getUserGeoData()) : '',
-					'partner_id' => $partnerId,
-					'date_to' => $tariffDate ?: null
-				],
-				'PORTAL_URI' => 'https://bitrix24.team'
-			],
-			'landing-feedback-knowledge' => [
-				'ID' => 'landing-feedback-knowledge',
-				'VIEW_TARGET' => null,
-				'FORMS' => [
-					['zones' => ['en'], 'id' => '1399','lang' => 'en', 'sec' => 'fkonbt'],
-					['zones' => ['de'], 'id' => '1398','lang' => 'de', 'sec' => 'zvchw9'],
-					['zones' => ['es', 'la'], 'id' => '1396','lang' => 'la', 'sec' => 'vb62o3'],
-					['zones' => ['fr'], 'id' => '1401','lang' => 'fr', 'sec' => 'ungyc0'],
-					['zones' => ['pl'], 'id' => '1392','lang' => 'pl', 'sec' => 'ib6p6u'],
-					['zones' => ['pt'], 'id' => '1394','lang' => 'pt', 'sec' => 'sfzq02'],
-					['zones' => ['ua'], 'id' => '1373','lang' => 'ua', 'sec' => 'p4xpwb'],
-					['zones' => ['ru'], 'id' => '1368','lang' => 'ru', 'sec' => '0rb92n'],
-					['zones' => ['kz'], 'id' => '1372','lang' => 'ru', 'sec' => 'o32l7z'],
-					['zones' => ['by'], 'id' => '1378','lang' => 'ru', 'sec' => 'naegic']
-				],
-				'PRESETS' => [
-					'url' => defined('BX24_HOST_NAME') ? BX24_HOST_NAME : $_SERVER['SERVER_NAME'],
-					'tarif' => $b24 ? \CBitrix24::getLicenseType() : '',
-					'city' => $b24 ? implode(' / ', $this->getUserGeoData()) : '',
-					'partner_id' => $partnerId,
-					'date_to' => $tariffDate ?: null
-				],
-				'PORTAL_URI' => 'https://bitrix24.team'
-			],
-			'landing-feedback-store' => [
-				'ID' => 'landing-feedback-store',
-				'VIEW_TARGET' => null,
-				'FORMS' => [
-					['zones' => ['en'], 'id' => '1930','lang' => 'en', 'sec' => 'lg4wsd'],
-					['zones' => ['de'], 'id' => '1965','lang' => 'de', 'sec' => 'i95dp6'],
-					['zones' => ['es', 'la'], 'id' => '1966','lang' => 'la', 'sec' => 'zlemun'],
-					['zones' => ['fr'], 'id' => '1968','lang' => 'fr', 'sec' => '8rao53'],
-					['zones' => ['pl'], 'id' => '1967','lang' => 'pl', 'sec' => 'hg6mms'],
-					['zones' => ['pt'], 'id' => '1964','lang' => 'pt', 'sec' => 'n4evxs'],
-					['zones' => ['ru'], 'id' => '1291','lang' => 'ru', 'sec' => 'a9byq4'],
-					['zones' => ['kz'], 'id' => '1298','lang' => 'ru', 'sec' => '6xe72g'],
-					['zones' => ['by'], 'id' => '1297','lang' => 'ru', 'sec' => 'b9rrf5'],
-					['zones' => ['it'], 'id' => '1969','lang' => 'it', 'sec' => 'o13tam'],
-					['zones' => ['vn'], 'id' => '1970','lang' => 'vn', 'sec' => '7w04lu'],
-					['zones' => ['tr'], 'id' => '1971','lang' => 'tr', 'sec' => 'm0i3bs'],
-				],
-				'PRESETS' => [
-					'url' => defined('BX24_HOST_NAME') ? BX24_HOST_NAME : $_SERVER['SERVER_NAME'],
-					'tarif' => $b24 ? \CBitrix24::getLicenseType() : '',
-					'city' => $b24 ? implode(' / ', $this->getUserGeoData()) : '',
-					'partner_id' => $partnerId,
-					'date_to' => $tariffDate ?: null
-				],
-				'PORTAL_URI' => 'https://bitrix24.team'
-			]
 		];
+	}
 
-		$data = array_key_exists($id, $data) ? $data[$id] : null;
-		if ($presets)
+	/**
+	 * Returns general feedback data array.
+	 *
+	 * @return array
+	 */
+	private function getPartnerFeedbackData(): array
+	{
+		if (!Loader::includeModule('ui'))
 		{
-			$data['PRESETS'] += $presets;
+			return [];
 		}
 
-		return $data;
+		return [
+			'landing-feedback-partner' => [
+				'ID' => 'landing-feedback-partner',
+				'VIEW_TARGET' => null,
+				'FORMS' => (new Bitrix\UI\Form\FormProvider)->getPartnerFormList(),
+				'PRESETS' => [
+					'source' => self::MODULE_ID,
+				],
+				'PORTAL_URI' => (new Bitrix\UI\Form\UrlProvider)->getPartnerPortalUrl(),
+			],
+		];
 	}
 
 	/**
@@ -362,10 +317,6 @@ class LandingBaseComponent extends \CBitrixComponent
 		}
 		$context = \Bitrix\Main\Application::getInstance()->getContext();
 		$this->currentRequest = $context->getRequest();
-		if ($this->currentRequest->isAjaxRequest())
-		{
-			$this->currentRequest->addFilter(new \Bitrix\Main\Web\PostDecodeFilter());
-		}
 		unset($context);
 	}
 
@@ -577,7 +528,7 @@ class LandingBaseComponent extends \CBitrixComponent
 	 */
 	public function request($var)
 	{
-		$result = $this->currentRequest[$var];
+		$result = $this->currentRequest[$var] ?? null;
 		return ($result !== null ? $result : '');
 	}
 
@@ -809,17 +760,29 @@ class LandingBaseComponent extends \CBitrixComponent
 
 		if (!array_key_exists($code, $codes))
 		{
+			$type = $this->arParams['TYPE'];
+			$specialType = mb_strtoupper($this->arResult['SPECIAL_TYPE'] ?? '');
+
 			if ($version)
 			{
-				$mess = Loc::getMessage($code . '_' . $version . '_' . $this->arParams['TYPE'], $replace);
+				$mess =
+					Loc::getMessage($code . '_' . $version . '_' . $specialType, $replace)
+					?? Loc::getMessage($code . '_' . $version . '_' . $type, $replace)
+				;
 				if (!$mess)
 				{
-					$mess = Loc::getMessage($code . '_' . $this->arParams['TYPE'], $replace);
+					$mess =
+						Loc::getMessage($code . '_' . $specialType, $replace)
+						?? Loc::getMessage($code . '_' . $type, $replace)
+					;
 				}
 			}
 			else
 			{
-				$mess = Loc::getMessage($code . '_' . $this->arParams['TYPE'], $replace);
+				$mess =
+					Loc::getMessage($code . '_' . $specialType, $replace)
+					?? Loc::getMessage($code . '_' . $type, $replace)
+				;
 			}
 
 			if (!$mess)
@@ -1147,27 +1110,6 @@ class LandingBaseComponent extends \CBitrixComponent
 	}
 
 	/**
-	 * Returns site theme manifest.
-	 * @param string $tplCode Site template code.
-	 * @return array|null
-	 */
-	protected function getThemeManifest(string $tplCode): ?array
-	{
-		$path = $this::FILE_PATH_SITE_MANIFEST;
-		$path = Manager::getDocRoot() . str_replace('#code#', $tplCode, $path);
-		if (file_exists($path))
-		{
-			$manifest = include $path;
-			if (is_array($manifest))
-			{
-				return $manifest;
-			}
-		}
-
-		return null;
-	}
-
-	/**
 	 * Detects site special type and returns it.
 	 * @param int $siteId Site id.
 	 * @deprecated since 21.700.0
@@ -1202,7 +1144,7 @@ class LandingBaseComponent extends \CBitrixComponent
 
 		if ($meta['SITE_SPECIAL'] === 'Y')
 		{
-			return Site\Type::getSiteTypeForms($meta['SITE_CODE']);
+			return Site\Type::getSiteSpecialType($meta['SITE_CODE']);
 		}
 
 		return null;
@@ -1371,9 +1313,10 @@ class LandingBaseComponent extends \CBitrixComponent
 	 * Get URI for create new ...
 	 * @param bool $isSite - if true - create new site, false - new page in current site
 	 * @param array $urlParams - additional url params, join with url (old or new type)
+	 * @param string $collectionCode - marketplace collection code
 	 * @return string
 	 */
-	public function getUrlAdd(bool $isSite = true, array $urlParams = []): string
+	public function getUrlAdd(bool $isSite = true, array $urlParams = [], string $collectionCode = ''): string
 	{
 		$paramName = $isSite ? 'PAGE_URL_SITE_EDIT' : 'PAGE_URL_LANDING_EDIT';
 
@@ -1392,7 +1335,7 @@ class LandingBaseComponent extends \CBitrixComponent
 		$replace = [
 			0,
 			0,
-			$this->arParams['SITE_ID'] ?? 0
+			$this->arParams['SITE_ID'] ?? '#site_show#'
 		];
 		$param = $this->arParams['~' . $paramName] ?? $this->arParams[$paramName];
 		$urlTemplate =
@@ -1417,9 +1360,9 @@ class LandingBaseComponent extends \CBitrixComponent
 		// additional url params
 		if (!empty($urlParams))
 		{
-			$createViaLandingUrl = $this->getPageParam($createViaLandingUrl, [
-				'super' => 'Y'
-			]);
+			$createViaLandingUrl = str_replace('#site_show#', '__site_show__', $createViaLandingUrl);
+			$createViaLandingUrl = $this->getPageParam($createViaLandingUrl, $urlParams);
+			$createViaLandingUrl = str_replace('__site_show__', '#site_show#', $createViaLandingUrl);
 		}
 
 		// OLD style showcase
@@ -1429,9 +1372,11 @@ class LandingBaseComponent extends \CBitrixComponent
 		}
 
 		// NEW - create via market module
-		$createViaMarketUrl = new Uri(
-			'/market/?placement=landings'
-		);
+		$marketUrl = $collectionCode !== ''
+			? '/market/collection/' . $collectionCode . '/?placement=landings'
+			: '/market/?placement=landings'
+		;
+		$createViaMarketUrl = new Uri($marketUrl);
 		$createViaMarketUrl->addParams([
 			'create_uri' => $createViaLandingUrl
 		]);
@@ -1460,6 +1405,81 @@ class LandingBaseComponent extends \CBitrixComponent
 			&& Manager::isB24()
 			&& Loader::includeModule('market')
 		;
+	}
+
+	/**
+	 * Check if current tool available by intranet tool settings
+	 * @return bool
+	 */
+	public function isToolAvailable(): bool
+	{
+		if (!Loader::includeModule('intranet'))
+		{
+			return true;
+		}
+
+		// crm forms always available
+		if (
+			isset($this->arParams['LANDING_ID'])
+			&& (int)$this->arParams['LANDING_ID'] > 0
+		)
+		{
+			$landing = \Bitrix\Landing\Landing::createInstance($this->arParams['LANDING_ID']);
+			if (
+				$landing->exist()
+				&& $this->getSpecialTypeSiteByLanding($landing) === Site\Type::PSEUDO_SCOPE_CODE_FORMS
+			)
+			{
+				return true;
+			}
+		}
+
+		$toolIds = [
+			'PAGE' => 'sites',
+			'STORE' => 'sites',
+			'KNOWLEDGE' => 'knowledge_base',
+		];
+		$toolIds['GROUP'] = $toolIds['KNOWLEDGE'];
+
+		$type = $this->arParams['TYPE'];
+		if (isset($toolIds[$type]))
+		{
+			return ToolAvailabilityManager::getInstance()->check($toolIds[$type]);
+		}
+
+		return true;
+	}
+
+	public function getToolUnavailableInfoScript(): string
+	{
+		$script = '';
+
+		$infoHelperCodes = [
+			'PAGE' => 'limit_sites_off',
+			'STORE' => 'limit_sites_off',
+			'KNOWLEDGE' => 'limit_office_knowledge_base_off',
+		];
+		$infoHelperCodes['GROUP'] = $infoHelperCodes['KNOWLEDGE'];
+
+		$type = $this->arParams['TYPE'];
+		if (
+			isset($infoHelperCodes[$type])
+			&& Loader::includeModule('ui')
+		)
+		{
+			$script = ToolAvailabilityManager::getInstance()->getStubComponentContent($infoHelperCodes[$type]);
+		}
+
+		return $script;
+	}
+
+	/**
+	 * Return code for info slider, when AI tool is disable for landing
+	 * @return string
+	 */
+	public static function getAiUnactiveInfoCode(): string
+	{
+		return 'limit_copilot_off';
 	}
 
 	/**

@@ -8,6 +8,8 @@ use Bitrix\Main\Localization\Loc;
 
 /**
  * Common operation with language file.
+ *
+ * @internal
  */
 class Operation
 	extends Translate\Controller\Action
@@ -24,7 +26,7 @@ class Operation
 	 * @param Main\Engine\Controller $controller Parent controller object.
 	 * @param array $config Additional configuration.
 	 */
-	public function __construct($name, Main\Engine\Controller $controller, $config = array())
+	public function __construct($name, Main\Engine\Controller $controller, array $config = [])
 	{
 		self::$enabledLanguagesList = Translate\Config::getEnabledLanguages();
 		self::$documentRoot = rtrim(Translate\IO\Path::tidy(Main\Application::getDocumentRoot()), '/');
@@ -39,7 +41,7 @@ class Operation
 	 *
 	 * @return bool
 	 */
-	protected function updateLangFile(Translate\File $langFile)
+	protected function updateLangFile(Translate\File $langFile): bool
 	{
 		// backup
 		if ($langFile->isExists() && Translate\Config::needToBackUpFiles())
@@ -101,7 +103,7 @@ class Operation
 	 *
 	 * @return bool
 	 */
-	protected function deleteLangFile(Translate\File $langFile)
+	protected function deleteLangFile(Translate\File $langFile): bool
 	{
 		// backup
 		if ($langFile->isExists() && Translate\Config::needToBackUpFiles())
@@ -152,7 +154,7 @@ class Operation
 	 *
 	 * @return bool
 	 */
-	protected function updatePhraseIndex(Translate\File $langFile)
+	protected function updatePhraseIndex(Translate\File $langFile): bool
 	{
 		$langFile->updatePhraseIndex();
 
@@ -166,7 +168,7 @@ class Operation
 	 *
 	 * @return bool
 	 */
-	protected function deletePhraseIndex(Translate\File $langFile)
+	protected function deletePhraseIndex(Translate\File $langFile): bool
 	{
 		$langFile->deletePhraseIndex();
 
@@ -178,9 +180,9 @@ class Operation
 	 *
 	 * @param string $langPath Relative project path of the language folder.
 	 *
-	 * @return \Generator|array
+	 * @return \Generator|array|iterable
 	 */
-	protected function lookThroughLangFolder($langPath)
+	protected function lookThroughLangFolder($langPath): iterable
 	{
 		$files = [];
 		$folders = [];
@@ -202,7 +204,7 @@ class Operation
 						continue;
 					}
 
-					if ((\mb_substr($name, -4) === '.php') && \is_file($fullPath))
+					if (Translate\IO\Path::isPhpFile($fullPath, true))
 					{
 						$files[$langPath.'/'.$name][$langId] = $fullPath;
 					}

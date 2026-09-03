@@ -3,6 +3,7 @@ $MESS["MPF_ADD_TAG"] = "Mehr hinzufügen";
 $MESS["MPF_ADD_TAG1"] = "Hinzufügen";
 $MESS["MPF_BUTTON_CANCEL"] = "Abbrechen";
 $MESS["MPF_BUTTON_SEND"] = "Senden ";
+$MESS["MPF_COPILOT"] = "CoPilot";
 $MESS["MPF_DESTINATION"] = "An:";
 $MESS["MPF_DESTINATION_1"] = "Mitarbeiter, Gruppen oder Abteilungen hinzufügen";
 $MESS["MPF_DESTINATION_2"] = "Mehr hinzufügen";

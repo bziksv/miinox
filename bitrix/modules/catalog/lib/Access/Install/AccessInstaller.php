@@ -222,20 +222,12 @@ class AccessInstaller
 			$groups[$groupTask['GROUP_ID']]['PERMISSIONS'][] = $taskPermissionMap[$groupTask['TASK_ID']];
 		}
 
-		$crmAdminGroupIds = [];
-		$crmAdminGroups = GroupTable::getList([
-			'filter' => ['=STRING_ID' => ShopGroupAssistant::SHOP_ADMIN_USER_GROUP_CODE],
-			'select' => ['ID'],
-		]);
-		while ($crmAdminGroup = $crmAdminGroups->fetch())
-		{
-			$crmAdminGroupIds[] = (int)$crmAdminGroup['ID'];
-		}
+		$adminGroupId = \CGroup::GetIDByCode(ShopGroupAssistant::SHOP_ADMIN_USER_GROUP_CODE);
 
 		foreach ($groups as $groupId => &$group)
 		{
 			$group['PERMISSIONS'] = array_unique(array_merge(...$group['PERMISSIONS']));
-			if (in_array($groupId, $crmAdminGroupIds, true))
+			if ($groupId == $adminGroupId)
 			{
 				$group['PERMISSIONS'][] = PermissionDictionary::CATALOG_SETTINGS_EDIT_RIGHTS;
 			}
@@ -280,7 +272,10 @@ class AccessInstaller
 			$result[$groupId] = $roleId;
 		}
 
-		RoleUtil::insertPermissions($query);
+		if (!empty($query))
+		{
+			RoleUtil::insertPermissions($query);
+		}
 
 		return $result;
 	}
@@ -320,7 +315,7 @@ class AccessInstaller
 		Application::getConnection()->query($query);
 	}
 
-	private function fillDefaultSystemPermissions(array $roles = null): void
+	private function fillDefaultSystemPermissions(?array $roles = null): void
 	{
 		$map = RoleMap::getDefaultMap();
 

@@ -17,16 +17,12 @@ IncludeModuleLangFile(__FILE__);
 
 if ($_SERVER['REQUEST_METHOD'] == 'GET')
 {
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
 
 if (!check_bitrix_sessid())
 {
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
 
@@ -36,26 +32,20 @@ CModule::IncludeModule('catalog');
 
 if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_EXPORT_EDIT))
 {
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	ShowError(GetMessage('YANDEX_ERR_NO_ACCESS_EXPORT'));
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
 
 if ((!isset($_REQUEST['IBLOCK_ID'])) || ($_REQUEST['IBLOCK_ID'] == ''))
 {
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	ShowError(GetMessage("YANDEX_ERR_NO_IBLOCK_CHOSEN"));
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
 $intIBlockID = $_REQUEST['IBLOCK_ID'];
 $intIBlockIDCheck = intval($intIBlockID);
 if ($intIBlockIDCheck.'|' != $intIBlockID.'|' || $intIBlockIDCheck <= 0)
 {
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	ShowError(GetMessage("YANDEX_ERR_NO_IBLOCK_CHOSEN"));
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
 else
@@ -71,17 +61,13 @@ if (($arIBlock = $rsIBlocks->Fetch()))
 	$bBadBlock = !CIBlockRights::UserHasRightTo($intIBlockID, $intIBlockID, "iblock_admin_display");
 	if ($bBadBlock)
 	{
-		require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 		ShowError(GetMessage('YANDEX_ERR_NO_ACCESS_IBLOCK'));
-		require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 		die();
 	}
 }
 else
 {
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	ShowError(str_replace('#ID#',$intIBlockID,GetMessage("YANDEX_ERR_NO_IBLOCK_FOUND_EXT")));
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
 
@@ -114,17 +100,13 @@ if (!empty($arOffers['IBLOCK_ID']))
 		$bBadBlock = !CIBlockRights::UserHasRightTo($intOfferIBlockID, $intOfferIBlockID, "iblock_admin_display");
 		if ($bBadBlock)
 		{
-			require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 			ShowError(GetMessage('YANDEX_ERR_NO_ACCESS_IBLOCK_SKU'));
-			require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 			die();
 		}
 	}
 	else
 	{
-		require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 		ShowError(str_replace('#ID#',$intIBlockID,GetMessage("YANDEX_ERR_NO_IBLOCK_SKU_FOUND")));
-		require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 		die();
 	}
 	$boolOffers = true;
@@ -403,7 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST')
 				'VAT_EXPORT' => $vatExport,
 				'COMMON_FIELDS' => $commonFields
 			);
-?><script type="text/javascript">
+?><script>
 top.BX.closeWait();
 top.BX.WindowManager.Get().Close();
 top.setDetailData('<?=CUtil::JSEscape(base64_encode(serialize($arXMLData)));?>');
@@ -571,7 +553,7 @@ HTML form
 		}
 
 		?>
-		<script type="text/javascript">
+		<script>
 		var currentSelectedType = '<? echo $type; ?>';
 
 		function switchType(type)
@@ -694,7 +676,7 @@ HTML form
 				<input type="hidden" name="PARAMS_COUNT" id="PARAMS_COUNT" value="<? echo $intCount; ?>">
 				<div style="width: 100%; text-align: center;"><input type="button" onclick="__addYP(); return false;" name="yandex_params_add" value="<? echo GetMessage('YANDEX_PROPS_ADDITIONAL_MORE'); ?>"></div>
 				</div>
-<script type="text/javascript">
+<script>
 function changeVatExport()
 {
 	var vatRates = BX('tr_BASE_VAT');
@@ -754,7 +736,7 @@ function __addYP()
 			<tr>
 			<td valign="top"><? echo GetMessage('YANDEX_OFFERS_SELECT') ?></td><td><?
 			$arOffersSelect = array(
-				0 => '--- '.ToLower(GetMessage('YANDEX_OFFERS_SELECT')).' ---',
+				0 => '--- '.mb_strtolower(GetMessage('YANDEX_OFFERS_SELECT')).' ---',
 				YANDEX_SKU_EXPORT_ALL => GetMessage('YANDEX_SKU_EXPORT_ALL_TITLE'),
 				YANDEX_SKU_EXPORT_MIN_PRICE => GetMessage('YANDEX_SKU_EXPORT_MIN_PRICE_TITLE'),
 			);
@@ -791,7 +773,7 @@ function __addYP()
 						?><option value="<?=$intPropID; ?>" <? echo $strSelected; ?>><? echo htmlspecialcharsEx($arIBlock['OFFERS_PROPERTY'][$intPropID]['NAME']);?></option><?
 					}
 					?></select></td>
-					<td valign="top"><select name="SKU_PROP_SELECT" id="SKU_PROP_SELECT"><option value="">--- <? echo ToLower(GetMessage('YANDEX_SKU_EXPORT_PROP_COND')); ?> ---</option><?
+					<td valign="top"><select name="SKU_PROP_SELECT" id="SKU_PROP_SELECT"><option value="">--- <? echo mb_strtolower(GetMessage('YANDEX_SKU_EXPORT_PROP_COND')); ?> ---</option><?
 					foreach ($arCondSelectProp as $key => $value)
 					{
 						?><option value="<? echo htmlspecialcharsbx($key);?>" <? echo ($key == $arSKUExport['SKU_PROP_COND']['COND'] ? 'selected' : ''); ?>><? echo htmlspecialcharsEx($value); ?></option><?
@@ -832,7 +814,7 @@ function __addYP()
 					?></div></td>
 				</tr>
 				</tbody></table><?
-				?><script type="text/javascript">
+				?><script>
 				var obExportConds = null,
 					obPropCondCont = null,
 					obSelectProps = null,

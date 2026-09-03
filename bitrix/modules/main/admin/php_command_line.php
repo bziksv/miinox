@@ -1,4 +1,4 @@
-<?
+<?php
 /* This code captures parse errors*/
 register_shutdown_function('error_alert');
 
@@ -13,7 +13,7 @@ function error_alert()
 	{
 		ob_end_clean();
 		echo "<h2>".GetMessage("php_cmd_error")."&nbsp;</h2><p>";
-		echo '<b>'.$arErrorType[$e['type']].'</b>: '.htmlspecialcharsbx($e['message']).' in <b>'.htmlspecialcharsbx($e['file']).'</b> on line <b>'.htmlspecialcharsbx($e['line']).'</b>';
+		echo '<b>'.$arErrorType[$e['type']].'</b>: '.htmlspecialcharsbx($e['message']).' in <b>'.htmlspecialcharsbx($e['file']).'</b> on the line <b>'.htmlspecialcharsbx($e['line']).'</b>';
 	}
 	else
 	{
@@ -41,10 +41,10 @@ function fancy_output($content)
 		else
 			$flags |= ENT_IGNORE;
 
-		return sprintf('<pre>%s</pre>', htmlspecialcharsbx($content, $flags));
+		return '<pre>' . htmlspecialcharsbx($content, $flags) . '</pre>';
 	}
 
-	return sprintf('<p>%s</e>', $content);
+	return '<p>' . $content . '</p>';
 }
 
 function isTextMode()
@@ -56,8 +56,8 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 define("HELP_FILE", "utilities/php_command_line.php");
 
 /**
- * @global \CUser $USER
- * @global \CMain $APPLICATION
+ * @global CUser $USER
+ * @global CMain $APPLICATION
  **/
 
 if(!$USER->CanDoOperation('view_other_settings'))
@@ -80,11 +80,12 @@ if (isset($_REQUEST["query_count"]) && $_REQUEST["query_count"] > 1 && check_bit
 }
 $query_count = CUserOptions::GetOption("php_command_line", "count", 1);
 if ($query_count <= 1)
+{
 	$remove = 0;
+}
 
 if (isset($_REQUEST["save"]) && check_bitrix_sessid())
 {
-	CUtil::JSPostUnescape();
 	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 	$i = 1;
 	while (isset($_POST["query".$i]))
@@ -105,8 +106,7 @@ if (isset($_REQUEST["save"]) && check_bitrix_sessid())
 	require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_js.php");
 	die();
 }
-	
-	
+
 if(
 	$_SERVER['REQUEST_METHOD'] == 'POST'
 	&& $_POST["ajax"] === "y"
@@ -114,27 +114,36 @@ if(
 	&& !$remove
 )
 {
-	CUtil::JSPostUnescape();
 	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 
-	if(
-		$_POST['query'] <> ''
-		&& $isAdmin
-		&& check_bitrix_sessid()
-	)
+	if (!empty($_POST['query']) && $isAdmin)
 	{
-		printf('<h2>%s</h2>', getMessage('php_cmd_result'));
+		if (check_bitrix_sessid())
+		{
+			echo '<h2>' . GetMessage('php_cmd_result') . '</h2>';
 
-		if (isTextMode())
-			ini_set('html_errors', 0);
+			if (isTextMode())
+			{
+				ini_set('html_errors', 0);
+			}
 
-		ob_start('fancy_output');
-		$query = rtrim($_POST['query'], ";\x20\n").";\n";
+			$query = rtrim($_POST['query'], ";\x20\n").";\n";
 
-		$stime = microtime(1);
-		eval($query);
-		ob_end_flush();
-		printf("<hr>".GetMessage("php_cmd_exec_time")." %0.6f", microtime(1) - $stime);
+			ob_start('fancy_output');
+			$stime = microtime(true);
+
+			eval($query);
+
+			$ftime = microtime(true) - $stime;
+			ob_end_flush();
+
+			printf("<hr>".GetMessage("php_cmd_exec_time")." %0.6f", $ftime);
+		}
+		else
+		{
+			$message = new CAdminMessage(GetMessage('php_cmd_sess_expired'));
+			echo $message->Show();
+		}
 	}
 
 	require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_js.php");
@@ -151,7 +160,6 @@ if(
 	&& (isset($_POST["add"]) || $remove)
 )
 {
-	CUtil::JSPostUnescape();
 	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 }
 else
@@ -174,7 +182,7 @@ $aTabs[] = array(
 	"TAB" => '',
 	"ONSELECT" => "AddNewTab();",
 );
-$editTab = new CAdminTabControl("editTab", $aTabs);
+$editTab = new CAdminTabControl("editTab", $aTabs, false, true);
 ?>
 <script>
 var tabActionInProgress = false;
@@ -278,9 +286,9 @@ function adjustTabTitles()
 			var m = query.match(/^\/\/title:\s*(.+)\n/);
 			if (m)
 				BX('tab_cont_tab' + lastIndex).innerHTML = BX.util.htmlspecialchars(m[1]);
-			
+
 			var close = BX.findChildren(BX('tab_cont_tab' + lastIndex), {className: 'adm-detail-tab-close'}, true);
-			if (!close || close.length == 0)
+			if (!close || close.length === 0)
 			{
 				var button = BX.create('SPAN', {props: {className: 'adm-detail-tab-close'}});
 				BX('tab_cont_tab' + lastIndex).appendChild(button);
@@ -292,18 +300,23 @@ function adjustTabTitles()
 		lastIndex++;
 	}
 	var plus = BX.findChildren(BX('tab_cont_tab_plus'), {className: 'adm-detail-tab-plus'}, true);
-	if(!plus || plus.length == 0)
+	if(!plus || plus.length === 0)
 	{
 		button = BX.create('SPAN', {props: {className: 'adm-detail-tab-plus'}});
 		BX('tab_cont_tab_plus').appendChild(button);
 	}
 }
 
+function adjustAsText()
+{
+	var resultAsText = BX.localStorage.get('result_as_text');
+	BX('result_as_text').checked = (resultAsText != 'n');
+}
+
 BX.ready(
 	function init()
 	{
-		var resultAsText = BX.localStorage.get('result_as_text');
-		BX('result_as_text').checked = resultAsText != 'n';
+		adjustAsText();
 		saveQueries(true);
 		adjustTabTitles();
 		setInterval(function()
@@ -336,7 +349,6 @@ function __FPHPSubmit()
 		var selectedTab = BX('editTab_active_tab');
 		var m = selectedTab.value.match(/^tab(\d+)$/);
 
-		window.scrollTo(0, 500);
 		ShowWaitWindow();
 
 		var data = BX.ajax.prepareData({
@@ -371,17 +383,16 @@ function __FPHPClear()
 
 function compareMaps(map1, map2)
 {
-	var testVal;
-	if (map1.size !== map2.size)
+	if (Object.getOwnPropertyNames(map1).length !== Object.getOwnPropertyNames(map2).length)
 	{
 		return false;
 	}
-	for (key in map1)
+	for (var key in map1)
 	{
 		if (map1.hasOwnProperty(key))
 		{
-			val = map1[key];
-			testVal = map2[key];
+			var val = map1[key];
+			var testVal = map2[key];
 			// in cases of an undefined value, make sure the key
 			// actually exists on the object so there are no false positives
 			if (testVal !== val || (testVal === undefined && !map2.hasOwnProperty(key)))
@@ -395,7 +406,7 @@ function compareMaps(map1, map2)
 
 </script>
 <div id="whole_form">
-<?
+<?php
 if(
 	$_SERVER['REQUEST_METHOD'] == 'POST'
 	&& $_POST["ajax"] === "y"
@@ -404,12 +415,14 @@ if(
 {
 	$APPLICATION->RestartBuffer();
 	?>
-	<script>window.editTab = null;</script>
-	<?
+	<script>
+		window.editTab = null;
+	</script>
+	<?php
 }
 ?>
-<form name="form1" action="<?echo $APPLICATION->GetCurPage()?>?lang=<?=LANG?>" method="POST">
-<?
+<form name="form1" action="<?= $APPLICATION->GetCurPage()?>?lang=<?=LANGUAGE_ID?>" method="POST">
+<?php
 $editTab->Begin();
 for ($i = 1; $i <= $query_count - ($remove? 1: 0); $i++)
 {
@@ -420,8 +433,8 @@ for ($i = 1; $i <= $query_count - ($remove? 1: 0); $i++)
 	?>
 	<tr valign="top">
 		<td width="100%" colspan="2">
-			<textarea cols="60" name="query<?echo $i?>" id="query<?echo $i?>" rows="15" wrap="OFF" style="width:100%;"><?echo htmlspecialcharsbx($query); ?></textarea><br />
-			<?
+			<textarea cols="60" name="query<?= $i?>" id="query<?= $i?>" rows="15" wrap="OFF" style="width:100%;"><?= htmlspecialcharsbx($query); ?></textarea><br />
+			<?php
 			if(COption::GetOptionString('fileman', "use_code_editor", "Y") == "Y" && CModule::IncludeModule('fileman'))
 			{
 				CCodeEditor::Show(array(
@@ -433,21 +446,21 @@ for ($i = 1; $i <= $query_count - ($remove? 1: 0); $i++)
 			?>
 		</td>
 	</tr>
-<?
+<?php
 }
 ?>
-<?$editTab->Buttons();
+<?php $editTab->Buttons();
 ?>
-<input<?if(!$isAdmin) echo " disabled"?> type="button" accesskey="x" name="execute" value="<?echo GetMessage("php_cmd_button")?>" onclick="return __FPHPSubmit();" class="adm-btn-save">
-<input type="button" value="<?echo GetMessage("php_cmd_button_clear")?>" onclick="this.form.reset(); __FPHPClear();">
+<input<?php if(!$isAdmin) echo " disabled"?> type="button" accesskey="x" name="execute" value="<?= GetMessage("php_cmd_button")?>" onclick="return __FPHPSubmit();" class="adm-btn-save">
+<input type="button" value="<?= GetMessage("php_cmd_button_clear")?>" onclick="this.form.reset(); __FPHPClear();">
 
 <input type="checkbox" value="Y" name="result_as_text" id="result_as_text">
 <label for="result_as_text"><?=GetMessage("php_cmd_text_result")?></label>
-<?
+<?php
 $editTab->End();
 ?>
 </form>
-<?
+<?php
 if(
 	$_SERVER['REQUEST_METHOD'] == 'POST'
 	&& $_POST["ajax"] === "y"
@@ -458,7 +471,11 @@ if(
 	{
 		CUserOptions::SetOption("php_command_line", "count", $query_count - 1);
 	}
-	?><script>adjustTabTitles();</script><?
+?>
+<script>
+	adjustAsText();
+	adjustTabTitles();
+</script><?php
 
 	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
 }
@@ -467,7 +484,7 @@ else
 	?>
 	</div>
 	<div id="result_div"></div>
-	<?echo BeginNote(), GetMessage("php_cmd_note"), EndNote();?>
-	<?
+	<?= BeginNote(), GetMessage("php_cmd_note"), EndNote();?>
+	<?php
 	require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin.php");
 }

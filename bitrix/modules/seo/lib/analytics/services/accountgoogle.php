@@ -1,7 +1,8 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Analytics\Services;
 
+use Bitrix\Main\Error;
 use Bitrix\Main\NotImplementedException;
 use Bitrix\Main\PhoneNumber\Parser;
 use Bitrix\Main\Result;
@@ -117,6 +118,62 @@ class AccountGoogle extends Analytics\Account
 		return $response;
 	}
 
+	/**
+	 * @param string|null $accountId
+	 * @param Date|null $dateFrom
+	 * @param Date|null $dateTo
+	 *
+	 * @return Result
+	 * @throws NotImplementedException
+	 */
+	public function getDailyExpensesReport(?string $accountId, ?Date $dateFrom, ?Date $dateTo): Result
+	{
+		$result = new Result();
+
+		$parameters = [
+			'ACCOUNT_ID' => $accountId,
+		];
+
+		if ($dateFrom && $dateTo)
+		{
+			$parameters['DATE_FROM'] = $dateFrom->format('Ymd');
+			$parameters['DATE_TO'] = $dateTo->format('Ymd');
+		}
+
+		$response = $this->getRequest()->send([
+			'methodName' => 'analytics.ads.expenses.get',
+			'parameters' => $parameters,
+			'streamTimeout' => static::LOAD_DAILY_EXPENSES_TIMEOUT,
+			'listenHttpErrors' => true,
+		]);
+
+		if (!$response->isSuccess())
+		{
+			$innerErrors = implode(',', $response->getErrorMessages());
+			$errorMessage = $this->buildErrorMessage("Error occurred while load daily expenses: {$innerErrors}");
+
+			return $result->addError(new Error($errorMessage));
+		}
+
+		$data = $response->getData();
+
+		if (isset($data['ROWS']) && count($data['ROWS']) > 0)
+		{
+			foreach ($data['ROWS'] as &$row)
+			{
+				$row['COST'] /= 1000000;
+			}
+		}
+
+		$result->setData(['expenses' => Helpers\ExpensesAdapter::translateExpensesReportToDailyExpenses($data)]);
+
+		return $result;
+	}
+
+	public function hasDailyExpensesReport(): bool
+	{
+		return true;
+	}
 
 	/**
 	 * Return true if it has expenses report.

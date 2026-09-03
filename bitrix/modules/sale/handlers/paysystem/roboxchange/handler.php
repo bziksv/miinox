@@ -38,7 +38,7 @@ class RoboxchangeHandler
 	 * @return PaySystem\ServiceResult
 	 * @throws \Bitrix\Main\ArgumentNullException
 	 */
-	public function initiatePay(Payment $payment, Request $request = null)
+	public function initiatePay(Payment $payment, ?Request $request = null)
 	{
 		if ($request === null)
 		{
@@ -64,13 +64,14 @@ class RoboxchangeHandler
 		$additionalUserFields = $this->getAdditionalUserFields($payment, $request);
 
 		$params = [
+			'ROBOXCHANGE_SHOPLOGIN' => $this->getBusinessValue($payment, 'ROBOXCHANGE_SHOPLOGIN'),
 			'URL' => $this->getUrl($payment, 'pay'),
 			'PS_MODE' => self::getHandlerModeAlias($this->service->getField('PS_MODE')),
 			'SIGNATURE_VALUE' => $this->getSignatureValue($payment, $receipt, $additionalUserFields),
 			'ROBOXCHANGE_ORDERDESCR' => $this->getOrderDescription($payment),
 			'PAYMENT_ID' => $payment->getId(),
-			'SUM' => PriceMaths::roundPrecision($payment->getSum()),
-			'CURRENCY' => $payment->getField('CURRENCY'),
+			'SUM' => PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()),
+			'CURRENCY' => $payment->getCurrency(),
 			'OUT_SUM_CURRENCY' => $this->getOutSumCurrency($payment),
 			'ADDITIONAL_USER_FIELDS' => $additionalUserFields,
 			'RECEIPT' => $receipt,
@@ -106,7 +107,7 @@ class RoboxchangeHandler
 	 * @param array $additionalUserFields
 	 * @return string
 	 */
-	private function getSignatureValue(Payment $payment, string $receipt = null, array $additionalUserFields = []): string
+	private function getSignatureValue(Payment $payment, ?string $receipt = null, array $additionalUserFields = []): string
 	{
 		$passwordCode = 'ROBOXCHANGE_SHOPPASSWORD';
 		if ($this->isTestMode($payment))
@@ -122,14 +123,14 @@ class RoboxchangeHandler
 			$payment->getId(),
 		];
 
-		if ($receipt)
-		{
-			$signaturePartList[] = $receipt;
-		}
-
 		if ($outSumCurrency = $this->getOutSumCurrency($payment))
 		{
 			$signaturePartList[] = $outSumCurrency;
+		}
+
+		if ($receipt)
+		{
+			$signaturePartList[] = $receipt;
 		}
 
 		$signaturePartList[] = $shopPassword1;
@@ -216,7 +217,7 @@ class RoboxchangeHandler
 
 		$hash = md5(implode(':', $signaturePartList));
 
-		return ToUpper($hash) === ToUpper($request->get('SignatureValue'));
+		return mb_strtoupper($hash) === mb_strtoupper($request->get('SignatureValue'));
 	}
 
 	/**
@@ -228,7 +229,7 @@ class RoboxchangeHandler
 		return $request->get('InvId');
 	}
 
-	protected function getUrl(Payment $payment = null, $action): string
+	protected function getUrl(?Payment $payment = null, $action): string
 	{
 		$url = parent::getUrl($payment, $action);
 
@@ -328,7 +329,7 @@ class RoboxchangeHandler
 	 * @param Payment|null $payment
 	 * @return bool
 	 */
-	protected function isTestMode(Payment $payment = null)
+	protected function isTestMode(?Payment $payment = null)
 	{
 		return $this->getBusinessValue($payment, 'PS_IS_TEST') === 'Y';
 	}
@@ -393,12 +394,7 @@ class RoboxchangeHandler
 	 */
 	public static function getHandlerModeList()
 	{
-		return [
-			'bank_card' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_BANKCARD_MODE'),
-			'apple_pay' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_APPLEPAY_MODE'),
-			'google_pay' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_GOOGLEPAY_MODE'),
-			'samsung_pay' => Loc::getMessage('SALE_HPS_ROBOXCHANGE_SAMSUNGPAY_MODE'),
-		];
+		return PaySystem\Manager::getHandlerDescription('roboxchange')['HANDLER_MODE_LIST'];
 	}
 
 	private static function getHandlerModeAlias(string $psMode): string
@@ -407,6 +403,8 @@ class RoboxchangeHandler
 
 		$aliases = [
 			'bank_card' => 'BankCard',
+			'widget' => '',
+			'sbp' => 'SBP',
 			'apple_pay' => 'ApplePay',
 			'google_pay' => 'GooglePay',
 			'samsung_pay' => 'SamsungPay',

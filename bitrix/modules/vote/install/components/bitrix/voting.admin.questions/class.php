@@ -88,8 +88,6 @@ class CVoteAdminQuestions extends \CBitrixComponent
 			\Bitrix\Main\Grid\Context::isInternalRequest() &&
 			$request->get("grid_id") == $this->gridId)
 		{
-			$request->addFilter(new \Bitrix\Main\Web\PostDecodeFilter());
-
 			if ($request->getPost("action") == \Bitrix\Main\Grid\Actions::GRID_DELETE_ROW)
 			{
 				$this->deleteQuestion($request->getPost("id"));
@@ -205,7 +203,7 @@ class CVoteAdminQuestions extends \CBitrixComponent
 		return false;
 	}
 	/**
-	 * @return Application|\Bitrix\Main\HttpApplication|\CAllMain|\CMain
+	 * @return Application|\Bitrix\Main\HttpApplication|CMain
 	 */
 	protected function getApplication()
 	{
@@ -214,7 +212,7 @@ class CVoteAdminQuestions extends \CBitrixComponent
 	}
 
 	/**
-	 * @return array|bool|\CAllUser|\CUser
+	 * @return array|bool|CUser
 	 */
 	protected function getCurrentUser()
 	{

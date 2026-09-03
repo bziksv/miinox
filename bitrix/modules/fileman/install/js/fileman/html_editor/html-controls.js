@@ -4028,18 +4028,15 @@ function __run()
 			endHeight,
 			startOpacity,
 			endOpacity,
-			i, row;
+			i;
 
 		if (animate)
 		{
 			for (i = 0; i < rows.length; i++)
 			{
-				row = this.rows[rows[i]];
+				const row = this.rows[rows[i]];
 				if (row && row.cont)
 				{
-					if (row.animation)
-						row.animation.stop();
-
 					row.cont.style.display = '';
 					if (show)
 					{
@@ -4056,6 +4053,11 @@ function __run()
 						endOpacity = 0;
 					}
 
+					// TODO: get fixed properly if it's not
+					// previously jabber:238368 threw an error when clicking "Additional Parameters"
+					// in adding and image in admin panel
+					// for both: step and complete
+					// probably remove both "...Old" variables
 					row.animation = new BX.easing({
 						_row: row,
 						duration : 300,
@@ -4064,12 +4066,20 @@ function __run()
 						transition : BX.easing.makeEaseOut(BX.easing.transitions.quart),
 						step : function(state)
 						{
-							_this.SetRowHeight(this._row.cont, state.height, state.opacity);
+							const contOld = this?._row?.cont;
+							const contNew = row.cont;
+							const contFinal = contOld || contNew;
+
+							_this.SetRowHeight(contFinal, state.height, state.opacity);
 						},
 						complete : function()
 						{
 							_this.CheckSize();
-							this._row.animation = null;
+							const rowOld = this?._row;
+							const rowNew = row;
+							const rowFinal = rowOld || rowNew;
+
+							rowFinal.animation = null;
 						}
 					});
 
@@ -4081,7 +4091,7 @@ function __run()
 		{
 			for (i = 0; i < rows.length; i++)
 			{
-				row = this.rows[rows[i]];
+				const row = this.rows[rows[i]];
 				if (row && row.cont)
 				{
 					if (show)
@@ -4105,19 +4115,20 @@ function __run()
 	{
 		if (tr && tr.cells)
 		{
+			const trStyle = tr.style;
+			trStyle.opacity = opacity / 100;
 			if (height == 0 || opacity == 0)
 			{
-				tr.style.display = 'none';
+				trStyle.display = 'none';
 			}
 			else
 			{
-				tr.style.display = '';
+				trStyle.display = '';
 			}
 
-			tr.style.opacity = opacity / 100;
 			for (var i = 0; i < tr.cells.length; i++)
 			{
-				tr.cells[i].style.height = height + 'px';
+				tr.cells[i].height = `${height}px`;
 			}
 		}
 	};
@@ -4739,7 +4750,8 @@ function __run()
 			}
 			else
 			{
-				var text = BX.util.trim(this.editor.selection.GetText());
+				this.savedRange = this.editor.selection.TrimRange();
+				const text = this.editor.selection.GetText();
 				if (text && text != this.editor.INVISIBLE_SPACE)
 				{
 					values.text = text;
@@ -4879,9 +4891,7 @@ function __run()
 		var pParTbl = c.appendChild(BX.create('TABLE', {props: {className: 'bxhtmled-dialog-tbl bxhtmled-video-dialog-tbl'}}));
 
 		// Title
-		r = this.AddTableRow(pParTbl, {label: BX.message('BXEdVideoInfoTitle') + ':', id: this.id + '-title'});
-		this.pTitle = r.rightCell.appendChild(BX.create('INPUT', {props: {id: this.id + '-title', type: 'text', className: 'bxhtmled-90-input', disabled: !!this.editor.bbCode}}));
-		BX.addClass(r.row, 'bxhtmled-video-ext-row bxhtmled-video-ext-loc-row');
+		this.pTitle = document.createElement('span');
 
 		// Size
 		r = this.AddTableRow(pParTbl, {label: BX.message('BXEdVideoSize') + ':', id: this.id + '-size'});
@@ -4925,7 +4935,6 @@ function __run()
 
 	VideoDialog.prototype.AnalyzeVideoSource = function(value)
 	{
-		var _this = this;
 		if (value.match(/<iframe([\s\S]*?)\/iframe>/gi))
 		{
 			var video = this.editor.phpParser.CheckForVideo(value);
@@ -4943,37 +4952,73 @@ function __run()
 		}
 		else
 		{
-			this.StartWaiting();
-
-			BX.ajax.runAction('fileman.api.htmleditorajax.getVideoOembed', {
-				data: {
-					video_source: value
-				}
-			}).then(
-				// Success
-				function(response)
-				{
-					this.StopWaiting();
-					if (response.data.result)
-					{
-						this.ShowVideoParams(response.data.data);
-					}
-					else
-					{
-						if (response.data.error !== '')
-						{
-							this.ShowVideoParams(false, response.data.error);
-						}
-					}
-				}.bind(this),
-				// Failure
-				function (response)
-				{
-					this.StopWaiting();
-					this.ShowVideoParams(false);
-				}.bind(this)
-			);
+			void this.loadIframe(value);
 		}
+	};
+
+	VideoDialog.prototype.loadIframe = async function(value)
+	{
+		const parsedResult = await this.parseIframe(value);
+		if (parsedResult)
+		{
+			this.ShowVideoParams(parsedResult);
+
+			return;
+		}
+
+		void this.loadIframeOld(value);
+	};
+
+	VideoDialog.prototype.parseIframe = async function(value)
+	{
+		const { VideoService } = await BX.Runtime.loadExtension('ui.video-service');
+
+		const service = VideoService.createByUrl(value);
+		if (!service)
+		{
+			return null;
+		}
+
+		return {
+			html: `<iframe src="${service.getEmbeddedUrl()}" width="640" height="340"></iframe>`,
+			provider: service.getId(),
+			width: 640,
+			height: 340,
+		};
+	};
+
+	VideoDialog.prototype.loadIframeOld = function(value)
+	{
+		this.StartWaiting();
+
+		BX.ajax.runAction('fileman.api.htmleditorajax.getVideoOembed', {
+			data: {
+				video_source: value
+			}
+		}).then(
+			// Success
+			function(response)
+			{
+				this.StopWaiting();
+				if (response.data.result)
+				{
+					this.ShowVideoParams(response.data.data);
+				}
+				else
+				{
+					if (response.data.error !== '')
+					{
+						this.ShowVideoParams(false, response.data.error);
+					}
+				}
+			}.bind(this),
+			// Failure
+			function (response)
+			{
+				this.StopWaiting();
+				this.ShowVideoParams(false);
+			}.bind(this)
+		);
 	};
 
 	VideoDialog.prototype.StartWaiting = function()
@@ -5189,7 +5234,7 @@ function __run()
 			title = this.pTitle.value,
 			width = parseInt(this.pWidth.value) || 100,
 			height = parseInt(this.pHeight.value) || 100,
-			mimeType = this.data.mimeType || '';
+			mimeType = this.data?.mimeType || '';
 
 		if (this.pSize.value !== '')
 		{

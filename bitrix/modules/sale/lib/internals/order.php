@@ -19,9 +19,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Order_Query query()
- * @method static EO_Order_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Order_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Order_Result getById($id)
- * @method static EO_Order_Result getList(array $parameters = array())
+ * @method static EO_Order_Result getList(array $parameters = [])
  * @method static EO_Order_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_Order createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_Order_Collection createCollection()
@@ -214,7 +214,8 @@ class OrderTable extends Main\Entity\DataManager
 			new Main\Entity\StringField('REASON_MARKED'),
 
 			new Main\Entity\FloatField(
-				'PRICE_DELIVERY'
+				'PRICE_DELIVERY',
+				['scale' => 8],
 			),
 			new Main\Entity\BooleanField(
 				'ALLOW_DELIVERY',
@@ -237,9 +238,10 @@ class OrderTable extends Main\Entity\DataManager
 
 			new Main\Entity\FloatField(
 				'PRICE',
-				array(
-					'default_value' => '0.0000'
-				)
+				[
+					'default_value' => '0.0',
+					'scale' => 8,
+				]
 			),
 
 			new Main\Entity\StringField(
@@ -252,9 +254,10 @@ class OrderTable extends Main\Entity\DataManager
 
 			new Main\Entity\FloatField(
 				'DISCOUNT_VALUE',
-				array(
-					'default_value' => '0.0000'
-				)
+				[
+					'default_value' => '0.0',
+					'scale' => 8,
+				]
 			),
 
 			new Main\Entity\ExpressionField(
@@ -265,9 +268,15 @@ class OrderTable extends Main\Entity\DataManager
 				array('DISCOUNT_VALUE', 'ID')
 			),
 
-			new Main\Entity\FloatField('TAX_VALUE'),
+			new Main\Entity\FloatField(
+				'TAX_VALUE',
+				['scale' => 8],
+			),
 
-			new Main\Entity\FloatField('SUM_PAID'),
+			new Main\Entity\FloatField(
+				'SUM_PAID',
+				['scale' => 8],
+			),
 
 			new Main\Entity\ExpressionField(
 				'SUM_PAID_FORREP',
@@ -355,7 +364,7 @@ class OrderTable extends Main\Entity\DataManager
 
 			new Main\Entity\ExpressionField(
 				'LOCK_STATUS',
-				"if(DATE_LOCK is null, 'green', if(DATE_ADD(DATE_LOCK, interval ".$maxLock." MINUTE)<now(), 'green', if(LOCKED_BY=".$userID.", 'yellow', 'red')))"
+				"case when DATE_LOCK is null or " . $helper->addSecondsToDateTime($maxLock * 60, 'DATE_LOCK') . " < now() then 'green' when LOCKED_BY = ".$userID." then 'yellow' else 'red' end"
 			),
 
 			new Main\Entity\ReferenceField(

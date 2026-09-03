@@ -18,7 +18,9 @@ Loc::loadMessages(__FILE__);
  * Class BePaidHandler
  * @package Sale\Handlers\PaySystem
  */
-class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefund
+class BePaidHandler extends PaySystem\ServiceHandler implements
+	PaySystem\IRefund,
+	PaySystem\Domain\Verification\IVerificationable
 {
 	private const MODE_CHECKOUT = 'checkout';
 	private const MODE_WIDGET = 'widget';
@@ -40,10 +42,7 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 */
 	public static function getHandlerModeList(): array
 	{
-		return array(
-			static::MODE_CHECKOUT => Loc::getMessage('SALE_HPS_BEPAID_CHECKOUT_MODE'),
-			static::MODE_WIDGET => Loc::getMessage('SALE_HPS_BEPAID_WIDGET_MODE'),
-		);
+		return PaySystem\Manager::getHandlerDescription('bePaid')['HANDLER_MODE_LIST'];
 	}
 
 	/**
@@ -51,7 +50,7 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 * @param Request|null $request
 	 * @return ServiceResult
 	 */
-	public function initiatePay(Payment $payment, Request $request = null): ServiceResult
+	public function initiatePay(Payment $payment, ?Request $request = null): ServiceResult
 	{
 		$result = new ServiceResult();
 
@@ -103,9 +102,10 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 */
 	private function getTemplateParams(Payment $payment, array $paymentTokenData): array
 	{
+		$currency = $payment->getCurrency();
 		$params = [
-			'sum' => (string)(PriceMaths::roundPrecision($payment->getSum())),
-			'currency' => $payment->getField('CURRENCY'),
+			'sum' => (string)(PriceMaths::roundByFormatCurrency($payment->getSum(), $currency, 2)),
+			'currency' => $currency,
 		];
 
 		if ($this->isWidgetMode())
@@ -117,8 +117,8 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 				'test' => $this->isTestMode($payment),
 				'transaction_type' => 'payment',
 				'order' => [
-					'amount' => (string)(PriceMaths::roundPrecision($payment->getSum()) * 100),
-					'currency' => $payment->getField('CURRENCY'),
+					'amount' => (string)(PriceMaths::roundByFormatCurrency($payment->getSum(), $currency, 2) * 100),
+					'currency' => $currency,
 					'description' => $this->getPaymentDescription($payment),
 					'tracking_id' => $payment->getId().self::TRACKING_ID_DELIMITER.$this->service->getField('ID'),
 					'additional_data' => self::getAdditionalData(),
@@ -146,7 +146,7 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	private function createPaymentToken(Payment $payment): ServiceResult
 	{
 		$result = new ServiceResult();
-
+		$currency = $payment->getCurrency();
 		$url = $this->getUrl($payment, 'getPaymentToken');
 		$params = [
 			'checkout' => [
@@ -154,8 +154,8 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 				'test' => $this->isTestMode($payment),
 				'transaction_type' => 'payment',
 				'order' => [
-					'amount' => (string)(PriceMaths::roundPrecision($payment->getSum()) * 100),
-					'currency' => $payment->getField('CURRENCY'),
+					'amount' => (string)(PriceMaths::roundByFormatCurrency($payment->getSum(), $currency, 2) * 100),
+					'currency' => $currency,
 					'description' => $this->getPaymentDescription($payment),
 					'tracking_id' => $payment->getId().self::TRACKING_ID_DELIMITER.$this->service->getField('ID'),
 					'additional_data' => self::getAdditionalData(),
@@ -249,7 +249,7 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 		$params = [
 			'request' => [
 				'parent_uid' => $bePaidPaymentData['checkout']['gateway_response']['payment']['uid'],
-				'amount' => (string)(PriceMaths::roundPrecision($refundableSum) * 100),
+				'amount' => (string)(PriceMaths::roundByFormatCurrency($refundableSum, $payment->getCurrency(), 2) * 100),
 				'reason' => $payment->getField('PAY_RETURN_COMMENT') ?: Loc::getMessage('SALE_HPS_BEPAID_REFUND_REASON'),
 			],
 		];
@@ -266,8 +266,10 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 		$verifyResponseResult = $this->verifyResponse($refundData);
 		if ($verifyResponseResult->isSuccess())
 		{
-			if ($refundData['transaction']['status'] === static::STATUS_SUCCESSFUL_CODE
-				&& PriceMaths::roundPrecision($refundData['transaction']['amount'] / 100) === PriceMaths::roundPrecision($refundableSum)
+			$currency = $payment->getField('CURRENCY');
+			if (
+				$refundData['transaction']['status'] === static::STATUS_SUCCESSFUL_CODE
+				&& PriceMaths::roundByFormatCurrency($refundData['transaction']['amount'] / 100, $currency) === PriceMaths::roundByFormatCurrency($refundableSum, $currency)
 			)
 			{
 				$result->setOperationType(PaySystem\ServiceResult::MONEY_LEAVING);
@@ -446,11 +448,12 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 */
 	private function isSumCorrect(Payment $payment, $sum): bool
 	{
+		$currency = $payment->getField('CURRENCY');
 		PaySystem\Logger::addDebugInfo(
-			__CLASS__.': bePaidSum='.PriceMaths::roundPrecision($sum)."; paymentSum=".PriceMaths::roundPrecision($payment->getSum())
+			__CLASS__.': bePaidSum=' . PriceMaths::roundByFormatCurrency($sum, $currency) . "; paymentSum=".PriceMaths::roundByFormatCurrency($payment->getSum(), $currency)
 		);
 
-		return PriceMaths::roundPrecision($sum) === PriceMaths::roundPrecision($payment->getSum());
+		return PriceMaths::roundByFormatCurrency($sum, $currency) === PriceMaths::roundByFormatCurrency($payment->getSum(), $currency);
 	}
 
 	/**
@@ -636,7 +639,7 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 * @param string $action
 	 * @return string
 	 */
-	protected function getUrl(Payment $payment = null, $action): string
+	protected function getUrl(?Payment $payment = null, $action): string
 	{
 		$url = parent::getUrl($payment, $action);
 		if ($payment !== null && $action === 'getPaymentStatus')
@@ -663,7 +666,7 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 * @param Payment $payment
 	 * @return bool
 	 */
-	protected function isTestMode(Payment $payment = null): bool
+	protected function isTestMode(?Payment $payment = null): bool
 	{
 		return ($this->getBusinessValue($payment, 'PS_IS_TEST') === 'Y');
 	}
@@ -756,5 +759,10 @@ class BePaidHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 		$arModuleVersion = array();
 		include $_SERVER['DOCUMENT_ROOT'].$modulePath;
 		return (isset($arModuleVersion['VERSION']) ? (string)$arModuleVersion['VERSION'] : null);
+	}
+
+	public static function getModeList(): array
+	{
+		return array_keys(self::getHandlerModeList());
 	}
 }

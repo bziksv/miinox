@@ -1,5 +1,5 @@
 import {BaseField} from 'landing.ui.field.basefield';
-import {Text, Type, Event, Dom, Runtime} from 'main.core';
+import { Text, Type, Event, Dom, Runtime, Tag } from 'main.core';
 import {BaseEvent} from 'main.core.events';
 import {fetchEventsFromOptions} from 'landing.ui.component.internal';
 
@@ -19,6 +19,9 @@ export class TextField extends BaseField
 		this.content = this.textOnly ? Text.encode(this.content) : this.content;
 		this.input.innerHTML = this.content;
 
+		this.#createFooter();
+		this.setFooterText(this.options.footerText ?? '');
+
 		this.onInputClick = this.onInputClick.bind(this);
 		this.onInputMousedown = this.onInputMousedown.bind(this);
 		this.onDocumentMouseup = this.onDocumentMouseup.bind(this);
@@ -26,15 +29,24 @@ export class TextField extends BaseField
 		this.onDocumentClick = this.onDocumentClick.bind(this);
 		this.onDocumentKeydown = this.onDocumentKeydown.bind(this);
 		this.onInputKeydown = this.onInputKeydown.bind(this);
+		this.onInputFocus = this.onInputFocus.bind(this);
+
+		this.enableTextboxAccessibility({multiline: !this.isTextOnly()});
 
 		Event.bind(this.input, 'click', this.onInputClick);
 		Event.bind(this.input, 'mousedown', this.onInputMousedown);
 		Event.bind(this.input, 'input', this.onInputInput);
 		Event.bind(this.input, 'keydown', this.onInputKeydown);
+		Event.bind(this.input, 'focus', this.onInputFocus);
 
-		Event.bind(document, 'click', this.onDocumentClick);
-		Event.bind(document, 'keydown', this.onDocumentKeydown);
-		Event.bind(document, 'mouseup', this.onDocumentMouseup);
+		const editorPanel = BX.Landing.UI.Panel.EditorPanel.getInstance();
+		const editorPanelDocument = editorPanel && editorPanel.layout ? editorPanel.layout.ownerDocument : null;
+		if (editorPanelDocument)
+		{
+			Event.bind(editorPanelDocument, 'click', this.onDocumentClick);
+			Event.bind(editorPanelDocument, 'keydown', this.onDocumentKeydown);
+			Event.bind(editorPanelDocument, 'mouseup', this.onDocumentMouseup);
+		}
 	}
 
 	onInputInput()
@@ -77,15 +89,22 @@ export class TextField extends BaseField
 		}
 	}
 
+	onInputFocus()
+	{
+		this.enableEdit();
+	}
+
 	enableTextOnly()
 	{
 		this.textOnly = true;
 		this.input.innerHTML = `${this.input.innerText}`.trim();
+		Dom.attr(this.input, 'aria-multiline', null);
 	}
 
 	disableTextOnly()
 	{
 		this.textOnly = false;
+		Dom.attr(this.input, 'aria-multiline', 'true');
 	}
 
 	isTextOnly()
@@ -98,8 +117,19 @@ export class TextField extends BaseField
 		return this.contentEditable !== false;
 	}
 
-	onDocumentClick()
+	onDocumentClick(event: MouseEvent): void
 	{
+		if (
+			this.isClickInsideField(event)
+			|| this.isClickInsideEditorPanel(event)
+			|| this.isClickInsidePopup(event)
+		)
+		{
+			this.fromInput = false;
+
+			return;
+		}
+
 		if (this.isEditable() && !this.fromInput)
 		{
 			if (this === BX.Landing.UI.Field.BaseField.currentField)
@@ -111,6 +141,33 @@ export class TextField extends BaseField
 		}
 
 		this.fromInput = false;
+	}
+
+	isClickInsideField(event: MouseEvent): boolean
+	{
+		if (!event || !event.target)
+		{
+			return false;
+		}
+
+		return Boolean(this.input && this.input.contains(event.target));
+	}
+
+	isClickInsideEditorPanel(event: MouseEvent): boolean
+	{
+		if (!event || !event.target)
+		{
+			return false;
+		}
+
+		const editorPanel = BX.Landing.UI.Panel.EditorPanel.getInstance();
+
+		return Boolean(editorPanel && editorPanel.layout && editorPanel.layout.contains(event.target));
+	}
+
+	isClickInsidePopup(event: MouseEvent): boolean
+	{
+		return Boolean(event && event.target && event.target.closest && event.target.closest('.popup-window'));
 	}
 
 	onDocumentMouseup()
@@ -221,6 +278,37 @@ export class TextField extends BaseField
 		}
 
 		return this.adjustTags(Runtime.clone(this.input)).innerHTML.replace(/&nbsp;/g, '');
+	}
+
+	#createFooter(): void
+	{
+		this.footer = Tag.render`<div class="landing-ui-field-bottom ui-ctl-bottom" hidden></div>`;
+		Dom.append(this.footer, this.getLayout());
+	}
+
+	setFooterText(text: string): void
+	{
+		this.footer.innerText = text;
+	}
+
+	showFooter(): void
+	{
+		Dom.show(this.footer);
+	}
+
+	hideFooter(): void
+	{
+		Dom.hide(this.footer);
+	}
+
+	setWarningStatus(): void
+	{
+		Dom.addClass(this.getLayout(), 'landing-ui-field-warning');
+	}
+
+	unsetWarningStatus(): void
+	{
+		Dom.removeClass(this.layout, 'landing-ui-field-warning');
 	}
 }
 

@@ -13,7 +13,7 @@ class WizardTemplate extends CWizardTemplate
 
 		$wizardPath = $wizard->GetPath();
 
-		$obStep =& $wizard->GetCurrentStep();
+		$obStep = $wizard->GetCurrentStep();
 		$arErrors = $obStep->GetErrors();
 		$strError = "";
 		if (!empty($arErrors))
@@ -41,18 +41,13 @@ class WizardTemplate extends CWizardTemplate
 		if(file_exists($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/.config.php"))
 		{
 			include($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/.config.php");
-			if(defined("INSTALL_UTF_PAGE") && is_array($bxProductConfig["product_wizard"]))
-			{
-				foreach($bxProductConfig["product_wizard"] as $key=>$val)
-					$bxProductConfig["product_wizard"][$key] = mb_convert_encoding($val, INSTALL_CHARSET, "utf-8");
-			}
 		}
 
-		$title = $bxProductConfig["product_wizard"]["product_name"] ?? $arWizardConfig["productName"] ?? InstallGetMessage("INS_TITLE3");
+		$title = $bxProductConfig["product_wizard"]["product_name"] ?? $arWizardConfig["productName"] ?? GetMessage("INS_TITLE3");
 
 		$titleSub = "";
-		if($title == InstallGetMessage("INS_TITLE3"))
-			$titleSub = '<div class="inst-title-label">'.InstallGetMessage("INS_TITLE2").'</div>';
+		if($title == GetMessage("INS_TITLE3"))
+			$titleSub = '<div class="inst-title-label">'.GetMessage("INS_TITLE2").'</div>';
 
 		$title = str_replace("#VERS#", $productVersion , $title);
 		$browserTitle = strip_tags(str_replace(Array("<br>", "<br />"), " ",$title));
@@ -61,17 +56,17 @@ class WizardTemplate extends CWizardTemplate
 			$copyright = $bxProductConfig["product_wizard"]["copyright"];
 		else
 		{
-			$copyright = InstallGetMessage("COPYRIGHT");
+			$copyright = GetMessage("COPYRIGHT");
 			if (isset($arWizardConfig["copyrightText"]))
 				$copyright .= $arWizardConfig["copyrightText"];
 		}
 		$copyright = str_replace("#CURRENT_YEAR#", date("Y") , $copyright);
 
-		$support = $bxProductConfig["product_wizard"]["links"] ?? $arWizardConfig["supportText"] ?? InstallGetMessage("SUPPORT");
+		$support = $bxProductConfig["product_wizard"]["links"] ?? $arWizardConfig["supportText"] ?? GetMessage("SUPPORT");
 
-		if(file_exists($_SERVER["DOCUMENT_ROOT"]."/readme.php") || file_exists($_SERVER["DOCUMENT_ROOT"]."/readme.html"))
-			$support = InstallGetMessage("SUPPORT_README").$support;
-		
+		if (file_exists($_SERVER["DOCUMENT_ROOT"]."/readme.html"))
+			$support = GetMessage("SUPPORT_README").$support;
+
 		//Images
 		$logoImage = "";
 		$boxImage = "";
@@ -139,24 +134,22 @@ class WizardTemplate extends CWizardTemplate
 		$jsBeforeOnload = "";
 		if ($currentStep == "create_modules")
 		{
-			$jsBeforeOnload .= "var warningBeforeOnload = '".InstallGetMessage("INS_BEFORE_USER_EXIT")."';\n";
+			$jsBeforeOnload .= "var warningBeforeOnload = '".GetMessage("INS_BEFORE_USER_EXIT")."';\n";
 			$jsBeforeOnload .= "window.onbeforeunload = OnBeforeUserExit;";
 		}
 
 		$jsCode = "";
 		$jsCode = file_get_contents($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/install/wizard/script.js");
 
-		$instructionText = InstallGetMessage("GOTO_README");
-		$noscriptInfo = InstallGetMessage("INST_JAVASCRIPT_DISABLED");
-		$charset = (defined("INSTALL_UTF_PAGE") ? "UTF-8" : INSTALL_CHARSET);
-
+		$instructionText = GetMessage("GOTO_README");
+		$noscriptInfo = GetMessage("INST_JAVASCRIPT_DISABLED");
 
 		return <<<HTML
 <!DOCTYPE html>
 <html>
 	<head>
 		<title>{$browserTitle}</title>
-		<meta http-equiv="Content-Type" content="text/html; charset={$charset}">
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<noscript>
 			<style type="text/css">
@@ -166,8 +159,7 @@ class WizardTemplate extends CWizardTemplate
 			<p id="noscript">{$noscriptInfo}</p>
 		</noscript>
 		<link rel="stylesheet" href="/bitrix/images/install/installer_style.css">
-		<script type="text/javascript">
-		<!--
+		<script>
 			document.onkeydown = EnterKeyPress;
 
 			function EnterKeyPress(event)
@@ -213,7 +205,6 @@ class WizardTemplate extends CWizardTemplate
 
 			{$jsCode}
 			{$jsBeforeOnload}
-		//-->
 		</script>
 
 
@@ -269,7 +260,7 @@ class WizardTemplate extends CWizardTemplate
 		</td>
 	</tr>
 </table>
-<script type="text/javascript">PreloadImages();</script>
+<script>PreloadImages();</script>
 <div class="instal-bg"><div class="instal-bg-inner"></div></div>
 </body>
 </html>

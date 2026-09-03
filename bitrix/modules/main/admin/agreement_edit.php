@@ -6,7 +6,6 @@
 use Bitrix\Main\Localization\Loc;
 
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/agreement_edit.php");
 
 Loc::loadMessages(__FILE__);
@@ -43,7 +42,8 @@ if ($adminSidePanelHelper->isSidePanel())
 			'POPUP_COMPONENT_PARAMS' => $componentParameters,
 			'RELOAD_GRID_AFTER_SAVE' => true,
 			'CLOSE_AFTER_SAVE' => true,
-		]
+			'USE_UI_TOOLBAR' => 'Y',
+		],
 	);
 }
 else

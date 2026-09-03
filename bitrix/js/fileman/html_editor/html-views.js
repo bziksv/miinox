@@ -328,6 +328,946 @@ BXEditorTextareaView.prototype.GetCursorPosition = function()
 	return this.element.selectionStart;
 };
 
+class BXEditorIframeCopilot
+{
+	copilotParams = {};
+	copilotLoaded = false;
+	selectionTypeCaret = 'Caret';
+	resultNodeAttr = 'bxhtmled-copilot-result-node';
+	resultColor = '#8d52ec';
+	responseFormatSupported = false;
+
+	invitationLineModes = {
+		NONE: 'none',
+		LAST_LINE: 'lastLine',
+		EACH_LINE: 'eachLine',
+	};
+
+	invitationLineMode = this.invitationLineModes.LAST_LINE;
+
+	/**
+	 * @param iframeView BXEditorIframeView
+	 * @param copilotParams {{moduleId, contextId, category, contextParameters, invitationLineMode, isMentionUnavailable, responseFormat}}
+	 */
+	constructor(iframeView, copilotParams = {})
+	{
+		this.iframeView = iframeView;
+		this.iframeContainer = iframeView.container;
+		this.contentEditable = iframeView.element;
+
+		this.copilotParams = copilotParams;
+		this.responseFormatSupported = BX.Extension?.getSettings('ai.copilot')?.get('isSupportResponseFormatting') === true;
+
+		this.invitationLineMode = copilotParams.invitationLineMode ?? this.invitationLineModes.LAST_LINE;
+		this.invitationLine = this.renderInvitationLine();
+		this.invitationLineAbsolute = this.renderInvitationLine();
+		this.insertResultNode = this.renderInsertResultNode();
+
+		const copilotOptions = {
+			moduleId: copilotParams.moduleId,
+			contextId: copilotParams.contextId,
+			category: copilotParams.category,
+			contextParameters: copilotParams.contextParameters,
+			autoHide: true,
+			preventAutoHide: (event) => this.iframeContainer.contains(event.target),
+		};
+
+		if (this.responseFormatSupported)
+		{
+			copilotOptions.responseFormat = copilotParams.responseFormat ?? 'html';
+		}
+
+		this.copilot = new BX.AI.Copilot(copilotOptions);
+
+		this.bindHandlers();
+
+		BX.Event.EventEmitter.emit('onHtmlEditorCopilotInit', { copilot: this.copilot });
+		this.copilot.init();
+	}
+
+	renderInvitationLine()
+	{
+		let placeHolder = BX.message('BXEdCopilotPlaceholder_MSGVER_2');
+		if (this.copilotParams.isMentionUnavailable)
+		{
+			placeHolder = BX.message('BXEdCopilotPlaceholderWithoutMention_MSGVER_1');
+		}
+
+		return BX.Tag.render`
+			<div class="bxhtmled-copilot" placeholder="${placeHolder}"></div>
+		`;
+	}
+
+	renderInsertResultNode()
+	{
+		return BX.Tag.render`
+			<span class="bxhtmled-insert-result"></span>
+		`;
+	}
+
+	bindHandlers()
+	{
+		this.copilot.subscribe('finish-init', this.finishInitHandler.bind(this));
+		this.copilot.subscribe('aiResult', this.aiResultHandler.bind(this));
+		this.copilot.subscribe('save', this.saveHandler.bind(this));
+		this.copilot.subscribe('add_below', this.addBelowHandler.bind(this));
+		this.copilot.subscribe('cancel', this.cancelHandler.bind(this));
+		this.copilot.subscribe('hide', this.saveResultNodes.bind(this));
+		document.addEventListener('click', this.documentClickHandler.bind(this));
+		document.addEventListener('keydown', this.onWindowKeyDownHandler.bind(this));
+		this.contentEditable.addEventListener('input', this.onContentEditableKeyDown.bind(this));
+		window.addEventListener('scroll', this.onScrollHandler.bind(this), true);
+		window.addEventListener('resize', this.handleResizeWindow.bind(this));
+		BX.addCustomEvent(window, "onPullEvent-unicomments", this.startAdjustAnimation.bind(this));
+		this.hideObserver = new MutationObserver(() => {
+			if (this.iframeContainer.offsetHeight <= 0) {
+				this.hideInvitationLine();
+				this.hideObserver.disconnect();
+			}
+		});
+		this.hideObserver.observe(document.body, {childList: true});
+	}
+
+	documentClickHandler(event)
+	{
+		if (!this.iframeContainer.contains(event.target))
+		{
+			this.hideInvitationLine();
+		}
+	}
+
+	startAdjustAnimation()
+	{
+		this.animation?.stop();
+		this.animation = new BX.easing({
+			duration: 1000,
+			start: {},
+			finish: {},
+			transition : BX.easing.makeEaseOut(BX.easing.transitions.linear),
+			step: () => {
+				if (this.copilot.isShown())
+				{
+					this.copilot.adjust(this.getAdjustOptionsForRect(this.adjustmentRect));
+				}
+				if (this.copilotBtnPopup?.isShown())
+				{
+					this.adjustCopilotButton(this.getAdjustOptionsForRectSpaced(this.adjustmentRect, true));
+				}
+			},
+			complete: () => this.animation = null,
+		});
+		this.animation.animate();
+	}
+
+	finishInitHandler()
+	{
+		this.copilotLoaded = true;
+		this.updateInvitationLine();
+	}
+
+	aiResultHandler(event)
+	{
+		const resultNodes = this.getResultNodes();
+		const isHtmlFormat = this.responseFormatSupported
+			&& (this.copilotParams.responseFormat ?? 'html') === 'html';
+
+		let lastResultSpan;
+		if (resultNodes.length !== 0)
+		{
+			lastResultSpan = [...resultNodes].pop();
+			if (isHtmlFormat)
+			{
+				lastResultSpan.innerHTML = event.data.result;
+			}
+			else
+			{
+				lastResultSpan.innerText = event.data.result;
+			}
+		}
+		else
+		{
+			if (isHtmlFormat)
+			{
+				lastResultSpan = this.getSpanWithHtml(event.data.result);
+			}
+			else
+			{
+				lastResultSpan = this.getSpanWithText(event.data.result);
+			}
+			BX.Dom.style(lastResultSpan, 'color', this.resultColor);
+			BX.Dom.attr(lastResultSpan, this.resultNodeAttr, 'true');
+
+			if (this.invitationLineMode === this.invitationLineModes.LAST_LINE)
+			{
+				this.insertResultNode.after(BX.Tag.render`<br>`);
+			}
+
+			this.insertResultNode.after(lastResultSpan);
+			this.insertResultNode.remove();
+		}
+
+		this.iframeView.ScrollToInsertedText();
+		this.getSelection().removeAllRanges();
+
+		this.copilot.adjust(this.getAdjustOptions(lastResultSpan));
+	}
+
+	saveHandler(event)
+	{
+		if (this.getResultNodes().length === 0)
+		{
+			const selection = this.getSelection().getRangeAt(0);
+			const isHtmlFormat = this.responseFormatSupported
+				&& (this.copilotParams.responseFormat ?? 'html') === 'html';
+			const span = isHtmlFormat
+				? this.getSpanWithHtml(event.data.result)
+				: this.convertTextToHtmlSpan(event.data.result);
+			selection.deleteContents();
+			selection.insertNode(span);
+			this.iframeView.UpdateHeight();
+		}
+
+		this.saveResultNodes();
+
+		this.iframeView.editor.synchro.FromIframeToTextarea(true, true);
+		this.iframeView.editor.synchro.FromTextareaToIframe(true);
+
+		this.copilot.hide();
+	}
+
+	addBelowHandler(event)
+	{
+		const isHtmlFormat = this.responseFormatSupported
+			&& (this.copilotParams.responseFormat ?? 'html') === 'html';
+		const span = isHtmlFormat
+			? this.getSpanWithHtml(event.data.result)
+			: this.getSpanWithText(event.data.result);
+
+		let lastSelectedElement = null;
+		if (this.getSelectionText() !== '')
+		{
+			lastSelectedElement = this.getSelection().getRangeAt(0).endContainer;
+		}
+
+		const isSelectionEndOutOfBounds = lastSelectedElement === this.iframeView.element;
+		if (lastSelectedElement && !isSelectionEndOutOfBounds)
+		{
+			lastSelectedElement.after(span);
+			lastSelectedElement.after(BX.Tag.render`<br>`);
+		}
+		else
+		{
+			BX.Dom.append(BX.Tag.render`<br>`, this.contentEditable);
+			BX.Dom.append(span, this.contentEditable);
+			BX.Dom.append(BX.Tag.render`<br>`, this.contentEditable);
+		}
+
+		this.iframeView.ScrollToInsertedText();
+		this.getSelection().removeAllRanges();
+
+		this.iframeView.editor.synchro.FromIframeToTextarea(true, true);
+		this.iframeView.editor.synchro.FromTextareaToIframe(true);
+
+		this.copilot.hide();
+	}
+
+	cancelHandler()
+	{
+		[...this.getResultNodes()][0]?.before(this.insertResultNode);
+		this.removeResultNodes();
+		if (this.showRect)
+		{
+			this.copilot.adjust(this.getAdjustOptionsForRect(this.showRect));
+		}
+	}
+
+	convertTextToHtmlSpan(text)
+	{
+		return BX.Tag.render`<span>${text}</span>`;
+	}
+
+	getSpanWithText(text)
+	{
+		const span = BX.Dom.create('span');
+		span.innerText = text;
+
+		return span;
+	}
+
+	getSpanWithHtml(html)
+	{
+		const span = BX.Dom.create('span');
+		span.innerHTML = html;
+
+		return span;
+	}
+
+	onWindowKeyDownHandler(event)
+	{
+		if (event.key === "Escape")
+		{
+			this.copilot.hide();
+		}
+	}
+
+	handleResizeWindow()
+	{
+		if (this.copilot.isShown())
+		{
+			this.copilot.adjustWidth(this.getCopilotWidth());
+		}
+	}
+
+	removeResultNodes()
+	{
+		this.getResultNodes().forEach(resultNode => resultNode.remove());
+	}
+
+	saveResultNodes()
+	{
+		for (const resultNode of this.getResultNodes())
+		{
+			for (const childNode of resultNode.childNodes)
+			{
+				resultNode.before(childNode.cloneNode(true));
+			}
+
+			resultNode.remove();
+		}
+	}
+
+	onContentEditableMouseDown()
+	{
+		this.insertResultNode.remove();
+		this.hideInvitationLine();
+		this.hideCopilotButton();
+	}
+
+	onIframeWindowClick()
+	{
+		this.update();
+	}
+
+	onContentEditableKeyDown()
+	{
+		this.insertResultNode.remove();
+		this.updatePopup();
+		this.hideInvitationLine();
+		this.hideCopilotButton();
+	}
+
+	onContentEditableKeyUp(e)
+	{
+		if (e.key === ' ')
+		{
+			return;
+		}
+
+		this.update();
+	}
+
+	onScrollHandler()
+	{
+		if (this.contentEditable.offsetHeight <= 0)
+		{
+			return;
+		}
+
+		if (this.invitationLineAbsolute.parentNode)
+		{
+			this.showInvitationLine();
+		}
+
+		if (this.copilotBtnPopup?.isShown() && this.getSelectionText() !== '')
+		{
+			const range = this.getSelection().getRangeAt(0);
+			this.adjustCopilotButton(this.getAdjustOptions(range, true));
+		}
+
+		if (this.copilot.isShown() && this.getSelectionText() !== '')
+		{
+			const range = this.getSelection().getRangeAt(0);
+			this.copilot.adjust(this.getAdjustOptions(range));
+
+			return;
+		}
+
+		if (this.getResultNodes().pop())
+		{
+			this.updatePopup();
+		}
+		else if (this.adjustmentRect)
+		{
+			this.copilot.adjust(this.getAdjustOptionsForRect(this.adjustmentRect));
+		}
+	}
+
+	onContentEditableBlur()
+	{
+		setTimeout(() => {
+			this.hideInvitationLine();
+		}, 0);
+	}
+
+	onIframeFocus()
+	{
+		setTimeout(() => {
+			this.updateInvitationLine();
+		}, 0);
+	}
+
+	shouldBeShown()
+	{
+		return this.invitationLineAbsolute.offsetWidth !== 0 && !this.copilot.isShown();
+	}
+
+	show(showFromSpace = false)
+	{
+		this.copilot.setContext(this.contentEditable.innerText);
+		BX.Event.EventEmitter.emit('onHtmlEditorCopilotShow', { contexText: this.contentEditable.innerText });
+
+		this.insertResultNode.remove();
+		this.getSelection().getRangeAt(0).insertNode(this.insertResultNode);
+
+		const bindElement = {
+			top: parseInt(this.invitationLineAbsolute.style.top),
+			left: parseInt(this.invitationLineAbsolute.style.left),
+		};
+
+		if (showFromSpace)
+		{
+			bindElement.top += 28;
+		}
+
+		const containerRect = this.iframeContainer.getBoundingClientRect();
+		this.adjustmentRect = {
+			bottom: bindElement.top - containerRect.y - window.scrollY,
+			x: bindElement.left - containerRect.x - window.scrollX,
+			width: 0,
+		};
+		this.showRect = this.adjustmentRect;
+
+		this.copilot.show({
+			bindElement,
+			showFromSpace,
+			width: this.getCopilotWidth(),
+		});
+
+		this.hideInvitationLine();
+	}
+
+	showAtTheBottom()
+	{
+		this.copilot.setContext(this.contentEditable.innerText);
+		BX.Event.EventEmitter.emit('onHtmlEditorCopilotShow', { contexText: this.contentEditable.innerText });
+
+		this.insertResultNode.remove();
+
+		let emptyBr;
+		let emptyLine;
+		if (this.needToAppendEmptyElement())
+		{
+			emptyBr = BX.Tag.render`<br>`;
+			emptyLine = BX.Tag.render`<div></div>`;
+			const lastNode = this.getFilteredChildNodes(this.contentEditable).pop();
+			if (this.contentEditable.innerText !== '' && lastNode?.tagName !== 'BR')
+			{
+				this.contentEditable.append(BX.Tag.render`<br>`);
+			}
+			this.contentEditable.append(emptyBr);
+			this.contentEditable.append(emptyLine);
+		}
+
+		const lastNode = this.getFilteredChildNodes(this.contentEditable).pop();
+		const bindElement = this.getAdjustOptions(lastNode).position;
+
+		emptyLine?.remove();
+
+		this.showRect = this.adjustmentRect;
+
+		if (emptyBr)
+		{
+			emptyBr.before(this.insertResultNode);
+		}
+		else
+		{
+			this.contentEditable.append(this.insertResultNode);
+		}
+
+		this.copilot.show({
+			bindElement,
+			width: this.getCopilotWidth(),
+		});
+
+		this.hideInvitationLine();
+	}
+
+	needToAppendEmptyElement()
+	{
+		const innerText = this.contentEditable.innerText;
+		return !innerText
+			|| (innerText.at(-1) !== '\n')
+			|| (innerText.at(-2) && innerText.at(-2) !== '\n');
+	}
+
+	update()
+	{
+		this.updateCopilotButton();
+		this.updatePopup();
+		this.updateInvitationLine();
+	}
+
+	updateCopilotButton()
+	{
+		const shouldShowCopilotButton = !this.copilot.isShown() && this.getSelectionText() !== '';
+
+		if (shouldShowCopilotButton && !this.copilotBtnPopup?.isShown() && this.copilotLoaded)
+		{
+			this.showCopilotButton();
+		}
+
+		if (!shouldShowCopilotButton)
+		{
+			this.hideCopilotButton();
+		}
+	}
+
+	showCopilotButton()
+	{
+		if (!this.copilotBtnPopup)
+		{
+			this.copilotBtnPopup = new BX.Main.Popup({
+				bindElement: this.contentEditable,
+				padding: 6,
+				borderRadius: '6px',
+				content: this.renderCopilotButton(),
+				autoHide: true,
+			});
+		}
+
+		this.copilotBtnPopup.setMaxWidth(null);
+		this.copilotBtnPopup.setMinWidth(null);
+		this.copilotBtnPopup.setPadding(6);
+		this.adjustCopilotButton(this.getAdjustOptions(this.getSelection().getRangeAt(0), true));
+		this.copilotBtnPopup.adjustPosition();
+
+		this.copilotBtnPopup.show();
+		setTimeout(() => this.updateCopilotButton(), 0);
+	}
+
+	renderCopilotButton()
+	{
+		BX.Runtime.loadExtension('ui.icon-set.main');
+
+		this.copilotButton = BX.Tag.render`
+			<button class="bxhtmled-copilot-btn" onclick="${this.copilotButtonClickHandler.bind(this)}">
+				<div class="bxhtmled-copilot-btn-icon ui-icon-set --copilot-ai"></div>
+				${ BX.message('BXEdCopilotButtonText') }
+			</button>
+		`;
+
+		return this.copilotButton;
+	}
+
+	copilotButtonClickHandler()
+	{
+		BX.Event.EventEmitter.emit('onHtmlEditorCopilotShow', { contexText: this.contentEditable.innerText });
+		const adjustOptions = this.getAdjustOptions(this.getSelection().getRangeAt(0));
+
+		this.copilot.setSelectedText(this.getSelection().toString());
+		this.copilot.show({
+			bindElement: adjustOptions.position,
+			showFromPopup: true,
+			width: this.getCopilotWidth(),
+		});
+		this.hideCopilotButton();
+	}
+
+	adjustCopilotButton(options)
+	{
+		if (options.hide)
+		{
+			this.copilotBtnPopup.setMaxWidth(0);
+			this.copilotBtnPopup.setMinWidth(0);
+			this.copilotBtnPopup.setPadding(0);
+		}
+		else
+		{
+			this.copilotBtnPopup.setMaxWidth(null);
+			this.copilotBtnPopup.setMinWidth(null);
+			this.copilotBtnPopup.setPadding(6);
+			this.copilotBtnPopup.setBindElement(options.position);
+			this.copilotBtnPopup.adjustPosition();
+		}
+	}
+
+	getCopilotWidth()
+	{
+		return this.contentEditable.offsetWidth - 30;
+	}
+
+	hideCopilotButton()
+	{
+		this.copilotBtnPopup?.close();
+	}
+
+	updatePopup()
+	{
+		if (!this.copilot.isShown())
+		{
+			return;
+		}
+
+		const lastResultSpan = this.getResultNodes().pop();
+		if (!this.isNotFocusedOrCursorAtResultNode(this.getSelection()) || !lastResultSpan)
+		{
+			this.copilot.hide();
+
+			return;
+		}
+
+		this.copilot.adjust(this.getAdjustOptions(lastResultSpan));
+	}
+
+	getAdjustOptions(pivot, isCentered = false)
+	{
+		const pivotRect = pivot.getBoundingClientRect();
+
+		return this.getAdjustOptionsForRectSpaced(pivotRect, isCentered);
+	}
+
+	getAdjustOptionsForRectSpaced(pivotRect, isCentered = false)
+	{
+		const adjustment = this.getAdjustOptionsForRect(pivotRect, isCentered);
+		adjustment.position.top += 10;
+
+		return adjustment;
+	}
+
+	getAdjustOptionsForRect(pivotRect, isCentered = false)
+	{
+		this.adjustmentRect = pivotRect;
+		const containerRect = this.iframeContainer.getBoundingClientRect();
+
+		return {
+			hide: pivotRect.bottom > this.iframeView.document.documentElement.offsetHeight + 13 || pivotRect.bottom + 13 < 0,
+			position: {
+				top: pivotRect.bottom + containerRect.y + window.scrollY,
+				left: pivotRect.x + containerRect.x + isCentered * (pivotRect.width / 2 - 55) + window.scrollX,
+			},
+		};
+	}
+
+	isNotFocusedOrCursorAtResultNode(selection)
+	{
+		if (!selection.focusNode)
+		{
+			return true;
+		}
+
+		return this.getResultNodes().filter(node => selection.focusNode === node || selection.focusNode.parentElement === node).length;
+	}
+
+	getResultNodes()
+	{
+		return [...this.contentEditable.querySelectorAll(`[${this.resultNodeAttr}=true]`)];
+	}
+
+	updateInvitationLine()
+	{
+		this.insertResultNode.remove();
+
+		if (this.shouldShowInvitationLine() && this.copilotLoaded)
+		{
+			this.showInvitationLine();
+		}
+		else
+		{
+			this.hideInvitationLine();
+		}
+	}
+
+	showInvitationLine()
+	{
+		const selection = this.getSelection();
+		if (selection.rangeCount === 0)
+		{
+			return false;
+		}
+
+		const lastNode = this.getFilteredChildNodes(this.contentEditable).pop();
+		if (this.isZwnbspNode(lastNode))
+		{
+			lastNode.replaceWith(BX.Tag.render`<br>`);
+		}
+
+		const range = selection.getRangeAt(0);
+		range.insertNode(this.invitationLine);
+
+		const container = this.iframeContainer.getBoundingClientRect();
+		const invitationLineRect = {
+			top: this.invitationLine.offsetTop + container.y - this.contentEditable.parentElement.scrollTop + window.scrollY,
+			left: this.invitationLine.offsetLeft + container.x + window.scrollX,
+			width: this.invitationLine.offsetWidth,
+		};
+		this.invitationLineAbsolute.style.top = `${invitationLineRect.top}px`;
+		this.invitationLineAbsolute.style.left = `${invitationLineRect.left}px`;
+		this.invitationLineAbsolute.style.width = `${invitationLineRect.width}px`;
+		this.invitationLineAbsolute.style.display = '';
+
+		this.hideInvitationLine();
+		document.body.append(this.invitationLineAbsolute);
+
+		if (!this.invitationLineAbsolute.registered)
+		{
+			BX.ZIndexManager.register(this.invitationLineAbsolute);
+			BX.ZIndexManager.bringToFront(this.invitationLineAbsolute);
+			this.invitationLineAbsolute.registered = true;
+		}
+
+		if (!this.shouldDisplayInvitationLine())
+		{
+			this.invitationLineAbsolute.style.display = 'none';
+		}
+	}
+
+	shouldDisplayInvitationLine()
+	{
+		const contentEditableRect = this.iframeContainer.getBoundingClientRect();
+		const invitationLineRect = this.invitationLineAbsolute.getBoundingClientRect();
+		return invitationLineRect.bottom + 20 < contentEditableRect.bottom && invitationLineRect.top > contentEditableRect.top;
+	}
+
+	hideInvitationLine()
+	{
+		this.invitationLine.remove();
+		this.invitationLineAbsolute.remove();
+	}
+
+	getSelectionText()
+	{
+		return this.getSelection().toString().replaceAll('\n', '').trim();
+	}
+
+	getSelection()
+	{
+		return this.iframeView.GetSelection();
+	}
+
+	shouldShowInvitationLine()
+	{
+		if (!this.iframeContainer.contains(document.activeElement))
+		{
+			return false;
+		}
+
+		if (this.invitationLineMode === this.invitationLineModes.NONE)
+		{
+			return false;
+		}
+
+		if (this.invitationLineMode === this.invitationLineModes.EACH_LINE)
+		{
+			return this.isCursorAtStartOfLine(this.getSelection());
+		}
+
+		return this.isCursorAtNewLine(this.getSelection());
+	}
+
+	isCursorAtStartOfLine(selection)
+	{
+		if (selection.type !== this.selectionTypeCaret)
+		{
+			return false;
+		}
+
+		this.removeZwnbspSequence();
+
+		const range = selection.getRangeAt(0);
+		const contentEditableOffset = parseInt(getComputedStyle(this.contentEditable).paddingLeft);
+		if (range.getBoundingClientRect().x > contentEditableOffset)
+		{
+			return false;
+		}
+
+		const tmpNode = BX.Tag.render`<span style="width: 10px; height: 10px;"></span>`;
+		range.insertNode(tmpNode);
+
+		const previousNode = tmpNode.previousSibling;
+		const nextNode = tmpNode.nextSibling;
+		const offset = tmpNode.getBoundingClientRect().x - contentEditableOffset;
+
+		if (
+			selection.focusNode === this.contentEditable
+			&& nextNode === null
+			&& (
+				previousNode?.tagName === 'DIV' || this.isZwnbspNode(previousNode)
+			)
+		)
+		{
+			if (this.isZwnbspNode(previousNode))
+			{
+				if (!previousNode.nextSibling)
+				{
+					previousNode.replaceWith(BX.Tag.render`<br>`);
+				}
+				else
+				{
+					previousNode.remove();
+				}
+			}
+
+			tmpNode.remove();
+			return false;
+		}
+
+		const afterBr = !previousNode || this.doesNodeMakeLine(previousNode) || tmpNode.nodeName !== '#text' && tmpNode.textContent === '';
+		const beforeBr = !nextNode || this.doesNodeMakeLine(nextNode) && nextNode.tagName !== 'TABLE';
+		const atStart = offset <= 0;
+		tmpNode.remove();
+
+		return ((afterBr && beforeBr) || (this.isZwnbspNode(previousNode) && nextNode?.nodeName === '#text')) && atStart;
+	}
+
+	isCursorAtNewLine(selection)
+	{
+		if (selection.toString() !== '')
+		{
+			return false;
+		}
+
+		this.removeZwnbspSequence();
+
+		const range = selection.getRangeAt(0);
+		const contentEditableOffset = parseInt(getComputedStyle(this.contentEditable).paddingLeft);
+		if (range.getBoundingClientRect().x > contentEditableOffset)
+		{
+			return false;
+		}
+
+		if (selection.focusNode.outerHTML === '<span><br></span>' || selection.focusNode.outerHTML === '<div><br></div>')
+		{
+			selection.focusNode.replaceWith(BX.Tag.render`<br>`);
+		}
+
+		const nodes = this.getFilteredChildNodes(this.contentEditable);
+		const isEmptyOrOnlyLine = (nodes.length === 0) || (nodes.length === 1 && nodes[0].tagName === 'BR');
+		const lastNode = nodes.pop();
+
+		let doesLastNodeMakeLine = false;
+		if (lastNode?.tagName === 'SPAN')
+		{
+			const spanNodes = this.getFilteredChildNodes(lastNode);
+			const lastSpanNode = spanNodes.pop();
+			const oneSpanNodeBeforeLast = spanNodes.pop();
+			doesLastNodeMakeLine = this.doesNodeMakeLine(oneSpanNodeBeforeLast) && this.doesNodeMakeLine(lastSpanNode);
+		}
+
+		if (!this.isZwnbspNode(selection.focusNode) && selection.focusNode !== this.contentEditable && lastNode?.tagName !== 'SPAN')
+		{
+			return false;
+		}
+
+		const oneNodeBeforeLast = nodes.pop();
+		const doLastTwoNodesMakeLine = this.doesNodeMakeLine(oneNodeBeforeLast) && this.doesNodeMakeLine(lastNode) && lastNode?.tagName !== 'BLOCKQUOTE';
+
+		return (isEmptyOrOnlyLine || doLastTwoNodesMakeLine || doesLastNodeMakeLine) && this.isCursorAtTheEndOfDocument(selection);
+	}
+
+	removeZwnbspSequence()
+	{
+		const nodesToRemove = [];
+		this.contentEditable.childNodes.forEach((node) => {
+			if (this.isZwnbspNode(node) && this.isZwnbspNode(node.nextSibling))
+			{
+				nodesToRemove.push(node);
+			}
+		});
+
+		nodesToRemove.forEach((node) => node.remove());
+		if (this.contentEditable.innerHTML === this.createZwnbspNode().innerHTML)
+		{
+			this.contentEditable.innerHTML = '';
+		}
+	}
+
+	getFilteredChildNodes(element)
+	{
+		return [...element.childNodes].filter((node) => {
+			return node.nodeName !== '#text' || this.isZwnbspNode(node) || node.textContent !== ''
+		});
+	}
+
+	doesNodeMakeLine(node)
+	{
+		if (!node)
+		{
+			return false;
+		}
+
+		if (node.outerHTML === '<span><br></span>')
+		{
+			node.replaceWith(BX.Tag.render`<br>`);
+			return true;
+		}
+
+		if (this.isZwnbspNode(node))
+		{
+			if (!node.nextSibling)
+			{
+				node.replaceWith(BX.Tag.render`<br>`);
+			}
+			else
+			{
+				node.remove();
+			}
+
+			return true;
+		}
+
+		const makingLineNodes = ['BR', 'UL', 'OL', 'PRE', 'TABLE', 'DIV', 'P', 'BLOCKQUOTE'];
+
+		if (node.tagName === 'SPAN')
+		{
+			return this.doesNodeMakeLine(this.getFilteredChildNodes(node).pop());
+		}
+
+		return makingLineNodes.includes(node.tagName) || makingLineNodes.includes([...node.childNodes].pop()?.tagName);
+	}
+
+	isZwnbspNode(node)
+	{
+		if (!node)
+		{
+			return false;
+		}
+
+		return BX.Tag.render`<div>${node.cloneNode()}</div>`.innerHTML === this.createZwnbspNode().innerHTML;
+	}
+
+	createZwnbspNode()
+	{
+		return BX.Tag.render`<div>&#XFEFF;</div>`;
+	}
+
+	isCursorAtTheEndOfDocument(selection)
+	{
+		const offset = selection.focusOffset;
+		const node = selection.focusNode;
+
+		selection.modify("move", "forward", "character");
+		if (offset === selection.focusOffset && node === selection.focusNode)
+		{
+			return true;
+		}
+		else
+		{
+			selection.modify("move", "backward", "character");
+
+			return false;
+		}
+	}
+}
 
 function BXEditorIframeView(editor, textarea, container)
 {
@@ -351,7 +1291,44 @@ BXEditorIframeView.prototype.OnCreateIframe = function()
 	// Check and init external range library
 	window.rangy.init();
 
+	if (this.config.isCopilotEnabled && BX.AI?.Copilot)
+	{
+		this.copilot = new BXEditorIframeCopilot(this, {
+			...this.config.copilotParams,
+			isMentionUnavailable: this.config.isMentionUnavailable,
+		});
+	}
+
 	this.Enable();
+};
+
+BXEditorIframeView.prototype.setCopilotContextParameters = function(formData)
+{
+	this.config.copilotParams.contextParameters = {
+		xmlId: formData[0],
+		entityId: formData[1],
+	};
+};
+
+BXEditorIframeView.prototype.ScrollToInsertedText = function()
+{
+	this.document.documentElement.scrollTop = this.document.documentElement.scrollHeight;
+	this.UpdateHeight();
+};
+
+BXEditorIframeView.prototype.UpdateHeight = function()
+{
+	this.editor.UpdateHeight();
+};
+
+BXEditorIframeView.prototype.GetSelection = function()
+{
+	return this.document.getSelection();
+};
+
+BXEditorIframeView.prototype.isCopilotInitialized = function()
+{
+	return this.copilot && this.copilot.copilotLoaded;
 };
 
 BXEditorIframeView.prototype.Clear = function()
@@ -363,6 +1340,8 @@ BXEditorIframeView.prototype.Clear = function()
 BXEditorIframeView.prototype.GetValue = function(bParse, bFormat)
 {
 	this.iframeValue = this.IsEmpty() ? "" : this.editor.GetInnerHtml(this.element);
+	this.iframeValue = this.iframeValue.replaceAll(/<span style="font-family: var\(--ui-font-family-primary, var\(--ui-font-family-helvetica\)\);">(.*?)<\/span>/g, '$1');
+	this.iframeValue = this.iframeValue.replace(/<span class="bxhtmled-insert-result"><\/span>/g, '');
 	this.editor.On('OnIframeBeforeGetValue', [this.iframeValue]);
 	if (bParse)
 	{
@@ -381,6 +1360,7 @@ BXEditorIframeView.prototype.SetValue = function(html, bParse)
 	// Check last child - if it's block node in the end - add <br> tag there
 	this.CheckContentLastChild(this.element);
 	this.editor.On('OnIframeSetValue', [html]);
+	this.editor.textareaView?.SaveValue();
 };
 
 BXEditorIframeView.prototype.Show = function()
@@ -608,7 +1588,10 @@ var focusWithoutScrolling = function(element)
 			editor.On("OnIframeFocus");
 			_this.isFocused = true;
 			if (value !== _this.GetValue())
+			{
 				BX.onCustomEvent(editor, "OnIframeChange");
+			}
+			_this.copilot?.onIframeFocus();
 		});
 
 		BX.bind(_element, "blur", function()
@@ -616,6 +1599,7 @@ var focusWithoutScrolling = function(element)
 			editor.On("OnIframeBlur");
 			_this.isFocused = false;
 			setTimeout(function(){value = _this.GetValue();}, 0);
+			_this.copilot?.onContentEditableBlur();
 		});
 
 		BX.bind(_element, "contextmenu", function(e)
@@ -697,6 +1681,8 @@ var focusWithoutScrolling = function(element)
 			editor.On("OnIframeMouseUp", [e, target]);
 		});
 
+		BX.bind(iframeWindow, 'click', () => this.copilot?.onIframeWindowClick());
+
 		// Mantis: 90137
 		//if (BX.browser.IsIOS())
 		//{
@@ -750,7 +1736,16 @@ var focusWithoutScrolling = function(element)
 		}
 
 		BX.bind(element, 'drop', BX.delegate(this.OnPasteHandler, this));
-		BX.bind(element, 'paste', BX.delegate(this.OnPasteHandler, this));
+
+		BX.bind(element, 'paste', (clipboardEvent) => {
+			const event = new BX.Event.BaseEvent({ data: { clipboardEvent: clipboardEvent } });
+			BX.Event.EventEmitter.emitAsync(this.editor, 'BXEditor:onBeforePasteAsync', event).then(() => {
+				if (!event.isDefaultPrevented())
+				{
+					this.OnPasteHandler(clipboardEvent);
+				}
+			});
+		});
 
 		BX.bind(element, "keyup", function(e)
 		{
@@ -798,7 +1793,11 @@ var focusWithoutScrolling = function(element)
 					clearTimeout(_this.stopBugusScrollTimeout);
 				_this.stopBugusScrollTimeout = setTimeout(function(){_this.stopBugusScroll = false;}, 200);
 			}
+
+			_this.copilot?.onContentEditableKeyUp(e);
 		});
+
+		BX.bind(this.document, 'scroll', () => this.copilot?.onScrollHandler());
 
 		BX.bind(element, "mousedown", function(e)
 		{
@@ -817,6 +1816,8 @@ var focusWithoutScrolling = function(element)
 					_this.FocusPreElement(target, true);
 				}
 			}
+
+			_this.copilot?.onContentEditableMouseDown();
 		});
 
 		BX.bind(element, "keydown", BX.proxy(this.KeyDown, this));
@@ -889,6 +1890,16 @@ var focusWithoutScrolling = function(element)
 			body = this.document.body,
 			parent;
 
+		if (e.key === ' ' && this.copilot?.shouldBeShown())
+		{
+			this.copilot.show(true);
+			e.preventDefault();
+
+			return;
+		}
+
+		this.copilot?.onContentEditableKeyDown();
+
 		if ((BX.browser.IsIE() || BX.browser.IsIE10() || BX.browser.IsIE11()) &&
 			!BX.util.in_array(keyCode, [16, 17, 18, 20, 65, 144, 37, 38, 39, 40]))
 		{
@@ -949,6 +1960,18 @@ var focusWithoutScrolling = function(element)
 		)
 		{
 			range.startContainer.parentNode.className = '';
+		}
+
+		if (
+			!BX.browser.IsSafari()
+			&& (keyCode === KEY_CODES['backspace'] || keyCode === KEY_CODES['delete'])
+			&& range.startContainer.nodeName === '#text'
+			&& range.startContainer.previousSibling?.nodeName === 'BLOCKQUOTE'
+			&& range.startContainer.nextSibling?.nodeName !== 'BR'
+			&& range.startContainer.textContent.length === 1
+		)
+		{
+			range.startContainer.before(BX.Tag.render`<span>&#XFEFF;</span>`.innerHTML);
 		}
 
 		if (
@@ -1211,7 +2234,7 @@ var focusWithoutScrolling = function(element)
 			return true;
 		}
 
-		if (keyCode === this.editor.KEY_CODES["enter"] && !BX.browser.IsFirefox() && this.editor.action.IsSupported('insertLineBreak'))
+		if (keyCode === this.editor.KEY_CODES["enter"] && this.editor.action.IsSupported('insertLineBreak'))
 		{
 			if (BX.browser.IsIE10() || BX.browser.IsIE11())
 			{
@@ -1221,15 +2244,17 @@ var focusWithoutScrolling = function(element)
 			{
 				this.editor.action.Exec('insertLineBreak');
 
+				const getChromeVersion = () => {
+					const raw = navigator?.userAgent?.match(/Chrom(e|ium)\/(\d+)\./);
+
+					return raw ? parseInt(raw[2], 10) : 0;
+				};
+
 				// Bug in Chrome - when you press enter but it put carret on the prev string
 				// Chrome 43.0.2357 in Mac puts visible space instead of invisible
-				if (BX.browser.IsMac())
+				if (BX.browser.IsMac() || getChromeVersion() === 0 || getChromeVersion() >= 134)
 				{
-					var tmpId = "bx-editor-temp-" + Math.round(Math.random() * 1000000);
-					this.editor.action.Exec('insertHTML', '<span id="' + tmpId + '">' + this.editor.INVISIBLE_SPACE + '</span>');
-					var tmpElement = this.editor.GetIframeElement(tmpId);
-					if (tmpElement)
-						BX.remove(tmpElement);
+					return BX.PreventDefault(e);
 				}
 				else
 				{

@@ -71,7 +71,7 @@ BX.WindowManager = {
 	clean: function()
 	{
 		while (this.__pop_stack(true)){}
-		this._stack = null;
+		this._stack = [];
 		this.disableKeyCheck();
 	},
 
@@ -4035,4 +4035,5 @@ BX.adminInformer = {
 };
 
 })(window);
+
 

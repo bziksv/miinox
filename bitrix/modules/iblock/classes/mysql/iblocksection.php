@@ -29,7 +29,16 @@ class CIBlockSection extends CAllIBlockSection
 			}
 		}
 
-		$iblockFilterExist = (isset($arFilter['IBLOCK_ID']) && $arFilter['IBLOCK_ID'] > 0);
+		$iblockId = null;
+		if (isset($arFilter['IBLOCK_ID']) && is_numeric($arFilter['IBLOCK_ID']))
+		{
+			$iblockId = (int)$arFilter['IBLOCK_ID'];
+			if ($iblockId <= 0)
+			{
+				$iblockId = null;
+			}
+		}
+		$iblockFilterExist = $iblockId !== null;
 
 		$needUfManager = self::checkUfFields($arOrder, $arFilter, $arSelect);
 
@@ -297,6 +306,7 @@ class CIBlockSection extends CAllIBlockSection
 				case "created":
 					$arSqlOrder[$by] = " BS.DATE_CREATE ".$order." ";
 					$additionalSelect["DATE_CREATE"] = $arFields["DATE_CREATE"]." AS DATE_CREATE";
+					$additionalSelect["DATE_CREATE_SORT"] = "BS.DATE_CREATE AS DCT_TMP";
 					break;
 				case "created_by":
 					$arSqlOrder[$by] = " BS.CREATED_BY ".$order." ";
@@ -447,7 +457,7 @@ class CIBlockSection extends CAllIBlockSection
 		}
 		else
 		{
-			$res = $DB->Query("SELECT DISTINCT ".$strSelect.$strSql.$strGroupBy.$strSqlOrder, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+			$res = $DB->Query("SELECT DISTINCT ".$strSelect.$strSql.$strGroupBy.$strSqlOrder);
 			if($iblockFilterExist)
 			{
 				$res->SetUserFields($USER_FIELD_MANAGER->GetUserFields("IBLOCK_".$arFilter["IBLOCK_ID"]."_SECTION"));
@@ -629,7 +639,7 @@ class CIBlockSection extends CAllIBlockSection
 			".$strSqlSearch."
 		";
 
-		return $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+		return $DB->Query($strSql);
 	}
 
 	/**

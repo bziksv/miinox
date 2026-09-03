@@ -5,6 +5,7 @@ namespace Bitrix\Location\Infrastructure;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Event;
 use Bitrix\Main\Application;
+use Bitrix\Location\Repository\Format\DataCollection;
 
 /**
  * Class CurrentFormatCode
@@ -28,6 +29,12 @@ class FormatCode
 
 	public static function setCurrent(string $formatCode, string $siteId = ''): void
 	{
+		$validCodes = array_keys(DataCollection::getAll('en'));
+		if (!in_array($formatCode, $validCodes, true))
+		{
+			$formatCode = static::getDefault();
+		}
+
 		Option::set(
 			'location',
 			static::$optionName,
@@ -35,8 +42,20 @@ class FormatCode
 			$siteId
 		);
 
-		$event = new Event('location', static::$onChangedEventName, ['formatCode' => $formatCode]);
+		$eventFormatCode = static::toEventFormatCode($formatCode);
+
+		$event = new Event('location', static::$onChangedEventName, ['formatCode' => $eventFormatCode]);
 		$event->send();
+	}
+
+	private static function toEventFormatCode(string $formatCode): string
+	{
+		$aliases = [
+			'DE' => 'EU',
+			'BR' => 'EU',
+		];
+
+		return $aliases[$formatCode] ?? $formatCode;
 	}
 
 	/**
@@ -48,19 +67,45 @@ class FormatCode
 		$regionId = $regionId ?? static::getRegion();
 
 		$map = [
+			// CIS zones — Russian-style formatting
+			'ru' => 'RU',
+			'by' => 'RU',
+			'ua' => 'RU',
+			'ur' => 'RU',
 			'kz' => 'RU_2',
+			'uz' => 'UZ',
+			// Reverse-order Asian formats (postal code and country first)
+			'ja' => 'RU_2',
+			'cn' => 'RU_2',
+			'sc' => 'RU_2',
+			// Anglo-American
 			'en' => 'US',
+			'co' => 'US',
+			'id' => 'US',
+			// British
+			'uk' => 'UK',
+			// European style — default for most cloud zones
 			'eu' => 'EU',
 			'de' => 'EU',
-			'la' => 'EU',
-			'br' => 'BR',
 			'fr' => 'EU',
 			'it' => 'EU',
 			'pl' => 'EU',
-			'uk' => 'UK',
+			'la' => 'EU',
+			'tr' => 'EU',
+			'ar' => 'EU',
+			'ae' => 'EU',
+			'vn' => 'EU',
+			'ms' => 'EU',
+			'th' => 'EU',
+			'hi' => 'EU',
+			'in' => 'EU',
+			'tc' => 'EU',
+			// Latin American
+			'br' => 'BR',
+			'mx' => 'BR',
 		];
 
-		return $map[$regionId] ?? 'RU';
+		return $map[$regionId] ?? 'EU';
 	}
 
 	/**

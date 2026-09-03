@@ -5,8 +5,10 @@ namespace Bitrix\Location\Source\Osm;
 use Bitrix\Location\Entity\Source;
 use Bitrix\Location\Repository\Location\IRepository;
 use Bitrix\Location\Source\Osm\Api\Api;
+use Bitrix\Location\StaticMap\ISourceStaticMapService;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Context;
+use Bitrix\Main\Config\Option;
 
 /**
  * Class OsmSource
@@ -17,12 +19,8 @@ final class OsmSource extends Source
 {
 	public const API_PATH = '/api';
 
-	/** @var TokenRequester */
-	private $tokenRequester;
+	private TokenRequester $tokenRequester;
 
-	/**
-	 * OsmSource constructor.
-	 */
 	public function __construct()
 	{
 		$this->tokenRequester = (new TokenRequester())->setSource($this);
@@ -51,6 +49,14 @@ final class OsmSource extends Source
 	/**
 	 * @inheritDoc
 	 */
+	public function makeStaticMapService(): ISourceStaticMapService
+	{
+		return new SourceStaticMapService($this);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function getJSParams(): array
 	{
 		$token = $this->getOsmToken();
@@ -58,7 +64,7 @@ final class OsmSource extends Source
 		return [
 			'serviceUrl' => $this->getOsmApiUrl(),
 			'mapServiceUrl' => $this->getOsmMapServiceUrl(),
-			'token' => $token ? $token->getToken() : null,
+			'token' => $token?->getToken(),
 			'useGeocodingService' => true,
 			'hostName' => $this->getOsmHostName()
 		];
@@ -86,15 +92,15 @@ final class OsmSource extends Source
 	 */
 	public function getOsmHostName(): string
 	{
-		if(defined('BX24_HOST_NAME') && ModuleManager::isModuleInstalled('bitrix24'))
+		if (defined('BX24_HOST_NAME') && ModuleManager::isModuleInstalled('bitrix24'))
 		{
 			$result = BX24_HOST_NAME;
 		}
 		else
 		{
-			$result = Context::getCurrent()->getServer()->get('HTTP_HOST');
+			$result = Context::getCurrent()->getServer()->get('HTTP_HOST') || Option::get('main', 'server_name');
 
-			if(strpos($result, ':') !== false)
+			if (strpos($result, ':') !== false)
 			{
 				$result = explode(':', $result)[0];
 			}
@@ -103,9 +109,6 @@ final class OsmSource extends Source
 		return $result;
 	}
 
-	/**
-	 * @return string|null
-	 */
 	public function getOsmApiUrl(): ?string
 	{
 		$serviceUrl = $this->getOsmServiceUrl();
@@ -117,39 +120,16 @@ final class OsmSource extends Source
 		return $serviceUrl . static::API_PATH;
 	}
 
-	/**
-	 * @return string|null
-	 */
 	public function getOsmServiceUrl(): ?string
 	{
-		if (defined('LOCATION_OSM_SERVICE_URL') && LOCATION_OSM_SERVICE_URL)
-		{
-			return (string)LOCATION_OSM_SERVICE_URL;
-		}
-
-		return $this->getConfig()
-			? $this->getConfig()->getValue('SERVICE_URL')
-			: null;
+		return Option::get('location', 'osm_service_url');
 	}
 
-	/**
-	 * @return string|null
-	 */
 	public function getOsmMapServiceUrl(): ?string
 	{
-		if (defined('LOCATION_OSM_MAP_SERVICE_URL') && LOCATION_OSM_MAP_SERVICE_URL)
-		{
-			return (string)LOCATION_OSM_MAP_SERVICE_URL;
-		}
-
-		return $this->getConfig()
-			? $this->getConfig()->getValue('MAP_SERVICE_URL')
-			: null;
+		return Option::get('location', 'osm_map_service_url');
 	}
 
-	/**
-	 * @return Token|null
-	 */
 	public function getOsmToken(): ?Token
 	{
 		return $this->tokenRequester->getToken();

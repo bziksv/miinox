@@ -1,11 +1,15 @@
-import {Tag, Text, Event, Loc, Dom} from 'main.core';
+import {Tag, Text, Event, Loc, Dom, Type} from 'main.core';
 import {Menu} from 'main.popup';
 import {EventEmitter} from 'main.core.events';
 import {MessageBox} from 'ui.dialogs.messagebox';
+import {Icon, Outline, Solid} from 'ui.icon-set.api.core';
+import 'ui.icon-set.outline';
+import 'ui.icon-set.solid';
 
 import EditableTitle from './editableTitle';
 import LeaderShip from './leadership';
 import PopupHelper from './popupHelper';
+import { A11y } from './a11y';
 
 export default class Item
 {
@@ -34,6 +38,7 @@ export default class Item
 		this.menuBottomItems = options.menuBottomItems || [];
 		this.notPublishedText = options.notPublishedText || null;
 		this.access = options.access || {};
+		this.error = options.error || {};
 		this.articles = options.articles || [];
 		this.editableTitle = null;
 		this.editableUrl = null;
@@ -42,6 +47,11 @@ export default class Item
 		this.popupStatus = null;
 		this.popupConfig = null;
 		this.loader = null;
+		this.copilotProcess = Type.isBoolean(options.copilotProcess) ? options.copilotProcess : null;
+		this.isCreatedByAiScenario = options.isCreatedByAiScenario === true;
+		this.createByCopilotText = options.createByCopilotText ?? '';
+		this.copilotGeneratedText = options.copilotGeneratedText ?? '';
+		this.shouldAnnouncePublication = false;
 
 		this.$container = null;
 		this.$containerWrapper = null;
@@ -49,6 +59,7 @@ export default class Item
 		this.$containerPreviewStatus = null;
 		this.$containerPreviewShowPages = null;
 		this.$containerPreviewInstruction = null;
+		this.$containerPreviewInstructionButton = null;
 		this.$containerInfo = null;
 		this.$containerPhone = null;
 		this.$containerTitle = null;
@@ -76,6 +87,7 @@ export default class Item
 			{
 				this.active();
 				this.setContainerPosition();
+				this.getContainerPreviewInstructionButton()?.setAttribute('aria-expanded', 'true');
 			}
 
 			if (this !== options.data)
@@ -89,6 +101,7 @@ export default class Item
 			{
 				this.unActive();
 				this.unSetContainerPosition();
+				this.getContainerPreviewInstructionButton()?.setAttribute('aria-expanded', 'false');
 			}
 
 			this.unFade();
@@ -96,10 +109,25 @@ export default class Item
 
 		EventEmitter.subscribe(this.getPopupHelper(), 'BX.Landing.SiteTile.Popup:onShow', () => {
 			this.getContainerWrapper().classList.add('--fade');
+			this.getContainerDomainLink().setAttribute('aria-expanded', 'true');
 		});
 
 		EventEmitter.subscribe(this.getPopupHelper(), 'BX.Landing.SiteTile.Popup:onHide', () => {
 			this.getContainerWrapper().classList.remove('--fade');
+			this.getContainerDomainLink().setAttribute('aria-expanded', 'false');
+		});
+
+		// close open dialogs while still attached so their focus trap releases inert before the grid is replaced
+		EventEmitter.subscribe('BX.Landing.SiteTile:beforeGridRefresh', () => {
+			if (this.popupHelper?.isShown)
+			{
+				this.popupHelper.hide();
+			}
+
+			if (this.leadership?.isShown)
+			{
+				this.leadership.hide();
+			}
 		});
 	}
 
@@ -132,8 +160,44 @@ export default class Item
 		}
 	}
 
-	updatePublishedStatus(status: boolean)
+	markUserPublicationAction()
 	{
+		this.shouldAnnouncePublication = true;
+	}
+
+	consumeUserPublicationAction(): boolean
+	{
+		const shouldAnnounce = this.shouldAnnouncePublication === true;
+		this.shouldAnnouncePublication = false;
+
+		return shouldAnnounce;
+	}
+
+	announcePublishedStatus(status: boolean)
+	{
+		A11y.announce(
+			status
+				? Loc.getMessage('LANDING_SITE_TILE_PUBLICATION_PUBLISHED')
+				: Loc.getMessage('LANDING_SITE_TILE_PUBLICATION_UNPUBLISHED'),
+		);
+	}
+
+	announcePublicationError(message: ?string)
+	{
+		if (!this.consumeUserPublicationAction())
+		{
+			return;
+		}
+
+		A11y.announce(
+			message || Loc.getMessage('LANDING_SITE_TILE_PUBLICATION_ERROR'),
+			'assertive',
+		);
+	}
+
+	updatePublishedStatus(status: boolean, options: { announce?: boolean } = {})
+	{
+		const shouldAnnounce = options.announce === true || this.consumeUserPublicationAction();
 		if (this.published === status)
 		{
 			return;
@@ -147,18 +211,27 @@ export default class Item
 		if (status)
 		{
 			this.published = true;
-			this.getContainerSiteStatusRound().className = 'landing-sites__status-round --success';
+			this.getContainerSiteStatus().className = 'landing-sites__status --success';
 			this.getContainerSiteStatusTitle().innerText = Loc.getMessage('LANDING_SITE_TILE_STATUS_PUBLISHED');
 			this.getContainerPreviewImage().classList.remove('--not-published');
 			this.getContainerPreviewStatus().classList.add('--hide');
+			if (shouldAnnounce)
+			{
+				this.announcePublishedStatus(true);
+			}
+
 			return;
 		}
 
 		this.published = false;
-		this.getContainerSiteStatusRound().className = 'landing-sites__status-round --alert';
+		this.getContainerSiteStatus().className = 'landing-sites__status --alert';
 		this.getContainerSiteStatusTitle().innerText = Loc.getMessage('LANDING_SITE_TILE_STATUS_NOT_PUBLISHED');
 		this.getContainerPreviewImage().classList.add('--not-published');
 		this.getContainerPreviewStatus().classList.remove('--hide');
+		if (shouldAnnounce)
+		{
+			this.announcePublishedStatus(false);
+		}
 	}
 
 	updateTitle(param: string)
@@ -180,11 +253,19 @@ export default class Item
 	getContainerTitle()
 	{
 		if (!this.$containerTitle)
+
 		{
+			const iconEdit = new Icon({
+				icon: Outline.EDIT_M,
+				color: 'var(--ui-color-base-70)',
+				size: 21,
+			});
+			const iconEditNode = iconEdit.render();
+			iconEditNode.classList.add('landing-sites__title-edit');
 			this.$containerTitle = Tag.render`
 				<div class="landing-sites__title">
 					<div class="landing-sites__title-text">${this.title}</div>
-					<div class="landing-sites__title-edit"></div>
+					${iconEditNode}
 				</div>
 			`;
 		}
@@ -206,6 +287,7 @@ export default class Item
 						const messageBox = new MessageBox({
 							title: Loc.getMessage('LANDING_SITE_TILE_DELETE_ALERT_TITLE'),
 							message: Loc.getMessage('LANDING_SITE_TILE_DELETE_ALERT_MESSAGE'),
+							useAirDesign: true,
 							buttons: BX.UI.Dialogs.MessageBoxButtons.OK_CANCEL,
 							onOk: () => {
 								EventEmitter.emit('BX.Landing.SiteTile:remove', [this, messageBox]);
@@ -267,6 +349,14 @@ export default class Item
 	{
 		if (!this.popupConfig)
 		{
+			const items = this.disableMenuItems(this.mergeMenuItems(this.menuItems));
+			items.forEach((item) => {
+				if (item.access === 'settings' && Type.isString(item.onclick))
+				{
+					item.onclick = item.onclick.replace('#ID#', this.id);
+				}
+			});
+
 			this.popupConfig = new Menu({
 				className: 'landing-sites__status-popup',
 				bindElement: this.getContainerSiteMore(),
@@ -277,13 +367,15 @@ export default class Item
 				angle: {
 					offset: 97,
 				},
-				items: this.disableMenuItems(this.mergeMenuItems(this.menuItems)),
+				items,
 				events: {
 					onPopupClose: () => {
 						this.getContainerSiteMore().classList.remove('--hover');
+						this.getContainerSiteMore().setAttribute('aria-expanded', 'false');
 					},
 					onPopupShow: () => {
 						this.getContainerSiteMore().classList.add('--hover');
+						this.getContainerSiteMore().setAttribute('aria-expanded', 'true');
 					},
 				},
 				animation: 'fading-slide',
@@ -313,6 +405,7 @@ export default class Item
 							: Loc.getMessage('LANDING_SITE_TILE_PUBLISH'),
 						onclick: () => {
 							this.popupStatus.close();
+							this.markUserPublicationAction();
 							this.published
 								? EventEmitter.emit('BX.Landing.SiteTile:unPublish', this)
 								: EventEmitter.emit('BX.Landing.SiteTile:publish', this);
@@ -322,9 +415,11 @@ export default class Item
 				events: {
 					onPopupClose: () => {
 						this.getContainerSiteStatus().classList.remove('--hover');
+						this.getContainerSiteStatus().setAttribute('aria-expanded', 'false');
 					},
 					onPopupShow: () => {
 						this.getContainerSiteStatus().classList.add('--hover');
+						this.getContainerSiteStatus().setAttribute('aria-expanded', 'true');
 					},
 				},
 				animation: 'fading-slide',
@@ -338,22 +433,63 @@ export default class Item
 	{
 		if (!this.$containerSiteStatus)
 		{
-			this.$containerSiteStatus = Tag.render`
-				<div class="${this.access.publication ? 'landing-sites__status' : 'landing-sites__status_disabled'}">
-					${this.getContainerSiteStatusRound()}
-					${this.getContainerSiteStatusTitle()}
-					${this.access.publication ? Tag.render`<div class="landing-sites__status-arrow"></div>` : ''}
-				</div>
-			`;
-
 			if (this.access.publication)
 			{
+				const status = this.published
+					? '--success'
+					: '--alert';
+
+				this.$containerSiteStatus = Tag.render`
+					<button
+						type="button"
+						class="landing-sites__status ${status}"
+						aria-haspopup="menu"
+						aria-expanded="false"
+						data-testid="landing-sites-item-status-btn"
+					>
+						${this.getContainerSiteStatusTitle()}
+						<div class="landing-sites__status-arrow"></div>
+					</button>
+				`;
+
 				Event.bind(this.$containerSiteStatus, 'click', ev => {
 					this.getPopupStatus().layout.menuContainer.style.left =
 						this.$containerSiteStatus.getBoundingClientRect().left + 'px';
 					this.getPopupStatus().show();
 					ev.stopPropagation();
 				});
+			}
+			else
+			{
+				this.$containerSiteStatus = Tag.render`
+					<div class="landing-sites__status_disabled">
+						${this.getContainerSiteStatusRound()}
+						${this.getContainerSiteStatusTitle()}
+					</div>
+				`;
+
+				if (this.error.publication)
+				{
+					const code = this.error.publication.code || '';
+					const hint = this.error.publication.hint || '';
+					const url = this.error.publication.url || '';
+					const link = this.error.publication.link || '';
+					if (code === 'shop1c')
+					{
+						this.$containerSiteStatus = Tag.render`
+							<div 
+								class="landing-sites__status_disabled"
+								data-hint="${hint}<br><a href='${url}'>${link}</a>"
+								data-hint-no-icon
+								data-hint-html
+								data-hint-interactivity
+							>
+								${this.getContainerSiteStatusRound()}
+								${this.getContainerSiteStatusTitle()}
+							</div>
+						`;
+					}
+				}
 			}
 		}
 
@@ -364,7 +500,21 @@ export default class Item
 	{
 		if (!this.$containerSiteMore)
 		{
-			this.$containerSiteMore = Tag.render`<div class="landing-sites__more"></div>`;
+			const iconMore = new Icon({
+				icon: Outline.MORE_M,
+				color: 'var(--ui-color-base-70)',
+				size: 21,
+			});
+			this.$containerSiteMore = Tag.render`
+				<button
+					type="button"
+					class="landing-sites__more"
+					aria-label="${Text.encode(Loc.getMessage('LANDING_SITE_TILE_MORE_ACTIONS'))}"
+					aria-haspopup="menu"
+					aria-expanded="false"
+					data-testid="landing-sites-item-more-btn"
+				>${iconMore.render()}</button>
+			`;
 
 			Event.bind(this.$containerSiteMore, 'click', ev => {
 				this.getPopupConfig().show();
@@ -379,11 +529,7 @@ export default class Item
 	{
 		if (!this.$containerSiteStatusRound)
 		{
-			let status = this.published
-				? '--success'
-				: '--alert';
-
-			this.$containerSiteStatusRound = Tag.render`<div class="landing-sites__status-round ${status}"></div>`;
+			this.$containerSiteStatusRound = Tag.render`<div class="landing-sites__status-round"></div>`;
 		}
 
 		return this.$containerSiteStatusRound;
@@ -406,7 +552,7 @@ export default class Item
 	publush()
 	{
 		this.published = true;
-		this.getContainerSiteStatusRound().className = 'landing-sites__status-round --success';
+		this.getContainerSiteStatus().className = 'landing-sites__status --success';
 		this.getContainerSiteStatusTitle().innerText = Loc.getMessage('LANDING_SITE_TILE_STATUS_PUBLISHED');
 		this.getContainerPreviewStatus().classList.add('--hide');
 	}
@@ -414,7 +560,7 @@ export default class Item
 	unPublish()
 	{
 		this.published = false;
-		this.getContainerSiteStatusRound().className = 'landing-sites__status-round --alert';
+		this.getContainerSiteStatus().className = 'landing-sites__status --alert';
 		this.getContainerSiteStatusTitle().innerText = Loc.getMessage('LANDING_SITE_TILE_STATUS_NOT_PUBLISHED');
 		this.getContainerPreviewStatus().classList.remove('--hide');
 	}
@@ -458,26 +604,108 @@ export default class Item
 		return this.$containerInfo;
 	}
 
-	updateDomainStatus(status: string, statusText: string)
+	announceDomainStatus(statusText: string)
+	{
+		const message = statusText || Loc.getMessage('LANDING_SITE_TILE_DOMAIN_STATUS_UPDATED_FALLBACK');
+		const template = Loc.getMessage('LANDING_SITE_TILE_DOMAIN_STATUS_UPDATED') || '#STATUS#';
+		A11y.announce(
+			template.replace('#STATUS#', message),
+		);
+	}
+
+	updateDomainStatus(status: string, statusText: string, options: { announce?: boolean } = {})
 	{
 		// success
 		// alert
 		// danger
 		// clock
+		const previousStatus = this.domainStatus || '';
+		const previousStatusText = this.domainStatusMessage || '';
 		!status ? status = '' : null;
-		this.getContainerDomainStatus().className = 'landing-sites__container-status --' + status;
+		this.domainStatus = status;
+		this.updateContainerDomainStatus();
 
 		!statusText ? statusText = '' : null;
 		this.updateDomainStatusMessage(statusText);
+		if (
+			options.announce === true
+			&& (previousStatus !== status || previousStatusText !== statusText)
+		)
+		{
+			this.announceDomainStatus(statusText);
+		}
+	}
+
+	getDomainStatusIconByStatus(status: string)
+	{
+		switch (status)
+		{
+			case 'alert':
+			case 'danger':
+				return Solid.ALERT_ACCENT;
+
+			case 'clock':
+				return Outline.CLOCK;
+
+			case 'success':
+			case 'unknow':
+			default:
+				return Outline.LINK;
+		}
+	}
+
+	getDomainStatusIconColorByStatus(status: string)
+	{
+		switch (status)
+		{
+			case 'alert':
+				return 'var(--ui-color-background-primary)';
+
+			case 'danger':
+				return 'var(--ui-color-background-primary)';
+
+			case 'clock':
+				return 'var(--ui-color-design-outline-a1-content)';
+
+			case 'success':
+				return 'var(--ui-color-background-primary)';
+
+			case 'unknow':
+			default:
+				return 'var(--ui-color-design-outline-a1-content)';
+		}
+	}
+
+	createContainerDomainStatusIcon()
+	{
+		const iconStatus = new Icon({
+			icon: this.getDomainStatusIconByStatus(this.domainStatus),
+			color: this.getDomainStatusIconColorByStatus(this.domainStatus),
+			size: 20,
+		});
+
+		const iconNode = iconStatus.render();
+		iconNode.classList.add('landing-sites__container-status-icon');
+
+		return iconNode;
+	}
+
+	updateContainerDomainStatus()
+	{
+		const statusClass = this.domainStatus ? ` --${this.domainStatus}` : '';
+		const container = this.getContainerDomainStatus();
+
+		container.className = `landing-sites__container-status${statusClass}`;
+		Dom.clean(container);
+		container.appendChild(this.createContainerDomainStatusIcon());
 	}
 
 	getContainerDomainStatus()
 	{
 		if (!this.$containerDomainStatus)
 		{
-			this.$containerDomainStatus = Tag.render`
-				<div class="landing-sites__container-status --${this.domainStatus}"></div>
-			`;
+			this.$containerDomainStatus = Tag.render`<div class="landing-sites__container-status"></div>`;
+			this.updateContainerDomainStatus();
 		}
 
 		return this.$containerDomainStatus;
@@ -503,9 +731,17 @@ export default class Item
 	{
 		if (!this.$containerDomainStatusIcon)
 		{
-			this.$containerDomainStatusIcon = Tag.render`
-				<div class="landing-sites__status-icon --${this.domainStatus}"></div>
-			`;
+			const iconQrCode = new Icon({
+				icon: Outline.QR_CODE,
+				color: 'var(--ui-color-design-outline-a1-content)',
+				size: 20,
+			});
+			this.$containerDomainStatusIcon = iconQrCode.render();
+			this.$containerDomainStatusIcon.classList.add('landing-sites__status-icon');
+			if (this.domainStatus)
+			{
+				this.$containerDomainStatusIcon.classList.add(`--${this.domainStatus}`);
+			}
 		}
 
 		return this.$containerDomainStatusIcon;
@@ -552,10 +788,17 @@ export default class Item
 		if (!this.$containerDomainLink)
 		{
 			this.$containerDomainLink = Tag.render`
-				<div class="landing-sites__status landing-sites__status-${this.id}">
+				<button
+					type="button"
+					class="landing-sites__status landing-sites__status-${this.id}"
+					aria-label="${Text.encode(Loc.getMessage('LANDING_SITE_TILE_OPEN_SITE_LINK'))}"
+					aria-haspopup="dialog"
+					aria-expanded="false"
+					data-testid="landing-sites-item-domain-btn"
+				>
 					${this.getContainerDomainStatusIcon()}
 					${this.getContainerDomainStatusTitle()}
-				</div>
+				</button>
 			`;
 
 			Event.bind(this.$containerDomainLink, 'click', () => {
@@ -599,6 +842,16 @@ export default class Item
 			{
 				this.lazyLoadCloudPreview();
 			}
+
+			if (this.copilotProcess === false)
+			{
+				const copilotLabel = Tag.render`
+					<div class="landing-sites__preview-copilot-label">
+						<div class="">${this.createByCopilotText}</div>
+					</div>
+				`;
+				this.$containerPreviewImage.appendChild(copilotLabel);
+			}
 		}
 
 		return this.$containerPreviewImage;
@@ -606,28 +859,30 @@ export default class Item
 
 	lazyLoadCloudPreview()
 	{
-		const previewUrl =
-			this.cloudPreview
-			+ ((this.cloudPreview.indexOf('?') > 0) ? '&' : '?')
-			+ 'refreshed' + (Date.now()/86400000|0)
-		;
-		const xhr = new XMLHttpRequest();
-		xhr.open("HEAD", previewUrl);
-		xhr.onload = () => {
-			const expires = xhr.getResponseHeader("expires");
-			if (
-				expires
-				&& (new Date(expires)) <= (new Date())
-			)
-			{
-				setTimeout(this.lazyLoadCloudPreview, 3000);
-			}
-			else
-			{
-				this.$containerPreviewImage.style.backgroundImage = 'url(' + previewUrl + ')';
-			}
-		};
-		xhr.send();
+		try {
+			const previewUrl =
+				this.cloudPreview
+				+ ((this.cloudPreview.indexOf('?') > 0) ? '&' : '?')
+				+ 'refreshed' + (Date.now()/86400000|0)
+			;
+			const xhr = new XMLHttpRequest();
+			xhr.open("HEAD", previewUrl);
+			xhr.onload = () => {
+				const expires = xhr.getResponseHeader("expires");
+				if (
+					expires
+					&& (new Date(expires)) <= (new Date())
+				)
+				{
+					setTimeout(this.lazyLoadCloudPreview, 3000);
+				}
+				else
+				{
+					this.$containerPreviewImage.style.backgroundImage = 'url(' + previewUrl + ')';
+				}
+			};
+			xhr.send();
+		} catch (error) {}
 	}
 
 	getContainerPreviewStatus()
@@ -661,9 +916,13 @@ export default class Item
 	{
 		if (!this.$containerPreviewShowPages)
 		{
+			const previewShowText = this.isCreatedByAiScenario
+				? (Loc.getMessage('LANDING_SITE_TILE_GO_TO_COMBO_MODE') || Loc.getMessage('LANDING_SITE_TILE_SHOW_PAGES'))
+				: Loc.getMessage('LANDING_SITE_TILE_SHOW_PAGES');
+
 			this.$containerPreviewShowPages = Tag.render`
 				<div class="landing-sites__preview-show">
-					${Loc.getMessage('LANDING_SITE_TILE_SHOW_PAGES')}
+					${previewShowText}
 				</div>
 			`;
 		}
@@ -675,20 +934,42 @@ export default class Item
 	{
 		if (!this.$containerPreviewInstruction)
 		{
+			this.$containerPreviewInstructionButton = Tag.render`
+				<button
+					type="button"
+					class="landing-sites__preview-leadership-text"
+					aria-haspopup="dialog"
+					aria-expanded="false"
+					data-testid="landing-sites-item-leadership-btn"
+				>
+					${Loc.getMessage('LANDING_SITE_TILE_INSTRUCTION')}
+				</button>
+			`;
+
 			this.$containerPreviewInstruction = Tag.render`
 				<div class="landing-sites__preview-leadership">
-					<div class="landing-sites__preview-leadership-text">
-						${Loc.getMessage('LANDING_SITE_TILE_INSTRUCTION')}
-					</div>
+					${this.$containerPreviewInstructionButton}
 				</div>
 			`;
 
-			Event.bind(this.$containerPreviewInstruction, 'click', () => {
+			Event.bind(this.$containerPreviewInstructionButton, 'click', (event) => {
+				event.preventDefault();
+				event.stopPropagation();
 				this.getLeadership().show();
 			});
 		}
 
 		return this.$containerPreviewInstruction;
+	}
+
+	getContainerPreviewInstructionButton()
+	{
+		if (!this.$containerPreviewInstructionButton && this.articles.length > 0)
+		{
+			this.getContainerPreviewInstruction();
+		}
+
+		return this.$containerPreviewInstructionButton;
 	}
 
 	getContainerLinks()
@@ -705,11 +986,59 @@ export default class Item
 		return this.$containerLinks;
 	}
 
+	getContainerLinkIconByType(type: string)
+	{
+		switch (type)
+		{
+			case 'orders':
+				return Outline.CRM;
+
+			case 'marketing':
+				return Outline.ROCKET;
+
+			case 'cookies':
+				return Outline.COOKIES;
+
+			case 'pages':
+				return Outline.PAGES;
+
+			case 'products':
+				return Outline.SHOPPING_CART;
+
+			default:
+				return null;
+		}
+	}
+
 	getContainerLinksItem(type: string, link: string, title: string)
 	{
+		const iconType = this.getContainerLinkIconByType(type);
+		let iconNode;
+
+		if (iconType)
+		{
+			const icon = new Icon({
+				icon: iconType,
+				color: 'var(--ui-color-design-outline-a1-content)',
+				size: 24,
+			});
+			iconNode = icon.render();
+			iconNode.classList.add('landing-sites__container-link-icon', `--${type}`);
+			iconNode.setAttribute('aria-hidden', 'true');
+		}
+		else
+		{
+			iconNode = Tag.render`<div class="landing-sites__container-link-icon --${type}"></div>`;
+			iconNode.setAttribute('aria-hidden', 'true');
+		}
+
 		const container = Tag.render`
-			<a href="${link}" class="landing-sites__container-link landing-sites__container-link-${this.id} --white-bg--alpha">
-				<div class="landing-sites__container-link-icon --${type}"></div>
+			<a
+				href="${link}"
+				class="landing-sites__container-link landing-sites__container-link-${this.id}"
+				aria-label="${Text.encode(title)}"
+			>
+				${iconNode}
 				<div class="landing-sites__container-link-text">${title}</div>
 			</a>
 		`;
@@ -734,13 +1063,63 @@ export default class Item
 		return this.leadership;
 	}
 
-	remove()
+	getRemoveFocusTarget()
 	{
-		this.getContainer().classList.add('--remove');
-		Event.bind(this.getContainer(), 'transitionend', () => {
+		const items = this.grid.getItems();
+		const index = items.indexOf(this);
+		const item = items[index + 1] || items[index - 1] || null;
+		if (item && item.getContainer)
+		{
+			const container = item.getContainer();
+			container.tabIndex = -1;
+
+			return container;
+		}
+
+		const gridContainer = this.grid.getContainer();
+		gridContainer.tabIndex = -1;
+
+		return gridContainer;
+	}
+
+	restoreFocusAfterRemove()
+	{
+		const activeElement = document.activeElement;
+		if (!activeElement || !this.getContainer().contains(activeElement))
+		{
+			return;
+		}
+
+		const target = this.getRemoveFocusTarget();
+		requestAnimationFrame(() => {
+			target.focus({ preventScroll: true });
+		});
+	}
+
+	remove(options: { announce?: boolean } = {})
+	{
+		const container = this.getContainer();
+		let isRemoved = false;
+		this.restoreFocusAfterRemove();
+		if (options.announce === true)
+		{
+			A11y.announce(Loc.getMessage('LANDING_SITE_TILE_REMOVE_ANNOUNCE'));
+		}
+		container.classList.add('--remove');
+		Event.bind(container, 'transitionend', () => {
+			if (isRemoved)
+			{
+				return;
+			}
+
+			isRemoved = true;
 			let items = this.grid.getItems();
-			items.splice(items.indexOf(items), 1);
-			Dom.remove(this.getContainer());
+			const index = items.indexOf(this);
+			if (index !== -1)
+			{
+				items.splice(index, 1);
+			}
+			Dom.remove(container);
 		});
 	}
 
@@ -811,12 +1190,14 @@ export default class Item
 		{
 			this.$containerWrapper = Tag.render`
 				<div class="landing-sites__item-container">
-					<a href="${this.pagesUrl}" class="landing-sites__preview">
-						${this.getContainerPreviewImage()}
-						${this.getContainerPreviewStatus()}
-						${this.getContainerPreviewShowPages()}
+					<div class="landing-sites__preview-container">
+						<a href="${this.pagesUrl}" class="landing-sites__preview">
+							${this.getContainerPreviewImage()}
+							${this.getContainerPreviewStatus()}
+							${this.getContainerPreviewShowPages()}
+						</a>
 						${this.articles.length > 0 ? this.getContainerPreviewInstruction() : ''}
-					</a>
+					</div>
 					${this.getContainerInfo()}
 					${this.getContainerDomain()}
 					${this.getContainerLinks()}
@@ -831,13 +1212,29 @@ export default class Item
 	{
 		if (!this.$container)
 		{
-			this.$container = Tag.render`
-				<div class="landing-sites__grid-item ${this.deleted ? '--deleted' : ''}">
-					<div class="landing-sites__item" id="landing-sites__grid-item--${this.id}">
-						${this.getLeadership().getContainer()}
-						${this.getContainerWrapper()}
-						${this.getPopupHelper().getContainer()}
+			const containerClasses = [
+				'landing-sites__grid-item',
+				this.deleted ? '--deleted' : '',
+				this.copilotProcess === true ? '--generating' : '',
+			].join(' ').trim();
+
+			const copilotLabel = this.copilotProcess === true
+				? Tag.render`
+					<div class="landing-sites__preview-show copilot-label">
+					    <i class="ui-icon-set --bitrix-gpt"></i>
+					    ${this.copilotGeneratedText}
 					</div>
+				`
+				: '';
+
+			this.$container = Tag.render`
+				<div class="${containerClasses}" role="listitem">
+				    <div class="landing-sites__item" id="landing-sites__grid-item--${this.id}">
+				        ${this.getLeadership().getContainer()}
+				        ${this.getContainerWrapper()}
+				        ${this.getPopupHelper().getContainer()}
+				    </div>
+				    ${copilotLabel}
 				</div>
 			`;
 		}

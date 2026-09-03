@@ -38,6 +38,7 @@ foreach ($arParams['SEF_URL_TEMPLATES'] as $code => $url)
 		'TILE_MODE' => $arParams['TILE_SITE_MODE'],
 		'DRAFT_MODE' => $arParams['DRAFT_MODE'],
 		'SEF' => $sef,
+		'AI_SITE_CHAT_AVAILABLE' => $arResult['AI_SITE_CHAT_AVAILABLE'] ?? true,
 		'AGREEMENT' => $arResult['AGREEMENT']
 	),
 	$component
@@ -46,7 +47,7 @@ foreach ($arParams['SEF_URL_TEMPLATES'] as $code => $url)
 <?php if ($arParams['REOPEN_LOCATION_IN_SLIDER'] === 'Y' && $request->get('IS_AJAX') !== 'Y'):
 	CJSCore::init('sidepanel');
 	?>
-	<script type="text/javascript">
+	<script>
 		BX.ready(function()
 		{
 			BX.SidePanel.Instance.open(window.location.href, { customLeftBoundary: 60});

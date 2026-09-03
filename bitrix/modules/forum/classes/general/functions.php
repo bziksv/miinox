@@ -1,11 +1,14 @@
-<?
-##############################################
-# Bitrix Site Manager Forum                  #
-# Copyright (c) 2002-2007 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage forum
+ * @copyright 2001-2025 Bitrix
+ */
+
 IncludeModuleLangFile(__FILE__);
+
 function Error($error)
 {
 	global $MESS;
@@ -129,7 +132,7 @@ class forumTextParser extends CTextParser
 		return $result;
 	}
 
-	function convert($text, $allow = array(), $type = "html", $arFiles = false)
+	function convert($text, $allow = array(), $type = "html", $arFiles = false, $attributes = [])
 	{
 		$text = str_replace(array("\013", "\014"), "", $text);
 
@@ -158,7 +161,7 @@ class forumTextParser extends CTextParser
 			$this->arFiles = is_array($arFiles) ? $arFiles : array($arFiles);
 		$this->arFilesIDParsed = array();
 
-		$text = str_replace(array("\013", "\014"), array(chr(34), chr(39)), $this->convertText($text));
+		$text = str_replace(array("\013", "\014"), array(chr(34), chr(39)), $this->convertText($text, $attributes));
 		return $text;
 	}
 
@@ -203,17 +206,17 @@ class forumTextParser extends CTextParser
 			$text = parent::convert4mail($text);
 			if (!empty($this->arFiles))
 				$this->ParserFile($text, $this, "mail");
-			if (preg_match("/\\[cut(([^\\]])*)\\]/is".BX_UTF_PCRE_MODIFIER, $text, $matches))
+			if (preg_match("/\\[cut(([^\\]])*)\\]/isu", $text, $matches))
 			{
 				$text = preg_replace(
-					array("/\\[cut(([^\\]])*)\\]/is".BX_UTF_PCRE_MODIFIER,
-						"/\\[\\/cut\\]/is".BX_UTF_PCRE_MODIFIER),
+					array("/\\[cut(([^\\]])*)\\]/isu",
+						"/\\[\\/cut\\]/isu"),
 					array("\001\\1\002",
 						"\003"),
 					$text);
-				while (preg_match("/(\001([^\002]*)\002([^\001\002\003]+)\003)/is".BX_UTF_PCRE_MODIFIER, $text, $arMatches))
+				while (preg_match("/(\001([^\002]*)\002([^\001\002\003]+)\003)/isu", $text, $arMatches))
 					$text = preg_replace(
-						"/(\001([^\002]*)\002([^\001\002\003]+)\003)/is".BX_UTF_PCRE_MODIFIER,
+						"/(\001([^\002]*)\002([^\001\002\003]+)\003)/isu",
 						"\n>================== CUT ===================\n\\3\n>==========================================\n",
 						$text);
 				$text = preg_replace(
@@ -235,7 +238,7 @@ class forumTextParser extends CTextParser
 		{
 			$tmpType = $obj->type;
 			$obj->type = $type;
-			$text = preg_replace_callback("/\[file([^\]]*)id\s*=\s*([0-9]+)([^\]]*)\]/is".BX_UTF_PCRE_MODIFIER, array($this, "convert_attachment"), $text);
+			$text = preg_replace_callback("/\[file([^\]]*)id\s*=\s*([0-9]+)([^\]]*)\]/isu", array($this, "convert_attachment"), $text);
 			$obj->type = $tmpType;
 		}
 	}
@@ -283,7 +286,7 @@ class forumTextParser extends CTextParser
 		if (empty($url)) return "";
 		$type = (mb_strtolower($this->type) == "rss" ? "rss" : "html");
 
-		$bErrorIMG = !preg_match("/^(http|https|ftp|\/)/i".BX_UTF_PCRE_MODIFIER, $url);
+		$bErrorIMG = !preg_match("/^(http|https|ftp|\/)/iu", $url);
 
 		$url = str_replace(array("<", ">", "\""), array("%3C", "%3E", "%22"), $url);
 		// to secure from XSS [img]http://ya.ru/[url]http://onmouseover=prompt(/XSS/)//[/url].jpg[/img]
@@ -295,7 +298,7 @@ class forumTextParser extends CTextParser
 			return '<img src="'.$url.'" alt="'.GetMessage("FRM_IMAGE_ALT").'" border="0" />';
 
 		$width = 0; $height = 0;
-		if (preg_match_all("/width\=(?P<width>\d+)|height\=(?P<height>\d+)/is".BX_UTF_PCRE_MODIFIER, $params, $matches)):
+		if (preg_match_all("/width\=(?P<width>\d+)|height\=(?P<height>\d+)/isu", $params, $matches)):
 			$width = intval(!empty($matches["width"][0]) ? $matches["width"][0] : $matches["width"][1]);
 			$height = intval(!empty($matches["height"][0]) ? $matches["height"][0] : $matches["height"][1]);
 		endif;
@@ -352,7 +355,7 @@ class forumTextParser extends CTextParser
 			if ($type == "html" || $type == "rss")
 			{
 				$width = 0; $height = 0;
-				if (preg_match_all("/width\=(?P<width>\d+)|height\=(?P<height>\d+)/is".BX_UTF_PCRE_MODIFIER, $p, $matches)):
+				if (preg_match_all("/width\=(?P<width>\d+)|height\=(?P<height>\d+)/isu", $p, $matches)):
 					$width = intval(!empty($matches["width"][0]) ? $matches["width"][0] : $matches["width"][1]);
 					$height = intval(!empty($matches["height"][0]) ? $matches["height"][0] : $matches["height"][1]);
 				endif;
@@ -416,8 +419,8 @@ class forumTextParser extends CTextParser
 			);
 		$text = preg_replace(
 			array(
-				"#^(.+?)<cut[\s]*(/>|>).*?$#is".BX_UTF_PCRE_MODIFIER,
-				"#^(.+?)\[cut[\s]*(/\]|\]).*?$#is".BX_UTF_PCRE_MODIFIER),
+				"#^(.+?)<cut[\s]*(/>|>).*?$#isu",
+				"#^(.+?)\[cut[\s]*(/\]|\]).*?$#isu"),
 			"\\1", $text);
 
 		return $this->convert($text, $arAllow, "rss", $arImages);
@@ -454,9 +457,9 @@ class textParser extends forumTextParser {
 class CForumSimpleHTMLParser
 {
 	private $data;
-	private $parse_search_needle = '/([^\[]*)(?:\[(.*)\])*/i'.BX_UTF_PCRE_MODIFIER;
-	private $parse_tag = "/<(?<closing>\/?)(?<tag>[a-z]+)(?<params>.*?)(?<selfclosing>\/?)>/ism".BX_UTF_PCRE_MODIFIER;
-	private $parse_params = '/([a-z\-]+)\s*=\s*(?:([^\s]*)|(?:[\'"]([^\'"])[\'"]))/im'.BX_UTF_PCRE_MODIFIER;
+	private $parse_search_needle = '/([^\[]*)(?:\[(.*)\])*/iu';
+	private $parse_tag = "/<(?<closing>\/?)(?<tag>[a-z]+)(?<params>.*?)(?<selfclosing>\/?)>/ismu";
+	private $parse_params = '/([a-z\-]+)\s*=\s*(?:([^\s]*)|(?:[\'"]([^\'"])[\'"]))/imu';
 	private $lastError = '';
 	private $preg = array(
 			"counter" => 0,
@@ -475,7 +478,7 @@ class CForumSimpleHTMLParser
 	private function prepare(string $text): string
 	{
 		$text = preg_replace_callback(
-			"/<pre>(.+?)<\\/pre>/is".BX_UTF_PCRE_MODIFIER,
+			"/<pre>(.+?)<\\/pre>/isu",
 			[$this, "defendTags"],
 			$text
 		);
@@ -584,8 +587,8 @@ class CForumSimpleHTMLParser
 
 		for ($i=0; $i<$n_tags;$i++)
 		{
-			if (preg_match('#^\s*'.$tags_quoted[$i]['open'].'#i'.BX_UTF_PCRE_MODIFIER, $tmp) < 1) continue;
-			if (preg_match('#('.$tags_quoted[$i]['close'].'[^<]*)#im'.BX_UTF_PCRE_MODIFIER, $tmp, $matches) > 0)
+			if (preg_match('#^\s*'.$tags_quoted[$i]['open'].'#iu', $tmp) < 1) continue;
+			if (preg_match('#('.$tags_quoted[$i]['close'].'[^<]*)#imu', $tmp, $matches) > 0)
 			{
 				$endpos = mb_strpos($tmp, $matches[1]);
 				$offset = $endpos + mb_strlen($matches[1]);
@@ -711,6 +714,8 @@ class CForumCacheManager
 
 			AddEventHandler("forum", "onAfterTopicAdd", array(&$this, "OnTopicAdd"));
 			AddEventHandler("forum", "onAfterTopicUpdate", array(&$this, "OnTopicUpdate"));
+			AddEventHandler("forum", "onTopicOpen", array(&$this, "OnTopicUpdate"));
+			AddEventHandler("forum", "onTopicClose", array(&$this, "OnTopicUpdate"));
 			AddEventHandler("forum", "onAfterTopicDelete", array(&$this, "OnTopicDelete"));
 
 			//AddEventHandler("forum", "onAfterForumAdd", array(&$this, "OnForumAdd"));
@@ -850,16 +855,14 @@ class CForumCacheManager
 	public function OnMessageUpdate($ID, $arFields, $arMessage = array())
 	{
 		$arMessage = (is_array($arMessage) ? $arMessage : array());
-		$topic_id = (isset($arFields["FORUM_TOPIC_ID"]) ? $arFields["FORUM_TOPIC_ID"] : $arFields["TOPIC_ID"]);
-		if (isset($arFields["APPROVED"]) && $topic_id <= 0)
-			$topic_id = $arMessage["TOPIC_ID"];
-		if ($topic_id > 0)
+		if ($topic_id = $arFields["FORUM_TOPIC_ID"] ?? $arFields["TOPIC_ID"] ?? $arMessage["TOPIC_ID"] ?? 0)
+		{
 			$this->ClearTag("T", $topic_id);
-		$forum_id = (isset($arFields["FORUM_ID"]) ? $arFields["FORUM_ID"] : 0);
-		if (isset($arFields["APPROVED"]) && $forum_id <= 0)
-			$forum_id = $arMessage["FORUM_ID"];
-		if ($forum_id > 0)
-			$this->ClearTag("forum_msg_count".$forum_id);
+		}
+		if ($forum_id = $arFields["FORUM_ID"] ?? $arMessage["FORUM_ID"] ?? 0)
+		{
+			$this->ClearTag("forum_msg_count" . $forum_id);
+		}
 	}
 
 	public function OnMessageDelete($ID, $arMessage)
@@ -895,7 +898,7 @@ class CForumCacheManager
 
 	public function OnForumUpdate($ID, $arFields)
 	{
-		self::ClearTag("F", $arFields["FORUM_ID"]);
+		self::ClearTag("F", $arFields["FORUM_ID"] ?? null);
 	}
 
 	//public function OnForumDelete($ID)

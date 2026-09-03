@@ -18,7 +18,7 @@ Extension::load([
 ]);
 
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 $containerId = 'bx-sender-message-editor';
@@ -44,6 +44,44 @@ $getHintText = function (array $option)
 	}
 
 	return $hint;
+};
+$getPlaceholderText = function (array $option)
+{
+	if (!empty($option['placeholder']))
+	{
+		if (is_string($option['placeholder']))
+		{
+			return $option['placeholder'];
+		}
+		elseif (is_array($option['placeholder']))
+		{
+			if (isset($option['placeholder']['text']))
+			{
+				return $option['placeholder']['text'];
+			}
+		}
+
+		return '';
+	}
+
+	if (empty($option['hint']))
+	{
+		return '';
+	}
+
+	if (is_string($option['hint']))
+	{
+		return $option['hint'];
+	}
+	elseif (is_array($option['hint']))
+	{
+		if (isset($option['hint']['text']))
+		{
+			return $option['hint']['text'];
+		}
+	}
+
+	return '';
 };
 
 $getHintHtml = function (array $option)
@@ -97,7 +135,7 @@ $getHintHtml = function (array $option)
 
 $fieldPrefix = 'CONFIGURATION_';
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Sender.Message.Editor.init(<?=Json::encode(array(
 			'containerId' => $containerId,
@@ -182,7 +220,7 @@ $fieldPrefix = 'CONFIGURATION_';
 			$hint = $getHintHtml($option);
 			$hintUsed = false;
 			$hintText = htmlspecialcharsbx($getHintText($option));
-			$placeholder = strip_tags($getHintText($option));
+			$placeholder = strip_tags($getPlaceholderText($option));
 
 			$inputHtml = '';
 			$inputDisplay = '';
@@ -286,7 +324,7 @@ $fieldPrefix = 'CONFIGURATION_';
 						array('HIDE_ICONS' => 'Y')
 					);
 					?>
-						<script type="text/javascript">
+						<script>
 							BX.ready(function () {
 								var list = document.getElementsByClassName('diskuf-selectdialog-switcher');
 								list.length > 0 ? BX.fireEvent(list.item(0), 'click') : null;

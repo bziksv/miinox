@@ -45,7 +45,7 @@ abstract class BaseHandler extends BaseReport  implements IReportMultipleData
 		if (!empty($storeTotals))
 		{
 			$receivedQuantities = $this->getReceivedQuantity();
-			$soldAmounts  = $this->getSoldAmounts();
+			$soldAmounts = $this->getSoldAmounts();
 			$outgoingQuantities = $this->getOutgoingQuantity();
 			$receivedQuantitiesDifference = $this->getReceivedQuantityForDifference();
 			$outgoingQuantitiesDifference = $this->getOutgoingQuantityForDifference();
@@ -200,15 +200,22 @@ abstract class BaseHandler extends BaseReport  implements IReportMultipleData
 
 		if (!empty($userFilterParameters['PRODUCTS']) && is_array($userFilterParameters['PRODUCTS']))
 		{
-			$queryParams['filter']['=PRODUCT_ID'] = StoreStockFilter::prepareProductFilter($userFilterParameters['PRODUCTS']);
-			$queryParams['filter'][] = [
-				'LOGIC' => 'OR',
-				'!=AMOUNT' => 0,
-				'!=QUANTITY_RESERVED' => 0,
-			];
+			$queryParams['filter'][] = $this->getProductFilter($userFilterParameters['PRODUCTS']);
 		}
 
 		return StoreProductTable::getList($queryParams)->fetchAll();
+	}
+
+	protected function getProductFilter(array $productFilter): array
+	{
+		return [
+			'=PRODUCT_ID' => StoreStockFilter::prepareProductFilter($productFilter),
+			[
+				'LOGIC' => 'OR',
+				'!=AMOUNT' => 0,
+				'!=QUANTITY_RESERVED' => 0,
+			],
+		];
 	}
 
 	private function prepareStoreTotals(array $storeTotals): array
@@ -299,7 +306,7 @@ abstract class BaseHandler extends BaseReport  implements IReportMultipleData
 		$formattedFilter = $this->getFormattedFilter();
 		$differenceFilter = $formattedFilter;
 		$currentTime = new DateTime();
-		$filterTimeTo = new DateTime($differenceFilter['REPORT_INTERVAL']['TO']);
+		$filterTimeTo = new DateTime($differenceFilter['REPORT_INTERVAL']['TO'] ?? null);
 		if ($currentTime > $filterTimeTo)
 		{
 			$differenceFilter['REPORT_INTERVAL']['FROM'] = $differenceFilter['REPORT_INTERVAL']['TO'];
@@ -499,7 +506,7 @@ abstract class BaseHandler extends BaseReport  implements IReportMultipleData
 		$filter = $this->getFilter();
 		$filterId = $filter->getFilterParameters()['FILTER_ID'];
 
-		if (!$filterParameters[$filterId])
+		if (!isset($filterParameters[$filterId]))
 		{
 			$options = new Options($filterId, $filter::getPresetsList());
 			$fieldList = $filter::getFieldsList();

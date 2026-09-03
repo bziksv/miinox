@@ -19,7 +19,9 @@ CREATE TABLE b_messageservice_message (
 	PRIMARY KEY (ID),
 	INDEX B_MESSAGESERVICE_MESSAGE_1(DATE_EXEC),
 	INDEX B_MESSAGESERVICE_MESSAGE_2(SUCCESS_EXEC, CLUSTER_GROUP),
-	INDEX B_MESSAGESERVICE_MESSAGE_3(SENDER_ID, EXTERNAL_ID)
+	INDEX B_MESSAGESERVICE_MESSAGE_3(SENDER_ID, EXTERNAL_ID),
+	INDEX B_MESSAGESERVICE_MESSAGE_4(SUCCESS_EXEC,NEXT_EXEC),
+	INDEX B_MESSAGESERVICE_MESSAGE_5(DATE_INSERT)
 );
 
 CREATE TABLE b_messageservice_rest_app (
@@ -52,4 +54,35 @@ CREATE TABLE b_messageservice_incoming_message (
 	EXTERNAL_ID varchar(128) null,
 	PRIMARY KEY (ID),
 	UNIQUE INDEX UX_MS_INCOMING_MESSAGE_1(SENDER_ID, EXTERNAL_ID)
-)
+);
+
+CREATE TABLE b_messageservice_restriction (
+	ID int not null auto_increment,
+	CODE varchar(128) not null,
+	COUNTER int,
+	DATE_CREATE DATE not null,
+	ADDITIONAL_PARAMS text not null,
+	PRIMARY KEY (ID),
+	UNIQUE INDEX UX_MESSAGESERVISE_RESTRICTION_1(CODE, DATE_CREATE)
+);
+
+CREATE TABLE b_messageservice_channel  (
+	ID int(18) not null auto_increment,
+	SENDER_ID varchar(50) not null,
+	TYPE varchar(30) not null,
+	EXTERNAL_ID varchar(128) not null,
+	NAME varchar(500) not null,
+	DATE_CREATE datetime not null default current_timestamp,
+	ADDITIONAL_PARAMS text null,
+	PRIMARY KEY (ID),
+	UNIQUE INDEX UX_MS_CHANNEL_1(SENDER_ID, EXTERNAL_ID, TYPE)
+);
+
+CREATE TABLE b_messageservice_template (
+	ID int(18) not null auto_increment,
+	NAME varchar(500) not null,
+	TITLE varchar(500) not null,
+	DATE_CREATE datetime not null default current_timestamp,
+	ACTIVE char(1) NOT NULL DEFAULT 'Y',
+	PRIMARY KEY (ID)
+);

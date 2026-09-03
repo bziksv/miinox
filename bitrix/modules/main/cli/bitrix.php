@@ -17,59 +17,49 @@
 // include bitrix
 require_once 'bootstrap.php';
 
-// default location of composer.json
-$composerJsonFile = $_SERVER["DOCUMENT_ROOT"].'/bitrix/composer.json';
+// initialize symfony
+use Symfony\Component\Console\Application;
 
-// custom location of composer.json from .settings.php
-$composerSettings = \Bitrix\Main\Config\Configuration::getValue('composer');
-if (!empty($composerSettings['config_path']))
+if (class_exists(Application::class) === false)
 {
-	$jsonPath = $composerSettings['config_path'];
-	$jsonPath = ($jsonPath[0] == '/')
-		? $jsonPath // absolute
-		: realpath($_SERVER["DOCUMENT_ROOT"].'/'.$jsonPath); // relative
+	die(<<<TXT
 
-	if (!empty($jsonPath))
-	{
-		$composerJsonFile = $jsonPath;
-	}
+	Symfony Console is not installed.
+	Please install and configure composer in your project.
+	For details see official documentation https://docs.1c-bitrix.ru/pages/get-started/composer.html
+
+
+	TXT);
 }
 
-// default vendor path has the same parent dir as composer.json has
-$vendorPath = dirname($composerJsonFile).'/vendor';
+$application = new Application();
+$application->setAutoExit(false);
 
-if (file_exists($composerJsonFile) && is_readable($composerJsonFile))
+// register  commands
+$modules = \Bitrix\Main\ModuleManager::getInstalledModules();
+foreach ($modules as $moduleId => $_)
 {
-	$jsonContent = json_decode(file_get_contents($composerJsonFile), true);
-
-	if (isset($jsonContent['config']['vendor-dir']))
+	$config = \Bitrix\Main\Config\Configuration::getInstance($moduleId)->get('console');
+	if (isset($config['commands']) && is_array($config['commands']))
 	{
-		$vendorPath = realpath(dirname($composerJsonFile).DIRECTORY_SEPARATOR.$jsonContent['config']['vendor-dir']);
-
-		if ($vendorPath === false)
+		if (\Bitrix\Main\Loader::includeModule($moduleId))
 		{
-			throw new \Bitrix\Main\SystemException(sprintf(
-				'Failed to load vendor libs from %s, path \'%s\' is not readable',
-				$composerJsonFile, $jsonContent['config']['vendor-dir']
-			));
+			$moduleCommands = [];
+			foreach ($config['commands'] as $commandClass)
+			{
+				if (is_a($commandClass, \Symfony\Component\Console\Command\Command::class, true))
+				{
+					$moduleCommands[] = new $commandClass();
+				}
+			}
+
+			$application->addCommands($moduleCommands);
 		}
 	}
 }
 
-// include composer autoload
-require $vendorPath.'/autoload.php';
-
-// initialize symfony
-use Symfony\Component\Console\Application;
-$application = new Application();
-
-// register  commands
-$application->add(new \Bitrix\Main\Cli\OrmAnnotateCommand());
-
-if (\Bitrix\Main\ModuleManager::isModuleInstalled('translate') && \Bitrix\Main\Loader::includeModule('translate'))
-{
-	$application->add(new \Bitrix\Translate\Cli\IndexCommand());
-}
-
 // run console
-$application->run();
+$status = $application->run();
+
+// finish bitrix application
+\Bitrix\Main\Application::getInstance()->terminate($status);

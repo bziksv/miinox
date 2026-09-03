@@ -2,13 +2,18 @@
 
 namespace Bitrix\UI\FileUploader;
 
-use Bitrix\Main\DB\SqlExpression;
+use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ORM\Data;
+use Bitrix\Main\ORM\Data\Internal\DeleteByFilterTrait;
 use Bitrix\Main\ORM\Event;
 use Bitrix\Main\ORM\Fields;
+use Bitrix\Main\ORM\Fields\ArrayField;
 use Bitrix\Main\ORM\Fields\Relations\Reference;
+use Bitrix\Main\ORM\Query\Filter\ConditionTree;
 use Bitrix\Main\ORM\Query\Join;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\UuidGenerator;
 
 /**
  * Class TempFileTable
@@ -28,6 +33,8 @@ use Bitrix\Main\Type\DateTime;
  */
 class TempFileTable extends Data\DataManager
 {
+	use DeleteByFilterTrait;
+
 	public static function getTableName()
 	{
 		return 'b_ui_file_uploader_temp_file';
@@ -50,13 +57,7 @@ class TempFileTable extends Data\DataManager
 				->configureUnique(true)
 				->configureNullable(false)
 				->configureDefaultValue(static function () {
-					return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-						mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-						mt_rand(0, 0xffff),
-						mt_rand(0, 0x0fff) | 0x4000,
-						mt_rand(0, 0x3fff) | 0x8000,
-						mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-					);
+					return UuidGenerator::generateV4();
 				})
 				->configureSize(36)
 			,
@@ -70,6 +71,7 @@ class TempFileTable extends Data\DataManager
 
 			(new Fields\IntegerField('SIZE'))
 				->configureRequired()
+				->configureSize(8)
 			,
 
 			(new Fields\StringField('PATH'))
@@ -82,7 +84,9 @@ class TempFileTable extends Data\DataManager
 				->configureSize(255)
 			,
 
-			new Fields\IntegerField('RECEIVED_SIZE'),
+			(new Fields\IntegerField('RECEIVED_SIZE'))
+				->configureSize(8)
+			,
 			new Fields\IntegerField('WIDTH'),
 			new Fields\IntegerField('HEIGHT'),
 
@@ -95,6 +99,10 @@ class TempFileTable extends Data\DataManager
 			(new Fields\StringField('CONTROLLER'))
 				->configureRequired()
 				->configureSize(255)
+			,
+
+			(new ArrayField('CONTROLLER_OPTIONS'))
+				->configureSerializationJson()
 			,
 
 			(new Fields\BooleanField('CLOUD'))
@@ -131,6 +139,11 @@ class TempFileTable extends Data\DataManager
 				})
 			,
 
+			new Fields\StringField('STRATEGY'),
+			new Fields\IntegerField('PART_SIZE'),
+			new Fields\IntegerField('PART_COUNT'),
+			new Fields\StringField('UPLOAD_ID'),
+
 			(new Reference(
 				'FILE',
 				\Bitrix\Main\FileTable::class,
@@ -156,5 +169,76 @@ class TempFileTable extends Data\DataManager
 			$deleteBFile = $tempFile->customData->get('deleteBFile') !== false;
 			$tempFile->deleteContent($deleteBFile);
 		}
+
+		// Cascade-delete accepted part records (for parallel strategy). FK constraints
+		// are not used in DB — the ui module follows the "cascade via ORM handler" style.
+		$id = null;
+		if ($tempFile && $tempFile->getId())
+		{
+			$id = $tempFile->getId();
+		}
+		else
+		{
+			$primary = $event->getParameter('primary');
+			if (is_array($primary) && isset($primary['ID']))
+			{
+				$id = (int)$primary['ID'];
+			}
+			elseif (is_numeric($primary))
+			{
+				$id = (int)$primary;
+			}
+		}
+
+		if ($id !== null && $id > 0)
+		{
+			TempFilePartTable::deleteByFilter(['=TEMP_FILE_ID' => $id]);
+		}
+	}
+
+	/**
+	 * Updates rows matching the filter. Returns the number of affected rows so the
+	 * caller can detect lease-acquisition races (atomic UPDATE with a guard condition
+	 * in WHERE — see Uploader::uploadPart finalization capture).
+	 *
+	 * Mirrors the shape of DeleteByFilterTrait::deleteByFilter; not exposed by stock
+	 * DataManager yet.
+	 *
+	 * @param array|ConditionTree $filter Same shape as Query::getList filter.
+	 * @param array $data Column => value map; SqlExpression is honoured.
+	 * @return int Affected rows.
+	 * @throws ArgumentException
+	 */
+	public static function updateByFilter(array|ConditionTree $filter, array $data): int
+	{
+		$entity = static::getEntity();
+		$table = static::getTableName();
+		$connection = $entity->getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$where = Query::buildFilterSql($entity, $filter);
+		if ($where === '')
+		{
+			throw new ArgumentException(
+				"Updating by empty filter is not allowed ({$table}).",
+				'filter'
+			);
+		}
+
+		[$update] = $helper->prepareUpdate($table, $data);
+		if ($update === '')
+		{
+			throw new ArgumentException(
+				"No data to update ({$table}).",
+				'data'
+			);
+		}
+
+		$quotedTable = $helper->quote($table);
+		$connection->queryExecute("UPDATE {$quotedTable} SET {$update} WHERE {$where}");
+
+		static::cleanCache();
+
+		return $connection->getAffectedRowsCount();
 	}
 }

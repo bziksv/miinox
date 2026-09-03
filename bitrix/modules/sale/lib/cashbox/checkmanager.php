@@ -2,7 +2,9 @@
 
 namespace Bitrix\Sale\Cashbox;
 
+use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Error;
+use Bitrix\Sale\Cashbox\Internals\CashboxCheckCorrectionTable;
 use Bitrix\Sale\Cashbox\Internals\CashboxCheckTable;
 use Bitrix\Sale\Cashbox\Internals\CashboxTable;
 use Bitrix\Sale\EntityMarker;
@@ -22,6 +24,8 @@ Loc::loadLanguageFile(__FILE__);
  */
 final class CheckManager
 {
+	private const LOCK_NAME = 'get_check_list';
+
 	public const EVENT_ON_GET_CUSTOM_CHECK = 'OnGetCustomCheckList';
 	public const EVENT_ON_CHECK_PRINT_SEND = 'OnPrintableCheckSend';
 	public const EVENT_ON_BEFORE_CHECK_ADD_VERIFY = 'OnBeforeCheckAddVerify';
@@ -147,6 +151,189 @@ final class CheckManager
 					{
 						CashboxCheckTable::update($checkId, ['EXTERNAL_UUID' => $data['UUID']]);
 					}
+
+					if (Main\Loader::includeModule('crm'))
+					{
+						\Bitrix\Crm\Timeline\OrderCheckController::getInstance()->onPrintingCheck(
+							$checkId,
+							[
+								'ORDER_FIELDS' => $order->getFieldValues(),
+								'SETTINGS' => [
+									'PRINTING' => 'Y',
+								],
+								'BINDINGS' => \Bitrix\Crm\Order\BindingsMaker\TimelineBindingsMaker::makeByOrder($order),
+							]
+						);
+					}
+				}
+				else
+				{
+					self::savePrintResult(
+						$checkId,
+						[
+							'ID' => $checkId,
+							'ERROR' => [
+								'TYPE' =>  Errors\Error::TYPE,
+								'MESSAGE' => implode("\n", $printResult->getErrorMessages())
+							]
+						]
+					);
+				}
+
+				$result->setId($checkId);
+
+				return $result;
+			}
+
+			global $CACHE_MANAGER;
+			foreach ($cashboxList as $cashbox)
+			{
+				$CACHE_MANAGER->Read(CACHED_b_sale_order, 'sale_checks_'.$cashbox['ID']);
+				$CACHE_MANAGER->SetImmediate('sale_checks_'.$cashbox['ID'], true);
+			}
+		}
+		else
+		{
+			$result->addErrors($saveResult->getErrors());
+		}
+
+		return $result;
+	}
+
+	public static function reprint(int $checkId): Result
+	{
+		$result = new Result();
+
+		$check = self::getObjectById($checkId);
+		if (!$check)
+		{
+			return $result->addError(
+				new Error(Loc::getMessage('SALE_CASHBOX_ERROR_CHECK_NOT_FOUND', ['#CHECK_ID#' => $checkId]))
+			);
+		}
+
+		if (CashboxCheckCorrectionTable::getRow(['filter' => ['=CHECK_ID' => $checkId]]))
+		{
+			return $result->addError(
+				new Error(Loc::getMessage('SALE_CASBHOX_ERROR_CHECK_IS_CORRECTION_CHECK', ['#CHECK_ID#' => $checkId]))
+			);
+		}
+
+		if ($check->getField('STATUS') === 'Y')
+		{
+			return $result->addError(
+				new Error(Loc::getMessage('SALE_CASBHOX_ERROR_CHECK_ALREADY_PRINTED', ['#CHECK_ID#' => $checkId]))
+			);
+		}
+
+		if ($check->getField('STATUS') === 'P')
+		{
+			return $result->addError(
+				new Error(Loc::getMessage('SALE_CASBHOX_ERROR_CHECK_IS_PRINTING', ['#CHECK_ID#' => $checkId]))
+			);
+		}
+
+		$cashboxList = Manager::getAvailableCashboxList($check);
+
+		$entity = $check->getEntities()[0];
+		$order = self::getOrder($entity);
+
+		if (!$cashboxList)
+		{
+			$dbRes = CashboxTable::getList(array('filter' => array('ACTIVE' => 'Y')));
+			if ($dbRes->fetch())
+				$result->addError(new Error(Loc::getMessage('SALE_CASHBOX_NOT_FOUND')));
+
+			return $result;
+		}
+
+		$check->setAvailableCashbox($cashboxList);
+
+		$registry = Sale\Registry::getInstance($check->getField("ENTITY_REGISTRY_TYPE"));
+
+		$validateResult = $check->validate();
+		if (!$validateResult->isSuccess())
+		{
+			if (Main\Loader::includeModule('crm'))
+			{
+				\Bitrix\Crm\Timeline\OrderCheckController::getInstance()->onCheckFailure(
+					[
+						'ORDER_FIELDS' => $order->getFieldValues(),
+						'SETTINGS' => [
+							'FAILURE' => 'Y',
+							'PRINTED' => 'N',
+						],
+						'BINDINGS' => \Bitrix\Crm\Order\BindingsMaker\TimelineBindingsMaker::makeByOrder($order),
+					]
+				);
+			}
+
+			$notifyClassName = $registry->getNotifyClassName();
+			$notifyClassName::callNotify($order, Sale\EventActions::EVENT_ON_CHECK_VALIDATION_ERROR);
+			$result->addErrors($validateResult->getErrors());
+
+			$event = new Main\Event('sale', self::EVENT_ON_CHECK_VALIDATION_ERROR, $check->getDataForCheck());
+			$event->send();
+
+			return $result;
+		}
+
+		$saveResult = $check->save();
+		if ($saveResult->isSuccess())
+		{
+			$checkId = $saveResult->getId();
+			$order->addPrintedCheck($check);
+
+			$enabledImmediateCashboxList = array();
+			foreach ($cashboxList as $item)
+			{
+				if ($item['ENABLED'] === 'Y')
+				{
+					$cashbox = Cashbox::create($item);
+					if ($cashbox instanceof IPrintImmediately)
+					{
+						$enabledImmediateCashboxList[$item['ID']] = $cashbox;
+					}
+				}
+			}
+
+			if ($enabledImmediateCashboxList)
+			{
+				$cashboxId = Manager::chooseCashbox(array_keys($enabledImmediateCashboxList));
+				/** @var Cashbox|IPrintImmediately $cashbox */
+				$cashbox = $enabledImmediateCashboxList[$cashboxId];
+
+				CashboxCheckTable::update(
+					$checkId,
+					array(
+						'STATUS' => 'P',
+						'DATE_PRINT_START' => new Type\DateTime(),
+						'CASHBOX_ID' => $cashbox->getField('ID')
+					)
+				);
+
+				$printResult = $cashbox->printImmediately($check);
+				if ($printResult->isSuccess())
+				{
+					$data = $printResult->getData();
+					if ($data)
+					{
+						CashboxCheckTable::update($checkId, ['EXTERNAL_UUID' => $data['UUID']]);
+					}
+
+					if (Main\Loader::includeModule('crm'))
+					{
+						\Bitrix\Crm\Timeline\OrderCheckController::getInstance()->onPrintingCheck(
+							$checkId,
+							[
+								'ORDER_FIELDS' => $order->getFieldValues(),
+								'SETTINGS' => [
+									'PRINTING' => 'Y',
+								],
+								'BINDINGS' => \Bitrix\Crm\Order\BindingsMaker\TimelineBindingsMaker::makeByOrder($order),
+							]
+						);
+					}
 				}
 				else
 				{
@@ -195,7 +382,7 @@ final class CheckManager
 			}
 
 			$cashbox = Manager::getObjectById($item['ID']);
-			if ($cashbox->isCorrection())
+			if ($cashbox && $cashbox->isCorrection())
 			{
 				return true;
 			}
@@ -204,8 +391,40 @@ final class CheckManager
 		return false;
 	}
 
+	private static function checkCorrectionVats(array $correction): Result
+	{
+		$result = new Result();
+
+		if (empty($correction['CORRECTION_VAT']) || !is_array($correction['CORRECTION_VAT']))
+		{
+			return $result;
+		}
+
+		$vatTypes = array_column($correction['CORRECTION_VAT'], 'TYPE');
+
+		$hasType20 = in_array(20, $vatTypes, true);
+		$hasType22 = in_array(22, $vatTypes, true);
+
+		if ($hasType20 && $hasType22)
+		{
+			$result->addError(
+				new Error(
+					Loc::getMessage('SALE_CASHBOX_ERROR_CHECK_CORRECTION_VAT_20_AND_22')
+				)
+			);
+		}
+
+		return $result;
+	}
+
 	public static function addCorrection($type, $cashboxId, array $correction)
 	{
+		$checkCorrectionVatsResult = self::checkCorrectionVats($correction);
+		if (!$checkCorrectionVatsResult->isSuccess())
+		{
+			return $checkCorrectionVatsResult;
+		}
+
 		$result = new Result();
 
 		if (!self::isAvailableCorrection())
@@ -385,7 +604,14 @@ final class CheckManager
 				CashboxCheckTable::update($checkId, $updatedFields);
 
 				/** @ToDO Will be removed after OrderCheckCollection is realized */
-				self::addTimelineCheckEntryOnCreateToOrder($order, $checkId, ['PRINTED' => 'N']);
+				self::addTimelineCheckEntryOnCreateToOrder(
+					$order,
+					$checkId,
+					[
+						'PRINTED' => 'N',
+						'ERROR_MESSAGE' => $data['ERROR']['MESSAGE'],
+					]
+				);
 
 				if ($order !== null
 					&& (
@@ -439,14 +665,19 @@ final class CheckManager
 		}
 		else
 		{
-			$updateResult = CashboxCheckTable::update(
-				$checkId,
-				array(
-					'STATUS' => 'Y',
-					'LINK_PARAMS' => $data['LINK_PARAMS'],
-					'DATE_PRINT_END' => new Main\Type\DateTime()
-				)
-			);
+			$updateParams = [
+				'STATUS' => 'Y',
+				'LINK_PARAMS' => $data['LINK_PARAMS'],
+				'DATE_PRINT_END' => new Main\Type\DateTime(),
+				'ERROR_MESSAGE' => null,
+			];
+
+			if (isset($data['EXTERNAL_UUID']))
+			{
+				$updateParams['EXTERNAL_UUID'] = $data['EXTERNAL_UUID'];
+			}
+
+			$updateResult = CashboxCheckTable::update($checkId, $updateParams);
 
 			if ($updateResult->isSuccess())
 			{
@@ -1237,12 +1468,12 @@ final class CheckManager
 		$result = array();
 
 		$con = Main\Application::getConnection();
-		$dbLocRes = $con->query("SELECT GET_LOCK('get_check_list', 0) as L");
-		$locResult = $dbLocRes->fetch();
-		if ($locResult["L"] == "0")
+		if (!$con->lock(self::LOCK_NAME))
 		{
 			return $result;
 		}
+
+		$helper = $con->getSqlHelper();
 
 		$filter = array(
 			'LINK_PARAMS' => '',
@@ -1274,7 +1505,7 @@ final class CheckManager
 				'runtime' => array(
 					new Main\Entity\ExpressionField(
 						'MAX_DT_REPEAT_CHECK',
-						'DATE_ADD(DATE_PRINT_START, INTERVAL '.self::CHECK_RESENDING_TIME.' MINUTE)',
+						$helper->addSecondsToDateTime(self::CHECK_RESENDING_TIME * 60, 'DATE_PRINT_START'),
 						null,
 						array(
 							'data_type' => 'datetime'
@@ -1337,7 +1568,7 @@ final class CheckManager
 			}
 		}
 
-		$con->query("SELECT RELEASE_LOCK('get_check_list')");
+		$con->unlock(self::LOCK_NAME);
 
 		return $result;
 	}
@@ -1368,13 +1599,13 @@ final class CheckManager
 		{
 			if ($entity instanceof Sale\Payment)
 			{
-				$filter['ENTITY_REGISTRY_TYPE'] = $entity::getRegistryType();
-				$filter['PAYMENT_ID'] = $entity->getId();
+				$filter['=ENTITY_REGISTRY_TYPE'] = $entity::getRegistryType();
+				$filter['=PAYMENT_ID'] = $entity->getId();
 			}
 			elseif ($entity instanceof Sale\Shipment)
 			{
-				$filter['ENTITY_REGISTRY_TYPE'] = $entity::getRegistryType();
-				$filter['SHIPMENT_ID'] = $entity->getId();
+				$filter['=ENTITY_REGISTRY_TYPE'] = $entity::getRegistryType();
+				$filter['=SHIPMENT_ID'] = $entity->getId();
 			}
 
 			return self::collectInfo($filter);
@@ -1398,8 +1629,8 @@ final class CheckManager
 		}
 
 		$filter = array(
-			'STATUS' => 'Y',
-			'ENTITY_REGISTRY_TYPE' => $entity::getRegistryType()
+			'=STATUS' => 'Y',
+			'=ENTITY_REGISTRY_TYPE' => $entity::getRegistryType()
 		);
 		if ($entity instanceof Sale\Payment)
 		{
@@ -1481,13 +1712,42 @@ final class CheckManager
 
 	/**
 	 * @param $uuid
+	 * @param array $select
 	 * @return array|false
-	 * @throws Main\ArgumentException
+	 * @throws ArgumentException
 	 */
-	public static function getCheckInfoByExternalUuid($uuid)
+	public static function getCheckInfoByExternalUuid($uuid, array $select = ['*']): array|false
 	{
-		$dbRes = self::getList(array('filter' => array('EXTERNAL_UUID' => $uuid)));
+		$dbRes = self::getList([
+			'select' => $select,
+			'filter' => ['=EXTERNAL_UUID' => $uuid],
+		]);
+
 		return $dbRes->fetch();
+	}
+
+	public static function applyCheckResultFromCallback(array $data): void
+	{
+		if (empty($data['uuid']))
+		{
+			return;
+		}
+
+		$checkInfo = self::getCheckInfoByExternalUuid(
+			$data['uuid'],
+			['CASHBOX_HANDLER' => 'CASHBOX.HANDLER'],
+		);
+		if (!$checkInfo)
+		{
+			return;
+		}
+
+		/** @var Cashbox $cashboxHandler */
+		$cashboxHandler = $checkInfo['CASHBOX_HANDLER'];
+		if (is_a($cashboxHandler, Cashbox::class, true))
+		{
+			$cashboxHandler::applyCheckResult($data);
+		}
 	}
 
 	/**

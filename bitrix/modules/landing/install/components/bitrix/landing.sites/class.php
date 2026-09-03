@@ -4,17 +4,22 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
-use \Bitrix\Landing\Domain;
-use \Bitrix\Landing\Site;
-use \Bitrix\Landing\Landing;
-use \Bitrix\Landing\Rights;
-use \Bitrix\Landing\Manager;
-use \Bitrix\Landing\Transfer;
-use \Bitrix\Landing\Restriction;
-use \Bitrix\Main\Context;
-use \Bitrix\Main\ModuleManager;
-use \Bitrix\Main\Loader;
-use \Bitrix\Main\Config\Option;
+use Bitrix\Landing\Copilot;
+use Bitrix\Landing\Copilot\Services\CreateAiSiteChecker;
+use Bitrix\Landing\Domain;
+use Bitrix\Landing\Error;
+use Bitrix\Landing\Mutator;
+use Bitrix\Landing\Site;
+use Bitrix\Landing\Landing;
+use Bitrix\Landing\Rights;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\Transfer;
+use Bitrix\Landing\Restriction;
+use Bitrix\Main\Context;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Web\Uri;
 
 \CBitrixComponent::includeComponentClass('bitrix:landing.base');
 
@@ -191,6 +196,33 @@ class LandingSitesComponent extends LandingBaseComponent
 	 */
 	public function executeComponent()
 	{
+		$aiSitesEnabled = Copilot\Manager::isAiSitesEnabled();
+
+		if (
+			!$aiSitesEnabled
+			|| (
+				Copilot\Manager::isAvailable()
+				&& Copilot\Manager::isFeatureEnabled()
+			)
+		)
+		{
+			$featurePromoterParam = 'feature_promoter';
+			$featureMarketTrial = $featurePromoterParam . '=' . Copilot\Connector\AI\Type\SliderCode::MarketTrial->value;
+			$featureLimit = $featurePromoterParam . '=' . Copilot\Connector\AI\Type\SliderCode::Copilot->value;
+			$featureLimitOff = $featurePromoterParam . '=' . Copilot\Connector\AI\Type\SliderCode::CopilotOff->value;
+
+			$url = new Uri($_SERVER['REQUEST_URI']);
+
+			if (
+				str_contains($url, $featureMarketTrial)
+				|| (str_contains($url, $featureLimit) && !str_contains($url, $featureLimitOff))
+			)
+			{
+				$url->deleteParams([$featurePromoterParam]);
+				\localRedirect($url->getUri());
+			}
+		}
+
 		$init = $this->init();
 
 		if ($init)
@@ -213,6 +245,11 @@ class LandingSitesComponent extends LandingBaseComponent
 			$this->checkParam('PAGE_URL_SITE_DOMAIN_SWITCH', '');
 			$this->checkParam('DRAFT_MODE', 'N');
 			$this->checkParam('ACCESS_CODE', '');
+			$this->checkParam('AI_SITE_CHAT_AVAILABLE', true);
+			if (!$aiSitesEnabled)
+			{
+				$this->arParams['AI_SITE_CHAT_AVAILABLE'] = false;
+			}
 			$this->checkParam('~AGREEMENT', []);
 			$this->checkParam(
 				'PAGE_URL_SITE_EXPORT',
@@ -315,6 +352,7 @@ class LandingSitesComponent extends LandingBaseComponent
 			) ? 'Y' : 'N';
 			$ids = [];
 			$unActiveIndexes = [];
+			$createAiSiteChecker = new CreateAiSiteChecker();
 			foreach ($this->arResult['SITES'] as &$item)
 			{
 				// collect un active sites with index pages
@@ -354,6 +392,8 @@ class LandingSitesComponent extends LandingBaseComponent
 					}
 				}
 
+				$item['IS_CREATED_BY_AI_SCENARIO'] = $createAiSiteChecker->isSiteCreated((int)$item['ID']);
+
 				//can export
 				$item['ACCESS_EXPORT'] = 'Y';
 				if ($isAllowedExportByTariff && $this->arResult['EXPORT_DISABLED'] === 'Y')
@@ -385,9 +425,38 @@ class LandingSitesComponent extends LandingBaseComponent
 				}
 				$item['DOMAIN_NAME'] = $puny->decode($item['DOMAIN_NAME']);
 				$item['DOMAIN_B24_NAME'] = Domain::getBitrix24Subdomain($item['DOMAIN_NAME']);
-				$item['EXPORT_URI'] = Transfer\Export\Site::getUrl(
-					$this->arParams['TYPE'], $item['ID']
-				);
+				$item['EXPORT_URI'] = $item['IS_CREATED_BY_AI_SCENARIO']
+					? ''
+					: Transfer\Export\Site::getUrl(
+						$this->arParams['TYPE'], $item['ID']
+					)
+				;
+				if ($item['IS_CREATED_BY_AI_SCENARIO'])
+				{
+					$item['ACCESS_EXPORT'] = 'N';
+					$item['EXPORT_URI'] = '';
+				}
+
+				$item['COPILOT_PROCESS'] = null;
+				if (
+					$item['IS_CREATED_BY_AI_SCENARIO']
+					&& $aiSitesEnabled
+					&& \Bitrix\Landing\Copilot\Manager::isAvailable()
+				)
+				{
+					$generation = new Bitrix\Landing\Copilot\Generation();
+					if ($generation->initBySiteId((int)$item['ID'], new \Bitrix\Landing\Copilot\Generation\Scenario\CreateAiSite()))
+					{
+						$item['COPILOT_PROCESS'] = true;
+						if (
+							$generation->isFinished()
+							|| $generation->isError()
+						)
+						{
+							$item['COPILOT_PROCESS'] = false;
+						}
+					}
+				}
 			}
 			unset($item);
 			if ($ids)
@@ -424,8 +493,20 @@ class LandingSitesComponent extends LandingBaseComponent
 						$this->arParams['~PAGE_URL_LANDING_VIEW']
 					);
 				}
-				unset($siteUrls, $item, $ids);
+				unset($siteUrls, $item);
 			}
+		}
+
+		// check is need force verify site
+		$forceVerifySiteId = (int)$this->request('force_verify_site_id');
+		$verificationError = new Error();
+		if (
+			$forceVerifySiteId
+			&& in_array($forceVerifySiteId, $ids ?? [])
+			&& !Mutator::checkSiteVerification($forceVerifySiteId, $verificationError)
+		)
+		{
+			$this->arResult['FORCE_VERIFY_SITE_ID'] = $forceVerifySiteId;
 		}
 
 		if (\Bitrix\Main\Loader::includeModule('bitrix24'))

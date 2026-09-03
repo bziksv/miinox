@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["CT_BLL_ADD_SECTION_POPUP_BUTTON_ADD"] = "Додати";
 $MESS["CT_BLL_ADD_SECTION_POPUP_BUTTON_CLOSE"] = "Закрити";
 $MESS["CT_BLL_ADD_SECTION_POPUP_BUTTON_EDIT"] = "Зберегти";
@@ -12,6 +12,8 @@ $MESS["CT_BLL_EDIT_SECTION_POPUP_TITLE"] = "Зміна розділу";
 $MESS["CT_BLL_EXPORT_EXCEL"] = "Експорт Excel";
 $MESS["CT_BLL_EXPORT_EXCEL_TITLE"] = "Експорт Excel";
 $MESS["CT_BLL_EXPORT_IN_EXCEL"] = "Експорт в Excel";
+$MESS["CT_BLL_GRID_ROW_COUNT_TITLE"] = "Всього:";
+$MESS["CT_BLL_GRID_SHOW_ROW_COUNT"] = "Показати кількість";
 $MESS["CT_BLL_GROUP_STEPPER_PROGRESS_ERROR"] = "Не вдалося скопіювати елементи з ідентифікаторами:";
 $MESS["CT_BLL_GROUP_STEPPER_PROGRESS_TITLE"] = "Копіювання елементів";
 $MESS["CT_BLL_HIDE_SECTION_GRID"] = "Приховати розділи";
@@ -36,4 +38,3 @@ $MESS["CT_BLL_TOOLBAR_LIST_TITLE"] = "Налаштувати список";
 $MESS["CT_BLL_TOOLBAR_PROCESS"] = "Налаштування процесу";
 $MESS["CT_BLL_TOOLBAR_PROCESS_TITLE"] = "Налаштувати процес";
 $MESS["CT_BLL_TOOLBAR_SECTION_DELETE_WARNING"] = "Ви впевнені, що хочете видалити цей розділ?";
-?>

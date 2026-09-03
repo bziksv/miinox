@@ -78,7 +78,7 @@ class TradeBindingCollection extends Internals\EntityCollection
 			foreach ($bindingList as $item)
 			{
 				$item->setCollection($collection);
-				$collection->addItem($item);
+				$collection->bindItem($item);
 			}
 		}
 
@@ -98,7 +98,7 @@ class TradeBindingCollection extends Internals\EntityCollection
 	 * @param TradingPlatform\Platform|null $platform
 	 * @return mixed
 	 */
-	public function createItem(TradingPlatform\Platform $platform = null)
+	public function createItem(?TradingPlatform\Platform $platform = null)
 	{
 		$registry = Registry::getInstance(static::getRegistryType());
 
@@ -127,15 +127,9 @@ class TradeBindingCollection extends Internals\EntityCollection
 	/**
 	 * @param Internals\CollectableEntity $item
 	 * @return Internals\CollectableEntity
-	 * @throws Main\NotSupportedException
 	 */
 	public function addItem(Internals\CollectableEntity $item)
 	{
-		if (!($item instanceof TradeBindingEntity))
-		{
-			throw new Main\NotSupportedException();
-		}
-
 		/** @var TradeBindingEntity $entity */
 		$entity = parent::addItem($item);
 
@@ -143,6 +137,16 @@ class TradeBindingCollection extends Internals\EntityCollection
 		$order->onTradeBindingCollectionModify(EventActions::ADD, $entity);
 
 		return  $entity;
+	}
+
+	protected function bindItem(CollectableEntity $item): CollectableEntity
+	{
+		if (!($item instanceof TradeBindingEntity))
+		{
+			throw new Main\NotSupportedException();
+		}
+
+		return parent::bindItem($item);
 	}
 
 	/**
@@ -277,7 +281,7 @@ class TradeBindingCollection extends Internals\EntityCollection
 	 * @param string|null $type
 	 * @return bool
 	 */
-	public function hasTradingPlatform(string $platformCode, string $type = null): bool
+	public function hasTradingPlatform(string $platformCode, ?string $type = null): bool
 	{
 		return $this->getTradingPlatform($platformCode, $type) ? true : false;
 	}
@@ -289,7 +293,7 @@ class TradeBindingCollection extends Internals\EntityCollection
 	 * @param string|null $type
 	 * @return TradingPlatform\Platform|null
 	 */
-	public function getTradingPlatform(string $platformCode, string $type = null)
+	public function getTradingPlatform(string $platformCode, ?string $type = null)
 	{
 		foreach ($this->collection as $item)
 		{

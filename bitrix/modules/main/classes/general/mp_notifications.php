@@ -127,7 +127,7 @@ class CMpNotifications
 		if ($strError_tmp == '')
 		{
 			CUpdateClientPartner::__ParseServerData($content, $arResult, $strError_tmp);
-			if (is_array($arResult['DATA']['#']['MODULE']) && !empty($arResult['DATA']['#']['MODULE']))
+			if (!empty($arResult['DATA']['#']['MODULE']) && is_array($arResult['DATA']['#']['MODULE']))
 			{
 				foreach ($arResult['DATA']['#']['MODULE'] as $arModule)
 				{
@@ -191,7 +191,7 @@ class CMpNotifications
 			{
 				foreach ($arClientModules as $key => $value)
 				{
-					if (strpos($key, ".") !== false)
+					if (str_contains($key, "."))
 					{
 						$arRequestedModules[] = $key;
 					}
@@ -254,7 +254,7 @@ class CMpNotifications
 	public static function addJsToInformer()
 	{
 		return $script = '
-						<script type="text/javascript">
+						<script>
 						function hideMpNotification(el, module, array_id)
 						{
 							if(el.parentNode.parentNode.parentNode)
@@ -274,4 +274,3 @@ class CMpNotifications
 
 }
 
-?>

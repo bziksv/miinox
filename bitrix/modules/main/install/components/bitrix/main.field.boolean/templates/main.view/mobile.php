@@ -1,9 +1,12 @@
 <?php
 
+use Bitrix\Main\Web\Json;
+
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 /**
  * @var array $arResult
+ * @var array $arParams
  */
 
 $nodes = [$arResult['userField']['~id']];
@@ -23,13 +26,13 @@ $nodes = [$arResult['userField']['~id']];
 	BX.ready(function ()
 	{
 		new BX.Mobile.Field.Boolean(
-			<?=CUtil::PhpToJSObject([
+			<?= Json::encode([
 				'name' => 'BX.Mobile.Field.Boolean',
 				'nodes' => $nodes,
 				'restrictedMode' => true,
 				'formId' => $arParams['additionalParameters']['formId'],
 				'gridId' => $arParams['additionalParameters']['gridId']
-			])?>
+			]) ?>
 		);
 	});
 </script>

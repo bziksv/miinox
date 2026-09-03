@@ -99,7 +99,7 @@ class CSaleHelper
 				if(isset($arField['HIDE_BY_NAMES']) && is_array($arField['HIDE_BY_NAMES']))
 				{
 					$resultHtml .= '
-					<script language="JavaScript">
+					<script>
 						BX.ready(
 							function(){
 								var cbObj = document.forms["'.$formName.'"]["'.$name.'"];
@@ -288,7 +288,7 @@ class CSaleHelper
 	{
 		$loc_diff = COption::GetOptionString('sale', 'ADDRESS_different_set', 'N');
 
-		if ($loc_diff == "Y" && ($siteId !== false || defined(SITE_ID)))
+		if ($loc_diff == "Y" && ($siteId !== false || defined('SITE_ID')))
 		{
 			if($siteId === false)
 				$siteId = SITE_ID;

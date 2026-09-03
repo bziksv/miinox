@@ -3,7 +3,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2016 Bitrix
+ * @copyright 2001-2024 Bitrix
  */
 
 class CAdminCalendar
@@ -43,8 +43,8 @@ class CAdminCalendar
 		{
 			if (isset($arPeriod[$periodName]))
 				$arReturnPeriod[$periodName] = $lPhrase;
-			elseif (isset($arPeriod[$arPeriodParams[$periodName]]))
-				$arReturnPeriod[$arPeriodParams[$periodName]] = $arPeriod[$arPeriodParams[$periodName]];
+			elseif (isset($arPeriod[$lPhrase]))
+				$arReturnPeriod[$lPhrase] = $arPeriod[$lPhrase];
 		}
 
 		if (empty($arReturnPeriod))
@@ -54,7 +54,7 @@ class CAdminCalendar
 
 	public static function ShowScript()
 	{
-		CJSCore::Init(array('date'));
+		\Bitrix\Main\UI\Extension::load('ui.date-picker');
 	}
 
 	public static function Calendar($sFieldName, $sFromName="", $sToName="", $bTime=false)
@@ -77,11 +77,30 @@ class CAdminCalendar
 
 	public static function CalendarDate($sFieldName, $sValue="", $size="10", $bTime=false)
 	{
+		\Bitrix\Main\UI\Extension::load('ui.date-picker');
+
+		$onclick = '
+			if (!this.picker)
+			{
+				const input = this.previousElementSibling;
+				this.picker = new BX.UI.DatePicker.DatePicker({
+					targetNode: input,
+					inputField: input,
+					enableTime: '.($bTime ? "true" : "false").',
+					useInputEvents: false,
+				});
+			}
+
+			this.picker.show();
+		';
+
+		$onclick = str_replace(["\n", "\t"], '', $onclick);
+
 		// component can't set 'size' param
 		return '
 	<div class="adm-input-wrap adm-input-wrap-calendar">
-		<input class="adm-input adm-input-calendar" type="text" name="'.$sFieldName.'" size="'.(intval($size)+3).'" value="'.htmlspecialcharsbx($sValue).'">
-		<span class="adm-calendar-icon" title="'.GetMessage("admin_lib_calend_title").'" onclick="BX.calendar({node:this, field:\''.$sFieldName.'\', form: \'\', bTime: '.($bTime ? 'true' : 'false').', bHideTime: false});"></span>
+		<input class="adm-input adm-input-calendar" type="text" name="'.$sFieldName.'" size="'.(intval($size)+3).'" value="'.htmlspecialcharsbx($sValue, ENT_COMPAT, false).'">
+		<button type="button" class="adm-calendar-icon" onclick="' . $onclick . '" title="'.GetMessage("admin_lib_calend_title").'"></button>
 	</div>';
 
 	}
@@ -134,8 +153,10 @@ class CAdminCalendar
 	 * @param string $periodValue
 	 * @return string
 	 */
-	private static function GetPeriodHtml($sFromName, $sToName, $sFromVal="", $sToVal="", $bSelectShow=false, $size = 10, $bTime=false, $arPeriod, $periodValue = '')
+	private static function GetPeriodHtml($sFromName, $sToName, $sFromVal, $sToVal, $bSelectShow, $size, $bTime, $arPeriod, $periodValue = '')
 	{
+		\Bitrix\Main\UI\Extension::load('ui.date-picker');
+
 		$size = (int)$size;
 
 		$s = '
@@ -181,17 +202,34 @@ class CAdminCalendar
 			$s .='</select></span>';
 		}
 
-		$s .=''.
-		'<div class="adm-input-wrap adm-calendar-inp adm-calendar-first" style="display: '.($bSelectShow ? 'none' : 'inline-block').';">'.
+		$onclick = '
+			if (!this.picker)
+			{
+				const input = this.previousElementSibling;
+				this.picker = new BX.UI.DatePicker.DatePicker({
+					targetNode: input,
+					inputField: input,
+					enableTime: '.($bTime ? "true" : "false").',
+					useInputEvents: false,
+				});
+			}
+
+			this.picker.show();
+		';
+
+		$onclick = str_replace(["\n", "\t"], '', $onclick);
+
+		$s .=
+			'<div class="adm-input-wrap adm-calendar-inp adm-calendar-first" style="display: ' .($bSelectShow ? 'none' : 'inline-block').';">'.
 			'<input type="text" class="adm-input adm-calendar-from" id="'.$sFromName.'_calendar_from" name="'.$sFromName.'" size="'.($size+5).'" value="'.htmlspecialcharsbx($sFromVal).'">'.
-			'<span class="adm-calendar-icon" title="'.GetMessage("admin_lib_calend_title").'" onclick="BX.calendar({node:this, field:\''.$sFromName.'\', form: \'\', bTime: '.($bTime ? 'true' : 'false').', bHideTime: false});"></span>'.
+			'<button type="button" class="adm-calendar-icon" onclick="' . $onclick . '" title="'.GetMessage("admin_lib_calend_title").'"></button>'.
 		'</div>
 		<span class="adm-calendar-separate" style="display: '.($bSelectShow ? 'none' : 'inline-block').'"></span>'.
 		'<div class="adm-input-wrap adm-calendar-second" style="display: '.($bSelectShow ? 'none' : 'inline-block').';">'.
 			'<input type="text" class="adm-input adm-calendar-to" id="'.$sToName.'_calendar_to" name="'.$sToName.'" size="'.($size+5).'" value="'.htmlspecialcharsbx($sToVal).'">'.
-			'<span class="adm-calendar-icon" title="'.GetMessage("admin_lib_calend_title").'" onclick="BX.calendar({node:this, field:\''.$sToName.'\', form: \'\', bTime: '.($bTime ? 'true' : 'false').', bHideTime: false});"></span>'.
+			'<button type="button" class="adm-calendar-icon" onclick="' . $onclick . '" title="'.GetMessage("admin_lib_calend_title").'"></button>'.
 		'</div>'.
-		'<script type="text/javascript">
+		'<script>
 			window["'.$sFromName.'_bTime"] = '.($bTime ? "true" : "false").';';
 
 		if($bSelectShow)

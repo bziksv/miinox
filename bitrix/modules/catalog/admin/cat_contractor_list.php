@@ -1,4 +1,4 @@
-<?
+<?php
 /** @global CDatabase $DB */
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
@@ -34,7 +34,7 @@ IncludeModuleLangFile(__FILE__);
 if (
 	!$publicMode
 	&& Loader::includeModule('sale')
-	&& Catalog\v2\Contractor\Provider\Manager::getActiveProvider()
+	&& Catalog\v2\Contractor\Provider\Manager::isActiveProviderExists()
 )
 {
 	$APPLICATION->SetTitle(GetMessage("CONTRACTOR_PAGE_TITLE"));
@@ -43,8 +43,6 @@ if (
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
-
-$bExport = (isset($_REQUEST['mode']) && $_REQUEST['mode'] == 'excel');
 
 $typeList = Catalog\ContractorTable::getTypeDescriptions();
 
@@ -62,6 +60,13 @@ $lAdmin = new CAdminUiList($sTableID, $oSort);
 
 $by = mb_strtoupper($oSort->getField());
 $order = mb_strtoupper($oSort->getOrder());
+$listOrder = [
+	$by => $order,
+];
+if ($by !== 'ID')
+{
+	$listOrder['ID'] = 'ASC';
+}
 
 $filterFields = array(
 	array(
@@ -134,9 +139,10 @@ if ($lAdmin->EditAction() && !$bReadOnly)
 	}
 }
 
-if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
+$arID = $lAdmin->GroupAction();
+if (!$bReadOnly && !empty($arID) && is_array($arID))
 {
-	if ($_REQUEST['action_target']=='selected')
+	if ($lAdmin->IsGroupActionToAll())
 	{
 		$arID = array();
 		$dbResultList = CCatalogContractor::GetList(array(), $arFilter, false, false, array('ID'));
@@ -144,12 +150,13 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 			$arID[] = $arResult['ID'];
 	}
 
+	$action = $lAdmin->GetAction();
 	foreach ($arID as $ID)
 	{
 		if ($ID == '')
 			continue;
 
-		switch ($_REQUEST['action'])
+		switch ($action)
 		{
 			case "delete":
 				@set_time_limit(0);
@@ -197,13 +204,13 @@ $arSelect = array(
 );
 
 $arNavParams = (
-	isset($_REQUEST['mode']) && $_REQUEST['mode'] == 'excel'
-	? false
-	: array("nPageSize" => CAdminUiResult::GetNavSize($sTableID))
+	$lAdmin->isExportMode()
+		? false
+		: array("nPageSize" => CAdminUiResult::GetNavSize($sTableID))
 );
 
 $dbResultList = CCatalogContractor::GetList(
-	array($by => $order),
+	$listOrder,
 	$arFilter,
 	false,
 	$arNavParams,

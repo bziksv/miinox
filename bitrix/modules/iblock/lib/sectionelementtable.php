@@ -1,13 +1,13 @@
 <?php
+
 namespace Bitrix\Iblock;
 
 use Bitrix\Iblock\ORM\CommonElementTable;
-use Bitrix\Main,
-	Bitrix\Main\Localization\Loc;
+use Bitrix\Main;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
 use Bitrix\Main\ORM\Fields\Relations\Reference;
 use Bitrix\Main\ORM\Query\Join;
-
-Loc::loadMessages(__FILE__);
 
 /**
  * Class SectionElementTable
@@ -16,23 +16,23 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_SectionElement_Query query()
- * @method static EO_SectionElement_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_SectionElement_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_SectionElement_Result getById($id)
- * @method static EO_SectionElement_Result getList(array $parameters = array())
+ * @method static EO_SectionElement_Result getList(array $parameters = [])
  * @method static EO_SectionElement_Entity getEntity()
  * @method static \Bitrix\Iblock\EO_SectionElement createObject($setDefaultValues = true)
  * @method static \Bitrix\Iblock\EO_SectionElement_Collection createCollection()
  * @method static \Bitrix\Iblock\EO_SectionElement wakeUpObject($row)
  * @method static \Bitrix\Iblock\EO_SectionElement_Collection wakeUpCollection($rows)
  */
-class SectionElementTable extends Main\Entity\DataManager
+class SectionElementTable extends DataManager
 {
 	/**
 	 * Returns DB table name for entity
 	 *
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_iblock_section_element';
 	}
@@ -42,7 +42,7 @@ class SectionElementTable extends Main\Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
 		return array(
 			'IBLOCK_SECTION_ID' => new Main\Entity\IntegerField('IBLOCK_SECTION_ID', array(

@@ -2,27 +2,33 @@
 
 namespace Bitrix\Iblock\UserField\Types;
 
-use Bitrix\Main\Application;
+use Bitrix\Iblock;
+use Bitrix\Main\Context;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\Type;
-use Bitrix\Main\UserField\Types\EnumType;
-use Bitrix\Iblock;
+use Bitrix\Main\UserField\Types\BaseType;
 use CDBResult;
 use CUserTypeManager;
-use CIBlockElementEnum;
 
 /**
  * Class ElementType
  * @package Bitrix\Iblock\UserField\Types
  */
-class ElementType extends EnumType
+class ElementType extends BaseType
 {
-	public const
-		USER_TYPE_ID = 'iblock_element',
-		RENDER_COMPONENT = 'bitrix:iblock.field.element';
+	public const USER_TYPE_ID = 'iblock_element';
+	public const RENDER_COMPONENT = 'bitrix:iblock.field.element';
+
+	public const DISPLAY_LIST = 'LIST';
+	public const DISPLAY_CHECKBOX = 'CHECKBOX';
+	public const DISPLAY_UI = 'UI';
+	public const DISPLAY_DIALOG = 'DIALOG';
 
 	protected static ?bool $iblockIncluded = null;
+
+	protected static array $itemCache = [];
 
 	/**
 	 * @return array
@@ -36,17 +42,212 @@ class ElementType extends EnumType
 	}
 
 	/**
-	 * @param array $userField
+	 * Render user field control.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderField(array $userField, ?array $additionalParameters = []): string
+	{
+		static::getEnumList($userField, $additionalParameters);
+
+		return parent::renderField($userField, $additionalParameters);
+	}
+
+	/**
+	 * This function is called when the property values are displayed in the public part of the site.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderView(array $userField, ?array $additionalParameters = []): string
+	{
+		static::getEnumList(
+			$userField,
+			array_merge(
+				$additionalParameters ?? [],
+				['mode' => self::MODE_VIEW]
+			)
+		);
+
+		return parent::renderView($userField, $additionalParameters);
+	}
+
+	/**
+	 * This function is called when editing property values in the public part of the site.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderEdit(array $userField, ?array $additionalParameters = []): string
+	{
+		static::getEnumList(
+			$userField,
+			array_merge(
+				$additionalParameters ?? [],
+				['mode' => self::MODE_EDIT]
+			)
+		);
+
+		return parent::renderEdit($userField, $additionalParameters);
+	}
+
+	/**
+	 * This function is called when editing user field settings.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderEditForm(array $userField, ?array $additionalParameters): string
+	{
+		$enum = call_user_func([$userField['USER_TYPE']['CLASS_NAME'], 'getlist'], $userField);
+		if(!$enum)
+		{
+			return '';
+		}
+		$items = [];
+		while($item = $enum->GetNext())
+		{
+			$items[$item['ID']] = $item;
+		}
+		$additionalParameters['items'] = $items;
+
+		return parent::renderEditForm($userField, $additionalParameters);
+	}
+
+	/**
+	 * This function is called when show filter for user field.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderFilter(array $userField, ?array $additionalParameters): string
+	{
+		$enum = call_user_func([$userField['USER_TYPE']['CLASS_NAME'], 'getlist'], $userField);
+		if(!$enum)
+		{
+			return '';
+		}
+		$items = [];
+		while($item = $enum->GetNext())
+		{
+			$items[$item['ID']] = $item['VALUE'];
+		}
+		$additionalParameters['items'] = $items;
+		return parent::renderFilter($userField, $additionalParameters);
+	}
+
+	/**
+	 * This function is called when viewing property values in the admin part of the site.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderAdminListView(array $userField, ?array $additionalParameters): string
+	{
+		$emptyCaption = '&nbsp;';
+
+		$value = (int)($additionalParameters['VALUE'] ?? 0);
+		$index = static::USER_TYPE_ID . $value;
+
+		if (!isset(self::$itemCache[$index]))
+		{
+			$enum = call_user_func([$userField['USER_TYPE']['CLASS_NAME'], 'getlist'], $userField);
+			if (!$enum)
+			{
+				$additionalParameters['VALUE'] = $emptyCaption;
+
+				return parent::renderAdminListView($userField, $additionalParameters);
+			}
+			while ($item = $enum->Fetch())
+			{
+				self::$itemCache[static::USER_TYPE_ID . $item['ID']] = $item['NAME'];
+			}
+		}
+		if (!isset(self::$itemCache[$index]))
+		{
+			self::$itemCache[$index] = $emptyCaption;
+		}
+
+		$additionalParameters['VALUE'] = self::$itemCache[$index];
+
+		return parent::renderAdminListView($userField, $additionalParameters);
+	}
+
+	/**
+	 * This function is called when editing property values in the admin part of the site.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function renderAdminListEdit(array $userField, ?array $additionalParameters): string
+	{
+		$enum = call_user_func([$userField['USER_TYPE']['CLASS_NAME'], 'getlist'], $userField);
+		$values = [];
+		if ($enum)
+		{
+			while($item = $enum->GetNext())
+			{
+				$values[$item['ID']] = $item['VALUE'];
+			}
+		}
+		$additionalParameters['enumItems'] = $values;
+
+		return parent::renderAdminListEdit($userField, $additionalParameters);
+	}
+
+	/**
+	 * Returns database column type for user field.
+	 *
+	 * @return string
+	 */
+	public static function getDbColumnType(): string
+	{
+		$connection = \Bitrix\Main\Application::getConnection();
+		$helper = $connection->getSqlHelper();
+		return $helper->getColumnTypeByField(new \Bitrix\Main\ORM\Fields\IntegerField('x'));
+	}
+
+	/**
+	 * Validate field value.
+	 *
+	 * @param array $userField User field description.
+	 * @param string|array $value Current value.
+	 * @return array
+	 */
+	public static function checkFields(array $userField, $value): array
+	{
+		return [];
+	}
+
+	/**
+	 * Validate user field settings.
+	 *
+	 * @param array $userField User field description.
 	 * @return array
 	 */
 	public static function prepareSettings(array $userField): array
 	{
 		$height = (int)($userField['SETTINGS']['LIST_HEIGHT'] ?? 1);
-		$disp = ($userField['SETTINGS']['DISPLAY'] ?? '');
+		$display = ($userField['SETTINGS']['DISPLAY'] ?? '');
 
-		if ($disp !== static::DISPLAY_CHECKBOX && $disp !== static::DISPLAY_LIST)
+		$availableDisplayVariants = [
+			static::DISPLAY_DIALOG,
+			static::DISPLAY_UI,
+			static::DISPLAY_LIST,
+			static::DISPLAY_CHECKBOX,
+		];
+
+		if (!in_array($display, $availableDisplayVariants, true))
 		{
-			$disp = static::DISPLAY_LIST;
+			$display = static::DISPLAY_UI;
 		}
 
 		$iblockId = (int)($userField['SETTINGS']['IBLOCK_ID'] ?? 0);
@@ -66,7 +267,7 @@ class ElementType extends EnumType
 		$activeFilter = (($userField['SETTINGS']['ACTIVE_FILTER'] ?? '') === 'Y' ? 'Y' : 'N');
 
 		return [
-			'DISPLAY' => $disp,
+			'DISPLAY' => $display,
 			'LIST_HEIGHT' => (max($height, 1)),
 			'IBLOCK_ID' => $iblockId,
 			'DEFAULT_VALUE' => $elementId,
@@ -75,7 +276,9 @@ class ElementType extends EnumType
 	}
 
 	/**
-	 * @param array $userField
+	 * Prepare data for search.
+	 *
+	 * @param array $userField User field description.
 	 * @return string|null
 	 */
 	public static function onSearchIndex(array $userField): ?string
@@ -119,31 +322,139 @@ class ElementType extends EnumType
 	}
 
 	/**
-	 * @param array $userField
+	 * Returns values for filter.
+	 *
+	 * @param array $userField User field description.
+	 * @param array $additionalParameters Options, values, etc.
+	 * @return array
+	 */
+	public static function getFilterData(array $userField, array $additionalParameters): array
+	{
+		$enum = call_user_func([$userField['USER_TYPE']['CLASS_NAME'], 'getlist'], $userField);
+		$items = [];
+		if($enum)
+		{
+			while($item = $enum->GetNext())
+			{
+				$items[$item['ID']] = $item['VALUE'];
+			}
+		}
+		return [
+			'id' => $additionalParameters['ID'],
+			'name' => $additionalParameters['NAME'],
+			'type' => 'list',
+			'items' => $items,
+			'params' => ['multiple' => 'Y'],
+			'filterable' => ''
+		];
+	}
+
+	/**
+	 * Returns iblock elements with filter.
+	 *
+	 * @param array $userField User field description.
 	 * @return bool|CDBResult
 	 */
 	public static function getList(array $userField)
 	{
-		if(self::$iblockIncluded === null)
+		$iblockId = (int)($userField['SETTINGS']['IBLOCK_ID'] ?? 0);
+		$activeFilter = (string)($userField['SETTINGS']['ACTIVE_FILTER'] ?? 'N');
+
+		if (self::$iblockIncluded === null)
 		{
 			self::$iblockIncluded = Loader::includeModule('iblock');
 		}
-
-		$elementEnumList = false;
-
-		if(self::$iblockIncluded && (int)$userField['SETTINGS']['IBLOCK_ID'])
+		if ($iblockId <= 0 || !self::$iblockIncluded)
 		{
-			$elementEnumList = CIBlockElementEnum::getTreeList(
-				(int)$userField['SETTINGS']['IBLOCK_ID'],
-				$userField['SETTINGS']['ACTIVE_FILTER']
-			);
+			return false;
 		}
-		return $elementEnumList;
+
+		$cacheTtl = 86400;
+
+		$iblockRights = self::getIblockRightsMode($iblockId, $cacheTtl);
+		if ($iblockRights === null)
+		{
+			return false;
+		}
+
+		$result = false;
+		$filter = [
+			'IBLOCK_ID' => $iblockId
+		];
+		if ($iblockRights === Iblock\IblockTable::RIGHTS_SIMPLE)
+		{
+			if ($activeFilter === 'Y')
+			{
+				$filter['=ACTIVE'] = 'Y';
+			}
+
+			$rows = [];
+			$elements = \Bitrix\Iblock\ElementTable::getList([
+				'select' => [
+					'ID',
+					'NAME',
+				],
+				'filter' => \CIBlockElement::getPublicElementsOrmFilter($filter),
+				'order' => [
+					'NAME' => 'ASC',
+					'ID' => 'ASC',
+				],
+				'cache' => [
+					'ttl' => $cacheTtl,
+				],
+			]);
+
+			while($element = $elements->fetch())
+			{
+				$rows[] = $element;
+			}
+			unset($elements);
+
+			if (!empty($rows))
+			{
+				$result = new \CIBlockElementEnum();
+				$result->InitFromArray($rows);
+			}
+			unset($rows);
+		}
+		else
+		{
+			$filter['CHECK_PERMISSIONS'] = 'Y';
+			$filter['MIN_PERMISSION'] = \CIBlockRights::PUBLIC_READ;
+			if ($activeFilter === 'Y')
+			{
+				$filter['ACTIVE'] = 'Y';
+			}
+
+			$result = \CIBlockElement::GetList(
+				[
+					'NAME' => 'ASC',
+					'ID' => 'ASC',
+				],
+				$filter,
+				false,
+				false,
+				[
+					'ID',
+					'NAME',
+				]
+			);
+
+			if($result)
+			{
+				$result = new \CIBlockElementEnum($result);
+			}
+		}
+
+		return $result;
 	}
 
 	/**
-	 * @param array $userField
-	 * @param array $additionalParameters
+	 * Returns values list.
+	 *
+	 * @param array $userField User field description.
+	 * @param array $additionalParameters Options, values, etc.
+	 * @return void
 	 */
 	public static function getEnumList(array &$userField, array $additionalParameters = []): void
 	{
@@ -152,6 +463,7 @@ class ElementType extends EnumType
 			self::$iblockIncluded = Loader::includeModule('iblock');
 		}
 
+		$userField['MANDATORY'] ??= 'N';
 		$userField['SETTINGS']['IBLOCK_ID'] ??= 0;
 		$userField['SETTINGS']['SHOW_NO_VALUE'] ??= 'Y';
 		$userField['SETTINGS']['DISPLAY'] ??= '';
@@ -159,7 +471,7 @@ class ElementType extends EnumType
 
 		if (
 			!self::$iblockIncluded
-			|| (int)$userField['SETTINGS']['IBLOCK_ID']<= 0
+			|| (int)$userField['SETTINGS']['IBLOCK_ID'] <= 0
 		)
 		{
 			return;
@@ -188,9 +500,48 @@ class ElementType extends EnumType
 			];
 		}
 
+		$filter = [];
+
+		if (isset($additionalParameters['SKIP_CHECK_PERMISSIONS']) && $additionalParameters['SKIP_CHECK_PERMISSIONS'])
+		{
+			$filter['CHECK_PERMISSIONS'] = 'N';
+		}
+
+		$checkValue = ($additionalParameters['mode'] ?? '') === self::MODE_VIEW;
+		if ($checkValue)
+		{
+			$currentValues = static::getFieldValue($userField, $additionalParameters);
+			if (!empty($currentValues))
+			{
+				if (is_array($currentValues))
+				{
+					Type\Collection::normalizeArrayValuesByInt($currentValues);
+				}
+				else
+				{
+					$currentValues = (int)$currentValues;
+					if ($currentValues <= 0)
+					{
+						$currentValues = null;
+					}
+				}
+			}
+			if (!empty($currentValues))
+			{
+				$filter['ID'] = $currentValues;
+			}
+			else
+			{
+				$userField['USER_TYPE']['FIELDS'] = $result;
+
+				return;
+			}
+		}
+		$filter['ACTIVE'] = (($userField['SETTINGS']['ACTIVE_FILTER'] ?? 'N') === 'Y');
+
 		$elements = self::getElements(
 			(int)$userField['SETTINGS']['IBLOCK_ID'],
-			$userField['SETTINGS']['ACTIVE_FILTER']
+			$filter
 		);
 
 		if (!is_array($elements))
@@ -198,108 +549,196 @@ class ElementType extends EnumType
 			return;
 		}
 
-		$result = array_replace($result, $elements);
+		if (!empty($currentValues))
+		{
+			$result = $elements;
+		}
+		else
+		{
+			$result = array_replace($result, $elements);
+		}
 
 		$userField['USER_TYPE']['FIELDS'] = $result;
 	}
 
+	/**
+	 * Returns description for empty user field value.
+	 *
+	 * @param array $userField User field description.
+	 * @return string
+	 */
+	public static function getEmptyCaption(array $userField): string
+	{
+		$message = ($userField['SETTINGS']['CAPTION_NO_VALUE'] ?? '');
+		return
+			$message !== ''
+				? HtmlFilter::encode($userField['SETTINGS']['CAPTION_NO_VALUE'])
+				: Loc::getMessage('USER_TYPE_IBEL_NO_VALUE')
+		;
+	}
+
+	/**
+	 * Returns multiply user field control for admin grid row.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Options, values, etc.
+	 * @return string
+	 */
+	public static function getAdminListEditHtmlMulty(array $userField, ?array $additionalParameters): string
+	{
+		return static::renderAdminListEdit($userField, $additionalParameters);
+	}
+
+	/**
+	 * Returns default value from user field settings.
+	 *
+	 * @param array $userField User field description.
+	 * @param array $additionalParameters Options, values, etc.
+	 * @return array|string|int|null
+	 */
 	public static function getDefaultValue(array $userField, array $additionalParameters = [])
 	{
 		$value = ($userField['SETTINGS']['DEFAULT_VALUE'] ?? '');
 		return ($userField['MULTIPLE'] === 'Y' ? [$value] : $value);
 	}
 
-	protected static function getElements($iblockId, $activeFilter = 'N')
+	/**
+	 * Modify user field value before save to database.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|string|int|false|null $value Raw user field value.
+	 * @return array|string|int|null
+	 */
+	public static function onBeforeSave($userField, $value)
 	{
-		if ($iblockId <= 0 || !Loader::includeModule('iblock'))
+		return ($userField['MULTIPLE'] !== 'Y' && is_array($value)) ? array_shift($value) : $value;
+	}
+
+	/**
+	 * Returns current value for user field in form.
+	 *
+	 * @param array $userField User field description.
+	 * @param array $additionalParameters Options, values, etc.
+	 * @return array|int|string|null
+	 */
+	public static function getFieldValue(array $userField, array $additionalParameters = [])
+	{
+		$valueFromForm = ($additionalParameters['bVarsFromForm'] ?? false);
+		if (!$valueFromForm && !isset($additionalParameters['VALUE']))
+		{
+			if(
+				isset($userField['ENTITY_VALUE_ID'], $userField['ENUM'])
+				&& $userField['ENTITY_VALUE_ID'] <= 0
+			)
+			{
+				$value = ($userField['MULTIPLE'] === 'Y' ? [] : null);
+				foreach($userField['ENUM'] as $enum)
+				{
+					if($enum['DEF'] === 'Y')
+					{
+						if($userField['MULTIPLE'] === 'Y')
+						{
+							$value[] = $enum['ID'];
+						}
+						else
+						{
+							$value = $enum['ID'];
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				$value = $userField['VALUE'] ?? null;
+			}
+		}
+		elseif(isset($additionalParameters['VALUE']))
+		{
+			$value = $additionalParameters['VALUE'];
+		}
+		else
+		{
+			$value = Context::getCurrent()->getRequest()->get($userField['FIELD_NAME']);
+		}
+
+		return $value;
+	}
+
+	protected static function getElements(int $iblockId, array $additionalFilter = [])
+	{
+		if (self::$iblockIncluded === null)
+		{
+			self::$iblockIncluded = Loader::includeModule('iblock');
+		}
+		if ($iblockId <= 0 || !self::$iblockIncluded)
 		{
 			return false;
 		}
 
 		$cacheTtl = 86400;
 
-		$iblock = Iblock\IblockTable::getRow([
-			'select' => [
-				'ID',
-				'RIGHTS_MODE',
-			],
-			'filter' => [
-				'=ID' => $iblockId
-			],
-			'cache' => [
-				'ttl' => $cacheTtl,
-			],
-		]);
-		if ($iblock === null)
+		$iblockRights = self::getIblockRightsMode($iblockId, $cacheTtl);
+		if ($iblockRights === null)
 		{
 			return false;
 		}
 
-		if ($iblock['RIGHTS_MODE'] === Iblock\IblockTable::RIGHTS_SIMPLE)
+		$additionalFilter['ACTIVE'] ??= false;
+
+		if ($iblockRights === Iblock\IblockTable::RIGHTS_SIMPLE)
 		{
-			$currentCache = \Bitrix\Main\Data\Cache::createInstance();
-
-			$cacheId = md5('CIBlockElementEnum::getTreeList_' . $iblockId . '_' . $activeFilter);
-			$cacheDir = '/iblock/elementtype/' . $iblockId;
-
-			if ($currentCache->initCache($cacheTtl, $cacheId, $cacheDir))
+			$filter = ['IBLOCK_ID' => $iblockId];
+			if ($additionalFilter['ACTIVE'])
 			{
-				$result = $currentCache->getVars();
+				$filter['=ACTIVE'] = 'Y';
 			}
-			else
+			if (isset($additionalFilter['ID']))
 			{
-				$currentCache->startDataCache();
-
-				$taggedCache = Application::getInstance()->getTaggedCache();
-				$taggedCache->startTagCache($cacheDir);
-
-				$filter = ['IBLOCK_ID' => $iblockId];
-				if($activeFilter === 'Y')
-				{
-					$filter['=ACTIVE'] = 'Y';
-				}
-
-				$result = [];
-				$elements = \Bitrix\Iblock\ElementTable::getList([
-					'select' => [
-						'ID',
-						'NAME',
-					],
-					'filter' => \CIBlockElement::getPublicElementsOrmFilter($filter),
-					'order' => [
-						'NAME' => 'ASC',
-						'ID' => 'ASC',
-					],
-				]);
-
-				while($element = $elements->fetch())
-				{
-					$result[$element['ID']] = $element['NAME'];
-				}
-				unset($elements);
-
-				$taggedCache->registerTag('iblock_id_' . $iblockId);
-				$taggedCache->endTagCache();
-
-				if (empty($result))
-				{
-					$result = false;
-				}
-
-				$currentCache->endDataCache($result);
+				$filter['@ID'] = $additionalFilter['ID'];
 			}
-			unset($currentCache);
+
+			$result = [];
+			$elements = \Bitrix\Iblock\ElementTable::getList([
+				'select' => [
+					'ID',
+					'NAME',
+				],
+				'filter' => \CIBlockElement::getPublicElementsOrmFilter($filter),
+				'order' => [
+					'NAME' => 'ASC',
+					'ID' => 'ASC',
+				],
+				'cache' => [
+					'ttl' => $cacheTtl,
+				],
+			]);
+
+			while($element = $elements->fetch())
+			{
+				$result[$element['ID']] = $element['NAME'];
+			}
+			unset($element, $elements);
+
+			if (empty($result))
+			{
+				$result = false;
+			}
 		}
 		else
 		{
 			$filter = [
 				'IBLOCK_ID' => $iblockId,
-				'CHECK_PERMISSIONS' => 'Y',
+				'CHECK_PERMISSIONS' => $additionalFilter['CHECK_PERMISSIONS'] ?? 'Y',
 				'MIN_PERMISSION' => \CIBlockRights::PUBLIC_READ,
 			];
-			if ($activeFilter === 'Y')
+			if ($additionalFilter['ACTIVE'])
 			{
 				$filter['ACTIVE'] = 'Y';
+			}
+			if (isset($additionalFilter['ID']))
+			{
+				$filter['ID'] = $additionalFilter['ID'];
 			}
 
 			$result = [];
@@ -321,9 +760,37 @@ class ElementType extends EnumType
 			{
 				$result[$element['ID']] = $element['NAME'];
 			}
-			unset($iterator);
+			unset($element, $iterator);
 		}
 
 		return $result;
+	}
+
+	private static function getIblockRightsMode(int $iblockId, int $cacheTtl): ?string
+	{
+		$iblock = Iblock\IblockTable::getRow([
+			'select' => [
+				'ID',
+				'RIGHTS_MODE',
+			],
+			'filter' => [
+				'=ID' => $iblockId
+			],
+			'cache' => [
+				'ttl' => $cacheTtl,
+			],
+		]);
+
+		return ($iblock['RIGHTS_MODE'] ?? null);
+	}
+
+	/**
+	 * @internal
+	 *
+	 * @return bool
+	 */
+	public static function canUseDialogAndUiViews(): bool
+	{
+		return true;
 	}
 }

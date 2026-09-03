@@ -1,7 +1,6 @@
 <?php
 
 use Bitrix\Main\Loader;
-use Bitrix\Main\LoaderException;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Iblock\UserField\Types\ElementType;
 
@@ -10,6 +9,7 @@ Loader::includeModule('iblock');
 /**
  * Class CUserTypeIBlockElement
  * @deprecated deprecated since main 20.0.800
+ * @see ElementType
  */
 class CUserTypeIBlockElement extends CUserTypeEnum
 {

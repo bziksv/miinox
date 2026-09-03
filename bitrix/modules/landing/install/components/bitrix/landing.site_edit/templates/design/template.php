@@ -33,7 +33,7 @@ Loc::loadMessages(__FILE__);
 	<?php
 	foreach ($arResult['ERRORS'] as $error)
 	{
-		echo $error . '<br/>';
+		echo htmlspecialcharsbx($error) . '<br/>';
 	}
 	?>
 	</div>
@@ -116,11 +116,10 @@ $uriDomain->addParams(
 );
 ?>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function() {
 		const editComponent = new BX.Landing.EditComponent('<?= $template->getFieldId('ACTION_CLOSE') ?>');
 		const successSave = <?= CUtil::PhpToJSObject($arParams['SUCCESS_SAVE']) ?>;
-		top.window['landingSettingsSaved'] = false;
 		if (successSave)
 		{
 			top.window['landingSettingsSaved'] = true;
@@ -131,8 +130,15 @@ $uriDomain->addParams(
 				top.BX.Landing.UI.Tool.ActionDialog.getInstance().close();
 			}
 		}
+		else
+		{
+			top.window['landingSettingsSaved'] = false;
+		}
 		BX.Landing.Env.createInstance({
-			params: { type: '<?= $arParams['TYPE'] ?>' }
+			site_id: '<?= CUtil::JSEscape((string)$row['ID']['CURRENT']) ?>',
+			params: {
+				type: '<?= CUtil::JSEscape((string)$arParams['TYPE']) ?>',
+			},
 		});
 	});
 </script>
@@ -228,10 +234,14 @@ if ($arParams['SUCCESS_SAVE'])
 													<script>
 														BX.ready(function()
 														{
+															const metrikaParams = {
+																p1: 'site_design',
+															};
 															this.corporateColor = new BX.Landing.ColorPickerTheme(
 																BX('<?= $template->getFieldId('COLORPICKER_THEME') ?>'),
 																<?= CUtil::PhpToJSObject($arResult['PREPARE_COLORS']['allColors']) ?>,
 																<?= CUtil::PhpToJSObject($arResult['CURRENT_COLORS']['currentColor']) ?>,
+																metrikaParams,
 															);
 														});
 													</script>
@@ -321,15 +331,20 @@ if ($arParams['SUCCESS_SAVE'])
 									'needWrapper' => true,
 									'readonly' => true,
 								]); ?>
-								<script type="text/javascript">
+								<script>
 									var paramsColor = {
 										defaultColor: <?=CUtil::PhpToJSObject($colorMain)?>,
 									}
 									BX.ready(function ()
 									{
+										const metrikaParams = {
+											subSection: 'text',
+											p1: 'site_design',
+										};
 										this.textColor = new BX.Landing.ColorPicker(
 											BX('<?= $template->getFieldId('THEMEFONTS_COLOR') ?>'),
-											paramsColor
+											paramsColor,
+											metrikaParams,
 										);
 									});
 								</script>
@@ -374,15 +389,20 @@ if ($arParams['SUCCESS_SAVE'])
 									'needWrapper' => true,
 									'readonly' => true,
 								]); ?>
-								<script type="text/javascript">
+								<script>
 									var paramsColorH = {
 										defaultColor: <?=CUtil::PhpToJSObject($colorTitle)?>,
 									}
 									BX.ready(function ()
 									{
+										const metrikaParams = {
+											subSection: 'title',
+											p1: 'site_design',
+										};
 										this.hColor = new BX.Landing.ColorPicker(
 											BX('<?= $template->getFieldId('THEMEFONTS_COLOR_H') ?>'),
-											paramsColorH
+											paramsColorH,
+											metrikaParams,
 										);
 									});
 								</script>
@@ -462,14 +482,19 @@ if ($arParams['SUCCESS_SAVE'])
 											'needWrapper' => true,
 											'readonly' => true,
 										]); ?>
-										<script type="text/javascript">
+										<script>
 											var paramsBgColor = {
 												defaultColor: <?=CUtil::PhpToJSObject(LandingSiteEditComponent::COLOR_PICKER_DEFAULT_BG_COLOR)?>,
 											}
 											BX.ready(function() {
+												const metrikaParams = {
+													subSection: 'background',
+													p1: 'site_design',
+												};
 												this.bgColor = new BX.Landing.ColorPicker(
 													BX('<?= $template->getFieldId('BACKGROUND_COLOR') ?>'),
-													paramsBgColor
+													paramsBgColor,
+													metrikaParams,
 												);
 											});
 										</script>
@@ -492,14 +517,19 @@ if ($arParams['SUCCESS_SAVE'])
 									'needWrapper' => true,
 									'readonly' => true,
 								]); ?>
-								<script type="text/javascript">
+								<script>
 									var paramsTransitionBgColor = {
 										defaultColor: <?=CUtil::PhpToJSObject(LandingSiteEditComponent::COLOR_PICKER_DEFAULT_BG_COLOR)?>,
 									}
 									BX.ready(function() {
+										const metrikaParams = {
+											subSection: 'transition',
+											p1: 'site_design',
+										};
 										this.transitionColor = new BX.Landing.ColorPicker(
 											BX('<?= $template->getFieldId('TRANSITION_COLOR') ?>'),
-											paramsTransitionBgColor
+											paramsTransitionBgColor,
+											metrikaParams,
 										);
 									});
 								</script>
@@ -542,7 +572,7 @@ if ($arParams['SUCCESS_SAVE'])
 	</form>
 </div>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function() {
 		new BX.UI.LayoutForm({container: BX('landing-site-design-form')});
 
@@ -574,30 +604,30 @@ if ($arParams['SUCCESS_SAVE'])
 					},
 					textFont: {
 						control: BX('<?= $template->getFieldId('THEMEFONTS_CODE') ?>'),
-						defaultValue: '<?= $themeFontsFields['CODE']->getValue() ?>',
+						defaultValue: '<?= CUtil::JSEscape((string)$themeFontsFields['CODE']->getValue()) ?>',
 					},
 					textSize: {
 						control: BX('<?= $template->getFieldId('THEMEFONTS_SIZE') ?>'),
-						defaultValue: '<?= $themeFontsFields['SIZE']->getValue() ?>',
+						defaultValue: '<?= CUtil::JSEscape((string)$themeFontsFields['SIZE']->getValue()) ?>',
 					},
 					textWeight: {
 						control: BX('<?= $template->getFieldId('THEMEFONTS_FONT_WEIGHT') ?>'),
-						defaultValue: '<?= $themeFontsFields['FONT_WEIGHT']->getValue() ?>',
+						defaultValue: '<?= CUtil::JSEscape((string)$themeFontsFields['FONT_WEIGHT']->getValue()) ?>',
 					},
 					textLineHeight: {
 						control: BX('<?= $template->getFieldId('THEMEFONTS_LINE_HEIGHT') ?>'),
-						defaultValue: '<?= $themeFontsFields['LINE_HEIGHT']->getValue() ?>',
+						defaultValue: '<?= CUtil::JSEscape((string)$themeFontsFields['LINE_HEIGHT']->getValue()) ?>',
 					},
 					hColor: {
 						control: this.hColor,
 					},
 					hFont: {
 						control: BX('<?= $template->getFieldId('THEMEFONTS_CODE_H') ?>'),
-						defaultValue: '<?= $themeFontsFields['CODE_H']->getValue() ?>',
+						defaultValue: '<?= CUtil::JSEscape((string)$themeFontsFields['CODE_H']->getValue()) ?>',
 					},
 					hWeight: {
 						control: BX('<?= $template->getFieldId('THEMEFONTS_FONT_WEIGHT_H') ?>'),
-						defaultValue: '<?= $themeFontsFields['FONT_WEIGHT_H']->getValue() ?>',
+						defaultValue: '<?= CUtil::JSEscape((string)$themeFontsFields['FONT_WEIGHT_H']->getValue()) ?>',
 					},
 				},
 
@@ -632,7 +662,7 @@ if ($arParams['SUCCESS_SAVE'])
 				text2: <?=CUtil::PhpToJSObject(Loc::getMessage('LANDING_SITE_FORM_TEXT_2'))?>,
 				button: <?=CUtil::PhpToJSObject(Loc::getMessage('LANDING_SITE_FORM_BUTTON'))?>,
 			},
-			'<?= $template->getFieldId('DESIGN_PREVIEW', false, 'element') ?>'
+			'<?= $template->getFieldId('DESIGN_PREVIEW', false, 'element') ?>',
 		);
 	});
 </script>

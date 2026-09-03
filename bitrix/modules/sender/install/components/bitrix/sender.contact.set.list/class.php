@@ -56,7 +56,6 @@ class SenderContactSetListComponent extends \CBitrixComponent
 		{
 			case 'edit':
 				$editFields = $this->request->get('FIELDS');
-				$editFields = \Bitrix\Main\Text\Encoding::convertEncoding($editFields, 'UTF-8', LANG_CHARSET);
 				if (!is_array($editFields))
 				{
 					$editFields = [];
@@ -88,7 +87,6 @@ class SenderContactSetListComponent extends \CBitrixComponent
 		/* Set title */
 		if ($this->arParams['SET_TITLE'])
 		{
-			/**@var CAllMain*/
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_CONTACT_SET_LIST_TITLE'));
 		}
 

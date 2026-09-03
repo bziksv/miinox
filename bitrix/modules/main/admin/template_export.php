@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * Bitrix Framework
  * @package bitrix
@@ -13,7 +13,6 @@
  */
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 
 if((!$USER->CanDoOperation('edit_other_settings') && !$USER->CanDoOperation('view_other_settings')) || !check_bitrix_sessid())
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
@@ -23,8 +22,6 @@ $ID = str_replace("/", "", $ID);
 $bUseCompression = true;
 if(!extension_loaded('zlib') || !function_exists("gzcompress"))
 	$bUseCompression = false;
-
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/tar_gz.php");
 
 CheckDirPath($_SERVER['DOCUMENT_ROOT'].BX_PERSONAL_ROOT."/tmp/templates/");
 $tmpfname = $_SERVER['DOCUMENT_ROOT'].BX_PERSONAL_ROOT."/tmp/templates/".\Bitrix\Main\Security\Random::getString(32).".tar.gz";
@@ -40,7 +37,7 @@ if(is_dir($_SERVER["DOCUMENT_ROOT"].$path))
 	if(!$tres)
 	{
 		$strError = "Archiver error";
-		$arErrors = &$oArchiver->GetErrors();
+		$arErrors = $oArchiver->GetErrors();
 		if(!empty($arErrors))
 		{
 			$strError .= ":<br>";

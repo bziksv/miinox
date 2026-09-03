@@ -6,6 +6,7 @@ use Bitrix\Catalog\Controller\Product;
 use Bitrix\Main\Engine;
 use Bitrix\Main\Engine\Action;
 use Bitrix\Main\Engine\Response\DataType\Page;
+use Bitrix\Main\Error;
 use Bitrix\Main\Result;
 use Bitrix\Main\UI\PageNavigation;
 
@@ -20,9 +21,18 @@ abstract class Base extends Product
 		$arguments = $action->getArguments();
 		$name = $action->getName();
 
-		if ($name === 'getfieldsbyfilter')
+		if ($name === 'add' || $name === 'update')
 		{
-			$arguments['filter']['productType'] = static::TYPE;
+			$fields = $arguments['fields'] ?? [];
+			if (!is_array($fields))
+			{
+				$this->addError(new Error('Incorrect fields format'));
+
+				return null;
+			}
+			$fields['type'] = static::TYPE;
+			$arguments['fields'] = $fields;
+
 			$action->setArguments($arguments);
 		}
 
@@ -70,7 +80,6 @@ abstract class Base extends Product
 
 	public function addAction($fields): ?array
 	{
-		$fields['TYPE'] = static::TYPE;
 		$result = parent::addAction($fields);
 
 		return $this->fillKeyResponse($result);
@@ -84,13 +93,20 @@ abstract class Base extends Product
 	}
 
 	/**
+	 * @param PageNavigation $pageNavigation
 	 * @param array $select
 	 * @param array $filter
 	 * @param array $order
-	 * @param PageNavigation $pageNavigation
+	 * @param bool $__calculateTotalCount
 	 * @return Page|null
 	 */
-	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): ?Page
+	public function listAction(
+		PageNavigation $pageNavigation,
+		array $select = [],
+		array $filter = [],
+		array $order = [],
+		bool $__calculateTotalCount = true
+	): ?Page
 	{
 		/** @var \Bitrix\Catalog\RestView\Product $view */
 		$view = $this->getViewManager()->getView($this);
@@ -113,7 +129,7 @@ abstract class Base extends Product
 			$filter['TYPE'] = $list;
 		}
 
-		return parent::listAction($pageNavigation, $select, $filter, $order);
+		return parent::listAction($pageNavigation, $select, $filter, $order, $__calculateTotalCount);
 	}
 
 	protected function get($id)

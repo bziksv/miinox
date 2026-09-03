@@ -1,4 +1,11 @@
-<?
+<?php
+
+/**
+ * @global CMain $APPLICATION
+ */
+
+use Bitrix\Main\Web\Json;
+
 define("PUBLIC_AJAX_MODE", true);
 define("EXTRANET_NO_REDIRECT", true);
 define("NO_KEEP_STATISTIC", "Y");
@@ -17,17 +24,37 @@ if (!empty($siteId))
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
 
+global $USER;
+
+if (!$USER->IsAuthorized())
+{
+	echo Json::encode(Array('ERROR' => 'ACCESS_ERROR'));
+	CMain::FinalActions();
+}
+
 if (
 	!CModule::IncludeModule("socialnetwork")
 	|| IsModuleInstalled("b24network")
 )
 {
-	echo CUtil::PhpToJsObject(Array('ERROR' => 'MODULE_NOT_INSTALLED'));
-	die();
+	echo Json::encode(Array('ERROR' => 'MODULE_NOT_INSTALLED'));
+	CMain::FinalActions();
+}
+
+if (!\Bitrix\Socialnetwork\ComponentHelper::getModuleUsed())
+{
+	echo Json::encode(Array('ERROR' => 'ACCESS_ERROR'));
+	CMain::FinalActions();
 }
 
 if (check_bitrix_sessid())
 {
+	if (CModule::IncludeModule('extranet') && !CExtranet::IsIntranetUser())
+	{
+		echo Json::encode(Array('ERROR' => 'EXTRANET_USER'));
+		CMain::FinalActions();
+	}
+
 	if (
 		isset($_POST["nt"])
 		&& !empty($_POST["nt"])
@@ -43,8 +70,6 @@ if (check_bitrix_sessid())
 
 	if (isset($_POST['LD_SEARCH']) && $_POST['LD_SEARCH'] == 'Y')
 	{
-		CUtil::decodeURIComponent($_POST);
-
 		$search = $_POST['SEARCH'];
 		$searchConverted = (!empty($_POST['SEARCH_CONVERTED']) ? $_POST['SEARCH_CONVERTED'] : false);
 
@@ -57,7 +82,7 @@ if (check_bitrix_sessid())
 		{
 			$searchResults["USERS"] = array();
 
-			echo CUtil::PhpToJsObject($searchResults);
+			echo Json::encode($searchResults);
 			return;
 		}
 
@@ -66,6 +91,7 @@ if (check_bitrix_sessid())
 			|| $_POST['USER_SEARCH'] != 'N'
 		)
 		{
+			$searchModified = '';
 			$searchResults['USERS'] = CSocNetLogDestination::SearchUsers(
 				array(
 					"SEARCH" => $search,
@@ -154,7 +180,7 @@ if (check_bitrix_sessid())
 						"(%2\$s LIKE '%%" . $word . "%%')"
 					);
 				}
-				$sortWeight = new \Bitrix\Main\Entity\ExpressionField('SORT_WEIGHT', $sortExpr, ['NAME', 'EMAIL']);
+				$sortWeight = new \Bitrix\Main\ORM\Fields\ExpressionField('SORT_WEIGHT', $sortExpr, ['NAME', 'EMAIL']);
 				$queryFilter = [
 					[
 						'LOGIC' => 'OR',
@@ -586,28 +612,28 @@ if (check_bitrix_sessid())
 			$searchResults['LEADS'] = $arLeads;
 			$searchResults['DEALS'] = $arDeals;
 		}
-		echo CUtil::PhpToJsObject($searchResults);
+		echo Json::encode($searchResults);
 	}
 	elseif (isset($_POST['LD_DEPARTMENT_RELATION']) && $_POST['LD_DEPARTMENT_RELATION'] == 'Y')
 	{
-		echo CUtil::PhpToJsObject(Array(
+		echo Json::encode(Array(
 			'USERS' => CSocNetLogDestination::GetUsers(Array('deportament_id' => $_POST['DEPARTMENT_ID'], "NAME_TEMPLATE" => $nameTemplate)),
 		));
 	}
 	elseif (isset($_POST['LD_ALL']) && $_POST['LD_ALL'] == 'Y')
 	{
-		echo CUtil::PhpToJsObject(Array(
+		echo Json::encode(Array(
 			'USERS' => CSocNetLogDestination::GetUsers(Array('all' => 'Y', "NAME_TEMPLATE" => $nameTemplate)),
 		));
 	}
 	else
 	{
-		echo CUtil::PhpToJsObject(Array('ERROR' => 'UNKNOWN_ERROR'));
+		echo Json::encode(Array('ERROR' => 'UNKNOWN_ERROR'));
 	}
 }
 else
 {
-	echo CUtil::PhpToJsObject(Array('ERROR' => 'SESSION_ERROR'));
+	echo Json::encode(Array('ERROR' => 'SESSION_ERROR'));
 }
+
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
-?>

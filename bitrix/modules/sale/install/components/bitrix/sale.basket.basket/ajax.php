@@ -30,7 +30,6 @@ if (isset($_REQUEST['site_template_id']) && is_string($_REQUEST['site_template_i
 require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php';
 
 $request = Bitrix\Main\Application::getInstance()->getContext()->getRequest();
-$request->addFilter(new \Bitrix\Main\Web\PostDecodeFilter);
 
 if (!check_bitrix_sessid() || !$request->isPost())
 	return;
@@ -49,7 +48,11 @@ if ($request->get('via_ajax') === 'Y')
 		$params = $signer->unsign($request->get('signedParamsString'), 'sale.basket.basket');
 		$params = unserialize(base64_decode($params), ['allowed_classes' => false]);
 	}
-	catch (\Bitrix\Main\Security\Sign\BadSignatureException $e)
+	catch (\Bitrix\Main\ArgumentTypeException)
+	{
+		die('Bad signed value.');
+	}
+	catch (\Bitrix\Main\Security\Sign\BadSignatureException)
 	{
 		die('Bad signature.');
 	}

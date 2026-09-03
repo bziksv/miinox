@@ -9,8 +9,8 @@ use Bitrix\Main\Web\Json;
 
 /**
  * Bitrix vars
- * @global CAllUser $USER
- * @global CAllMain $APPLICATION
+ * @global CUser $USER
+ * @global CMain $APPLICATION
  */
 
 require_once($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_admin_before.php");
@@ -154,12 +154,6 @@ if ($action <> '')
 					"NAME" => $_REQUEST["name"],
 				);
 
-				if (!\Bitrix\Main\Application::isUtfMode())
-				{
-					$fields = \Bitrix\Main\Text\Encoding::convertEncodingArray($fields, "UTF-8", SITE_CHARSET);
-					$code = \Bitrix\Main\Text\Encoding::convertEncoding($code, "UTF-8", SITE_CHARSET);
-					$templateName = \Bitrix\Main\Text\Encoding::convertEncoding($templateName, "UTF-8", SITE_CHARSET);
-				}
 				$initConfig = array();
 				if($useOffline)
 				{

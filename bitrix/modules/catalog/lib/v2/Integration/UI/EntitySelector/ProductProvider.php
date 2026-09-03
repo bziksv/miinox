@@ -11,7 +11,7 @@ use Bitrix\Catalog\v2\Iblock\IblockInfo;
 use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Iblock\Component\Tools;
 use Bitrix\Iblock\PropertyTable;
-use Bitrix\Main\Loader;
+use Bitrix\Iblock\Url\AdminPage\BuilderManager;
 use Bitrix\UI\EntitySelector\BaseProvider;
 use Bitrix\UI\EntitySelector\Dialog;
 use Bitrix\UI\EntitySelector\Item;
@@ -39,7 +39,19 @@ class ProductProvider extends BaseProvider
 			$this->options['restrictedProductTypes'] = null;
 		}
 
+		$this->options['restrictedProductIds'] =
+			(isset($options['restrictedProductIds']) && is_array($options['restrictedProductIds']))
+				? array_map('intval', $options['restrictedProductIds'])
+				: null
+		;
+
+		$this->options['defaultItemAvatar'] = $options['defaultItemAvatar'] ?? '';
+		if (!is_string($this->options['defaultItemAvatar']))
+		{
+			$this->options['defaultItemAvatar'] = '';
+		}
 		$this->options['showPriceInCaption'] = (bool)($options['showPriceInCaption'] ?? true);
+		$this->options['linkType'] = isset($options['linkType']) ? (string)$options['linkType'] : '';
 	}
 
 	public function isAvailable(): bool
@@ -91,7 +103,7 @@ class ProductProvider extends BaseProvider
 			}
 		}
 
-		$recentItems = $dialog->getRecentItems()->getEntityItems(self::ENTITY_ID);
+		$recentItems = $dialog->getRecentItems()->getEntityItems(static::ENTITY_ID);
 		$recentItemsCount = count($recentItems);
 		if (
 			$this->options['restrictedProductTypes']
@@ -126,6 +138,28 @@ class ProductProvider extends BaseProvider
 			foreach ($recentItems as $recentItem)
 			{
 				if (!isset($selectedIds[$recentItem->getId()]))
+				{
+					$recentItem->setAvailable(false);
+					$recentItemsCount--;
+				}
+			}
+		}
+
+		if (
+			$this->options['restrictedProductIds']
+			&& is_array($this->options['restrictedProductIds'])
+			&& $recentItemsCount > 0
+		)
+		{
+			$restrictedProductIds = array_fill_keys($this->options['restrictedProductIds'], true);
+
+			/** @var RecentItem $recentItem */
+			foreach ($recentItems as $recentItem)
+			{
+				if (
+					!isset($restrictedProductIds[$recentItem->getId()])
+					&& $recentItem->isAvailable()
+				)
 				{
 					$recentItem->setAvailable(false);
 					$recentItemsCount--;
@@ -175,6 +209,7 @@ class ProductProvider extends BaseProvider
 			'PARENT_PREVIEW_TEXT' => true,
 			'PARENT_DETAIL_TEXT' => true,
 			'BARCODE' => true,
+			'RAW_PRICE' => true,
 		]));
 
 		return new Item([
@@ -184,9 +219,30 @@ class ProductProvider extends BaseProvider
 			'supertitle' => $product['SKU_PROPERTIES'],
 			'subtitle' => $this->getSubtitle($product),
 			'caption' => $this->getCaption($product),
-			'avatar' => $product['IMAGE'],
+			'avatar' => !empty($product['IMAGE']) ? $product['IMAGE'] : $this->options['defaultItemAvatar'],
 			'customData' => $customData,
+			'link' => $this->getLink(
+				(int)($product['PARENT_ID'] ?? $product['ID']),
+				(int)$product['IBLOCK_ID']
+			),
 		]);
+	}
+
+	protected function getLink(int $id, int $iblockId): string
+	{
+		if (!$this->options['linkType'])
+		{
+			return '';
+		}
+		$urlBuilder = BuilderManager::getInstance()->getBuilder($this->options['linkType']);
+		if (!$urlBuilder)
+		{
+			return '';
+		}
+
+		$urlBuilder->setIblockId($iblockId);
+
+		return $urlBuilder->getElementDetailUrl($id);
 	}
 
 	protected function getSubtitle(array $product): string
@@ -263,6 +319,7 @@ class ProductProvider extends BaseProvider
 			'filter' => ['=ID' => $productIds],
 			'offer_filter' => ['=ID' => $offerIds],
 			'sort' => [],
+			'limit' => 0,
 		]);
 
 		// sort $products by $productIds
@@ -351,11 +408,7 @@ class ProductProvider extends BaseProvider
 		if ($searchString !== '')
 		{
 			$simpleProductFilter = [
-				[
-					'LOGIC' => 'OR',
-					'*SEARCHABLE_CONTENT' => $searchString,
-					'PRODUCT_BARCODE' => $searchString . '%',
-				]
+				'*SEARCHABLE_CONTENT' => $searchString,
 			];
 
 			if ($iblockInfo->canHaveSku())
@@ -371,14 +424,13 @@ class ProductProvider extends BaseProvider
 						'IBLOCK_ID' => $iblockInfo->getSkuIblockId(),
 						'*SEARCHABLE_CONTENT' => $searchString,
 					]),
-					'PRODUCT_BARCODE' => $searchString . '%',
 				];
 
 				$offerFilter = $simpleProductFilter;
 			}
 			else
 			{
-				$productFilter[] = $simpleProductFilter;
+				$productFilter = $simpleProductFilter;
 			}
 		}
 
@@ -397,6 +449,7 @@ class ProductProvider extends BaseProvider
 			return [];
 		}
 
+		$limit = isset($parameters['limit']) ? (int)$parameters['limit'] : null;
 		$productFilter = (array)($parameters['filter'] ?? []);
 		$offerFilter = (array)($parameters['offer_filter'] ?? []);
 		$shouldLoadOffers = (bool)($parameters['load_offers'] ?? true);
@@ -410,12 +463,17 @@ class ProductProvider extends BaseProvider
 				ProductTable::getProductTypes()
 			);
 		}
+		if ($this->options['restrictedProductIds'] !== null)
+		{
+			$additionalProductFilter['ID'] = empty($this->options['restrictedProductIds']) ? [0] : $this->options['restrictedProductIds'];
+		}
+
 		$filteredTypes[] = ProductTable::TYPE_EMPTY_SKU;
 		$additionalProductFilter['!=TYPE'] = array_values(array_unique($filteredTypes));
 
 		$products = $this->loadElements([
 			'filter' => array_merge($productFilter, $additionalProductFilter),
-			'limit' => self::PRODUCT_LIMIT,
+			'limit' => $limit ?? self::PRODUCT_LIMIT,
 		]);
 		if (empty($products))
 		{
@@ -452,6 +510,12 @@ class ProductProvider extends BaseProvider
 			'ACTIVE' => 'Y',
 			'ACTIVE_DATE' => 'Y',
 		];
+
+		$shortSelect = [
+			'ID',
+			'IBLOCK_ID',
+		];
+
 		$selectFields = array_filter(array_unique(array_merge(
 			[
 				'ID',
@@ -480,38 +544,61 @@ class ProductProvider extends BaseProvider
 			array_merge($filter, $additionalFilter),
 			false,
 			$navParams,
-			$selectFields
+			$shortSelect
 		);
-		while ($element = $elementIterator->Fetch())
+		while ($row = $elementIterator->Fetch())
 		{
-			$element['ID'] = (int)$element['ID'];
-			$element['IBLOCK_ID'] = (int)$element['IBLOCK_ID'];
-			$element['TYPE'] = (int)$element['TYPE'];
-			$element['IMAGE'] = null;
-			$element['PRICE'] = null;
-			$element['SKU_PROPERTIES'] = null;
+			$row['ID'] = (int)$row['ID'];
+			$row['IBLOCK_ID'] = (int)$row['IBLOCK_ID'];
 
-			if (!empty($element['PREVIEW_PICTURE']))
+			$elements[$row['ID']] = $row;
+		}
+		unset($row, $elementIterator);
+
+		if (!empty($elements))
+		{
+			$elementIterator = \CIBlockElement::GetList(
+				[],
+				[
+					'ID' => array_keys($elements)
+				],
+				false,
+				false,
+				$selectFields
+			);
+			while ($row = $elementIterator->Fetch())
 			{
-				$element['IMAGE'] = $this->getImageSource((int)$element['PREVIEW_PICTURE']);
-			}
+				$id = (int)$row['ID'];
+				unset($row['ID'], $row['IBLOCK_ID']);
 
-			if (empty($element['IMAGE']) && !empty($element['DETAIL_PICTURE']))
-			{
-				$element['IMAGE'] = $this->getImageSource((int)$element['DETAIL_PICTURE']);
-			}
+				$row['TYPE'] = (int)$row['TYPE'];
+				$row['IMAGE'] = null;
+				$row['PRICE'] = null;
+				$row['SKU_PROPERTIES'] = null;
 
-			if (!empty($element['PREVIEW_TEXT']) && $element['PREVIEW_TEXT_TYPE'] === 'html')
-			{
-				$element['PREVIEW_TEXT'] = HTMLToTxt($element['PREVIEW_TEXT']);
-			}
+				if (!empty($row['PREVIEW_PICTURE']))
+				{
+					$row['IMAGE'] = $this->getImageSource((int)$row['PREVIEW_PICTURE']);
+				}
 
-			if (!empty($element['DETAIL_TEXT']) && $element['DETAIL_TEXT_TYPE'] === 'html')
-			{
-				$element['DETAIL_TEXT'] = HTMLToTxt($element['DETAIL_TEXT']);
-			}
+				if (empty($row['IMAGE']) && !empty($row['DETAIL_PICTURE']))
+				{
+					$row['IMAGE'] = $this->getImageSource((int)$row['DETAIL_PICTURE']);
+				}
 
-			$elements[$element['ID']] = $element;
+				if (!empty($row['PREVIEW_TEXT']) && $row['PREVIEW_TEXT_TYPE'] === 'html')
+				{
+					$row['PREVIEW_TEXT'] = HTMLToTxt($row['PREVIEW_TEXT']);
+				}
+
+				if (!empty($row['DETAIL_TEXT']) && $row['DETAIL_TEXT_TYPE'] === 'html')
+				{
+					$row['DETAIL_TEXT'] = HTMLToTxt($row['DETAIL_TEXT']);
+				}
+
+				$elements[$id] += $row;
+			}
+			unset($row, $elementIterator);
 		}
 
 		return $elements;
@@ -542,7 +629,7 @@ class ProductProvider extends BaseProvider
 		$productsStillWithoutOffers = array_diff_key($productsWithOffers, $offers);
 		if (!empty($productsStillWithoutOffers))
 		{
-			// second - load any offer for product if have no coincidences in searchable content
+			// second - load any offer for product if you have no coincidences in searchable content
 			$additionalOffers = $this->loadElements([
 				'filter' => [
 					'IBLOCK_ID' => $iblockInfo->getSkuIblockId(),
@@ -576,10 +663,16 @@ class ProductProvider extends BaseProvider
 			$variationToProductMap[$element['ID']] = $id;
 		}
 
+		$resultCurrency = $this->getCurrency();
+
 		$priceTableResult = PriceTable::getList([
-			'select' => ['PRICE', 'CURRENCY', 'PRODUCT_ID'],
+			'select' => [
+				'PRICE',
+				'CURRENCY',
+				'PRODUCT_ID',
+			],
 			'filter' => [
-				'PRODUCT_ID' => array_keys($variationToProductMap),
+				'@PRODUCT_ID' => array_keys($variationToProductMap),
 				'=CATALOG_GROUP_ID' => $this->getBasePriceId(),
 				[
 					'LOGIC' => 'OR',
@@ -600,14 +693,18 @@ class ProductProvider extends BaseProvider
 
 			$priceValue = $price['PRICE'];
 			$currency = $price['CURRENCY'];
-			if (!empty($this->getCurrency()) && $this->getCurrency() !== $currency)
+			if (!empty($resultCurrency) && $resultCurrency !== $currency)
 			{
-				$priceValue = \CCurrencyRates::ConvertCurrency($priceValue, $currency, $this->getCurrency());
-				$currency = $this->getCurrency();
+				$priceValue = \CCurrencyRates::ConvertCurrency($priceValue, $currency, $resultCurrency);
+				$currency = $resultCurrency;
 			}
 
 			$formattedPrice = \CCurrencyLang::CurrencyFormat($priceValue, $currency, true);
 			$elements[$productId]['PRICE'] = $formattedPrice;
+			$elements[$productId]['RAW_PRICE'] = [
+				'VALUE' => (float)$priceValue,
+				'CURRENCY' => $currency,
+			];
 		}
 
 		return $elements;
@@ -844,27 +941,24 @@ class ProductProvider extends BaseProvider
 			$value = implode(', ', $value);
 		}
 
-		$value = trim((string)$value);
-
-		return $value;
+		return trim((string)$value);
 	}
 
 	private function getMorePhotoPropertyId(int $iblockId): ?int
 	{
-		$iterator = PropertyTable::getList([
+		$row = PropertyTable::getRow([
 			'select' => ['ID'],
 			'filter' => [
 				'=IBLOCK_ID' => $iblockId,
 				'=CODE' => \CIBlockPropertyTools::CODE_MORE_PHOTO,
 				'=ACTIVE' => 'Y',
 			],
+			'cache' => [
+				'ttl' => 86400,
+			],
 		]);
-		if ($row = $iterator->fetch())
-		{
-			return (int)$row['ID'];
-		}
 
-		return null;
+		return $row ? (int)$row['ID'] : null;
 	}
 
 	private function getSearchPropertyIds(int $iblockId): array

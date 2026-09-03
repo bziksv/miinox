@@ -1,5 +1,6 @@
 <?
 $MESS["JS_CORE_VIEWER_DOWNLOAD"] = "Скачать";
+$MESS["JS_CORE_VIEWER_OPEN"] = "Открыть";
 $MESS["JS_CORE_VIEWER_EDIT"] = "Редактировать";
 $MESS["JS_CORE_VIEWER_DESCR_AUTHOR"] = "Автор";
 $MESS["JS_CORE_VIEWER_DESCR_LAST_MODIFY"] = "Последние изменения";
@@ -26,7 +27,7 @@ $MESS["JS_CORE_VIEWER_IFRAME_DESCR_SAVE_DOC_F"] = "В одном из окон �
 $MESS["JS_CORE_VIEWER_SAVE"] = "Сохранить";
 $MESS["JS_CORE_VIEWER_EDIT_IN_SERVICE"] = "Редактировать в #SERVICE#";
 $MESS["JS_CORE_VIEWER_NOW_EDITING_IN_SERVICE"] = "Редактирование в #SERVICE#";
-$MESS["JS_CORE_VIEWER_SAVE_TO_OWN_FILES"] = "Сохранить на Битрикс24.Диск";
+$MESS["JS_CORE_VIEWER_SAVE_TO_OWN_FILES_MSGVER_1"] = "Сохранить на Битрикс24.Диск";
 $MESS["JS_CORE_VIEWER_DOWNLOAD_TO_PC"] = "Скачать на локальный компьютер";
 $MESS["JS_CORE_VIEWER_GO_TO_FILE"] = "Перейти к файлу";
 $MESS["JS_CORE_VIEWER_DESCR_SAVE_FILE_TO_OWN_FILES"] = "Файл #NAME# успешно сохранен<br>в папку \"Файлы\\Сохраненные\"";
@@ -49,8 +50,7 @@ $MESS["JS_CORE_VIEWER_EDIT_IN_LOCAL_SERVICE"] = "Редактировать на
 $MESS["JS_CORE_VIEWER_EDIT_IN_LOCAL_SERVICE_SHORT"] = "Редактировать на #SERVICE#";
 $MESS["JS_CORE_VIEWER_SERVICE_LOCAL"] = "моём компьютере";
 $MESS["JS_CORE_VIEWER_DOWNLOAD_B24_DESKTOP"] = "Скачать";
-$MESS["JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP"] = "Для эффективного редактирования документов на компьютере, установите десктоп приложение и подключите Битрикс24.Диск";
-$MESS["JS_CORE_VIEWER_SERVICE_B24_DISK"] = "Битрикс24.Диск";
+$MESS["JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP_MSGVER_1"] = "Для эффективного редактирования документов на компьютере, установите приложение для компьютера и подключите Битрикс24.Диск";
 $MESS["JS_CORE_VIEWER_SHOW_FILE_DIALOG_OAUTH_NOTICE"] = "Для просмотра файла, пожалуйста, авторизуйтесь в своем аккаунте <a id=\"bx-js-disk-run-oauth-modal\" href=\"#\">#SERVICE#</a>.";
 $MESS["JS_CORE_VIEWER_SERVICE_OFFICE365"] = "Office365";
 $MESS["JS_CORE_VIEWER_DOCUMENT_IS_LOCKED_BY"] = "Документ заблокирован на редактирование";

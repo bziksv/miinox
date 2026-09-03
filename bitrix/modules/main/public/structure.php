@@ -1,14 +1,16 @@
-<?
+<?php
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2024 Bitrix
  *
  * Bitrix vars
  * @global CUser $USER
  * @global CMain $APPLICATION
  */
+
+use Bitrix\Main\Web\Json;
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
@@ -61,7 +63,7 @@ function __struct_get_file_info($abs_path, $file)
 			$f = $io->GetFile($abs_path."/".$file);
 			$sContent = $f->GetContents();
 			$arContent = ParseFileContent($sContent);
-			$arFile["name"] = CUtil::ConvertToLangCharset($arContent["TITLE"]);
+			$arFile["name"] = $arContent["TITLE"];
 			$arFile["properties"] = $arContent["PROPERTIES"];
 		}
 	}
@@ -96,7 +98,7 @@ function __struct_show_files($arFiles, $doc_root, $path, $open_path, $dirsonly=f
 	$scrSrc = '';
 	foreach($arFiles as $arFile)
 	{
-		if($arFile["name"] == '' && $arFile["file"] <> "/" && $GLOBALS['arOptions']['show_all_files'] != true)
+		if($arFile["name"] == '' && $arFile["file"] <> "/" && ($GLOBALS['arOptions']['show_all_files'] ?? null) != true)
 			continue;
 
 		$full_path = rtrim($path, "/")."/".trim($arFile["file"], "/");
@@ -124,7 +126,7 @@ function __struct_show_files($arFiles, $doc_root, $path, $open_path, $dirsonly=f
 			$item = '<div id="sign'.$md5.'" class="'.($bOpenSubdir? 'bx-struct-minus':'bx-struct-plus').'" onclick="structGetSubDir(this, \''.$dirID.'\', \''.$encPath.'\', '.($dirsonly? 'true':'false').')"></div>
 				<div class="bx-struct-dir" id="icon'.$md5.'"></div>
 				<div id="'.$itemID.'" __bx_path="'.$encPath.'" __bx_type="D" class="bx-struct-name"'.
-				' onmouseover="structNameOver(this)" onmouseout="structNameOut(this)" onclick="structShowDirMenu(this, '.($dirsonly? 'true':'false').', '.CUtil::PhpToJSObject($arPerm).')"'.
+				' onmouseover="structNameOver(this)" onmouseout="structNameOut(this)" onclick="structShowDirMenu(this, '.($dirsonly? 'true':'false').', ' . htmlspecialcharsbx(Json::encode($arPerm)) . ')"'.
 				' ondblclick="structGetSubdirAction(\'sign'.$md5.'\')">'.htmlspecialcharsEx($name).'</div>
 				<div style="clear:both;"></div>
 				<div id="'.$dirID.'" class="bx-struct-sub" style="display:'.($bOpenSubdir? 'block':'none').'">'.
@@ -143,13 +145,13 @@ function __struct_show_files($arFiles, $doc_root, $path, $open_path, $dirsonly=f
 				"del_file" => $USER->CanDoFileOperation("fm_delete_file", $arPath),
 			);
 
-			if($GLOBALS['bFileman'] == true && $GLOBALS['arOptions']['show_all_files'] == true)
+			if($GLOBALS['bFileman'] == true && ($GLOBALS['arOptions']['show_all_files'] ?? null) == true)
 				$type = CFileMan::GetFileTypeEx($arFile["file"]);
 			else
 				$type = "";
 
 			$item = '<div style="float:left"></div><div class="bx-struct-file'.($type <> ''? ' bx-struct-type-'.$type : '').'" id="icon'.$md5.'"></div>
-				<div id="'.$itemID.'" __bx_path="'.$encPath.'" __bx_type="F" class="bx-struct-name" onmouseover="structNameOver(this)" onmouseout="structNameOut(this)" onclick="structShowFileMenu(this, '.CUtil::PhpToJSObject($arPerm).')" ondblclick="structEditFileAction(this)">'.htmlspecialcharsEx($name).'</div>
+				<div id="'.$itemID.'" __bx_path="'.$encPath.'" __bx_type="F" class="bx-struct-name" onmouseover="structNameOver(this)" onmouseout="structNameOut(this)" onclick="structShowFileMenu(this, ' . htmlspecialcharsbx(Json::encode($arPerm)) . ')" ondblclick="structEditFileAction(this)">'.htmlspecialcharsEx($name).'</div>
 				<div style="clear:both;"></div>';
 
 			$scrSrc .= ($scrSrc <>''? ', ':'')."'".$itemID."', 'icon".$md5."'";
@@ -227,26 +229,18 @@ $io = CBXVirtualIo::GetInstance();
 //ajax requests
 if (isset($_GET['ajax']) && $_GET['ajax'] == 'Y')
 {
-	if($_GET['action'] == 'delfolder' && check_bitrix_sessid() && $bFileman)
+	if(!empty($_GET['action']) && $_GET['action'] == 'delfolder' && check_bitrix_sessid() && $bFileman)
 	{
 		$normPath = $io->CombinePath("/", $_GET["path"]);
 		if($normPath <> "")
 			$strWarning = CFileMan::DeleteEx(array($_GET["site"], $normPath));
 
-		$module_id = "fileman";
-		if(COption::GetOptionString($module_id, "log_page", "Y")=="Y")
+		if(COption::GetOptionString("fileman", "log_page", "Y")=="Y")
 		{
-			$res_log['path'] = mb_substr($_GET["path"], 1);
-			CEventLog::Log(
-				"content",
-				"SECTION_DELETE",
-				"main",
-				"",
-				serialize($res_log)
-			);
+			CEventLog::Log("content", "SECTION_DELETE", "fileman", $normPath);
 		}
 	}
-	elseif(($_GET['action'] == 'copy' || $_GET['action'] == 'move') && check_bitrix_sessid() && $bFileman)
+	elseif(!empty($_GET['action']) && ($_GET['action'] == 'copy' || $_GET['action'] == 'move') && check_bitrix_sessid() && $bFileman)
 	{
 		$normFrom = $io->CombinePath("/", $_GET["from"]);
 		$name = "";
@@ -266,13 +260,13 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'Y')
 
 	if (!empty($_GET['load_path']))
 	{
-		echo __struct_get_files($DOC_ROOT, _normalizePath($_GET['load_path']), "", ($_GET['dirsonly']=='Y'));
+		echo __struct_get_files($DOC_ROOT, _normalizePath($_GET['load_path']), "", (!empty($_GET['dirsonly']) && $_GET['dirsonly']=='Y'));
 	}
 	elseif (isset($_GET['reload']) && $_GET['reload'] == 'Y')
 	{
 		//display first level tree
 		$arRoot = __struct_get_file_info($DOC_ROOT, "/");
-		echo __struct_show_files(array($arRoot), $DOC_ROOT, "", _normalizePath($_GET["path"]), ($_GET['dirsonly']=='Y'));
+		echo __struct_show_files(array($arRoot), $DOC_ROOT, "", _normalizePath($_GET["path"]), (!empty($_GET['dirsonly']) && $_GET['dirsonly']=='Y'));
 	}
 
 	if($strWarning <> "")
@@ -282,8 +276,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'Y')
 	}
 }
 ?>
-<script>window.structOptions = <?=CUtil::PhpToJSObject($arOptions)?>;</script>
-<?
+<script>window.structOptions = <?= Json::encode($arOptions) ?>;</script>
+<?php
 if (isset($_GET['ajax']) && $_GET['ajax'] == 'Y')
 {
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
@@ -296,7 +290,7 @@ $encLang = urlencode($_GET["lang"]);
 $encSite = urlencode($_GET["site"]);
 $encTemplateID = urlencode($_GET["templateID"]);
 ?>
-<script src="/bitrix/js/main/dd.js<?echo '?'.filemtime($_SERVER["DOCUMENT_ROOT"].'/bitrix/js/main/dd.js')?>" type="text/javascript"></script>
+<script src="/bitrix/js/main/dd.js<?= '?'.filemtime($_SERVER["DOCUMENT_ROOT"].'/bitrix/js/main/dd.js')?>"></script>
 <script>
 window.structRegisterDD = function(arSrc, arDest)
 {
@@ -406,11 +400,11 @@ window.structShowSubDialog = function()
 window.structAddFile = function(path, isFolder)
 {
 	structShowSubDialog();
-<?
+	<?php
 	$url = $APPLICATION->GetPopupLink(array(
-		"URL"=>"/bitrix/admin/public_file_new.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&templateID=".$encTemplateID."&path=#PATH#",
+		"URL"=>"/bitrix/admin/public_file_new.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&templateID=".$encTemplateID."&path=_PATH_",
 		"PARAMS"=> Array("min_width"=>450, "min_height" => 250)), "subdialog");
-	$url = str_replace("#PATH#", "'+path+(isFolder==true? '&newFolder=Y':'')+'", $url);
+	$url = str_replace("_PATH_", "'+path+(isFolder==true? '&newFolder=Y':'')+'", $url);
 	echo $url.";";
 ?>
 };
@@ -418,11 +412,11 @@ window.structAddFile = function(path, isFolder)
 window.structAccessDialog = function(path)
 {
 	structShowSubDialog();
-<?
+	<?php
 	$url = $APPLICATION->GetPopupLink(Array(
-		"URL"=>"/bitrix/admin/public_access_edit.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=#PATH#",
+		"URL"=>"/bitrix/admin/public_access_edit.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=_PATH_",
 		"PARAMS" => Array("min_width"=>450, "min_height" => 250)), "subdialog");
-	$url = str_replace("#PATH#", "'+path+'", $url);
+	$url = str_replace("_PATH_", "'+path+'", $url);
 	echo $url.";";
 ?>
 };
@@ -430,37 +424,33 @@ window.structAccessDialog = function(path)
 window.structEditFolder = function(path)
 {
 	structShowSubDialog();
-<?
+	<?php
 	$url = $APPLICATION->GetPopupLink(array(
-		"URL"=>"/bitrix/admin/public_folder_edit.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=#PATH#",
+		"URL"=>"/bitrix/admin/public_folder_edit.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=_PATH_",
 		"PARAMS" => Array("min_width"=>450, "min_height" => 250)), "subdialog");
-	$url = str_replace("#PATH#", "'+path+'", $url);
+	$url = str_replace("_PATH_", "'+path+'", $url);
 	echo $url.";";
 ?>
 };
 
-jsPopup_editor = new JCPopup({'suffix':'editor', 'zIndex':parseInt(window.structPopup.zIndex)+20});
 window.structEditFile = function(path)
 {
-//	structShowSubDialog();
-//	jsPopup_editor.ShowDialog('/bitrix/admin/public_file_edit.php?bxpublic=Y&subdialog=Y&lang=<?=$encLang?>&site=<?=$encSite?>&templateID=<?=$encTemplateID?>&path='+path, {width: 780, height: 570, resize: false});
-<?
+	<?php
 	$url = $APPLICATION->GetPopupLink(Array(
-		"URL"=>"/bitrix/admin/public_file_edit.php?bxpublic=Y&subdialog=Y&lang=".$encLang."&path=#PATH#&site=".$encSite,
+		"URL"=>"/bitrix/admin/public_file_edit.php?bxpublic=Y&subdialog=Y&lang=".$encLang."&path=_PATH_&site=".$encSite,
 		"PARAMS"=>array("width"=>780, "height"=>570, "resize"=>true)), "editor");
-	$url = str_replace("#PATH#", "'+path+'", $url);
+	$url = str_replace("_PATH_", "'+path+'", $url);
 	echo $url.";";
 ?>
 };
 
 window.structEditFileHtml = function(path)
 {
-	//structShowSubDialog();
-<?
+<?php
 	$url = $APPLICATION->GetPopupLink(Array(
-		"URL"=>"/bitrix/admin/public_file_edit.php?bxpublic=Y&subdialog=Y&lang=".$encLang."&noeditor=Y&path=#PATH#&site=".$encSite,
+		"URL"=>"/bitrix/admin/public_file_edit.php?bxpublic=Y&subdialog=Y&lang=".$encLang."&noeditor=Y&path=_PATH_&site=".$encSite,
 		"PARAMS"=>array("width"=>780, "height"=>570, "resize"=>true)), "editor");
-	$url = str_replace("#PATH#", "'+path+'", $url);
+	$url = str_replace("_PATH_", "'+path+'", $url);
 	echo $url.";";
 ?>
 };
@@ -468,11 +458,11 @@ window.structEditFileHtml = function(path)
 window.structFileProp = function(path)
 {
 	structShowSubDialog();
-<?
+<?php
 	$url = $APPLICATION->GetPopupLink(Array(
-		"URL"=>"/bitrix/admin/public_file_property.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=#PATH#",
+		"URL"=>"/bitrix/admin/public_file_property.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=_PATH_",
 		"PARAMS" => Array("min_width"=>450, "min_height" => 250)), "subdialog");
-	$url = str_replace("#PATH#", "'+path+'", $url);
+	$url = str_replace("_PATH_", "'+path+'", $url);
 	echo $url.";";
 ?>
 };
@@ -480,11 +470,11 @@ window.structFileProp = function(path)
 window.structDelFile = function(path)
 {
 	structShowSubDialog();
-<?
+<?php
 	$url = $APPLICATION->GetPopupLink(array(
-		"URL" => "/bitrix/admin/public_file_delete.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=#PATH#",
+		"URL" => "/bitrix/admin/public_file_delete.php?subdialog=Y&lang=".$encLang."&site=".$encSite."&path=_PATH_",
 		"PARAMS" => Array("min_width"=>250, "min_height" => 150, 'height' => 150, 'width' => 350)), "subdialog");
-	$url = str_replace("#PATH#", "'+path+'", $url);
+	$url = str_replace("_PATH_", "'+path+'", $url);
 	echo $url.";";
 ?>
 };
@@ -505,7 +495,7 @@ window.structShowDirMenu = function(el, dirsonly, arPerm)
 		{'ICONCLASS': 'panel-folder-props', 'TEXT': '<?=CUtil::JSEscape(GetMessage("pub_struct_folder_prop"))?>', 'ONCLICK': 'structEditFolder(\''+path+'\')', 'TITLE': '<?=CUtil::JSEscape(GetMessage("pub_struct_folder_prop_title"))?>', 'DISABLED':!arPerm.edit_folder},
 		{'ICONCLASS': 'panel-folder-access', 'TEXT': '<?=CUtil::JSEscape(GetMessage("pub_struct_folder_access"))?>', 'ONCLICK': 'structAccessDialog(\''+path+'\')', 'TITLE': '<?=CUtil::JSEscape(GetMessage("pub_struct_folder_access_title"))?>', 'DISABLED':!arPerm.edit_perm}
 	];
-<?if($bFileman):?>
+<?php if($bFileman):?>
 	if(unescape(path) != '/')
 	{
 		items[items.length] = {'SEPARATOR':true};
@@ -513,7 +503,7 @@ window.structShowDirMenu = function(el, dirsonly, arPerm)
 	}
 	items[items.length] = {'SEPARATOR':true};
 	items[items.length] = {'TEXT': '<?=CUtil::JSEscape(GetMessage("pub_struct_cp"))?>', 'ONCLICK': 'jsUtils.Redirect(arguments, \'/bitrix/admin/fileman_admin.php?lang=<?=$encLang?>&site=<?=$encSite?>&path='+path+'\')', 'TITLE': '<?=CUtil::JSEscape(GetMessage("pub_struct_cp_title"))?>'};
-<?endif;?>
+<?php endif;?>
 
 	window.structShowMenu(el, items, dirsonly);
 };
@@ -803,28 +793,27 @@ jsDD.registerContainer(BX.WindowManager.Get().GetContent());
 
 </script>
 
-<?
+<?php
 $obJSPopup->ShowTitlebar();
 $obJSPopup->StartDescription('bx-structure');
 ?>
-<p><b><?echo GetMessage("pub_struct_desc_title")?></b></p>
-<div class="bx-struct-settings" onclick="structShowSettingsMenu(this)" onmouseover="this.className+=' bx-struct-settings-over'" onmouseout="this.className=this.className.replace(/\s*bx-struct-settings-over/ig, '')" title="<?echo GetMessage("pub_struct_settings_title")?>"><?echo GetMessage("pub_struct_settings")?></div>
-<div class="bx-struct-settings bx-struct-button" onclick="structOpenDirs(this)" onmouseover="this.className+=' bx-struct-settings-over'" onmouseout="this.className=this.className.replace(/\s*bx-struct-settings-over/ig, '')" title="<?echo GetMessage("pub_struct_folders_title")?>"><?echo GetMessage("pub_struct_folders_button")?></div>
+<p><b><?= GetMessage("pub_struct_desc_title")?></b></p>
+<div class="bx-struct-settings" onclick="structShowSettingsMenu(this)" onmouseover="this.className+=' bx-struct-settings-over'" onmouseout="this.className=this.className.replace(/\s*bx-struct-settings-over/ig, '')" title="<?= GetMessage("pub_struct_settings_title")?>"><?= GetMessage("pub_struct_settings")?></div>
+<div class="bx-struct-settings bx-struct-button" onclick="structOpenDirs(this)" onmouseover="this.className+=' bx-struct-settings-over'" onmouseout="this.className=this.className.replace(/\s*bx-struct-settings-over/ig, '')" title="<?= GetMessage("pub_struct_folders_title")?>"><?= GetMessage("pub_struct_folders_button")?></div>
 <br />
 <br style="clear:both;" />
-<?
+<?php
 $obJSPopup->StartContent();
 ?>
 <div id="structure_content">
-<?
+<?php
 //display first level tree
 $arRoot = __struct_get_file_info($DOC_ROOT, "/");
 echo __struct_show_files(array($arRoot), $DOC_ROOT, "", _normalizePath($_GET["path"]));
 ?>
 </div>
-<?
+<?php
 $obJSPopup->ShowStandardButtons(array("close"));
 ?>
-<?
+<?php
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
-?>

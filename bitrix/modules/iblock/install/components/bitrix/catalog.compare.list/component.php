@@ -52,7 +52,11 @@ if (!isset($_SESSION[$arParams["NAME"]][$arParams["IBLOCK_ID"]]) || !is_array($_
 if (!isset($_SESSION[$arParams["NAME"]][$arParams["IBLOCK_ID"]]["ITEMS"]) || !is_array($_SESSION[$arParams["NAME"]][$arParams["IBLOCK_ID"]]["ITEMS"]))
 	$_SESSION[$arParams["NAME"]][$arParams["IBLOCK_ID"]]["ITEMS"] = array();
 
-if (isset($_REQUEST[$arParams['ACTION_VARIABLE']]) && isset($_REQUEST[$arParams['PRODUCT_ID_VARIABLE']]))
+if (
+	isset($_REQUEST[$arParams['ACTION_VARIABLE']])
+	&& is_string($_REQUEST[$arParams['ACTION_VARIABLE']])
+	&& isset($_REQUEST[$arParams['PRODUCT_ID_VARIABLE']])
+)
 {
 	$successfulAction = true;
 	$actionMessage = '';
@@ -62,7 +66,7 @@ if (isset($_REQUEST[$arParams['ACTION_VARIABLE']]) && isset($_REQUEST[$arParams[
 	$resultCount = 0;
 	if ($productID > 0)
 	{
-		switch (ToUpper($_REQUEST[$arParams['ACTION_VARIABLE']]))
+		switch (mb_strtoupper($_REQUEST[$arParams['ACTION_VARIABLE']]))
 		{
 			case 'ADD_TO_COMPARE_LIST':
 				$actionMessage = GetMessage('CP_BCCL_MESS_SUCCESSFUL_ADD_TO_COMPARE');

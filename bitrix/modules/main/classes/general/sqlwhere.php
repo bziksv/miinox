@@ -3,11 +3,26 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2019 Bitrix
+ * @copyright 2001-2024 Bitrix
  */
 
 use Bitrix\Main\ORM\Query\Filter;
 
+/**
+ * array("LOGIC"=>"AND",
+ * 	"="."K1" => value,
+ * 	"="."K2" => value,
+ * 	array("LOGIC"=>"OR",
+ * 	"="."K3" => value,
+ * 	"="."K3" => value,
+ * ),
+ * array("LOGIC"=>"OR",
+ * 	"="."K4" => value,
+ * 	"="."K4" => value,
+ * ),
+ * )
+ * K1=value and K2=value and (k3=value or k3=value) and (k4=value or k4=value)
+ */
 class CAllSQLWhere
 {
 	const FT_MIN_TOKEN_SIZE = 3;
@@ -36,7 +51,7 @@ class CAllSQLWhere
 		"=%" => "M", //Identical by like
 		"%=" => "M", //Identical by like
 		"!@" => "NIN", //not in
-		"==" => "SE",  // strong equality (no is null)
+		"==" => "SE",  // strong equality (not is null)
 		"=" => "I", //Identical
 		"%" => "S", //substring
 		"?" => "?", //logical
@@ -56,12 +71,15 @@ class CAllSQLWhere
 
 	public function _Empty($field)
 	{
-		return "(".$field." IS NULL)";
+		return "(".$field." IS NULL OR ".$field." = '')";
 	}
 
 	public function _NotEmpty($field)
 	{
-		return "(".$field." IS NOT NULL)";
+		$connection = \Bitrix\Main\Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		return "(".$field." IS NOT NULL AND " . $helper->getLengthFunction($field) . " > 0)";
 	}
 
 	public function _StringEQ($field, $sql_value)
@@ -131,27 +149,29 @@ class CAllSQLWhere
 
 	public function match($field, $fieldValue, $wildcard)
 	{
-		global $DB;
-
-		if(!is_array($fieldValue))
+		if (!is_array($fieldValue))
 		{
 			$fieldValue = array($fieldValue);
 		}
 		$orValues = array();
 		$wildcard = ($wildcard? "*" : "");
 
-		foreach($fieldValue as $value)
+		foreach ($fieldValue as $value)
 		{
 			$match = Filter\Helper::matchAgainstWildcard($value, $wildcard);
-			if($match <> '')
+			if ($match <> '')
 			{
 				$orValues[] = $match;
 			}
 		}
+
 		if(!empty($orValues))
 		{
-			$value = implode(" ", $orValues);
-			return "MATCH (".$field.") AGAINST ('".$DB->ForSQL($value)."' IN BOOLEAN MODE)";
+			$connection = \Bitrix\Main\Application::getConnection();
+			$helper = $connection->getSqlHelper();
+			$value = $helper->getMatchOrExpression($orValues);
+
+			return $helper->getMatchFunction($field, "'" . $helper->forSql($value) . "'");
 		}
 
 		return '';
@@ -322,44 +342,53 @@ class CAllSQLWhere
 					$FIELD_NAME = $this->fields[$key]["FIELD_NAME"];
 					$FIELD_TYPE = $this->fields[$key]["FIELD_TYPE"];
 					//Handle joins logic
-					$this->c_joins[$key]++;
-					if(
-						(
-							($operation=="I" || $operation=="E" || $operation=="S" || $operation=="M")
-							&& (
-								is_scalar($value)
-								&& (
-									($FIELD_TYPE=="int" && intval($value)==0)
-									|| ($FIELD_TYPE=="double" && doubleval($value)==0)
-									|| $value == ''
-								)
-							)
-						)
-						||
-						(
-							($operation=="NI" || $operation=="N" || $operation=="NS" || $operation=="NB" || $operation=="NM")
-							&& (
-								is_array($value)
-								|| (
-									($FIELD_TYPE=="int" && intval($value)!=0)
-									|| ($FIELD_TYPE=="double" && doubleval($value)!=0)
-									|| ($FIELD_TYPE!="int" && $FIELD_TYPE!="double" && is_scalar($value) && $value <> '')
-								)
-							)
-						)
-					)
+					if (!isset($this->c_joins[$key]))
 					{
-						if($logic == "OR")
-							$arJoins[$this->fields[$key]["TABLE_ALIAS"]] |= true;
-						else
-							$arJoins[$this->fields[$key]["TABLE_ALIAS"]] &= true;
+						$this->c_joins[$key] = 0;
 					}
-					else
+					$this->c_joins[$key]++;
+
+					if (!empty($this->fields[$key]["TABLE_ALIAS"]))
 					{
-						if($logic == "OR")
-							$arJoins[$this->fields[$key]["TABLE_ALIAS"]] |= false;
+						if(
+							(
+								($operation=="I" || $operation=="E" || $operation=="S" || $operation=="M")
+								&& (
+									is_scalar($value)
+									&& (
+										($FIELD_TYPE=="int" && intval($value)==0)
+										|| ($FIELD_TYPE=="double" && doubleval($value)==0)
+										|| $value == ''
+									)
+								)
+							)
+							||
+							(
+								($operation=="NI" || $operation=="N" || $operation=="NS" || $operation=="NB" || $operation=="NM")
+								&& !is_object($value)
+								&& (
+									is_array($value)
+									|| (
+										($FIELD_TYPE=="int" && intval($value)!=0)
+										|| ($FIELD_TYPE=="double" && doubleval($value)!=0)
+										|| ($FIELD_TYPE!="int" && $FIELD_TYPE!="double" && is_scalar($value) && $value <> '')
+									)
+								)
+							)
+						)
+						{
+							if($logic == "OR")
+								$arJoins[$this->fields[$key]["TABLE_ALIAS"]] |= true;
+							else
+								$arJoins[$this->fields[$key]["TABLE_ALIAS"]] &= true;
+						}
 						else
-							$arJoins[$this->fields[$key]["TABLE_ALIAS"]] &= false;
+						{
+							if($logic == "OR")
+								$arJoins[$this->fields[$key]["TABLE_ALIAS"]] |= false;
+							else
+								$arJoins[$this->fields[$key]["TABLE_ALIAS"]] &= false;
+						}
 					}
 
 					switch($FIELD_TYPE)
@@ -478,6 +507,10 @@ class CAllSQLWhere
 				else
 					$result[] = "1=1";
 			}
+			elseif ($FIELD_VALUE instanceof \Bitrix\Main\DB\SqlExpression)
+			{
+				$result[] = $FIELD_NAME." <> ".$FIELD_VALUE->compile();
+			}
 			elseif ($FIELD_VALUE == 0)
 				$result[] = "(".$FIELD_NAME." IS NOT NULL AND ".$FIELD_NAME." <> 0)";
 			else
@@ -488,7 +521,20 @@ class CAllSQLWhere
 			break;
 		case "G":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." > ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." > ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
+			elseif ($FIELD_VALUE instanceof \Bitrix\Main\DB\SqlExpression)
+			{
+				$result[] = $FIELD_NAME." > ".$FIELD_VALUE->compile();
+			}
 			else
 				$result[] = $FIELD_NAME." > ".$FIELD_VALUE;
 
@@ -497,7 +543,20 @@ class CAllSQLWhere
 			break;
 		case "L":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." < ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." < ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
+			elseif ($FIELD_VALUE instanceof \Bitrix\Main\DB\SqlExpression)
+			{
+				$result[] = $FIELD_NAME." < ".$FIELD_VALUE->compile();
+			}
 			else
 				$result[] = $FIELD_NAME." < ".$FIELD_VALUE;
 
@@ -506,7 +565,20 @@ class CAllSQLWhere
 			break;
 		case "GE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." >= ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
+			elseif ($FIELD_VALUE instanceof \Bitrix\Main\DB\SqlExpression)
+			{
+				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE->compile();
+			}
 			else
 				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE;
 
@@ -515,7 +587,20 @@ class CAllSQLWhere
 			break;
 		case "LE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." <= ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
+			elseif ($FIELD_VALUE instanceof \Bitrix\Main\DB\SqlExpression)
+			{
+				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE->compile();
+			}
 			else
 				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE;
 
@@ -626,7 +711,16 @@ class CAllSQLWhere
 			break;
 		case "G":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." > ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." > ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." > ".$FIELD_VALUE;
 
@@ -635,7 +729,19 @@ class CAllSQLWhere
 			break;
 		case "L":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." < ".$FIELD_VALUE[0];
+			{
+				if (is_array($FIELD_VALUE))
+				{
+					if (isset($FIELD_VALUE[0]))
+					{
+						$result[] = $FIELD_NAME." < ".$FIELD_VALUE[0];
+					}
+					else
+					{
+						$result[] = "1=0";
+					}
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." < ".$FIELD_VALUE;
 
@@ -644,7 +750,19 @@ class CAllSQLWhere
 			break;
 		case "GE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE[0];
+			{
+				if (is_array($FIELD_VALUE))
+				{
+					if (isset($FIELD_VALUE[0]))
+					{
+						$result[] = $FIELD_NAME." >= ".$FIELD_VALUE[0];
+					}
+					else
+					{
+						$result[] = "1=0";
+					}
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE;
 
@@ -653,7 +771,16 @@ class CAllSQLWhere
 			break;
 		case "LE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." <= ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE;
 
@@ -693,12 +820,12 @@ class CAllSQLWhere
 			if ($operation=="S" || $operation=="NS")
 			{
 				foreach ($value as $val)
-					$FIELD_VALUE[] = $this->ForLIKE(mb_strtoupper($val));
+					$FIELD_VALUE[] = $this->ForLIKE(mb_strtoupper((string)$val));
 			}
 			else
 			{
 				foreach ($value as $val)
-					$FIELD_VALUE[] = $DB->ForSQL($val);
+					$FIELD_VALUE[] = $DB->ForSQL((string)$val);
 			}
 		}
 		elseif (is_object($value))
@@ -708,9 +835,9 @@ class CAllSQLWhere
 		else
 		{
 			if ($operation=="S" || $operation=="NS")
-				$FIELD_VALUE = $this->ForLIKE(mb_strtoupper($value));
+				$FIELD_VALUE = $this->ForLIKE(mb_strtoupper((string)$value));
 			else
-				$FIELD_VALUE = $DB->ForSQL($value);
+				$FIELD_VALUE = $DB->ForSQL((string)$value);
 		}
 
 		switch ($operation)
@@ -836,7 +963,16 @@ class CAllSQLWhere
 			break;
 		case "G":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." > '".$FIELD_VALUE[0]."'";
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." > '".$FIELD_VALUE[0]."'";
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			elseif (is_object($FIELD_VALUE))
 				$result[] = $FIELD_NAME." > ".$FIELD_VALUE->compile();
 			else
@@ -847,7 +983,16 @@ class CAllSQLWhere
 			break;
 		case "L":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." < '".$FIELD_VALUE[0]."'";
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." < '".$FIELD_VALUE[0]."'";
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			elseif (is_object($FIELD_VALUE))
 				$result[] = $FIELD_NAME." < ".$FIELD_VALUE->compile();
 			else
@@ -858,7 +1003,16 @@ class CAllSQLWhere
 			break;
 		case "GE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." >= '".$FIELD_VALUE[0]."'";
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." >= '".$FIELD_VALUE[0]."'";
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			elseif (is_object($FIELD_VALUE))
 				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE->compile();
 			else
@@ -869,7 +1023,16 @@ class CAllSQLWhere
 			break;
 		case "LE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." <= '".$FIELD_VALUE[0]."'";
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." <= '".$FIELD_VALUE[0]."'";
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			elseif (is_object($FIELD_VALUE))
 				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE->compile();
 			else
@@ -1018,7 +1181,16 @@ class CAllSQLWhere
 			break;
 		case "G":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." > ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." > ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." > ".$FIELD_VALUE;
 
@@ -1027,7 +1199,16 @@ class CAllSQLWhere
 			break;
 		case "L":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." < ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." < ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." < ".$FIELD_VALUE;
 
@@ -1036,7 +1217,16 @@ class CAllSQLWhere
 			break;
 		case "GE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." >= ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." >= ".$FIELD_VALUE;
 
@@ -1045,7 +1235,16 @@ class CAllSQLWhere
 			break;
 		case "LE":
 			if (is_array($FIELD_VALUE))
-				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE[0];
+			{
+				if (isset($FIELD_VALUE[0]))
+				{
+					$result[] = $FIELD_NAME." <= ".$FIELD_VALUE[0];
+				}
+				else
+				{
+					$result[] = "1=0";
+				}
+			}
 			else
 				$result[] = $FIELD_NAME." <= ".$FIELD_VALUE;
 
@@ -1108,7 +1307,7 @@ class CSQLWhereExpression
 		$this->i = -1;
 
 		// string (default), integer (i), float (f), numeric (n), date (d), time (t)
-		$value = preg_replace_callback('/(?:[^\\\\]|^)(\?[#sif]?)/', array($this, 'execPlaceholders'), $this->expression);
+		$value = preg_replace_callback('/(?:[^\\\\]|^)(\?[#sifv]?)/', array($this, 'execPlaceholders'), $this->expression);
 		$value = str_replace('\?', '?', $value);
 
 		return $value;
@@ -1135,6 +1334,13 @@ class CSQLWhereExpression
 
 				return $helper->quote($value);
 			}
+			elseif ($id == '?v')
+			{
+				$connection = \Bitrix\Main\Application::getConnection();
+				$helper = $connection->getSqlHelper();
+
+				return $helper->values($value);
+			}
 			elseif ($id == '?i')
 			{
 				return (int) $value;
@@ -1149,18 +1355,6 @@ class CSQLWhereExpression
 	}
 }
 
-/*
-		array("LOGIC"=>"AND",
-			"="."K1" => value,
-			"="."K2" => value,
-			array("LOGIC"=>"OR",
-				"="."K3" => value,
-				"="."K3" => value,
-			),
-			array("LOGIC"=>"OR",
-				"="."K4" => value,
-				"="."K4" => value,
-			),
-		)
-		K1=value and K2=value and (k3=value or k3=value) and (k4=value or k4=value)
-*/
+class CSQLWhere extends CAllSQLWhere
+{
+}

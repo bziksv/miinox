@@ -1,6 +1,5 @@
-<?
+<?php
 
-/*patchlimitationmutatormark1*/
 CModule::AddAutoloadClasses(
 	"fileman",
 	array(
@@ -24,7 +23,6 @@ IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/lang.ph
 include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/admin_tools.php");
 include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/fileman.php");
 include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/properties.php");
-/*patchlimitationmutatormark2*/
 
 CJSCore::RegisterExt('file_input', array(
 	'js' => '/bitrix/js/fileman/core_file_input.js',
@@ -74,16 +72,9 @@ CJSCore::RegisterExt('userfield_address', array(
 ));
 
 CJSCore::RegisterExt('player', [
-	'js' => [
-		'/bitrix/js/fileman/player/fileman_player.js',
-		'/bitrix/js/fileman/player/videojs/video.js',
-	],
-	'css' => [
-		'/bitrix/js/fileman/player/videojs/video-js.css',
-	],
 	'rel' => [
-		'ui.design-tokens',
-	]
+		'ui.video-player',
+	],
 ]);
 
 //on update method still not exist

@@ -63,7 +63,7 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_6_TWO_COLS_BIG_IMG_TEXT_AND_TEXT_BLOCKS_STYLE_LANDINGBLOCKNODETEXT'),
 			'type' => 'typo',
 		],
-		'.landing-block-card-text-block article' => [
+		'.landing-block-card-text-block' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_6_TWO_COLS_BIG_IMG_TEXT_AND_TEXT_BLOCKS_CARDS_LANDINGBLOCKCARDTEXTBLOCK'),
 			'type' => ['box', 'paddings', 'border-colors', 'animation'],
 		],
@@ -82,6 +82,10 @@ return [
 		'.landing-block-node-img' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_6_TWO_COLS_BIG_IMG_TEXT_AND_TEXT_BLOCKS_NODES_LANDINGBLOCKNODEIMG'),
 			'type' => 'background-size',
+		],
+		'.landing-block-card-text-inner' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_6_TWO_COLS_BIG_IMG_TEXT_AND_TEXT_BLOCKS_CARDS_LANDINGBLOCKCARDTEXTBLOCK'),
+			'type' => 'box',
 		],
 	],
 ];

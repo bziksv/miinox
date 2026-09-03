@@ -1051,6 +1051,11 @@ BX["UI"].FileInput.prototype = {
 	},
 	replaceHint : function(item)
 	{
+		if (!this.agent)
+		{
+			return;
+		}
+
 		var id = item.id,
 			node = this.agent.getItem(item.id).node;
 		if (node.hint)
@@ -4610,3 +4615,4 @@ CanvasMapMaster.prototype = {
 var frameMaster = new FrameMaster();
 
 })();
+

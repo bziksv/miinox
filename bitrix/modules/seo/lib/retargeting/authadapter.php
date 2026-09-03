@@ -6,6 +6,7 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\Web\Uri;
 use Bitrix\Seo\BusinessSuite\Utils\QueueRemoveEventHandler;
+use Bitrix\Seo\Region\VkAvailability;
 use Bitrix\Seo\Service;
 use Bitrix\Seo\Service as SeoService;
 
@@ -40,13 +41,22 @@ class AuthAdapter
 	 * @throws \Bitrix\Main\LoaderException
 	 * @throws SystemException
 	 */
-	public static function create($type, IService $service = null)
+	public static function create($type, IService $service = null, bool $ignoreType = false)
 	{
 		if (!Loader::includeModule('socialservices'))
 		{
 			throw new SystemException('Module "socialservices" not installed.');
 		}
-		$instance = new static($type);
+
+		if ($type === 'facebook' && !$ignoreType)
+		{
+			$instance = new \Bitrix\Seo\Retargeting\FacebookAuthAdapter($type);
+		}
+		else
+		{
+			$instance = new static($type);
+		}
+
 		if ($service)
 		{
 			$instance->setService($service);
@@ -79,9 +89,21 @@ class AuthAdapter
 
 	public function getAuthUrl()
 	{
+		if (VkAvailability::isVkEngineCode($this->getEngineCode()) && !VkAvailability::isAvailable())
+		{
+			return '';
+		}
+
 		if (!SeoService::isRegistered())
 		{
-			SeoService::register();
+			try
+			{
+				SeoService::register();
+			}
+			catch (SystemException $e)
+			{
+				return '';
+			}
 		}
 
 		$authorizeData = SeoService::getAuthorizeData(
@@ -203,7 +225,7 @@ class AuthAdapter
 	 */
 	public function getClientList()
 	{
-		return $this->canUseMultipleClients() ? SeoService::getClientList($this->getEngineCode()) : [];
+		return $this->canUseMultipleClients() ? SeoService::getClientList($this->getEngineCode(), $this->type) : [];
 	}
 
 	public function getClientById($clientId)

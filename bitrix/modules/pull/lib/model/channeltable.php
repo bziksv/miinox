@@ -1,9 +1,8 @@
 <?php
 namespace Bitrix\Pull\Model;
 
-use Bitrix\Main,
-	Bitrix\Main\Localization\Loc;
-Loc::loadMessages(__FILE__);
+use Bitrix\Pull\Internals\UpdateByFilterTrait;
+use Bitrix\Main;
 
 /**
  * Class ChannelTable
@@ -16,7 +15,7 @@ Loc::loadMessages(__FILE__);
  * <li> CHANNEL_ID string(50) mandatory
  * <li> LAST_ID int optional
  * <li> DATE_CREATE datetime mandatory
- * <li> USER reference to {@link \Bitrix\User\UserTable}
+ * <li> USER reference to {@link \Bitrix\Main\UserTable}
  * </ul>
  *
  * @package Bitrix\Pull
@@ -37,6 +36,9 @@ Loc::loadMessages(__FILE__);
 
 class ChannelTable extends Main\Entity\DataManager
 {
+	use Main\ORM\Data\Internal\MergeTrait;
+	use UpdateByFilterTrait;
+
 	/**
 	 * Returns DB table name for entity.
 	 *
@@ -117,12 +119,10 @@ class ChannelTable extends Main\Entity\DataManager
 
 	/**
 	 * Return current date for DATE_CREATE field.
-	 *
-	 * @return array
 	 */
-	public static function getCurrentDate()
+	public static function getCurrentDate(): Main\Type\DateTime
 	{
-		return new \Bitrix\Main\Type\DateTime();
+		return new Main\Type\DateTime();
 	}
 }
 

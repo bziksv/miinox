@@ -726,7 +726,7 @@ this.BX.UI = this.BX.UI || {};
 	  getSelectPhotoButton() {
 	    return this.cache.remember('selectPhotoButton', () => {
 	      return new ui_buttons.Button({
-	        text: main_core.Loc.getMessage('UI_STAMP_UPLOADER_SELECT_PHOTO_BUTTON_LABEL'),
+	        text: main_core.Loc.getMessage('UI_STAMP_UPLOADER_SELECT_PHOTO_BUTTON_LABEL_1'),
 	        color: ui_buttons.Button.Color.LIGHT_BORDER,
 	        size: ui_buttons.Button.Size.LARGE,
 	        icon: ui_buttons.Button.Icon.DOWNLOAD,
@@ -774,6 +774,7 @@ this.BX.UI = this.BX.UI || {};
 	    this.subscribeFromOptions(options.events);
 	    this.setOptions(options);
 	    this.cache.remember('fileUploader', () => {
+	      var _this$getOptions$cont;
 	      const dropzoneLayout = this.getDropzone().getLayout();
 	      const previewLayout = this.getPreview().getLayout();
 	      const fileSelectButtonLayout = this.getFileSelect().getLayout();
@@ -782,22 +783,23 @@ this.BX.UI = this.BX.UI || {};
 	          event.stopImmediatePropagation();
 	        }
 	      });
+	      const acceptedFileTypes = ['image/png', 'image/jpeg'];
 	      return new ui_uploader_core.Uploader({
-	        controller: this.getOptions().controller.upload,
+	        controller: (_this$getOptions$cont = this.getOptions().controller) == null ? void 0 : _this$getOptions$cont.upload,
 	        assignAsFile: true,
 	        browseElement: [dropzoneLayout, previewLayout, fileSelectButtonLayout, this.getHiddenInput()],
 	        dropElement: [dropzoneLayout, previewLayout],
 	        imagePreviewHeight: 556,
 	        imagePreviewWidth: 1000,
 	        autoUpload: false,
-	        acceptedFileTypes: ['image/png', 'image/jpeg'],
+	        acceptedFileTypes,
 	        events: {
 	          [ui_uploader_core.UploaderEvent.FILE_ADD]: event => {
 	            const {
 	              file,
 	              error
 	            } = event.getData();
-	            if (main_core.Type.isNil(error)) {
+	            if (main_core.Type.isNil(error) && ui_uploader_core.Helpers.isValidFileType(file.getBinary(), acceptedFileTypes)) {
 	              this.getPreview().show(file.getClientPreview());
 	              this.setUploaderFile(file);
 	              if (this.getMode() === Uploader.Mode.SLIDER) {
@@ -1001,6 +1003,13 @@ this.BX.UI = this.BX.UI || {};
 	        const [resultFile] = this.getFileUploader().getFiles();
 	        resultFile.subscribeOnce(ui_uploader_core.FileEvent.LOAD_COMPLETE, () => {
 	          this.getPreview().hide();
+	          const {
+	            controller
+	          } = this.getOptions();
+	          if (!controller) {
+	            resolve(resultFile);
+	            return;
+	          }
 	          this.getStatus().showUploadStatus({
 	            reset: true
 	          });
@@ -1030,6 +1039,14 @@ this.BX.UI = this.BX.UI || {};
 	          const saveButton = this.getInlineSaveButton();
 	          saveButton.setWaiting(true);
 	          this.upload().then(uploaderFile => {
+	            const {
+	              controller
+	            } = this.getOptions();
+	            if (!controller) {
+	              return this.emitAsync('onSaveAsync', {
+	                file: uploaderFile.toJSON()
+	              });
+	            }
 	            return Promise.all([new Promise(resolve => {
 	              babelHelpers.classPrivateFieldLooseBase(Uploader, _delay)[_delay](() => {
 	                this.getPreview().show(uploaderFile.getClientPreview());
@@ -1092,20 +1109,25 @@ this.BX.UI = this.BX.UI || {};
 	                this.setIsChanged(false);
 	                babelHelpers.classPrivateFieldLooseBase(this, _setPreventConfirmShow)[_setPreventConfirmShow](true);
 	                this.upload().then(uploaderFile => {
-	                  babelHelpers.classPrivateFieldLooseBase(Uploader, _delay)[_delay](() => {
-	                    this.getPreview().show(uploaderFile.getClientPreview());
-	                    this.getStatus().showPreparingStatus();
-	                  }, 1000);
-	                  return this.emitAsync('onSaveAsync', {
+	                  return Promise.all([new Promise(resolve => {
+	                    babelHelpers.classPrivateFieldLooseBase(Uploader, _delay)[_delay](() => {
+	                      this.getPreview().show(uploaderFile.getClientPreview());
+	                      this.getStatus().showPreparingStatus();
+	                      resolve();
+	                    }, 1000);
+	                  }), this.emitAsync('onSaveAsync', {
 	                    file: uploaderFile.toJSON()
-	                  });
+	                  })]);
 	                }).then(() => {
 	                  this.getStatus().hide();
 	                  babelHelpers.classPrivateFieldLooseBase(Uploader, _delay)[_delay](() => {
 	                    saveButton.setWaiting(false);
 	                    saveButton.setDisabled(true);
 	                    this.getActionPanel().disable();
-	                    BX.SidePanel.Instance.close();
+	                    const topSlider = BX.SidePanel.Instance.getTopSlider();
+	                    if (topSlider && topSlider.url === 'stampUploader') {
+	                      topSlider.close();
+	                    }
 	                  }, 500);
 	                });
 	              }

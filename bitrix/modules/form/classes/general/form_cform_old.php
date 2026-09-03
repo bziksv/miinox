@@ -5,9 +5,8 @@ class CForm_old
 	public static function GetFileValue($RESULT_ID, $ANSWER_ID)
 	{
 		global $DB;
-		$err_mess = (CAllForm::err_mess())."<br>Function: GetFileValue<br>Line: ";
 		$strSql = "SELECT USER_FILE_ID FROM b_form_result_answer WHERE RESULT_ID='".intval($RESULT_ID)."' and ANSWER_ID='".intval($ANSWER_ID)."'";
-		$z = $DB->Query($strSql, false, $err_mess.__LINE__);
+		$z = $DB->Query($strSql);
 		$zr = $z->Fetch();
 		return $zr["USER_FILE_ID"];
 	}
@@ -15,7 +14,7 @@ class CForm_old
 	public static function Show($WEB_FORM_VARNAME, $arrVALUES=false, $SHOW_TEMPLATE=false, $PREVIEW="N")
 	{
 		global $DB, $MESS, $APPLICATION, $USER, $arrFIELDS;
-		$err_mess = (CAllForm::err_mess())."<br>Function: Show<br>Line: ";
+
 		if ($arrVALUES===false) $arrVALUES = $_REQUEST;
 
 		$z = CForm::GetBySID($WEB_FORM_VARNAME);
@@ -101,7 +100,6 @@ class CForm_old
 
 	public static function GetClosedFields($WEB_FORM_ID, $arrFields)
 	{
-		$err_mess = (CAllForm::err_mess())."<br>Function: GetClosedFields<br>Line: ";
 		global $DB;
 		$str = "";
 		if (is_array($arrFields) && count($arrFields)>0)
@@ -146,7 +144,7 @@ class CForm_old
 	{ return CFormResult::AddAnswer($arFields); }
 
 	public static function UpdateResultField($arFields, $RESULT_ID, $FIELD_ID)
-	{ return CFormResult::UpdateField($arFields, $RESULT_ID, $FIELD_ID); }
+	{ CFormResult::UpdateField($arFields, $RESULT_ID, $FIELD_ID); }
 
 	public static function DeleteResult($ID, $CHECK_RIGHTS="Y")
 	{ return CFormResult::Delete($ID, $CHECK_RIGHTS); }
@@ -155,10 +153,10 @@ class CForm_old
 	{ return CFormResult::Reset($ID, $DELETE_IMAGES, $DELETE_ADDITIONAL, $arrException); }
 
 	public static function ShowResult($RESULT_ID, $TEMPLATE="", $TEMPLATE_TYPE="show", $SHOW_ADDITIONAL="N", $SHOW_ANSWER_VALUE="Y", $SHOW_STATUS="N")
-	{ return CFormResult::Show($RESULT_ID, $TEMPLATE, $TEMPLATE_TYPE, $SHOW_ADDITIONAL, $SHOW_ANSWER_VALUE, $SHOW_STATUS); }
+	{ CFormResult::Show($RESULT_ID, $TEMPLATE, $TEMPLATE_TYPE, $SHOW_ADDITIONAL, $SHOW_ANSWER_VALUE, $SHOW_STATUS); }
 
 	public static function EditResult($RESULT_ID, $arrVALUES, $TEMPLATE="", $EDIT_ADDITIONAL="N", $EDIT_STATUS="N")
-	{ return CFormResult::Edit($RESULT_ID, $arrVALUES, $TEMPLATE, $EDIT_ADDITIONAL, $EDIT_STATUS); }
+	{ CFormResult::Edit($RESULT_ID, $arrVALUES, $TEMPLATE, $EDIT_ADDITIONAL, $EDIT_STATUS); }
 
 	public static function SetResultStatus($WEB_FORM_ID, $RESULT_ID, $NEW_STATUS_ID, $CHECK_RIGHTS="Y")
 	{ return CFormResult::SetStatus($RESULT_ID, $NEW_STATUS_ID, $CHECK_RIGHTS); }

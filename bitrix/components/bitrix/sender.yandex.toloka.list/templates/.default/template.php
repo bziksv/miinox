@@ -6,7 +6,7 @@ use Bitrix\Main\Web\Json;
 
 \Bitrix\Main\UI\Extension::load(['ui.hint', 'sender.error_handler', 'ui.info-helper']);
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
@@ -222,23 +222,8 @@ foreach ($arResult['ROWS'] as $index => $data)
 	);
 }
 
-ob_start();
-$APPLICATION->IncludeComponent(
-	"bitrix:main.ui.filter",
-	"",
-	array(
-		"FILTER_ID" => $arParams['FILTER_ID'],
-		"GRID_ID" => $arParams['GRID_ID'],
-		"FILTER" => $arResult['FILTERS'],
-		"FILTER_PRESETS" => $arResult['FILTER_PRESETS'],
-		'ENABLE_LIVE_SEARCH' => true,
-		"ENABLE_LABEL" => true,
-	)
-);
-$filterLayout = ob_get_clean();
-
-$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' => array(
-	array('type' => 'buttons', 'list' => [
+$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", ['LIST' => [
+	['type' => 'buttons', 'list' => [
 		$arParams['CAN_EDIT']
 			?
 			[
@@ -246,13 +231,20 @@ $APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' 
 				'id' => 'SENDER_LETTER_BUTTON_ADD',
 				'caption' => Loc::getMessage('SENDER_YANDEX_TOLOKA_TASK_ADD'),
 				'href' => $arResult['IS_AVAILABLE'] ? $arParams['PATH_TO_ADD'] : '#',
-				'onclick' => $arResult['IS_AVAILABLE'] ? '': "BX.UI.InfoHelper.show('limit_crm_marketing_toloka')"
+				'onclick' => $arResult['IS_AVAILABLE'] ? '': "BX.UI.InfoHelper.show('limit_integration_yandex_toloka')"
 			]
 			:
 			null
-	]),
-	array('type' => 'filter', 'content' => $filterLayout),
-)));
+	]],
+	['type' => 'filter', 'params' => [
+		"FILTER_ID" => $arParams['FILTER_ID'],
+		"GRID_ID" => $arParams['GRID_ID'],
+		"FILTER" => $arResult['FILTERS'],
+		"FILTER_PRESETS" => $arResult['FILTER_PRESETS'],
+		'ENABLE_LIVE_SEARCH' => true,
+		"ENABLE_LABEL" => true,
+	]],
+]]);
 
 
 $snippet = new \Bitrix\Main\Grid\Panel\Snippet();
@@ -297,7 +289,7 @@ $APPLICATION->IncludeComponent(
 
 
 ?>
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 
 			BX.Sender.LetterList.init(<?=Json::encode(array(

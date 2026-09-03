@@ -13,16 +13,13 @@ use Bitrix\Main\Engine\AutoWire\Parameter;
 use Bitrix\Main\Engine\Contract\RoutableAction;
 use Bitrix\Main\Engine\Response\Json;
 use Bitrix\Main\Loader;
-use Bitrix\Main\Routing\CompileCache;
 use Bitrix\Main\Routing\Controllers\PublicPageController;
-use Bitrix\Main\Routing\Router;
-use Bitrix\Main\Routing\RoutingConfigurator;
 use Bitrix\Main\SystemException;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/start.php");
 
 $application = Main\Application::getInstance();
-$application->initializeExtendedKernel(array(
+$application->initializeContext(array(
 	"get" => $_GET,
 	"post" => $_POST,
 	"files" => $_FILES,
@@ -31,48 +28,7 @@ $application->initializeExtendedKernel(array(
 	"env" => $_ENV
 ));
 
-$routes = new RoutingConfigurator();
-$router = new Router();
-$routes->setRouter($router);
-$application->setRouter($router);
-
-// files with routes
-$files = [];
-
-// user files
-$routingConfig = Main\Config\Configuration::getInstance()->get('routing');
-if (!empty($routingConfig['config']))
-{
-	$fileNames = $routingConfig['config'];
-
-	foreach ($fileNames as $fileName)
-	{
-		foreach (['local', 'bitrix'] as $vendor)
-		{
-			if (file_exists($_SERVER["DOCUMENT_ROOT"].'/'.$vendor.'/routes/'.basename($fileName)))
-			{
-				$files[] = $_SERVER["DOCUMENT_ROOT"].'/'.$vendor.'/routes/'.basename($fileName);
-			}
-		}
-	}
-}
-
-// system files
-if (file_exists($_SERVER["DOCUMENT_ROOT"].'/bitrix/routes/web_bitrix.php'))
-{
-	$files[] = $_SERVER["DOCUMENT_ROOT"].'/bitrix/routes/web_bitrix.php';
-}
-
-foreach ($files as $file)
-{
-	$callback = include $file;
-	$callback($routes);
-}
-
-$router->releaseRoutes();
-
-// cache for route compiled data
-CompileCache::handle($files, $router);
+$router = $application->getRouter();
 
 // match request
 $request = Context::getCurrent()->getRequest();
@@ -82,8 +38,8 @@ if ($route !== null)
 {
 	$application->setCurrentRoute($route);
 
-	// copy route parameters to the request
-	if ($route->getParametersValues())
+	// filling in global variables to reinitialize the context in include.php
+	if (!$route->getParametersValues()->isEmpty())
 	{
 		foreach ($route->getParametersValues()->getValues() as $name => $value)
 		{
@@ -95,17 +51,25 @@ if ($route !== null)
 	$_SERVER["REAL_FILE_PATH"] = '/bitrix/routing_index.php';
 	$controller = $route->getController();
 
+	$middlewares = $route->getOptions()->getMiddlewares();
+	foreach ($middlewares as $middleware)
+	{
+		if (is_callable($middleware))
+		{
+			call_user_func($middleware, $request);
+		}
+	}
+
 	if ($controller instanceof PublicPageController)
 	{
-		include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/virtual_io.php");
-		$io = CBXVirtualIo::GetInstance();
-
-		$_SERVER["REAL_FILE_PATH"] = $controller->getPath();
-
-		include_once($io->GetPhysicalName($_SERVER['DOCUMENT_ROOT'].$controller->getPath()));
-		die;
+		$controller->__invoke($route);
+		return;
 	}
-	elseif ($controller instanceof \Closure)
+
+	// disable PHYSICAL file permissions check, because we are using routing
+	define('NOT_CHECK_FILE_PERMISSIONS', true);
+
+	if ($controller instanceof \Closure)
 	{
 		$binder = Main\Engine\AutoWire\Binder::buildForFunction($controller);
 

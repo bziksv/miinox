@@ -2,11 +2,10 @@
 
 namespace Bitrix\Seo\Retargeting\Services;
 
-use \Bitrix\Main\Error;
-use \Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Text\Encoding;
-use \Bitrix\Main\Web\Json;
-use \Bitrix\Seo\Retargeting\Response;
+use Bitrix\Main\Error;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Web\Json;
+use Bitrix\Seo\Retargeting\Response;
 
 Loc::loadMessages(__FILE__);
 class ResponseVkontakte extends Response
@@ -15,17 +14,20 @@ class ResponseVkontakte extends Response
 
 	public function parse($data)
 	{
-		// Need for preserve double UTF-conversion, because VK return JSON answer in result
-		if (is_string($data))
+		$parsed = is_array($data) ? $data : Json::decode($data);
+
+		if (!is_array($parsed))
 		{
-			$data = Encoding::convertEncoding($data, SITE_CHARSET, 'UTF-8');
+			$this->setData([]);
+
+			return;
 		}
 
-		$parsed = is_array($data) ? $data : Json::decode($data);
-		if ($parsed['error'])
+		if (isset($parsed['error']))
 		{
-			$errorMessage = $parsed['error']['error_msg'];
-			switch ((string) $parsed['error']['error_code'])
+			$errorMessage = ((string)($parsed['error']['error_msg'] ?? ''));
+			$errorCode = ((string)($parsed['error']['error_code'] ?? ''));
+			switch ($errorCode)
 			{
 				case '100':
 					$errorMessage = Loc::getMessage(
@@ -41,11 +43,11 @@ class ResponseVkontakte extends Response
 			$errorMessage = Loc::getMessage('SEO_RETARGETING_SERVICE_RESPONSE_VKONTAKTE_ERROR')
 				. ': '
 				. $errorMessage;
-			$this->addError(new Error($errorMessage, $parsed['error']['error_code']));
+			$this->addError(new Error($errorMessage, $errorCode));
 		}
 
-		$result = array();
-		if ($parsed['response'])
+		$result = [];
+		if (isset($parsed['response']))
 		{
 			$result = $parsed['response'];
 		}

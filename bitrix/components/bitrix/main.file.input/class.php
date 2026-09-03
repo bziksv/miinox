@@ -1,16 +1,13 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 // ALLOW_UPLOAD = 'A'll files | 'I'mages | 'F'iles with selected extensions | 'N'one
 // ALLOW_UPLOAD_EXT = comma-separated list of allowed file extensions (ALLOW_UPLOAD='F')
 
+use Bitrix\Main\Error;
+use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Event;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Main\Application;
-use \Bitrix\Main\Web\Json;
-use \Bitrix\Main\ErrorCollection;
-use \Bitrix\Main\Error;
-use \Bitrix\Main\UI\Uploader\Uploader;
-use \Bitrix\Main\UI\FileInputUtility;
+
 include_once(__DIR__."/file.php");
+
 class MFIComponent extends \CBitrixComponent
 {
 	/** @var ErrorCollection */
@@ -19,6 +16,7 @@ class MFIComponent extends \CBitrixComponent
 	protected $componentId = '';
 	/** @var MFIController */
 	protected $controller;
+
 	public function __construct($component = null)
 	{
 		parent::__construct($component);
@@ -46,7 +44,7 @@ class MFIComponent extends \CBitrixComponent
 					"allowUploadExt" => $this->arParams["ALLOW_UPLOAD_EXT"],
 					"uploadMaxFilesize" => $this->arParams['MAX_FILE_SIZE']
 				));
-			$this->controller->checkRequest($this->arParams["CONTROL_ID"]);
+			$this->controller->checkRequest($this->arParams["CONTROL_UNIQUE_ID"]);
 
 			$this->arParams["URL_TO_UPLOAD"] = $this->controller->getUrlUpload();
 			$this->arParams["CONTROL_UID"] = $this->arResult["CONTROL_UID"] = $this->controller->getCid();
@@ -79,7 +77,7 @@ class MFIComponent extends \CBitrixComponent
 			$event->send();
 
 			$this->includeComponentTemplate();
-			return $this->arParams['CONTROL_ID'];
+			return $this->arParams['CONTROL_UNIQUE_ID'];
 		}
 		catch(\Exception $e)
 		{
@@ -99,6 +97,7 @@ class MFIComponent extends \CBitrixComponent
 		}
 		return false;
 	}
+
 	/**
 	 * Returns whether this is an AJAX (XMLHttpRequest) request.
 	 * @return boolean
@@ -107,6 +106,7 @@ class MFIComponent extends \CBitrixComponent
 	{
 		return $this->request->isAjaxRequest();
 	}
+
 	protected function prepareParams()
 	{
 		$arParams = &$this->arParams;
@@ -115,6 +115,17 @@ class MFIComponent extends \CBitrixComponent
 		$arParams['MODULE_ID'] = isset($arParams['MODULE_ID']) && IsModuleInstalled($arParams['MODULE_ID']) ? $arParams['MODULE_ID'] : "main";
 		$arParams['FORCE_MD5'] = isset($arParams['FORCE_MD5']) && $arParams['FORCE_MD5'] === true;
 		$arParams['CONTROL_ID'] = isset($arParams['CONTROL_ID']) && preg_match('/^[a-zA-Z0-9_\\-]+$/', $arParams['CONTROL_ID']) ? $arParams['CONTROL_ID'] : '';
+
+		$hasControlUniqueId = (
+			isset($arParams['CONTROL_UNIQUE_ID'])
+			&& preg_match('/^[a-zA-Z0-9_\\-]+$/', $arParams['CONTROL_UNIQUE_ID'])
+		);
+		$arParams['CONTROL_UNIQUE_ID'] = (
+			$hasControlUniqueId
+				? $arParams['CONTROL_UNIQUE_ID']
+				: $arParams['CONTROL_ID']
+		);
+
 // ALLOW_UPLOAD = 'A'll files | 'I'mages | 'F'iles with selected extensions | 'N'one
 // ALLOW_UPLOAD_EXT = comma-separated list of allowed file extensions (ALLOW_UPLOAD='F')
 
@@ -134,11 +145,11 @@ class MFIComponent extends \CBitrixComponent
 			$arParams['ALLOW_UPLOAD'] = 'A';
 		}
 
-		if (mb_substr($arParams['INPUT_NAME'], -2) == '[]')
+		if (isset($arParams['INPUT_NAME']) && str_ends_with($arParams['INPUT_NAME'], '[]'))
 		{
-			$arParams['INPUT_NAME'] = mb_substr($arParams['INPUT_NAME'], 0, -2);
+			$arParams['INPUT_NAME'] = substr($arParams['INPUT_NAME'], 0, -2);
 		}
-		if (mb_substr($arParams['INPUT_NAME_UNSAVED'], -2) == '[]')
+		if (isset($arParams['INPUT_NAME_UNSAVED']) && str_ends_with($arParams['INPUT_NAME_UNSAVED'], '[]'))
 		{
 			$arParams['INPUT_NAME_UNSAVED'] = mb_substr($arParams['INPUT_NAME_UNSAVED'], 0, -2);
 		}
@@ -147,14 +158,23 @@ class MFIComponent extends \CBitrixComponent
 			$arParams['INPUT_VALUE'] = [$arParams['INPUT_VALUE']];
 		}
 
-		$arResult['CONTROL_ID'] = $arParams['CONTROL_ID'] = (isset($arParams['CONTROL_ID']) && $arParams['CONTROL_ID'] != '' ? $arParams['CONTROL_ID'] : 'mfi'.$arParams['INPUT_NAME']);
+		$isEmptyControlId = empty($arParams['CONTROL_ID']);
+		$controlId = ($isEmptyControlId ? 'mfi' . $arParams['INPUT_NAME'] :  $arParams['CONTROL_ID']);
+		$arResult['CONTROL_ID'] = $controlId;
+		$arParams['CONTROL_ID'] = $controlId;
+
+		$isEmptyUniQueControlId = empty($arParams['CONTROL_UNIQUE_ID']);
+		$controlUniqueId = $isEmptyUniQueControlId ? $arParams['CONTROL_ID'] : $arParams['CONTROL_UNIQUE_ID'];
+		$arResult['CONTROL_UNIQUE_ID'] = $controlUniqueId;
+		$arParams['CONTROL_UNIQUE_ID'] = $controlUniqueId;
 
 		$arParams['INPUT_NAME'] = trim($arParams['INPUT_NAME'] ?? '');
 		if (!preg_match('/^[a-zA-Z0-9_]+$/', $arParams['INPUT_NAME']))
+		{
 			throw new \Bitrix\Main\ArgumentException(GetMessage('MFI_ERR_NO_INPUT_NAME'));
+		}
 
 		$arParams['MULTIPLE'] = isset($arParams['MULTIPLE']) && $arParams['MULTIPLE'] == 'N' ? 'N' : 'Y';
-
-		$arResult['FILES'] = array();
+		$arResult['FILES'] = [];
 	}
 }

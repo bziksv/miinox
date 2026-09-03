@@ -1,13 +1,15 @@
 <?php
 /** @global CMain $APPLICATION */
-use Bitrix\Main,
-	Bitrix\Main\Application,
-	Bitrix\Main\Loader,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Main\SiteTable,
-	Bitrix\Main\UserTable,
-	Bitrix\Main\Config\Option,
-	Bitrix\Sale;
+use Bitrix\Main;
+use Bitrix\Main\Application;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\SiteTable;
+use Bitrix\Main\UserTable;
+use Bitrix\Main\Config\Option;
+use Bitrix\Sale;
+use Bitrix\Main\Result;
+use Bitrix\Main\Error;
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/sale/prolog.php');
@@ -228,7 +230,25 @@ if (!$readOnly && $adminList->EditAction())
 		}
 
 		$conn->startTransaction();
-		$result = Sale\Internals\DiscountTable::update($ID, $fields);
+		$fields['ID'] = $ID;
+		if (CSaleDiscount::checkFields('UPDATE', $fields))
+		{
+			$result = Sale\Internals\DiscountTable::update($ID, $fields);
+		}
+		else
+		{
+			$result = new Result();
+			$exception = $APPLICATION->GetException();
+			if ($exception)
+			{
+				$result->addError(new Error($exception->GetString()));
+			}
+			else
+			{
+				$result->addError(new Error('Unknown error while updating discount'));
+			}
+		}
+
 		if ($result->isSuccess())
 		{
 			$conn->commitTransaction();
@@ -851,7 +871,19 @@ if (!$publicMode && \Bitrix\Sale\Update\CrmEntityCreatorStepper::isNeedStub())
 }
 else
 {
-	$adminList->DisplayFilter($filterFields);
-	$adminList->DisplayList();
+	$filterParams = [
+		'CONFIG' => [
+			'popupWidth' => 800,
+		],
+		'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+		'ENABLE_FIELDS_SEARCH' => 'Y',
+	];
+	$adminList->DisplayFilter($filterFields, $filterParams);
+
+	$listParams = [
+		'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+		'ENABLE_FIELDS_SEARCH' => 'Y',
+	];
+	$adminList->DisplayList($listParams);
 }
 require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin.php');

@@ -29,9 +29,9 @@ use Bitrix\Main\ORM\Fields\Relations;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Location_Query query()
- * @method static EO_Location_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Location_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Location_Result getById($id)
- * @method static EO_Location_Result getList(array $parameters = array())
+ * @method static EO_Location_Result getList(array $parameters = [])
  * @method static EO_Location_Entity getEntity()
  * @method static \Bitrix\Location\Model\EO_Location createObject($setDefaultValues = true)
  * @method static \Bitrix\Location\Model\EO_Location_Collection createCollection()
@@ -76,7 +76,9 @@ class LocationTable extends Main\ORM\Data\DataManager
 
 			new Fields\FloatField('LATITUDE', ['scale' => 6]),
 			new Fields\FloatField('LONGITUDE', ['scale' => 6]),
-			new Fields\DateField('TIMESTAMP_X'),
+			new Fields\DatetimeField('TIMESTAMP_X', [
+				'default_value' => static fn() => new Main\Type\DateTime(),
+			]),
 
 			(new Fields\IntegerField('TYPE'))
 				->configureRequired(true),
@@ -84,12 +86,6 @@ class LocationTable extends Main\ORM\Data\DataManager
 			// References
 
 			(new Relations\OneToMany('NAME', LocationNameTable::class, 'LOCATION'))
-				->configureJoinType('left'),
-
-			(new Relations\OneToMany('ANCESTORS', HierarchyTable::class, 'ANCESTOR'))
-				->configureJoinType('left'),
-
-			(new Relations\OneToMany('DESCENDANTS', HierarchyTable::class, 'DESCENDANT'))
 				->configureJoinType('left'),
 
 			(new Relations\OneToMany('ADDRESSES', AddressTable::class, 'LOCATION'))

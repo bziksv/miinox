@@ -12,6 +12,7 @@ use Bitrix\Sale\Payment;
 use Bitrix\Sale\PaySystem\ServiceResult;
 use Bitrix\Sale\PaymentCollection;
 use Bitrix\Sale\PriceMaths;
+use Bitrix\Main\Context;
 
 Loc::loadMessages(__FILE__);
 
@@ -30,7 +31,7 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 	/**
 	 * @inheritDoc
 	 */
-	public function initiatePay(Payment $payment, Request $request = null): ServiceResult
+	public function initiatePay(Payment $payment, ?Request $request = null): ServiceResult
 	{
 		$result = new ServiceResult();
 
@@ -48,8 +49,8 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 		}
 
 		$this->setExtraParams([
-			'sum' => PriceMaths::roundPrecision($payment->getSum()),
-			'currency' => $payment->getField('CURRENCY'),
+			'sum' => PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()),
+			'currency' => $payment->getCurrency(),
 			'instruction' => $invoiceData['transaction']['erip']['instruction'],
 			'qr_code' => $invoiceData['transaction']['erip']['qr_code'],
 			'account_number' =>  $invoiceData['transaction']['erip']['account_number'],
@@ -209,7 +210,7 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 	/**
 	 * @inheritDoc
 	 */
-	protected function getUrl(Payment $payment = null, $action): string
+	protected function getUrl(?Payment $payment = null, $action): string
 	{
 		return str_replace(
 			'#invoice-id#',
@@ -232,7 +233,7 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 	/**
 	 * @inheritDoc
 	 */
-	protected function isTestMode(Payment $payment = null): bool
+	protected function isTestMode(?Payment $payment = null): bool
 	{
 		return ($this->getBusinessValue($payment, 'PS_IS_TEST') === 'Y');
 	}
@@ -248,14 +249,14 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 		$params = [
 			'request' => [
 				'test' => $this->isTestMode($payment),
-				'amount' => (string)(PriceMaths::roundPrecision($payment->getSum()) * 100),
-				'currency' => $payment->getField('CURRENCY'),
+				'amount' => (string)(PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()) * 100),
+				'currency' => $payment->getCurrency(),
 				'description' => $this->getInvoiceDescription($payment),
 				'tracking_id' => $payment->getId() . self::TRACKING_ID_DELIMITER . $this->service->getField('ID'),
 				'notification_url' => $this->getBusinessValue($payment, 'BEPAID_ERIP_NOTIFICATION_URL'),
 				'language' => LANGUAGE_ID,
 				'email' => $this->getUserEmail($payment),
-				'ip' => $this->getIpAddress(),
+				'ip' => Context::getCurrent()->getServer()->getRemoteAddr(),
 				'payment_method' => [
 					'type' => 'erip',
 					'account_number' => $payment->getId(),
@@ -521,15 +522,16 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 	 */
 	private function isSumCorrect(Payment $payment, $sum): bool
 	{
+		$currency = $payment->getField('CURRENCY');
 		PaySystem\Logger::addDebugInfo(
 			sprintf( '%s: bePaidSum=%s; paymentSum=%s',
 				__CLASS__,
-				PriceMaths::roundPrecision($sum),
-				PriceMaths::roundPrecision($payment->getSum())
+				PriceMaths::roundByFormatCurrency($sum, $currency),
+				PriceMaths::roundByFormatCurrency($payment->getSum(), $currency)
 			)
 		);
 
-		return PriceMaths::roundPrecision($sum) === PriceMaths::roundPrecision($payment->getSum());
+		return PriceMaths::roundByFormatCurrency($sum, $currency) === PriceMaths::roundByFormatCurrency($payment->getSum(), $currency);
 	}
 
 	/**
@@ -592,31 +594,6 @@ class BePaidEripHandler extends PaySystem\ServiceHandler
 		{
 			return false;
 		}
-	}
-
-	/**
-	 * @return string
-	 */
-	private function getIpAddress(): string
-	{
-		if ($_SERVER['HTTP_CLIENT_IP'])
-		{
-			$result = $_SERVER['HTTP_CLIENT_IP'];
-		}
-		elseif ($_SERVER['HTTP_X_FORWARDED_FOR'])
-		{
-			$result = $_SERVER['HTTP_X_FORWARDED_FOR'];
-		}
-		elseif ($_SERVER['REMOTE_ADDR'])
-		{
-			$result = $_SERVER['REMOTE_ADDR'];
-		}
-		else
-		{
-			$result = '127.0.0.1';
-		}
-
-		return (string)$result;
 	}
 
 	/**

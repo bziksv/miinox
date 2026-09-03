@@ -3,9 +3,10 @@ namespace Bitrix\Rest\Api;
 
 
 use Bitrix\Bitrix24\Feature;
-use Bitrix\Main\ArgumentException;
-use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main\Application;
+use Bitrix\Main\Error;
 use Bitrix\Main\Loader;
+use Bitrix\Main\Result;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Rest\AccessException;
 use Bitrix\Rest\AppTable;
@@ -16,6 +17,7 @@ use Bitrix\Rest\HandlerHelper;
 use Bitrix\Rest\LicenseException;
 use Bitrix\Rest\OAuth\Auth;
 use Bitrix\Rest\RestException;
+use Bitrix\Rest\Exceptions;
 
 class Event extends \IRestService
 {
@@ -100,7 +102,7 @@ class Event extends \IRestService
 				$scopeList = array($query['SCOPE']);
 			}
 		}
-		elseif($query['FULL'] == true)
+		elseif(isset($query['FULL']) && $query['FULL'])
 		{
 			$scopeList = array_keys($serviceDescription);
 		}
@@ -141,8 +143,8 @@ class Event extends \IRestService
 	 * @return bool
 	 *
 	 * @throws AccessException
-	 * @throws ArgumentException
-	 * @throws ArgumentNullException
+	 * @throws Exceptions\ArgumentException
+	 * @throws Exceptions\ArgumentNullException
 	 * @throws AuthTypeException
 	 * @throws RestException
 	 * @throws \Exception
@@ -158,13 +160,13 @@ class Event extends \IRestService
 
 		$query = array_change_key_case($query, CASE_UPPER);
 
-		$eventName = ToUpper($query['EVENT']);
-		$eventType = ToLower($query['EVENT_TYPE']);
-		$eventUser = intval($query['AUTH_TYPE']);
-		$eventCallback = $query['HANDLER'];
-		$options = is_array($query['OPTIONS']) ? $query['OPTIONS'] : [];
+		$eventName = mb_strtoupper($query['EVENT'] ?? '');
+		$eventType = mb_strtolower($query['EVENT_TYPE'] ?? '');
+		$eventUser = intval($query['AUTH_TYPE'] ?? null);
+		$eventCallback = $query['HANDLER'] ?? '';
+		$options = isset($query['OPTIONS']) && is_array($query['OPTIONS']) ? $query['OPTIONS'] : [];
 
-		if($eventUser > 0)
+		if ($eventUser > 0)
 		{
 			if(!\CRestUtil::isAdmin() && $eventUser !== intval($USER->GetID()))
 			{
@@ -182,14 +184,14 @@ class Event extends \IRestService
 
 		if($eventName == '')
 		{
-			throw new ArgumentNullException("EVENT");
+			throw new Exceptions\ArgumentNullException("EVENT");
 		}
 
 		if($eventType <> '')
 		{
 			if(!in_array($eventType, array(EventTable::TYPE_ONLINE, EventTable::TYPE_OFFLINE)))
 			{
-				throw new ArgumentException('Value must be one of {'.EventTable::TYPE_ONLINE.'|'.EventTable::TYPE_OFFLINE.'}', 'EVENT_TYPE');
+				throw new Exceptions\ArgumentException('Value must be one of {'.EventTable::TYPE_ONLINE.'|'.EventTable::TYPE_OFFLINE.'}', 'EVENT_TYPE');
 			}
 		}
 		else
@@ -209,7 +211,7 @@ class Event extends \IRestService
 		}
 		elseif($eventCallback == '' && $eventType === EventTable::TYPE_ONLINE)
 		{
-			throw new ArgumentNullException("HANDLER");
+			throw new Exceptions\ArgumentNullException("HANDLER");
 		}
 
 		$clientInfo = AppTable::getByClientId($server->getClientId());
@@ -223,11 +225,7 @@ class Event extends \IRestService
 
 			foreach($scopeList as $scope)
 			{
-				if(
-					isset($serviceDescription[$scope])
-					&& is_array($serviceDescription[$scope][\CRestUtil::EVENTS])
-					&& array_key_exists($eventName, $serviceDescription[$scope][\CRestUtil::EVENTS])
-				)
+				if (!empty($serviceDescription[$scope][\CRestUtil::EVENTS][$eventName]))
 				{
 					$eventInfo = $serviceDescription[$scope][\CRestUtil::EVENTS][$eventName];
 					if(is_array($eventInfo))
@@ -272,7 +270,18 @@ class Event extends \IRestService
 							}
 						}
 
-						$result = EventTable::add($eventHandlerFields);
+						$lockKey = implode('|', [$clientInfo['ID'], $eventName, $eventCallback, $connectorId, $eventUser]);
+
+						if (Application::getConnection()->lock($lockKey))
+						{
+							$result = EventTable::add($eventHandlerFields);
+							Application::getConnection()->unlock($lockKey);
+						}
+						else
+						{
+							$result = (new Result())->addError(new Error('Process of binding the handler has already started'));
+						}
+
 						if($result->isSuccess())
 						{
 							\Bitrix\Rest\Event\Sender::bind($eventInfo[0], $eventInfo[1]);
@@ -317,8 +326,8 @@ class Event extends \IRestService
 	 * @return array
 	 *
 	 * @throws AccessException
-	 * @throws ArgumentException
-	 * @throws ArgumentNullException
+	 * @throws Exceptions\ArgumentException
+	 * @throws Exceptions\ArgumentNullException
 	 * @throws AuthTypeException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
@@ -335,20 +344,20 @@ class Event extends \IRestService
 
 		$query = array_change_key_case($query, CASE_UPPER);
 
-		$eventName = ToUpper($query['EVENT']);
-		$eventType = ToLower($query['EVENT_TYPE']);
-		$eventCallback = $query['HANDLER'];
+		$eventName = mb_strtoupper($query['EVENT'] ?? '');
+		$eventType = mb_strtolower($query['EVENT_TYPE'] ?? '');
+		$eventCallback = $query['HANDLER'] ?? '';
 
 		if($eventName == '')
 		{
-			throw new ArgumentNullException("EVENT");
+			throw new Exceptions\ArgumentNullException("EVENT");
 		}
 
 		if($eventType <> '')
 		{
 			if(!in_array($eventType, array(EventTable::TYPE_ONLINE, EventTable::TYPE_OFFLINE)))
 			{
-				throw new ArgumentException('Value must be one of {'.EventTable::TYPE_ONLINE.'|'.EventTable::TYPE_OFFLINE.'}', 'EVENT_TYPE');
+				throw new Exceptions\ArgumentException('Value must be one of {'.EventTable::TYPE_ONLINE.'|'.EventTable::TYPE_OFFLINE.'}', 'EVENT_TYPE');
 			}
 		}
 		else
@@ -367,7 +376,7 @@ class Event extends \IRestService
 		}
 		elseif($eventCallback == '')
 		{
-			throw new ArgumentNullException("HANDLER");
+			throw new Exceptions\ArgumentNullException('HANDLER');
 		}
 
 		$clientInfo = AppTable::getByClientId($server->getClientId());
@@ -496,12 +505,12 @@ class Event extends \IRestService
 
 	public static function eventOfflineGet($query, $n, \CRestServer $server)
 	{
-		if($server->getAuthType() !== Auth::AUTH_TYPE)
+		if ($server->getAuthType() !== Auth::AUTH_TYPE)
 		{
 			throw new AuthTypeException();
 		}
 
-		if(!\CRestUtil::isAdmin())
+		if (!\CRestUtil::isAdmin())
 		{
 			throw new AccessException();
 		}
@@ -511,7 +520,7 @@ class Event extends \IRestService
 		$clearEvents = !isset($query['clear']) ? 1 : intval($query['clear']);
 		$processId = isset($query['process_id']) ? trim($query['process_id']) : null;
 
-		if(!$clearEvents && !static::isExtendedModeEnabled())
+		if (!$clearEvents && !static::isExtendedModeEnabled())
 		{
 			throw new LicenseException('extended offline events handling');
 		}
@@ -527,9 +536,9 @@ class Event extends \IRestService
 
 		$returnProcessId = !$clearEvents;
 
-		if($limit <= 0)
+		if ($limit <= 0)
 		{
-			throw new ArgumentException('Value must be positive integer', 'LIMIT');
+			throw new Exceptions\ArgumentException('Value must be positive integer', 'LIMIT');
 		}
 
 		$queryFilter = static::sanitizeFilter($filter);
@@ -542,7 +551,7 @@ class Event extends \IRestService
 		$queryFilter['=CONNECTOR_ID'] = $connectorId;
 		$queryFilter['=ERROR'] = $getErrors ? 1 : 0;
 
-		if($processId === null)
+		if ($processId === null)
 		{
 			$queryFilter['=PROCESS_ID'] = '';
 			$processId = EventOfflineTable::markEvents($queryFilter, $order, $limit);
@@ -565,7 +574,7 @@ class Event extends \IRestService
 
 		$result = array();
 
-		while($event = $dbRes->fetch())
+		while ($event = $dbRes->fetch())
 		{
 			/** @var DateTime $ts */
 			$ts = $event['TIMESTAMP_X'];
@@ -582,7 +591,7 @@ class Event extends \IRestService
 			$result[] = $event;
 		}
 
-		if($clearEvents && count($result) > 0)
+		if ($clearEvents && count($result) > 0)
 		{
 			EventOfflineTable::clearEvents($processId, $clientInfo['ID'], $connectorId);
 		}
@@ -595,12 +604,12 @@ class Event extends \IRestService
 
 	public static function eventOfflineClear($query, $n, \CRestServer $server)
 	{
-		if($server->getAuthType() !== Auth::AUTH_TYPE)
+		if ($server->getAuthType() !== Auth::AUTH_TYPE)
 		{
 			throw new AuthTypeException();
 		}
 
-		if(!\CRestUtil::isAdmin())
+		if (!\CRestUtil::isAdmin())
 		{
 			throw new AccessException();
 		}
@@ -612,28 +621,28 @@ class Event extends \IRestService
 		$authData = $server->getAuthData();
 		$connectorId = isset($authData['auth_connector']) ? $authData['auth_connector'] : '';
 
-		if($processId === null)
+		if ($processId === null)
 		{
-			throw new ArgumentNullException('PROCESS_ID');
+			throw new Exceptions\ArgumentNullException('PROCESS_ID');
 		}
 
 		$clientInfo = AppTable::getByClientId($server->getClientId());
 
-		if(isset($query['message_id']))
+		if (isset($query['message_id']))
 		{
 			$listIds = false;
-			if(!is_array($query['message_id']))
+			if (!is_array($query['message_id']))
 			{
-				throw new ArgumentException('Value must be array of MESSAGE_ID values', 'message_id');
+				throw new Exceptions\ArgumentException('Value must be array of MESSAGE_ID values', 'message_id');
 			}
 
 			foreach($query['message_id'] as $messageId)
 			{
 				$messageId = trim($messageId);
 
-				if(mb_strlen($messageId) !== 32)
+				if (mb_strlen($messageId) !== 32)
 				{
-					throw new ArgumentException('Value must be array of MESSAGE_ID values', 'messsage_id');
+					throw new Exceptions\ArgumentException('Value must be array of MESSAGE_ID values', 'messsage_id');
 				}
 
 				$listIds[] = $messageId;
@@ -644,20 +653,20 @@ class Event extends \IRestService
 		else
 		{
 			$listIds = false;
-			if(isset($query['id']))
+			if (isset($query['id']))
 			{
-				if(!is_array($query['id']))
+				if (!is_array($query['id']))
 				{
-					throw new ArgumentException('Value must be array of integers', 'id');
+					throw new Exceptions\ArgumentException('Value must be array of integers', 'id');
 				}
 
 				foreach($query['id'] as $id)
 				{
 					$id = intval($id);
 
-					if($id <= 0)
+					if ($id <= 0)
 					{
-						throw new ArgumentException('Value must be array of integers', 'id');
+						throw new Exceptions\ArgumentException('Value must be array of integers', 'id');
 					}
 
 					$listIds[] = $id;
@@ -692,12 +701,12 @@ class Event extends \IRestService
 
 		if($processId === null)
 		{
-			throw new ArgumentNullException('PROCESS_ID');
+			throw new Exceptions\ArgumentNullException('PROCESS_ID');
 		}
 
 		if(!is_array($messageId))
 		{
-			throw new ArgumentException('Value must be array of MESSAGE_ID values', 'message_id');
+			throw new Exceptions\ArgumentException('Value must be array of MESSAGE_ID values', 'message_id');
 		}
 
 		$clientInfo = AppTable::getByClientId($server->getClientId());
@@ -778,7 +787,7 @@ class Event extends \IRestService
 		}
 
 		return static::setNavData($result, array(
-			"count" => $getEventQuery->countTotal(),
+			"count" => $getEventQuery->queryCountTotal(),
 			"offset" => $navParams['offset']
 		));
 	}

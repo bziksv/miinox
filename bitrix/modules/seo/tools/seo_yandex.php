@@ -1,6 +1,5 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 
 if (!$USER->CanDoOperation('seo_tools') || !check_bitrix_sessid())
 	die(GetMessage("ACCESS_DENIED"));
@@ -12,8 +11,6 @@ use Bitrix\Main\IO\Path;
 
 \Bitrix\Main\Loader::includeModule('seo');
 \Bitrix\Main\Loader::includeModule('socialservices');
-
-CUtil::JSPostUnescape();
 
 Loc::loadMessages(__DIR__.'/../include.php');
 

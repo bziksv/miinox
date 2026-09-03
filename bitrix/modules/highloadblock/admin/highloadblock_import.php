@@ -1,6 +1,9 @@
 <?php
-define('ADMIN_MODULE_NAME', 'highloadblock');
+const ADMIN_MODULE_NAME = 'highloadblock';
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
+
+/** @global CUser $USER */
+/** @global CMain $APPLICATION */
 
 // libs
 use Bitrix\Highloadblock as HL;
@@ -324,7 +327,10 @@ if (
 					));
 					if ($row = $res->fetch())
 					{
-						HL\HighloadBlockLangTable::delete($row['ID']);
+						HL\HighloadBlockLangTable::delete([
+							'ID' => $row['ID'],
+							'LID' => $row['LID'],
+						]);
 					}
 					// add new
 					HL\HighloadBlockLangTable::add($lang);
@@ -533,7 +539,7 @@ if (
 							}
 							if (mb_substr($value, 0, 10) == 'serialize#')
 							{
-								$value = unserialize(mb_substr($value, 10));
+								$value = unserialize(mb_substr($value, 10), ['allowed_classes' => false]);
 							}
 							// get base type
 							$userFelds[$key]['BASE_TYPE'] = '';
@@ -737,7 +743,7 @@ $APPLICATION->SetTitle(Loc::getMessage('ADMIN_TOOLS_TITLE_IMPORT'));
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
 ?>
 <div id="tools_result_div"></div>
-<script type="text/javascript">
+<script>
 	var running = false;
 
 	function DoNext(NS)
@@ -826,7 +832,7 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admi
 </script>
 
 <form name="form_tools" method="get" action="<?=$APPLICATION->GetCurPage()?>">
-	<?
+	<?php
 	$tabControl->Begin();
 	$tabControl->BeginNextTab();
 	?>
@@ -835,7 +841,7 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admi
 		<td>
 			<input type="text" id="url_data_file" size="30" value="" />
 			<input type="button" value="..." OnClick="BtnClick()">
-			<?
+			<?php
 			CAdminFileDialog::ShowScript
 			(
 				Array(
@@ -860,9 +866,13 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admi
 			<select id="object" onchange="selectHL(this);">
 				<option value="-1"></option>
 				<option value="0"><?= Loc::getMessage('ADMIN_TOOLS_FIELD_IMPORT_HL_NEW')?></option>
-				<?foreach ($hls as $row):?>
+				<?php
+				foreach ($hls as $row):
+					?>
 					<option value="<?= $row['ID']?>"><?= htmlspecialcharsbx($row['NAME'])?> [<?= $row['ID']?>]</option>
-				<?endforeach;?>
+					<?php
+				endforeach;
+				?>
 			</select>
 		</td>
 	</tr>
@@ -890,10 +900,14 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admi
 			<input type="checkbox" id="save_reference" value="Y" checked="checked" />
 		</td>
 	</tr>
-	<?$tabControl->Buttons();?>
+	<?php
+	$tabControl->Buttons();
+	?>
 	<input type="button" id="start_button" value="<?= Loc::getMessage('ADMIN_TOOLS_START_IMPORT')?>" OnClick="StartImport();" class="adm-btn-save" />
 	<input type="button" id="stop_button" value="<?= Loc::getMessage('ADMIN_TOOLS_STOP_IMPORT')?>" OnClick="EndImport();" />
-	<?$tabControl->End();?>
+	<?php
+	$tabControl->End();
+	?>
 </form>
 <?= BeginNote();?>
 	<p><span class="required">1</span> <?= Loc::getMessage('ADMIN_TOOLS_NOTE_IMPORT_XML_ID')?></p>

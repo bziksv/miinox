@@ -69,7 +69,7 @@ class CForumMessage extends CAllForumMessage
 		}
 
 		$strSql = "INSERT INTO b_forum_message(".$arInsert[0].$strDatePostField.") VALUES(".$arInsert[1].$strDatePostValue.")";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 		$ID = intval($DB->LastID());
 /***************** Attach ******************************************/
 		if (!empty($arFiles))
@@ -323,18 +323,18 @@ class CForumMessage extends CAllForumMessage
 
 				if (array_intersect_key($arFilter, array("FORUM_ID" => null)) ==  $arFilter && $arFilter["FORUM_ID"] > 0) // High-usage
 				{
-					$db_res = $DB->Query($strSql . "\nGROUP BY FM.FORUM_ID", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+					$db_res = $DB->Query($strSql . "\nGROUP BY FM.FORUM_ID");
 					$ar_res = $db_res->Fetch();
 				}
 				else if (array_intersect_key($arFilter, array("TOPIC_ID" => null)) ==  $arFilter && $arFilter["TOPIC_ID"] > 0) // High-usage
 				{
-					$db_res = $DB->Query($strSql . "\nGROUP BY FM.TOPIC_ID", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+					$db_res = $DB->Query($strSql . "\nGROUP BY FM.TOPIC_ID");
 					$ar_res = $db_res->Fetch();
 				}
 				else
 				{
 					$strSql = "SELECT COUNT(FM.ID) as CNT ".$strFrom;
-					$db_res = $DB->Query($strSql , false, "File: ".__FILE__."<br>Line: ".__LINE__);
+					$db_res = $DB->Query($strSql );
 					if ($db_res && $ar_res = $db_res->Fetch())
 					{
 						$strSql =
@@ -343,7 +343,7 @@ class CForumMessage extends CAllForumMessage
 							"SUM(CASE WHEN FM.APPROVED!='Y' THEN 1 ELSE 0 END) as CNT_NOT_APPROVED,\n\t".
 							"MAX(CASE WHEN FM.APPROVED='Y' THEN FM.ID ELSE 0 END) AS LAST_MESSAGE_ID \n".
 							$strFrom;
-						$db_res = $DB->Query($strSql , false, "File: ".__FILE__."<br>Line: ".__LINE__);
+						$db_res = $DB->Query($strSql );
 						if ($db_res && $ar_res1 = $db_res->Fetch())
 						{
 							$ar_res = array_merge($ar_res1, $ar_res);
@@ -359,18 +359,18 @@ class CForumMessage extends CAllForumMessage
 				if (array_intersect_key($arFilter, array("AUTHOR_ID" => null, "APPROVED" => null)) == $arFilter && $arFilter["AUTHOR_ID"] > 0) // High-usage
 				{
 					$strSql = "SELECT COUNT(FM.ID) as CNT, MAX(FM.ID) as LAST_MESSAGE_ID \n ".$strFrom." \nGROUP BY FM.AUTHOR_ID"; // explain the same as without "GROUP BY"
-					$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+					$db_res = $DB->Query($strSql);
 					if ($db_res)
 						$ar_res = $db_res->Fetch();
 				}
 				else
 				{
 					$strSql = "SELECT COUNT(FM.ID) as CNT \n ".$strFrom;
-					$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+					$db_res = $DB->Query($strSql);
 					if ($db_res && $ar_res = $db_res->Fetch())
 					{
 						$strSql = "SELECT MAX(FM.ID) as LAST_MESSAGE_ID \n ".$strFrom;
-						$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+						$db_res = $DB->Query($strSql);
 						if ($db_res && $ar_res1 = $db_res->Fetch())
 						{
 							$ar_res["LAST_MESSAGE_ID"] = $ar_res1["LAST_MESSAGE_ID"];
@@ -382,7 +382,7 @@ class CForumMessage extends CAllForumMessage
 			else
 			{
 				$strSql = "SELECT COUNT(FM.ID) as CNT \n ".$strFrom;
-				$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$db_res = $DB->Query($strSql);
 				$iCnt = 0;
 				if ($db_res && $ar_res = $db_res->Fetch())
 					$iCnt = intval($ar_res["CNT"]);
@@ -470,7 +470,7 @@ class CForumMessage extends CAllForumMessage
 		$limit = intval($iNum ?? $arAddParams["nTopCount"]);
 		if ($limit > 0)
 		{
-			$strSql .= " LIMIT 0,".$limit;
+			$strSql .= " LIMIT ".$limit;
 		}
 		if (!$iNum && is_set($arAddParams, "bDescPageNumbering") && $arAddParams["nTopCount"] <= 0)
 		{
@@ -480,7 +480,7 @@ class CForumMessage extends CAllForumMessage
 		}
 		else
 		{
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 			$db_res->SetUserFields($USER_FIELD_MANAGER->GetUserFields("FORUM_MESSAGE"));
 		}
 		return new _CMessageDBResult($db_res, $arAddParams);
@@ -727,6 +727,10 @@ class CForumMessage extends CAllForumMessage
 			endif;
 		}
 
+		if (!isset($arAddParams["nTopCount"]))
+		{
+			$arAddParams["nTopCount"] = 0;
+		}
 		if ($bCount || (is_set($arAddParams, "bDescPageNumbering") && intval($arAddParams["nTopCount"]) <= 0))
 		{
 			$strSql =
@@ -740,7 +744,7 @@ class CForumMessage extends CAllForumMessage
 			if ($bCount === 3)
 			{
 				$strSql .= "GROUP BY FM.TOPIC_ID";
-				return $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				return $DB->Query($strSql);
 			}
 			// This code exists because of http://bugs.mysql.com/bug.php?id=64002
 			$iCnt = 0; $iLAST_MESSAGE_ID = 0;
@@ -748,7 +752,7 @@ class CForumMessage extends CAllForumMessage
 				array_intersect_key($arFilter, array("TOPIC_ID" => null)) == $arFilter) && $arFilter["TOPIC_ID"] > 0) // high-usage
 			{
 				$strSql .= "GROUP BY FM.TOPIC_ID"; // explane the same as without "GROUP BY"
-				$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$db_res = $DB->Query($strSql);
 				if ($ar_res = $db_res->Fetch())
 				{
 					$iCnt = intval($ar_res["CNT"]);
@@ -758,7 +762,7 @@ class CForumMessage extends CAllForumMessage
 			else
 			{
 				$strSql = "SELECT COUNT(FM.ID) as CNT \nFROM b_forum_message FM ".$strSqlFrom."\nWHERE 1 = 1 ".$strSqlSearch;
-				$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$db_res = $DB->Query($strSql);
 				if ($ar_res = $db_res->Fetch())
 				{
 					$iCnt = intval($ar_res["CNT"]);
@@ -766,7 +770,7 @@ class CForumMessage extends CAllForumMessage
 				if ($bCount === 4)
 				{
 					$strSql = "SELECT MAX(FM.ID) AS LAST_MESSAGE_ID \nFROM b_forum_message FM ".$strSqlFrom."\nWHERE 1 = 1 ".$strSqlSearch;
-					$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+					$db_res = $DB->Query($strSql);
 					if ($ar_res = $db_res->Fetch())
 					{
 						$iLAST_MESSAGE_ID = intval($ar_res["LAST_MESSAGE_ID"]);
@@ -820,6 +824,7 @@ class CForumMessage extends CAllForumMessage
 		}
 		else
 		{
+			$isMysql = \Bitrix\Main\Application::getConnection()->getType() === 'mysql';
 			$strSql =
 				"SELECT FM.ID, FM.FORUM_ID, FM.TOPIC_ID, FM.USE_SMILES, FM.NEW_TOPIC, \n".
 				"	FM.APPROVED, FM.SOURCE_ID, \n".
@@ -841,7 +846,7 @@ class CForumMessage extends CAllForumMessage
 						"sUserTablePrefix" => "U.",
 						"sForumUserTablePrefix" => "FU.",
 						"sFieldName" => "AUTHOR_NAME_FRMT")), false)."\n" : "").$strSqlSelect."\n".
-				"FROM b_forum_message FM ".($IX_FORUM_MESSAGE_TOPIC ? "USE INDEX (IX_FORUM_MESSAGE_TOPIC)" : "")."\n".
+				"FROM b_forum_message FM ".(($IX_FORUM_MESSAGE_TOPIC && $isMysql) ? "USE INDEX (IX_FORUM_MESSAGE_TOPIC)" : "")."\n".
 				"	LEFT JOIN b_forum_user FU ON (FM.AUTHOR_ID = FU.USER_ID) \n".
 				"	LEFT JOIN b_user U ON (FM.AUTHOR_ID = U.ID) \n".
 				"	".$strSqlFrom." \n".
@@ -862,7 +867,7 @@ class CForumMessage extends CAllForumMessage
 		}
 		else
 		{
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 		}
 		return new _CMessageDBResult($db_res, $arAddParams);
 	}
@@ -1073,7 +1078,7 @@ class CForumFiles extends CAllForumFiles
 		{
 			$iCnt = 0;
 			$strSql1 = "SELECT COUNT(FM.ID) as CNT FROM b_forum_message FM WHERE 1 = 1 ".$strSqlSearch;
-			$db_res = $DB->Query($strSql1, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql1);
 			if ($ar_res = $db_res->Fetch())
 				$iCnt = intval($ar_res["CNT"]);
 			$db_res =  new CDBResult();
@@ -1081,7 +1086,7 @@ class CForumFiles extends CAllForumFiles
 		}
 		else
 		{
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 		}
 		return $db_res;
 	}
@@ -1089,15 +1094,17 @@ class CForumFiles extends CAllForumFiles
 	public static function CleanUp()
 	{
 		global $DB;
-		$db_res = $DB->Query(<<<SQL
+		$connection = \Bitrix\Main\Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$db_res = $DB->Query('
 			SELECT FF.ID, FF.FILE_ID 
 			FROM b_forum_file FF 
-			WHERE FF.TIMESTAMP_X < DATE_SUB(NOW(), INTERVAL 1 DAY)
-				AND (FF.TOPIC_ID IS NULL OR FF.TOPIC_ID <= 0) 
+			WHERE FF.TIMESTAMP_X < ' . $helper->addDaysToDateTime(-1) . '
+				AND (FF.TOPIC_ID IS NULL OR FF.TOPIC_ID <= 0)
 				AND (FF.MESSAGE_ID IS NULL OR FF.MESSAGE_ID <= 0)
 			ORDER BY FF.ID ASC
-SQL
-		, false, "FILE: ".__FILE__." LINE:".__LINE__);
+		');
 		if ($db_res && $res = $db_res->Fetch())
 		{
 			do
@@ -1106,14 +1113,13 @@ SQL
 				$lastId = (int)$res["ID"];
 			} while ($res = $db_res->Fetch());
 
-			$DB->Query(<<<SQL
-			DELETE FF 
-			FROM b_forum_file FF 
-			WHERE (FF.ID < $lastId)
-				AND (FF.TOPIC_ID IS NULL OR FF.TOPIC_ID <= 0) 
-				AND (FF.MESSAGE_ID IS NULL OR FF.MESSAGE_ID <= 0)
-SQL
-				, false, "FILE: ".__FILE__." LINE:".__LINE__);
+			$DB->Query('
+				DELETE
+				FROM b_forum_file
+				WHERE (ID < ' . $lastId . ')
+					AND (TOPIC_ID IS NULL OR TOPIC_ID <= 0) 
+					AND (MESSAGE_ID IS NULL OR MESSAGE_ID <= 0)
+			');
 		}
 		return "CForumFiles::CleanUp();";
 	}

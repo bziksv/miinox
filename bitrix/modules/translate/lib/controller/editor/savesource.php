@@ -7,6 +7,8 @@ use Bitrix\Main\Localization\Loc;
 
 /**
  * Update/create language file by php source.
+ *
+ * @internal
  */
 class SaveSource
 	extends Operation
@@ -36,9 +38,9 @@ class SaveSource
 			return $result;
 		}
 		$file = $normalized;
-		if (!Translate\IO\Path::isLangDir($file, true) || (\mb_substr($file, -4) !== '.php'))
+		if (!Translate\IO\Path::isLangDir($file, true) || !Translate\IO\Path::isPhpFile($file))
 		{
-			$this->addError(new Main\Error(Loc::getMessage('TR_EDIT_ERROR_FILE_NOT_LANG', array('#FILE#' => $file))));
+			$this->addError(new Main\Error(Loc::getMessage('TR_EDIT_ERROR_FILE_NOT_LANG', ['#FILE#' => $file])));
 			return $result;
 		}
 		if (!Translate\Permission::isAllowPath($file))
@@ -49,7 +51,7 @@ class SaveSource
 
 		$request = $this->controller->getRequest();
 
-		$languagesToUpdate = array();
+		$languagesToUpdate = [];
 
 		$enabledLanguagesList = Translate\Config::getEnabledLanguages();
 

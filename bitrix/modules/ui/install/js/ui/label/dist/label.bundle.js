@@ -1,42 +1,48 @@
+/* eslint-disable */
 this.BX = this.BX || {};
-(function (exports,main_core) {
+(function (exports,main_core,main_loader,ui_iconSet_api_core) {
 	'use strict';
 
 	/**
 	 * @namespace {BX.UI}
 	 */
-	var LabelColor = function LabelColor() {
-	  babelHelpers.classCallCheck(this, LabelColor);
-	};
-	babelHelpers.defineProperty(LabelColor, "DEFAULT", 'ui-label-default');
-	babelHelpers.defineProperty(LabelColor, "DANGER", 'ui-label-danger');
-	babelHelpers.defineProperty(LabelColor, "SUCCESS", 'ui-label-success');
-	babelHelpers.defineProperty(LabelColor, "WARNING", 'ui-label-warning');
-	babelHelpers.defineProperty(LabelColor, "PRIMARY", 'ui-label-primary');
-	babelHelpers.defineProperty(LabelColor, "SECONDARY", 'ui-label-secondary');
-	babelHelpers.defineProperty(LabelColor, "LIGHT", 'ui-label-light');
-	babelHelpers.defineProperty(LabelColor, "TAG_SECONDARY", 'ui-label-tag-secondary');
-	babelHelpers.defineProperty(LabelColor, "TAG_LIGHT", 'ui-label-tag-light');
-	babelHelpers.defineProperty(LabelColor, "LIGHT_BLUE", 'ui-label-lightblue');
-	babelHelpers.defineProperty(LabelColor, "LIGHT_GREEN", 'ui-label-lightgreen');
-	babelHelpers.defineProperty(LabelColor, "LIGHT_ORANGE", 'ui-label-lightorange');
-	babelHelpers.defineProperty(LabelColor, "LIGHT_YELLOW", 'ui-label-lightyellow');
-	babelHelpers.defineProperty(LabelColor, "LIGHT_RED", 'ui-label-lightred');
+	class LabelColor {}
+	LabelColor.DEFAULT = 'ui-label-default';
+	LabelColor.DANGER = 'ui-label-danger';
+	LabelColor.SUCCESS = 'ui-label-success';
+	LabelColor.WARNING = 'ui-label-warning';
+	LabelColor.PRIMARY = 'ui-label-primary';
+	LabelColor.SECONDARY = 'ui-label-secondary';
+	LabelColor.LIGHT = 'ui-label-light';
+	LabelColor.TAG_SECONDARY = 'ui-label-tag-secondary';
+	LabelColor.TAG_LIGHT = 'ui-label-tag-light';
+	LabelColor.LIGHT_BLUE = 'ui-label-lightblue';
+	LabelColor.LIGHT_GREEN = 'ui-label-lightgreen';
+	LabelColor.ORANGE = 'ui-label-orange';
+	LabelColor.LIGHT_ORANGE = 'ui-label-lightorange';
+	LabelColor.YELLOW = 'ui-label-yellow';
+	LabelColor.LIGHT_YELLOW = 'ui-label-lightyellow';
+	LabelColor.LIGHT_RED = 'ui-label-lightred';
+	LabelColor.LAVENDER = 'ui-label-lavender';
+	LabelColor.COPILOT_LIGHT = 'ui-label-copilot-light';
+	LabelColor.COPILOT_LIGHT_REVERSE = 'ui-label-copilot-light-reverse';
 
 	/**
 	 * @namespace {BX.UI}
 	 */
-	var LabelSize = function LabelSize() {
-	  babelHelpers.classCallCheck(this, LabelSize);
-	};
-	babelHelpers.defineProperty(LabelSize, "MD", 'ui-label-md');
-	babelHelpers.defineProperty(LabelSize, "SM", 'ui-label-sm');
-	babelHelpers.defineProperty(LabelSize, "LG", 'ui-label-lg');
+	class LabelSize {}
+	LabelSize.MD = 'ui-label-md';
+	LabelSize.SM = 'ui-label-sm';
+	LabelSize.LG = 'ui-label-lg';
 
-	var _templateObject, _templateObject2, _templateObject3, _templateObject4;
-	var Label = /*#__PURE__*/function () {
-	  function Label(options) {
-	    babelHelpers.classCallCheck(this, Label);
+	let _ = t => t,
+	  _t,
+	  _t2,
+	  _t3,
+	  _t4,
+	  _t5;
+	class Label {
+	  constructor(options) {
 	    this.text = options.text;
 	    this.color = options.color;
 	    this.size = options.size;
@@ -45,6 +51,11 @@ this.BX = this.BX || {};
 	    this.fill = !!options.fill ? true : options.fill;
 	    this.customClass = options.customClass;
 	    this.classList = "ui-label";
+	    this.status = options.status;
+	    this.node = {
+	      container: null,
+	      status: null
+	    };
 	    this.setText(this.text);
 	    this.setLink(this.link);
 	    this.setColor(this.color);
@@ -53,156 +64,180 @@ this.BX = this.BX || {};
 	  }
 
 	  //region COLOR
-	  babelHelpers.createClass(Label, [{
-	    key: "setColor",
-	    value: function setColor(color) {
-	      this.color = color;
-	      this.setClassList();
+	  setColor(color) {
+	    this.color = color;
+	    this.setClassList();
+	  }
+	  getColor() {
+	    return this.color;
+	  }
+
+	  // endregion
+
+	  //region FILL
+	  setFill(fill) {
+	    this.fill = !!fill ? true : false;
+	    this.setClassList();
+	  }
+	  getFill() {
+	    return this.fill;
+	  }
+
+	  // endregion
+
+	  //region SIZE
+	  setSize(size) {
+	    this.size = size;
+	    this.setClassList();
+	  }
+	  getSize() {
+	    return this.size;
+	  }
+
+	  // endregion
+
+	  //region LINK
+	  setLink(link) {
+	    this.link = link;
+	  }
+	  getLink() {
+	    return this.link;
+	  }
+
+	  // endregion
+
+	  //region TEXT
+	  setText(text) {
+	    this.text = text;
+	    if (main_core.Type.isStringFilled(text)) {
+	      this.getTextContainer().textContent = text;
 	    }
-	  }, {
-	    key: "getColor",
-	    value: function getColor() {
-	      return this.color;
-	    } // endregion
-	    //region FILL
-	  }, {
-	    key: "setFill",
-	    value: function setFill(fill) {
-	      this.fill = !!fill ? true : false;
-	      this.setClassList();
+	  }
+	  getText() {
+	    return this.text;
+	  }
+	  getTextContainer() {
+	    if (!this.textContainer) {
+	      this.textContainer = main_core.Tag.render(_t || (_t = _`<span class="ui-label-inner">${0}</span>`), this.getText());
 	    }
-	  }, {
-	    key: "getFill",
-	    value: function getFill() {
-	      return this.fill;
-	    } // endregion
-	    //region SIZE
-	  }, {
-	    key: "setSize",
-	    value: function setSize(size) {
-	      this.size = size;
-	      this.setClassList();
+	    return this.textContainer;
+	  }
+
+	  // endregion
+
+	  //region CUSTOM CLASS
+	  setCustomClass(customClass) {
+	    this.customClass = customClass;
+	    this.updateClassList();
+	  }
+	  getCustomClass() {
+	    return this.customClass;
+	  }
+
+	  // endregion
+
+	  //region CLASS LIST
+	  setClassList() {
+	    this.classList = "ui-label";
+	    if (typeof this.getColor() != "undefined") {
+	      this.classList = this.classList + " " + this.color;
 	    }
-	  }, {
-	    key: "getSize",
-	    value: function getSize() {
-	      return this.size;
-	    } // endregion
-	    //region LINK
-	  }, {
-	    key: "setLink",
-	    value: function setLink(link) {
-	      this.link = link;
+	    if (typeof this.getSize() != "undefined") {
+	      this.classList = this.classList + " " + this.size;
 	    }
-	  }, {
-	    key: "getLink",
-	    value: function getLink() {
-	      return this.link;
-	    } // endregion
-	    //region TEXT
-	  }, {
-	    key: "setText",
-	    value: function setText(text) {
-	      this.text = text;
-	      if (main_core.Type.isStringFilled(text)) {
-	        this.getTextContainer().textContent = text;
+	    if (typeof this.getCustomClass() != "undefined") {
+	      this.classList = this.classList + " " + this.customClass;
+	    }
+	    if (this.fill) {
+	      this.classList = this.classList + " ui-label-fill";
+	    }
+	    this.updateClassList();
+	  }
+	  getClassList() {
+	    return this.classList;
+	  }
+	  updateClassList() {
+	    if (!this.node.container) {
+	      this.getContainer();
+	    }
+	    this.node.container.setAttribute("class", this.classList);
+	  }
+	  getIconAction() {
+	    this.iconNode = main_core.Tag.render(_t2 || (_t2 = _`<div class="ui-label-icon"></div>`));
+	    for (let key in this.icon) {
+	      this.iconNode.addEventListener(key, this.icon[key]);
+	    }
+	    return this.iconNode;
+	  }
+	  getLoader() {
+	    if (!this.loader) {
+	      this.loader = new main_loader.Loader({
+	        size: 12
+	      });
+	    }
+	    return this.loader;
+	  }
+	  setStatus(status) {
+	    if (status) {
+	      this.status = status;
+	    }
+	    main_core.Dom.clean(this.getContainerStatus());
+	    this.getContainerStatus().classList.remove('--icon');
+	    if (this.status.toLocaleUpperCase() === 'LOADING') {
+	      this.getLoader().show(this.getContainerStatus());
+	    }
+	    if (this.status.toLocaleUpperCase() === 'CHECK') {
+	      let icon = new ui_iconSet_api_core.Icon({
+	        icon: ui_iconSet_api_core.Main.CHECK,
+	        size: 10
+	      });
+	      this.getContainerStatus().classList.add('--icon');
+	      this.getContainerStatus().appendChild(icon.render());
+	    }
+	  }
+	  getContainerStatus() {
+	    if (!this.node.status) {
+	      this.node.status = main_core.Tag.render(_t3 || (_t3 = _`
+				<div class="ui-label-status"></div>
+			`));
+	    }
+	    return this.node.status;
+	  }
+
+	  // endregion
+
+	  getContainer() {
+	    if (!this.node.container) {
+	      if (this.getLink()) {
+	        this.node.container = main_core.Tag.render(_t4 || (_t4 = _`<a href="${0}" class="${0}">
+					${0}
+					${0}
+				</a>`), this.link, this.getClassList(), this.getContainerStatus(), this.getTextContainer());
+	      } else {
+	        this.node.container = main_core.Tag.render(_t5 || (_t5 = _`<div class="${0}">
+					${0}
+					${0}
+				</div>`), this.getClassList(), this.getContainerStatus(), this.getTextContainer());
+	      }
+	      if (typeof this.icon === 'object') {
+	        this.node.container.appendChild(this.getIconAction());
 	      }
 	    }
-	  }, {
-	    key: "getText",
-	    value: function getText() {
-	      return this.text;
+	    return this.node.container;
+	  }
+	  render() {
+	    if (this.status) {
+	      this.setStatus(this.status);
 	    }
-	  }, {
-	    key: "getTextContainer",
-	    value: function getTextContainer() {
-	      if (!this.textContainer) {
-	        this.textContainer = main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["<span class=\"ui-label-inner\">", "</span>"])), this.getText());
-	      }
-	      return this.textContainer;
-	    } // endregion
-	    //region CUSTOM CLASS
-	  }, {
-	    key: "setCustomClass",
-	    value: function setCustomClass(customClass) {
-	      this.customClass = customClass;
-	      this.updateClassList();
-	    }
-	  }, {
-	    key: "getCustomClass",
-	    value: function getCustomClass() {
-	      return this.customClass;
-	    } // endregion
-	    //region CLASS LIST
-	  }, {
-	    key: "setClassList",
-	    value: function setClassList() {
-	      this.classList = "ui-label";
-	      if (typeof this.getColor() != "undefined") {
-	        this.classList = this.classList + " " + this.color;
-	      }
-	      if (typeof this.getSize() != "undefined") {
-	        this.classList = this.classList + " " + this.size;
-	      }
-	      if (typeof this.getCustomClass() != "undefined") {
-	        this.classList = this.classList + " " + this.customClass;
-	      }
-	      if (this.fill) {
-	        this.classList = this.classList + " ui-label-fill";
-	      }
-	      this.updateClassList();
-	    }
-	  }, {
-	    key: "getClassList",
-	    value: function getClassList() {
-	      return this.classList;
-	    }
-	  }, {
-	    key: "updateClassList",
-	    value: function updateClassList() {
-	      if (!this.container) {
-	        this.getContainer();
-	      }
-	      this.container.setAttribute("class", this.classList);
-	    }
-	  }, {
-	    key: "getIconAction",
-	    value: function getIconAction() {
-	      this.iconNode = main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-label-icon\"></div>"])));
-	      for (var key in this.icon) {
-	        this.iconNode.addEventListener(key, this.icon[key]);
-	      }
-	      return this.iconNode;
-	    } // endregion
-	  }, {
-	    key: "getContainer",
-	    value: function getContainer() {
-	      if (!this.container) {
-	        if (this.getLink()) {
-	          this.container = main_core.Tag.render(_templateObject3 || (_templateObject3 = babelHelpers.taggedTemplateLiteral(["<a href=\"", "\" class=\"", "\">", "</a>"])), this.link, this.getClassList(), this.getTextContainer());
-	        } else {
-	          this.container = main_core.Tag.render(_templateObject4 || (_templateObject4 = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\">", "</div>"])), this.getClassList(), this.getTextContainer());
-	        }
-	        if (babelHelpers["typeof"](this.icon) === 'object') {
-	          this.container.appendChild(this.getIconAction());
-	        }
-	      }
-	      return this.container;
-	    }
-	  }, {
-	    key: "render",
-	    value: function render() {
-	      return this.getContainer();
-	    }
-	  }]);
-	  return Label;
-	}();
-	babelHelpers.defineProperty(Label, "Color", LabelColor);
-	babelHelpers.defineProperty(Label, "Size", LabelSize);
+	    return this.getContainer();
+	  }
+	}
+	Label.Color = LabelColor;
+	Label.Size = LabelSize;
 
 	exports.Label = Label;
 	exports.LabelColor = LabelColor;
 	exports.LabelSize = LabelSize;
 
-}((this.BX.UI = this.BX.UI || {}),BX));
+}((this.BX.UI = this.BX.UI || {}),BX,BX,BX.UI.IconSet));
 //# sourceMappingURL=label.bundle.js.map

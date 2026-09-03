@@ -1,8 +1,8 @@
-<?
+<?php
 /**
- * @global \CUser $USER
- * @global \CMain $APPLICATION
- * @global \CDatabase $DB
+ * @global CUser $USER
+ * @global CMain $APPLICATION
+ * @global CDatabase $DB
  */
 
 define("NO_KEEP_STATISTIC", true);
@@ -32,10 +32,8 @@ if ($USER->IsAuthorized() && check_bitrix_sessid())
 	if (isset($_REQUEST["p"]) && is_array($_REQUEST["p"]))
 	{
 		$arOptions = $_REQUEST["p"];
-		CUtil::decodeURIComponent($arOptions);
 		CUserOptions::SetOptionsFromArray($arOptions);
 	}
 }
 echo "OK";
 require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_after.php");
-?>

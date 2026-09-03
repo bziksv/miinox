@@ -10,3 +10,4 @@ $MESS['LANDING_CMP_OL_BUTTON_NO_CHOOSE_PAGE_TEXT_1'] = 'Укажите видж�
 $MESS['LANDING_CMP_OL_BUTTON_NO_CHOOSE_BUTTON'] = 'Открыть настройки';
 $MESS['LANDING_CMP_OL_BUTTON_REST_ERROR'] = 'Блок временно недоступен';
 $MESS['LANDING_CMP_OL_BUTTON_REST_ERROR_DESC'] = 'Для работы требуется обновление на портале Битрикс24. Ожидайте, пожалуйста';
+$MESS['LANDING_CMP_OL_NO_WIDGETS'] = 'В этом виджете пока нет открытых линий';

@@ -12,8 +12,9 @@ Loc::loadMessages(
 );
 
 
-return array(
+return [
 	'last' => Loc::getMessage('LD_BLOCK_SECTION_LAST'),
+	'favourite' => Loc::getMessage('LD_BLOCK_SECTION_FAVOURITE'),
 	'recommended' =>[
 		'name' => Loc::getMessage('LD_BLOCK_SECTION_RECOMMENDED'),
 		'type' => ['knowledge']
@@ -98,4 +99,74 @@ return array(
 	'social' => Loc::getMessage('LD_BLOCK_SECTION_SOCIAL'),
 
 	'other' => Loc::getMessage('LD_BLOCK_SECTION_OTHER'),
-);
+
+	//for Vibes
+	'widgets_company_life' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_COMPANY_LIFE'),
+		'type' => ['vibe'],
+	],
+	'widgets_new_employees' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_NEW_EMPLOYEES'),
+		'type' => ['vibe'],
+	],
+	'widgets_team' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_TEAM'),
+		'type' => ['vibe'],
+	],
+	'widgets_automation' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_AUTOMATION'),
+		'type' => ['vibe'],
+	],
+	'widgets_events' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_EVENTS'),
+		'type' => ['vibe'],
+	],
+	'widgets_profile' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_PROFILE'),
+		'type' => ['vibe'],
+	],
+	'widgets_tasks' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_TASKS'),
+		'type' => ['vibe'],
+	],
+	'widgets_sales' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_SALES'),
+		'type' => ['vibe'],
+	],
+	'widgets_hr' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_HR'),
+		'type' => ['vibe'],
+	],
+	'widgets_other' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_OTHER'),
+		'type' => ['vibe'],
+	],
+	'widgets_separators' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_TRANSITIONS_SEPARATORS'),
+		'type' => ['vibe'],
+	],
+	'widgets_text' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_TEXT_NEW'),
+		'type' => ['vibe'],
+	],
+	'widgets_image' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_WIDGETS_IMAGE'),
+		'type' => ['vibe'],
+	],
+	'widgets_video' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_VIDEO'),
+		'type' => ['vibe'],
+	],
+	'widgets_tiles' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_TILES_NEW2'),
+		'type' => ['vibe'],
+	],
+	'widgets_columns' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_COLUMNS'),
+		'type' => ['vibe'],
+	],
+	'widgets_text_image' => [
+		'name' => Loc::getMessage('LD_BLOCK_SECTION_TEXT_IMAGE'),
+		'type' => ['vibe'],
+	],
+];

@@ -1,29 +1,33 @@
 <?php
 
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+/**
+ * @global CMain $APPLICATION
+ * @var MoneyUfComponent $component
+ * @var array $arResult
+ */
 
 use Bitrix\Main\Security\Random;
 
-/**
- * @var MoneyUfComponent $component
- */
 $component = $this->getComponent();
 ?>
-
 <span class="fields money field-wrap">
 	<?php
 	$userField = $arResult['userField'];
 	$first = true;
 
-	foreach($arResult['value'] as $value)
+	foreach ($arResult['value'] as $value)
 	{
-		if(!$first)
+		if (!$first)
 		{
-			print $component->getHtmlBuilder()->getMultipleValuesSeparator();
+			echo $component->getHtmlBuilder()->getMultipleValuesSeparator();
 		}
 		$first = false;
 		?>
-
 		<span class="fields money field-item">
 			<?php
 			$APPLICATION->IncludeComponent(
@@ -33,24 +37,22 @@ $component = $this->getComponent();
 					'CONTROL_ID' => $userField['FIELD_NAME'] . '_' . Random::getString(5),
 					'FIELD_NAME' => $arResult['fieldName'],
 					'VALUE' => $value['value'],
-					'EXTENDED_CURRENCY_SELECTOR' => 'Y'
+					'EXTENDED_CURRENCY_SELECTOR' => 'Y',
 				],
 				null,
 				['HIDE_ICONS' => 'Y']
 			);
 			?>
 		</span>
-
 		<?php
 	}
 
-	if(
+	if (
 		$userField['MULTIPLE'] === 'Y'
-		&&
-		$arResult['additionalParameters']['SHOW_BUTTON'] !== 'N'
+		&& ($arResult['additionalParameters']['SHOW_BUTTON'] ?? 'Y') !== 'N'
 	)
 	{
-		print $component->getHtmlBuilder()->getCloneButton($arResult['fieldName']);
+		echo $component->getHtmlBuilder()->getCloneButton($arResult['fieldName']);
 	}
 	?>
 </span>

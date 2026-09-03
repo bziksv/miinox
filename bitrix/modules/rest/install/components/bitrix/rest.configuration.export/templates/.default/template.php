@@ -2,9 +2,9 @@
 
 /** @var array $arParams */
 /** @var array $arResult */
-/** @global CAllMain $APPLICATION */
-/** @global CAllUser $USER */
-/** @global CAllDatabase $DB */
+/** @global CMain $APPLICATION */
+/** @global CUser $USER */
+/** @global CDatabase $DB */
 /** @var CBitrixComponentTemplate $this */
 /** @var string $templateName */
 /** @var string $templateFile */
@@ -50,7 +50,7 @@ $containerId = 'rest-configuration-export';
 	</div>
 </div>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Rest.Configuration.Export.init(<?=Json::encode(
 			[

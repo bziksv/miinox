@@ -20,6 +20,7 @@ if ($saleModulePermissions < "W")
 Loc::loadMessages(__FILE__);
 
 \Bitrix\Main\Loader::includeModule('sale');
+\Bitrix\Main\Loader::includeModule('currency');
 
 \Bitrix\Main\Loader::includeModule('ui');
 \Bitrix\Main\UI\Extension::load('ui.buttons.icons');
@@ -70,7 +71,6 @@ if ($server->getRequestMethod() == "POST"
 	$cashbox = array(
 		'NAME' => $request->get('NAME'),
 		'HANDLER' => $request->getPost('HANDLER'),
-		'OFD' => $request->getPost('OFD'),
 		'EMAIL' => $request->getPost('EMAIL'),
 		'NUMBER_KKM' => $request->getPost('NUMBER_KKM') ?: '',
 		'KKM_ID' => $request->get('KKM_ID') ?: '',
@@ -79,6 +79,16 @@ if ($server->getRequestMethod() == "POST"
 		'SORT' => $request->getPost('SORT') ?: 100,
 		'OFD_SETTINGS' => $request->getPost('OFD_SETTINGS') ?: array(),
 	);
+
+	$ofdHandler = $request->getPost('OFD');
+	if (!$ofdHandler || (is_string($ofdHandler) && Cashbox\Ofd::doesHandlerExist($ofdHandler)))
+	{
+		$cashbox['OFD'] = $ofdHandler;
+	}
+	else
+	{
+		$errorMessage .= GetMessage('ERROR_NO_OFD_HANDLER_EXIST')."<br>\n";
+	}
 
 	/** @var Cashbox\Cashbox $handler */
 	$handler = $cashbox['HANDLER'];
@@ -270,7 +280,10 @@ $contextMenu->Show();
 if ($errorMessage !== '')
 	CAdminMessage::ShowMessage(array("DETAILS"=>$errorMessage, "TYPE"=>"ERROR", "MESSAGE"=>Loc::getMessage("SALE_CASHBOX_ERROR"), "HTML"=>true));
 
-$valuePrecision = (int)Config\Option::get('sale', 'value_precision');
+
+$baseCurrency = \Bitrix\Currency\CurrencyManager::getBaseCurrency();
+$currencyFormat = CCurrencyLang::GetFormatDescription($baseCurrency);
+$valuePrecision = (int)($currencyFormat['DECIMALS'] ?? 2);
 if ($valuePrecision > 2)
 {
 	$note = BeginNote();
@@ -286,6 +299,7 @@ echo bitrix_sessid_post();
 <input type="hidden" name="Update" value="Y">
 <input type="hidden" name="lang" value="<?=$context->getLanguage();?>">
 <input type="hidden" name="ID" value="<?=$id;?>" id="ID">
+<input type="hidden" name="LAST_USED_OFD" value="<?= $cashbox['OFD'] ?? '' ?>" id="LAST_USED_OFD">
 
 <?
 $tabControl->EndEpilogContent();
@@ -337,6 +351,23 @@ $tabControl->BeginCustomField('HANDLER', GetMessage("SALE_CASHBOX_HANDLER"));
 						continue;
 					}
 
+					if (
+						in_array(
+							$handler,
+							[
+								'\Bitrix\Sale\Cashbox\CashboxBitrixV2',
+								'\Bitrix\Sale\Cashbox\CashboxBitrixV3',
+								'\Bitrix\Sale\Cashbox\CashboxBitrix',
+							],
+						)
+					)
+					{
+						if ($id === 0 || ($id > 0 && $handler !== $cashbox['HANDLER']))
+						{
+							continue;
+						}
+					}
+
 					if (Cashbox\Manager::isPaySystemCashbox($handler))
 					{
 						$skip = true;
@@ -373,7 +404,7 @@ $tabControl->BeginCustomField('HANDLER', GetMessage("SALE_CASHBOX_HANDLER"));
 						$restHandlers = Cashbox\Manager::getRestHandlersList();
 						foreach ($restHandlers as $restHandlerCode => $restHandlerConfig)
 						{
-							$selected = ($restHandlerCode === $cashbox['SETTINGS']['REST']['REST_CODE']) ? 'selected' : '';
+							$selected = ($restHandlerCode === ($cashbox['SETTINGS']['REST']['REST_CODE'] ?? '')) ? 'selected' : '';
 							echo '<option data-rest-code="'.htmlspecialcharsbx($restHandlerCode).'" value="'.htmlspecialcharsbx($handler).'" '.$selected.'>'.htmlspecialcharsbx($restHandlerConfig['NAME']).'</option>';
 						}
 					}
@@ -399,7 +430,7 @@ $tabControl->BeginCustomField('HANDLER', GetMessage("SALE_CASHBOX_HANDLER"));
 					<?php
 					if ($cashboxObject)
 					{
-						$handlerHint = Loc::getMessage('SALE_CASHBOX_'.ToUpper($cashboxObject::getCode()).'_HINT');
+						$handlerHint = Loc::getMessage('SALE_CASHBOX_'.mb_strtoupper($cashboxObject::getCode()).'_HINT');
 						if ($handlerHint)
 						{
 						?>
@@ -427,9 +458,13 @@ elseif (Loader::includeModule('intranet'))
 	$zone = \CIntranetUtils::getPortalZone();
 }
 
-$needOfdSettings = !$isCashboxPaySystem && $zone === 'ru';
+$needOfdSettings = true;
+if (isset($cashboxObject))
+{
+	$needOfdSettings = $cashboxObject::isOfdSettingsNeeded();
+}
 
-if ($needOfdSettings)
+if ($zone === 'ru')
 {
 	$tabControl->BeginCustomField('OFD', GetMessage("SALE_CASHBOX_OFD"));
 	?>
@@ -566,7 +601,7 @@ $tabControl->BeginCustomField('CASHBOX_SETTINGS', GetMessage("CASHBOX_SETTINGS")
 	<tbody id="sale-cashbox-settings-container"><?=$cashboxSettings?></tbody>
 <?$tabControl->EndCustomField('CASHBOX_SETTINGS');
 
-if ($needOfdSettings)
+if ($zone === 'ru')
 {
 	$tabControl->BeginNextFormTab();
 
@@ -586,7 +621,15 @@ $tabControl->Buttons(array("disabled" => ($saleModulePermissions < "W"), "back_u
 
 $tabControl->Show();
 ?>
-<script language="JavaScript">
+<script>
+	BX.ready(function ()
+	{
+		<?php if (!$needOfdSettings): ?>
+			tabControl.Init();
+			tabControl.DisableTab('edit4');
+			tabControl.form['OFD'].disabled = true;
+		<?php endif ?>
+	});
 
 	BX.message({
 		CASHBOX_CHECK_CONNECTION_TITLE: '<?=Loc::getMessage("CASHBOX_CHECK_CONNECTION_TITLE")?>',

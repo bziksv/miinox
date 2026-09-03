@@ -3,9 +3,10 @@
 namespace Bitrix\Location\Infrastructure\Service\Config;
 
 use Bitrix\Location\Entity\Source;
-use Bitrix\Location\Infrastructure\Service\DisputedAreaService;
+use Bitrix\Location\Infrastructure\Service\CustomFieldsService;
 use Bitrix\Location\Infrastructure\Service\LoggerService;
 use Bitrix\Location\Infrastructure\Service\CurrentRegionFinderService;
+use Bitrix\Location\Infrastructure\Service\RecentAddressesService;
 use Bitrix\Location\Infrastructure\SourceCodePicker;
 use Bitrix\Location\Repository\AddressRepository;
 use	Bitrix\Location\Exception\ErrorCodes;
@@ -22,6 +23,7 @@ use Bitrix\Location\Service\AddressService;
 use Bitrix\Location\Infrastructure\Service\ErrorService;
 use Bitrix\Location\Service\FormatService;
 use Bitrix\Location\Service\LocationService;
+use Bitrix\Location\Service\StaticMapService;
 use Bitrix\Main\Config\Option;
 
 class Factory implements IFactory
@@ -98,6 +100,7 @@ class Factory implements IFactory
 				];
 				break;
 
+			case StaticMapService::class:
 			case SourceService::class:
 				$result = [
 					'source' => self::obtainSource()
@@ -113,7 +116,8 @@ class Factory implements IFactory
 				break;
 
 			case CurrentRegionFinderService::class:
-			case DisputedAreaService::class:
+			case CustomFieldsService::class:
+			case RecentAddressesService::class:
 				break;
 
 			default:

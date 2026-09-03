@@ -9,9 +9,12 @@ use Bitrix\Main\Result;
 
 final class Enum extends Controller
 {
-	public const PROPERTY_USER_TYPE_DATETIME = 'DateTime';
-	public const PROPERTY_USER_TYPE_MONEY = 'Money';
-	public const PROPERTY_USER_TYPE_SKU = 'SKU';
+	/** @deprecated */
+	public const PROPERTY_USER_TYPE_DATETIME = PropertyTable::USER_TYPE_DATETIME;
+	/** @deprecated */
+	public const PROPERTY_USER_TYPE_MONEY = PropertyTable::USER_TYPE_MONEY;
+	/** @deprecated */
+	public const PROPERTY_USER_TYPE_SKU = PropertyTable::USER_TYPE_SKU;
 	public const PROPERTY_USER_TYPE_BOOL_ENUM = 'BoolEnum';
 
 	public function getProductTypesAction(): array
@@ -24,7 +27,7 @@ final class Enum extends Controller
 			$r[] = ['ID'=>$id, 'NAME'=>$name];
 		}
 
-		return ['ENUM'=>$r];
+		return [$this->getServiceItemName() => $r];
 	}
 
 	public function getRoundTypesAction(): array
@@ -37,7 +40,7 @@ final class Enum extends Controller
 			$r[] = ['ID'=>$id, 'NAME'=>$name];
 		}
 
-		return ['ENUM'=>$r];
+		return [$this->getServiceItemName() => $r];
 	}
 
 	/**
@@ -54,13 +57,13 @@ final class Enum extends Controller
 			];
 		}
 
-		return ['ENUM' => $result];
+		return [$this->getServiceItemName() => $result];
 	}
 
 	public function getProductPropertyTypesAction(): array
 	{
 		return [
-			'ENUM' => self::getProductPropertyTypes(),
+			$this->getServiceItemName() => self::getProductPropertyTypes(),
 		];
 	}
 
@@ -85,15 +88,15 @@ final class Enum extends Controller
 			],
 			'DATETIME' => [
 				'PROPERTY_TYPE' => PropertyTable::TYPE_STRING,
-				'USER_TYPE' => self::PROPERTY_USER_TYPE_DATETIME,
+				'USER_TYPE' => PropertyTable::USER_TYPE_DATETIME,
 			],
 			'MONEY' => [
 				'PROPERTY_TYPE' => PropertyTable::TYPE_STRING,
-				'USER_TYPE' => self::PROPERTY_USER_TYPE_MONEY,
+				'USER_TYPE' => PropertyTable::USER_TYPE_MONEY,
 			],
 			'SKU' => [
 				'PROPERTY_TYPE' => PropertyTable::TYPE_ELEMENT,
-				'USER_TYPE' => self::PROPERTY_USER_TYPE_SKU,
+				'USER_TYPE' => PropertyTable::USER_TYPE_SKU,
 			],
 		];
 	}

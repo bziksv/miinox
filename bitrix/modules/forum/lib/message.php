@@ -63,9 +63,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Message_Query query()
- * @method static EO_Message_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Message_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Message_Result getById($id)
- * @method static EO_Message_Result getList(array $parameters = array())
+ * @method static EO_Message_Result getList(array $parameters = [])
  * @method static EO_Message_Entity getEntity()
  * @method static \Bitrix\Forum\EO_Message createObject($setDefaultValues = true)
  * @method static \Bitrix\Forum\EO_Message_Collection createCollection()
@@ -76,6 +76,8 @@ class MessageTable extends Main\Entity\DataManager
 {
 	const SOURCE_ID_EMAIL = "EMAIL";
 	const SOURCE_ID_WEB = "WEB";
+	const SOURCE_ID_MOBILE = "MOBILE";
+
 	/**
 	 * Returns DB table name for entity.
 	 *
@@ -108,7 +110,7 @@ class MessageTable extends Main\Entity\DataManager
 			(new BooleanField("USE_SMILES", ["values" => ["N", "Y"], "default_value" => "Y"])),
 			(new BooleanField("NEW_TOPIC", ["values" => ["N", "Y"], "default_value" => "N"])),
 			(new BooleanField("APPROVED", ["values" => ["N", "Y"], "default_value" => "Y"])),
-			(new BooleanField("SOURCE_ID", ["values" => [self::SOURCE_ID_EMAIL, self::SOURCE_ID_WEB], "default_value" => self::SOURCE_ID_WEB])),
+			(new BooleanField("SOURCE_ID", ["values" => [self::SOURCE_ID_EMAIL, self::SOURCE_ID_WEB, self::SOURCE_ID_MOBILE], "default_value" => self::SOURCE_ID_WEB])),
 			(new DatetimeField("POST_DATE", ["required" => true, "default_value" => function(){ return new DateTime();}])),
 			(new TextField("POST_MESSAGE", ["required" => true])),
 			(new TextField("POST_MESSAGE_HTML")),
@@ -173,8 +175,17 @@ class MessageTable extends Main\Entity\DataManager
 		}
 		if (array_key_exists("SOURCE_ID", $data))
 		{
-			$data["SOURCE_ID"] = $data["SOURCE_ID"] === self::SOURCE_ID_EMAIL ? self::SOURCE_ID_EMAIL : self::SOURCE_ID_WEB;
+			$data["SOURCE_ID"] = self::filterSourceIdParam($data['SOURCE_ID']);
 		}
+	}
+
+	public static function filterSourceIdParam(string $sourceId): string
+	{
+		if (in_array($sourceId, [self::SOURCE_ID_WEB, self::SOURCE_ID_MOBILE, self::SOURCE_ID_EMAIL], true))
+		{
+			return $sourceId;
+		}
+		return self::SOURCE_ID_WEB;
 	}
 
 	public static function onBeforeAdd(Event $event)
@@ -558,7 +569,11 @@ class MessageTable extends Main\Entity\DataManager
 				}
 				if (array_key_exists("TOPIC_ID", $data))
 				{
-					if (!($topic = TopicTable::getById($data["TOPIC_ID"])->fetch()))
+					$topic = \Bitrix\Forum\TopicTable::query()->setSelect(['STATE'])
+						->where('ID', $data["TOPIC_ID"])
+						->fetch();
+
+					if (!$topic)
 					{
 						throw new Main\ObjectNotFoundException(Loc::getMessage("F_ERR_TOPIC_IS_NOT_EXISTS"));
 					}
@@ -668,6 +683,11 @@ class Message extends Internals\Entity
 		}
 
 		return $result;
+	}
+
+	public function getXmlId(): string
+	{
+		return (string)($this->data['XML_ID'] ?? '');
 	}
 
 	/**

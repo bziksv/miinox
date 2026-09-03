@@ -3,15 +3,16 @@
 namespace Bitrix\Sale\Cashbox;
 
 use Bitrix\Main;
+use Bitrix\Main\DI\ServiceLocator;
 use Bitrix\Sale\BasketItem;
 use Bitrix\Sale\Cashbox\Internals\CheckRelatedEntitiesTable;
 use Bitrix\Sale\Order;
 use Bitrix\Sale\PayableBasketItem;
 use Bitrix\Sale\Payment;
-use Bitrix\Sale\PriceMaths;
 use Bitrix\Sale\Registry;
 use Bitrix\Sale\Result;
 use Bitrix\Sale\Helpers\Admin;
+use Bitrix\Sale\Public\Dto\BasketItemCalculationInput;
 use Bitrix\Sale\Shipment;
 use Bitrix\Sale\ShipmentItem;
 
@@ -50,6 +51,10 @@ abstract class Check extends AbstractCheck
 	public const PAYMENT_OBJECT_COMMODITY_MARKING_EXCISE = 'commodity_marking_excise';
 	public const PAYMENT_OBJECT_COMMODITY_MARKING_NO_MARKING = 'commodity_marking_no_marking';
 	public const PAYMENT_OBJECT_COMMODITY_MARKING = 'commodity_marking';
+	public const PAYMENT_OBJECT_INSURANCE_PREMIUM = 'insurance_premium';
+	public const PAYMENT_OBJECT_FINE = 'fine';
+	public const PAYMENT_OBJECT_TAX = 'tax';
+	public const PAYMENT_OBJECT_AGENT_WITHDRAWALS = 'agent_withdrawals';
 
 	private const MARKING_TYPE_CODE = '444D';
 
@@ -237,6 +242,7 @@ abstract class Check extends AbstractCheck
 			'type' => static::getType(),
 			'calculated_sign' => static::getCalculatedSign(),
 			'unique_id' => $this->getField('ID'),
+			'currency' => $this->getField('CURRENCY'),
 			'items' => [],
 			'date_create' => new Main\Type\DateTime()
 		];
@@ -256,7 +262,8 @@ abstract class Check extends AbstractCheck
 					'entity' => $payment['ENTITY'],
 					'type' => $payment['TYPE'],
 					'is_cash' => $payment['IS_CASH'],
-					'sum' => $payment['SUM']
+					'sum' => $payment['SUM'],
+					'currency' => $payment['CURRENCY'],
 				];
 
 				if (isset($payment['ADDITIONAL_PARAMS']))
@@ -277,6 +284,7 @@ abstract class Check extends AbstractCheck
 						'base_price' => $product['BASE_PRICE'],
 						'price' => $product['PRICE'],
 						'sum' => $product['SUM'],
+						'currency' => $product['CURRENCY'],
 						'quantity' => $product['QUANTITY'],
 						'measure_code' => $product['MEASURE_CODE'] ?? '',
 						'vat' => $product['VAT'] ?? 0,
@@ -336,6 +344,7 @@ abstract class Check extends AbstractCheck
 						'base_price' => $delivery['BASE_PRICE'],
 						'price' => $delivery['PRICE'],
 						'sum' => $delivery['SUM'],
+						'currency' => $delivery['CURRENCY'],
 						'quantity' => $delivery['QUANTITY'],
 						'vat' => $delivery['VAT'],
 						'vat_sum' => $delivery['VAT_SUM'],
@@ -374,6 +383,11 @@ abstract class Check extends AbstractCheck
 			}
 
 			$result['total_sum'] = $data['TOTAL_SUM'];
+
+			if (isset($data['CURRENCY']))
+			{
+				$result['currency'] = $data['CURRENCY'];
+			}
 		}
 
 		return $result;
@@ -398,6 +412,7 @@ abstract class Check extends AbstractCheck
 		$discounts = null;
 		$shopPrices = null;
 		$totalSum = 0;
+		$currency = null;
 
 		foreach ($entities as $entity)
 		{
@@ -412,13 +427,15 @@ abstract class Check extends AbstractCheck
 				$service = $entity->getPaySystem();
 				$type = $service->getField('IS_CASH') === 'Y' ? static::PAYMENT_TYPE_CASH : static::PAYMENT_TYPE_CASHLESS;
 
-				$result['PAYMENTS'][] = array(
+				$result['PAYMENTS'][] = [
 					'ENTITY' => $entity,
 					'IS_CASH' => $service->getField('IS_CASH'),
 					'TYPE' => $type,
-					'SUM' => $entity->getSum()
-				);
+					'SUM' => $entity->getSum(),
+					'CURRENCY' => $entity->getField('CURRENCY'),
+				];
 
+				$currency = $entity->getField('CURRENCY');
 				$totalSum += $entity->getSum();
 
 				if ($this->isShipmentExists())
@@ -434,7 +451,14 @@ abstract class Check extends AbstractCheck
 
 					$item = $this->extractDataFromBasketItem($basketItem);
 
-					$item['SUM'] = PriceMaths::roundPrecision($basketItem->getPriceWithVat() * $payableItem->getQuantity());
+					$basketCalculator = ServiceLocator::getInstance()->get('sale.basketItemCalculator');
+					$basketCalculationInput = new BasketItemCalculationInput(
+						basePrice: $basketItem->getPriceWithVat(),
+						quantity: $payableItem->getQuantity(),
+						vatRate: (float)$basketItem->getVatRate() * 100,
+						vatIncluded: true,
+					);
+					$item['SUM'] = $basketCalculator->calculate($basketCalculationInput)->totalCalculation->totalPrice;
 					$item['QUANTITY'] = (float)$payableItem->getQuantity();
 
 					$result['PRODUCTS'][] = $item;
@@ -498,8 +522,15 @@ abstract class Check extends AbstractCheck
 					}
 					else
 					{
-						$item['SUM'] = PriceMaths::roundPrecision($basketItem->getPriceWithVat() * $shipmentItem->getQuantity());
-						$item['QUANTITY'] = (float)$shipmentItem->getQuantity();
+					$shipCalc = ServiceLocator::getInstance()->get('sale.basketItemCalculator');
+					$shipCalcInput = new BasketItemCalculationInput(
+						basePrice: $basketItem->getPriceWithVat(),
+						quantity: $shipmentItem->getQuantity(),
+						vatRate: (float)$basketItem->getVatRate() * 100,
+						vatIncluded: true,
+					);
+					$item['SUM'] = $shipCalc->calculate($shipCalcInput)->totalCalculation->totalPrice;
+					$item['QUANTITY'] = (float)$shipmentItem->getQuantity();
 
 						$shipmentItemStoreCollection = $shipmentItem->getShipmentItemStoreCollection();
 						if (isset($shipmentItemStoreCollection[0]))
@@ -543,6 +574,7 @@ abstract class Check extends AbstractCheck
 		}
 
 		$result['TOTAL_SUM'] = $totalSum;
+		$result['CURRENCY'] = $currency;
 
 		unset($shopPrices, $discounts);
 
@@ -589,6 +621,7 @@ abstract class Check extends AbstractCheck
 				'BASE_PRICE' => (float)$shipment->getField('BASE_PRICE_DELIVERY'),
 				'PRICE' => (float)$shipment->getPrice(),
 				'SUM' => (float)$shipment->getPrice(),
+				'CURRENCY' => $shipment->getCurrency(),
 				'QUANTITY' => 1,
 				'VAT' => $this->getDeliveryVatId($shipment),
 				'PAYMENT_OBJECT' => static::PAYMENT_OBJECT_SERVICE
@@ -646,9 +679,11 @@ abstract class Check extends AbstractCheck
 			'BASE_PRICE' => $basketItem->getBasePriceWithVat(),
 			'PRICE' => $basketItem->getPriceWithVat(),
 			'SUM' => $basketItem->getFinalPrice(),
+			'CURRENCY' => $basketItem->getCurrency(),
 			'QUANTITY' => (float)$basketItem->getQuantity(),
 			'MEASURE_CODE' => $basketItem->getField('MEASURE_CODE'),
 			'VAT' => $this->getProductVatId($basketItem),
+			'VAT_SUM' => $basketItem->getVat(),
 			'PAYMENT_OBJECT' => $this->getPaymentObject($basketItem),
 		];
 
@@ -779,7 +814,7 @@ abstract class Check extends AbstractCheck
 				$hex = '0'.$hex;
 			}
 
-			$result = ToUpper($hex).$result;
+			$result = mb_strtoupper($hex).$result;
 		}
 
 		return $result;
@@ -801,7 +836,7 @@ abstract class Check extends AbstractCheck
 				$hex = '0'.$hex;
 			}
 
-			$result .= ToUpper($hex);
+			$result .= mb_strtoupper($hex);
 		}
 
 		return $result;

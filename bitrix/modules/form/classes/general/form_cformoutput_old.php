@@ -26,8 +26,8 @@ class CFormOutput_old
 
 		$this->arParams = $arParams;
 
-		$this->RESULT_ID = intval($arParams["RESULT_ID"]);
-		if (intval($this->RESULT_ID)<=0) $this->RESULT_ID = intval($_REQUEST["RESULT_ID"]);
+		$this->RESULT_ID = intval($arParams["RESULT_ID"] ?? 0);
+		if (intval($this->RESULT_ID)<=0) $this->RESULT_ID = intval($_REQUEST["RESULT_ID"] ?? 0);
 
 		// if there's result ID try to get form ID
 		if (intval($this->RESULT_ID) > 0)
@@ -56,7 +56,7 @@ class CFormOutput_old
 		if ($this->WEB_FORM_ID > 0)
 		{
 			//  insert chain item
-			if ($this->arParams["CHAIN_ITEM_TEXT"] <> '')
+			if (!empty($this->arParams["CHAIN_ITEM_TEXT"]))
 			{
 				$APPLICATION->AddChainItem($this->arParams["CHAIN_ITEM_TEXT"], $this->arParams["CHAIN_ITEM_LINK"]);
 			}
@@ -418,12 +418,12 @@ class CFormOutput_old
 
 		$editor = "/bitrix/admin/fileman_file_edit.php?full_src=Y&site=".SITE_ID."&";
 		$rel_path = "form/".(empty($this->RESULT_ID) ? "result_new" : "result_edit")."/form.php";
-		$path = BX_PRESONAL_ROOT."/templates/".SITE_TEMPLATE_ID."/".$rel_path;
+		$path = BX_PERSONAL_ROOT."/templates/".SITE_TEMPLATE_ID."/".$rel_path;
 		$href = "javascript:window.location='".$editor."path=".urlencode($path)."&lang=".LANGUAGE_ID."&back_url=".urlencode($back_url)."'";
 
 		if(!file_exists($_SERVER["DOCUMENT_ROOT"].$path))
 		{
-			$path = BX_PRESONAL_ROOT."/templates/.default/".$rel_path;
+			$path = BX_PERSONAL_ROOT."/templates/.default/".$rel_path;
 			$href = "javascript:window.location='".$editor."path=".urlencode($path)."&lang=".LANGUAGE_ID."&back_url=".urlencode($back_url)."'";
 			if(!file_exists($_SERVER["DOCUMENT_ROOT"].$path))
 			{

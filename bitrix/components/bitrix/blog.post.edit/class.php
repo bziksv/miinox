@@ -999,17 +999,17 @@ class CBlogPostEdit extends CBitrixComponent
 		$dbCategory = CBlogCategory::GetList(Array(), Array("BLOG_ID" => $blogParams["ID"]));
 		while ($category = $dbCategory->Fetch())
 		{
-			$arCatBlog[ToLower($category["NAME"])] = $category["ID"];
+			$arCatBlog[mb_strtolower($category["NAME"])] = $category["ID"];
 		}
 		$tags = explode(",", $_POST["TAGS"]);
 		foreach ($tags as $tg)
 		{
 			$tg = trim($tg);
-			if (!in_array($arCatBlog[ToLower($tg)], $categoriesIds))
+			if (!in_array($arCatBlog[mb_strtolower($tg)], $categoriesIds))
 			{
-				if (intval($arCatBlog[ToLower($tg)]) > 0)
+				if (intval($arCatBlog[mb_strtolower($tg)]) > 0)
 				{
-					$categoriesIds[] = $arCatBlog[ToLower($tg)];
+					$categoriesIds[] = $arCatBlog[mb_strtolower($tg)];
 				}
 				else
 				{
@@ -1274,16 +1274,16 @@ class CBlogPostEdit extends CBitrixComponent
 					$dbCategory = CBlogCategory::GetList(Array(), Array("BLOG_ID" => $arCopyBlog["ID"]));
 					while ($arCategory = $dbCategory->Fetch())
 					{
-						$arCatBlogCopy[ToLower($arCategory["NAME"])] = $arCategory["ID"];
+						$arCatBlogCopy[mb_strtolower($arCategory["NAME"])] = $arCategory["ID"];
 					}
 					
 					$dbCat = CBlogPostCategory::GetList(Array("NAME" => "ASC"), Array("BLOG_ID" => $blogParams["ID"], "POST_ID" => $this->arParams["ID"]));
 					while ($arCat = $dbCat->Fetch())
 					{
-						if (empty($arCatBlogCopy[ToLower($arCat["NAME"])]))
+						if (empty($arCatBlogCopy[mb_strtolower($arCat["NAME"])]))
 							$v = CBlogCategory::Add(array("BLOG_ID" => $arCopyBlog["ID"], "NAME" => $arCat["NAME"]));
 						else
-							$v = $arCatBlogCopy[ToLower($arCat["NAME"])];
+							$v = $arCatBlogCopy[mb_strtolower($arCat["NAME"])];
 						CBlogPostCategory::Add(Array("BLOG_ID" => $arCopyBlog["ID"], "POST_ID" => $copyID, "CATEGORY_ID" => $v));
 						$arCopyCat[] = $v;
 					}
@@ -1465,13 +1465,19 @@ class CBlogPostEdit extends CBitrixComponent
 		
 		if ($USER->IsAdmin() || $blogModulePermissions >= "W")
 		{
-			$arFlt = Array(
-				"ACTIVE" => "Y",
+			$arFilter = [
+				"=ACTIVE" => "Y",
 				"GROUP_SITE_ID" => SITE_ID,
 				"!ID" => $blogParams["ID"],
+			];
+
+			$dbBlog = CBlog::GetList(
+				["NAME" => "ASC"],
+				$arFilter,
+				false,
+				false,
+				["ID", "NAME", "OWNER_ID", "URL", "GROUP_ID", "GROUP_NAME"]
 			);
-			
-			$dbBlog = CBlog::GetList(Array("NAME" => "ASC"), $arFlt, false, false, array("ID", "NAME", "OWNER_ID", "URL", "GROUP_ID", "GROUP_NAME"));
 			while ($arBlogS = $dbBlog->GetNext())
 			{
 				$arBlogS["PERMS"] = BLOG_PERMS_FULL;
@@ -1480,31 +1486,43 @@ class CBlogPostEdit extends CBitrixComponent
 		}
 		else
 		{
-			$arFlt = Array(
+			$arFilter = Array(
 				"USE_SOCNET" => "N",
 				">=PERMS" => BLOG_PERMS_PREMODERATE,
 				"PERMS_TYPE" => BLOG_PERMS_POST,
 				"PERMS_USER_ID" => $this->userId,
 				"PERMS_POST_ID" => false,
-				"ACTIVE" => "Y",
+				"=ACTIVE" => "Y",
 				"GROUP_SITE_ID" => SITE_ID,
 				"!ID" => $blogParams["ID"],
 			);
-			
-			$dbBlog = CBlog::GetList(Array("NAME" => "ASC"), $arFlt, false, false, array("ID", "NAME", "OWNER_ID", "URL", "PERMS", "GROUP_ID", "GROUP_NAME"));
+
+			$dbBlog = CBlog::GetList(
+				["NAME" => "ASC"],
+				$arFilter,
+				false,
+				false,
+				["ID", "NAME", "OWNER_ID", "URL", "PERMS", "GROUP_ID", "GROUP_NAME"]
+			);
 			while ($arBlogS = $dbBlog->GetNext())
 			{
 				$arBlogS["USE_SOCNET"] = "N";
 				$avBlogs[$arBlogS["ID"]] = $arBlogS;
 			}
-			$arFlt = Array(
+			$arFilter = [
 				"OWNER_ID" => $this->userId,
-				"ACTIVE" => "Y",
+				"=ACTIVE" => "Y",
 				"GROUP_SITE_ID" => SITE_ID,
 				"!ID" => $blogParams["ID"],
+			];
+
+			$dbBlog = CBlog::GetList(
+				["NAME" => "ASC"],
+				$arFilter,
+				false,
+				false,
+				["ID", "NAME", "OWNER_ID", "URL", "GROUP_ID", "GROUP_NAME"]
 			);
-			
-			$dbBlog = CBlog::GetList(Array("NAME" => "ASC"), $arFlt, false, false, array("ID", "NAME", "OWNER_ID", "URL", "GROUP_ID", "GROUP_NAME"));
 			while ($arBlogS = $dbBlog->GetNext())
 			{
 				$arBlogS["PERMS"] = BLOG_PERMS_FULL;

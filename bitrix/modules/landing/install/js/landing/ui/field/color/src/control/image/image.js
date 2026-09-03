@@ -4,6 +4,7 @@ import {BaseEvent} from 'main.core.events';
 import {Dom, Tag, Type, Loc, Text} from 'main.core';
 import {Image as ImageField} from 'landing.ui.field.image';
 import {Backend} from 'landing.backend';
+import {Env} from 'landing.env';
 import {PageObject} from 'landing.pageobject';
 import BaseControl from "../base_control/base_control";
 import BgImageValue from '../../bg_image_value';
@@ -24,7 +25,6 @@ export default class Image extends BaseControl
 		super();
 		this.setEventNamespace('BX.Landing.UI.Field.Color.Image');
 		this.options = options;
-
 		this.imgField = new ImageField({
 			id: 'landing_ui_color_image_' + Text.getRandom().toLowerCase(),
 			className: 'landing-ui-field-color-image-image',
@@ -33,6 +33,9 @@ export default class Image extends BaseControl
 			disableLink: true,
 			disableAltField: true,
 			allowClear: true,
+			isAiImageAvailable: Env.getInstance().getOptions()['ai_image_available'],
+			isAiImageActive: Env.getInstance().getOptions()['ai_image_active'],
+			aiUnactiveInfoCode: Env.getInstance().getOptions()['ai_unactive_info_code'],
 			dimensions: {width: 1920},
 			uploadParams: {
 				action: "Block::uploadFile",
@@ -57,9 +60,10 @@ export default class Image extends BaseControl
 			multiple: false,
 			compact: true,
 			items: [
-				{name: Loc.getMessage('LANDING_FIELD_COLOR-BG_FIXED'), value: true},
+				{ name: Loc.getMessage('LANDING_FIELD_COLOR-BG_FIXED'), value: 'fixed' },
 			],
 			onChange: this.onAttachmentChange.bind(this),
+			value: [this.getAttachmentValue()],
 		});
 	}
 
@@ -135,6 +139,7 @@ export default class Image extends BaseControl
 			.action(
 				"Landing\\Block::updateNodes",
 				{
+					lid: this.options.block.lid,
 					block: this.options.block.id,
 					data: data,
 				},
@@ -237,8 +242,8 @@ export default class Image extends BaseControl
 					imgFieldValue.id2x = value.getFileId2x();
 				}
 				this.imgField.setValue(imgFieldValue, true);
-				this.sizeField.setValue(value.getSize(), true);
-				this.attachmentField.setValue([value.getAttachment(true)]);
+				this.sizeField.setValue(this.getSizeValue(), true);
+				this.attachmentField.setValue([this.getAttachmentValue()]);
 			}
 		}
 	}
@@ -251,5 +256,41 @@ export default class Image extends BaseControl
 	unsetActive(): void
 	{
 		Dom.removeClass(this.imgField.getLayout(), Image.ACTIVE_CLASS);
+	}
+
+	getAttachmentValue(): string
+	{
+		if (
+			this.options
+			&& this.options.block
+			&& this.options.block.content
+			&& Dom.hasClass(this.options.block.content, 'g-bg-image')
+		)
+		{
+			const blockContentStyle = window.getComputedStyle(this.options.block.content);
+			const bgAttachmentValue = blockContentStyle.getPropertyValue('background-attachment');
+
+			return bgAttachmentValue.includes('fixed') ? 'fixed' : 'scroll';
+		}
+
+		return 'scroll';
+	}
+
+	getSizeValue(): string
+	{
+		if (
+			this.options
+			&& this.options.block
+			&& this.options.block.content
+			&& Dom.hasClass(this.options.block.content, 'g-bg-image')
+		)
+		{
+			const blockContentStyle = window.getComputedStyle(this.options.block.content);
+			const bgSizeValue = blockContentStyle.getPropertyValue('background-size');
+
+			return bgSizeValue.includes('cover') ? 'cover' : 'auto';
+		}
+
+		return 'cover';
 	}
 }

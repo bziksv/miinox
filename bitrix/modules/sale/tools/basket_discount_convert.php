@@ -15,33 +15,25 @@ Loc::loadMessages(__FILE__);
 $saleRights = $APPLICATION->GetGroupRight('sale');
 if ($saleRights < 'W')
 {
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
 	ShowError(Loc::getMessage('SALE_BASKET_DISCOUNT_CONVERT_ERRORS_RIGHTS'));
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin.php');
 	die();
 }
 
 if (!check_bitrix_sessid())
 {
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
 	ShowError(Loc::getMessage('SALE_BASKET_DISCOUNT_CONVERT_ERRORS_INCORRECT_SESSION'));
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin.php');
 	die();
 }
 
 if (!Loader::includeModule('sale'))
 {
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
 	ShowError(Loc::getMessage('SALE_BASKET_DISCOUNT_CONVERT_ERRORS_MODULE_SALE_ABSENT'));
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin.php');
 	die();
 }
 
 if (!Loader::includeModule('catalog'))
 {
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
 	ShowError(Loc::getMessage('SALE_BASKET_DISCOUNT_CONVERT_ERRORS_MODULE_CATALOG_ABSENT'));
-	require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin.php');
 	die();
 }
 
@@ -53,8 +45,6 @@ if (
 	&& ($request['operation'] == 'Y' || $request['getCount'] == 'Y' || $request['clearTags'] == 'Y')
 )
 {
-	CUtil::JSPostUnescape();
-
 	$filter = array();
 	$filter = CSaleBasketDiscountConvert::checkFilter($request);
 
@@ -226,7 +216,7 @@ else
 		)
 	);
 	?>
-<script type="text/javascript">
+<script>
 	var jsBasketDiscountConverter = new BX.Sale.Admin.StepOperations.StepOperationsFilter(<? echo CUtil::PhpToJSObject($jsParams, false, true); ?>);
 	BX.ready(function(){
 		var filterType = BX('filter_type'),

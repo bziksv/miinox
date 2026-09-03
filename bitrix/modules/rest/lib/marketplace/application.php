@@ -7,6 +7,7 @@ use Bitrix\Main\SystemException;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\Uri;
 use Bitrix\Main;
+use Bitrix\Rest\Internal\Access\AppAccessChecker;
 use Bitrix\Rest\PlacementTable;
 use Bitrix\Rest\Engine\Access;
 use Bitrix\Rest\AppLangTable;
@@ -16,6 +17,8 @@ use Bitrix\Rest\AppLogTable;
 use Bitrix\Rest\EventTable;
 use Bitrix\Rest\Analytic;
 use Bitrix\Rest\AppTable;
+use Bitrix\Rest\Internal\Repository\Application\AppRepository;
+use Bitrix\Rest\Public\Command\Application\Access\SetAppAccessCommand;
 use CRestUtil;
 
 Loc::loadMessages(__FILE__);
@@ -31,6 +34,11 @@ class Application
 	public static function setContextUserId(int $id): void
 	{
 		self::$contextUserId = $id;
+	}
+
+	public static function getContextUserId(): ?int
+	{
+		return self::$contextUserId;
 	}
 
 	public static function install($code, $version = false, $checkHash = false, $installHash = false, $from = null) : array
@@ -82,10 +90,7 @@ class Application
 
 			if (
 				$appDetailInfo
-				&& (
-					!Access::isAvailable($code)
-					|| !Access::isAvailableCount(Access::ENTITY_TYPE_APP, $code)
-				)
+				&& !Access::canInstallApp($appDetailInfo)
 			)
 			{
 				$result = [
@@ -153,6 +158,7 @@ class Application
 							'URL' => $appDetailInfo['URL'],
 							'URL_DEMO' => $appDetailInfo['DEMO_URL'],
 							'URL_INSTALL' => $appDetailInfo['INSTALL_URL'],
+							'URL_SETTINGS' => $appDetailInfo['SETTINGS_URL'],
 							'VERSION' => $installResult['result']['version'],
 							'SCOPE' => implode(',', $installResult['result']['scope']),
 							'STATUS' => $installResult['result']['status'],
@@ -177,8 +183,11 @@ class Application
 
 						//Configuration app
 						if (
-							$appDetailInfo['TYPE'] === AppTable::TYPE_CONFIGURATION
-							&& $appDetailInfo['MODE'] !== AppTable::MODE_SITE
+							(
+								$appDetailInfo['TYPE'] === AppTable::TYPE_CONFIGURATION
+								&& $appDetailInfo['MODE'] !== AppTable::MODE_SITE
+							)
+							|| $appDetailInfo['TYPE'] === AppTable::TYPE_BIC_DASHBOARD
 						)
 						{
 							$appFields['INSTALLED'] = AppTable::NOT_INSTALLED;
@@ -265,12 +274,31 @@ class Application
 								}
 							}
 
+							if (!empty($appFields['URL_INSTALL']))
+							{
+								// checkCallback is already called inside checkFields
+								$result = EventTable::add(
+									[
+										'APP_ID' => $appId,
+										'EVENT_NAME' => 'ONAPPUSERREADY',
+										'EVENT_HANDLER' => $appFields['URL_INSTALL'],
+									]
+								);
+								if ($result->isSuccess())
+								{
+									Sender::bind('rest', 'OnRestAppUserReady');
+								}
+							}
+
 							AppTable::install($appId);
 
 							$redirect = false;
 							$open = false;
 							$sliderUrl = false;
-							if ($appDetailInfo['TYPE'] !== AppTable::TYPE_CONFIGURATION)
+							if (
+								$appDetailInfo['TYPE'] !== AppTable::TYPE_CONFIGURATION
+								&& $appDetailInfo['TYPE'] !== AppTable::TYPE_BIC_DASHBOARD
+							)
 							{
 								$uriString = CRestUtil::getApplicationPage($appId);
 								$uri = new Uri($uriString);
@@ -313,9 +341,10 @@ class Application
 								'success' => 1,
 								'id' => $appId,
 								'open' => $open,
-								'installed' => $appFields['INSTALLED'] === 'Y',
+								'installed' => AppTable::isInstalled($appId),
 								'redirect' => $redirect,
 								'openSlider' => $sliderUrl,
+								'canShowForm' => $appDetailInfo['OPEN_API'] === 'Y' && !empty($appFields['URL_SETTINGS'])
 							];
 
 							Analytic::logToFile(
@@ -336,7 +365,7 @@ class Application
 					&& Client::isSubscriptionDemo()
 				)
 				{
-					$result = ['error' => Loc::getMessage('RMP_TRIAL_HOLD_INSTALL')];
+					$result = ['error' => Loc::getMessage('RMP_TRIAL_HOLD_INSTALL_MSGVER_1')];
 				}
 				else
 				{
@@ -366,7 +395,7 @@ class Application
 		{
 			if ($result['error'] === 'SUBSCRIPTION_REQUIRED')
 			{
-				$result['errorDescription'] = Loc::getMessage('RMP_ERROR_SUBSCRIPTION_REQUIRED');
+				$result['errorDescription'] = Loc::getMessage('RMP_ERROR_SUBSCRIPTION_REQUIRED_MSGVER_1');
 			}
 			elseif ($result['error'] === 'verification_needed')
 			{
@@ -420,16 +449,17 @@ class Application
 				}
 				else
 				{
-					$errorMessage = '';
+					$errorMessage = [];
 					foreach ($checkResult as $error)
 					{
-						$errorMessage .= $error->getMessage() . "\n";
+						$errorMessage[] = $error->getMessage();
 					}
 
-					$result = ['error' => $errorMessage];
+					$result = ['error' => implode(PHP_EOL, $errorMessage)];
+					$appType = AppTable::getAppType($appInfo['CODE']);
 					if (
 						$checkResult->isEmpty()
-						&& AppTable::getAppType($appInfo['CODE']) == AppTable::TYPE_CONFIGURATION
+						&& ($appType === AppTable::TYPE_CONFIGURATION || $appType === AppTable::TYPE_BIC_DASHBOARD)
 					)
 					{
 						$result = [
@@ -471,6 +501,9 @@ class Application
 			}
 			elseif ($appInfo && $appInfo['STATUS'] === AppTable::STATUS_LOCAL)
 			{
+				// delete user application params to trigger installation event
+				\CUserOptions::DeleteOption('app_options', 'params_' . $appInfo['CLIENT_ID'] . '_' . $appInfo['VERSION']);
+
 				if (empty($appInfo['MENU_NAME']) && empty($appInfo['MENU_NAME_DEFAULT']))
 				{
 					AppTable::install($appInfo['ID']);
@@ -505,53 +538,79 @@ class Application
 
 	public static function setRights($appId, $rights) : array
 	{
-		$result = [];
-		// todo: maybe can add self::$contextUser to isAdmin check
-		if (CRestUtil::isAdmin())
+		if ($appId <= 0)
 		{
-			if ($appId > 0)
-			{
-				$appInfo = AppTable::getByClientId($appId);
-				if ($appInfo['CODE'])
-				{
-					Analytic::logToFile(
-						'setAppRight',
-						$appInfo['CODE'],
-						$appInfo['CODE']
-					);
-				}
-				AppTable::setAccess($appId, $rights);
-				PlacementTable::clearHandlerCache();
-				$result = ['success' => 1];
-			}
-		}
-		else
-		{
-			$result = ['error' => Loc::getMessage('RMP_ACCESS_DENIED')];
+			return [];
 		}
 
-		return $result;
+		$appInfo = AppTable::getByClientId($appId);
+		if (!$appInfo)
+		{
+			return [];
+		}
+
+		if ($appInfo['CODE'])
+		{
+			Analytic::logToFile('setAppRight', $appInfo['CODE'], $appInfo['CODE']);
+		}
+
+		$codes = [];
+		if (is_array($rights) && !empty($rights))
+		{
+			foreach ($rights as $rightsList)
+			{
+				foreach ($rightsList as $rightId => $ar)
+				{
+					$codes[] = $rightId;
+				}
+			}
+		}
+
+		$userId = self::$contextUserId ?? (int)($GLOBALS['USER']?->GetID() ?? 0);
+
+		try
+		{
+			$commandResult = (new SetAppAccessCommand(
+				userId: $userId,
+				clientId: $appInfo['CLIENT_ID'],
+				accessCodes: $codes,
+			))->run();
+		}
+		catch (Main\Command\Exception\CommandException | Main\Command\Exception\CommandValidationException)
+		{
+			return ['error' => Loc::getMessage('RMP_ACCESS_DENIED')];
+		}
+
+		if (!$commandResult->isSuccess())
+		{
+			return ['error' => Loc::getMessage('RMP_ACCESS_DENIED')];
+		}
+
+		return ['success' => 1];
 	}
 
 	public static function getRights($appId)
 	{
-		// todo: maybe can add self::$contextUser to isAdmin check
-		if (CRestUtil::isAdmin())
+		if ($appId <= 0)
 		{
-			if ($appId > 0)
-			{
-				$result = AppTable::getAccess($appId);
-			}
-			else
-			{
-				$result = 0;
-			}
-		}
-		else
-		{
-			$result = ['error' => Loc::getMessage('RMP_ACCESS_DENIED')];
+			return 0;
 		}
 
-		return $result;
+		$appRepository = new AppRepository();
+		$app = $appRepository->getById((int)$appId);
+		if ($app === null)
+		{
+			return 0;
+		}
+
+		$userId = self::$contextUserId ?? (int)($GLOBALS['USER']?->GetID() ?? 0);
+		$accessChecker = new AppAccessChecker($userId);
+
+		if (!$accessChecker->canManageAppAccess($app))
+		{
+			return ['error' => Loc::getMessage('RMP_ACCESS_DENIED')];
+		}
+
+		return AppTable::getAccess($appId);
 	}
 }

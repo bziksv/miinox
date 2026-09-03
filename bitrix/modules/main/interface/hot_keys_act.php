@@ -1,8 +1,12 @@
-<?
+<?php
 define("NO_KEEP_STATISTIC", true);
 define("NO_AGENT_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
+
+/**
+ * @global CUser $USER
+ */
 
 $hkInstance = CHotKeys::GetInstance();
 $uid=$USER->GetID();
@@ -88,7 +92,7 @@ if($USER->IsAuthorized() && check_bitrix_sessid())
 
 				if(!$_FILES['bx_hk_filename']['name'] || !$_FILES['bx_hk_filename']['size'])
 				{
-					$res='<script type="text/javascript">window.parent.BXHotKeys.OnImportResponse(0);</script>';
+					$res='<script>window.parent.BXHotKeys.OnImportResponse(0);</script>';
 					break;
 				}
 
@@ -102,7 +106,7 @@ if($USER->IsAuthorized() && check_bitrix_sessid())
 				if(move_uploaded_file($_FILES['bx_hk_filename']['tmp_name'], $tmpDir.CHotKeys::$ExpImpFileName))
 					$numImported = $hkInstance->Import($tmpDir.CHotKeys::$ExpImpFileName,$uid);
 
-				$res='<script type="text/javascript">window.parent.BXHotKeys.OnImportResponse("'.$numImported.'");</script>';
+				$res='<script>window.parent.BXHotKeys.OnImportResponse("'.$numImported.'");</script>';
 
 				break;
 	}
@@ -111,4 +115,4 @@ if($USER->IsAuthorized() && check_bitrix_sessid())
 }
 
 require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_after.php");
-?>
+

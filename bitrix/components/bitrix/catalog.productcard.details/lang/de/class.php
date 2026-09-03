@@ -15,6 +15,7 @@ $MESS["CPD_ERROR_EMPTY_DIRECTORY_ITEMS"] = "Elemente zur Auswahlliste hinzufüge
 $MESS["CPD_ERROR_EMPTY_LIST_ITEMS"] = "Elemente für Liste hinzufügen";
 $MESS["CPD_ERROR_NOT_SUPPORTED_PRODUCT_TYPE"] = "Der von Ihnen ausgewählte Produkttyp \"#TYPE#\" wird vom neuen Produktformular nicht unterstützt. Sie können dieses Produkt im Bereich Onlineshop anzeigen und bearbeiten.<br>#LINK#";
 $MESS["CPD_ERROR_NOT_SUPPORTED_PRODUCT_TYPE_BUS"] = "Der von Ihnen ausgewählte Produkttyp \"#TYPE#\" wird von dem neuen Produktformular nicht unterstützt. Möchten Sie dieses Produkt anzeigen oder bearbeiten, sollten Sie in den Katalogeinstellungen wieder das alte Produktformular aktiveren.<br>#LINK#";
+$MESS["CPD_ERROR_SAVE"] = "Die Änderungen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.";
 $MESS["CPD_ERROR_UNKNOWN_PRODUCT_TYPE"] = "Unbekannter Produkttyp";
 $MESS["CPD_NEW_LIST_ELEMENT_EMPTY_NAME"] = "Neues Element";
 $MESS["CPD_NEW_PRODUCT_TITLE"] = "Neues Produkt";

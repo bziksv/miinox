@@ -1,8 +1,10 @@
 <?php
 namespace Bitrix\Rest\Event;
 
+use Bitrix\Main;
 use Bitrix\Rest\AppTable;
 use Bitrix\Rest\EventTable;
+use Bitrix\Rest\Tools\Diagnostics\Event;
 use Bitrix\Rest\Tools\Diagnostics\LoggerManager;
 
 /**
@@ -22,24 +24,23 @@ class Callback
 	 *
 	 * @throws \Bitrix\Main\ArgumentException
 	 * @throws \Bitrix\Main\SystemException
+	 * @throws \Exception
 	 */
 	public static function __callStatic($name, $arguments)
 	{
-		$logger = LoggerManager::getInstance()->getLogger();
 		$event = Sender::parseEventName($name);
-		if ($logger)
-		{
-			$logger->debug(
-				"\n{delimiter}\n"
-				. "{date} - {host}\n{delimiter}\n"
-				. "Event {eventName} starts. \n{delimiter}\n"
-				. "{arguments}",
-				[
-					'eventName' => $event['EVENT'],
-					'arguments' => $arguments,
-				]
-			);
-		}
+		LoggerManager::getInstance()->getLogger()?->info(
+			"\n{delimiter}\n"
+			. "{date} - {host}\n{delimiter}\n"
+			. "Event {eventName} starts. \n{delimiter}\n"
+			. "{arguments}", [
+			'RESPONSE_DATA' => $arguments,
+			'SCOPE' => $event['MODULE_ID'] ?? null,
+			'METHOD' => $event['EVENT'] ?? null,
+			'MESSAGE' => Event\LogType::EVENT_START->value,
+			'eventName' => $event['EVENT'],
+			'arguments' => $arguments,
+		]);
 
 		$provider = new \CRestProvider();
 		$description = $provider->getDescription();
@@ -53,7 +54,7 @@ class Callback
 			{
 				foreach($scopeMethods[\CRestUtil::EVENTS] as $key => $restEvent)
 				{
-					if($restEvent[0] == $event['MODULE_ID'] && toUpper($restEvent[1]) == $event['EVENT'])
+					if($restEvent[0] == $event['MODULE_ID'] && mb_strtoupper($restEvent[1]) == $event['EVENT'])
 					{
 						$event['EVENT_REST'] = array(
 							'EVENT' => $key,
@@ -88,79 +89,85 @@ class Callback
 			}
 		}
 
-		if(array_key_exists('EVENT_REST', $event))
+		if (array_key_exists('EVENT_REST', $event))
 		{
-			$filter = [
-				'=EVENT_NAME' => mb_strtoupper($event['EVENT_REST']['EVENT']),
-			];
+			$query = EventTable::query()
+				->setSelect([
+					'ID',
+					'APP_ID',
+					'EVENT_NAME',
+					'EVENT_HANDLER',
+					'USER_ID',
+					'APPLICATION_TOKEN',
+					'CONNECTOR_ID',
+					'APP_CODE' => 'REST_APP.CLIENT_ID',
+					'APP_ACTIVE' => 'REST_APP.ACTIVE',
+					'APP_INSTALLED' => 'REST_APP.INSTALLED',
+				])
+				->where('EVENT_NAME', mb_strtoupper($event['EVENT_REST']['EVENT']))
+				->where(
+					(Main\ORM\Query\Query::filter()
+						->logic('or')
+						->where(
+							Main\ORM\Query\Query::filter()
+								->where('REST_APP.ACTIVE', '=', AppTable::ACTIVE)
+								->where('REST_APP.INSTALLED', '=', AppTable::INSTALLED)
+						)
+						->whereNull('REST_APP.CLIENT_ID')
+					)
+				)
+			;
 			if ($appHoldExceptId > 0)
 			{
-				$filter['=APP_ID'] = $appHoldExceptId;
+				$query->where('APP_ID', '=', $appHoldExceptId);
 			}
-
-			$dbRes = EventTable::getList(
-				[
-					'filter' => $filter,
-					'select' => [
-						'*',
-						'APP_CODE' => 'REST_APP.CLIENT_ID',
-						'APP_ACTIVE' => 'REST_APP.ACTIVE',
-						'APP_INSTALLED' => 'REST_APP.INSTALLED',
-					],
-				]
-			);
 
 			$dataProcessed = !is_array($event['EVENT_REST']['HANDLER']) || !is_callable($event['EVENT_REST']['HANDLER']);
 			$call = array();
-			while ($handler = $dbRes->fetch())
+			foreach ($query->fetchAll() as $handler)
 			{
+				$handlerFound = true;
+
+				LoggerManager::getInstance()->getLogger()?->info(
+					"\n{delimiter}\n"
+					. "{date} - {host}\n{delimiter}\n"
+					. "Event {eventName} handler found. \n{delimiter}\n"
+					. "{handler}", [
+					'RESPONSE_DATA' => $arguments,
+					'CLIENT_ID' => $handler['APP_CODE'] ?? null,
+					'SCOPE' => $event['MODULE_ID'] ?? null,
+					'EVENT_ID' => $handler['ID'] ?? null,
+					'METHOD' => $event['EVENT'] ?? null,
+					'MESSAGE' => Event\LogType::EVENT_HANDLER_FOUND->value,
+					'eventName' => $event['EVENT'] ?? null,
+					'handler' => $handler,
+				]);
+
 				if (!empty($handler['APP_CODE']))
 				{
-					if (
-						$handler['APP_ACTIVE'] !== AppTable::ACTIVE
-						|| $handler['APP_INSTALLED'] !== AppTable::INSTALLED
-					)
-					{
-						if ($logger)
-						{
-							$logger->error(
-								"\n{delimiter}\n"
-								. "{date} - {host}\n{delimiter}\n"
-								. "Event {eventName} skipped because inactive app: \n"
-								. "{handler}",
-								[
-									'eventName' => $event['EVENT'],
-									'handler' => $handler,
-								]
-							);
-						}
-
-						continue;
-					}
-
 					$appStatus = AppTable::getAppStatusInfo($handler['APP_CODE'], '');
 					if ($appStatus['PAYMENT_EXPIRED'] === 'Y')
 					{
-						if ($logger)
-						{
-							$logger->error(
-								"\n{delimiter}\n"
-								. "{date} - {host}\n{delimiter}\n"
-								. "Event {eventName} skipped because PAYMENT_EXPIRED: \n"
-								. "{appStatus}",
-								[
-									'eventName' => $event['EVENT'],
-									'appStatus' => $appStatus,
-								]
-							);
-						}
+						LoggerManager::getInstance()->getLogger()?->info(
+							"\n{delimiter}\n"
+							. "{date} - {host}\n{delimiter}\n"
+							. "Event {eventName} skipped because PAYMENT_EXPIRED: \n"
+							. "{appStatus}", [
+							'RESPONSE_DATA' => $arguments,
+							'SCOPE' => $event['MODULE_ID'] ?? null,
+							'METHOD' => $event['EVENT'] ?? null,
+							'CLIENT_ID' => $handler['APP_CODE'],
+							'EVENT_ID' => $handler['ID'] ?? null,
+							'MESSAGE' => Event\LogType::SKIP_BY_PAYMENT_EXPIRED->value,
+							'eventName' => $event['EVENT'] ?? null,
+							'appStatus' => $appStatus,
+						]);
 
 						continue;
 					}
 				}
 
 				$handlerArguments = $arguments;
-				$handlerFound = true;
 
 				if(!$dataProcessed)
 				{
@@ -171,20 +178,22 @@ class Callback
 					}
 					catch(\Exception $e)
 					{
-						if ($logger)
-						{
-							$logger->error(
-								"\n{delimiter}\n"
-								. "{date} - {host}\n{delimiter}\n"
-								. "Event {eventName} exception: \n"
-								. "{errorCode}: {errorMessage}",
-								[
-									'eventName' => $event['EVENT'],
-									'errorCode' => $e->getCode(),
-									'errorMessage' => $e->getMessage(),
-								]
-							);
-						}
+						LoggerManager::getInstance()->getLogger()?->error(
+							"\n{delimiter}\n"
+							. "{date} - {host}\n{delimiter}\n"
+							. "Event {eventName} exception: \n"
+							. "{errorCode}: {errorMessage}", [
+							'RESPONSE_DATA' => $e->getMessage(),
+							'SCOPE' => $event['MODULE_ID'] ?? null,
+							'METHOD' => $event['EVENT'] ?? null,
+							'CLIENT_ID' => $handler['APP_CODE'] ?? null,
+							'EVENT_ID' => $handler['ID'] ?? null,
+							'RESPONSE_STATUS' => $e->getCode(),
+							'MESSAGE' => Event\LogType::EVENT_EXCEPTION->value,
+							'eventName' => $event['EVENT'],
+							'errorCode' => $e->getCode(),
+							'errorMessage' => $e->getMessage(),
+						]);
 					}
 				}
 				else
@@ -193,7 +202,7 @@ class Callback
 				}
 			}
 
-			if(count($call) > 0)
+			if (!empty($call))
 			{
 				Sender::call($call);
 			}

@@ -29,6 +29,7 @@ abstract class AbstractCheck
 	public const PARAM_DOC_TIME = 'doc_time';
 	public const PARAM_DOC_SUM = 'doc_sum';
 	public const PARAM_CALCULATION_ATTR = 'calculation_attribute';
+	public const PARAM_OFD_RECEIPT_URL = 'ofd_receipt_url';
 
 	public const CALCULATED_SIGN_INCOME = 'income';
 	public const CALCULATED_SIGN_CONSUMPTION = 'consumption';
@@ -152,13 +153,7 @@ abstract class AbstractCheck
 			return '';
 		}
 
-		$ofd = $cashbox->getOfd();
-		if (!$ofd)
-		{
-			return '';
-		}
-
-		return $ofd->generateCheckLink($this->getField('LINK_PARAMS'));
+		return $cashbox->getCheckLink($this->getField('LINK_PARAMS'));
 	}
 
 	/**
@@ -355,22 +350,10 @@ abstract class AbstractCheck
 	{
 		$result = $this->extractDataInternal();
 
-		$event = new Main\Event(
-			'sale',
-			self::EVENT_ON_CHECK_PREPARE_DATA,
-			[$result, static::getType()]
-		);
-		$event->send();
-
-		if ($event->getResults())
+		$eventHandlerList = Main\EventManager::getInstance()->findEventHandlers('sale', self::EVENT_ON_CHECK_PREPARE_DATA);
+		foreach ($eventHandlerList as $event)
 		{
-			foreach ($event->getResults() as $eventResult)
-			{
-				if ($eventResult->getType() !== Main\EventResult::ERROR)
-				{
-					$result = $eventResult->getParameters();
-				}
-			}
+			$result = ExecuteModuleEventEx($event, [$result, static::getType()]);
 		}
 
 		return $result;

@@ -105,8 +105,8 @@ if (!$templateData['BLOG']['BLOG_FROM_AJAX'])
 			"NAME" => isset($arParams["VK_TITLE"]) && trim($arParams["VK_TITLE"]) != "" ? $arParams["VK_TITLE"] : GetMessage("IBLOCK_CSC_TAB_VK"),
 			"CONTENT" => '
 				<div id="vk_comments"></div>
-				<script type="text/javascript">
-					BX.load([\'https://vk.com/js/api/openapi.js?142\'], function(){
+				<script>
+					BX.load([\'https://vk.ru/js/api/openapi.js?142\'], function(){
 						if (!!window.VK)
 						{
 							VK.init({
@@ -171,7 +171,7 @@ if (!$templateData['BLOG']['BLOG_FROM_AJAX'])
 			'tabList' => $tabIDList
 		);
 ?></div>
-<script type="text/javascript">
+<script>
 var obCatalogComments_<? echo $arResult['ELEMENT']['ID']; ?> = new JCCatalogSocnetsComments(<? echo CUtil::PhpToJSObject($arJSParams, false, true); ?>);
 </script><?
 	}

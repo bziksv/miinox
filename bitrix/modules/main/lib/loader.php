@@ -1,7 +1,10 @@
 <?php
+
 namespace Bitrix\Main;
 
+use Bitrix\Main\Config\Configuration;
 use Bitrix\Main\DI\ServiceLocator;
+use Dev\Main\Migrator\ModuleUpdater;
 
 /**
  * Class Loader loads required files, classes and modules. It is the only class which is included directly.
@@ -16,19 +19,6 @@ class Loader
 
 	const BITRIX_HOLDER = "bitrix";
 	const LOCAL_HOLDER = "local";
-
-	protected static $safeModeModules = ["main" => true, "fileman" => true];
-	protected static $loadedModules = ["main" => true];
-	protected static $semiloadedModules = [];
-	protected static $modulesHolders = ["main" => self::BITRIX_HOLDER];
-	protected static $sharewareModules = [];
-
-	/**
-	 * Custom autoload paths.
-	 * @var array [namespace => [ [path1, depth1], [path2, depth2] ]
-	 */
-	protected static $namespaces = [];
-
 	/**
 	 * Returned by includeSharewareModule() if module is not found
 	 */
@@ -45,20 +35,32 @@ class Loader
 	 * Returned by includeSharewareModule() if the trial period is expired
 	 */
 	const MODULE_DEMO_EXPIRED = 3;
+	/** @deprecated */
+	const ALPHA_LOWER = "qwertyuioplkjhgfdsazxcvbnm";
+	/** @deprecated */
+	const ALPHA_UPPER = "QWERTYUIOPLKJHGFDSAZXCVBNM";
 
+	protected static $documentRoot = null;
+	protected static $safeModeModules = ["main" => true, "fileman" => true];
+	protected static $loadedModules = ["main" => true];
+	protected static $semiloadedModules = [];
+	protected static $modulesHolders = ["main" => self::BITRIX_HOLDER];
+	protected static $sharewareModules = [];
+	/**
+	 * Custom autoload paths.
+	 * @var array [namespace => [ [path1, depth1], [path2, depth2] ]
+	 */
+	protected static $namespaces = [];
 	protected static $autoLoadClasses = [];
-
+	protected static $aliases = [];
+	protected static $classAliases = [];
+	protected static $includedFiles = [];
 	/**
 	 * @var bool Controls throwing exception by requireModule method
 	 */
 	protected static $requireThrowException = true;
 
-	/** @deprecated   */
-	const ALPHA_LOWER = "qwertyuioplkjhgfdsazxcvbnm";
-	/** @deprecated   */
-	const ALPHA_UPPER = "QWERTYUIOPLKJHGFDSAZXCVBNM";
-
-     /**
+	/**
 	 * Includes a module by its name.
 	 *
 	 * @param string $moduleName Name of the included module
@@ -71,7 +73,7 @@ class Loader
 		{
 			throw new LoaderException("Empty module name");
 		}
-		if (preg_match("#[^a-zA-Z0-9._]#", $moduleName))
+		if (!ModuleManager::isValidModule($moduleName))
 		{
 			throw new LoaderException(sprintf("Module name '%s' is not correct", $moduleName));
 		}
@@ -93,31 +95,33 @@ class Loader
 
 		if (isset(self::$semiloadedModules[$moduleName]))
 		{
-			trigger_error("Module '".$moduleName."' is in loading progress", E_USER_WARNING);
+			trigger_error("Module '" . $moduleName . "' is in loading progress", E_USER_WARNING);
 		}
 
 		$arInstalledModules = ModuleManager::getInstalledModules();
 		if (!isset($arInstalledModules[$moduleName]))
 		{
-			return (self::$loadedModules[$moduleName] = false);
+			self::$loadedModules[$moduleName] = false;
+			return false;
 		}
 
 		$documentRoot = self::getDocumentRoot();
 
 		$moduleHolder = self::LOCAL_HOLDER;
-		$pathToInclude = $documentRoot."/".$moduleHolder."/modules/".$moduleName;
+		$pathToInclude = $documentRoot . "/" . $moduleHolder . "/modules/" . $moduleName;
 		if (!file_exists($pathToInclude))
 		{
 			$moduleHolder = self::BITRIX_HOLDER;
-			$pathToInclude = $documentRoot."/".$moduleHolder."/modules/".$moduleName;
+			$pathToInclude = $documentRoot . "/" . $moduleHolder . "/modules/" . $moduleName;
 			if (!file_exists($pathToInclude))
 			{
-				return (self::$loadedModules[$moduleName] = false);
+				self::$loadedModules[$moduleName] = false;
+				return false;
 			}
 		}
 
 		//register a PSR-4 base folder for the module
-		if(strpos($moduleName, ".") !== false)
+		if (str_contains($moduleName, "."))
 		{
 			//partner's module
 			$baseName = str_replace(".", "\\", ucwords($moduleName, "."));
@@ -125,26 +129,31 @@ class Loader
 		else
 		{
 			//bitrix's module
-			$baseName = "Bitrix\\".ucfirst($moduleName);
+			$baseName = "Bitrix\\" . ucfirst($moduleName);
 		}
-		self::registerNamespace($baseName, $documentRoot."/".$moduleHolder."/modules/".$moduleName."/lib");
+		self::registerNamespace($baseName, $documentRoot . "/" . $moduleHolder . "/modules/" . $moduleName . "/lib");
 
 		self::$modulesHolders[$moduleName] = $moduleHolder;
 
+		if (class_exists('\Dev\Main\Migrator\ModuleUpdater'))
+		{
+			ModuleUpdater::checkUpdates($moduleName, $pathToInclude);
+		}
+
 		$res = true;
-		if(file_exists($pathToInclude."/include.php"))
+		if (file_exists($pathToInclude . "/include.php"))
 		{
 			//recursion control
 			self::$semiloadedModules[$moduleName] = true;
 
-			$res = self::includeModuleInternal($pathToInclude."/include.php");
+			$res = self::includeModuleInternal($pathToInclude . "/include.php");
 
 			unset(self::$semiloadedModules[$moduleName]);
 		}
 
 		self::$loadedModules[$moduleName] = ($res !== false);
 
-		if(self::$loadedModules[$moduleName] == false)
+		if (!self::$loadedModules[$moduleName])
 		{
 			//unregister the namespace if "include" fails
 			self::unregisterNamespace($baseName);
@@ -160,7 +169,7 @@ class Loader
 	/**
 	 * Includes module by its name, throws an exception in case of failure
 	 *
-	 * @param $moduleName
+	 * @param string $moduleName
 	 *
 	 * @return bool
 	 * @throws LoaderException
@@ -188,7 +197,7 @@ class Loader
 	 * Includes shareware module by its name.
 	 * Module must initialize constant <module name>_DEMO = Y in include.php to define demo mode.
 	 * include.php must return false to define trial period expiration.
-	 * Constants is used because it is easy to obfuscate them.
+	 * Constants are used because it is easy to obfuscate them.
 	 *
 	 * @param string $moduleName Name of the included module
 	 * @return int One of the following constant: Loader::MODULE_NOT_FOUND, Loader::MODULE_INSTALLED, Loader::MODULE_DEMO, Loader::MODULE_DEMO_EXPIRED
@@ -204,7 +213,7 @@ class Loader
 
 		if (self::includeModule($moduleName))
 		{
-			if (defined($module."_DEMO") && constant($module."_DEMO") == "Y")
+			if (defined($module . "_DEMO") && constant($module . "_DEMO") == "Y")
 			{
 				self::$sharewareModules[$moduleName] = self::MODULE_DEMO;
 			}
@@ -216,7 +225,7 @@ class Loader
 			return self::$sharewareModules[$moduleName];
 		}
 
-		if (defined($module."_DEMO") && constant($module."_DEMO") == "Y")
+		if (defined($module . "_DEMO") && constant($module . "_DEMO") == "Y")
 		{
 			return (self::$sharewareModules[$moduleName] = self::MODULE_DEMO_EXPIRED);
 		}
@@ -231,7 +240,7 @@ class Loader
 			throw new LoaderException("Empty module name");
 		}
 
-		if($moduleName !== "main")
+		if ($moduleName !== "main")
 		{
 			unset(self::$loadedModules[$moduleName]);
 			unset(self::$modulesHolders[$moduleName]);
@@ -247,17 +256,17 @@ class Loader
 	 */
 	public static function getDocumentRoot()
 	{
-		static $documentRoot = null;
-		if ($documentRoot === null)
+		if (static::$documentRoot === null)
 		{
-			$documentRoot = rtrim($_SERVER["DOCUMENT_ROOT"], "/\\");
+			static::$documentRoot = rtrim($_SERVER["DOCUMENT_ROOT"], "/\\");
 		}
-		return $documentRoot;
+
+		return static::$documentRoot;
 	}
 
 	/**
-	 * Registers classes for auto loading.
-	 * All the frequently used classes should be registered for auto loading (performance).
+	 * Registers classes for autoloading.
+	 * All the frequently used classes should be registered for autoloading (performance).
 	 * It is not necessary to register rarely used classes. They can be found and loaded dynamically.
 	 *
 	 * @param string $moduleName Name of the module. Can be null if classes are not part of any module
@@ -288,6 +297,26 @@ class Loader
 	}
 
 	/**
+	 * Registers class aliases for autoloading.
+	 *
+	 * @param array $aliases Array with aliases as keys and classes as values.
+	 */
+	public static function registerClassAliases(array $aliases): void
+	{
+		foreach ($aliases as $alias => $class)
+		{
+			$alias = ltrim($alias, "\\");
+			$class = ltrim($class, "\\");
+
+			// one class for an alias
+			self::$aliases[$alias] = $class;
+			// but many aliases for a class
+			self::$classAliases[$class][] = $alias;
+		}
+	}
+
+
+	/**
 	 * Registers namespaces with custom paths.
 	 * e.g. ('Bitrix\Main\Dev', '/home/bitrix/web/site/bitrix/modules/main/dev/lib')
 	 *
@@ -296,7 +325,7 @@ class Loader
 	 */
 	public static function registerNamespace($namespace, $path)
 	{
-		$namespace = trim($namespace, "\\")."\\";
+		$namespace = trim($namespace, "\\") . "\\";
 		$namespace = strtolower($namespace);
 
 		$path = rtrim($path, "/\\");
@@ -314,7 +343,7 @@ class Loader
 	 */
 	public static function unregisterNamespace($namespace)
 	{
-		$namespace = trim($namespace, "\\")."\\";
+		$namespace = trim($namespace, "\\") . "\\";
 		$namespace = strtolower($namespace);
 
 		unset(self::$namespaces[$namespace]);
@@ -333,7 +362,7 @@ class Loader
 	 * PSR-4 compatible autoloader.
 	 * https://www.php-fig.org/psr/psr-4/
 	 *
-	 * @param $className
+	 * @param string $className
 	 */
 	public static function autoLoad($className)
 	{
@@ -342,114 +371,132 @@ class Loader
 
 		$classLower = strtolower($className);
 
-		static $documentRoot = null;
-		if ($documentRoot === null)
+		// dynamically define the alias for a class
+		if (isset(self::$aliases[$className]))
 		{
-			$documentRoot = self::getDocumentRoot();
+			class_alias(self::$aliases[$className], $className);
+
+			return;
 		}
 
-		//optimization via direct paths
+		$documentRoot = self::getDocumentRoot();
+
 		if (isset(self::$autoLoadClasses[$classLower]))
 		{
+			// optimization via direct paths
+
 			$pathInfo = self::$autoLoadClasses[$classLower];
 			if ($pathInfo["module"] != "")
 			{
 				$module = $pathInfo["module"];
 				$holder = (self::$modulesHolders[$module] ?? self::BITRIX_HOLDER);
 
-				$filePath = (defined('REPOSITORY_ROOT'))
+				$filePath = (defined('REPOSITORY_ROOT') && $holder === self::BITRIX_HOLDER)
 					? REPOSITORY_ROOT
 					: "{$documentRoot}/{$holder}/modules";
 
-				$filePath .= '/'.$module."/".$pathInfo["file"];
-
-				require_once($filePath);
+				$filePath .= '/' . $module . "/" . $pathInfo["file"];
 			}
 			else
 			{
-				require_once($documentRoot.$pathInfo["file"]);
+				$filePath = $documentRoot . $pathInfo["file"];
 			}
-			return;
+
+			require_once $filePath;
+
+			self::$includedFiles[$filePath] = 1;
 		}
-
-		if (preg_match("#[^\\\\/a-zA-Z0-9_]#", $className))
+		else
 		{
-			return;
-		}
+			// search the path in namespaces
 
-		$tryFiles = [[
-			"real" => $className,
-			"lower" => $classLower,
-		]];
-
-		if (substr($classLower, -5) == "table")
-		{
-			// old *Table stored in reserved files
-			$tryFiles[] = [
-				"real" => substr($className, 0, -5),
-				"lower" => substr($classLower, 0, -5),
-			];
-		}
-
-		foreach ($tryFiles as $classInfo)
-		{
-			$classParts = explode("\\", $classInfo["lower"]);
-
-			//remove class name
-			array_pop($classParts);
-
-			while(!empty($classParts))
+			if (preg_match("#[^\\\\/a-zA-Z0-9_]#", $className))
 			{
-				//go from the end
-				$namespace = implode("\\", $classParts)."\\";
+				return;
+			}
 
-				if(isset(self::$namespaces[$namespace]))
+			$tryFiles = [[
+				"real" => $className,
+				"lower" => $classLower,
+			]];
+
+			if (str_ends_with($classLower, "table"))
+			{
+				// old *Table stored in reserved files
+				$tryFiles[] = [
+					"real" => substr($className, 0, -5),
+					"lower" => substr($classLower, 0, -5),
+				];
+			}
+
+			foreach ($tryFiles as $classInfo)
+			{
+				$classParts = explode("\\", $classInfo["lower"]);
+
+				//remove class name
+				array_pop($classParts);
+
+				while (!empty($classParts))
 				{
-					//found
-					foreach (self::$namespaces[$namespace] as $namespaceLocation)
+					//go from the end
+					$namespace = implode("\\", $classParts) . "\\";
+
+					if (isset(self::$namespaces[$namespace]))
 					{
-						$depth = $namespaceLocation["depth"];
-						$path = $namespaceLocation["path"];
-
-						$fileParts = explode("\\", $classInfo["real"]);
-
-						for ($i=0; $i <= $depth; $i++)
+						//found
+						foreach (self::$namespaces[$namespace] as $namespaceLocation)
 						{
-							array_shift($fileParts);
-						}
+							$depth = $namespaceLocation["depth"];
+							$path = $namespaceLocation["path"];
 
-						$classPath = implode("/", $fileParts);
+							$fileParts = explode("\\", $classInfo["real"]);
 
-						$classPathLower = strtolower($classPath);
+							for ($i = 0; $i <= $depth; $i++)
+							{
+								array_shift($fileParts);
+							}
 
-						// final path lower case
-						$filePath = $path.'/'.$classPathLower.".php";
+							$classPath = implode("/", $fileParts);
 
-						if (file_exists($filePath))
-						{
-							require_once($filePath);
-							break 3;
-						}
+							$classPathLower = strtolower($classPath);
 
-						// final path original case
-						$filePath = $path.'/'.$classPath.".php";
+							$filePath = $path . '/' . $classPath . ".php";
+							$filePathLower = $path . '/' . $classPathLower . ".php";
 
-						if (file_exists($filePath))
-						{
-							require_once($filePath);
-							break 3;
+							// final path original case
+							if (!isset(self::$includedFiles[$filePathLower]) && file_exists($filePath))
+							{
+								require_once($filePath);
+								break 3;
+							}
+
+							// final path lower case
+							if (file_exists($filePathLower))
+							{
+								require_once($filePathLower);
+								break 3;
+							}
 						}
 					}
-				}
 
-				//try the shorter namespace
-				array_pop($classParts);
+					//try the shorter namespace
+					array_pop($classParts);
+				}
+			}
+		}
+
+		// dynamically define the class aliases
+		if (isset(self::$classAliases[$className]))
+		{
+			foreach (self::$classAliases[$className] as $alias)
+			{
+				class_exists($alias);
 			}
 		}
 	}
 
 	/**
-	 * @param $className
+	 * @param string $className
 	 *
 	 * @throws LoaderException
 	 */
@@ -459,11 +506,13 @@ class Loader
 		$file = strtolower($file);
 
 		if (preg_match("#[^\\\\/a-zA-Z0-9_]#", $file))
+		{
 			return;
+		}
 
 		$tryFiles = [$file];
 
-		if (substr($file, -5) == "table")
+		if (str_ends_with($file, "table"))
 		{
 			// old *Table stored in reserved files
 			$tryFiles[] = substr($file, 0, -5);
@@ -499,7 +548,7 @@ class Loader
 					break;
 				}
 
-				$module = $module1.".".$module2;
+				$module = $module1 . "." . $module2;
 			}
 
 			if (!self::includeModule($module))
@@ -527,18 +576,16 @@ class Loader
 			$root = self::getDocumentRoot();
 		}
 
-		if (file_exists($root."/local/".$path))
+		if (file_exists($root . "/local/" . $path))
 		{
-			return $root."/local/".$path;
+			return $root . "/local/" . $path;
 		}
-		elseif (file_exists($root."/bitrix/".$path))
+		elseif (file_exists($root . "/bitrix/" . $path))
 		{
-			return $root."/bitrix/".$path;
+			return $root . "/bitrix/" . $path;
 		}
-		else
-		{
-			return false;
-		}
+
+		return false;
 	}
 
 	/**
@@ -553,9 +600,9 @@ class Loader
 		$root = self::getDocumentRoot();
 		$personal = ($_SERVER["BX_PERSONAL_ROOT"] ?? "");
 
-		if ($personal <> '' && file_exists($root.$personal."/".$path))
+		if ($personal <> '' && file_exists($root . $personal . "/" . $path))
 		{
-			return $root.$personal."/".$path;
+			return $root . $personal . "/" . $path;
 		}
 
 		return self::getLocal($path, $root);
@@ -568,13 +615,47 @@ class Loader
 	 */
 	public static function setRequireThrowException($requireThrowException)
 	{
-		self::$requireThrowException = (bool) $requireThrowException;
+		self::$requireThrowException = (bool)$requireThrowException;
+	}
+
+	/**
+	 * Include autoload.php files from composer folder.
+	 *
+	 * @return void
+	 */
+	public static function includeComposerAutoload(): void
+	{
+		// load from config
+		$composerSettings = Configuration::getValue('composer');
+		if (empty($composerSettings['config_path']))
+		{
+			return;
+		}
+
+		$composerFilePath = (string)$composerSettings['config_path'];
+		if ($composerFilePath[0] !== '/')
+		{
+			$composerFilePath = realpath(
+				self::getDocumentRoot() . '/' . $composerFilePath
+			);
+			if (empty($composerFilePath))
+			{
+				return;
+			}
+		}
+
+		require_once dirname($composerFilePath) . '/vendor/autoload.php';
+	}
+
+	public static function getNamespaces(): array
+	{
+		return self::$namespaces;
 	}
 }
 
 class LoaderException extends \Exception
 {
-	public function __construct($message = "", $code = 0, \Exception $previous = null)
+	public function __construct($message = "", $code = 0, ?\Exception $previous = null)
 	{
 		parent::__construct($message, $code, $previous);
 	}

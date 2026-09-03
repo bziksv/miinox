@@ -8,7 +8,7 @@ use Bitrix\Main\Context;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Catalog;
-use \Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 
 require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_before.php');
@@ -19,7 +19,7 @@ global $adminPage;
 /** @global CAdminSidePanelHelper $adminSidePanelHelper */
 global $adminSidePanelHelper;
 
-CModule::IncludeModule("catalog");
+Loader::includeModule('catalog');
 
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 $listUrl = $selfFolderUrl . 'cat_vat_admin.php?lang=' . LANGUAGE_ID;
@@ -35,10 +35,6 @@ if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $access
 $bReadOnly = !$accessController->check(ActionDictionary::ACTION_VAT_EDIT);
 
 $request = Context::getCurrent()->getRequest();
-if ($request->isAjaxRequest())
-{
-	$request->addFilter(new Main\Web\PostDecodeFilter());
-}
 
 $errorMessage = '';
 $bVarsFromForm = false;
@@ -314,7 +310,7 @@ $tabControl->BeginNextTab();
 		</td>
 	</tr>
 	<tr>
-		<td style="width: 40%;"><?= Loc::getMessage("CVAT_EDIT_FORM_FIELD_XML_ID") ?></td>
+		<td style="width: 40%;"><?= Loc::getMessage("CVAT_EDIT_FORM_FIELD_XML_ID_MSGVER_1") ?></td>
 		<td style="width: 60%;">
 			<input type="text" name="XML_ID" maxlength="255" value="<?= htmlspecialcharsbx($fields['XML_ID']); ?>" size="50" <?=($bReadOnly) ? " disabled" : ""?>>
 		</td>
@@ -357,20 +353,17 @@ $tabControl->BeginNextTab();
 	<tr>
 		<td style="width: 40%;"><?= Loc::getMessage("CVAT_SORT") ?>:</td>
 		<td style="width: 60%;">
-			<input type="text" name="C_SORT" value="<?=htmlspecialcharsbx($fields['SORT']); ?>" size="5" <?=($bReadOnly) ? " disabled" : ""?>>
+			<input type="text" name="SORT" value="<?=htmlspecialcharsbx($fields['SORT']); ?>" size="5" <?=($bReadOnly) ? " disabled" : ""?>>
 		</td>
 	</tr>
 <?php
 $tabControl->EndTab();
-
-if (!$bReadOnly)
-{
-	$tabControl->Buttons([
-		'disabled' => $bReadOnly,
-		'back_url' => $listUrl,
-	]);
-}
-
+$tabControl->Buttons([
+	'btnSave' => !$bReadOnly,
+	'btnApply' => !$bReadOnly,
+	'disabled' => false,
+	'back_url' => $listUrl,
+]);
 $tabControl->End();
 ?>
 </form>

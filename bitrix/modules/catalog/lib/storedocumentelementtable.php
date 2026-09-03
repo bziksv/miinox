@@ -8,6 +8,7 @@ use Bitrix\Main\ORM\Fields\EnumField;
 use Bitrix\Main\ORM\Fields\FloatField;
 use Bitrix\Main\ORM\Fields\IntegerField;
 use Bitrix\Main\ORM\Fields\Relations\Reference;
+use Bitrix\Main\ORM\Fields\StringField;
 
 /**
  * Class StoreDocumentElementTable
@@ -106,13 +107,13 @@ class StoreDocumentElementTable extends DataManager
 					'title' => Loc::getMessage('INVENTORY_DOCUMENT_ELEMENT_ENTITY_AMOUNT_FIELD'),
 				]
 			),
-			'PURCHASING_PRICE' => new IntegerField(
+			'PURCHASING_PRICE' => new FloatField(
 				'PURCHASING_PRICE',
 				[
 					'title' => Loc::getMessage('INVENTORY_DOCUMENT_ELEMENT_ENTITY_PURCHASING_PRICE_FIELD'),
 				]
 			),
-			'BASE_PRICE' => new IntegerField(
+			'BASE_PRICE' => new FloatField(
 				'BASE_PRICE',
 				[
 					'title' => Loc::getMessage('INVENTORY_DOCUMENT_ELEMENT_ENTITY_BASE_PRICE_FIELD'),
@@ -132,6 +133,12 @@ class StoreDocumentElementTable extends DataManager
 						self::EXTRA_RATE_PERCENTAGE, self::EXTRA_RATE_MONETARY
 					],
 					'default_value' => self::EXTRA_RATE_PERCENTAGE,
+				]
+			),
+			'COMMENT' => new StringField(
+				'COMMENT',
+				[
+					'title' => Loc::getMessage('INVENTORY_DOCUMENT_ELEMENT_ENTITY_COMMENT_FIELD'),
 				]
 			),
 			'ELEMENT' => new Reference(

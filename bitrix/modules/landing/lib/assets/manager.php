@@ -2,6 +2,7 @@
 
 namespace Bitrix\Landing\Assets;
 
+use Bitrix\Landing\Site\Type;
 use \Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
 use Bitrix\Main;
@@ -24,13 +25,20 @@ class Manager
 	protected const REGISTERED_KEY_CODE = 'code';
 	protected const REGISTERED_KEY_LOCATION = 'location';
 
-	private static $instance;
+	private static ?Manager $instance = null;
 
 	/**
 	 * webpack or standart
 	 * @var string
 	 */
 	protected $mode;
+
+	/**
+	 * If set - create isolated environment for extensions
+	 * @var bool
+	 */
+	private bool $isSandbox = false;
+
 	/**
 	 * Collection of already added assets
 	 * @var array
@@ -69,19 +77,37 @@ class Manager
 	}
 
 	/**
+	 * Create isolated environment.
+	 * Extensions will not load to page, not checking core - just collect list
+	 *
+	 * @return $this
+	 */
+	public function enableSandbox(): static
+	{
+		$this->isSandbox = true;
+		$this->resources = new ResourceCollection();
+
+		return $this;
+	}
+
+	/**
 	 * Set webpack mode of builder
 	 */
-	public function setWebpackMode(): void
+	public function setWebpackMode(): static
 	{
 		$this->mode = self::MODE_WEBPACK;
+
+		return $this;
 	}
 
 	/**
 	 * Set standart mode of builder
 	 */
-	public function setStandartMode(): void
+	public function setStandartMode(): static
 	{
 		$this->mode = self::MODE_STANDART;
+
+		return $this;
 	}
 
 	/**
@@ -126,13 +152,12 @@ class Manager
 			self::REGISTERED_KEY_CODE => $code,
 			self::REGISTERED_KEY_LOCATION => $location,
 		];
-		
-		if($code !== 'main.core' && $code !== 'core')
+
+		if ($code !== 'main.core' && $code !== 'core')
 		{
 			\CJSCore::markExtensionLoaded($code);
 		}
 	}
-
 
 	/**
 	 * Recursive (by 'rel' key) adding assets in WP packege
@@ -140,7 +165,7 @@ class Manager
 	 * @param [string]|string $code
 	 * @param int|null $location - Where will be placed asset.
 	 */
-	public function addAsset($code, $location = null): void
+	public function addAsset(string|array $code, ?int $location = null): static
 	{
 		// recursive for arrays
 		if (is_array($code))
@@ -154,6 +179,8 @@ class Manager
 		{
 			$this->addAssetRecursive($code, $location);
 		}
+
+		return $this;
 	}
 
 	/**
@@ -173,14 +200,22 @@ class Manager
 		// get data from CJSCore
 		if ($ext = \CJSCore::getExtInfo($code))
 		{
+			if (!Type::isExtensionAllow($code))
+			{
+				return;
+			}
 			$asset = $ext;
 		}
-		else if ($ext = Extension::getConfig($code))
+		elseif ($ext = Extension::getConfig($code))
 		{
+			if (!Type::isExtensionAllow($code))
+			{
+				return;
+			}
 			$asset = $ext;
 		}
 		// if name - it path
-		else if ($type = self::detectType($code))
+		elseif ($type = self::detectType($code))
 		{
 			$asset = [$type => [$code]];
 		}
@@ -189,8 +224,8 @@ class Manager
 			return;
 		}
 
-		$this->processAsset($asset, $location);
 		$this->markAssetRegistered($code, $location);
+		$this->processAsset($asset, $location);
 	}
 
 	/**
@@ -205,14 +240,16 @@ class Manager
 			return $location < $this->getRegisteredAssetLocation($code);
 		}
 
-		if (\CJSCore::isExtensionLoaded($code))
+		if (
+			!$this->isSandbox
+			&& \CJSCore::isExtensionLoaded($code)
+		)
 		{
 			return false;
 		}
 
 		return true;
 	}
-
 
 	/**
 	 * Get parts of asset and add them in pack
@@ -256,7 +293,7 @@ class Manager
 							$this->resources->addString($this->createStringFromPath($path, $type));
 						}
 						// todo: check is file exist
-						else if (self::detectType($path))
+						elseif (self::detectType($path))
 						{
 							$this->resources->add($path, $type, $location);
 						}
@@ -295,25 +332,28 @@ class Manager
 	protected function createStringFromPath(string $path, string $type): string
 	{
 		$externalLink = '';
+		// the tag is printed on the page as is, and the path of an asset of a repository block
+		// is stored data: without escaping it ends the attribute and brings own markup along
+		$attribute = htmlspecialcharsbx($path, ENT_QUOTES);
 
 		switch ($type)
 		{
 			case Types::TYPE_CSS:
 			{
-				$externalLink = "<link href=\"$path\" type=\"text/css\" rel=\"stylesheet\">";
+				$externalLink = "<link href=\"$attribute\" type=\"text/css\" rel=\"stylesheet\">";
 				break;
 			}
 
 			case Types::TYPE_JS:
 			{
-				$externalLink = "<script type=\"text/javascript\" src=\"$path\"></script>";
+				$externalLink = "<script src=\"$attribute\"></script>";
 				break;
 			}
 
 			case Types::TYPE_FONT:
 			{
 				$fontType = self::checkFontLinkType($path);
-				$externalLink = '<link rel="preload" href="' . $path
+				$externalLink = '<link rel="preload" href="' . $attribute
 					. '" as="font" crossorigin="anonymous" type="' . $fontType . '" crossorigin>';
 				break;
 			}
@@ -324,7 +364,6 @@ class Manager
 
 		return $externalLink;
 	}
-
 
 	/**
 	 * Detect type by path.
@@ -396,6 +435,11 @@ class Manager
 	 */
 	public function setOutput(int $lid = 0): void
 	{
+		if ($this->isSandbox)
+		{
+			return;
+		}
+
 		if ($lid === 0)
 		{
 			trigger_error(
@@ -406,6 +450,27 @@ class Manager
 		$this->createBuilder();
 		$this->builder->attachToLanding($lid);
 		$this->builder->setOutput();
+	}
+
+	/**
+	 * Get all assets as normalized array by types
+	 *
+	 * @return array
+	 */
+	public function getOutput(): array
+	{
+		$this->createBuilder();
+
+		return $this->builder->getOutput();
+	}
+
+	/**
+	 * Return array of added strings (js or css)
+	 * @return array
+	 */
+	public function getStrings(): array
+	{
+		return $this->resources->getStrings();
 	}
 
 	/**

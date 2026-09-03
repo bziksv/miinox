@@ -1,138 +1,202 @@
 <?php
 
-
 namespace Bitrix\Catalog\Controller;
 
-
 use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Internal\Service\RestValidator\Entity;
 use Bitrix\Catalog\StoreTable;
-use Bitrix\Main\Engine\Response\DataType\Page;
+use Bitrix\Main\Engine;
 use Bitrix\Main\Error;
 use Bitrix\Main\Result;
-use Bitrix\Main\UI\PageNavigation;
+use CCatalogStore;
 
 final class Store extends Controller
 {
+	use ListAction; // default listAction realization
+	use CheckExists; // default implementation of existence check
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function processBeforeAction(Engine\Action $action): ?bool
+	{
+		$result = new Result();
+
+		switch ($action->getName())
+		{
+			case 'add':
+			case 'update':
+				$result = $this->processBeforeModify($action);
+				break;
+			case 'list':
+				$result = $this->processBeforeList($action);
+				break;
+		}
+
+		if (!$result->isSuccess())
+		{
+			$this->addErrors($result->getErrors());
+
+			return null;
+		}
+
+		return parent::processBeforeAction($action);
+	}
+
+	protected function processBeforeModify(Engine\Action $action): Result
+	{
+		$arguments = $action->getArguments();
+		$fields = $arguments['fields'] ?? null;
+		if (is_array($fields))
+		{
+			$validator = new Entity\StoreValidator();
+			$result = $validator->run($fields);
+			if (!$result->isSuccess())
+			{
+				return $result;
+			}
+		}
+
+		return new Result();
+	}
+
+	protected function processBeforeList(Engine\Action $action): Result
+	{
+		$arguments = $action->getArguments();
+		$filter = $arguments['filter'] ?? [];
+		if (!is_array($filter))
+		{
+			$result = new Result();
+			$result->addError(new Error('Incorrect filter format'));
+
+			return $result;
+		}
+
+		$validator = new Entity\StoreFilterValidator();
+
+		return $validator->run($filter);
+	}
+
 	//region Actions
 	public function getFieldsAction(): array
 	{
-		return ['STORE' => $this->getViewFields()];
+		return [$this->getServiceItemName() => $this->getViewFields()];
 	}
 
-	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): Page
+	/**
+	 * public function listAction
+	 * @see ListAction::listAction
+	 */
+
+	public function getAction($id): ?array
 	{
-		$accessFilter = $this->accessController->getEntityFilter(
-			ActionDictionary::ACTION_STORE_VIEW,
-			get_class($this->getEntityTable())
-		);
-		if ($accessFilter)
+		$id = (int)$id;
+
+		if (!$this->exists($id)->isSuccess())
 		{
-			$filter = [
-				$accessFilter,
-				$filter,
-			];
+			$this->addErrorEntityNotExists();
+
+			return null;
 		}
 
-		return new Page(
-			'STORES',
-			$this->getList($select, $filter, $order, $pageNavigation),
-			$this->count($filter)
-		);
+		$storeInfo = $this->get($id);
+
+		if (!$this->checkSpecificStoreReadRight($id))
+		{
+			$this->addError($this->getErrorReadAccessDenied());
+
+			return null;
+		}
+
+		return [
+			$this->getServiceItemName() => $storeInfo,
+		];
 	}
 
 	public function addAction(array $fields)
 	{
-		$view = $this->getViewManager()
-			->getView($this);
-		$fields = $view->internalizeFieldsAdd($fields);
+		$result = CCatalogStore::Add($fields);
+		if (!$result)
+		{
+			global $APPLICATION;
+			$exception = $APPLICATION->GetException();
+			$error = $exception instanceof \CApplicationException ? $exception->GetString() : 'Unknown error';
+			$this->addError(new Error($error));
+			$APPLICATION->ResetException();
 
-		$res = $this->add($fields);
-		if ($res->isSuccess())
-		{
-			$result = $res->getId();
-		}
-		else
-		{
-			$result = [
-				'error' => 'ERROR_ADD',
-				'error_description' => implode(
-					'. ',
-					$res->getErrorMessages()
-				),
-			];
+			return null;
 		}
 
-		return $result;
+		return [
+			$this->getServiceItemName() => $this->get($result),
+		];
 	}
 
 	public function updateAction(int $id, array $fields)
 	{
-		$view = $this->getViewManager()
-			->getView($this);
-		$fields = $view->internalizeFieldsUpdate($fields);
+		$existsResult = $this->exists($id);
+		if (!$existsResult->isSuccess())
+		{
+			$this->addErrors($existsResult->getErrors());
 
-		$res = $this->update($id, $fields);
-		if (!is_null($res) && $res->isSuccess())
-		{
-			$result = $res->getId();
-		}
-		else
-		{
-			$result = [
-				'error' => 'ERROR_UPDATE',
-				'error_description' => implode(
-					'. ',
-					$this->getErrors()
-				),
-			];
+			return null;
 		}
 
-		return $result;
+		if (!$this->checkSpecificStoreModifyRights($id)
+		)
+		{
+			$this->addError($this->getErrorModifyAccessDenied());
+
+			return null;
+		}
+
+		$result = CCatalogStore::Update($id, $fields);
+		if (!$result)
+		{
+			global $APPLICATION;
+			$exception = $APPLICATION->GetException();
+			$error = $exception instanceof \CApplicationException ? $exception->GetString() : 'Unknown error';
+			$this->addError(new Error($error));
+			$APPLICATION->ResetException();
+
+			return null;
+		}
+
+		return [
+			$this->getServiceItemName() => $this->get($result),
+		];
 	}
 
 	public function deleteAction(int $id)
 	{
-		$res = $this->delete($id);
-		if (!is_null($res) && $res->isSuccess())
+		$existsResult = $this->exists($id);
+		if (!$existsResult->isSuccess())
 		{
-			$result = 'Y';
-		}
-		else
-		{
-			$result = [
-				'error' => 'ERROR_DELETE',
-				'error_description' => implode(
-					'. ',
-					$this->getErrors()
-				),
-			];
-		}
+			$this->addErrors($existsResult->getErrors());
 
-		return $result;
-	}
-
-	public function getAction($id)
-	{
-		$r = $this->exists($id);
-		if($r->isSuccess())
-		{
-			return ['STORE'=>$this->get($id)];
-		}
-		else
-		{
-			$this->addErrors($r->getErrors());
 			return null;
 		}
-	}
-	//endregion
 
-	protected function exists($id)
-	{
-		$r = new Result();
-		if(isset($this->get($id)['ID']) == false)
-			$r->addError(new Error('Store is not exists'));
+		if (!$this->checkSpecificStoreModifyRights($id))
+		{
+			$this->addError($this->getErrorModifyAccessDenied());
 
-		return $r;
+			return null;
+		}
+
+		$result = CCatalogStore::Delete($id);
+		if (!$result)
+		{
+			global $APPLICATION;
+			$exception = $APPLICATION->GetException();
+			$error = $exception instanceof \CApplicationException ? $exception->GetString() : 'Unknown error';
+			$this->addError(new Error($error));
+			$APPLICATION->ResetException();
+
+			return null;
+		}
+
+		return true;
 	}
 
 	protected function getEntityTable()
@@ -146,7 +210,7 @@ final class Store extends Controller
 
 		if (!$this->accessController->check(ActionDictionary::ACTION_STORE_MODIFY))
 		{
-			$r->addError(new Error('Access Denied', 200040300020));
+			$r->addError($this->getErrorModifyAccessDenied());
 		}
 
 		return $r;
@@ -160,12 +224,71 @@ final class Store extends Controller
 			!(
 				$this->accessController->check(ActionDictionary::ACTION_CATALOG_READ)
 				|| $this->accessController->check(ActionDictionary::ACTION_STORE_VIEW)
-				|| $this->accessController->check(ActionDictionary::ACTION_STORE_MODIFY)
 			)
 		)
 		{
-			$r->addError(new Error('Access Denied', 200040300010));
+			$r->addError($this->getErrorReadAccessDenied());
 		}
 		return $r;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @param array $params
+	 * @return array
+	 */
+	protected function modifyListActionParameters(array $params): array
+	{
+		$accessFilter = $this->accessController->getEntityFilter(
+			ActionDictionary::ACTION_STORE_VIEW,
+			get_class($this->getEntityTable())
+		);
+
+		$innerFilter = [
+			'LOGIC' => 'OR',
+		];
+
+		if ($accessFilter)
+		{
+			$innerFilter[] = $accessFilter;
+
+			if ($this->checkModifyPermissionEntity()->isSuccess())
+			{
+				$innerFilter[] = ['=USER_ID' => $this->accessController->getUser()->getUserId()];
+			}
+		}
+
+		$params['filter'] = [
+			$innerFilter,
+			$params['filter'],
+		];
+
+		return $params;
+	}
+
+	protected function getErrorCodeEntityNotExists(): string
+	{
+		return ErrorCode::STORE_ENTITY_NOT_EXISTS;
+	}
+
+	protected function checkSpecificStoreReadRight(int $storeId): bool
+	{
+		$creatorId = StoreTable::getStoreCreatorId($storeId);
+
+		return
+			$this->accessController->checkByValue(ActionDictionary::ACTION_STORE_VIEW, (string)$storeId)
+			|| (
+				$this->accessController->check(ActionDictionary::ACTION_STORE_MODIFY)
+				&& $creatorId === $this->accessController->getUser()->getUserId()
+			)
+		;
+	}
+
+	protected function checkSpecificStoreModifyRights(int $storeId): bool
+	{
+		return
+			$this->accessController->check(ActionDictionary::ACTION_STORE_MODIFY)
+			&& $this->checkSpecificStoreReadRight($storeId)
+		;
 	}
 }

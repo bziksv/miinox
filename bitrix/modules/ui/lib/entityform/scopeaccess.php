@@ -81,4 +81,19 @@ class ScopeAccess
 	{
 		return true;
 	}
+
+	public function isAdminForEntityTypeId(string $entityTypeId): bool
+	{
+		return $this->isAdmin();
+	}
+
+	public function canAddByEntityTypeId(string $entityTypeId): bool
+	{
+		return $this->canAdd();
+	}
+
+	public function canUseOnAddOnUpdateSegregation(): bool
+	{
+		return false;
+	}
 }

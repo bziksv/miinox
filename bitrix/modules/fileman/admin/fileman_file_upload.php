@@ -6,12 +6,14 @@ if (!$USER->CanDoOperation('fileman_upload_files'))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/include.php");
 IncludeModuleLangFile(__FILE__);
+$logical = $logical ?? null;
 $addUrl = 'lang='.LANGUAGE_ID.($logical == "Y"?'&logical=Y':'');
 
 $strWarning = "";
 
 $io = CBXVirtualIo::GetInstance();
 
+$site ??= $_REQUEST['site'] ?? null;
 $site = CFileMan::__CheckSite($site);
 $DOC_ROOT = CSite::GetSiteDocRoot($site);
 
@@ -28,7 +30,7 @@ if(!$USER->CanDoFileOperation('fm_upload_file',$arPath))
 else
 {
 	$bCan = true;
-	if($REQUEST_METHOD=="POST" && $save <> '' && check_bitrix_sessid())
+	if($_SERVER['REQUEST_METHOD']=="POST" && $save <> '' && check_bitrix_sessid())
 	{
 		$nums = intval($nums);
 		if($nums > 0)

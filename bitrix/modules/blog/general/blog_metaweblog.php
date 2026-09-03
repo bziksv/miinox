@@ -3,6 +3,7 @@
 IncludeModuleLangFile(__FILE__);
 
 use Bitrix\Main\Text\HtmlFilter;
+use Bitrix\Main\Web\Uri;
 
 class CBlogMetaWeblog
 {
@@ -337,7 +338,7 @@ class CBlogMetaWeblog
 							if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME <> '')
 								$serverName = SITE_SERVER_NAME;
 							else
-								$serverName = COption::GetOptionString("main", "server_name", "www.bitrixsoft.com");
+								$serverName = COption::GetOptionString("main", "server_name");
 							$path2Post = "http://".$serverName.CComponentEngine::MakePathFromTemplate($arPath["PATH_TO_POST"], array("blog" => $arBlog["URL"], "user_id" => $arBlog["OWNER_ID"], "post_id" => $arPost["ID"]));
 						}
 
@@ -525,7 +526,7 @@ class CBlogMetaWeblog
 						if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME <> '')
 							$serverName = SITE_SERVER_NAME;
 						else
-							$serverName = COption::GetOptionString("main", "server_name", "www.bitrixsoft.com");
+							$serverName = COption::GetOptionString("main", "server_name");
 					}
 
 					if($path <> '')
@@ -537,7 +538,7 @@ class CBlogMetaWeblog
 									<member>
 									<name>url</name>
 									<value>
-									<string>'.CHTTP::URN2URI($path, $serverName).'</string>
+									<string>' . (new Uri($path))->toAbsolute($serverName) . '</string>
 									</value>
 									</member>
 									</struct>
@@ -624,7 +625,7 @@ class CBlogMetaWeblog
 					$dbCategory = CBlogCategory::GetList(Array(), Array("BLOG_ID" => $blogId));
 					while($arCat = $dbCategory->Fetch())
 					{
-						$arCatBlog[ToLower($arCat["NAME"])] = $arCat["ID"];
+						$arCatBlog[mb_strtolower($arCat["NAME"])] = $arCat["ID"];
 					}
 
 					if (intval($arBlog["SOCNET_GROUP_ID"]) > 0 && CModule::IncludeModule("socialnetwork") && method_exists("CSocNetGroup", "GetSite"))
@@ -640,10 +641,10 @@ class CBlogMetaWeblog
 					foreach($arCategory as $tg)
 					{
 						$tg = trim($tg);
-						if(!in_array($arCatBlog[ToLower($tg)], $CATEGORYtmp))
+						if(!in_array($arCatBlog[mb_strtolower($tg)], $CATEGORYtmp))
 						{
-							if(intval($arCatBlog[ToLower($tg)]) > 0)
-								$CATEGORYtmp[] = $arCatBlog[ToLower($tg)];
+							if(intval($arCatBlog[mb_strtolower($tg)]) > 0)
+								$CATEGORYtmp[] = $arCatBlog[mb_strtolower($tg)];
 							else
 							{
 								$CATEGORYtmp[] = CBlogCategory::Add(array("BLOG_ID" => $blogId, "NAME" => $tg));
@@ -662,7 +663,7 @@ class CBlogMetaWeblog
 						if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME <> '')
 							$serverName = SITE_SERVER_NAME;
 						else
-							$serverName = COption::GetOptionString("main", "server_name", "www.bitrixsoft.com");
+							$serverName = COption::GetOptionString("main", "server_name");
 					}
 
 					$arImgRepl = Array();
@@ -828,16 +829,16 @@ class CBlogMetaWeblog
 					$dbCategory = CBlogCategory::GetList(Array(), Array("BLOG_ID" => $arPost["BLOG_ID"]));
 					while($arCat = $dbCategory->Fetch())
 					{
-						$arCatBlog[ToLower($arCat["NAME"])] = $arCat["ID"];
+						$arCatBlog[mb_strtolower($arCat["NAME"])] = $arCat["ID"];
 					}
 
 					foreach($arCategory as $tg)
 					{
 						$tg = trim($tg);
-						if(!in_array($arCatBlog[ToLower($tg)], $CATEGORYtmp))
+						if(!in_array($arCatBlog[mb_strtolower($tg)], $CATEGORYtmp))
 						{
-							if(intval($arCatBlog[ToLower($tg)]) > 0)
-								$CATEGORYtmp[] = $arCatBlog[ToLower($tg)];
+							if(intval($arCatBlog[mb_strtolower($tg)]) > 0)
+								$CATEGORYtmp[] = $arCatBlog[mb_strtolower($tg)];
 							else
 							{
 								$CATEGORYtmp[] = CBlogCategory::Add(array("BLOG_ID" => $arPost["BLOG_ID"], "NAME" => $tg));
@@ -856,7 +857,7 @@ class CBlogMetaWeblog
 						if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME <> '')
 							$serverName = SITE_SERVER_NAME;
 						else
-							$serverName = COption::GetOptionString("main", "server_name", "www.bitrixsoft.com");
+							$serverName = COption::GetOptionString("main", "server_name");
 					}
 
 					$dbImage = CBlogImage::GetList(array(), Array("POST_ID" => false, "BLOG_ID" => $arBlog["ID"], "IS_COMMENT" => "N"));
@@ -1012,7 +1013,7 @@ class CBlogMetaWeblog
 						if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME <> '')
 							$serverName = SITE_SERVER_NAME;
 						else
-							$serverName = COption::GetOptionString("main", "server_name", "www.bitrixsoft.com");
+							$serverName = COption::GetOptionString("main", "server_name");
 						$path2Post = "http://".$serverName.CComponentEngine::MakePathFromTemplate($arPath["PATH_TO_POST"], array("blog" => $arPost["BLOG_URL"], "user_id" => $arPost["BLOG_OWNER_ID"], "post_id" => $arPost["ID"]));
 					}
 

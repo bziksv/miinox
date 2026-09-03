@@ -1,10 +1,10 @@
 (function() {
 	'use strict';
 
-	if (!!window.JCCatalogSectionComponent)
+	if (!!window.JCCatalogSectionComponentBootstrapV4)
 		return;
 
-	window.JCCatalogSectionComponent = function(params) {
+	window.JCCatalogSectionComponentBootstrapV4 = function(params) {
 		this.formPosting = false;
 		this.siteId = params.siteId || '';
 		this.ajaxId = params.ajaxId || '';
@@ -49,8 +49,11 @@
 		if (params.lazyLoad)
 		{
 			this.showMoreButton = document.querySelector('[data-use="show-more-' + this.navParams.NavNum + '"]');
-			this.showMoreButtonMessage = this.showMoreButton.innerHTML;
-			BX.bind(this.showMoreButton, 'click', BX.proxy(this.showMore, this));
+			if (BX.type.isDomNode(this.showMoreButton))
+			{
+				this.showMoreButtonMessage = this.showMoreButton.innerHTML;
+				BX.bind(this.showMoreButton, 'click', BX.proxy(this.showMore, this));
+			}
 		}
 
 		if (params.loadOnScroll)
@@ -59,7 +62,7 @@
 		}
 	};
 
-	window.JCCatalogSectionComponent.prototype =
+	window.JCCatalogSectionComponentBootstrapV4.prototype =
 	{
 		checkButton: function()
 		{
@@ -124,34 +127,7 @@
 
 		bigDataLoad: function()
 		{
-			var url = 'https://analytics.bitrix.info/crecoms/v1_0/recoms.php',
-				data = BX.ajax.prepareData(this.bigData.params);
-
-			if (data)
-			{
-				url += (url.indexOf('?') !== -1 ? '&' : '?') + data;
-			}
-
-			var onReady = BX.delegate(function(result){
-				this.sendRequest({
-					action: 'deferredLoad',
-					bigData: 'Y',
-					items: result && result.items || [],
-					rid: result && result.id,
-					count: this.bigData.count,
-					rowsRange: this.bigData.rowsRange,
-					shownIds: this.bigData.shownIds
-				});
-			}, this);
-
-			BX.ajax({
-				method: 'GET',
-				dataType: 'json',
-				url: url,
-				timeout: 3,
-				onsuccess: onReady,
-				onfailure: onReady
-			});
+			// need remove all use this method
 		},
 
 		deferredLoad: function()

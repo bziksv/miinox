@@ -1,4 +1,4 @@
-<?
+<?php
 
 use Bitrix\Main\Loader;
 
@@ -8,30 +8,38 @@ $GLOBALS['YANDEX_MAP_PROPERTY'] = array();
 
 abstract class CIBlockPropertyMapInterface
 {
+	protected const VALUE_SEPARATOR = ',';
 	abstract public static function GetUserTypeDescription();
 
 	abstract public static function GetPropertyFieldHtml($arProperty, $value, $strHTMLControlName);
 
 	public static function GetAdminListViewHTML($arProperty, $value, $strHTMLControlName)
 	{
-		return $value['VALUE'];
+		return $value['VALUE'] ?? null;
 	}
 
 	abstract public static function GetPublicViewHTML($arProperty, $value, $strHTMLControlName);
 
 	public static function ConvertFromDB($arProperty, $value)
 	{
-		$arResult = array('VALUE' => '');
+		$arResult = ['VALUE' => ''];
 
-		if ($value['VALUE'] <> '')
+		$value['VALUE'] ??= null;
+		if (!is_string($value['VALUE']))
 		{
-			$arCoords = explode(',', $value['VALUE'], 2);
+			$value['VALUE'] = '';
+		}
+		if ($value['VALUE'] !== '')
+		{
+			$arCoords = explode(self::VALUE_SEPARATOR, $value['VALUE'], 2);
 
-			$lat = doubleval($arCoords[0]);
-			$lng = doubleval($arCoords[1]);
+			$lat = (float)($arCoords[0] ?? 0);
+			$lng = (float)($arCoords[1] ?? 0);
 
 			if ($lat && $lng)
-				$arResult['VALUE'] = $lat.','.$lng;
+			{
+				$arResult['VALUE'] = $lat . self::VALUE_SEPARATOR . $lng;
+			}
 		}
 
 		return $arResult;
@@ -39,17 +47,24 @@ abstract class CIBlockPropertyMapInterface
 
 	public static function ConvertToDB($arProperty, $value)
 	{
-		$arResult = array('VALUE' => '');
+		$arResult = ['VALUE' => ''];
 
-		if ($value['VALUE'] <> '')
+		$value['VALUE'] ??= null;
+		if (!is_string($value['VALUE']))
 		{
-			$arCoords = explode(',', $value['VALUE'], 2);
+			$value['VALUE'] = '';
+		}
+		if ($value['VALUE'] !== '')
+		{
+			$arCoords = explode(self::VALUE_SEPARATOR, $value['VALUE'], 2);
 
-			$lat = doubleval($arCoords[0]);
-			$lng = doubleval($arCoords[1]);
+			$lat = (float)($arCoords[0] ?? 0);
+			$lng = (float)($arCoords[1] ?? 0);
 
 			if ($lat && $lng)
-				$arResult['VALUE'] = $lat.','.$lng;
+			{
+				$arResult['VALUE'] = $lat . self::VALUE_SEPARATOR . $lng;
+			}
 		}
 
 		return $arResult;
@@ -143,6 +158,7 @@ class CIBlockPropertyMapGoogle extends CIBlockPropertyMapInterface
 
 		$apiKey = isset($arProperty['USER_TYPE_SETTINGS']['API_KEY']) ? $arProperty['USER_TYPE_SETTINGS']['API_KEY'] : '';
 
+		$value['VALUE'] ??= null;
 		if ($strHTMLControlName["MODE"] != "FORM_FILL")
 			return '<input type="text" name="'.htmlspecialcharsbx($strHTMLControlName['VALUE']).'" value="'.htmlspecialcharsbx($value['VALUE']).'" />';
 
@@ -206,7 +222,7 @@ class CIBlockPropertyMapGoogle extends CIBlockPropertyMapInterface
 
 //http://jabber.bx/view.php?id=17908
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		var tabArea = BX.findParent(BX("BX_GMAP_<?=$MAP_ID?>"), {className: "adm-detail-content"});
 		if (tabArea && tabArea.id)
@@ -659,10 +675,11 @@ var jsGoogleCESearch_<?echo $MAP_ID;?> = {
 	public static function GetPublicViewHTML($arProperty, $value, $arParams)
 	{
 		$s = '';
+		$value['VALUE'] ??= null;
 		if($value["VALUE"] <> '')
 		{
 			$value = parent::ConvertFromDB($arProperty, $value);
-			if ($arParams['MODE'] == 'CSV_EXPORT')
+			if (($arParams['MODE'] ?? null) == 'CSV_EXPORT')
 			{
 				$s = $value["VALUE"];
 			}
@@ -854,7 +871,7 @@ class CIBlockPropertyMapYandex extends CIBlockPropertyMapInterface
 <?
 		echo EndNote();
 ?>
-<script type="text/javascript">
+<script>
 function setYandexKey(domain, input)
 {
 	LoadMap_<?echo $MAP_ID?>(document.getElementById(input).value);
@@ -919,6 +936,7 @@ function saveYandexKey(domain, input)
 			$yandexMapID = $arProperty['ID'];
 
 		// TODO: remove this later to use in property default value setting
+		$value['VALUE'] ??= null;
 		if ($strHTMLControlName["MODE"] != "FORM_FILL")
 			return '<input type="text" name="'.htmlspecialcharsbx($strHTMLControlName['VALUE']).'" value="'.htmlspecialcharsbx($value['VALUE']).'" />';
 
@@ -982,7 +1000,7 @@ function saveYandexKey(domain, input)
 
 //http://jabber.bx/view.php?id=17908
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		var tabArea = BX.findParent(BX("BX_YMAP_<?=$MAP_ID?>"), {className: "adm-detail-content"});
 		if (tabArea && tabArea.id)
@@ -1429,6 +1447,7 @@ function saveYandexKey(domain, input)
 		if ($arProperty['MULTIPLE'] == 'Y')
 			$yandexMapID = $arProperty['ID'];
 
+		$value['VALUE'] ??= null;
 		if ($value['VALUE'] <> '')
 		{
 			[$POINT_LAT, $POINT_LON] = explode(',', $value['VALUE'], 2);
@@ -1485,7 +1504,7 @@ function saveYandexKey(domain, input)
 				false, array('HIDE_ICONS' => 'Y')
 			);
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		var tabArea = BX.findParent(BX("BX_YMAP_<?=$MAP_ID?>"), {className: "adm-detail-content"});
 		if (tabArea && tabArea.id)
@@ -2008,7 +2027,8 @@ function saveYandexKey(domain, input)
 	public static function GetPublicViewHTML($arProperty, $value, $arParams)
 	{
 		$s = '';
-		if ($arParams['MODE'] == 'CSV_EXPORT')
+		$value['VALUE'] ??= null;
+		if (($arParams['MODE'] ?? null) == 'CSV_EXPORT')
 		{
 			if ($value["VALUE"] <> '')
 			{
@@ -2315,7 +2335,7 @@ jsUtils.loadJSFile("/bitrix/components/bitrix/player/js/prop_skin_selector.js", 
 	</td>
 </tr>
 <?
-		$result .= ob_get_contents();
+		$result = ob_get_contents();
 		ob_end_clean();
 		return $result;
 	}
@@ -2959,7 +2979,7 @@ class CIBlockPropertyVideo extends CVideoProperty
 
 	public static function ConvertFromDB($arProperty, $value)
 	{
-		$value['VALUE'] = CIBlockPropertyVideo::BaseConvertFromDB($value['VALUE']);
+		$value['VALUE'] = CIBlockPropertyVideo::BaseConvertFromDB($value['VALUE'] ?? null) ?: '';
 		return $value;
 	}
 
@@ -3125,16 +3145,9 @@ class CUserTypeVideo extends CVideoProperty
 
 	public static function GetDBColumnType($arUserField)
 	{
-		global $DB;
-		switch($DB->type)
-		{
-			case "MYSQL":
-				return "text";
-			case "ORACLE":
-				return "varchar2(2000 char)";
-			case "MSSQL":
-				return "varchar(2000)";
-		}
+		$connection = \Bitrix\Main\Application::getConnection();
+		$helper = $connection->getSqlHelper();
+		return $helper->getColumnTypeByField(new \Bitrix\Main\ORM\Fields\TextField('x'));
 	}
 
 	public static function PrepareSettings($arProperty)
@@ -3142,7 +3155,7 @@ class CUserTypeVideo extends CVideoProperty
 		return CUserTypeVideo::BasePrepareSettings($arProperty, "SETTINGS");
 	}
 
-	public static function GetSettingsHTML($arUserField = array(), $arHtmlControl, $bVarsFromForm)
+	public static function GetSettingsHTML($arUserField, $arHtmlControl, $bVarsFromForm)
 	{
 		if(!is_array($arUserField))
 			$arUserField = array();
@@ -3192,5 +3205,10 @@ class CUserTypeVideo extends CVideoProperty
 	{
 		$val = CUserTypeVideo::BaseConvertFromDB(htmlspecialcharsback($arHtmlControl["VALUE"])); // Unserialize array
 		return CUserTypeVideo::BaseGetPublicHTML($arUserField["SETTINGS"], $val);
+	}
+
+	public static function canUseArrayValueForSingleField(): bool
+	{
+		return true;
 	}
 }

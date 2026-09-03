@@ -662,6 +662,10 @@
 	line-height: 39px;
 }
 
+.catalog-pf-product-input:focus-visible {
+	outline: none;
+}
+
 .catalog-pf-product-input-wrapper--disabled,
 .catalog-pf-product-input--disabled {
 	cursor: not-allowed;
@@ -694,37 +698,6 @@
 
 .catalog-pf-product-input--border-right-visible {
 	border-right: 1px solid #c6cdd3;
-}
-
-.catalog-pf-product-input-brand-wrapper {
-	margin-top: 15px;
-}
-
-.catalog-pf-product-input-brand-wrapper-readonly {
-	margin-left: 115px;
-}
-
-.catalog-product-form-container > div:first-child .catalog-pf-product-item .catalog-pf-product-input-brand-wrapper-readonly-no-sku {
-	position: absolute;
-	top: 10px;
-}
-
-.catalog-pf-product-input-brand-wrapper-readonly-no-sku {
-	position: absolute;
-	top: 28px;
-}
-
-.catalog-pf-product-input-brand-read-only-item {
-	line-height: 24px;
-	border-radius: 2px;
-	display: inline-block;
-	width: 24px;
-	height: 24px;
-	vertical-align: middle;
-	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .05);
-	-webkit-background-size: cover;
-	background-size: cover;
-	margin-bottom: 1px;
 }
 
 .catalog-pf-product-input--after:after {
@@ -1359,4 +1332,9 @@ label.ui-ctl-radio-selector {
 	font-size: 12px;
 	color: rgba(128, 134, 142, .7);
 	line-height: 16px;
+}
+
+.catalog-pf-product-panel-compilation-message .ui-card-message-without-angle {
+	margin-top: 14px;
+	margin-bottom: 5px;
 }

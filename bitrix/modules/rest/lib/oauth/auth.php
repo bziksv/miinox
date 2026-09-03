@@ -16,7 +16,10 @@ use Bitrix\Rest\AuthStorageInterface;
 use Bitrix\Rest\Engine\Access;
 use Bitrix\Rest\Engine\Access\HoldEntity;
 use Bitrix\Rest\Event\Session;
+use Bitrix\Rest\Internal\Access\UserAccessChecker;
 use Bitrix\Rest\OAuthService;
+use Bitrix\Main\SystemException;
+use Throwable;
 
 class Auth
 {
@@ -88,22 +91,36 @@ class Auth
 					$error = true;
 				}
 
-				if (
-					!$error
-					&& (
-						!Access::isAvailable($tokenInfo['client_id'])
+				if (!$error)
+				{
+					try
+					{
+						Access::ensureIsAvailable($tokenInfo['client_id']);
+						$accessException = null;
+					}
+					catch(Throwable $e)
+					{
+						$accessException = $e;
+					}
+
+					if (
+						$accessException !== null
 						|| (
 							Access::needCheckCount()
 							&& !Access::isAvailableCount(Access::ENTITY_TYPE_APP, $tokenInfo['client_id'])
 						)
 					)
-				)
-				{
-					$tokenInfo = [
-						'error' => 'ACCESS_DENIED',
-						'error_description' => 'REST is available only on commercial plans.'
-					];
-					$error = true;
+					{
+						$tokenInfo = [
+							'error' => 'ACCESS_DENIED',
+							'error_description' => 'REST is available only on commercial plans.',
+						];
+						if ($accessException instanceof Throwable)
+						{
+							$tokenInfo['exception'] = $accessException;
+						}
+						$error = true;
+					}
 				}
 
 				if(!$error)
@@ -152,7 +169,7 @@ class Auth
 							$error = true;
 						}
 					}
-					elseif (!\CRestUtil::makeAuth($tokenInfo))
+					elseif (!\CRestUtil::makeAuth($tokenInfo, self::AUTH_TYPE, $clientInfo['ID'] ?? 0))
 					{
 						$tokenInfo = array('error' => 'authorization_error', 'error_description' => 'Unable to authorize user');
 						$error = true;
@@ -238,16 +255,33 @@ class Auth
 		$authResult = static::getStorage()->restore($accessToken);
 		if($authResult === false)
 		{
-			$client = OAuthService::getEngine()->getClient();
-			$tokenInfo = $client->checkAuth($accessToken);
+			if (!OAuthService::getEngine()->isRegistered())
+			{
+				try
+				{
+					OAuthService::register();
+				}
+				catch(SystemException $e)
+				{
+					return ['error' => 'CONNECTION_ERROR', 'error_description' => 'Error connecting to authorization server'];
+				}
+			}
+
+			$tokenInfo = OAuthService::getEngine()->getClient()->checkAuth($accessToken);
 
 			if(is_array($tokenInfo))
 			{
-				if($tokenInfo['result'])
+				if(isset($tokenInfo['result']))
 				{
 					$authResult = $tokenInfo['result'];
 					$authResult['user_id'] = $authResult['parameters'][static::PARAM_LOCAL_USER];
 					unset($authResult['parameters'][static::PARAM_LOCAL_USER]);
+					$accessChecker = new UserAccessChecker((int)$authResult['user_id']);
+
+					if (!$accessChecker->canAuthorize())
+					{
+						return ['error' => 'ACCESS_DENIED', 'error_description' => "Current user can't be authorized in this context"];
+					}
 
 					// compatibility with old oauth response
 					if(!isset($authResult['expires']) && isset($authResult['expires_in']))

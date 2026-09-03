@@ -6,6 +6,11 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Iblock;
 
+/**
+ * Group actions for admin list. For ui grid see `ElementPanelProvider`.
+ *
+ * @see \Bitrix\Iblock\Grid\Panel\UI\ElementPanelProvider
+ */
 class GroupAction
 {
 	public const GRID_TYPE_UI = 'main.ui.grid';
@@ -63,12 +68,15 @@ class GroupAction
 	}
 
 	/**
-	 * @param array $actions
+	 * @param array|null $actions
 	 * @return array
 	 */
-	public function getList(array $actions): array
+	public function getList(?array $actions = null): array
 	{
 		$result = [];
+
+		$actions ??= array_keys($this->actionHandlers);
+
 		if (!empty($actions))
 		{
 			foreach ($actions as $code => $params)
@@ -574,7 +582,7 @@ class GroupAction
 	{
 		$name = (isset($params['NAME']) && $params['NAME'] !== ''
 			? $params['NAME']
-			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_CODE_TRANSLITERATION')
+			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_CODE_TRANSLITERATION_MSGVER_1')
 		);
 
 		$params['APPLY_BUTTON_ID'] = 'code_translit_confirm';

@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Analytics\Services;
 
@@ -28,14 +28,15 @@ class AccountFacebook extends Account
 
 	public function getProfile()
 	{
-		$response = $this->getRequest()->getClient()->get(
-			'https://graph.facebook.com/me?fields=id,name,picture,link&access_token=' .
-			urlencode($this->getRequest()->getAuthAdapter()->getToken())
+		$response = $this->request->send([
+			'methodName' => 'analytics.profile',
+			'parameters' => [],
+			]
 		);
 
-		if ($response)
+		if ($response && $response->isSuccess())
 		{
-			$response = Json::decode($response);
+			$response = $response->getData();
 			if (is_array($response))
 			{
 				return array(
@@ -136,6 +137,58 @@ class AccountFacebook extends Account
 		]);
 
 		return $response;
+	}
+
+	/**
+	 * @param string|null $accountId
+	 * @param Date|null $dateFrom
+	 * @param Date|null $dateTo
+	 *
+	 * @return Result
+	 */
+	public function getDailyExpensesReport(?string $accountId, ?Date $dateFrom, ?Date $dateTo): Result
+	{
+		if (mb_substr($accountId, 0, 4) === 'act_')
+		{
+			$accountId = mb_substr($accountId, 4);
+		}
+
+		$parameters = [
+			'ACCOUNT_ID' => $accountId,
+		];
+
+		if ($dateFrom && $dateTo)
+		{
+			$parameters['DATE_FROM'] = $dateFrom->format('Ymd');
+			$parameters['DATE_TO'] = $dateTo->format('Ymd');
+		}
+
+		$response = $this->getRequest()->send([
+			'methodName' => 'analytics.expenses.ads.report',
+			'parameters' => $parameters,
+			'streamTimeout' => static::LOAD_DAILY_EXPENSES_TIMEOUT,
+			'listenHttpErrors' => true,
+		]);
+
+		$result = new Result();
+
+		if (!$response->isSuccess())
+		{
+			$innerErrors = implode(',', $response->getErrorMessages());
+			$errorMessage = $this->buildErrorMessage("Error occurred while load daily expenses: {$innerErrors}");
+
+			return $result->addError(new Error($errorMessage));
+		}
+
+		$data = $response->getData();
+		$result->setData(['expenses' => Helpers\ExpensesAdapter::translateExpensesReportToDailyExpenses($data)]);
+
+		return $result;
+	}
+
+	public function hasDailyExpensesReport(): bool
+	{
+		return true;
 	}
 
 	/**
@@ -345,8 +398,8 @@ class AccountFacebook extends Account
 	{
 		$fields = [
 			'fields' => 'id,account_id,actor_id,adlabels,applink_treatment,asset_feed_spec,body,branded_content_sponsor_page_id,'.
-				'call_to_action_type,effective_instagram_story_id,effective_object_story_id,image_crops,image_hash,'.
-				'image_url,instagram_actor_id,instagram_permalink_url,instagram_story_id,link_og_id,link_url,'.
+				'call_to_action_type,effective_instagram_media_id,effective_object_story_id,image_crops,image_hash,'.
+				'image_url,instagram_user_id,instagram_permalink_url,source_instagram_media_id,link_og_id,link_url,'.
 				'messenger_sponsored_message,name,object_id,object_story_id,object_story_spec,object_type,object_url,'.
 				'platform_customizations,portrait_customizations,product_set_id,recommender_settings,status,template_url,'.
 				'template_url_spec,thumbnail_url,title,url_tags,use_page_actor_override,video_id',

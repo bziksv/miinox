@@ -6,7 +6,7 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\Json;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
@@ -307,7 +307,7 @@ $sendingEndTime = strtotime($arResult['SENDING_END']);
 		<?php endif;?>
 	</div>
 </div>
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 			BX.Sender.Config.Limits.init(<?=Json::encode(array(
 				'containerId' => $containerId,

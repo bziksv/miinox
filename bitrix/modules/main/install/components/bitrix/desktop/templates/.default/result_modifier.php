@@ -1,5 +1,10 @@
-<?
+<?php
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+
+/**
+ * @var array $arResult
+ * @var array $arParams
+ */
 
 $col = 0;
 $arDiff = array_diff($arParams["GADGETS_FIXED"], $arResult["GADGETS_LIST"]);
@@ -50,12 +55,12 @@ if (!empty($arDiff))
 				foreach($arParams as $id=>$p)
 				{
 					$pref = "G_".$gadget_id."_";
-					if(mb_strpos($id, $pref) === 0)
-						$arGadgetParams[mb_substr($id, mb_strlen($pref))]=$p;
+					if(str_starts_with($id, $pref))
+						$arGadgetParams[substr($id, strlen($pref))] = $p;
 
 					$pref = "GU_".$gadget_id."_";
-					if(mb_strpos($id, $pref) === 0 && !isset($arGadgetParams[mb_substr($id, mb_strlen($pref))]))
-						$arGadgetParams[mb_substr($id, mb_strlen($pref))]=$p;
+					if(str_starts_with($id, $pref) && !isset($arGadgetParams[substr($id, strlen($pref))]))
+						$arGadgetParams[substr($id, strlen($pref))]=$p;
 				}
 
 				$arGadgetDefault["SETTINGS"] = array_merge($arGadgetParams, $arGadgetDefault["SETTINGS"]);

@@ -1,6 +1,9 @@
 <?php
 
+use Bitrix\Main\Application;
 use Bitrix\Main\Loader;
+
+$dbType = Application::getConnection()->getType();
 
 $arClasses = array(
 	"iblock" => "install/index.php",
@@ -14,7 +17,7 @@ $arClasses = array(
 	"CIBlockSection" => "classes/mysql/iblocksection.php",
 	"CAllIBlockProperty" => "classes/general/iblockproperty.php",
 	"CIBlockPropertyEnum" => "classes/general/iblockpropertyenum.php",
-	"CIBlockProperty" => "classes/mysql/iblockproperty.php",
+	"CIBlockProperty" => 'classes/mysql/iblockproperty.php',
 	"CAllIBlockElement" => "classes/general/iblockelement.php",
 	"CIBlockElement" => "classes/mysql/iblockelement.php",
 	"CAllIBlockRSS" => "classes/general/iblockrss.php",
@@ -33,7 +36,8 @@ $arClasses = array(
 	"CIBlockPriceTools" => "classes/general/comp_pricetools.php",
 	"CIBlockParameters" => "classes/general/comp_parameters.php",
 	"CIBlockFormatProperties" => "classes/general/comp_formatprops.php",
-	"CIBlockSequence" => "classes/mysql/iblocksequence.php",
+	'CAllIBlockSequence' => 'classes/general/iblocksequence.php',
+	"CIBlockSequence" => 'classes/' . $dbType . '/iblocksequence.php',
 	"CIBlockPropertySequence" => "classes/general/prop_seq.php",
 	"CIBlockPropertyElementAutoComplete" => "classes/general/prop_element_auto.php",
 	"CIBlockPropertySKU" => "classes/general/prop_element_sku.php",
@@ -49,18 +53,18 @@ $arClasses = array(
 	"CIBlockPropertyTools" => "classes/general/iblockproptools.php",
 	"CIBlockSectionPropertyLink" => "classes/general/section_property.php",
 	"CIBlockXmlImport" => "classes/general/iblockxmlimport.php",
-	'\Bitrix\Iblock\IblockFieldTable' => "lib/iblockfield.php",
-	'\Bitrix\Iblock\IblockGroupTable' => "lib/iblockgroup.php",
-	'\Bitrix\Iblock\IblockMessageTable' => "lib/iblockmessage.php",
-	'\Bitrix\Iblock\IblockRssTable' => "lib/iblockrss.php",
-	'\Bitrix\Iblock\IblockSiteTable' => "lib/iblocksite.php",
-	'\Bitrix\Iblock\InheritedPropertyTable' => "lib/inheritedproperty.php",
-	'\Bitrix\Iblock\PropertyEnumerationTable' => "lib/propertyenumeration.php",
-	'\Bitrix\Iblock\PropertyFeatureTable' => 'lib/propertyfeature.php',
-	'\Bitrix\Iblock\SequenceTable' => "lib/sequence.php",
-	'\Bitrix\Iblock\SiteTable' => "lib/site.php",
-	'\Bitrix\Iblock\TypeTable' => "lib/type.php",
-	'\Bitrix\Iblock\TypeLanguageTable' => "lib/typelanguage.php",
+	'\Bitrix\Iblock\IblockFieldTable' => "lib/iblockfieldtable.php",
+	'\Bitrix\Iblock\IblockGroupTable' => "lib/iblockgrouptable.php",
+	'\Bitrix\Iblock\IblockMessageTable' => "lib/iblockmessagetable.php",
+	'\Bitrix\Iblock\IblockRssTable' => "lib/iblockrsstable.php",
+	'\Bitrix\Iblock\IblockSiteTable' => "lib/iblocksitetable.php",
+	'\Bitrix\Iblock\InheritedPropertyTable' => "lib/inheritedpropertytable.php",
+	'\Bitrix\Iblock\PropertyEnumerationTable' => "lib/propertyenumerationtable.php",
+	'\Bitrix\Iblock\PropertyFeatureTable' => 'lib/propertyfeaturetable.php',
+	'\Bitrix\Iblock\SequenceTable' => "lib/sequencetable.php",
+	'\Bitrix\Iblock\SiteTable' => "lib/sitetable.php",
+	'\Bitrix\Iblock\TypeLanguageTable' => "lib/typelanguagetable.php",
+	'\Bitrix\Iblock\TypeTable' => "lib/typetable.php",
 	'\Bitrix\Iblock\BizprocType\UserTypeProperty' => "lib/bizproctype/usertypeproperty.php",
 	'\Bitrix\Iblock\BizprocType\ECrm' => "lib/bizproctype/ecrm.php",
 	'\Bitrix\Iblock\BizprocType\Money' => "lib/bizproctype/money.php",
@@ -75,6 +79,15 @@ $arClasses = array(
 	'\Bitrix\Iblock\Component\Selector\Element' => "lib/component/selector/element.php",
 	'\Bitrix\Iblock\Component\Selector\Entity' => "lib/component/selector/entity.php",
 	'\Bitrix\Iblock\Component\Tools' => "lib/component/tools.php",
+	'\Bitrix\Iblock\Controller\Filter\Element' => "lib/Controller/Filter/Element.php",
+	'\Bitrix\Iblock\Filter\Entity\ElementSettings' => "lib/filter/entity/elementsettings.php",
+	'\Bitrix\Iblock\Filter\Entity\IblockSettings' => "lib/filter/entity/iblocksettings.php",
+	'\Bitrix\Iblock\Filter\FieldProvider\Base' => "lib/filter/fieldprovider/base.php",
+	'\Bitrix\Iblock\Filter\FieldProvider\Element' => "lib/filter/fieldprovider/element.php",
+	'\Bitrix\Iblock\Filter\FieldProvider\IblockProperty' => "lib/filter/fieldprovider/iblockproperty.php",
+	'\Bitrix\Iblock\Filter\Dictionary' => "lib/filter/dictionary.php",
+	'\Bitrix\Iblock\Filter\EntityList' => "lib/filter/entitylist.php",
+	'\Bitrix\Iblock\Filter\Factory' => "lib/filter/factory.php",
 	'\Bitrix\Iblock\Grid\Panel\GroupAction' => "lib/grid/panel/groupaction.php",
 	'\Bitrix\Iblock\Grid\ActionType' => "lib/grid/actiontype.php",
 	'\Bitrix\Iblock\Helpers\Admin\Property' => "lib/helpers/admin/property.php",
@@ -147,9 +160,14 @@ $arClasses = array(
 );
 //if (\Bitrix\Main\ModuleManager::isModuleInstalled('bizproc'))
 if (Loader::includeModule('bizproc'))
-	$arClasses["CIBlockDocument"] = "classes/general/iblockdocument.php";
+{
+	$arClasses['CIBlockDocument'] = 'classes/general/iblockdocument.php';
+}
 
-Loader::registerAutoLoadClasses("iblock", $arClasses);
+Loader::registerAutoLoadClasses('iblock', $arClasses);
 
 // orm autoloader
 Loader::registerHandler([\Bitrix\Iblock\ORM\Loader::class, 'autoLoad']);
+
+// old class names compatibility
+class_alias('Bitrix\Iblock\IblockSiteTable', 'Bitrix\Iblock\SiteTable');

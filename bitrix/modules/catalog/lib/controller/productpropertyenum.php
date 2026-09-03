@@ -2,16 +2,19 @@
 
 namespace Bitrix\Catalog\Controller;
 
-use Bitrix\Catalog\CatalogIblockTable;
 use Bitrix\Iblock\PropertyEnumerationTable;
 use Bitrix\Iblock\PropertyTable;
-use Bitrix\Main\Engine\Response\DataType\Page;
+use Bitrix\Main\Application;
+use Bitrix\Main\DB\DuplicateEntryException;
+use Bitrix\Main\DB\SqlQueryException;
 use Bitrix\Main\Error;
 use Bitrix\Main\Result;
-use Bitrix\Main\UI\PageNavigation;
 
 final class ProductPropertyEnum extends ProductPropertyBase
 {
+	use ListAction; // default listAction realization
+	use GetAction; // default getAction realization
+
 	// region Actions
 
 	/**
@@ -19,42 +22,18 @@ final class ProductPropertyEnum extends ProductPropertyBase
 	 */
 	public function getFieldsAction(): array
 	{
-		return ['PRODUCT_PROPERTY_ENUM' => $this->getViewFields()];
+		return [$this->getServiceItemName() => $this->getViewFields()];
 	}
 
 	/**
-	 * @param array $select
-	 * @param array $filter
-	 * @param array $order
-	 * @param PageNavigation $pageNavigation
-	 * @return Page
+	 * public function listAction
+	 * @see ListAction::listAction
 	 */
-	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): Page
-	{
-		$filter['PROPERTY.IBLOCK_ID'] = $this->getCatalogIds();
-
-		return new Page(
-			'PRODUCT_PROPERTY_ENUMS',
-			$this->getList($select, $filter, $order, $pageNavigation),
-			$this->count($filter)
-		);
-	}
 
 	/**
-	 * @param int $id
-	 * @return array|null
+	 * public function getAction
+	 * @see GetAction::getAction
 	 */
-	public function getAction(int $id): ?array
-	{
-		$r = $this->exists($id);
-		if ($r->isSuccess())
-		{
-			return ['PRODUCT_PROPERTY_ENUM' => $this->get($id)];
-		}
-
-		$this->addErrors($r->getErrors());
-		return null;
-	}
 
 	public function addAction(array $fields): ?array
 	{
@@ -66,24 +45,50 @@ final class ProductPropertyEnum extends ProductPropertyBase
 		}
 
 		$property = $this->getPropertyById($fields['PROPERTY_ID']);
+		if (!$property)
+		{
+			$this->addError($this->getErrorEntityNotExists());
+
+			return null;
+		}
+
 		$propertyType = $property['PROPERTY_TYPE'];
 		if ($propertyType !== PropertyTable::TYPE_LIST)
 		{
 			$this->addError(new Error('Only list properties are supported'));
+
 			return null;
 		}
 
-		$application = self::getApplication();
-		$application->ResetException();
-
-		$addResult = PropertyEnumerationTable::add($fields);
-		if (!$addResult->isSuccess())
+		$conn = Application::getConnection();
+		$conn->startTransaction();
+		try
 		{
-			$this->addErrors($addResult->getErrors());
-			return null;
+			$result = PropertyEnumerationTable::add($fields);
+		}
+		catch (DuplicateEntryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('A value with xmlId \'' . $fields['XML_ID'] . '\' already exists.'));
+		}
+		catch (SqlQueryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('Internal error adding enumeration value. Try adding again.'));
 		}
 
-		return ['PRODUCT_PROPERTY_ENUM' => $this->get($addResult->getId())];
+		if (!$result->isSuccess())
+		{
+			$conn->rollbackTransaction();
+			$this->addErrors($result->getErrors());
+
+			return null;
+		}
+		$conn->commitTransaction();
+
+		return [
+			$this->getServiceItemName() => $this->get($result->getId()),
+		];
 	}
 
 	/**
@@ -108,17 +113,40 @@ final class ProductPropertyEnum extends ProductPropertyBase
 		}
 
 		$propertyId = $this->get($id)['PROPERTY_ID'];
-		$updateResult = PropertyEnumerationTable::update([
-			'ID' => $id,
-			'PROPERTY_ID' => $propertyId,
-		], $fields);
-		if (!$updateResult)
+
+		$conn = Application::getConnection();
+		$conn->startTransaction();
+		try
 		{
-			$this->addErrors($updateResult->getErrors());
-			return null;
+			$result = PropertyEnumerationTable::update(
+				[
+					'ID' => $id,
+					'PROPERTY_ID' => $propertyId,
+				],
+				$fields
+			);
+		}
+		catch (DuplicateEntryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('A value with xmlId \'' . $fields['XML_ID'] . '\' already exists.'));
+		}
+		catch (SqlQueryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('Internal error updating enumeration value. Try updating again.'));
 		}
 
-		return ['PRODUCT_PROPERTY_ENUM' => $this->get($id)];
+		if (!$result->isSuccess())
+		{
+			$conn->rollbackTransaction();
+			$this->addErrors($result->getErrors());
+
+			return null;
+		}
+		$conn->commitTransaction();
+
+		return [$this->getServiceItemName() => $this->get($id)];
 	}
 
 	/**
@@ -135,18 +163,32 @@ final class ProductPropertyEnum extends ProductPropertyBase
 		}
 
 		$propertyId = $this->get($id)['PROPERTY_ID'];
-		$deleteResult = PropertyEnumerationTable::delete([
-			'ID' => $id,
-			'PROPERTY_ID' => $propertyId,
-		]);
 
-		if (!$deleteResult)
+		$conn = Application::getConnection();
+		$conn->startTransaction();
+		try
 		{
-			$this->addErrors($deleteResult->getErrors());
-			return null;
+			$result = PropertyEnumerationTable::delete([
+				'ID' => $id,
+				'PROPERTY_ID' => $propertyId,
+			]);
+		}
+		catch (SqlQueryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('Internal error deleting enumeration value. Try deleting again.'));
 		}
 
-		return $deleteResult->isSuccess();
+		if (!$result->isSuccess())
+		{
+			$conn->rollbackTransaction();
+			$this->addErrors($result->getErrors());
+
+			return null;
+		}
+		$conn->commitTransaction();
+
+		return true;
 	}
 
 	// endregion
@@ -171,7 +213,7 @@ final class ProductPropertyEnum extends ProductPropertyBase
 		$propertyEnum = $this->get($id);
 		if (!$propertyEnum || !$this->isIblockCatalog((int)$propertyEnum['IBLOCK_ID']))
 		{
-			$result->addError(new Error('Property enum does not exist'));
+			$result->addError($this->getErrorEntityNotExists());
 		}
 
 		return $result;
@@ -183,5 +225,17 @@ final class ProductPropertyEnum extends ProductPropertyBase
 	protected function getEntityTable()
 	{
 		return PropertyEnumerationTable::class;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @param array $params
+	 * @return array
+	 */
+	protected function modifyListActionParameters(array $params): array
+	{
+		$params['filter']['PROPERTY.IBLOCK_ID'] = $this->getCatalogIds();
+
+		return $params;
 	}
 }

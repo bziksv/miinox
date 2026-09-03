@@ -30,7 +30,7 @@ if ($arResult['ERRORS'])
 	?><div class="landing-message-label error"><?
 	foreach ($arResult['ERRORS'] as $error)
 	{
-		echo $error . '<br/>';
+		echo \htmlspecialcharsbx($error) . '<br/>';
 	}
 	?></div><?
 }
@@ -101,7 +101,7 @@ else
 		<input type="hidden" name="fields[TPL_ID]" value="<?= $row['TPL_ID']['CURRENT'];?>" />
 		<input type="hidden" name="fields[LANDING_ID_404]" value="<?= $row['LANDING_ID_404']['CURRENT'];?>" />
 		<input type="hidden" name="fields[LANDING_ID_INDEX]" value="<?= $row['LANDING_ID_INDEX']['CURRENT'];?>" />
-		<input type="hidden" name="fields[DOMAIN_ID]" value="<?= $domainName;?>" />
+		<input type="hidden" name="fields[DOMAIN_ID]" value="<?= \htmlspecialcharsbx($domainName);?>" />
 		<?if (count($arResult['LANDINGS']) === 1):?>
 			<input name="fields[LANDING_ID_INDEX]" type="hidden" value="<?= array_pop($landingKeys);?>" />
 		<?endif;?>
@@ -142,7 +142,7 @@ else
 										name="fields[ADDITIONAL_FIELDS][SETTINGS_SECTION_ID]"
 										value="<?= (int)$field->getValue() ?>"
 									>
-									<script type="text/javascript">
+									<script>
 										const fieldSection = new BX.Landing.UI.Field.LinkUrl({
 											title: "",
 											textOnly: true,
@@ -185,12 +185,36 @@ else
 			}
 		endif;?>
 
-		<?php if (isset($hooks['SETTINGS'], $pageFields['SETTINGS_AGREEMENT_ID'])):
-			$agreementId = $pageFields['SETTINGS_AGREEMENT_ID']->getValue() ?: 0;
+		<?php if (
+			isset($hooks['SETTINGS'])
+			&& (
+				isset($pageFields['SETTINGS_AGREEMENT_ID'])
+				|| isset($pageFields['SETTINGS_AGREEMENTS'])
+			)
+		):
+			$agreements = $pageFields['SETTINGS_AGREEMENTS']?->getValue();
+			if (!is_array($agreements))
+			{
+				$agreementId = $pageFields['SETTINGS_AGREEMENT_ID']?->getValue() ?: 0;
+				if ($agreementId)
+				{
+					$agreements = [
+						[
+							'ID' => (int)$agreementId,
+							'CHECKED' => 'Y',
+							'REQUIRED' => 'Y',
+						],
+					];
+				}
+				else
+				{
+					$agreements = [];
+				}
+			}
 			$agreementUseField = $pageFields['SETTINGS_AGREEMENT_USE'];
 			if(!$agreementUseField->getValue())
 			{
-				$agreementUseField->setValue($agreementId ? 'Y' : 'N');
+				$agreementUseField->setValue($agreements ? 'Y' : 'N');
 			}
 			?>
 			<div class="ui-form-row landing-form-title-catalog">
@@ -215,9 +239,9 @@ else
 									'bitrix:landing.userconsent.selector',
 									'',
 									[
-										'ID' => $agreementId,
-										'INPUT_NAME' => 'fields[ADDITIONAL_FIELDS][SETTINGS_AGREEMENT_ID]'
-									]
+										'AGREEMENTS' => $agreements,
+										'INPUT_NAME' => 'fields[ADDITIONAL_FIELDS][SETTINGS_AGREEMENTS]',
+									],
 								);?>
 							</div>
 						</div>
@@ -259,18 +283,22 @@ else
 	</form>
 </div>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		new BX.UI.LayoutForm({container: BX('landing-site-catalog-set-form')});
 		const editComponent = new BX.Landing.EditComponent('<?= $template->getFieldId('ACTION_CLOSE') ?>');
-		top.window['landingSettingsSaved'] = false;
 		<?php if ($arParams['SUCCESS_SAVE']):?>
 			top.window['landingSettingsSaved'] = true;
 			top.BX.onCustomEvent('BX.Landing.Filter:apply');
 			editComponent.actionClose();
+		<?php else: ?>
+			top.window['landingSettingsSaved'] = false;
 		<?php endif;?>
 		BX.Landing.Env.createInstance({
-			params: {type: '<?= $arParams['TYPE'] ?>'}
+			site_id: '<?= \CUtil::jsEscape((string)$row['ID']['CURRENT']) ?>',
+			params: {
+				type: '<?= \CUtil::jsEscape((string)$arParams['TYPE']) ?>',
+			},
 		});
 	});
 </script>

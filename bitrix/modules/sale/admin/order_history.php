@@ -162,7 +162,7 @@ if ($bUseOldHistory)
 	foreach ($arHistoryData as $index => $arHistoryRecord)
 		$arIds[$index]  = $arHistoryRecord["ID"];
 
-	array_multisort($arData, constant("SORT_".ToUpper($order)), $arIds, constant("SORT_".ToUpper($order)), $arHistoryData);
+	array_multisort($arData, constant("SORT_".mb_strtoupper($order)), $arIds, constant("SORT_".mb_strtoupper($order)), $arHistoryData);
 }
 
 $dbRes = new CDBResult;
@@ -185,6 +185,10 @@ if (!isset($entity))
 
 $lAdminHistory->AddHeaders($histdHeader);
 $arOperations = array();
+
+$sanitizer = new \CBXSanitizer();
+$sanitizer->setLevel(\CBXSanitizer::SECURE_LEVEL_LOW);
+$sanitizer->ApplyDoubleEncode(false);
 
 while ($arChangeRecord = $dbRecords->Fetch())
 {
@@ -213,9 +217,7 @@ while ($arChangeRecord = $dbRecords->Fetch())
 	$arRecord = CSaleOrderChange::GetRecordDescription($arChangeRecord["TYPE"], $arChangeRecord["DATA"]);
 	$row->AddField("TYPE", $arRecord["NAME"]);
 
-	$arRecord["INFO"] = str_replace('&nbsp;', ' ', $arRecord["INFO"]);
-
-	$row->AddField("DATA", htmlspecialcharsbx($arRecord["INFO"]));
+	$row->AddField("DATA", $sanitizer->SanitizeHtml($arRecord["INFO"]));
 	if (!isset($entity) && intval($arChangeRecord["ENTITY_ID"]) > 0)
 	{
 		if ($arChangeRecord["ENTITY"] == 'SHIPMENT')

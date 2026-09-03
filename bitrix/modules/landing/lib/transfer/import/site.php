@@ -1,27 +1,32 @@
 <?php
 namespace Bitrix\Landing\Transfer\Import;
 
+use Bitrix\Landing\History;
+use Bitrix\Landing\Metrika;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Event;
+use Bitrix\Main\ORM\Data\AddResult;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Web\Json;
+use Bitrix\Rest\Marketplace;
+use Bitrix\Rest\Configuration;
 use Bitrix\Landing\Hook\Page\Copyright;
 use Bitrix\Landing\Hook\Page\B24button;
 use Bitrix\Landing\Rights;
-use \Bitrix\Landing\Site as SiteCore;
-use \Bitrix\Landing\Landing as LandingCore;
+use Bitrix\Landing\Site as SiteCore;
+use Bitrix\Landing\Landing as LandingCore;
 use Bitrix\Landing\Site\Type;
-use \Bitrix\Landing\Transfer\AppConfiguration;
-use \Bitrix\Landing\Block;
-use \Bitrix\Landing\File;
-use \Bitrix\Landing\Hook;
-use \Bitrix\Landing\Template;
-use \Bitrix\Landing\TemplateRef;
-use \Bitrix\Landing\Manager;
-use \Bitrix\Landing\Syspage;
-use \Bitrix\Landing\Internals\BlockTable;
-use \Bitrix\Rest\Marketplace;
-use \Bitrix\Rest\Configuration;
-use \Bitrix\Main\Event;
-use \Bitrix\Main\ORM\Data\AddResult;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Main\ModuleManager;
+use Bitrix\Landing\Transfer\AppConfiguration;
+use Bitrix\Landing\Block;
+use Bitrix\Landing\File;
+use Bitrix\Landing\Hook;
+use Bitrix\Landing\Template;
+use Bitrix\Landing\TemplateRef;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\Syspage;
+use Bitrix\Landing\Internals\BlockTable;
+use Bitrix\Landing\Site\Scope;
 
 Loc::loadMessages(__FILE__);
 
@@ -47,15 +52,30 @@ class Site
 	}
 
 	/**
-	 * Returns prepare manifest settings for export.
+	 * Returns prepare manifest settings for import.
 	 * @param Event $event Event instance.
 	 * @return array|null
 	 */
 	public static function getInitManifest(Event $event): ?array
 	{
-		return [
-			'NEXT' => false
+		$manifest = [
+			'NEXT' => false,
 		];
+
+		$code = $event->getParameter('CODE');
+		if ($code === 'landing_mainpage')
+		{
+			$mainpageManager = new \Bitrix\Landing\Mainpage\Manager();
+			$siteId = $mainpageManager->getConnectedSiteId();
+			if ($siteId)
+			{
+				$manifest['SETTING'] = [
+					'replaceSiteId' => $siteId,
+				];
+			}
+		}
+
+		return $manifest;
 	}
 
 	/**
@@ -71,7 +91,7 @@ class Site
 		// clear old keys
 		$notAllowedKeys = [
 			'ID', 'DOMAIN_ID', 'DATE_CREATE', 'DATE_MODIFY',
-			'CREATED_BY_ID', 'MODIFIED_BY_ID', 'CODE'
+			'CREATED_BY_ID', 'MODIFIED_BY_ID', 'CODE',
 		];
 		foreach ($notAllowedKeys as $key)
 		{
@@ -86,11 +106,11 @@ class Site
 		{
 			$check = SiteCore::getList([
 				'select' => [
-					'ID'
+					'ID',
 				],
 				'filter' => [
-					'=CODE' => $code
-				]
+					'=CODE' => $code,
+				],
 			]);
 			if ($check->fetch())
 			{
@@ -153,11 +173,12 @@ class Site
 		$ratio = $event->getParameter('RATIO');
 		$contextUser = $event->getParameter('CONTEXT_USER');
 		$userId = $event->getParameter('USER_ID');
+		$settings = $event->getParameter('SETTING');
 		$additional = $event->getParameter('ADDITIONAL_OPTION');
 		$structure = new Configuration\Structure($contextUser);
 		$return = [
-			'RATIO' => isset($ratio[$code]) ? $ratio[$code] : [],
-			'ERROR_EXCEPTION' => []
+			'RATIO' => $ratio[$code] ?? [],
+			'ERROR_EXCEPTION' => [],
 		];
 
 		if (!isset($content['~DATA']))
@@ -170,68 +191,129 @@ class Site
 			Rights::setContextUserId($userId);
 		}
 
-		// if all import - add page in current site
 		$isPageImport = $return['RATIO']['IS_PAGE_IMPORT'] ?? false;
-		// if only current step add page
 		$isPageStep = false;
+
 		if (isset($ratio[$code]['SITE_ID']) && (int)$ratio[$code]['SITE_ID'] > 0)
 		{
 			$isPageStep = true;
 		}
 		elseif ($additional && (int)$additional['siteId'] > 0)
 		{
-			$isPageStep = true;
 			$return['RATIO']['SITE_ID'] = (int)$additional['siteId'];
-			if (!isset($return['RATIO']['IS_PAGE_IMPORT']))
-			{
-				$isPageImport = true;
-			}
+			$isPageImport = $return['RATIO']['IS_PAGE_IMPORT'] ?? true;
 		}
 
-		$return['RATIO']['IS_PAGE_IMPORT'] = $isPageImport;
+		// check if not add new site - just replace lid
+		$isReplaceLanding = false;
+		if (isset($ratio[$code]['REPLACE_LID']) && (int)$ratio[$code]['REPLACE_LID'] > 0)
+		{
+			$isReplaceLanding = true;
+		}
+		elseif ($additional && (int)$additional['replaceLid'] > 0)
+		{
+			$return['RATIO']['REPLACE_LID'] = (int)$additional['replaceLid'];
+			$isReplaceLanding = true;
+		}
+
+		$isReplaceSiteLandings = false;
+		if ($settings && (int)$settings['replaceSiteId'] > 0)
+		{
+			$return['RATIO']['REPLACE_SITE_ID'] = (int)$settings['replaceSiteId'];
+			$return['RATIO']['SITE_ID'] = (int)$settings['replaceSiteId'];
+			$isReplaceSiteLandings = true;
+		}
+
+		$siteId = (int)$return['RATIO']['SITE_ID'];
+		$isReplace = $isReplaceLanding || $isReplaceSiteLandings;
 
 		// common ratio params
 		$data = self::prepareData($content['~DATA']);
 		$data = self::prepareAdditionalFields($data, $additional);
+		Type::setScope($data['TYPE']);
+		if ($data['TYPE'] === 'MAINPAGE')
+		{
+			(new \Bitrix\Landing\Mainpage\Manager())->onStartPageCreation();
+		}
+
+		if ($isReplace && !$isPageStep)
+		{
+			$additionalFieldsSite = $data['ADDITIONAL_FIELDS'] ?? [];
+			$additionalFieldsSite = array_filter(
+				$additionalFieldsSite,
+				function ($code) {
+					return in_array($code, Hook::HOOKS_CODES_DESIGN);
+				},
+				ARRAY_FILTER_USE_KEY
+			);
+			$return['RATIO']['ADDITIONAL_FIELDS_SITE'] = $additionalFieldsSite;
+			$return['RATIO']['ADDITIONAL_FIELDS_SITE_BEFORE'] = Landing::getAdditionalFieldsForReplaceBySite($siteId);
+
+			// for history
+			if ($isReplaceSiteLandings)
+			{
+				$landings = LandingCore::getList([
+					'select' => ['ID', 'TPL_ID'],
+					'filter' => [
+						'SITE_ID' => $siteId,
+						'=DELETED' => 'N',
+					],
+				]);
+				while ($landing = $landings->fetch())
+				{
+					$lid = (int)$landing['ID'];
+					$return['RATIO']['LANDINGS_BEFORE'][] = $lid;
+
+					$tmpLinking = TemplateRef::getForLanding($lid);
+					if (!empty($tmpLinking))
+					{
+						$return['RATIO']['TEMPLATE_LINKING_BEFORE'][$lid] = [
+							'TPL_ID' => (int)$landing['TPL_ID'],
+							'TEMPLATE_REF' => $tmpLinking,
+						];
+					}
+				}
+			}
+		}
 		if (!isset($return['RATIO']['SPECIAL_PAGES']))
 		{
 			$return['RATIO']['SPECIAL_PAGES'] = [
 				'LANDING_ID_INDEX' => isset($data['LANDING_ID_INDEX']) ? (int)$data['LANDING_ID_INDEX'] : 0,
 				'LANDING_ID_404' => isset($data['LANDING_ID_404']) ? (int)$data['LANDING_ID_404'] : 0,
-				'LANDING_ID_503' => isset($data['LANDING_ID_503']) ? (int)$data['LANDING_ID_503'] : 0
+				'LANDING_ID_503' => isset($data['LANDING_ID_503']) ? (int)$data['LANDING_ID_503'] : 0,
 			];
+		}
+		$return['RATIO']['IS_PAGE_IMPORT'] = $isPageImport;
+		$return['RATIO']['TYPE'] = $data['TYPE'];
+
+		if (isset($data['TEMPLATES']) && is_array($data['TEMPLATES']))
+		{
+			$return['RATIO']['TEMPLATES'] = $data['TEMPLATES'];
 		}
 
 		// site import
-		if (!$isPageStep)
+		if (!$isPageImport && !$isPageStep && !$isReplace)
 		{
-			Type::setScope($data['TYPE']);
 			$res = self::importSite($data, $structure);
 			if ($res->isSuccess())
 			{
 				$return['RATIO']['BLOCKS'] = [];
 				$return['RATIO']['BLOCKS_PENDING'] = [];
 				$return['RATIO']['LANDINGS'] = [];
-				$return['RATIO']['TEMPLATES'] = [];
+				$return['RATIO']['TEMPLATES'] = $return['RATIO']['TEMPLATES'] ?? [];
 				$return['RATIO']['TEMPLATE_LINKING'] = [];
 				$return['RATIO']['SITE_ID'] = $res->getId();
-				$return['RATIO']['TYPE'] = $data['TYPE'];
 				$return['RATIO']['FOLDERS_NEW'] = $data['FOLDERS_NEW'] ?? [];
 				$return['RATIO']['SYS_PAGES'] = $data['SYS_PAGES'];
 
-				if (isset($data['TEMPLATES']) && is_array($data['TEMPLATES']))
-				{
-					$return['RATIO']['TEMPLATES'] = $data['TEMPLATES'];
-				}
 				if (isset($data['TPL_ID']) && $data['TPL_ID'])
 				{
 					$return['RATIO']['TEMPLATE_LINKING'][-1 * $res->getId()] = [
-						'TPL_ID' => (int) $data['TPL_ID'],
-						'TEMPLATE_REF' => isset($data['TEMPLATE_REF'])
-										? (array) $data['TEMPLATE_REF']
-										: []
+						'TPL_ID' => (int)$data['TPL_ID'],
+						'TEMPLATE_REF' => (array)($data['TEMPLATE_REF'] ?? []),
 					];
 				}
+
 				return $return;
 			}
 
@@ -240,8 +322,31 @@ class Site
 			return $return;
 		}
 
+		// First step (site import) for replaces
+		if ($isReplace && !$isPageStep && $siteId)
+		{
+			// check by scope that replaced site have same type with import.
+			$checkByType = SiteCore::getList([
+				'select' => ['ID'],
+				'filter' => [
+					'=ID' => $siteId,
+				],
+			]);
+			if (!$checkByType->fetch())
+			{
+				$return['ERROR_EXCEPTION'] = Loc::getMessage('LANDING_IMPORT_ERROR_REPLACED_SITE_TYPE_INVALID');
+
+				return $return;
+			}
+
+			$return['RATIO']['TEMPLATE_LINKING'][-1 * $siteId] = [
+				'TPL_ID' => (int)$data['TPL_ID'],
+				'TEMPLATE_REF' => (array)($data['TEMPLATE_REF'] ?? []),
+			];
+		}
+
 		// something went wrong, site was not created
-		if (!isset($return['RATIO']['SITE_ID']))
+		if (!isset($siteId))
 		{
 			$return['ERROR_EXCEPTION'][] = Loc::getMessage('LANDING_IMPORT_ERROR_SITE_ID_NOT_FOUND');
 			return $return;
@@ -253,7 +358,12 @@ class Site
 			return $return;
 		}
 
-		// pages import
+		// not site imports
+		if ($isReplaceLanding)
+		{
+			return Landing::replaceLanding($event);
+		}
+
 		return Landing::importLanding($event);
 	}
 
@@ -282,21 +392,24 @@ class Site
 	 */
 	protected static function prepareAdditionalFields(array $data, ?array $additional): array
 	{
-		if ($additional && $additional['theme'])
+		if ($additional)
 		{
-			$color = $additional['theme'];
-			if ($color[0] !== '#')
+			if (isset($additional['theme']) && $additional['theme'])
 			{
-				$color = '#' . $color;
+				$color = $additional['theme'];
+				if ($color[0] !== '#')
+				{
+					$color = '#' . $color;
+				}
+				$data['ADDITIONAL_FIELDS']['THEME_COLOR'] = $color;
+				unset($data['ADDITIONAL_FIELDS']['THEME_CODE']);
+				$data['ADDITIONAL_FIELDS']['THEME_USE'] = 'Y';
 			}
-			$data['ADDITIONAL_FIELDS']['THEME_COLOR'] = $color;
-			unset($data['ADDITIONAL_FIELDS']['THEME_CODE']);
-			$data['ADDITIONAL_FIELDS']['THEME_USE'] = 'Y';
-		}
 
-		if ($additional && $additional['title'])
-		{
-			$data['TITLE'] = $additional['title'];
+			if (isset($additional['title']) && $additional['title'])
+			{
+				$data['TITLE'] = $additional['title'];
+			}
 		}
 
 		//default widget value
@@ -336,11 +449,11 @@ class Site
 		$replaceEncoded = base64_encode(serialize($replace));
 		$res = BlockTable::getList([
 			'select' => [
-				'ID'
+				'ID',
 			],
 			'filter' => [
-				'ID' => $pendingIds
-			]
+				'ID' => $pendingIds,
+			],
 		]);
 		while ($row = $res->fetch())
 		{
@@ -349,8 +462,8 @@ class Site
 			{
 				$blockInstance->updateNodes([
 					AppConfiguration::SYSTEM_COMPONENT_REST_PENDING => [
-						'REPLACE' => $replaceEncoded
-					]
+						'REPLACE' => $replaceEncoded,
+					],
 				]);
 				$blockInstance->save();
 			}
@@ -367,19 +480,19 @@ class Site
 	{
 		$res = LandingCore::getList([
 			'select' => [
-				'ID', 'FOLDER_ID'
+				'ID', 'FOLDER_ID',
 			],
 			'filter' => [
 				'SITE_ID' => $siteId,
-				'FOLDER_ID' => array_keys($folderMapIds)
-			]
+				'FOLDER_ID' => array_keys($folderMapIds),
+			],
 		]);
 		while ($row = $res->fetch())
 		{
 			if (isset($folderMapIds[$row['FOLDER_ID']]))
 			{
 				LandingCore::update($row['ID'], [
-					'FOLDER_ID' => $folderMapIds[$row['FOLDER_ID']]
+					'FOLDER_ID' => $folderMapIds[$row['FOLDER_ID']],
 				]);
 			}
 		}
@@ -421,12 +534,12 @@ class Site
 				if ($indexId)
 				{
 					$resLanding = LandingCore::update($indexId, [
-						'FOLDER_ID' => $res->getId()
+						'FOLDER_ID' => $res->getId(),
 					]);
 					if ($resLanding->isSuccess())
 					{
 						\Bitrix\Landing\Folder::update($res->getId(), [
-							'INDEX_ID' => $indexId
+							'INDEX_ID' => $indexId,
 						]);
 					}
 				}
@@ -440,7 +553,7 @@ class Site
 			if ($folderMapIds[$folder['PARENT_ID']] ?? null)
 			{
 				\Bitrix\Landing\Folder::update($folder['ID'], [
-					'PARENT_ID' => $folderMapIds[$folder['PARENT_ID']]
+					'PARENT_ID' => $folderMapIds[$folder['PARENT_ID']],
 				]);
 			}
 		}
@@ -467,34 +580,36 @@ class Site
 		{
 			Rights::setGlobalOff();
 			$siteType = $ratio['LANDING']['TYPE'];
-			$siteId = $ratio['LANDING']['SITE_ID'];
-			$blocks = $ratio['LANDING']['BLOCKS'];
-			$landings = $ratio['LANDING']['LANDINGS'];
-			$blocksPending = $ratio['LANDING']['BLOCKS_PENDING'];
-			$foldersRef = $ratio['LANDING']['FOLDERS_REF'];
-			$templatesOld = $ratio['LANDING']['TEMPLATES'];
-			$templateLinking = $ratio['LANDING']['TEMPLATE_LINKING'];
-			$specialPages = $ratio['LANDING']['SPECIAL_PAGES'];
-			$sysPages = $ratio['LANDING']['SYS_PAGES'];
-			$foldersNew = $ratio['LANDING']['FOLDERS_NEW'];
-			$additional = $event->getParameter('ADDITIONAL_OPTION');
+			$siteId = $ratio['LANDING']['SITE_ID'] ?? null;
+			$blocks = $ratio['LANDING']['BLOCKS'] ?? null;
+			$landings = $ratio['LANDING']['LANDINGS'] ?? [];
+			$blocksPending = $ratio['LANDING']['BLOCKS_PENDING'] ?? null;
+			$foldersRef = $ratio['LANDING']['FOLDERS_REF'] ?? null;
+			$templatesOld = $ratio['LANDING']['TEMPLATES'] ?? [];
+			$templateLinking = $ratio['LANDING']['TEMPLATE_LINKING'] ?? [];
+			$specialPages = $ratio['LANDING']['SPECIAL_PAGES'] ?? null;
+			$sysPages = $ratio['LANDING']['SYS_PAGES'] ?? null;
+			$foldersNew = $ratio['LANDING']['FOLDERS_NEW'] ?? [];
+			$additional = $event->getParameter('ADDITIONAL_OPTION') ?? [];
+
+			Type::setScope($siteType);
 
 			// if import just page in existing site
-			$isPageImport = false;
-			if ($additional && (int)$additional['siteId'] > 0)
+			$isPageImport = $ratio['LANDING']['IS_PAGE_IMPORT'] ?? false;
+			$isReplaceLanding = isset($ratio['LANDING']['REPLACE_LID']) && (int)$ratio['LANDING']['REPLACE_LID'] > 0;
+			$isReplaceSiteLandings = (int)($ratio['LANDING']['REPLACE_SITE_ID'] ?? 0) > 0;
+			$isReplace = $isReplaceLanding || $isReplaceSiteLandings;
+			if ($isReplaceSiteLandings && $siteId)
 			{
-				$isPageImport = true;
+				self::onFinishReplaceSite($event);
 			}
 
 			// index page for multipage, or just once - for sigle page import
 			$mainPageId = null;
 			if (!empty($landings))
 			{
-				if ($isPageImport)
-				{
-					$mainPageId = reset($landings);
-				}
-				elseif (
+				$mainPageId = reset($landings);
+				if (
 					$siteId
 					&& $specialPages
 					&& $specialPages['LANDING_ID_INDEX']
@@ -505,14 +620,14 @@ class Site
 				}
 			}
 
-			Type::setScope($siteType);
 			if ($blocksPending)
 			{
 				self::linkingPendingBlocks($blocksPending, [
 					'block' => $blocks,
-					'landing' => $landings
+					'landing' => $landings,
 				]);
 			}
+
 			// replace links in blocks content
 			if ($blocks)
 			{
@@ -532,12 +647,12 @@ class Site
 
 				$res = BlockTable::getList([
 					'select' => [
-						'ID', 'CONTENT'
+						'ID', 'CONTENT',
 					],
 					'filter' => [
 						'ID' => array_values($blocks),
-						'!ID' => $blocksPending
-					]
+						'!ID' => $blocksPending,
+					],
 				]);
 				while ($row = $res->fetch())
 				{
@@ -552,13 +667,13 @@ class Site
 					if ($count)
 					{
 						BlockTable::update($row['ID'], [
-							'CONTENT' => $row['CONTENT']
+							'CONTENT' => $row['CONTENT'],
 						]);
 					}
 				}
 			}
 
-			if (!$isPageImport)
+			if (!$isReplace)
 			{
 				// move pages to the folders if needed (backward compatibility)
 				if ($foldersRef)
@@ -579,8 +694,13 @@ class Site
 						]);
 					}
 				}
+
 				// add folders and move pages (new format)
 				self::addFolders($siteId, $foldersNew, $landings);
+			}
+
+			if (!$isPageImport || $isReplaceSiteLandings)
+			{
 				// gets actual layouts
 				$templatesNew = [];
 				$templatesRefs = [];
@@ -657,34 +777,34 @@ class Site
 			}
 
 			//set default additional fields for page
-			if ($mainPageId)
+			if ($mainPageId && !$isReplaceLanding)
 			{
 				self::setAdditionalPageFields($mainPageId, $additional);
 			}
 
 			Rights::setGlobalOn();
 
-			// link for "go to site" button
+			// LINK for "go to site" button
 			$linkAttrs = [
 				'class' => 'ui-btn ui-btn-md ui-btn-success ui-btn-round',
 				'data-is-site' => 'Y',
 				'data-site-id' => $siteId,
 				'href' => '#' . $siteId,
-				'target' => '_top'
+				'target' => '_top',
 			];
+			$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_SITE');
 			if ($mainPageId)
 			{
 				$linkAttrs['data-is-landing'] = 'Y';
 				$linkAttrs['data-landing-id'] = $mainPageId;
+				$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_PAGE');
 			}
-			$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_SITE');
 			if ($siteType === 'KNOWLEDGE')
 			{
 				$linkAttrs['href'] = \Bitrix\Landing\Site::getPublicUrl($siteId);
 			}
 			elseif ($siteType === 'PAGE' && empty($additional))
 			{
-				$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_PAGE');
 				$url = Manager::getOption('tmp_last_show_url', '');
 				if ($url === '' && ModuleManager::isModuleInstalled('bitrix24'))
 				{
@@ -705,6 +825,22 @@ class Site
 					);
 				}
 			}
+			elseif ($siteType === 'MAINPAGE')
+			{
+				$linkText = Loc::getMessage('LANDING_IMPORT_FINISH_GOTO_MAINPAGE');
+				if (Loader::includeModule('intranet'))
+				{
+					$manager = new \Bitrix\Landing\Mainpage\Manager();
+					$manager->onFinishPageCreation();
+
+					$linkAttrs['href'] = Scope\Mainpage::getPublicationPath() ?? '/';
+				}
+			}
+
+			if ($isReplaceLanding)
+			{
+				$linkAttrs['data-replace-lid'] = (int)$ratio['LANDING']['REPLACE_LID'];
+			}
 
 			$domList = [
 				[
@@ -712,19 +848,49 @@ class Site
 					'DATA' => [
 						'attrs' => $linkAttrs,
 						'text' => $linkText,
-					]
-				]
+					],
+				],
 			];
-
 
 			if (mb_strpos($linkAttrs['href'], '#') !== 0)
 			{
+				$script = "setTimeout(() => {
+					top.window.location.href='{$linkAttrs['href']}';
+				}, 5000);";
 				$domList[] = [
 					'TAG' => 'script',
 					'DATA' => [
-						'html' => "top.window.location.href='" . $linkAttrs['href'] . "'",
-					]
+						'html' => $script,
+					],
 				];
+			}
+
+			if (
+				!empty($additional)
+				&& array_key_exists('st_tool', $additional)
+				&& array_key_exists('st_event', $additional)
+				&& Metrika\Tools::tryFrom($additional['st_tool'])
+				&& Metrika\Events::tryFrom($additional['st_event'])
+			)
+			{
+				$tool = $additional['st_tool'];
+				$metrika = new Metrika\Metrika(
+					Metrika\Categories::tryFrom($tool),
+					Metrika\Events::tryFrom($additional['st_event']),
+					Metrika\Tools::tryFrom($tool),
+				);
+				$metrika->setStatus(Metrika\Statuses::Success);
+				$metrika->setType(Metrika\Types::template);
+
+				if (array_key_exists('st_section', $additional))
+				{
+					$metrika->setSection(Metrika\Sections::tryFrom($additional['st_section']));
+				}
+				$metrika
+					->setParam(1, 'appCode', $additional['appCode'] ?? '')
+					->setParam(3, 'siteId', $siteId)
+					->send()
+				;
 			}
 
 			return [
@@ -732,8 +898,8 @@ class Site
 				'ADDITIONAL' => [
 					'id' => $siteId,
 					'publicUrl' => \Bitrix\Landing\Site::getPublicUrl($siteId),
-					'imageUrl' => Manager::getUrlFromFile(\Bitrix\Landing\Site::getPreview($siteId))
-				]
+					'imageUrl' => Manager::getUrlFromFile(\Bitrix\Landing\Site::getPreview($siteId)),
+				],
 			];
 		}
 
@@ -742,23 +908,23 @@ class Site
 		return [];
 	}
 
-	protected static function setAdditionalPageFields($landingId, $additional)
+	protected static function setAdditionalPageFields($landingId, array $additional): void
 	{
 		$additionalFields = [];
 
 		// set Title and Description to mainpage
 		if (!empty($additional))
 		{
-			if ($additional['title'])
+			if (isset($additional['title']))
 			{
 				$additionalFields['METAMAIN_TITLE'] = $additional['title'];
 				$additionalFields['METAOG_TITLE'] = $additional['title'];
 
 				LandingCore::update($landingId, [
-					'TITLE' => $additional['title']
+					'TITLE' => $additional['title'],
 				]);
 			}
-			if ($additional['description'])
+			if (isset($additional['description']))
 			{
 				$additionalFields['METAMAIN_DESCRIPTION'] = $additional['description'];
 				$additionalFields['METAOG_DESCRIPTION'] = $additional['description'];
@@ -766,5 +932,74 @@ class Site
 		}
 
 		LandingCore::saveAdditionalFields($landingId, $additionalFields);
+	}
+
+	/**
+	 * Special finish operations for replace site import
+	 * @param Event $event
+	 * @return void
+	 */
+	protected static function onFinishReplaceSite(Event $event): void
+	{
+		$ratio = $event->getParameter('RATIO');
+		$siteId = $ratio['LANDING']['SITE_ID'] ?? null;
+
+		if (!$siteId)
+		{
+			return;
+		}
+
+		History::deactivate();
+
+		$landingsBefore = $ratio['LANDING']['LANDINGS_BEFORE'] ?? [];
+		$landings = $ratio['LANDING']['LANDINGS'] ?? [];
+		foreach ($landingsBefore as $lidToDelete)
+		{
+			TemplateRef::deleteArea($lidToDelete);
+			LandingCore::markDelete($lidToDelete);
+		}
+
+		$specialPages = $ratio['LANDING']['SPECIAL_PAGES'] ?? null;
+		if (
+			$specialPages
+			&& $specialPages['LANDING_ID_INDEX']
+			&& $landings[$specialPages['LANDING_ID_INDEX']]
+		)
+		{
+			$index = $landings[$specialPages['LANDING_ID_INDEX']];
+		}
+		SiteCore::update($siteId, [
+			'LANDING_ID_INDEX' => $index ?? 0
+		]);
+
+		$additionalFieldsSiteBefore = $ratio['LANDING']['ADDITIONAL_FIELDS_SITE_BEFORE'] ?? [];
+		$additionalFieldsSite = $ratio['LANDING']['ADDITIONAL_FIELDS_SITE'] ?? [];
+		if (!empty($additionalFieldsSite))
+		{
+			SiteCore::saveAdditionalFields($siteId, $additionalFieldsSite);
+		}
+
+		// todo: for future, not using yet
+		$useHistory = false;
+		if ($useHistory)
+		{
+			$templateLinkingBefore = $ratio['LANDING']['TEMPLATE_LINKING_BEFORE'] ?? [];
+			$templateLinking = $ratio['LANDING']['TEMPLATE_LINKING'] ?? [];
+
+			History::activate();
+			$history = new History($siteId, History::ENTITY_TYPE_LANDING);
+			$history->push('REPLACE_SITE_LANDINGS', [
+				'siteId' => $siteId,
+
+				'landingsBefore' => $landingsBefore,
+				'landings' => $landings,
+
+				'templateLinkingBefore' => $templateLinkingBefore,
+				'templateLinking' => $templateLinking,
+
+				'additionalFieldsSiteBefore' => $additionalFieldsSiteBefore,
+				'additionalFieldsSite' => $additionalFieldsSite,
+			]);
+		}
 	}
 }

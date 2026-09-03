@@ -3,34 +3,46 @@
 namespace Bitrix\Pull;
 
 use Bitrix\Main;
+use Bitrix\Main\Web\Uri;
 
 class JsonRpcTransport
 {
 	protected const VERSION = '2.0';
 	protected const METHOD_PUBLISH = 'publish';
 	protected const METHOD_GET_LAST_SEEN = 'getUsersLastSeen';
-	protected const HEADER_HOST_ID = 'X-HostId';
+	protected const METHOD_UPDATE_LAST_SEEN = 'updateUsersLastSeen';
+
+	protected string $serverUrl = '';
+	protected string $hostname = '';
+
+	function __construct(array $options = [])
+	{
+		$this->serverUrl = $options['serverUrl'] ?? Config::getJsonRpcUrl();
+		$this->hostname = $options['hostname'] ?? Config::getHostname();
+	}
 
 	/**
 	 * @param \Bitrix\Pull\DTO\Message[] $messages
 	 * @param array $options
 	 * @return Main\Result
-	 * @throws Main\SystemException
 	 * @see DTO\Message
 	 */
-	public static function sendMessages(array $messages, array $options = []): Main\Result
+	public function sendMessages(array $messages): TransportResult
 	{
-		$result = new Main\Result();
-		if(!Config::isJsonRpcUsed())
+		$result = new TransportResult();
+		$result->withRemoteAddress($this->serverUrl);
+		try
 		{
-			throw new Main\SystemException("Sending messages in json-rpc format is not supported by the queue server");
+			$batchList = static::createRequestBatches($messages);
 		}
-
-		$batchList = static::createRequestBatches($messages);
+		catch (\Throwable $e)
+		{
+			return $result->addError(new \Bitrix\Main\Error($e->getMessage(), $e->getCode()));
+		}
 
 		foreach ($batchList as $batch)
 		{
-			$executeResult = static::executeBatch($batch, $options);
+			$executeResult = $this->executeBatch($this->serverUrl, $batch);
 			if (!$executeResult->isSuccess())
 			{
 				return $result->addErrors($executeResult->getErrors());
@@ -40,19 +52,14 @@ class JsonRpcTransport
 		return $result;
 	}
 
-	public static function getUsersLastSeen(array $userList, array $options = []): Main\Result
+	public function getUsersLastSeen(array $userList): Main\Result
 	{
-		if(!Config::isJsonRpcUsed())
-		{
-			throw new Main\SystemException("Sending messages in json-rpc format is not supported by the queue server");
-		}
-
-		$rpcResult = static::executeMethod(
-			self::METHOD_GET_LAST_SEEN,
+		$rpcResult = $this->executeMethod(
+			$this->serverUrl,
+			static::METHOD_GET_LAST_SEEN,
 			[
 				'userList' => $userList
-			],
-			$options
+			]
 		);
 
 		if (!$rpcResult->isSuccess())
@@ -68,20 +75,56 @@ class JsonRpcTransport
 	}
 
 	/**
+	 * Communicates users' last seen timestamps to the queue server.
+	 *
+	 * @param array $userTimestamps USER_ID => LAST_SEEN_TIMESTAMP
+	 * @return Main\Result
+	 */
+	public function updateUsersLastSeen(array $userTimestamps): Main\Result
+	{
+		return $this->executeMethod(
+			$this->serverUrl,
+			static::METHOD_UPDATE_LAST_SEEN,
+			$userTimestamps
+		);
+	}
+
+	/**
 	 * @param \Bitrix\Pull\DTO\Message[] $messages
-	 * @return array[]
+	 * @return string[]
 	 */
 	protected static function createRequestBatches(array $messages): array
 	{
 		// creates just one batch right now
+		$maxPayload = \CPullOptions::GetMaxPayload() - 20;
+
 		$result = [];
+		$currentBatch = [];
+		$currentBatchSize = 2; // opening and closing bracket
 		foreach ($messages as $message)
 		{
 			$message->userList = array_values($message->userList);
 			$message->channelList = array_values($message->channelList);
-			$result[] = static::createJsonRpcRequest(static::METHOD_PUBLISH, $message);
+			$jsonRpcMessage = Main\Web\Json::encode(static::createJsonRpcRequest(static::METHOD_PUBLISH, $message));
+			if (mb_strlen($jsonRpcMessage) > $maxPayload - 20)
+			{
+				trigger_error("Pull message exceeds size limit, skipping", E_USER_WARNING);
+			}
+			if (($currentBatchSize + mb_strlen($jsonRpcMessage)) + 1> $maxPayload)
+			{
+				// start new batch
+				$result[] = "[" . implode(",", $currentBatch) . "]";
+				$currentBatch = [];
+				$currentBatchSize = 2;
+			}
+			$currentBatch[] = $jsonRpcMessage;
+			$currentBatchSize += (mb_strlen($jsonRpcMessage)) + 1; // + comma
 		}
-		return [$result];
+		if (count($currentBatch) > 0)
+		{
+			$result[] = "[" . implode(",", $currentBatch) . "]";
+		}
+		return $result;
 	}
 
 	/**
@@ -98,7 +141,7 @@ class JsonRpcTransport
 		];
 	}
 
-	protected static function executeMethod(string $method, array $params, array $options = []): Main\Result
+	protected function executeMethod(string $queueServerUrl, string $method, array $params): Main\Result
 	{
 		$result = new Main\Result();
 		$rpcRequest = static::createJsonRpcRequest($method, $params);
@@ -111,7 +154,7 @@ class JsonRpcTransport
 		{
 			return $result->addError(new \Bitrix\Main\Error($e->getMessage(), $e->getCode()));
 		}
-		$httpResult = static::performHttpRequest($body, $options);
+		$httpResult = $this->performHttpRequest($queueServerUrl, $body);
 		if (!$httpResult->isSuccess())
 		{
 			return $result->addErrors($httpResult->getErrors());
@@ -129,18 +172,10 @@ class JsonRpcTransport
 		return $result->setData($response);
 	}
 
-	protected static function executeBatch(array $requestBatch, array $options = []): Main\Result
+	protected function executeBatch(string $queueServerUrl, string $batchBody): Main\Result
 	{
 		$result = new Main\Result();
-		try
-		{
-			$body = Main\Web\Json::encode($requestBatch);
-		}
-		catch (\Throwable $e)
-		{
-			return $result->addError(new \Bitrix\Main\Error($e->getMessage(), $e->getCode()));
-		}
-		$httpResult = static::performHttpRequest($body, $options);
+		$httpResult = $this->performHttpRequest($queueServerUrl, $batchBody);
 		if (!$httpResult->isSuccess())
 		{
 			return $result->addErrors($httpResult->getErrors());
@@ -150,15 +185,19 @@ class JsonRpcTransport
 		return $result->setData($response);
 	}
 
-	protected static function performHttpRequest(string $body, array $options = []): Main\Result
+	protected function performHttpRequest(string $queueServerUrl, string $body): Main\Result
 	{
 		$result = new Main\Result();
-		$httpClient = new Main\Web\HttpClient();
-		$httpClient->setHeader(self::HEADER_HOST_ID, (string)Config::getHostId());
+		$httpClient = new Main\Web\HttpClient(["streamTimeout" => 1]);
 
-		$queueServerUrl = $options['serverUrl'] ?? Config::getJsonRpcUrl();
 		$signature = \CPullChannel::GetSignature($body);
-		$urlWithSignature = \CHTTP::urlAddParams($queueServerUrl, ["signature" => $signature]);
+		$hostId = (string)Config::getHostId();
+		$additionalParams = ["hostId" => $hostId, "signature" => $signature];
+		if ($this->hostname != '')
+		{
+			$additionalParams['hostname'] = $this->hostname;
+		}
+		$urlWithSignature = (string)(new Uri($queueServerUrl))->addParams($additionalParams);
 
 		$sendResult = $httpClient->query(Main\Web\HttpClient::HTTP_POST, $urlWithSignature, $body);
 		if (!$sendResult)
@@ -167,7 +206,7 @@ class JsonRpcTransport
 			$errorMsg = $httpClient->getError()[$errorCode];
 			return $result->addError(new Main\Error($errorMsg, $errorCode));
 		}
-		$responseCode = (int)$httpClient->getStatus();
+		$responseCode = $httpClient->getStatus();
 		if ($responseCode !== 200)
 		{
 			return $result->addError(new Main\Error("Unexpected server response code {$responseCode}"));

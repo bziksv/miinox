@@ -1,9 +1,12 @@
 import { Type, Reflection, Dom, Runtime, Tag } from 'main.core';
 import { EventEmitter, BaseEvent } from 'main.core.events';
 import { MenuItem } from 'main.popup';
+import { Switcher } from 'ui.switcher';
+import { Counter, CounterStyle } from 'ui.cnt';
 
 import BaseButton from './base-button';
 import Button from './button/button';
+import { hasMenuItems } from './menu/menu-controller';
 import SplitButton from './split-button/split-button';
 import ButtonTag from './button/button-tag';
 import ButtonColor from './button/button-color';
@@ -17,6 +20,7 @@ import type { SplitButtonOptions } from './split-button/split-button-options';
 import type { ButtonOptions } from './button/button-options';
 import type { SplitSubButtonOptions } from './split-button/split-sub-button-options';
 import SplitSubButtonType from './split-button/split-sub-button-type';
+import { AirButtonStyle } from './index';
 
 export default class ButtonManager
 {
@@ -44,6 +48,7 @@ export default class ButtonManager
 		let text = null;
 		let textNode = null;
 		let counterNode = null;
+		let switcherNode = null;
 		let disabled = false;
 		let mainButtonOptions: SplitSubButtonOptions = {};
 		let menuButtonOptions: SplitSubButtonOptions = {};
@@ -90,6 +95,8 @@ export default class ButtonManager
 				counterNode: null,
 				disabled: Dom.hasClass(node, SplitButtonState.MENU_DISABLED)
 			};
+
+			switcherNode = menuButton.querySelector(`.${Switcher.className}`) || null;
 		}
 		else
 		{
@@ -108,11 +115,14 @@ export default class ButtonManager
 			else
 			{
 				[textNode, counterNode] = this.#getTextNode(node);
-				text = textNode.textContent;
+				text = this.#getTextNodeValue(textNode);
 			}
 		}
 
+		const useAirDesign = Dom.hasClass(node, '--air');
+
 		const options: ButtonOptions & SplitButtonOptions = {
+			useAirDesign,
 			id: node.dataset.btnUniqid,
 			buttonNode: node,
 			textNode: isSplitButton ? null : textNode,
@@ -125,12 +135,45 @@ export default class ButtonManager
 			menuButton: menuButtonOptions,
 			size: this.#getEnumProp(node, ButtonSize),
 			color: this.#getEnumProp(node, ButtonColor),
-			icon: this.#getEnumProp(node, ButtonIcon),
 			state: this.#getEnumProp(node, isSplitButton ? SplitButtonState : ButtonState),
 			noCaps: Dom.hasClass(node, ButtonStyle.NO_CAPS),
-			round: Dom.hasClass(node, ButtonStyle.ROUND)
+			round: Dom.hasClass(node, ButtonStyle.ROUND),
+			dependOnTheme: Dom.hasClass(node, ButtonStyle.DEPEND_ON_THEME),
+			style: this.#getEnumProp(node, AirButtonStyle),
+			switcher: isSplitButton ? { node: switcherNode } : null,
 		};
 
+		if (Dom.hasClass(node, '--with-collapsed-icon') && this.#getEnumProp(node, ButtonIcon))
+		{
+			options.collapsedIcon = this.#getEnumProp(node, ButtonIcon);
+		}
+		else if (this.#getEnumProp(node, ButtonIcon))
+		{
+			options.icon = this.#getEnumProp(node, ButtonIcon);
+		}
+
+		if (useAirDesign)
+		{
+			options.counterNode = undefined;
+
+			if (this.#getCounter(counterNode))
+			{
+				options.rightCounter = {
+					value: this.#getCounter(counterNode),
+					style: this.#getCounterStyle(counterNode),
+				};
+
+				options.counterNode = undefined;
+				options.counter = undefined;
+
+				if (Dom.hasClass(counterNode?.parentElement, 'ui-btn-right-counter'))
+				{
+					Dom.remove(counterNode?.parentElement);
+				}
+
+				Dom.remove(counterNode);
+			}
+		}
 
 		const nodeOptions = Dom.attr(node, 'data-json-options') || {};
 
@@ -154,7 +197,19 @@ export default class ButtonManager
 			this.#convertEvents(options.events);
 		}
 
-		if (Type.isPlainObject(nodeOptions.menu))
+		if (hasMenuItems(nodeOptions.systemMenu))
+		{
+			if (Type.isPlainObject(nodeOptions.menu))
+			{
+				console.warn(
+					'BX.UI.ButtonManager.createFromNode: the "menu" option is ignored, because "systemMenu" is set.',
+				);
+			}
+
+			options.systemMenu = nodeOptions.systemMenu;
+			this.#convertSystemMenuEvents(options.systemMenu);
+		}
+		else if (Type.isPlainObject(nodeOptions.menu))
 		{
 			options.menu = nodeOptions.menu;
 			this.#convertMenuEvents(options.menu.items);
@@ -231,7 +286,9 @@ export default class ButtonManager
 	static #getTextNode(node: HTMLElement): [HTMLElement, HTMLElement]
 	{
 		let textNode = node.querySelector('.ui-btn-text');
-		const counterNode = node.querySelector('.ui-btn-counter');
+		const counterNode = node.querySelector('.ui-btn-counter') || node.querySelector('.ui-counter');
+		const isAirButton = Dom.hasClass(node, '--air');
+
 		if (!textNode)
 		{
 			if (counterNode)
@@ -239,7 +296,15 @@ export default class ButtonManager
 				Dom.remove(counterNode);
 			}
 
-			textNode = Tag.render`<span class="ui-btn-text">${node.innerHTML.trim()}</span>`;
+			if (isAirButton)
+			{
+				textNode = Tag.render`<span class="ui-btn-text">${this.#getTextNodeValue(textNode)}</span>`;
+			}
+			else
+			{
+				textNode = Tag.render`<span class="ui-btn-text">${node.innerHTML.trim()}</span>`;
+			}
+
 			Dom.clean(node);
 			Dom.append(textNode, node);
 
@@ -259,6 +324,16 @@ export default class ButtonManager
 	 */
 	static #getCounter(counterNode: HTMLElement): number | string | null
 	{
+		if (Type.isDomNode(counterNode) && Dom.hasClass(counterNode, Counter.BaseClassname))
+		{
+			const textContent = counterNode.querySelector('.ui-counter__value')?.innerText;
+			const dataAttributeValue = Dom.attr(counterNode, 'data-value');
+
+			const counter = Number(dataAttributeValue || textContent);
+
+			return Type.isNumber(counter) ? counter : textContent;
+		}
+
 		if (Type.isDomNode(counterNode))
 		{
 			const textContent = counterNode.textContent;
@@ -268,6 +343,21 @@ export default class ButtonManager
 		}
 
 		return null;
+	}
+
+	/**
+	 * @private
+	 * @param {HTMLElement} counterNode
+	 * @return {string | null}
+	 */
+	static #getCounterStyle(counterNode: HTMLElement): string | null
+	{
+		if (!Type.isDomNode(counterNode))
+		{
+			return null;
+		}
+
+		return this.#getEnumProp(counterNode, CounterStyle);
 	}
 
 	/**
@@ -418,14 +508,110 @@ export default class ButtonManager
 	}
 
 	/**
+	 * @private
+	 * @param options ui.buttons options of a button rendered inside a menu
+	 */
+	static #convertButtonOptions(options)
+	{
+		if (options.onclick)
+		{
+			options.onclick = this.#convertEventHandler(options.onclick);
+		}
+
+		this.#convertEvents(options.events);
+
+		if (hasMenuItems(options.systemMenu))
+		{
+			this.#convertSystemMenuEvents(options.systemMenu);
+		}
+		else if (Type.isPlainObject(options.menu))
+		{
+			this.#convertMenuEvents(options.menu.items);
+		}
+	}
+
+	/**
+	 * @private
+	 * @param menu ui.system.menu options
+	 */
+	static #convertSystemMenuEvents(menu)
+	{
+		this.#convertEvents(menu.events);
+
+		if (menu.richHeader?.onClick)
+		{
+			menu.richHeader.onClick = this.#convertEventHandler(menu.richHeader.onClick);
+		}
+
+		if (!Type.isArray(menu.items))
+		{
+			return;
+		}
+
+		menu.items.forEach((item) => {
+			if (!Type.isPlainObject(item))
+			{
+				return;
+			}
+
+			if (item.onClick)
+			{
+				item.onClick = this.#convertEventHandler(item.onClick);
+			}
+
+			if (item.extraIcon?.onClick)
+			{
+				item.extraIcon.onClick = this.#convertEventHandler(item.extraIcon.onClick);
+			}
+
+			// a menu item may render a ui.buttons button, and its options keep the old handler format
+			if (Type.isPlainObject(item.uiButtonOptions))
+			{
+				this.#convertButtonOptions(item.uiButtonOptions);
+			}
+
+			if (Type.isPlainObject(item.subMenu))
+			{
+				this.#convertSystemMenuEvents(item.subMenu);
+			}
+		});
+	}
+
+	/**
 	 * @deprecated
 	 * @param uniqId
 	 * @return {null|*}
 	 */
 	static getByUniqid(uniqId)
 	{
-		const toolbar = BX.UI.ToolbarManager.getDefaultToolbar();
+		const ToolbarManager = Reflection.getClass('BX.UI.ToolbarManager');
+		const toolbar = ToolbarManager?.getDefaultToolbar();
 
 		return toolbar ? toolbar.getButton(uniqId) : null;
+	}
+
+	static #getTextNodeValue(target: HTMLElement): string
+	{
+		if (!target)
+		{
+			return '';
+		}
+
+		if (target.querySelector('.ui-btn-text-inner'))
+		{
+			return target.querySelector('.ui-btn-text-inner')?.textContent || '';
+		}
+
+		const childNodes = target.childNodes;
+
+		for (const node of childNodes)
+		{
+			if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '')
+			{
+				return node.textContent.trim();
+			}
+		}
+
+		return '';
 	}
 }

@@ -188,7 +188,7 @@ return [
 						aria-controls="navBar"
 						data-toggle="collapse"
 						data-target="#navBar">
-                <span class="hamburger hamburger--slider">
+                <span class="hamburger hamburger--slider hamburger--md">
                   <span class="hamburger-box">
                     <span class="hamburger-inner"></span>
                   </span>
@@ -205,7 +205,7 @@ return [
 				'CODE' => '33.32.form_light_bgimg_right_text',
 				'SORT' => '500',
 				'CONTENT' => '<section class="g-pos-rel landing-block g-bg-primary-dark-v1">
-	<div class="landing-block-node-bgimg landing-semantic-color-overlay g-bg-size-cover g-bg-img-hero g-bg-cover g-bg-black-opacity-0_3--after g-py-20"
+	<div class="landing-block-node-bgimg g-bg-size-cover g-bg-img-hero g-bg-cover g-bg-black-opacity-0_3--after g-py-20"
 		 style="background-image: url(https://cdn.bitrix24.site/bitrix/images/landing/business/1732x1155/img1.jpg);">
 
 		<div class="container g-pos-rel g-z-index-1 g-py-100">
@@ -222,16 +222,16 @@ return [
 
 				<!-- Promo Block - Info -->
 				<div class="col-sm-12 col-lg-6 g-pt-30 g-pt-0--lg align-self-center">
-					<h2 class="landing-block-node-title landing-semantic-title-medium js-animation fadeInRight text-uppercase g-line-height-1 g-font-weight-700 g-font-size-55 g-color-white g-mb-30">
+					<h2 class="landing-block-node-title js-animation fadeInRight text-uppercase g-line-height-1 g-font-weight-700 g-font-size-55 g-color-white g-mb-30">
 						Planning <br>&amp; Shipping</h2>
-					<h3 class="landing-block-node-subtitle landing-semantic-subtitle-medium text-uppercase g-font-weight-700 g-font-size-18 g-color-white g-mb-20">
+					<h3 class="landing-block-node-subtitle text-uppercase g-font-weight-700 g-font-size-18 g-color-white g-mb-20">
 						Delivering
 						anything to anywhere</h3>
-					<div class="landing-block-node-text landing-semantic-text-medium js-animation fadeInRight g-color-white-opacity-0_8 g-mb-35">
+					<div class="landing-block-node-text js-animation fadeInRight g-color-white-opacity-0_8 g-mb-35">
 						<p>Maecenas lacus magna, pretium in congue a, pharetra at lacus. Nulla neque justo, sodales
 							vitae dui non, imperdiet luctus libero.</p>
 					</div>
-					<a class="landing-block-node-button landing-semantic-link-medium js-animation fadeInRight btn g-btn-type-solid g-btn-size-sm g-btn-px-l text-uppercase g-btn-primary g-rounded-4 g-py-12"
+					<a class="landing-block-node-button js-animation fadeInRight btn g-btn-type-solid g-btn-size-sm g-btn-px-l text-uppercase g-btn-primary g-rounded-4 g-py-12"
 					   href="#">Learn more</a>
 				</div>
 				<!-- End Promo Block - Info -->
@@ -729,7 +729,7 @@ return [
             <div class="row align-items-stretch">
 
                 <div class="col-sm-6 g-mb-30 landing-block-card-text-block">
-                    <article class="h-100 g-flex-middle g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
+                    <article class="h-100 g-flex-middle landing-block-card-text-inner g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
                         <div class="g-flex-middle-item">
                             <h6 class="landing-block-node-text-block-title g-font-weight-600 text-uppercase g-mb-10">01. FUSCE ACCUMSAN FAUCIBUS</h6>
                             <div class="landing-block-node-text-block-text"><p>Curabitur sit amet fringilla mi. Etiam ac massa sit amet nulla eleifend rutrum vitae non sem. Fusce accumsan faucibus laoreet. Maecenas auctor mauris erat quis mollis.</p></div>
@@ -738,7 +738,7 @@ return [
                 </div>
 
                 <div class="col-sm-6 g-mb-30 landing-block-card-text-block">
-                    <article class="h-100 g-flex-middle g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
+                    <article class="h-100 g-flex-middle landing-block-card-text-inner g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
                         <div class="g-flex-middle-item">
                             <h6 class="landing-block-node-text-block-title g-font-weight-600 text-uppercase g-mb-10">02. MAECENAS AUCTOR MAURIS</h6>
                             <div class="landing-block-node-text-block-text"><p>Curabitur sit amet fringilla mi. Etiam ac massa sit amet nulla eleifend rutrum vitae non sem. Fusce accumsan faucibus laoreet. Maecenas auctor mauris erat quis mollis.</p></div>
@@ -747,7 +747,7 @@ return [
                 </div>
 
                 <div class="col-sm-6 g-mb-30 landing-block-card-text-block">
-                    <article class="h-100 g-flex-middle g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
+                    <article class="h-100 g-flex-middle landing-block-card-text-inner g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
                         <div class="g-flex-middle-item">
                             <h6 class="landing-block-node-text-block-title g-font-weight-600 text-uppercase g-mb-10">03. SUSPENDISSE PHARETRA ELIT AC</h6>
                             <div class="landing-block-node-text-block-text"><p>Curabitur sit amet fringilla mi. Etiam ac massa sit amet nulla eleifend rutrum vitae non sem. Fusce accumsan faucibus laoreet. Maecenas auctor mauris erat quis mollis.</p></div>
@@ -756,14 +756,14 @@ return [
                 </div>
 
                 <div class="col-sm-6 g-mb-30 landing-block-card-text-block">
-                    <article class="h-100 g-flex-middle g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
+                    <article class="h-100 g-flex-middle landing-block-card-text-inner g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
                         <div class="g-flex-middle-item">
                             <h6 class="landing-block-node-text-block-title g-font-weight-600 text-uppercase g-mb-10">04. VESTIBULUM FRINGILLA RISUS EGE</h6>
                             <div class="landing-block-node-text-block-text"><p>Curabitur sit amet fringilla mi. Etiam ac massa sit amet nulla eleifend rutrum vitae non sem. Fusce accumsan faucibus laoreet. Maecenas auctor mauris erat quis mollis.</p></div>
                         </div>
                     </article>
                 </div><div class="col-sm-6 g-mb-30 landing-block-card-text-block">
-                    <article class="h-100 g-flex-middle g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
+                    <article class="h-100 g-flex-middle landing-block-card-text-inner g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
                         <div class="g-flex-middle-item">
                             <h6 class="landing-block-node-text-block-title g-font-weight-600 text-uppercase g-mb-10">05. ENIM EGESTAS RISUS SEMPER</h6>
                             <div class="landing-block-node-text-block-text"><p>Curabitur sit amet fringilla mi. Etiam ac massa sit amet nulla eleifend rutrum vitae non sem. Fusce accumsan faucibus laoreet. Maecenas auctor mauris erat quis mollis.</p></div>
@@ -772,7 +772,7 @@ return [
                 </div>
 
             <div class="col-sm-6 g-mb-30 landing-block-card-text-block">
-                    <article class="h-100 g-flex-middle g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
+                    <article class="h-100 g-flex-middle landing-block-card-text-inner g-brd-left g-brd-3 g-brd-primary g-brd-white--hover g-transition-0_3 g-pa-20 g-bg-main js-animation fadeIn animated">
                         <div class="g-flex-middle-item">
                             <h6 class="landing-block-node-text-block-title g-font-weight-600 text-uppercase g-mb-10">06. EU VENENATIS NULLA PORTTITOR</h6>
                             <div class="landing-block-node-text-block-text"><p>Curabitur sit amet fringilla mi. Etiam ac massa sit amet nulla eleifend rutrum vitae non sem. Fusce accumsan faucibus laoreet. Maecenas auctor mauris erat quis mollis.</p></div>
@@ -1351,9 +1351,9 @@ return [
 		<div class="row">
 			<div class="col-md-6">
 				<div class="text-center g-overflow-hidden">
-					<h3 class="landing-block-node-main-title landing-semantic-title-medium text-uppercase g-font-weight-700 g-mb-20"></h3>
+					<h3 class="landing-block-node-main-title text-uppercase g-font-weight-700 g-mb-20"></h3>
 
-					<div class="landing-block-node-text landing-semantic-text-medium g-line-height-1_5 text-left g-mb-40">
+					<div class="landing-block-node-text g-line-height-1_5 text-left g-mb-40">
 						<p>
 							Sed feugiat porttitor nunc, non dignissim ipsum vestibulum in. Donec in blandit dolor.
 							Vivamus a fringilla lorem, vel faucibus ante. Nunc ullamcorper, justo a iaculis elementum,
@@ -1368,9 +1368,9 @@ return [
 								<span class="landing-block-card-contact-icon-container g-color-primary g-line-height-1 d-inline-block g-font-size-50 g-mb-30">
 									<i class="landing-block-card-contact-icon icon-anchor"></i>
 								</span>
-								<span class="landing-block-card-contact-title landing-semantic-subtitle-medium h3 d-block text-uppercase g-font-size-11 mb-0">
+								<span class="landing-block-card-contact-title h3 d-block text-uppercase g-font-size-11 mb-0">
 									Address</span>
-								<span class="landing-block-card-contact-text landing-semantic-text-medium g-font-weight-700 g-font-size-11">
+								<span class="landing-block-card-contact-text g-font-weight-700 g-font-size-11">
 									Sit amet adipiscing
 								</span>
 							</div>
@@ -1381,10 +1381,10 @@ return [
 									<span class="landing-block-card-contact-icon-container g-color-primary g-line-height-1 d-inline-block g-font-size-50 g-mb-30">
 										<i class="landing-block-card-linkcontact-icon icon-call-in"></i>
 									</span>
-									<span class="landing-block-card-linkcontact-title landing-semantic-subtitle-medium h3 d-block text-uppercase g-font-size-11 mb-0">
+									<span class="landing-block-card-linkcontact-title h3 d-block text-uppercase g-font-size-11 mb-0">
 										Phone number
 									</span>
-									<span class="landing-block-card-linkcontact-text landing-semantic-link-medium g-text-decoration-none g-text-underline--hover g-font-weight-700 g-font-size-11">
+									<span class="landing-block-card-linkcontact-text g-text-decoration-none g-text-underline--hover g-font-weight-700 g-font-size-11">
 										#crmPhoneTitle1
 									</span>
 								</a>
@@ -1396,10 +1396,10 @@ return [
 									<span class="landing-block-card-contact-icon-container g-color-primary g-line-height-1 d-inline-block g-font-size-50 g-mb-30">
 										<i class="landing-block-card-linkcontact-icon icon-line icon-envelope-letter"></i>
 									</span>
-									<span class="landing-block-card-linkcontact-title landing-semantic-subtitle-medium h3 d-block text-uppercase g-font-size-11 mb-0">
+									<span class="landing-block-card-linkcontact-title h3 d-block text-uppercase g-font-size-11 mb-0">
 										Email
 									</span>
-									<span class="landing-block-card-linkcontact-text landing-semantic-link-medium g-text-decoration-none g-text-underline--hover g-font-weight-700 g-font-size-11">
+									<span class="landing-block-card-linkcontact-text g-text-decoration-none g-text-underline--hover g-font-weight-700 g-font-size-11">
 										#crmEmailTitle1
 									</span>
 								</a>
@@ -1411,10 +1411,10 @@ return [
 									<span class="landing-block-card-contact-icon-container g-color-primary g-line-height-1 d-inline-block g-font-size-50 g-mb-30">
 										<i class="landing-block-card-linkcontact-icon icon-earphones-alt"></i>
 									</span>
-									<span class="landing-block-card-linkcontact-title landing-semantic-subtitle-medium h3 d-block text-uppercase g-font-size-11 mb-0">
+									<span class="landing-block-card-linkcontact-title h3 d-block text-uppercase g-font-size-11 mb-0">
 										Toll free
 									</span>
-									<span class="landing-block-card-linkcontact-text landing-semantic-link-medium g-text-decoration-none g-text-underline--hover g-font-weight-700 g-font-size-11">
+									<span class="landing-block-card-linkcontact-text g-text-decoration-none g-text-underline--hover g-font-weight-700 g-font-size-11">
 										#crmPhoneTitle1
 									</span>
 								</a>

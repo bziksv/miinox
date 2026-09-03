@@ -8,6 +8,8 @@ use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Access\Permission\PermissionDictionary;
 use Bitrix\Catalog\Component\ImageInput;
+use Bitrix\Catalog\Config\Feature;
+use Bitrix\Catalog\Config\State;
 use Bitrix\Catalog\GroupTable;
 use Bitrix\Catalog\StoreBarcodeTable;
 use Bitrix\Catalog\StoreDocumentBarcodeTable;
@@ -17,6 +19,7 @@ use Bitrix\Catalog\StoreProductTable;
 use Bitrix\Catalog\StoreTable;
 use Bitrix\Catalog\Url\InventoryBuilder;
 use Bitrix\Catalog\v2\Sku\BaseSku;
+use Bitrix\Crm\ProductRowTable;
 use Bitrix\Main;
 use Bitrix\Main\Grid\Editor\Types;
 use Bitrix\Main\Grid\Panel\Snippet;
@@ -27,6 +30,9 @@ use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\Web\Json;
 use Bitrix\Catalog\ProductTable;
+use Bitrix\Catalog\Store\EnableWizard;
+use Bitrix\Catalog\Product\Price\Calculation;
+use Bitrix\Main\DI\ServiceLocator;
 
 if (!Loader::includeModule('catalog'))
 {
@@ -99,8 +105,8 @@ final class CatalogStoreDocumentProductListComponent
 	{
 		/**
 		 * GRID_ID - string - custom grid id
-		 * NAVIGATION_ID - string - custom navigation id (may be create from GRID_ID)
-		 * FORM_ID - string - custom form identifier (may be create from GRID_ID), default empty
+		 * NAVIGATION_ID - string - custom navigation id (maybe created from GRID_ID)
+		 * FORM_ID - string - custom form identifier (maybe created from GRID_ID), default empty
 		 * TAB_ID - string - custom product tab identifier, default empty
 		 *
 		 * AJAX_ID - string - ajax component identifier
@@ -112,7 +118,7 @@ final class CatalogStoreDocumentProductListComponent
 		 * SHOW_PAGINATION - bool or Y/N - show pagination block, default false
 		 * SHOW_TOTAL_COUNTER - bool or Y/N - show count of rows, default false
 		 * SHOW_PAGESIZE - bool or Y/N - show page size select, default false
-		 * PAGINATION - array - pagination info (pages size, offset, etc), default - empty array
+		 * PAGINATION - array - pagination info (pages size, offset, etc.), default - empty array
 		 *
 		 * PRODUCTS - array|null - product list
 		 * TOTAL_PRODUCTS_COUNT - int - full product rows quantity
@@ -120,7 +126,7 @@ final class CatalogStoreDocumentProductListComponent
 		 * CUSTOM_SITE_ID - string - entity site identifier, default SITE_ID
 		 * CUSTOM_LANGUAGE_ID - string - current lang identifier, default LANGUAGE_ID
 		 * SET_ITEMS - bool - set rows (Y/N), default N
-		 * ALLOW_EDIT - bool - allow modify data (Y/N), default N
+		 * ALLOW_EDIT - bool - allow to modify data (Y/N), default N
 		 * ALLOW_ADD_PRODUCT - bool - add product to entity button (Y/N), default N
 		 * ALLOW_CREATE_NEW_PRODUCT - bool - create fake products button (Y/N), default N
 		 * if ALLOW_EDIT off - ALLOW_ADD_PRODUCT and ALLOW_CREATE_NEW_PRODUCT already off
@@ -128,6 +134,8 @@ final class CatalogStoreDocumentProductListComponent
 		 * DOCUMENT_ID - string|int - parent entity id
 		 *
 		 * EXTERNAL_DOCUMENT - array|null - custom external documents
+		 *
+		 * PRESELECTED_PRODUCT_ID - int - preselected product (can be absent)
 		 */
 
 		$this->prepareEntityIds($params);
@@ -136,6 +144,12 @@ final class CatalogStoreDocumentProductListComponent
 		$this->prepareProducts($params);
 		$this->prepareSettings($params);
 		$this->prepareEntitySettings($params);
+
+		$params['PRESELECTED_PRODUCT_ID'] = (int)($params['PRESELECTED_PRODUCT_ID'] ?? 0);
+		if ($params['PRESELECTED_PRODUCT_ID'] < 0)
+		{
+			$params['PRESELECTED_PRODUCT_ID'] = 0;
+		}
 
 		return $params;
 	}
@@ -336,6 +350,7 @@ final class CatalogStoreDocumentProductListComponent
 		$params['ALLOW_EDIT'] = isset($params['ALLOW_EDIT']) && $params['ALLOW_EDIT'] === 'Y';
 		$params['ALLOW_ADD_PRODUCT'] = isset($params['ALLOW_ADD_PRODUCT']) && $params['ALLOW_ADD_PRODUCT'] === 'Y';
 		$params['ALLOW_CREATE_NEW_PRODUCT'] = isset($params['ALLOW_CREATE_NEW_PRODUCT']) && $params['ALLOW_CREATE_NEW_PRODUCT'] === 'Y';
+		$params['CALCULATE_STORE_PURCHASING_PRICE'] = ($params['CALCULATE_STORE_PURCHASING_PRICE'] ?? 'N') === 'Y';
 
 		if (!$params['ALLOW_EDIT'])
 		{
@@ -405,9 +420,9 @@ final class CatalogStoreDocumentProductListComponent
 		$this->defaultSettings['TAB_ID'] = '';
 		$this->defaultSettings['AJAX_ID'] = '';
 		$this->defaultSettings['PAGE_SIZES'] = [5, 10, 20, 50, 100];
-		$this->defaultSettings['PRICE_PRECISION'] = 2;
+		$this->defaultSettings['PRICE_PRECISION'] = 8;
 		$this->defaultSettings['AMOUNT_PRECISION'] = 4;
-		$this->defaultSettings['COMMON_PRECISION'] = 2;
+		$this->defaultSettings['COMMON_PRECISION'] = 8;
 		$this->defaultSettings['CREATE_PRODUCT_PATH'] = $this->getElementDetailUrl($this->arParams['CATALOG_ID']);
 		$this->defaultSettings['NEW_ROW_POSITION'] = CUserOptions::GetOption(
 			'catalog.store.document.product.list',
@@ -576,14 +591,14 @@ final class CatalogStoreDocumentProductListComponent
 	{
 		$this->stores = [];
 		$productStoreRaw = StoreTable::getList([
-			'select' => ['ID', 'TITLE', 'IS_DEFAULT']
+			'select' => ['ID', 'TITLE', 'IS_DEFAULT', 'ADDRESS']
 		]);
 
 		while ($store = $productStoreRaw->fetch())
 		{
 			if ($store['TITLE'] === '')
 			{
-				$store['TITLE'] = Loc::getMessage('CATALOG_DOCUMENT_EMPTY_STORE_TITLE');
+				$store['TITLE'] = $store['ADDRESS'];
 			}
 
 			$this->stores[$store['ID']] = $store;
@@ -759,9 +774,40 @@ final class CatalogStoreDocumentProductListComponent
 				$availableAmountFrom = $this->getAvailableProductAmountOnStore($productStoreInfo, $productId, $document['STORE_FROM']);
 			}
 
-			$amount = (float)$document['AMOUNT'];
+			$amount = (float)($document['AMOUNT'] ?? 0);
+			$basePrice = $document['BASE_PRICE'] ?? null;
+			$taxRate = $document['TAX_RATE'] ?? null;
+			$taxIncluded = $document['TAX_INCLUDED'] ?? 'N';
+			$taxSum = 0;
+
+			if ($taxRate && $basePrice)
+			{
+				// Step 1.6: use sale vatCalculator service; $taxRate is already in percent (e.g. 20.0)
+				$storeVatCalc = ServiceLocator::getInstance()->get('sale.vatCalculator');
+				$storeInputFactory = ServiceLocator::getInstance()->get('sale.basketItemInputFactory');
+				$tax = $storeVatCalc->calculateVatAmount(
+					$storeInputFactory->createFromArray([
+						'basePrice' => $basePrice,
+						'vatRate' => $taxRate,
+						'vatIncluded' => ($taxIncluded === 'Y'),
+					])
+				);
+
+				$taxSum = Calculation::roundPrecision($tax * $amount);
+			}
+
 			$calculatedPrice = (float)($document[$this->getDefaultTotalCalculationField()] ?? 0.0);
 			$totalPrice = $amount * $calculatedPrice;
+
+			$iblockId = null;
+			if (isset($product['IBLOCK_ID']))
+			{
+				$iblockId = $product['IBLOCK_ID'];
+			}
+			elseif (isset($this->arParams['IBLOCK_ID']))
+			{
+				$iblockId = $this->arParams['IBLOCK_ID'];
+			}
 
 			$additionalData = [
 				'ROW_ID' => $this->getRowIdPrefix($document['ID']),
@@ -770,7 +816,7 @@ final class CatalogStoreDocumentProductListComponent
 				'STORE_TO_AVAILABLE_AMOUNT' => $availableAmountTo,
 				'STORE_FROM_AVAILABLE_AMOUNT' => $availableAmountFrom,
 				'STORE_AMOUNT_MAP' => $productStoreInfo[$productId] ?? null,
-				'IBLOCK_ID' => $product['IBLOCK_ID'] ?? $this->arParams['IBLOCK_ID'],
+				'IBLOCK_ID' => $iblockId,
 				'BASE_PRICE_ID' => $product['BASE_PRICE_ID'] ?? $this->getStorageItem('BASE_PRICE_ID'),
 				'PARENT_PRODUCT_ID' => $product['PARENT_PRODUCT_ID'] ?? null,
 				'OFFERS_IBLOCK_ID' => $product['OFFERS_IBLOCK_ID'] ?? null,
@@ -782,11 +828,14 @@ final class CatalogStoreDocumentProductListComponent
 				'MEASURE_NAME' => $product['MEASURE_NAME'] ?? null,
 				'MEASURE_CODE' => $product['MEASURE_CODE'] ?? null,
 				'NAME' => $productName,
-				'BASE_PRICE' => $document['BASE_PRICE'] ?? null,
+				'BASE_PRICE' => $basePrice,
 				'PURCHASING_PRICE' => $document['PURCHASING_PRICE'] ?? 0,
 				'TOTAL_PRICE' => $totalPrice,
 				'BASKET_ID' => $document['BASKET_ID'] ?? 0,
 				'TYPE' => $product['TYPE'] ?? null,
+				'TAX_SUM' => $taxSum,
+				'TAX_RATE' => $taxRate,
+				'TAX_INCLUDED' => $taxIncluded,
 			];
 
 			if ($existsStoreTo)
@@ -857,9 +906,27 @@ final class CatalogStoreDocumentProductListComponent
 			}
 
 			$realValues = null;
+
+			if ($notHasAccessToPurchasingPrice)
+			{
+				$realValues ??= [];
+
+				if (isset($row['PURCHASING_PRICE']))
+				{
+					$realValues['PURCHASING_PRICE'] = $row['PURCHASING_PRICE'];
+					$row['PURCHASING_PRICE'] = null;
+				}
+
+				if (isset($row['PURCHASING_PRICE_FORMATTED']))
+				{
+					$realValues['PURCHASING_PRICE_FORMATTED'] = $row['PURCHASING_PRICE_FORMATTED'];
+					$row['PURCHASING_PRICE_FORMATTED'] = null;
+				}
+			}
+
 			if (!$hasAccess)
 			{
-				$realValues = [];
+				$realValues ??= [];
 				foreach ($hiddenFields as $fieldName)
 				{
 					if (isset($row[$fieldName]))
@@ -868,7 +935,10 @@ final class CatalogStoreDocumentProductListComponent
 						$row[$fieldName] = null;
 					}
 				}
+			}
 
+			if (!empty($realValues))
+			{
 				$row['REAL_VALUES'] = base64_encode(Json::encode($realValues));
 			}
 
@@ -900,6 +970,7 @@ final class CatalogStoreDocumentProductListComponent
 			'STORE_FROM_RESERVED',
 			'STORE_FROM_AVAILABLE_AMOUNT',
 			'PURCHASING_PRICE',
+			'PURCHASING_PRICE_FORMATTED',
 			'BASE_PRICE',
 			'TOTAL_PRICE',
 			'AMOUNT',
@@ -911,9 +982,12 @@ final class CatalogStoreDocumentProductListComponent
 		$rows = $this->arParams['~PRODUCTS'];
 		$rows = array_filter($rows);
 
+		$actionButton = $this->arParams['REQUEST']['action_button_' . $this->getGridId()] ?? null;
+		$actionAllRows = $this->arParams['REQUEST']['action_all_rows_' . $this->getGridId()] ?? null;
+
 		if (
-			$this->arParams['REQUEST']['action_button_' . $this->getGridId()] === 'delete'
-			&& $this->arParams['REQUEST']['action_all_rows_' . $this->getGridId()] === 'Y'
+			$actionButton === 'delete'
+			&& $actionAllRows === 'Y'
 		)
 		{
 			return [];
@@ -924,7 +998,7 @@ final class CatalogStoreDocumentProductListComponent
 		foreach ($rows as $index => $row)
 		{
 			if (
-				$this->arParams['REQUEST']['action_button_' . $this->getGridId()] === 'delete'
+				$actionButton === 'delete'
 				&& is_array($this->arParams['REQUEST']['ID'])
 				&& in_array($row['ID'], $this->arParams['REQUEST']['ID'], true)
 			)
@@ -979,6 +1053,22 @@ final class CatalogStoreDocumentProductListComponent
 				}
 			}
 
+			$nullFloatFields = [
+				'TAX_RATE',
+			];
+			foreach ($nullFloatFields as $name)
+			{
+				if (isset($rows[$index][$name]))
+				{
+					$value = trim((string)$rows[$index][$name]);
+					$rows[$index][$name] =
+						$value === ''
+							? null
+							: (float)$value
+					;
+				}
+			}
+
 			if ($row["SKU_ID"] > 0)
 			{
 				$sku = $this->getSkuByProductId($row["SKU_ID"]);
@@ -1001,12 +1091,17 @@ final class CatalogStoreDocumentProductListComponent
 		$iblockProductOfferIds = [];
 		foreach ($rows as $row)
 		{
-			if (empty($row['SKU_ID']))
+			if (empty($row['SKU_ID']) || empty($row['IBLOCK_ID']))
 			{
 				continue;
 			}
 
-			$iblockProductOfferIds[$row['IBLOCK_ID']][$row['PRODUCT_ID']][] = (int)$row['SKU_ID'];
+			$iblockId = (int)$row['IBLOCK_ID'];
+			if ($iblockId <= 0)
+			{
+				continue;
+			}
+			$iblockProductOfferIds[$iblockId][$row['PRODUCT_ID']][] = (int)$row['SKU_ID'];
 		}
 		$skuTreeItems = [];
 		foreach ($iblockProductOfferIds as $iblockId => $productOfferIds)
@@ -1105,7 +1200,8 @@ final class CatalogStoreDocumentProductListComponent
 		$this->arResult['GRID_EDITOR_CONFIG'] = $this->getGridEditorConfig($gridRows);
 		$this->arResult['SETTINGS'] = $this->getSettings();
 		$this->arResult['HIDDEN_FIELDS'] = $this->getHiddenFieldsWithoutAccess();
-		$this->arResult['TOTAL_SUM'] = 0;
+		$this->arResult['IS_EXTERNAL_CATALOG'] = State::isExternalCatalog();
+		$this->arResult += $this->getTotalSumDetails($gridRows);
 	}
 
 	protected function getGridParams(array $gridRows): array
@@ -1139,6 +1235,11 @@ final class CatalogStoreDocumentProductListComponent
 			'NAV_OBJECT' => $this->navigation,
 			'~NAV_PARAMS' => ['SHOW_ALWAYS' => false],
 			'SHOW_ROW_CHECKBOXES' => true,
+			'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+			'ENABLE_FIELDS_SEARCH' => 'Y',
+			'CONFIG' => [
+				'popupWidth' => 800,
+			],
 
 			'SHOW_SELECTED_COUNTER' => true,
 			'ACTION_PANEL' => $this->getGridActionPanel(),
@@ -1252,8 +1353,6 @@ final class CatalogStoreDocumentProductListComponent
 	 * @param array $list
 	 * @param string $title
 	 * @return array
-	 * @throws Main\ArgumentException
-	 * @throws Main\SystemException
 	 */
 	private function getDropdownActionField(Snippet $snippet, string $fieldId, array $list, string $title): array
 	{
@@ -1302,6 +1401,7 @@ final class CatalogStoreDocumentProductListComponent
 			'catalog.product-calculator',
 			'catalog.product-selector',
 			'catalog.store-selector',
+			'catalog.tool-availability-manager',
 			'currency',
 		];
 	}
@@ -1333,6 +1433,7 @@ final class CatalogStoreDocumentProductListComponent
 			'SET_ITEMS' => $this->arParams['SET_ITEMS'],
 			'ALLOW_EDIT' => $this->arParams['ALLOW_EDIT'],
 			'IS_READ_ONLY' => $this->isReadOnly(),
+			'IS_DISPLAY_TOTAL_SUM_DETAILS' => $this->arParams['IS_DISPLAY_TOTAL_SUM_DETAILS'] ?? false,
 			'CURRENCY' => $this->getCurrency(),
 			'NEW_ROW_ID_PREFIX' => self::NEW_ROW_ID_PREFIX,
 			'NEW_ROW_ID_COUNTER' => $this->getNewRowCounter(),
@@ -1345,7 +1446,6 @@ final class CatalogStoreDocumentProductListComponent
 	/* Storage tools */
 
 	/**
-	 * @param string $node
 	 * @param array $nodeValues
 	 * @return void
 	 */
@@ -1360,7 +1460,6 @@ final class CatalogStoreDocumentProductListComponent
 	}
 
 	/**
-	 * @param string $node
 	 * @param string $item
 	 * @param mixed $value
 	 * @return void
@@ -1371,7 +1470,6 @@ final class CatalogStoreDocumentProductListComponent
 	}
 
 	/**
-	 * @param string $node
 	 * @param string $item
 	 * @return mixed|null
 	 */
@@ -1459,15 +1557,22 @@ final class CatalogStoreDocumentProductListComponent
 				$defaultColumnsOrder,
 				static function($columnName) use ($columnDescriptions)
 				{
-					return $columnDescriptions[$columnName]['default'] === true;
+					return
+						isset($columnDescriptions[$columnName]['default'])
+						&& $columnDescriptions[$columnName]['default'] === true
+					;
 				}
 			);
 		}
 
-		foreach ($userColumnsOrder as $index)
+		foreach ($userColumnsOrder as $key => $index)
 		{
-			$visibleColumnsMap[$index] = true;
-			$visibleColumns[$index] = $columnDescriptions[$index];
+			if (!isset($columnDescriptions[$key]))
+			{
+				continue;
+			}
+			$visibleColumnsMap[$key] = true;
+			$visibleColumns[$key] = $columnDescriptions[$key];
 		}
 
 		$columns = [];
@@ -1586,14 +1691,14 @@ final class CatalogStoreDocumentProductListComponent
 					return [
 						'MAIN_INFO','PURCHASING_PRICE', 'BASE_PRICE',
 						'AMOUNT', 'STORE_TO_INFO', 'STORE_TO_AMOUNT', 'BARCODE_INFO',
-						'TOTAL_PRICE',
+						'TOTAL_PRICE', 'COMMENT',
 					];
 				}
 
 				return [
 					'MAIN_INFO', 'BARCODE_INFO', 'PURCHASING_PRICE', 'BASE_PRICE',
 					'AMOUNT', 'STORE_TO_INFO', 'STORE_TO_AMOUNT',
-					'TOTAL_PRICE',
+					'TOTAL_PRICE', 'COMMENT',
 				];
 			case StoreDocumentTable::TYPE_DEDUCT:
 				if ($this->isReadOnly())
@@ -1602,7 +1707,7 @@ final class CatalogStoreDocumentProductListComponent
 						'MAIN_INFO',
 						'STORE_FROM_INFO', 'STORE_FROM_AMOUNT', 'AMOUNT',
 						'PURCHASING_PRICE', 'BASE_PRICE', 'BARCODE_INFO',
-						'TOTAL_PRICE',
+						'TOTAL_PRICE', 'COMMENT',
 					];
 				}
 
@@ -1610,7 +1715,7 @@ final class CatalogStoreDocumentProductListComponent
 					'MAIN_INFO', 'BARCODE_INFO', 'AMOUNT',
 					'STORE_FROM_INFO', 'STORE_FROM_AMOUNT',
 					'PURCHASING_PRICE', 'BASE_PRICE',
-					'TOTAL_PRICE',
+					'TOTAL_PRICE', 'COMMENT',
 				];
 			case StoreDocumentTable::TYPE_MOVING:
 				if ($this->isReadOnly())
@@ -1620,7 +1725,7 @@ final class CatalogStoreDocumentProductListComponent
 						'STORE_FROM_INFO', 'STORE_FROM_AVAILABLE_AMOUNT', 'STORE_FROM_AMOUNT',
 						'STORE_TO_INFO', 'STORE_TO_AVAILABLE_AMOUNT', 'STORE_TO_AMOUNT', 'AMOUNT',
 						'PURCHASING_PRICE', 'BASE_PRICE', 'BARCODE_INFO',
-						'TOTAL_PRICE',
+						'TOTAL_PRICE', 'COMMENT',
 					];
 				}
 
@@ -1629,7 +1734,7 @@ final class CatalogStoreDocumentProductListComponent
 					'STORE_FROM_INFO', 'STORE_FROM_AVAILABLE_AMOUNT', 'STORE_FROM_AMOUNT',
 					'STORE_TO_INFO', 'STORE_TO_AVAILABLE_AMOUNT', 'STORE_TO_AMOUNT',
 					'PURCHASING_PRICE', 'BASE_PRICE',
-					'TOTAL_PRICE',
+					'TOTAL_PRICE', 'COMMENT',
 				];
 		}
 
@@ -1652,13 +1757,16 @@ final class CatalogStoreDocumentProductListComponent
 			'default' => true,
 		];
 
-		$result['BARCODE_INFO'] = [
-			'id' => 'BARCODE_INFO',
-			'name' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_BARCODE'),
-			'title' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_BARCODE'),
-			'default' => true,
-			'width' => 300,
-		];
+		if (State::isExternalCatalog() !== true)
+		{
+			$result['BARCODE_INFO'] = [
+				'id' => 'BARCODE_INFO',
+				'name' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_BARCODE'),
+				'title' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_BARCODE'),
+				'default' => true,
+				'width' => 300,
+			];
+		}
 
 		$priceEditable = [
 			'TYPE' => Types::MONEY,
@@ -1674,18 +1782,28 @@ final class CatalogStoreDocumentProductListComponent
 			&& !(
 				$this->getDocumentType() === StoreDocumentTable::TYPE_MOVING
 				|| $this->getDocumentType() === StoreDocumentTable::TYPE_DEDUCT
+				|| $this->getDocumentType() === StoreDocumentTable::TYPE_SALES_ORDERS
 			)
 		;
 
-		$result['PURCHASING_PRICE'] = [
-			'id' => 'PURCHASING_PRICE',
-			'name' => $purchasingPriceName,
-			'title' => $purchasingPriceName,
-			'sort' => 'PURCHASING_PRICE',
-			'default' => true,
-			'editable' => $purchasingPriceEditable ? $priceEditable : false,
-			'width' => $columnDefaultWidth,
-		];
+		if (
+			$this->getDocumentType() !== StoreDocumentTable::TYPE_MOVING
+			&& (
+				$this->getDocumentType() !== StoreDocumentTable::TYPE_SALES_ORDERS
+				|| (Feature::isStoreBatchEnabled() && State::isProductBatchMethodSelected())
+			)
+		)
+		{
+			$result['PURCHASING_PRICE'] = [
+				'id' => 'PURCHASING_PRICE',
+				'name' => $purchasingPriceName,
+				'title' => $purchasingPriceName,
+				'sort' => 'PURCHASING_PRICE',
+				'default' => true,
+				'editable' => $purchasingPriceEditable ? $priceEditable : false,
+				'width' => $columnDefaultWidth,
+			];
+		}
 
 		$result['BASE_PRICE'] = [
 			'id' => 'BASE_PRICE',
@@ -1695,6 +1813,21 @@ final class CatalogStoreDocumentProductListComponent
 			'default' => true,
 			'editable' => $this->isEditableBasePrice() ? $priceEditable : false,
 			'width' => $columnDefaultWidth,
+		];
+
+		$result['TAX_RATE'] = [
+			'id' => 'TAX_RATE',
+			'name' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_TAX_RATE'),
+			'title' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_TAX_RATE'),
+			'default' => true,
+		];
+
+		$result['TAX_INCLUDED'] = [
+			'id' => 'TAX_INCLUDED',
+			'name' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_TAX_INCLUDED'),
+			'title' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_TAX_INCLUDED'),
+			'default' => true,
+			'width' => 180,
 		];
 
 		$storeFromName = Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_STORE_FROM_INFO');
@@ -1829,6 +1962,22 @@ final class CatalogStoreDocumentProductListComponent
 			'width' => $columnDefaultWidth,
 		];
 
+		$result['COMMENT'] = [
+			'id' => 'COMMENT',
+			'name' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_COMMENT'),
+			'title' => Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_COMMENT'),
+			'sort' => null,
+			'default' => false,
+			'editable' => true,
+			'width' => $columnDefaultWidth,
+		];
+		if ($this->getDocumentType() === StoreDocumentTable::TYPE_DEDUCT)
+		{
+			$result['COMMENT']['name'] = Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_COMMENT_DEDUCT');
+			$result['COMMENT']['title'] = Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_COLUMN_COMMENT_DEDUCT');
+			$result['COMMENT']['default'] = true;
+		}
+
 		foreach ($result as &$item)
 		{
 			if (empty($item['editable']))
@@ -1884,6 +2033,12 @@ final class CatalogStoreDocumentProductListComponent
 		$editData = [
 			'template_0' => $this->prepareEditorRow($defaultRow),
 		];
+		$taxIncluded = $gridRows[0]['raw_data']['TAX_INCLUDED'] ?? null;
+		$taxIncludedFormatted = $gridRows[0]['data']['TAX_INCLUDED'] ?? null;
+		$taxIncludedFromFirstItem = $this->getTaxIncludedFromFirstItem();
+		$taxIncludedFromFirstItemFormatted = ($taxIncludedFromFirstItem === 'Y')
+			? Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_TAX_INCLUDED')
+			: Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_TAX_NOT_INCLUDED');
 
 		foreach ($gridRows as $row)
 		{
@@ -1924,6 +2079,11 @@ final class CatalogStoreDocumentProductListComponent
 
 			'currencyId' => $this->getCurrencyId(),
 			'totalCalculationSumField' => $this->getDefaultTotalCalculationField(),
+			'totalCalculationSumTaxField' => 'TAX_SUM',
+			'taxIncludedFormatted' => $taxIncludedFormatted,
+			'taxIncluded' => $taxIncluded,
+			'taxIncludedFromFirstItem' => $taxIncludedFromFirstItem,
+			'taxIncludedFromFirstItemFormatted' => $taxIncludedFromFirstItemFormatted,
 
 			'popupSettings' => $this->getPopupSettings(),
 			'languageId' => $this->getLanguageId(),
@@ -1944,6 +2104,11 @@ final class CatalogStoreDocumentProductListComponent
 			'productUrlBuilderContext' => htmlspecialcharsbx($this->arParams['BUILDER_CONTEXT']),
 
 			'restrictedProductTypes' => $this->getRestrictedProductTypesForSelector(),
+			'isCalculableStorePurchasingPrice' => $this->arParams['CALCULATE_STORE_PURCHASING_PRICE'],
+			'isOnecInventoryManagementRestricted' => (
+				EnableWizard\Manager::isOnecMode()
+				&& EnableWizard\TariffChecker::isOnecInventoryManagementRestricted()
+			),
 		];
 	}
 
@@ -1996,6 +2161,12 @@ final class CatalogStoreDocumentProductListComponent
 			$item = $this->prepareEditorRow($row);
 			$editable = !($row['ACCESS_DENIED'] ?? false);
 
+			$skuTree = '';
+			if (isset($row['SKU_TREE']) && $row['SKU_TREE'])
+			{
+				$skuTree = Json::decode($row['SKU_TREE']);
+			}
+
 			ob_start();
 			$APPLICATION->IncludeComponent(
 				'bitrix:catalog.grid.product.field',
@@ -2013,7 +2184,7 @@ final class CatalogStoreDocumentProductListComponent
 						'SKU_ID' => $row['SKU_ID'] ?? null,
 						'BASE_PRICE_ID' => $row['BASE_PRICE_ID'] ?? null,
 					],
-					'SKU_TREE' => $row['SKU_TREE'] ? Json::decode($row['SKU_TREE']) : '',
+					'SKU_TREE' => $skuTree,
 					'MODE' => 'view',
 					'VIEW_FORMAT' => 'short',
 					'ENABLE_SEARCH' => false,
@@ -2044,7 +2215,7 @@ final class CatalogStoreDocumentProductListComponent
 					,
 					'PURCHASING_PRICE' => \CCurrencyLang::formatValue($item['PURCHASING_PRICE_FORMATTED'], $this->currency['FORMAT']),
 					'TOTAL_PRICE' => \CCurrencyLang::formatValue($item['TOTAL_PRICE_FORMATTED'], $this->currency['FORMAT']),
-					'AMOUNT' => (float)$row['AMOUNT'].' '.htmlspecialcharsbx($row['MEASURE_NAME']),
+					'AMOUNT' => (float)($row['AMOUNT'] ?? 0) . ' ' . htmlspecialcharsbx($row['MEASURE_NAME']),
 					'STORE_FROM_AMOUNT' => $this->formatRowStoreAmount($row, 'STORE_FROM_AMOUNT'),
 					'STORE_TO_AMOUNT' => $this->formatRowStoreAmount($row, 'STORE_TO_AMOUNT'),
 					'STORE_FROM_RESERVED' => $this->formatRowStoreAmount($row, 'STORE_FROM_RESERVED'),
@@ -2061,12 +2232,24 @@ final class CatalogStoreDocumentProductListComponent
 
 	private function formatPrices($price)
 	{
+		$pricePrecision = $this->currency['FORMAT']['DECIMALS'] ?? $this->getStorageItem('PRICE_PRECISION');
+
 		return number_format(
 			$price,
-			$this->getStorageItem('PRICE_PRECISION'),
+			(int)$pricePrecision,
 			'.',
 			''
 		);
+	}
+
+	private static function formatTaxRate(null|int|float|string $rate): string
+	{
+		if ($rate === null || $rate === '')
+		{
+			return Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_NOT_TAX');
+		}
+
+		return $rate . ' %';
 	}
 
 	private function formatRowStoreAmount(array $row, string $amountFieldName): ?string
@@ -2116,11 +2299,14 @@ final class CatalogStoreDocumentProductListComponent
 		$row['TOTAL_PRICE'] ??= 0;
 		$totalPriceFormatted = $this->formatPrices($row['TOTAL_PRICE']);
 
+		$row['TAX_RATE'] ??= null;
+		$taxRateFormatted = self::formatTaxRate($row['TAX_RATE']);
+
 		$editorFields = [
 			'AMOUNT' => [
 				'PRICE' => [
 					'NAME' => $rowId .'_AMOUNT',
-					'VALUE' => $row['AMOUNT'],
+					'VALUE' => $row['AMOUNT'] ?? null,
 				],
 				'CURRENCY' => [
 					'NAME' => $rowId .'_MEASURE_CODE',
@@ -2135,6 +2321,10 @@ final class CatalogStoreDocumentProductListComponent
 			'BASE_PRICE_FORMATTED' => $priceFormatted,
 			'TOTAL_PRICE_FORMATTED' => $totalPriceFormatted,
 			'PURCHASING_PRICE_FORMATTED' => $purchasingPriceFormatted,
+			'TAX_RATE' => $taxRateFormatted,
+			'TAX_INCLUDED' => isset($row['TAX_INCLUDED']) && $row['TAX_INCLUDED'] === 'Y'
+				? Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_TAX_INCLUDED')
+				: Loc::getMessage('CATALOG_DOCUMENT_PRODUCT_LIST_TAX_NOT_INCLUDED'),
 		];
 		foreach($this->getColumns() as $column)
 		{
@@ -2226,11 +2416,10 @@ final class CatalogStoreDocumentProductListComponent
 			'BASE_PRICE_EXTRA' => '',
 			'BASE_PRICE_EXTRA_RATE' => StoreDocumentElementTable::EXTRA_RATE_PERCENTAGE,
 			'TYPE' => 0,
+			'TAX_INCLUDED' => 'N',
 		];
 
-		$row = $this->prepareRowsForAccessRights([ $row ])[0];
-
-		return $row;
+		return $this->prepareRowsForAccessRights([ $row ])[0];
 	}
 
 	protected function isReadOnly(): bool
@@ -2264,7 +2453,7 @@ final class CatalogStoreDocumentProductListComponent
 		return $this->arParams['PREFIX'] !== '' ? $this->arParams['PREFIX'] : $this->getDefaultPrefix();
 	}
 
-	protected function getRowIdPrefix(string $code = null): string
+	protected function getRowIdPrefix(?string $code = null): string
 	{
 		return $this->getPrefix() . '_product_row_' . $code;
 	}
@@ -2356,7 +2545,12 @@ final class CatalogStoreDocumentProductListComponent
 
 	private function getPreselectDocumentProducts(): array
 	{
-		$preselectedSku = $this->getSkuByProductId((int)$this->arParams['PRESELECTED_PRODUCT_ID']);
+		if ($this->arParams['PRESELECTED_PRODUCT_ID'] === 0)
+		{
+			return [];
+		}
+
+		$preselectedSku = $this->getSkuByProductId($this->arParams['PRESELECTED_PRODUCT_ID']);
 		if ($preselectedSku)
 		{
 			$basePriceEntity = $preselectedSku->getPriceCollection()->findBasePrice();
@@ -2377,6 +2571,9 @@ final class CatalogStoreDocumentProductListComponent
 				$this->getCurrencyId()
 			);
 
+			$vatId = (int)$preselectedSku->getField('VAT_ID');
+			$tax = $vatId ? \Bitrix\Catalog\VatTable::getRowById($vatId) : null;
+
 			return [
 				[
 					'ID' => Main\Security\Random::getString(8, false),
@@ -2389,6 +2586,8 @@ final class CatalogStoreDocumentProductListComponent
 					'BASE_PRICE' => $convertedBasePrice,
 					'BASE_PRICE_EXTRA' => null,
 					'BASE_PRICE_EXTRA_RATE' => StoreDocumentElementTable::EXTRA_RATE_PERCENTAGE,
+					'TAX_RATE' => ($tax['RATE'] ?? null),
+					'TAX_INCLUDED' => $preselectedSku->getField('VAT_INCLUDED'),
 				],
 			];
 		}
@@ -2534,10 +2733,12 @@ final class CatalogStoreDocumentProductListComponent
 		return Bitrix\Main\Engine\Response\AjaxJson::createSuccess();
 	}
 
-	/** @noinspection PhpUnused
+	/**
+	 * Returns converted base and purchasing prices for product list.
 	 *
-	 * @param array $products
-	 * @param string currencyId
+	 * @param array $products Products information.
+	 * @param string $currencyId Currency identifier for result.
+	 * @param string $oldCurrencyId Old currency identifier.
 	 * @return null|array
 	 */
 	public function calculateProductPricesAction(array $products, string $currencyId, string $oldCurrencyId): ?array
@@ -2554,11 +2755,26 @@ final class CatalogStoreDocumentProductListComponent
 		{
 			$fields = $product['fields'] ?? [];
 
-			\CCurrencyRates::ConvertCurrency(
-				(float)$fields['BASE_PRICE'],
-				$oldCurrencyId,
-				$currencyId
-			);
+			if (isset($fields['REAL_VALUES']))
+			{
+				$realValues = $fields['REAL_VALUES'];
+
+				unset($fields['REAL_VALUES']);
+
+				try
+				{
+					$realValues =  Json::decode(base64_decode($realValues));
+				}
+				catch (\Exception $e)
+				{
+					$realValues = [];
+				}
+
+				foreach ($realValues as $realValueName => $realValue)
+				{
+					$fields[$realValueName] = $realValue;
+				}
+			}
 
 			$basePrice = null;
 			if ($fields['BASE_PRICE'] !== null)
@@ -2572,19 +2788,46 @@ final class CatalogStoreDocumentProductListComponent
 				);
 			}
 
-			$response[$product['id']] = [
-				'BASE_PRICE' => $basePrice,
-				'PURCHASING_PRICE' => $this->formatPrices(
+			$purchasingPrice = null;
+			if ($fields['PURCHASING_PRICE'] !== null)
+			{
+				$purchasingPrice = $this->formatPrices(
 					\CCurrencyRates::ConvertCurrency(
 						(float)$fields['PURCHASING_PRICE'],
 						$oldCurrencyId,
 						$currencyId
 					)
-				),
+				);
+			}
+
+			$response[$product['id']] = [
+				'BASE_PRICE' => $basePrice,
+				'PURCHASING_PRICE' => $purchasingPrice,
+				'STORE_FROM' => $fields['STORE_FROM'] ?? null,
+				'STORE_TO' => $fields['STORE_TO'] ?? null,
 			];
 		}
 
-		return $response;
+		return $this->prepareRowsForAccessRights($response);
+	}
+
+	/**
+	 * Returns cost price for product.
+	 *
+	 * @param int $productId Product indentifier.
+	 * @param float $quantity Product quantity.
+	 * @param string $currency Currency identifier.
+	 * @param int $storeId Store identifier.
+	 * @return null|array
+	 */
+	public function calculateStoreCostPriceAction(int $productId, float $quantity, string $currency, int $storeId): ?float
+	{
+		if (!$this->checkModules())
+		{
+			return null;
+		}
+
+		return (new \Bitrix\Catalog\Product\Store\BatchManager($productId))->calculateCostPrice($quantity, $storeId, $currency);
 	}
 
 	private function getRestrictedProductTypesForSelector(): array
@@ -2625,5 +2868,58 @@ final class CatalogStoreDocumentProductListComponent
 	public function isAllowedProductCreation(): bool
 	{
 		return $this->accessController->check(ActionDictionary::ACTION_PRODUCT_ADD);
+	}
+
+	/**
+	 * Calculate and return detailed information about the total amount
+	 *
+	 * @param array $gridRows
+	 * @return float[] ('TOTAL_TAX', 'TOTAL_SUM', 'TOTAL_SUM_BEFORE_TAX')
+	 */
+	private function getTotalSumDetails(array $gridRows): array
+	{
+		$totalSumDetails = [
+			'TOTAL_TAX' => 0,
+			'TOTAL_SUM' => 0,
+		];
+
+		foreach ($gridRows as $row) {
+			$totalSumDetails['TOTAL_TAX'] += $row['raw_data']['TAX_SUM'] ?? 0;
+			$totalSumDetails['TOTAL_SUM'] += $row['raw_data']['TOTAL_PRICE'] ?? 0;
+		}
+
+		$totalSumDetails['TOTAL_SUM_BEFORE_TAX'] = $totalSumDetails['TOTAL_SUM'] - $totalSumDetails['TOTAL_TAX'];
+
+		return $totalSumDetails;
+	}
+
+	/**
+	 * @return string|null
+	 * @throws Main\ArgumentException
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	private function getTaxIncludedFromFirstItem(): ?string
+	{
+		$context = \Bitrix\Main\Application::getInstance()->getContext()->getRequest()->get('context');
+		$ownerId = (int)($context['OWNER_ID'] ?? null);
+		$ownerTypeId = (int)($context['OWNER_TYPE_ID'] ?? null);
+		$taxIncludedFromFirstItem = null;
+
+		if ($ownerId && $ownerTypeId === CCrmOwnerType::Deal)
+		{
+			$productRow = ProductRowTable::getRow(
+				[
+					'select' => ['TAX_INCLUDED'],
+					'filter' => [
+						'=OWNER_ID' => $ownerId,
+						'=OWNER_TYPE' => CCrmOwnerTypeAbbr::ResolveByTypeID($ownerTypeId)
+					],
+				]
+			);
+			$taxIncludedFromFirstItem = $productRow['TAX_INCLUDED'] ?? null;
+		}
+
+		return $taxIncludedFromFirstItem;
 	}
 }

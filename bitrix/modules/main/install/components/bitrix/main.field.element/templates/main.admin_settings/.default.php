@@ -2,6 +2,11 @@
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
+/**
+ * @var array $arResult
+ * @var CBitrixComponent $component
+ */
+
 use Bitrix\Main\UserField\Types\ElementType;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Text\HtmlFilter;
@@ -43,7 +48,7 @@ if($component->isIblockIncluded())
 			<span class="adm-detail-label-text"><?= Loc::getMessage('USER_TYPE_IBEL_DISPLAY_NOTE') ?></span>
 		</td>
 	</tr>
-	<script type="text/javascript">
+	<script>
 		function showUsertypeElementNote(selector)
 		{
 			BX.style(BX('tr_usertype_element_note'), 'display', (selector.value !== '-1' && selector.value !== '0' ? 'none' : 'table-row'));

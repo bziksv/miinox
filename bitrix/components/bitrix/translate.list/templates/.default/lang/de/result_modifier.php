@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["TR_FILE_EDIT"] = "Als PHP bearbeiten";
 $MESS["TR_FILE_SHOW"] = "Als PHP anzeigen";
 $MESS["TR_FILE_TITLE"] = "Klicken Sie hier, um eine Datei zu übersetzen";
@@ -29,4 +29,3 @@ $MESS["TR_INDEX_VIEW_MODE_TITLE_UNTRANSLATED_FILES"] = "Nicht übersetzte Dateie
 $MESS["TR_MESSAGE_EDIT"] = "Nachrichten bearbeiten";
 $MESS["TR_PATH_GO"] = "In den Ordner wechseln";
 $MESS["TR_UP_TITLE"] = "Klicken Sie hier, um eine Ebene höher zu gelangen";
-?>

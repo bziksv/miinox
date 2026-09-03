@@ -18,13 +18,13 @@ $documentRoot = Application::getDocumentRoot();
 </style>
 <div class="paysystem-yandex mb-4" id="paysystem-yandex">
 	<form id="paysystem-yandex-form">
-		<p class="widget-payment-checkout-info"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_DESCRIPTION'); ?></p>
-		<p class="widget-payment-checkout-info"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_DESCRIPTION_SUM')." ".SaleFormatCurrency($params['SUM'], $params['CURRENCY']); ?></p>
+		<p class="widget-payment-checkout-info"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_DESCRIPTION_MSGVER_1') ?></p>
+		<p class="widget-payment-checkout-info"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_DESCRIPTION_SUM_MSGVER_1', ['#SUM#' => SaleFormatCurrency($params['SUM'], $params['CURRENCY'])]) ?></p>
 		<?php if (isset($params['FIELDS'])): ?>
 			<fieldset class="form-group">
 				<?php foreach ($params['FIELDS'] as $field): ?>
 					<?php if (in_array($field, $params['PHONE_FIELDS'])): ?>
-						<label for="<?= $field ?>"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_'.ToUpper($params['PAYMENT_METHOD']).'_'.ToUpper($field)); ?>:</label>
+						<label for="<?= $field ?>"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_'.mb_strtoupper($params['PAYMENT_METHOD']).'_'.mb_strtoupper($field)); ?>:</label>
 						<input
 							type="text" style="max-width: 300px;"
 							class="form-control js-paysystem-yandex-input-phone"
@@ -35,7 +35,7 @@ $documentRoot = Application::getDocumentRoot();
 							placeholder=""
 						>
 					<?php else: ?>
-						<label for="<?= $field ;?>"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_'.ToUpper($params['PAYMENT_METHOD']).'_'.ToUpper($field)); ?></label>
+						<label for="<?= $field ;?>"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_'.mb_strtoupper($params['PAYMENT_METHOD']).'_'.mb_strtoupper($field)); ?></label>
 						<input
 							type="text"
 							name="<?= $field; ?>"
@@ -43,9 +43,9 @@ $documentRoot = Application::getDocumentRoot();
 							id="<?= $field; ?>"
 							style="max-width: 300px;"
 							placeholder="<?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_YANDEX_CHECKOUT_'
-								.ToUpper($params['PAYMENT_METHOD'])
+								.mb_strtoupper($params['PAYMENT_METHOD'])
 								.'_'
-								.ToUpper($field));
+								.mb_strtoupper($field));
 							?>"
 						>
 					<?php endif; ?>

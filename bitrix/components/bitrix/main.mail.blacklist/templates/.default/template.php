@@ -5,6 +5,12 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+/**
+ * @global CMain $APPLICATION
+ * @var array $arResult
+ * @var array $arParams
+ */
+
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\UI\Toolbar\Facade\Toolbar;
@@ -77,7 +83,7 @@ $APPLICATION->IncludeComponent("bitrix:main.ui.grid",
 		"MESSAGES" => $arResult["MESSAGES"] ?? null
 	]);
 ?>
-<script type="text/javascript">
+<script>
 
 	BX.ready(function () {
 		BX.message({

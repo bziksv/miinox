@@ -3,6 +3,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
+use \Bitrix\Landing\Sanitizer;
 use \Bitrix\Main\Localization\Loc;
 Loc::loadLanguageFile(__FILE__);
 
@@ -24,7 +25,7 @@ $currentLanding = $arResult['LANDINGS'][$arParams['LANDING_ID']] ?? null;
 		?>data-hint="<?=Loc::getMessage('LANDING_SELECTOR_HINT_SEARCH_PAGE')?>" <?
 		?>data-hint-no-icon class="landing-selector-result-picture" <?
 		?>id="landing-selector-picture" <?
-		?>style="background-image: url(<?= $currentLanding ? \htmlspecialcharsbx($currentLanding->getAvatar()) : '/bitrix/images/landing/nopreview.jpg'?>);"></div>
+		?>style="background-image: url(<?= $currentLanding ? \htmlspecialcharsbx(Sanitizer::sanitizeCssUrl((string)$currentLanding->getAvatar())) : '/bitrix/images/landing/nopreview.jpg'?>);"></div>
 	<input class="landing-selector-input-text" id="landing-selector-input" value="<?= $arParams['INPUT_VALUE']?>" />
 </label>
 
@@ -33,6 +34,43 @@ $currentLanding = $arResult['LANDINGS'][$arParams['LANDING_ID']] ?? null;
 	BX.ready(function()
 	{
 		BX.UI.Hint.init(BX('landing-selector'));
+
+		const condition = <?= \CUtil::PhpToJSObject(str_replace(['?', '&'], ['\?', '\&'], $arParams['PAGE_URL_FOLDER_ADD']))?>;
+		const topWindow = (window.top && window.top !== window) ? window.top : window;
+		if (
+			topWindow
+			&& topWindow.BX
+			&& topWindow.BX.SidePanel
+			&& topWindow.BX.SidePanel.Instance
+			&& condition !== ''
+		)
+		{
+			const bindParams = {
+				rules: [
+					{
+						condition: [condition],
+						validate: function(link)
+						{
+							if (
+								link
+								&& link.url !== 'undefined'
+								&& link.url.includes('/pub/site/')
+							)
+							{
+								return false;
+							}
+
+							return true;
+						},
+						options: {allowChangeHistory: false}
+					}
+				]
+			};
+			const preparedParams = (topWindow.BX.Runtime && typeof topWindow.BX.Runtime.clone === 'function')
+				? topWindow.BX.Runtime.clone(bindParams)
+				: bindParams;
+			topWindow.BX.SidePanel.Instance.bindAnchors(preparedParams);
+		}
 
 		new BX.Landing.Component.Selector({
 			node: BX('landing-selector'),

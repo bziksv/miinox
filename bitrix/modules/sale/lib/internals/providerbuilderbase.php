@@ -63,7 +63,7 @@ abstract class ProviderBuilderBase
 	 * @return Sale\Result
 	 * @throws Main\ArgumentOutOfRangeException
 	 */
-	protected function callTransferMethod($className, $methodName, Sale\Result $result = null)
+	protected function callTransferMethod($className, $methodName, ?Sale\Result $result = null)
 	{
 		if (!class_exists($className))
 		{
@@ -275,6 +275,22 @@ abstract class ProviderBuilderBase
 	public function recurring()
 	{
 		return static::callTransferMethod($this->getTransferClassName(), 'recurring');
+	}
+
+	/**
+	 * @return Main\Result
+	 */
+	public function writeOffProductBatches(): Main\Result
+	{
+		return static::callTransferMethod($this->getTransferClassName(), 'writeOffProductBatches');
+	}
+
+	/**
+	 * @return Main\Result
+	 */
+	public function returnProductBatches(): Main\Result
+	{
+		return static::callTransferMethod($this->getTransferClassName(), 'returnProductBatches');
 	}
 
 	/**

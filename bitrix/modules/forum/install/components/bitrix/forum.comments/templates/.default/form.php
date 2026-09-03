@@ -1,4 +1,8 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
+
+/** @var ?\CUser $user */
+$user = $arParams['USER'] ?? null;
+
 foreach (GetModuleEvents('forum', 'OnCommentFormDisplay', true) as $arEvent)
 {
 	$arExt = ExecuteModuleEventEx($arEvent);
@@ -31,7 +35,7 @@ if (!empty($arResult["ERROR_MESSAGE"]))
 	<input type="hidden" name="comment_review" value="Y"  /><?
 		ob_start();
 		/* GUEST PANEL */
-		if (!$GLOBALS["USER"]->IsAuthorized())
+		if ($user?->IsAuthorized() !== true)
 		{
 			?>
 			<div class="comments-reply-fields">
@@ -79,33 +83,37 @@ if (!empty($arResult["ERROR_MESSAGE"]))
 				"FORM_ID" => $arParams["FORM_ID"],
 				"SHOW_MORE" => "Y",
 				"PARSER" => forumTextParser::GetEditorToolbar(array('forum' => $arParams["ALLOW"])),
-				"BUTTONS" => array_unique(
+				"BUTTONS" => array_unique(array_merge($arParams['MAIN_POST_FORM_BUTTONS'] ?? [],
 					(isset($arResult["USER_FIELDS"]["UF_FORUM_MESSAGE_DOC"]) ? array("UploadFile") : array() )
 					+
 					array_intersect(array("UploadFile", "CreateLink", "InputVideo", "Quote", "MentionUser"),
 						forumTextParser::GetEditorButtons(array('forum' => $arParams["ALLOW"]))
-				)),
+				))),
 				'ALLOW_MENTION_EMAIL_USER' => ($arParams['ALLOW_MENTION_EMAIL_USER'] ?? 'N'),
-				"LHE" => array(
+				"LHE" => [
 					'id' => $arParams["LheId"],
 					'jsObjName' => $arParams["jsObjName"],
-					'bSetDefaultCodeView' => ($arParams['EDITOR_CODE_DEFAULT'] == 'Y'),
+					'bSetDefaultCodeView' => ($arParams['EDITOR_CODE_DEFAULT'] === 'Y'),
 					"documentCSS" => "body {color:#434343;}",
 					"iframeCss" => "html body {padding-left: 14px!important;}",
 					"fontSize" => "14px",
-					"bInitByJS" => ($arParams['SHOW_MINIMIZED'] == "Y"),
-					"height" => 80
-				),
-				"DESTINATION" => Array(
-					"VALUE" => array(),
+					"bInitByJS" => ($arParams['SHOW_MINIMIZED'] === "Y"),
+					"height" => 80,
+					'copilotParams' => $arParams['LHE']['copilotParams'] ?? null,
+					'isCopilotEnabled' => $arParams['LHE']['isCopilotEnabled'] ?? true,
+					'isCopilotImageEnabledBySettings' => $arParams['LHE']['isCopilotImageEnabledBySettings'] ?? true,
+					'isCopilotTextEnabledBySettings' => $arParams['LHE']['isCopilotTextEnabledBySettings'] ?? true,
+				],
+				"DESTINATION" => [
+					"VALUE" => [],
 					"SHOW" => "N",
-				),
-				"TEXT" => Array(
+				],
+				"TEXT" => [
 					"ID" => "REVIEW_TEXT",
 					"NAME" => "REVIEW_TEXT",
 					"VALUE" => isset($arResult["REVIEW_TEXT"]) ? $arResult["REVIEW_TEXT"] : "",
-					"HEIGHT" => "80px"),
-
+					"HEIGHT" => "80px"
+				],
 				"UPLOAD_FILE" => (
 					isset($arResult["USER_FIELDS"]["UF_FORUM_MESSAGE_DOC"]) || $arParams["ALLOW_UPLOAD"]=="N" ? false :
 					array(
@@ -125,7 +133,7 @@ if (!empty($arResult["ERROR_MESSAGE"]))
 					array_merge($arResult["USER_FIELDS"]["UF_FORUM_MES_URL_PRV"] ?? [], $arParams["USER_FIELDS_SETTINGS"]["UF_FORUM_MES_URL_PRV"] ?? []),
 				),
 				"SMILES" => (
-						$arParams["ALLOW_SMILES"] == "Y"
+						$arParams["ALLOW_SMILES"] === "Y"
 							? \COption::GetOptionInt("forum", "smile_gallery_id", 0) :
 							array("VALUE" => array())
 				),
@@ -137,7 +145,7 @@ if (!empty($arResult["ERROR_MESSAGE"]))
 		);
 		?>
 </form>
-<script type="text/javascript">
+<script>
 BX.ready(function(){
 	BX.addCustomEvent(BX('<?=$arParams["FORM_ID"]?>'), 'OnUCFormAfterShow', __fcOnUCFormAfterShow);
 });

@@ -1,9 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\Internals;
 
 use Bitrix\Main;
 use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
 
 Loc::loadMessages(__FILE__);
 
@@ -23,9 +25,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_DiscountModule_Query query()
- * @method static EO_DiscountModule_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_DiscountModule_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_DiscountModule_Result getById($id)
- * @method static EO_DiscountModule_Result getList(array $parameters = array())
+ * @method static EO_DiscountModule_Result getList(array $parameters = [])
  * @method static EO_DiscountModule_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_DiscountModule createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_DiscountModule_Collection createCollection()
@@ -33,7 +35,7 @@ Loc::loadMessages(__FILE__);
  * @method static \Bitrix\Sale\Internals\EO_DiscountModule_Collection wakeUpCollection($rows)
  */
 
-class DiscountModuleTable extends Main\Entity\DataManager
+class DiscountModuleTable extends DataManager
 {
 	/**
 	 * Returns DB table name for entity.

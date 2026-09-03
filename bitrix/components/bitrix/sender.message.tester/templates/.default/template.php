@@ -7,10 +7,10 @@ use Bitrix\Main\Web\Json;
 \Bitrix\Main\UI\Extension::load("sender.error_handler");
 \Bitrix\Main\UI\Extension::load("bitrix24.phoneverify");
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
-/** @var CAllUser $USER */
+/** @var CUser $USER */
 
 $arParams['ID'] = 'def-tester';
 $containerId = 'bx-sender-message-tester-' . $arParams['ID'];
@@ -72,7 +72,7 @@ $enablePhoneVerification =
 	</div>
 </div>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Sender.Message.Tester.init(<?=Json::encode(array(
 			'id' => $arParams['ID'],

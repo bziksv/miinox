@@ -2,6 +2,7 @@
 namespace Bitrix\Rest;
 
 use Bitrix\Main;
+use Bitrix\Main\Request;
 
 /**
  * Class LogTable
@@ -25,9 +26,9 @@ use Bitrix\Main;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Log_Query query()
- * @method static EO_Log_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Log_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Log_Result getById($id)
- * @method static EO_Log_Result getList(array $parameters = array())
+ * @method static EO_Log_Result getList(array $parameters = [])
  * @method static EO_Log_Entity getEntity()
  * @method static \Bitrix\Rest\EO_Log createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_Log_Collection createCollection()
@@ -95,111 +96,13 @@ class LogTable extends Main\Entity\DataManager
 				'data_type' => 'text',
 				'serialized' => true,
 			),
+			'EVENT_ID' => array(
+				'data_type' => 'integer',
+			),
+			'MESSAGE' => array(
+				'data_type' => 'text',
+			),
 		);
-	}
-
-	/**
-	 * Checks if logging is applicable to the data and logs it if this is the case.
-	 *
-	 * @param \CRestServer $server REST call context.
-	 * @param string $data Response content.
-	 *
-	 * @return void
-	 *
-	 * @see \Bitrix\Rest\Log::checkEntry
-	 * @see \Bitrix\Rest\Log::addEntry
-	 */
-	public static function log(\CRestServer $server, $data)
-	{
-		if(static::checkEntry($server))
-		{
-			static::addEntry($server, $data);
-		}
-	}
-
-	/**
-	 * Checks if logging is applicable to the rest call.
-	 *
-	 * @param \CRestServer $server REST call context.
-	 *
-	 * @return void
-	 */
-	public static function checkEntry(\CRestServer $server)
-	{
-		global $USER;
-
-		$logEndTime = intval(\Bitrix\Main\Config\Option::get('rest', 'log_end_time', 0));
-		if ($logEndTime < time())
-		{
-			return false;
-		}
-
-		$logOptions = @unserialize(
-			\Bitrix\Main\Config\Option::get('rest', 'log_filters', ''),
-			[
-				'allowed_classes' => false
-			]
-		);
-		if (!is_array($logOptions))
-		{
-			$logOptions = array();
-		}
-
-		if(
-			isset($logOptions['client_id']) && $server->getClientId() !== $logOptions['client_id']
-			|| isset($logOptions['password_id']) && $server->getPasswordId() !== $logOptions['password_id']
-			|| isset($logOptions['scope']) && $server->getScope() !== $logOptions['scope']
-			|| isset($logOptions['method']) && $server->getMethod() !== $logOptions['method']
-			|| isset($logOptions['user_id']) && $USER->getId() !== $logOptions['user_id']
-		)
-		{
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Adds a log entry.
-	 *
-	 * @param \CRestServer $server REST call context.
-	 * @param string $data Response content.
-	 *
-	 * @return void
-	 */
-	public static function addEntry(\CRestServer $server, $data)
-	{
-		$request = Main\Context::getCurrent()->getRequest();
-		static::filterResponseData($data);
-
-		static::add(array(
-			'CLIENT_ID' => $server->getClientId(),
-			'PASSWORD_ID' => $server->getPasswordId(),
-			'SCOPE' => $server->getScope(),
-			'METHOD' => $server->getMethod(),
-			'REQUEST_METHOD' => $request->getRequestMethod(),
-			'REQUEST_URI' => $request->getRequestUri(),
-			'REQUEST_AUTH' => $server->getAuth(),
-			'REQUEST_DATA' => $server->getQuery(),
-			'RESPONSE_STATUS' => \CHTTP::getLastStatus(),
-			'RESPONSE_DATA' => $data,
-		));
-	}
-
-	public static function filterResponseData(&$data)
-	{
-		//filter non-searizable objects
-		if (is_object($data) && !method_exists($data, '__serialize'))
-		{
-			$data = '';
-		}
-		else if (is_array($data))
-		{
-			foreach ($data as &$oneData)
-			{
-				static::filterResponseData($oneData);
-			}
-		}
 	}
 
 	public static function getCountAll()
@@ -250,5 +153,21 @@ class LogTable extends Main\Entity\DataManager
 		}
 
 		return "\\Bitrix\\Rest\\LogTable::cleanUpAgent();";
+	}
+
+	public static function filterResponseData(&$data): void
+	{
+		//filter non-searizable objects
+		if (is_object($data) && !method_exists($data, '__serialize'))
+		{
+			$data = '';
+		}
+		else if (is_array($data))
+		{
+			foreach ($data as &$oneData)
+			{
+				static::filterResponseData($oneData);
+			}
+		}
 	}
 }

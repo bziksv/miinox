@@ -1,38 +1,11 @@
-<?
+<?php
+
 use Bitrix\Catalog;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/general/cataloggroup.php");
 
 class CCatalogGroup extends CAllCatalogGroup
 {
-	public static function GetByID($ID, $lang = LANGUAGE_ID)
-	{
-		$ID = (int)$ID;
-		if ($ID <= 0)
-			return false;
-
-		global $DB, $USER;
-
-		$strUserGroups = (CCatalog::IsUserExists() ? $USER->GetGroups() : '2');
-
-		$strSql =
-			"SELECT CG.ID, CG.NAME, CG.BASE, CG.SORT, CG.XML_ID, ".
-			"CG.CREATED_BY, CG.MODIFIED_BY, ".$DB->DateToCharFunction('CG.TIMESTAMP_X', 'FULL').' as TIMESTAMP_X, '.$DB->DateToCharFunction('CG.DATE_CREATE', 'FULL')." as DATE_CREATE, ".
-			"CGL.NAME as NAME_LANG, IF(CGG.ID IS NULL, 'N', 'Y') as CAN_ACCESS,  IF(CGG1.ID IS NULL, 'N', 'Y') as CAN_BUY ".
-			"FROM b_catalog_group CG ".
-			"	LEFT JOIN b_catalog_group2group CGG ON (CG.ID = CGG.CATALOG_GROUP_ID AND CGG.GROUP_ID IN (".$strUserGroups.") AND CGG.BUY <> 'Y') ".
-			"	LEFT JOIN b_catalog_group2group CGG1 ON (CG.ID = CGG1.CATALOG_GROUP_ID AND CGG1.GROUP_ID IN (".$strUserGroups.") AND CGG1.BUY = 'Y') ".
-			"	LEFT JOIN b_catalog_group_lang CGL ON (CG.ID = CGL.CATALOG_GROUP_ID AND CGL.LANG = '".$DB->ForSql($lang)."') ".
-			"WHERE CG.ID = ".$ID." GROUP BY CG.ID, CG.NAME, CG.BASE, CG.SORT, CG.XML_ID, CG.CREATED_BY, CG.MODIFIED_BY, CG.TIMESTAMP_X, CG.DATE_CREATE, ".
-			"CGL.NAME, IF(CGG.ID IS NULL, 'N', 'Y'),  IF(CGG1.ID IS NULL, 'N', 'Y')";
-
-		$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		if ($res = $db_res->Fetch())
-			return $res;
-
-		return false;
-	}
-
 	public static function Add($arFields)
 	{
 		global $DB, $CACHE_MANAGER;
@@ -54,14 +27,14 @@ class CCatalogGroup extends CAllCatalogGroup
 		$arInsert = $DB->PrepareInsert("b_catalog_group", $arFields);
 
 		$strSql = "INSERT INTO b_catalog_group(".$arInsert[0].") VALUES(".$arInsert[1].")";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 
 		$groupID = (int)$DB->LastID();
 
 		foreach ($arFields["USER_GROUP"] as &$intValue)
 		{
 			$strSql = "INSERT INTO b_catalog_group2group(CATALOG_GROUP_ID, GROUP_ID, BUY) VALUES(".$groupID.", ".$intValue.", 'N')";
-			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 		}
 		if (isset($intValue))
 			unset($intValue);
@@ -69,7 +42,7 @@ class CCatalogGroup extends CAllCatalogGroup
 		foreach ($arFields["USER_GROUP_BUY"] as &$intValue)
 		{
 			$strSql = "INSERT INTO b_catalog_group2group(CATALOG_GROUP_ID, GROUP_ID, BUY) VALUES(".$groupID.", ".$intValue.", 'Y')";
-			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 		}
 		if (isset($intValue))
 			unset($intValue);
@@ -80,7 +53,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			{
 				$strSql =
 					"INSERT INTO b_catalog_group_lang(CATALOG_GROUP_ID, LANG, NAME) VALUES(".$groupID.", '".$DB->ForSql($key)."', '".$DB->ForSql($value)."')";
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 			}
 		}
 
@@ -132,7 +105,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			}
 
 			$strSql = "UPDATE b_catalog_group SET ".$strUpdate." WHERE ID = ".$ID;
-			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 		}
 
 		if (isset($arFields["USER_GROUP"]) && is_array($arFields["USER_GROUP"]) && !empty($arFields["USER_GROUP"]))
@@ -141,7 +114,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			foreach ($arFields["USER_GROUP"] as &$intValue)
 			{
 				$strSql = "INSERT INTO b_catalog_group2group(CATALOG_GROUP_ID, GROUP_ID, BUY) VALUES(".$ID.", ".$intValue.", 'N')";
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 			}
 			if (isset($intValue))
 				unset($intValue);
@@ -153,7 +126,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			foreach ($arFields["USER_GROUP_BUY"] as &$intValue)
 			{
 				$strSql = "INSERT INTO b_catalog_group2group(CATALOG_GROUP_ID, GROUP_ID, BUY) VALUES(".$ID.", ".$intValue.", 'Y')";
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 			}
 			if (isset($intValue))
 				unset($intValue);
@@ -166,7 +139,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			{
 				$strSql =
 					"INSERT INTO b_catalog_group_lang(CATALOG_GROUP_ID, LANG, NAME) VALUES(".$ID.", '".$DB->ForSql($key)."', '".$DB->ForSql($value)."')";
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 			}
 		}
 
@@ -289,13 +262,13 @@ class CCatalogGroup extends CAllCatalogGroup
 		);
 
 		$arFields["CAN_ACCESS"] = array(
-			"FIELD" => "IF(CGG.ID IS NULL, 'N', 'Y')",
+			"FIELD" => "CASE WHEN CGG.ID IS NULL THEN 'N' ELSE 'Y' END",
 			"TYPE" => "char",
 			"FROM" => "LEFT JOIN b_catalog_group2group CGG ON (CG.ID = CGG.CATALOG_GROUP_ID AND CGG.GROUP_ID IN (".$strUserGroups.") AND CGG.BUY <> 'Y')",
 			"GROUPED" => "N"
 		);
 		$arFields["CAN_BUY"] = array(
-			"FIELD" => "IF(CGG1.ID IS NULL, 'N', 'Y')",
+			"FIELD" => "CASE WHEN CGG1.ID IS NULL THEN 'N' ELSE 'Y' END",
 			"TYPE" => "char",
 			"FROM" => "LEFT JOIN b_catalog_group2group CGG1 ON (CG.ID = CGG1.CATALOG_GROUP_ID AND CGG1.GROUP_ID IN (".$strUserGroups.") AND CGG1.BUY = 'Y')",
 			"GROUPED" => "N"
@@ -315,7 +288,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			if (!empty($arSqls["HAVING"]))
 				$strSql .= " HAVING ".$arSqls["HAVING"];
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -348,7 +321,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			if (!empty($arSqls["HAVING"]))
 				$strSql_tmp .= " HAVING ".$arSqls["HAVING"];
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if (empty($arSqls["GROUPBY"]))
 			{
@@ -370,7 +343,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			{
 				$strSql .= " LIMIT ".$intTopCount;
 			}
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 		}
 
 		return $dbRes;
@@ -424,7 +397,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			if (!empty($arSqls["HAVING"]))
 				$strSql .= " HAVING ".$arSqls["HAVING"];
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -457,7 +430,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			if (!empty($arSqls["HAVING"]))
 				$strSql_tmp .= " HAVING ".$arSqls["HAVING"];
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if (empty($arSqls["GROUPBY"]))
 			{
@@ -479,7 +452,7 @@ class CCatalogGroup extends CAllCatalogGroup
 			{
 				$strSql .= " LIMIT ".$intTopCount;
 			}
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 		}
 
 		return $dbRes;
@@ -508,7 +481,7 @@ class CCatalogGroup extends CAllCatalogGroup
 		if (!empty($arSqls["ORDERBY"]))
 			$strSql .= " ORDER BY ".$arSqls["ORDERBY"];
 
-		return $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		return $DB->Query($strSql);
 	}
 
 	public static function GetLangList($arFilter = array())
@@ -535,7 +508,7 @@ class CCatalogGroup extends CAllCatalogGroup
 		if (!empty($arSqls["ORDERBY"]))
 			$strSql .= " ORDER BY ".$arSqls["ORDERBY"];
 
-		return $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		return $DB->Query($strSql);
 	}
 
 	protected static function clearBaseGroupFlag(?int $id, array $fields): void
@@ -554,8 +527,8 @@ class CCatalogGroup extends CAllCatalogGroup
 		$parsedData = $DB->PrepareUpdate('b_catalog_group', $data);
 
 		$query = 'UPDATE b_catalog_group SET '.$parsedData.' WHERE ';
-		$query .= $id !== null ? 'ID !='.$id.' and BASE = \'Y\'' : 'BASE = \'Y\'';
-		$DB->Query($query, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$query .= $id !== null ? 'ID != '.$id.' and BASE = \'Y\'' : 'BASE = \'Y\'';
+		$DB->Query($query);
 
 		Catalog\GroupTable::cleanCache();
 		Catalog\Model\Price::clearSettings();

@@ -1,11 +1,13 @@
 // @flow
 
-import {Dom, Tag, Type} from 'main.core';
+import { Dom, Event, Tag, Type } from 'main.core';
 import ProgressBarColor from './progressbar-color';
 import ProgressBarSize from './progressbar-size';
 import ProgressBarStatus from './progressbar-status';
 
-type ProgressBarOptions = {
+import './css/style.css';
+
+export type ProgressBarOptions = {
 	value: number;
 	maxValue: number;
 	color: ProgressBarColor;
@@ -20,9 +22,11 @@ type ProgressBarOptions = {
 	fill: boolean;
 	finished: boolean;
 	rotation: boolean;
+	infiniteLoading: boolean;
 };
 
-export class ProgressBar {
+export class ProgressBar
+{
 	static Color = ProgressBarColor;
 	static Size = ProgressBarSize;
 	static Status = ProgressBarStatus;
@@ -44,12 +48,14 @@ export class ProgressBar {
 		this.textBefore = Type.isString(this.options.textBefore) ? this.options.textBefore : null;
 		this.textBeforeContainer = null;
 		this.textAfter = Type.isString(this.options.textAfter) ? this.options.textAfter : null;
+		this.clickAfterCallback = Type.isFunction(this.options.clickAfterCallback) ? this.options.clickAfterCallback : null;
 		this.textAfterContainer = null;
 		this.statusType = Type.isString(this.options.statusType) ? this.options.statusType : BX.UI.ProgressBar.Status.NONE;
 		this.size = (Type.isStringFilled(this.options.size) || Type.isNumber(this.options.size)) ? this.options.size : BX.UI.ProgressBar.Size.MEDIUM;
 		this.colorTrack = Type.isString(this.options.colorTrack) ? this.options.colorTrack : null;
 		this.colorBar = Type.isString(this.options.colorBar) ? this.options.colorBar : null;
 		this.color = Type.isString(this.options.color) ? this.options.color : BX.UI.ProgressBar.Color.PRIMARY;
+		this.infiniteLoading = Type.isBoolean(this.options.infiniteLoading) ? this.options.infiniteLoading : false;
 
 		// this.setStatusType(options.statusType);
 		// this.setColorTrack(options.colorTrack);
@@ -222,17 +228,19 @@ export class ProgressBar {
 		if (Type.isStringFilled(text))
 		{
 			this.textBefore = text;
-			if (!this.textBeforeContainer)
+			if (this.textBeforeContainer)
 			{
-				this.createTextBefore(text);
+				Dom.adjust(this.textBeforeContainer, {
+					html: text,
+				});
 			}
 			else
 			{
-				Dom.adjust(this.textBeforeContainer, {
-					html: text
-				});
+				this.createTextBefore(text);
 			}
 		}
+
+		return this;
 	}
 
 	createTextBefore(text: string)
@@ -255,32 +263,59 @@ export class ProgressBar {
 		return this.textBeforeContainer;
 	}
 
+	setClickAfterCallback(callback: Function): this
+	{
+		if (Type.isFunction(this.clickAfterCallback))
+		{
+			Event.unbind(this.textAfterContainer, 'click', this.clickAfterCallback);
+		}
+		this.clickAfterCallback = callback;
+
+		return this;
+	}
+
 	setTextAfter(text: string): this
 	{
 		if (Type.isStringFilled(text))
 		{
 			this.textAfter = text;
-			if (!this.textAfterContainer)
+			if (this.textAfterContainer)
 			{
-				this.createTextAfter(text);
+				Dom.adjust(this.textAfterContainer, {
+					text,
+				});
 			}
 			else
 			{
-				Dom.adjust(this.textAfterContainer, {
-					html: text
-				});
+				this.createTextAfter(text);
+			}
+
+			if (this.clickAfterCallback)
+			{
+				Event.unbind(this.textAfterContainer, 'click', this.clickAfterCallback);
+				Event.bind(this.textAfterContainer, 'click', this.clickAfterCallback);
 			}
 		}
 	}
 
+	clearTextAfter(): this
+	{
+		Dom.remove(this.textAfterContainer);
+		this.textAfterContainer = null;
+
+		return this;
+	}
+
 	createTextAfter(text: string)
 	{
-		if ((!this.textAfterContainer) && Type.isStringFilled(text))
+		if (this.textAfterContainer || !Type.isStringFilled(text))
 		{
-			this.textAfterContainer = Tag.render`
-				<div class="ui-progressbar-text-after">${text}</div>
-			`;
+			return;
 		}
+
+		this.textAfterContainer = Tag.render`
+			<div class="ui-progressbar-text-after">${text}</div>
+		`;
 	}
 
 	getTextAfter()
@@ -411,6 +446,7 @@ export class ProgressBar {
 			this.setFill(this.fill);
 			this.setColorTrack(this.colorTrack);
 			this.setColorBar(this.colorBar);
+			this.setTextAfter(this.textAfter);
 		}
 	}
 
@@ -419,8 +455,12 @@ export class ProgressBar {
 		if (this.bar === null)
 		{
 			this.bar = Dom.create("div", {
-				props: {className: "ui-progressbar-bar"},
-				style: {width: `${this.getStatusPercent()}%`}
+				props: {
+					className: `${this.infiniteLoading ? "ui-progressbar-bar infinite-loading" : "ui-progressbar-bar"}`
+				},
+				style: {
+					width: `${this.getStatusPercent()}%`
+				}
 			});
 		}
 

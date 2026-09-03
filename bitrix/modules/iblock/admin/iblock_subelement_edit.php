@@ -22,6 +22,10 @@ global $adminSidePanelHelper;
 Loader::includeModule('iblock');
 
 $request = Context::getCurrent()->getRequest();
+if (!$request->isAjaxRequest() && !$request->isPost())
+{
+	LocalRedirect('/');
+}
 
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 $publicMode = defined("SELF_FOLDER_URL");
@@ -62,8 +66,6 @@ $strProductName = '';
 
 if (isset($_REQUEST['PRODUCT_NAME']) && trim($_REQUEST['PRODUCT_NAME']) != '')
 {
-	CUtil::decodeURIComponent($_REQUEST['PRODUCT_NAME']);
-	CUtil::decodeURIComponent($_POST['PRODUCT_NAME']);
 	$strProductName = trim($_REQUEST['PRODUCT_NAME']);
 }
 
@@ -560,10 +562,19 @@ do{ //one iteration loop
 		{
 			foreach ($PROP[$k1] as $prop_value_id => $prop_value)
 			{
+				$filePropDescr = null;
+				if (isset($_POST["DESCRIPTION_PROP"][$k1][$prop_value_id]))
+				{
+					$filePropDescr = $_POST["DESCRIPTION_PROP"][$k1][$prop_value_id];
+				}
+				elseif (isset($_POST["PROP_descr"][$k1][$prop_value_id]))
+				{
+					$filePropDescr = $_POST["PROP_descr"][$k1][$prop_value_id];
+				}
 				$PROP[$k1][$prop_value_id] = CIBlock::makeFilePropArray(
 					$PROP[$k1][$prop_value_id],
 					($PROP_del[$k1][$prop_value_id] ?? 'N') === "Y",
-					$_POST["DESCRIPTION_PROP"][$k1][$prop_value_id] ?? $_POST["PROP_descr"][$k1][$prop_value_id]
+					$filePropDescr
 				);
 			}
 		}
@@ -806,21 +817,41 @@ do{ //one iteration loop
 			{
 				$bs = new CIBlockElement();
 
+				if (array_key_exists('SUB_PREVIEW_PICTURE', $_FILES))
+				{
+					$pictureFile = $_FILES['SUB_PREVIEW_PICTURE'];
+				}
+				else
+				{
+					$pictureFile = $_REQUEST['SUB_PREVIEW_PICTURE'] ?? null;
+				}
 				$arPREVIEW_PICTURE = CIBlock::makeFileArray(
-					array_key_exists("SUB_PREVIEW_PICTURE", $_FILES)? $_FILES["SUB_PREVIEW_PICTURE"]: $_REQUEST["SUB_PREVIEW_PICTURE"],
-					${"SUB_PREVIEW_PICTURE_del"} === "Y",
-					${"SUB_PREVIEW_PICTURE_descr"}
+					$pictureFile,
+					(${"SUB_PREVIEW_PICTURE_del"} ?? null) === "Y",
+					(${"SUB_PREVIEW_PICTURE_descr"} ?? null)
 				);
-				if ($arPREVIEW_PICTURE["error"] == 0)
-					$arPREVIEW_PICTURE["COPY_FILE"] = "Y";
+				if (is_array($arPREVIEW_PICTURE) && ($arPREVIEW_PICTURE['error'] ?? 0) === 0)
+				{
+					$arPREVIEW_PICTURE['COPY_FILE'] = 'Y';
+				}
 
+				if (array_key_exists('SUB_DETAIL_PICTURE', $_FILES))
+				{
+					$pictureFile = $_FILES['SUB_DETAIL_PICTURE'];
+				}
+				else
+				{
+					$pictureFile = $_REQUEST['SUB_DETAIL_PICTURE'] ?? null;
+				}
 				$arDETAIL_PICTURE = CIBlock::makeFileArray(
-					array_key_exists("SUB_DETAIL_PICTURE", $_FILES)? $_FILES["SUB_DETAIL_PICTURE"]: $_REQUEST["SUB_DETAIL_PICTURE"],
-					${"SUB_DETAIL_PICTURE_del"} === "Y",
-					${"SUB_DETAIL_PICTURE_descr"}
+					$pictureFile,
+					(${"SUB_DETAIL_PICTURE_del"} ?? null) === "Y",
+					(${"SUB_DETAIL_PICTURE_descr"} ?? null)
 				);
-				if ($arDETAIL_PICTURE["error"] == 0)
-					$arDETAIL_PICTURE["COPY_FILE"] = "Y";
+				if (is_array($arDETAIL_PICTURE) && ($arDETAIL_PICTURE['error'] ?? 0) === 0)
+				{
+					$arDETAIL_PICTURE['COPY_FILE'] = 'Y';
+				}
 
 				$textIndex = ($bSubCopy ? $copyID : $ID);
 				$arFields = array(
@@ -1282,7 +1313,7 @@ else
 	{
 		CJSCore::Init(array('window','translit'));
 		?>
-		<script type="text/javascript">
+		<script>
 		var linked=<?if ($bLinked) echo 'true'; else echo 'false';?>;
 		function set_linked()
 		{
@@ -1514,7 +1545,7 @@ if (COption::GetOptionString("iblock", "show_xml_id", "N")=="Y")
 		$tabControl->BeginCustomField("SUB_XML_ID", GetMessage("IBLOCK_FIELD_XML_ID") . ":", $arIBlock["FIELDS"]["XML_ID"]["IS_REQUIRED"] === "Y");
 		?><tr id="tr_SUB_XML_ID">
 		<td><span id="hint_SUB_XML_ID"></span>
-			<script type="text/javascript">
+			<script>
 				BX.hint_replace(BX('hint_SUB_XML_ID'), '<?=CUtil::JSEscape(htmlspecialcharsbx(GetMessage('IB_SE_FIELD_HINT_XML_ID')))?>');
 			</script> <?=$tabControl->GetCustomLabelHTML(); ?></td>
 		<td>
@@ -1542,7 +1573,7 @@ if(!empty($PROP)):
 			?>
 			<tr id="tr_PROPERTY_<?echo $prop_fields["ID"];?>"<?if ($prop_fields["PROPERTY_TYPE"]=="F"):?> class="adm-detail-file-row"<?endif?>>
 				<td class="adm-detail-valign-top" width="40%"><?if($prop_fields["HINT"]!=""):
-					?><span id="hint_<?=$ID.'_'.$prop_fields["ID"];?>"></span><script type="text/javascript">BX.hint_replace(BX('hint_<?=$ID.'_'.$prop_fields["ID"];?>'), '<?echo CUtil::JSEscape(htmlspecialcharsbx($prop_fields["HINT"]))?>');</script>&nbsp;<?
+					?><span id="hint_<?=$ID.'_'.$prop_fields["ID"];?>"></span><script>BX.hint_replace(BX('hint_<?=$ID.'_'.$prop_fields["ID"];?>'), '<?echo CUtil::JSEscape(htmlspecialcharsbx($prop_fields["HINT"]))?>');</script>&nbsp;<?
 					endif;?><?echo $tabControl->GetCustomLabelHTML();?>:</td>
 				<td width="60%"><?_ShowPropertyField('PROP['.$prop_fields["ID"].']', $prop_fields, $prop_fields["VALUE"], (($historyId <= 0) && (!$bVarsFromForm) && ($ID<=0)), $bVarsFromForm, 50000, $tabControl->GetFormName());?></td>
 			</tr>

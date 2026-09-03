@@ -19,7 +19,7 @@ $idAttr = preg_replace('/[^a-z0-9\\-_]/i', '_', $id);
 
 $arGadgetParams = BXGadget::getGadgetSettings($id, $_REQUEST['params'] ?? []);
 
-$arGadgetParams["CNT"] = intval($arGadgetParams["CNT"]);
+$arGadgetParams["CNT"] = intval($arGadgetParams["CNT"] ?? 0);
 if($arGadgetParams["CNT"] > 50)
 {
 	$arGadgetParams["CNT"] = 0;
@@ -35,9 +35,7 @@ if(
 	CMain::FinalActions();
 }
 
-?>
-<?php
-if($arGadgetParams["RSS_URL"]=="")
+if (empty($arGadgetParams["RSS_URL"]))
 {
 	?><div class="gdrsserror"><?=GetMessage("GD_RSS_READER_NEW_RSS")?></div><?php
 
@@ -100,7 +98,7 @@ if($rss)
 			<div class="gdrssitemtitle">&raquo; <a href="javascript:void(0)" onclick="ShowHide<?=$idAttr?>('z<?=$cnt.md5($item["TITLE"])?><?=$idAttr?>')"><?=htmlspecialcharsEx($item["TITLE"])?></a></div>
 			<div class="gdrssitemdetail" id="z<?=$cnt.md5($item["TITLE"])?><?=$idAttr?>" style="display:none">
 				<div class="gdrssitemdate"><?=htmlspecialcharsEx($item["PUBDATE"])?></div>
-				<div class="gdrssitemdesc"><?=$item["DESCRIPTION"]?> <?php if(isset($arGadgetParams["SHOW_URL"]) && $arGadgetParams["SHOW_URL"]=="Y" && preg_match("'^(http://|https://|ftp://)'i", $item["LINK"])):?><a href="<?=htmlspecialcharsbx($item["LINK"])?>"><?echo GetMessage("GD_RSS_READER_RSS_MORE")?></a><?endif?></div>
+				<div class="gdrssitemdesc"><?=$item["DESCRIPTION"]?> <?php if(isset($arGadgetParams["SHOW_URL"]) && $arGadgetParams["SHOW_URL"]=="Y" && preg_match("'^(http://|https://|ftp://)'i", $item["LINK"])):?><a href="<?=htmlspecialcharsbx($item["LINK"])?>"><?= GetMessage("GD_RSS_READER_RSS_MORE")?></a><?php endif?></div>
 			</div>
 		</div><?php
 	}

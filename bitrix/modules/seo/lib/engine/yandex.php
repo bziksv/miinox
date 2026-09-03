@@ -1,21 +1,19 @@
-<?
+<?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage seo
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2026 Bitrix
  */
 
 namespace Bitrix\Seo\Engine;
 
-use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\Context;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\Json;
 use Bitrix\Seo\Engine;
 use Bitrix\Seo\IEngine;
-use Bitrix\Main\Text;
-use Bitrix\Main\Text\Converter;
 
 class Yandex extends Engine\YandexBase implements IEngine
 {
@@ -55,7 +53,6 @@ class Yandex extends Engine\YandexBase implements IEngine
 	private static $verificationTypes = array('DNS', 'HTML_FILE', 'META_TAG', 'WHOIS', 'TXT_FILE');
 	
 	protected $engineId = 'yandex';
-	protected $arServiceList = array();
 	private $userId = NULL;
 	private $hostIds = array();
 	
@@ -180,7 +177,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	
 	private function getSiteInfoGeneral($domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 		
 		$serviceUrl = $this->getServiceUrl($this->userId, $hostId);
@@ -194,7 +191,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	
 	private function getSiteInfoStats($domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 		
 		$serviceUrl = $this->getServiceUrl($this->userId, $hostId, self::API_SUMMARY_URL);
@@ -216,7 +213,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	 */
 	public function getSiteInfoQueries($domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 		
 //		get TOTAL_SHOWS
@@ -269,7 +266,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 		
 		foreach($existedDomains as $domain)
 		{
-			$domain['DOMAIN'] = ToLower($domain['DOMAIN']);
+			$domain['DOMAIN'] = mb_strtolower($domain['DOMAIN']);
 
 			if(isset($this->hostIds[$domain['DOMAIN']]))
 			{
@@ -285,7 +282,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	
 	public function getOriginalTexts($domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 		
 		$counter = 0;
@@ -348,7 +345,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	 */
 	public function addOriginalText($text, $domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 
 //		create JSON data in correct format
@@ -373,7 +370,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	 */
 	public function addSite($domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$queryDomain = Context::getCurrent()->getRequest()->isHttps() ? 'https://' . $domain : $domain;
 
 //		create JSON data in correct format
@@ -397,7 +394,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 	 */
 	public function getVerifySiteUin($domain)
 	{
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 		
 		$serviceUrl = $this->getServiceUrl($this->userId, $hostId, self::API_VERIFICATION_URL);
@@ -422,7 +419,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 		if (!in_array($verType, self::$verificationTypes))
 			return array('error' => array('message' => 'incorrect verification type'));
 		
-		$domain = ToLower($domain);
+		$domain = mb_strtolower($domain);
 		$hostId = $this->getHostId($domain);
 		
 		$serviceUrl = $this->getServiceUrl($this->userId, $hostId, self::API_VERIFICATION_URL, array('verification_type' => $verType));
@@ -438,58 +435,7 @@ class Yandex extends Engine\YandexBase implements IEngine
 			throw new Engine\YandexException($queryResult);
 		}
 	}
-	
-	
-	/**
-	 * @deprecated by query
-	 * @param $scope
-	 * @param string $method
-	 * @param null $data
-	 * @param bool $skipRefreshAuth
-	 * @return \CHTTP
-	 */
-	protected function queryOld($scope, $method = "GET", $data = NULL, $skipRefreshAuth = false)
-	{
-		if ($this->engineSettings['AUTH'])
-		{
-			$http = new \CHTTP();
-			$http->setAdditionalHeaders(
-				array(
-					'Authorization' => 'OAuth ' . $this->engineSettings['AUTH']['access_token'],
-				)
-			);
-			$http->setFollowRedirect(false);
-			
-			switch ($method)
-			{
-				case 'GET':
-					$result = $http->get($scope);
-					break;
-				case 'POST':
-					$result = $http->post($scope, $data);
-					break;
-				case 'PUT':
-					$result = $http->httpQuery($method, $scope, $http->prepareData($data));
-					break;
-				case 'DELETE':
-					
-					break;
-			}
-			
-			if ($http->status == 401 && !$skipRefreshAuth)
-			{
-				if ($this->checkAuthExpired())
-				{
-					$this->queryOld($scope, $method, $data, true);
-				}
-			}
-			
-			$http->result = Text\Encoding::convertEncoding($http->result, 'utf-8', LANG_CHARSET);
-			
-			return $http;
-		}
-	}
-	
+
 	/**
 	 * Create HTTP client, set necessary headers and set request
 	 *
@@ -531,5 +477,3 @@ class Yandex extends Engine\YandexBase implements IEngine
 		}
 	}
 }
-
-?>

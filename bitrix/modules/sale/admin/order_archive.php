@@ -659,7 +659,6 @@ if (!empty($orderList))
 		{
 			$arStatusList = false;
 			$fieldValue = "";
-			$fieldValueTmp = "";
 			if(in_array("STATUS_ID", $arVisibleColumns))
 			{
 				if (empty($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]))
@@ -684,17 +683,6 @@ if (!empty($orderList))
 					}
 				}
 
-				$fieldValueTmp .= "[";
-
-				if($saleModulePermissions >= "W")
-					$fieldValueTmp .= '<a href="/bitrix/admin/sale_status_edit.php?ID='.$arOrder["STATUS_ID"].'&lang='.LANGUAGE_ID.'">';
-
-				$fieldValueTmp .= $arOrder["STATUS_ID"];
-
-				if($saleModulePermissions >= "W")
-					$fieldValueTmp .= "</a>";
-
-				$fieldValueTmp .= "] ".$LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]['NAME'];
 				$fieldValue .= '<span id="status_order_'.$arOrder["ID"].'">'.$LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]['NAME'].'</span>';
 				$colorRGB = array();
 				$colorRGB = sscanf($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]['COLOR'], "#%02x%02x%02x");
@@ -707,22 +695,7 @@ if (!empty($orderList))
 									height: 100%;
 								">'.$fieldValue."</div>";
 				}
-				$fieldValueTmp .= "<br />".$arOrder["DATE_STATUS"];
 
-				if((int)($arOrder["EMP_STATUS_ID"]) > 0)
-					$fieldValueTmp .= '<br />'.$formattedUserNames[$arOrder["EMP_STATUS_ID"]];
-
-				$fieldValue .= "
-					new top.BX.CHint({
-						parent: top.BX('status_order_".$arOrder["ID"]."'),
-						show_timeout: 10,
-						hide_timeout: 100,
-						dx: 2,
-						preventHide: true,
-						min_width: 250,
-						hint: '".CUtil::JSEscape($fieldValueTmp)."'
-					});
-				";
 			}
 			$row->AddField("STATUS_ID", $fieldValue);
 		}
@@ -956,7 +929,7 @@ $APPLICATION->SetTitle(Loc::getMessage("SALE_SECTION_TITLE"));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 
 ?>
-<script type="text/javascript">
+<script>
 function fToggleSetItems(setParentId)
 {
 	var elements = document.getElementsByClassName('set_item_' + setParentId);
@@ -1017,7 +990,7 @@ $oFilter->Begin();
 	<tr>
 		<td><?= Loc::getMessage("SALE_F_ORDER_ID"); ?>:</td>
 		<td>
-			<script type="text/javascript">
+			<script>
 				function filter_id_from_Change()
 				{
 					if(document.find_form.filter_order_id_to.value.length<=0)
@@ -1167,7 +1140,7 @@ $oFilter->Begin();
 	<tr>
 		<td><?= Loc::getMessage("SALE_F_ID"); ?>:</td>
 		<td>
-			<script type="text/javascript">
+			<script>
 				function filter_id_from_Change()
 				{
 					if(document.find_form.filter_id_to.value.length<=0)
@@ -1185,7 +1158,7 @@ $oFilter->Begin();
 	<tr>
 		<td><?= Loc::getMessage("SO_PRODUCT_ID"); ?></td>
 		<td>
-			<script type="text/javascript">
+			<script>
 				function FillProductFields(arParams)
 				{
 					if(arParams["id"])

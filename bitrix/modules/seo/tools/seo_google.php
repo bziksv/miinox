@@ -1,6 +1,5 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"] . BX_ROOT . "/modules/main/prolog.php");
 
 if (!$USER->CanDoOperation('seo_tools'))
 {
@@ -15,8 +14,6 @@ use Bitrix\Seo\Webmaster;
 IncludeModuleLangFile(__FILE__);
 Loader::includeModule('seo');
 Loader::includeModule('socialservices');
-
-CUtil::JSPostUnescape();
 
 if (isset($_REQUEST['action']) && check_bitrix_sessid())
 {

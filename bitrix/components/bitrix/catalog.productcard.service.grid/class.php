@@ -229,7 +229,7 @@ class CatalogProductServiceGridComponent
 		return true;
 	}
 
-	public function isAjaxGridAction(Request $request = null): bool
+	public function isAjaxGridAction(?Request $request = null): bool
 	{
 		if ($request === null)
 		{
@@ -549,6 +549,10 @@ class CatalogProductServiceGridComponent
 			'SHOW_PAGESIZE' => false,
 			'SHOW_ACTION_PANEL' => false,
 			'ENABLE_FIELDS_SEARCH' => 'Y',
+			'CONFIG' => [
+				'popupWidth' => 800,
+			],
+			'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
 		];
 	}
 

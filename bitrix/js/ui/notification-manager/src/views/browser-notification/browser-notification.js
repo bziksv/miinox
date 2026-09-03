@@ -1,11 +1,11 @@
 import {Type, Tag, Loc, Dom, Text} from 'main.core';
-import {UI} from 'ui.notification';
+import 'ui.notification';
 import BrowserNotificationAction from './browser-notification-action';
 
 import 'ui.design-tokens';
 import './browser-notification.css';
 
-export default class BrowserNotification extends UI.Notification.Balloon
+export default class BrowserNotification extends BX.UI.Notification.Balloon
 {
 	static KEY_CODE = {
 		ENTER: 13,
@@ -67,6 +67,7 @@ export default class BrowserNotification extends UI.Notification.Balloon
 				<div
 					class="ui-notification-manager-browser-message"
 					onclick="${this.handleContentClick.bind(this)}"
+					oncontextmenu="${this.handleContextClick.bind(this)}"
 				>
 					${this.getIconNode()}
 					<div class="ui-notification-manager-browser-column">
@@ -282,6 +283,16 @@ export default class BrowserNotification extends UI.Notification.Balloon
 		}
 
 		this.close();
+	}
+
+	handleContextClick(event: Event): void
+	{
+		event.preventDefault();
+
+		if (Type.isFunction(this.getData().contextClickHandler))
+		{
+			this.getData().contextClickHandler();
+		}
 	}
 
 	handleUserInputEnter(event: Event): void

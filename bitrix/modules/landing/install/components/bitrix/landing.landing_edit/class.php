@@ -5,12 +5,15 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 }
 
 use \Bitrix\Landing\Hook;
-use Bitrix\Landing\Hook\Page\Theme;
+use \Bitrix\Landing\Hook\Page\Theme;
 use \Bitrix\Landing\Landing;
 use \Bitrix\Landing\Folder;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\Rights;
+use \Bitrix\Landing\Connector;
 use \Bitrix\Landing\TemplateRef;
+use \Bitrix\Landing\Site;
+use Bitrix\Landing\Vibe\Vibe;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Landing\Restriction;
 
@@ -157,13 +160,13 @@ class LandingEditComponent extends LandingBaseFormComponent
 	 */
 	protected function getMeta(): array
 	{
-		$meta = array(
+		$meta = [
 			'title' => '',
 			'description' => '',
 			'og:title' => '',
 			'og:description' => '',
-			'og:image' => ''
-		);
+			'og:image' => '',
+		];
 
 		if ($this->id)
 		{
@@ -183,7 +186,7 @@ class LandingEditComponent extends LandingBaseFormComponent
 			if (isset($hooks['METAMAIN']))
 			{
 				$fields = $hooks['METAMAIN']->getFields();
-				foreach (array('TITLE', 'DESCRIPTION') as $code)
+				foreach (['TITLE', 'DESCRIPTION'] as $code)
 				{
 					if (isset($fields[$code]))
 					{
@@ -273,13 +276,19 @@ class LandingEditComponent extends LandingBaseFormComponent
 			$this->arResult['SPECIAL_TYPE'] = $this->getSpecialTypeSiteByLanding(
 				\Bitrix\Landing\Landing::createInstance($this->id, ['skip_blocks' => true])
 			);
+			$this->arResult['AI_TEXT_AVAILABLE'] = Connector\Ai::isTextAvailable();
+			$this->arResult['AI_TEXT_ACTIVE'] = Connector\Ai::isTextActive();
+			$this->arResult['AI_IMAGE_AVAILABLE'] = Connector\Ai::isImageAvailable();
+			$this->arResult['AI_IMAGE_ACTIVE'] = Connector\Ai::isImageActive();
+			$this->arResult['AI_UNACTIVE_INFO_CODE'] = self::getAiUnactiveInfoCode();
+
 			$this->arResult['LANDINGS'] = $this->arParams['SITE_ID'] > 0
-				? $this->getLandings(array(
-						'filter' => array(
-							'SITE_ID' => $this->arParams['SITE_ID']
-						)
-					))
-				: array();
+				? $this->getLandings([
+						'filter' => [
+							'SITE_ID' => $this->arParams['SITE_ID'],
+						],
+				])
+				: [];
 
 			// if access denied, or not found
 			if (!$this->arResult['LANDING'])
@@ -372,6 +381,9 @@ class LandingEditComponent extends LandingBaseFormComponent
 				$this->arResult['CURRENT_THEME'] = self::DEFAULT_SITE_COLOR;
 			}
 			$this->arResult['CURRENT_THEME'] = self::checkCurrentTheme($this->arResult['CURRENT_THEME']);
+			$this->arResult['IS_AREA'] = TemplateRef::landingIsArea($this->id);
+
+			$this->modifyResultByType();
 		}
 
 		// callback for update landing
@@ -415,7 +427,7 @@ class LandingEditComponent extends LandingBaseFormComponent
 						{
 							$res = Landing::add(array(
 								'SITE_ID' => $siteId,
-								'TITLE' =>  Loc::getMessage('LANDING_CMP_AREA') . ' #' . $i
+								'TITLE' =>  Loc::getMessage('LANDING_CMP_AREA') . ' #' . $i,
 							));
 							if ($res->isSuccess())
 							{
@@ -448,7 +460,7 @@ class LandingEditComponent extends LandingBaseFormComponent
 		{
 			$value = $colors[$params['theme']]['color'] ?? '';
 		}
-		if ($value && $params['value'][0] !== '#')
+		if ($value && $params['value'] && $params['value'][0] !== '#')
 		{
 			$value = '#'.$params['value'];
 		}
@@ -556,5 +568,36 @@ class LandingEditComponent extends LandingBaseFormComponent
 		}
 
 		return $color;
+	}
+
+	protected function modifyResultByType(): array
+	{
+		if ($this->arParams['TYPE'] === Site\Type::SCOPE_CODE_VIBE)
+		{
+			// only simple templates
+			$this->arResult['TEMPLATES'] = array_filter($this->arResult['TEMPLATES'], function ($template)
+			{
+				$mainpageAvailable = [
+					'empty',
+					'sidebar_right',
+					'sidebar_left',
+				];
+
+				return in_array($template['XML_ID'], $mainpageAvailable, true);
+			});
+
+			$otherLandingsInSite = $this->arResult['LANDINGS'];
+			unset($otherLandingsInSite[$this->arParams['LANDING_ID']]);
+			$otherLandingsInSite = array_keys($otherLandingsInSite);
+			$this->arResult['TEMPLATES_REF_DEFAULT'] = $otherLandingsInSite;
+
+			$this->arResult['AI_TEXT_AVAILABLE'] = false;
+			$this->arResult['AI_IMAGE_AVAILABLE'] = false;
+
+			$vibe = Vibe::createBySiteId($this->arParams['SITE_ID']);
+			$this->arResult['VIBE_PUBLIC_URL'] = $vibe?->getUrlPublic();
+		}
+
+		return $this->arResult;
 	}
 }

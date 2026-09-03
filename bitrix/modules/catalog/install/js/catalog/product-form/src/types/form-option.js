@@ -1,12 +1,12 @@
-import {FormElementPosition} from "./form-element-position";
-import type {BasketItem} from "./basket-item";
-import type {BasketMeasure} from "./basket-measure";
-import type {BasketTax} from "./basket-tax";
-import type {DiscountTypes} from "catalog.product-calculator";
-import {FormInputCode} from "./form-input-code";
-import type {FormCompilationOption} from "./form-compilation-option";
-import {FormCompilationType} from "./form-compilation-type";
-import {FormErrorCode} from "./form-error-code";
+import { FormElementPosition } from './form-element-position';
+import type { BasketItem } from './basket-item';
+import type { BasketMeasure } from './basket-measure';
+import type { BasketTax } from './basket-tax';
+import type { DiscountTypes } from 'catalog.product-calculator';
+import { FormInputCode } from './form-input-code';
+import type { FormCompilationOption } from './form-compilation-option';
+import { FormCompilationType } from './form-compilation-type';
+import { FormErrorCode } from './form-error-code';
 
 export type FormOption = {
 	basket: Array<BasketItem>,
@@ -38,14 +38,13 @@ export type FormOption = {
 	compilationFormType: FormCompilationType,
 	compilationFormOption: FormCompilationOption,
 	isBlockedExistedPrice: boolean,
+	isCatalogHidden: boolean,
 	isCatalogDiscountSetEnabled: boolean,
 	isCatalogPriceEditEnabled: boolean,
 	isCatalogPriceSaveEnabled: boolean,
 	fieldHints: {},
-	facebookFailProducts?: Array,
-	isAllowedFacebookRegion: boolean,
 	ownerId: ?number,
 	ownerTypeId: ?number,
 	dialogId: ?string,
 	sessionId: ?number,
-}
+};

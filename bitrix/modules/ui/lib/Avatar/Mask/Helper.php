@@ -30,7 +30,7 @@ class Helper
 				// 'height' => $file['HEIGHT'],
 				// 'size' => $file['FILE_SIZE'],
 				// 'type' => $file['CONTENT_TYPE'],
-				'src' => \CFile::GetFileSRC($file),
+				'src' => Main\UI\FileInputUnclouder::getSrc($file),
 				// 'meta' => $file['META']
 			];
 
@@ -47,7 +47,7 @@ class Helper
 				{
 					$maskId = $metaData['maskInfo']['id'];
 				}
-				else if ($res = Avatar\Mask\ItemToFileTable::getList([
+				else if ($res = Avatar\Model\ItemToFileTable::getList([
 					'select' => ['*'],
 					'filter' => ['FILE_ID' => $fileId],
 					'limit' => 1

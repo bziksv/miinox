@@ -1,5 +1,5 @@
 module.exports = {
-	input: './vue/dev/src/vue-dev.js',
+	input: './ui.vue3.d.ts',
 	namespace: 'BX.Vue3',
 	protected: true,
 	browserslist: true,

@@ -36,11 +36,12 @@ class iblock extends CModule
 	function InstallDB()
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
 
-		if(!$DB->Query("SELECT 'x' FROM b_iblock_type", true))
+		if(!$DB->TableExists('b_iblock_type'))
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/iblock/install/db/mysql/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/iblock/install/db/' . $connection->getType() . '/install.sql');
 		}
 
 		if($this->errors !== false)
@@ -79,7 +80,6 @@ class iblock extends CModule
 
 		$eventManager->registerEventHandler("main", "onVirtualClassBuildList", "iblock", \Bitrix\Iblock\IblockTable::class, "compileAllEntities");
 		//$eventManager->registerEventHandler("landing", "OnBuildSourceList", "iblock", "\\Bitrix\\Iblock\\LandingSource\\Element", "onBuildSourceListHandler");
-
 		unset($eventManager);
 
 		$this->InstallTasks();
@@ -90,6 +90,7 @@ class iblock extends CModule
 	function UnInstallDB($arParams = array())
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
 		$arSQLErrors = array();
 
@@ -106,9 +107,10 @@ class iblock extends CModule
 			{
 				if($arIBlock["VERSION"] == 2)
 				{
-					$arSql[] = "DROP TABLE b_iblock_element_prop_s".$arIBlock["ID"];
-					$arSql[] = "DROP TABLE b_iblock_element_prop_m".$arIBlock["ID"];
+					$arSql[] = "DROP TABLE if exists b_iblock_element_prop_s" . $arIBlock["ID"];
+					$arSql[] = "DROP TABLE if exists b_iblock_element_prop_m" . $arIBlock["ID"];
 				}
+				$arSql[] = "DROP TABLE if exists " . \Bitrix\Iblock\FullIndex\FullText::getTableName($arIBlock["ID"]);
 				$GLOBALS["USER_FIELD_MANAGER"]->OnEntityDelete("IBLOCK_".$arIBlock["ID"]."._SECTION");
 			}
 
@@ -122,7 +124,7 @@ class iblock extends CModule
 			while($arRes = $db_res->Fetch())
 				CFile::Delete($arRes["ID"]);
 
-			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/iblock/install/db/mysql/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/iblock/install/db/".$connection->getType()."/uninstall.sql");
 
 			$this->UnInstallTasks();
 		}
@@ -185,35 +187,29 @@ class iblock extends CModule
 
 	function InstallFiles()
 	{
-		if($_ENV["COMPUTERNAME"]!='BX')
-		{
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/iblock/install/admin', $_SERVER['DOCUMENT_ROOT']."/bitrix/admin");
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/js", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js/", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/images", $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/iblock", true, true);
-			if(file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/public/rss.php"))
-				@copy($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/public/rss.php", $_SERVER["DOCUMENT_ROOT"]."/bitrix/rss.php");
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/themes", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/gadgets", $_SERVER["DOCUMENT_ROOT"]."/bitrix/gadgets", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/panel", $_SERVER["DOCUMENT_ROOT"]."/bitrix/panel", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/tools", $_SERVER["DOCUMENT_ROOT"]."/bitrix/tools", true, true);
-		}
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/iblock/install/admin', $_SERVER['DOCUMENT_ROOT']."/bitrix/admin");
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/js", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js/", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/images", $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/iblock", true, true);
+		if(file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/public/rss.php"))
+			@copy($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/public/rss.php", $_SERVER["DOCUMENT_ROOT"]."/bitrix/rss.php");
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/themes", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/gadgets", $_SERVER["DOCUMENT_ROOT"]."/bitrix/gadgets", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/panel", $_SERVER["DOCUMENT_ROOT"]."/bitrix/panel", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/tools", $_SERVER["DOCUMENT_ROOT"]."/bitrix/tools", true, true);
 		return true;
 	}
 
 	function UnInstallFiles()
 	{
-		if($_ENV["COMPUTERNAME"]!='BX')
-		{
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
-			DeleteDirFilesEx("/bitrix/images/iblock/");//images
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/public/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/");
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/themes/.default/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes/.default");//css
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/panel/iblock/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/panel/iblock/");//css sku
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/tools/iblock/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/tools/iblock/");
-			DeleteDirFilesEx("/bitrix/themes/.default/icons/iblock/");//icons
-			DeleteDirFilesEx("/bitrix/js/iblock/");//javascript
-		}
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
+		DeleteDirFilesEx("/bitrix/images/iblock/");//images
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/public/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/");
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/themes/.default/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes/.default");//css
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/panel/iblock/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/panel/iblock/");//css sku
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/iblock/install/tools/iblock/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/tools/iblock/");
+		DeleteDirFilesEx("/bitrix/themes/.default/icons/iblock/");//icons
+		DeleteDirFilesEx("/bitrix/js/iblock/");//javascript
 		return true;
 	}
 

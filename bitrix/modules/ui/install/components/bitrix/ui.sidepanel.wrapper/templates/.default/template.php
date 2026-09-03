@@ -5,11 +5,13 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+use Bitrix\Main;
 use Bitrix\Main\Web\Json;
 use Bitrix\Intranet\Integration\Templates\Bitrix24\ThemePicker;
+use Bitrix\UI\Toolbar\Facade\Toolbar;
 
-/** @var $this \CBitrixComponentTemplate */
-/** @var \CAllMain $APPLICATION */
+/** @var $this CBitrixComponentTemplate */
+/** @var CMain $APPLICATION */
 /** @var array $arResult*/
 /** @var array $arParams*/
 
@@ -17,7 +19,7 @@ CJSCore::Init();
 $this->addExternalCss($this->GetFolder() . '/template.css');
 $this->addExternalJs($this->GetFolder() . '/template.js');
 
-\Bitrix\Main\UI\Extension::load([
+Main\UI\Extension::load([
 	'sidepanel',
 	'ui.common',
 	'ui.fonts.opensans',
@@ -40,6 +42,31 @@ $this->addExternalJs($this->GetFolder() . '/template.js');
 			}
 		</script>
 		<?php
+	}
+
+	if ($arParams['USE_FAST_WAY_CLOSE_LOADER'])
+	{
+		//The fastest way to close Slider Loader.
+		Main\Page\Asset::getInstance()->setJsToBody(true);
+		Main\Page\Asset::getInstance()->addString("
+				<script>
+				(function() {
+					const slider = (
+						top.BX
+						&& top.BX.SidePanel
+						&& top.BX.SidePanel.Instance.getSliderByWindow(window)
+					);
+					if (slider)
+					{
+						slider.closeLoader();
+						if (slider.setPrintable)
+						{
+							slider.setPrintable(true);
+						}
+					}
+				})();
+				</script>
+			", false, Main\Page\AssetLocation::AFTER_CSS);
 	}
 
 	$APPLICATION->ShowHead();
@@ -97,31 +124,71 @@ $this->addExternalJs($this->GetFolder() . '/template.js');
 
 <?php
 $bodyClass = "ui-page-slider-wrapper";
-if (!$arParams['PLAIN_VIEW'])
-{
-	$bodyClass .= " ui-page-slider-padding";
-}
-
+$bodyClass .= $arParams['PLAIN_VIEW'] ? ' ui-page-slider-plain-view' : ' ui-page-slider-padding';
 $bodyClass .= " template-".(defined('SITE_TEMPLATE_ID') ? SITE_TEMPLATE_ID  : 'def');
+$bodyClass .= defined("AIR_SITE_TEMPLATE") ? ' template-air' : '';
 
 if ($arResult["SHOW_BITRIX24_THEME"] === "Y")
 {
-	$bodyClass .= " bitrix24-".$themePicker->getCurrentBaseThemeId()."-theme";
+	if (method_exists($themePicker, 'getBodyClasses'))
+	{
+		$bodyClass .= ' ' . $themePicker->getBodyClasses();
+	}
+	else
+	{
+		$bodyClass .= " bitrix24-".$themePicker->getCurrentBaseThemeId()."-theme";
+	}
+}
+else if ($arResult["CUSTOM_BACKGROUND_STYLE"])
+{
+	$bodyClass .= " ui-page-slider-wrapper-custom-background";
+	if (empty($this->arResult['DESIGN_SYSTEM_CONTEXT']))
+	{
+		$bodyClass .= " --ui-context-edge-dark";
+	}
+	else
+	{
+		$bodyClass .= ' ' . $this->arResult['DESIGN_SYSTEM_CONTEXT'];
+	}
 }
 else
 {
 	$bodyClass .= " ui-page-slider-wrapper-default-theme";
+
+	if (empty($this->arResult['DESIGN_SYSTEM_CONTEXT']))
+	{
+		$bodyClass .= " --ui-context-content-light";
+	}
+	else
+	{
+		$bodyClass .= ' ' . $this->arResult['DESIGN_SYSTEM_CONTEXT'];
+	}
+}
+
+$bodyStyle = "";
+
+if ($arResult['CUSTOM_BACKGROUND_STYLE'])
+{
+	$backgroundStyle = $arResult["CUSTOM_BACKGROUND_STYLE"];
+	$bodyStyle .= " background: $backgroundStyle;";
 }
 ?>
 <body class="<?= $bodyClass ?> <?php
-$APPLICATION->ShowProperty('BodyClass');?>">
+$APPLICATION->ShowProperty('BodyClass');?>" style="<?= $bodyStyle ?>">
 <?php
 if ($arResult["SHOW_BITRIX24_THEME"] === "Y")
 {
 	$themePicker->showBodyAssets();
 }
+
+$classes = ['ui-slider-page', '--use-ui-toolbar'];
+if (defined('AIR_SITE_TEMPLATE'))
+{
+	$classes[] = '--air --ui-reset-bg-blur';
+}
+
 ?>
-<div class="ui-slider-page"><?php
+<div class="<?=join(' ', $classes)?>"><?php
 		$APPLICATION->AddBufferContent(function() {
 			$content = trim($GLOBALS['APPLICATION']->getViewContent('left-panel-before'));
 			$content .= trim($GLOBALS['APPLICATION']->getViewContent('left-panel'));
@@ -135,59 +202,34 @@ if ($arResult["SHOW_BITRIX24_THEME"] === "Y")
 		})
 	?>
 	<div id="ui-page-slider-content" class="ui-side-panel-content">
-		<div class="pagetitle-above"><?php
-			$APPLICATION->ShowViewContent("above_pagetitle");
-			if ($arParams['USE_TOP_MENU'])
-			{
-				$APPLICATION->IncludeComponent(
-					"bitrix:menu",
-					$arParams['TOP_MENU_TEMPLATE'],
-					$arParams['TOP_MENU_PARAMS'],
-					false
-				);
-			}
-
-		?></div>
-		<div class="ui-side-panel-toolbar<?if (!$arParams['USE_UI_TOOLBAR_MARGIN']):?> --no-margin<?endif?>">
-		<?php
-		if (!isset($arParams['USE_UI_TOOLBAR']) || $arParams['USE_UI_TOOLBAR'] !== 'Y')
-		{
-			?>
-			<div class="ui-side-panel-wrap-title-wrap" style="<?=($arParams['PLAIN_VIEW'] ? 'display: none;' : '')?>">
-				<div class="ui-side-panel-wrap-title-inner-container">
-					<div class="ui-side-panel-wrap-title-menu ui-side-panel-wrap-title-last-item-in-a-row">
-						<?php $APPLICATION->ShowViewContent("pagetitle"); ?>
-					</div>
-					<div class="ui-side-panel-wrap-title">
-						<div class="ui-side-panel-wrap-title-box">
-							<span id="pagetitle" class="ui-side-panel-wrap-title-item">
-								<span class="ui-side-panel-wrap-title-name-item ui-side-panel-wrap-title-name"><?php $APPLICATION->ShowTitle(false); ?></span>
-								<span class="ui-side-panel-wrap-title-edit-button" style="display: none;"></span>
-								<input type="text" class="ui-side-panel-wrap-title-item ui-side-panel-wrap-title-input" style="display: none;">
-							</span>
-							<span class="ui-side-panel-wrap-subtitle-box">
-								<span class="ui-side-panel-wrap-subtitle-item"></span>
-								<span class="ui-side-panel-wrap-subtitle-control"></span>
-							</span>
-						</div>
-						<?php $APPLICATION->ShowViewContent("inside_pagetitle_below"); ?>
-					</div>
-					<?php $APPLICATION->ShowViewContent("inside_pagetitle"); ?>
-				</div>
-			</div>
+		<div class="ui-side-panel-header">
+			<div class="ui-side-panel-menu pagetitle-above"><?php
+				$APPLICATION->showViewContent("above_pagetitle");
+				if ($arParams['USE_TOP_MENU'])
+				{
+					$APPLICATION->IncludeComponent(
+						"bitrix:menu",
+						$arParams['TOP_MENU_TEMPLATE'],
+						$arParams['TOP_MENU_PARAMS'],
+						false
+					);
+				}
+			?></div>
 			<?php
-		}
-		else
-		{
+			if ($arResult['SHOW_TOOLBAR']):
+			?>
+			<div class="ui-side-panel-toolbar<?if (!$arParams['USE_UI_TOOLBAR_MARGIN']):?> --no-margin<?endif?>">
+			<?php
+			Toolbar::removeFullscreenButton();
 			$APPLICATION->IncludeComponent('bitrix:ui.toolbar', '', [
 				'FAVORITES_TITLE_TEMPLATE' => (!empty($arParams['~UI_TOOLBAR_FAVORITES_TITLE_TEMPLATE']) ? $arParams['~UI_TOOLBAR_FAVORITES_TITLE_TEMPLATE'] : ''),
 				'FAVORITES_URL' => (!empty($arParams['UI_TOOLBAR_FAVORITES_URL']) ? $arParams['UI_TOOLBAR_FAVORITES_URL'] : ''),
 			]);
-		}
-		?>
+			?>
+			</div>
+			<?php endif;?>
+			<div class="ui-side-panel-actions ui-side-panel-wrap-below"><? $APPLICATION->showViewContent('below_pagetitle') ?></div>
 		</div>
-		<div class="ui-side-panel-wrap-below"><?php $APPLICATION->ShowViewContent("below_pagetitle")?></div>
-
 		<div class="ui-page-slider-workarea">
 			<div class="ui-side-panel-wrap-sidebar"><?php $APPLICATION->ShowViewContent("sidebar"); ?></div>
 			<?php
@@ -220,7 +262,10 @@ if ($arResult["SHOW_BITRIX24_THEME"] === "Y")
 			</div>
 		</div>
 	</div>
-	<div><?php $APPLICATION->ShowViewContent("below_page")?></div>
+	<div><?php
+		(new Main\Event('ui', 'OnSidepanelBelowPage'))->send();
+		$APPLICATION->ShowViewContent("below_page");
+	?></div>
 	<script>
 		BX.ready(function () {
 			BX.UI.SidePanel.Wrapper.init(<?= Json::encode([

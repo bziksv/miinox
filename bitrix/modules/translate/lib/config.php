@@ -6,6 +6,10 @@ use Bitrix\Main;
 use Bitrix\Translate;
 use Bitrix\Main\Localization\Loc;
 
+/**
+ * @internal
+ */
+
 final class Config
 {
 	public const OPTION_INIT_FOLDERS = 'INIT_FOLDERS';
@@ -56,7 +60,7 @@ final class Config
 			$defs = Main\Config\Option::getDefaults('translate');
 		}
 
-		return $defs[$optionName] ?: null;
+		return !empty($defs[$optionName]) ? $defs[$optionName] : null;
 	}
 
 	/**
@@ -66,7 +70,7 @@ final class Config
 	 */
 	public static function getDefaultLanguages(): array
 	{
-		return ['ru', 'en', 'de'];
+		return ['ru', 'en', 'de', 'kz'];
 	}
 
 	/**
@@ -76,13 +80,7 @@ final class Config
 	 */
 	public static function isUtfMode(): bool 
 	{
-		static $flag;
-		if ($flag === null)
-		{
-			$flag = Main\Application::isUtfMode() || defined('BX_UTF');
-		}
-		
-		return $flag;
+		return true;
 	}
 
 	/**
@@ -140,11 +138,11 @@ final class Config
 	 */
 	public static function getAliasEncoding(string $encoding): ?string 
 	{
-		static $aliasEncoding = array(
+		static $aliasEncoding = [
 			'windows-1250' => 'iso-8859-2',
 			'windows-1252' => 'iso-8859-1',
-		);
-		if(isset($aliasEncoding[$encoding]))
+		];
+		if (isset($aliasEncoding[$encoding]))
 		{
 			return $aliasEncoding[$encoding];
 		}
@@ -181,7 +179,7 @@ final class Config
 			}
 		}
 
-		return $cultureEncoding[$languageId] ?: null;
+		return ($cultureEncoding[$languageId] ?? null) ?: null;
 	}
 
 	/**
@@ -189,7 +187,7 @@ final class Config
 	 *
 	 * @return string[]
 	 */
-	public static function getLanguages(): array 
+	public static function getLanguages(bool $skipCache = false): array
 	{
 		static $languages;
 		if ($languages === null)
@@ -198,11 +196,11 @@ final class Config
 			$iterator = Main\Localization\LanguageTable::getList([
 				'select' => ['ID', 'SORT'],
 				'order' => ['SORT' => 'ASC'],
-				'cache' => ['ttl' => self::CACHE_TTL],
+				'cache' => ['ttl' => $skipCache ? 0 : self::CACHE_TTL],
 			]);
 			while ($row = $iterator->fetch())
 			{
-				$languages[] = $row['ID'];
+				$languages[] = mb_strtolower($row['ID']);
 			}
 		}
 
@@ -228,7 +226,7 @@ final class Config
 			]);
 			while ($row = $iterator->fetch())
 			{
-				$languages[] = $row['ID'];
+				$languages[] = mb_strtolower($row['ID']);
 			}
 		}
 
@@ -242,7 +240,7 @@ final class Config
 	 *
 	 * @return array
 	 */
-	public static function getLanguagesTitle($languageIds): array 
+	public static function getLanguagesTitle(array $languageIds): array
 	{
 		static $cache = [];
 		
@@ -254,7 +252,7 @@ final class Config
 			$iterator = Main\Localization\LanguageTable::getList([
 				'select' => ['ID', 'NAME'],
 				'filter' => [
-					'ID' => $languageIds,
+					'=ID' => $languageIds,
 					'=ACTIVE' => 'Y'
 				],
 				'order' => ['SORT' => 'ASC'],
@@ -262,7 +260,7 @@ final class Config
 			]);
 			while ($row = $iterator->fetch())
 			{
-				$cache[$cacheId][$row['ID']] = $row['NAME'];
+				$cache[$cacheId][mb_strtolower($row['ID'])] = $row['NAME'];
 			}
 		}
 

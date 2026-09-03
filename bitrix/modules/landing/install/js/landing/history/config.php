@@ -8,10 +8,13 @@ return [
 	'css' => 'dist/history.bundle.css',
 	'js' => 'dist/history.bundle.js',
 	'rel' => [
-		'main.core',
-		'landing.pageobject',
-		'landing.ui.highlight',
+		'landing.backend',
+		'landing.env',
 		'landing.main',
+		'landing.pageobject',
+		'landing.tailwind.runtimesync',
+		'landing.ui.highlight',
+		'main.core',
 	],
 	'skip_core' => false,
 ];

@@ -11,6 +11,7 @@ use Bitrix\Catalog\v2\Property\Property;
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Url\ShopBuilder;
+use Bitrix\Catalog\VatTable;
 use Bitrix\Iblock\PropertyEnumerationTable;
 use Bitrix\Iblock\PropertyTable;
 use Bitrix\Main\Loader;
@@ -22,7 +23,6 @@ class BasketItem
 {
 	private const DISCOUNT_TYPE_MONETARY = 1;
 	private const DISCOUNT_TYPE_PERCENTAGE = 2;
-	private const BRAND_PROPERTY_CODE = 'BRAND_FOR_FACEBOOK';
 
 	private $fields;
 	private $detailUrlType;
@@ -63,7 +63,6 @@ class BasketItem
 			'taxIncluded' => 'N',
 			'additionalFields' => [],
 			'properties' => [],
-			'brands' => '',
 			'weight' => 0,
 			'dimensions' => [],
 		];
@@ -203,7 +202,6 @@ class BasketItem
 		$this->setName($this->sku->getName());
 		$this->setType($this->sku->getType());
 		$this->fillProperties();
-		$this->fillBrands();
 		$this->fillMeasureFields();
 		$this->fillTaxFields();
 		$this->fillPriceFields();
@@ -224,41 +222,6 @@ class BasketItem
 		}
 
 		$this->fields['properties'] = $properties;
-	}
-
-	private function fillBrands(): void
-	{
-		/** @var BaseProduct $product */
-		$product = $this->sku->getParent();
-		if (!$product)
-		{
-			return;
-		}
-
-		$property = $product->getPropertyCollection()->findByCode(self::BRAND_PROPERTY_CODE);
-		if (!$property)
-		{
-			return;
-		}
-
-		$userType = \CIBlockProperty::GetUserType($property->getUserType());
-		$userTypeMethod = $userType['GetUIEntityEditorProperty'];
-		$propertySettings = $property->getSettings();
-		$propertyValues = $property->getPropertyValueCollection()->getValues();
-		$description = $userTypeMethod($propertySettings, $propertyValues);
-		$propertyBrandItems = $description['data']['items'];
-
-		$selectedBrandItems = [];
-
-		foreach ($propertyBrandItems as $propertyBrandItem)
-		{
-			if (in_array($propertyBrandItem['VALUE'], $propertyValues, true))
-			{
-				$selectedBrandItems[] = $propertyBrandItem;
-			}
-		}
-
-		$this->fields['brands'] = $selectedBrandItems;
 	}
 
 	private function getFormattedProperty(Property $property): ?array
@@ -358,8 +321,11 @@ class BasketItem
 			$taxId = $this->sku->getIblockInfo()->getVatId();
 		}
 
+		$tax = $taxId ? VatTable::getRowById($taxId) : null;
+
 		$this
 			->setTaxId((int)$taxId)
+			->setTaxRate($tax ? $tax['RATE'] : null)
 			->setTaxIncluded($this->sku->getField('VAT_INCLUDED'))
 		;
 	}
@@ -435,7 +401,7 @@ class BasketItem
 		return $this;
 	}
 
-	public function setName(string $value = null): self
+	public function setName(?string $value = null): self
 	{
 		$this->fields['name'] = $value;
 
@@ -473,7 +439,7 @@ class BasketItem
 		return $this;
 	}
 
-	public function setCustomPriceType(string $value = null): self
+	public function setCustomPriceType(?string $value = null): self
 	{
 		$this->fields['isCustomPrice'] = ($value === 'N') ? 'N' : 'Y';
 
@@ -546,7 +512,7 @@ class BasketItem
 		return $this;
 	}
 
-	public function setTaxIncluded(string $value = null): self
+	public function setTaxIncluded(?string $value = null): self
 	{
 		$this->fields['taxIncluded'] = ($value === 'N') ? 'N' : 'Y';
 
@@ -556,6 +522,13 @@ class BasketItem
 	public function setTaxId(int $value): self
 	{
 		$this->fields['taxId'] = $value;
+
+		return $this;
+	}
+
+	public function setTaxRate(?float $value): self
+	{
+		$this->fields['taxRate'] = $value;
 
 		return $this;
 	}

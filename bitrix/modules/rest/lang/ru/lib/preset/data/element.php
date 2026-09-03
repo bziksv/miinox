@@ -62,13 +62,17 @@ $MESS['REST_INTEGRATION_PATTERNS_7_DESCRIPTION_METHOD_DESCRIPTION'] = 'Отпр�
 $MESS['REST_INTEGRATION_PATTERNS_7_DESCRIPTION_SCOPE_DESCRIPTION'] = '<p>Для отправки нотификаций необходим доступ к разделу Чат и уведомления</p>';
 
 $MESS['REST_INTEGRATION_PATTERNS_8_TITLE'] = 'Опубликовать отчет в живой ленте';
+$MESS['REST_INTEGRATION_PATTERNS_8_TITLE_MSGVER_1'] = 'Опубликовать отчет в живой ленте';
 $MESS['REST_INTEGRATION_PATTERNS_8_DESCRIPTION'] = 'Настройте автопубликацию отчетов из внешней системы прямо в живую ленту своего Битрикс24!';
+$MESS['REST_INTEGRATION_PATTERNS_8_DESCRIPTION_MSGVER_1'] = 'Настройте автопубликацию отчетов из внешней системы прямо в живую ленту своего Битрикс24!';
 $MESS['REST_INTEGRATION_PATTERNS_8_INCOMING_QUERY_INFORMATION_URL'] = 'https://dev.1c-bitrix.ru/rest_help/log/log_blogpost_add.php';
 $MESS['REST_INTEGRATION_PATTERNS_8_INCOMING_QUERY_TITLE'] = 'Параметры';
 $MESS['REST_INTEGRATION_PATTERNS_8_INCOMING_QUERY_ITEMS_VALUE_0'] = 'Автоотчет';
 $MESS['REST_INTEGRATION_PATTERNS_8_INCOMING_QUERY_ITEMS_VALUE_1'] = 'Новый отчет о продажах за месяц';
 $MESS['REST_INTEGRATION_PATTERNS_8_DESCRIPTION_METHOD_DESCRIPTION'] = 'Добавляет пост живой ленты';
+$MESS['REST_INTEGRATION_PATTERNS_8_DESCRIPTION_METHOD_DESCRIPTION_MSGVER_1'] = 'Добавляет пост живой ленты';
 $MESS['REST_INTEGRATION_PATTERNS_8_DESCRIPTION_SCOPE_DESCRIPTION'] = '<p>Для добавления поста необходим доступ к разделу Живая лента</p>';
+$MESS['REST_INTEGRATION_PATTERNS_8_DESCRIPTION_SCOPE_DESCRIPTION_MSGVER_1'] = '<p>Для добавления поста необходим доступ к разделу Живая лента</p>';
 
 $MESS['REST_INTEGRATION_PATTERNS_9_TITLE'] = 'Продвинуть сделку по воронке';
 $MESS['REST_INTEGRATION_PATTERNS_9_DESCRIPTION'] = 'Автоматически продвигайте сделку по воронке продаж, меняя ее стадию обращением из внешней системы!';
@@ -142,7 +146,7 @@ $MESS['REST_INTEGRATION_PATTERNS_18_DESCRIPTION'] = 'Создайте чатбо
 $MESS['REST_INTEGRATION_PATTERNS_18_INCOMING_QUERY_TITLE'] = 'Параметры';
 $MESS['REST_INTEGRATION_PATTERNS_18_INCOMING_QUERY_ITEMS_VALUE_0'] = 'Привет! Я чат-бот!';
 
-$MESS['REST_INTEGRATION_PATTERNS_19_TITLE'] = 'Передавать боту сообщения из чата';
+$MESS['REST_INTEGRATION_PATTERNS_19_TITLE_MSGVER_1'] = 'Передавать боту сообщения из чата';
 $MESS['REST_INTEGRATION_PATTERNS_19_DESCRIPTION'] = 'Создайте чатбота, который будет следить за перепиской в чате и сможет реагировать на ключевые слова';
 $MESS['REST_INTEGRATION_PATTERNS_19_INCOMING_QUERY_TITLE'] = 'Параметры';
 $MESS['REST_INTEGRATION_PATTERNS_19_INCOMING_QUERY_ITEMS_VALUE_0'] = 'Привет! Я чат-бот!';

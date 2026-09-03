@@ -5,6 +5,8 @@
  * @var $arResult array
  */
 
+use Bitrix\Main\Localization\Loc;
+
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
@@ -14,11 +16,12 @@ global $APPLICATION;
 ?>
 <div class="catalog-document-card-wrapper">
 	<div class="catalog-document-card-left">
-		<?
+		<?php
 		$editorParams = [
 			'GUID' => $arResult['FORM']['GUID'],
 			'ENTITY_ID' => $arResult['FORM']['ENTITY_ID'],
 			'ENTITY_TYPE_NAME' => $arResult['FORM']['ENTITY_TYPE_NAME'],
+			'ENTITY_TYPE_TITLE' => Loc::getMessage('DOC_TYPE_SHORT_' . $arResult['DOCUMENT_TYPE']),
 			'ENTITY_FIELDS' => $arResult['FORM']['ENTITY_FIELDS'],
 			'ENTITY_CONFIG' => $arResult['FORM']['ENTITY_CONFIG'],
 			'ENTITY_DATA' => $arResult['FORM']['ENTITY_DATA'],
@@ -45,6 +48,14 @@ global $APPLICATION;
 			'CUSTOM_TOOL_PANEL_BUTTONS' => $arResult['FORM']['CUSTOM_TOOL_PANEL_BUTTONS'],
 			'TOOL_PANEL_BUTTONS_ORDER' => $arResult['FORM']['TOOL_PANEL_BUTTONS_ORDER'],
 			'ENABLE_TOOL_PANEL' => $arResult['FORM']['ENABLE_TOOL_PANEL'],
+
+			// uf
+			'ENABLE_USER_FIELD_CREATION' => $arResult['FORM']['ENABLE_USER_FIELD_CREATION'],
+			'ENABLE_USER_FIELD_MANDATORY_CONTROL' => $arResult['FORM']['ENABLE_USER_FIELD_MANDATORY_CONTROL'],
+			'USER_FIELD_ENTITY_ID' => $arResult['FORM']['USER_FIELD_ENTITY_ID'],
+			'USER_FIELD_PREFIX' => $arResult['FORM']['USER_FIELD_PREFIX'],
+			'USER_FIELD_CREATE_SIGNATURE' => $arResult['FORM']['USER_FIELD_CREATE_SIGNATURE'],
+			'USER_FIELD_CREATE_PAGE_URL' => $arResult['FORM']['USER_FIELD_CREATE_PAGE_URL'],
 		];
 
 		if ($arResult['INCLUDE_CRM_ENTITY_EDITOR']):
@@ -63,7 +74,7 @@ global $APPLICATION;
 					'BX.Crm.EntityEditorControllerFactory:onInitialize'
 				);
 			</script>
-		<?else:
+		<?php else:
 		$componentName = 'bitrix:ui.form';
 		?>
 			<script>
@@ -73,8 +84,8 @@ global $APPLICATION;
 					'BX.UI.EntityEditorControllerFactory:onInitialize'
 				);
 			</script>
-		<?endif;?>
-		<?
+		<?php
+		endif;
 		$APPLICATION->IncludeComponent(
 			$componentName,
 			'',
@@ -84,7 +95,7 @@ global $APPLICATION;
 		?>
 	</div>
 	<div class="catalog-document-card-right">
-		<?
+		<?php
 		if (isset($arResult['RIGHT_COLUMN']))
 		{
 			$APPLICATION->IncludeComponent(

@@ -2,13 +2,13 @@
 
 namespace Bitrix\Iblock\UserField\Types;
 
+use Bitrix\Iblock;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type;
-use Bitrix\Iblock;
 use CDBResult;
-use CUserTypeManager;
 use CIBlockSectionEnum;
+use CUserTypeManager;
 
 /**
  * Class SectionType
@@ -96,7 +96,7 @@ class SectionType extends ElementType
 		{
 			$section = CIBlockSectionEnum::getTreeList(
 				(int)$userField['SETTINGS']['IBLOCK_ID'],
-				$userField['SETTINGS']['ACTIVE_FILTER']
+				$userField['SETTINGS']['ACTIVE_FILTER'] ?? 'N',
 			);
 		}
 		return $section;
@@ -119,6 +119,7 @@ class SectionType extends ElementType
 			return;
 		}
 
+		$userField['MANDATORY'] ??= 'N';
 		$userField['SETTINGS']['IBLOCK_ID'] ??= 0;
 		$userField['SETTINGS']['SHOW_NO_VALUE'] ??= 'Y';
 		$userField['SETTINGS']['DISPLAY'] ??= '';
@@ -147,27 +148,149 @@ class SectionType extends ElementType
 			];
 		}
 
-		$sectionEnumList = CIBlockSectionEnum::getTreeList(
+		$filter = [];
+
+		$checkValue = ($additionalParameters['mode'] ?? '') === self::MODE_VIEW;
+		if ($checkValue)
+		{
+			$currentValues = static::getFieldValue($userField, $additionalParameters);
+			if (!empty($currentValues))
+			{
+				if (is_array($currentValues))
+				{
+					Type\Collection::normalizeArrayValuesByInt($currentValues);
+				}
+				else
+				{
+					$currentValues = (int)$currentValues;
+					if ($currentValues <= 0)
+					{
+						$currentValues = null;
+					}
+				}
+			}
+			if (!empty($currentValues))
+			{
+				$filter['ID'] = $currentValues;
+			}
+			else
+			{
+				$userField['USER_TYPE']['FIELDS'] = $result;
+
+				return;
+			}
+		}
+		$filter['ACTIVE'] = (($userField['SETTINGS']['ACTIVE_FILTER'] ?? 'N') === 'Y');
+
+		if (isset($additionalParameters['SKIP_CHECK_PERMISSIONS']) && $additionalParameters['SKIP_CHECK_PERMISSIONS'])
+		{
+			$filter['CHECK_PERMISSIONS'] = 'N';
+		}
+
+		$sections = self::getElements(
 			(int)$userField['SETTINGS']['IBLOCK_ID'],
-			$userField['SETTINGS']['ACTIVE_FILTER']
+			$filter
 		);
 
-		if(!is_object($sectionEnumList))
+		if (!is_array($sections))
 		{
 			return;
 		}
 
-		while($section = $sectionEnumList->Fetch())
+		if (!empty($currentValues))
 		{
-			$result[$section['ID']] = $section['NAME'];
+			$result = $sections;
+		}
+		else
+		{
+			$result = array_replace($result, $sections);
 		}
 
 		$userField['USER_TYPE']['FIELDS'] = $result;
 	}
 
+	protected static function getElements(int $iblockId, array $additionalFilter = [])
+	{
+		if (self::$iblockIncluded === null)
+		{
+			self::$iblockIncluded = Loader::includeModule('iblock');
+		}
+		if ($iblockId <= 0 || !self::$iblockIncluded)
+		{
+			return null;
+		}
+
+		$additionalFilter['ACTIVE'] ??= false;
+
+		$filter = [
+			'IBLOCK_ID' => $iblockId,
+			'CHECK_PERMISSIONS' => $additionalFilter['CHECK_PERMISSIONS'] ?? 'Y',
+			'MIN_PERMISSION' => \CIBlockRights::PUBLIC_READ,
+		];
+		if ($additionalFilter['ACTIVE'])
+		{
+			$filter['ACTIVE'] = 'Y';
+		}
+		if (isset($additionalFilter['ID']))
+		{
+			$filter['ID'] = $additionalFilter['ID'];
+		}
+
+		$result = [];
+		$iterator = \CIBlockSection::GetList(
+			[
+				'LEFT_MARGIN' => 'ASC',
+			],
+			$filter,
+			false,
+			[
+				'ID',
+				'NAME',
+			]
+		);
+
+		while ($element = $iterator->Fetch())
+		{
+			$result[$element['ID']] = $element['NAME'];
+		}
+		unset($element, $iterator);
+
+		return $result;
+	}
+
 	/**
-	 * @param array $userField
-	 * @param array $additionalParameters
+	 * Returns values for old format group action.
+	 *
+	 * @param array $userField User field description.
+	 * @param array|null $additionalParameters Optional parameters.
+	 * @return array
+	 */
+	public static function getGroupActionData(array $userField, ?array $additionalParameters): array
+	{
+		$result = [];
+		$enum = call_user_func([$userField['USER_TYPE']['CLASS_NAME'], 'getlist'], $userField);
+		if(!$enum)
+		{
+			return $result;
+		}
+
+		while ($item = $enum->GetNext())
+		{
+			$result[] = ['NAME' => $item['VALUE'], 'VALUE' => $item['ID']];
+		}
+		unset(
+			$item,
+			$enum,
+		);
+
+		return $result;
+	}
+
+	/**
+	 * Returns default value, if exists.
+	 *
+	 * @param array $userField User field description.
+	 * @param array $additionalParameters Optional parameters.
 	 * @return array|string
 	 */
 	public static function getDefaultValue(array $userField, array $additionalParameters = [])

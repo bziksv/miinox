@@ -3,13 +3,9 @@
 namespace Bitrix\Fileman\UserField;
 
 use Bitrix\Main\Loader;
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Fileman\UserField\Types\AddressType;
 
 Loader::includeModule('location');
-
-Loc::loadMessages(__FILE__);
 
 class Address extends \Bitrix\Main\UserField\TypeBase
 {
@@ -75,7 +71,7 @@ class Address extends \Bitrix\Main\UserField\TypeBase
 		return AddressType::onBeforeSave($userField, $value);
 	}
 
-	function getSettingsHtml($userField = false, $additionalParameters, $varsFromForm)
+	function getSettingsHtml($userField, $additionalParameters, $varsFromForm)
 	{
 		return AddressType::renderSettings($userField, $additionalParameters, $varsFromForm);
 	}

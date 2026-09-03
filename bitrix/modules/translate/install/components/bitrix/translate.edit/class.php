@@ -27,7 +27,7 @@ class TranslateEditComponent extends Translate\ComponentBase
 	public const TEMPLATE_SOURCE_VIEW = 'source_view';
 
 	/** @var string */
-	private $filePath;
+	private $filePath = '';
 
 	/** @var string */
 	private $viewMode;
@@ -125,7 +125,7 @@ class TranslateEditComponent extends Translate\ComponentBase
 			$this->includeComponentTemplate(self::TEMPLATE_ERROR);
 			return;
 		}
-		if (!Translate\IO\Path::isLangDir($this->filePath) || (mb_substr($this->filePath, -4) !== '.php'))
+		if (!Translate\IO\Path::isLangDir($this->filePath) || !Translate\IO\Path::isPhpFile($this->filePath))
 		{
 			$this->addError(new Error(Loc::getMessage('TR_EDIT_FILE_NOT_LANG', array('#FILE#' => $this->filePath)), self::STATUS_DENIED));
 			$this->includeComponentTemplate(self::TEMPLATE_ERROR);
@@ -259,7 +259,7 @@ class TranslateEditComponent extends Translate\ComponentBase
 	{
 		return
 			(!empty($prefix) ? $prefix. '_' : '').
-			str_replace(['.', '-'], '_', $phraseId).
+			str_replace(['.', '-', ' '], '_', $phraseId).
 			(!empty($suffix) ? '_'.$suffix : '');
 	}
 
@@ -397,9 +397,9 @@ class TranslateEditComponent extends Translate\ComponentBase
 	private function detectPath($inpName = 'file')
 	{
 		// from request
-		$path = $this->request->get($inpName);
+		$path = $this->request->get($inpName) ?? '';
 
-		if (!empty($path) && !preg_match("#\.\.[\\/]#".\BX_UTF_PCRE_MODIFIER, $path))
+		if (!empty($path) && !preg_match("#\.\.[\\/]#u", $path))
 		{
 			$path = Translate\IO\Path::normalize($path);
 			if (Translate\Permission::isAllowPath($path))

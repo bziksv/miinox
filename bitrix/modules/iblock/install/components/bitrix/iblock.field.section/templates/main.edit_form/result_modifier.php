@@ -1,18 +1,34 @@
 <?php
 
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Iblock\UserField\Types\SectionType;
 use Bitrix\Main\Web\Json;
 
+/** @var array $arResult */
+
 if(
-	($arResult['userField']['ENTITY_VALUE_ID'] < 1)
-	&&
-	mb_strlen($arResult['userField']['SETTINGS']['DEFAULT_VALUE'])
+	((int)($arResult['userField']['ENTITY_VALUE_ID'] ?? 0) < 1)
+	&& (int)($arResult['userField']['SETTINGS']['DEFAULT_VALUE'] ?? 0) > 0
 )
 {
 	$arResult['additionalParameters']['VALUE'] =
-		(int)$arResult['userField']['SETTINGS']['DEFAULT_VALUE'];
+		(int)$arResult['userField']['SETTINGS']['DEFAULT_VALUE']
+	;
+}
+
+$availableDisplays = [
+	SectionType::DISPLAY_CHECKBOX,
+	SectionType::DISPLAY_LIST,
+	SectionType::DISPLAY_UI,
+];
+
+if (!in_array($arResult['userField']['SETTINGS']['DISPLAY'], $availableDisplays, true))
+{
+	$arResult['userField']['SETTINGS']['DISPLAY'] = SectionType::DISPLAY_UI;
 }
 
 if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
@@ -30,7 +46,7 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
 
 	$startValue = [];
 
-	if($arUserField['MANDATORY'] !== 'Y')
+	if ((string)($arResult['userField']['MANDATORY'] ?? 'N') !== 'Y')
 	{
 		$itemList[] = $emptyValue;
 	}
@@ -42,11 +58,7 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
 			'VALUE' => $item['ID'],
 		];
 
-		if(
-			($arResult['userField']['ENTITY_VALUE_ID'] <= 0 && $item['DEF'] === 'Y')
-			||
-			in_array((string)$item['ID'], $arResult['value'], true)
-		)
+		if(in_array($item['ID'], $arResult['value']))
 		{
 			$startValue[] = $element;
 		}
@@ -92,7 +104,6 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
 	$arResult['items'] = $items;
 	$arResult['currentValue'] = $currentValue;
 	$arResult['params'] = $params;
-
 }
 elseif($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_LIST)
 {

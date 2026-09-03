@@ -1,4 +1,4 @@
-<?
+<?php
 use \Bitrix\Main\SystemException;
 
 //<title>Ebay</title>
@@ -114,9 +114,6 @@ if (empty($arRunErrors))
 		$strXmlProduct .= "\t\t\t</ProductInformation>\n";
 		$strXmlProduct .= "\t\t</Product>\n";
 		$strXmlProduct .= "\t</Listing>\n";
-
-		if(SITE_CHARSET !=  "UTF-8")
-			$strXmlProduct = $GLOBALS['APPLICATION']->ConvertCharset($strXmlProduct, SITE_CHARSET, "UTF-8");
 
 		@fwrite($fp, $strXmlProduct);
 	}

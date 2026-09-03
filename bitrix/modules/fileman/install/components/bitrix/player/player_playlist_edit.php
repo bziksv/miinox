@@ -1,31 +1,29 @@
 <?
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/interface/init_admin.php");
 
 $bFileMan = CModule::IncludeModule('fileman');
 if(!$bFileMan)
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+	CMain::FinalActions();
 
-CUtil::JSPostUnescape();
 CComponentUtil::__IncludeLang(BX_PERSONAL_ROOT."/components/bitrix/player", "player_playlist_edit.php");
 
 $strWarning = "";
 $menufilename = "";
 $path = Rel2Abs("/", $path);
-$arPath = Array($site, $path);
-$DOC_ROOT = CSite::GetSiteDocRoot($site);
+$arPath = Array($site->getName(), $path);
+$DOC_ROOT = CSite::GetSiteDocRoot($site->getName());
 $abs_path = $DOC_ROOT.$path;
 $bCreate = !file_exists($abs_path);
 
 if (($bCreate && (!$USER->CanDoFileOperation('fm_create_new_file', $arPath) || !$USER->CanDoOperation('fileman_edit_existent_files'))) ||
 (!$bCreate && (!$USER->CanDoFileOperation('fm_edit_existent_file', $arPath) || !$USER->CanDoOperation('fileman_admin_files'))))
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+	CMain::FinalActions();
 
 $arTracks = Array();
 /* * * * * * * * * * * * * * POST * * * * * * * * * * * * * */
-if($REQUEST_METHOD=="POST" && $_REQUEST['save'] == 'Y')
+if($_SERVER['REQUEST_METHOD']=="POST" && $_REQUEST['save'] == 'Y')
 {
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/xml.php");
 	$objXML = new CDataXML();
 
 	$xmlsrc = '<?xml version="1.0" encoding="UTF-8"?>
@@ -53,9 +51,6 @@ if($REQUEST_METHOD=="POST" && $_REQUEST['save'] == 'Y')
 		$arTracks[] = $arTrack;
 	}
 	$xmlsrc .= "\n</trackList>\n</playlist>";
-
-	if (!defined("BX_UTF"))
-		$xmlsrc = $GLOBALS["APPLICATION"]->ConvertCharset($xmlsrc, 'Windows-1251', 'UTF-8');
 
 	if (!check_bitrix_sessid())
 	{
@@ -89,7 +84,6 @@ if($REQUEST_METHOD=="POST" && $_REQUEST['save'] == 'Y')
 
 if (!$bCreate && !isset($_REQUEST['save']))
 {
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/xml.php");
 	$bIncorrectFormat = false;
 	$handle = fopen($abs_path, "r");
 	$size = filesize($abs_path);
@@ -202,8 +196,8 @@ var jsMess = {
 if (!window.style_2 || !window.style_2.parentNode)
 	window.style_2 = jsUtils.loadCSSFile("/bitrix/components/bitrix/player/js/playlist_edit.css");
 </script>
-<script type="text/javascript" src="/bitrix/js/main/dd.js?v=<?=filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/main/dd.js')?>"></script>
-<script type="text/javascript" src="/bitrix/components/bitrix/player/js/playlist_edit.js?v=<?=filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/player/js/playlist_edit.js')?>"></script>
+<script src="/bitrix/js/main/dd.js?v=<?=filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/main/dd.js')?>"></script>
+<script src="/bitrix/components/bitrix/player/js/playlist_edit.js?v=<?=filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/player/js/playlist_edit.js')?>"></script>
 <?
 $TITLE = GetMessage("PLAYLIST_TITLE_".($bCreate ? "CREATE" : "EDIT"));
 $DESCRIPTION = GetMessage('PLAYLIST_TITLE_DESCRIPTION');
@@ -283,7 +277,7 @@ CAdminFileDialog::ShowScript(
 	(
 		"event" => "OpenFD_playlist_video",
 		"arResultDest" => Array("FUNCTION_NAME" => 'BXSaveVideoPath'),
-		"arPath" => Array("SITE" => $site, 'PATH' => $aMenuLinksItem[1]),
+		"arPath" => Array("SITE" => $site->getName(), 'PATH' => $aMenuLinksItem[1]),
 		"select" => 'F',// F - file only, D - folder only
 		"operation" => 'O',// O - open, S - save
 		"showUploadTab" => true,
@@ -300,7 +294,7 @@ CAdminFileDialog::ShowScript(
 	(
 		"event" => "OpenFD_playlist_image",
 		"arResultDest" => Array("FUNCTION_NAME" => 'BXSaveImagePath'),
-		"arPath" => Array("SITE" => $site, 'PATH' => $aMenuLinksItem[1]),
+		"arPath" => Array("SITE" => $site->getName(), 'PATH' => $aMenuLinksItem[1]),
 		"select" => 'F',// F - file only, D - folder only
 		"operation" => 'O',// O - open, S - save
 		"showUploadTab" => true,
@@ -313,7 +307,7 @@ CAdminFileDialog::ShowScript(
 );
 ?>
 
-<script type="text/javascript">
+<script>
 window.onload = function ()
 {
 	if (!window.oPlaylistDialog)

@@ -2,6 +2,7 @@
 
 namespace Bitrix\Catalog\Controller;
 
+use Bitrix\Main\Config\Option;
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Component\ImageInput;
@@ -10,6 +11,7 @@ use Bitrix\Catalog\ProductTable;
 use Bitrix\Catalog\StoreBarcodeTable;
 use Bitrix\Catalog\UI\PropertyProduct;
 use Bitrix\Catalog\v2\Barcode\Barcode;
+use Bitrix\Catalog\Product\Price\Calculation;
 use Bitrix\Catalog\v2\BaseIblockElementEntity;
 use Bitrix\Catalog\v2\Image\DetailImage;
 use Bitrix\Catalog\v2\Image\MorePhotoImage;
@@ -242,7 +244,18 @@ class ProductSelector extends JsonController
 			return null;
 		}
 
-		return $product->getSkuCollection()->getFirst();
+		return $product->getSkuCollection()->getFirst([$this, 'isActiveSku']);
+	}
+
+	/**
+	 * Filter for select first active offer.
+	 *
+	 * @param BaseSku $sku
+	 * @return bool
+	 */
+	public function isActiveSku(BaseSku $sku): bool
+	{
+		return $sku->isActive();
 	}
 
 	private function prepareResponse(BaseSku $sku, array $options = []): ?array
@@ -276,10 +289,7 @@ class ProductSelector extends JsonController
 			if (!empty($options['currency']) && $options['currency'] !== $currency)
 			{
 				$basePrice = \CCurrencyRates::ConvertCurrency($price, $currency, $options['currency']);
-				$currencyFormat = \CCurrencyLang::GetCurrencyFormat($currency);
-				$decimals = $currencyFormat['DECIMALS'] ?? 2;
-				$basePrice = round($basePrice, $decimals);
-				$price = \CCurrencyLang::CurrencyFormat($basePrice, $currency, false);
+				$price = Calculation::roundByFormatCurrency($basePrice, $options['currency']);
 				$isCustomized = 'Y';
 				$currency = $options['currency'];
 			}
@@ -323,7 +333,10 @@ class ProductSelector extends JsonController
 			'PROPERTIES' => $formFields['properties'],
 			'VAT_ID' => $formFields['taxId'],
 			'VAT_INCLUDED' => $formFields['taxIncluded'],
-			'BRANDS' => $this->getProductBrand($sku),
+			'TAX_RATE' => $formFields['taxRate'],
+			'TAX_RATE_FORMATTED' => $this->formatTaxRate($formFields['taxRate']),
+			'TAX_INCLUDED' => $formFields['taxIncluded'],
+			'TAX_INCLUDED_FORMATTED' => $this->formatTaxIncluded($formFields['taxIncluded']),
 			'WEIGHT' => $formFields['weight'],
 			'DIMENSIONS' => $formFields['dimensions'],
 			'PRODUCT_PROPERTIES' => $productProps,
@@ -368,6 +381,23 @@ class ProductSelector extends JsonController
 		return $response;
 	}
 
+	private function formatTaxRate(?float $rate): string
+	{
+		if ($rate === null)
+		{
+			return Loc::getMessage('PRODUCT_SELECTOR_PRODUCT_NOT_TAX');
+		}
+
+		return $rate . ' %';
+	}
+
+	private function formatTaxIncluded(string $taxIncluded): string
+	{
+		return ($taxIncluded === 'Y')
+			? Loc::getMessage('PRODUCT_SELECTOR_PRODUCT_TAX_INCLUDED')
+			: Loc::getMessage('PRODUCT_SELECTOR_PRODUCT_TAX_NOT_INCLUDED');
+	}
+
 	private function getProductIdByBarcode(string $barcode): ?int
 	{
 		$barcodeRaw = StoreBarcodeTable::getList([
@@ -384,56 +414,31 @@ class ProductSelector extends JsonController
 		return null;
 	}
 
-	private function getProductBrand($sku): ?array
-	{
-		$product = $sku->getParent();
-		if (!$product)
-		{
-			return null;
-		}
-
-		$brand = $product->getPropertyCollection()->findByCode('BRAND_FOR_FACEBOOK');
-		if (!$brand)
-		{
-			return null;
-		}
-
-		$userType = \CIBlockProperty::GetUserType($brand->getUserType());
-		$userTypeMethod = $userType['GetUIEntityEditorProperty'];
-		$propertySettings = $brand->getSettings();
-		$propertyValues = $brand->getPropertyValueCollection()->getValues();
-		$description = $userTypeMethod($propertySettings, $propertyValues);
-		$propertyBrandItems = $description['data']['items'];
-
-		$selectedBrandItems = [];
-
-		foreach ($propertyBrandItems as $propertyBrandItem)
-		{
-			if (in_array($propertyBrandItem['VALUE'], $propertyValues, true))
-			{
-				$selectedBrandItems[] = $propertyBrandItem;
-			}
-		}
-
-		return $selectedBrandItems;
-	}
-
 	private function getProductProperties(BaseSku $sku): array
 	{
-		$columns = PropertyProduct::getColumnNames();
 		$emptyProps = [];
+		$columns = PropertyProduct::getColumnNames();
 		foreach ($columns as $columnName)
 		{
 			$emptyProps[$columnName] = '';
 		}
 
-		$productId = $sku->getParent()->getId();
-		$productIblockId = $sku->getIblockInfo()->getProductIblockId();
-		$productProps = PropertyProduct::getIblockProperties($productIblockId, $productId);
+		$productProps = [];
+		$parent = $sku->getParent();
+		if ($parent)
+		{
+			$productId = $parent->getId();
+			$productIblockId = $sku->getIblockInfo()->getProductIblockId();
+			if ($productId && $productIblockId)
+			{
+				$productProps = PropertyProduct::getIblockProperties($productIblockId, $productId);
+			}
+		}
+		unset($parent);
 
+		$skuProps = [];
 		$skuId = $sku->getId();
 		$skuIblockId = $sku->getIblockId();
-		$skuProps = [];
 		if ($skuId && $skuIblockId)
 		{
 			$skuProps = PropertyProduct::getSkuProperties($skuIblockId, $skuId);
@@ -462,6 +467,8 @@ class ProductSelector extends JsonController
 
 			return null;
 		}
+
+		unset($fields['PREVIEW_PICTURE'], $fields['DETAIL_PICTURE']);
 
 		$skuRepository = ServiceContainer::getSkuRepository($iblockId);
 		$type = $skuRepository ? ProductTable::TYPE_SKU : ProductTable::TYPE_PRODUCT;
@@ -567,6 +574,10 @@ class ProductSelector extends JsonController
 		{
 			$sku->setField('MEASURE', $fields['MEASURE']);
 		}
+		if (Option::get('catalog', 'default_product_vat_included') === 'Y')
+		{
+			$sku->setField('VAT_INCLUDED', ProductTable::STATUS_YES);
+		}
 
 		if (isset($fields['PRICE']) && $fields['PRICE'] >= 0)
 		{
@@ -610,6 +621,8 @@ class ProductSelector extends JsonController
 		{
 			return null;
 		}
+
+		unset($updateFields['PREVIEW_PICTURE'], $updateFields['DETAIL_PICTURE']);
 
 		$repositoryFacade = ServiceContainer::getRepositoryFacade();
 		if (!$repositoryFacade)
@@ -711,7 +724,7 @@ class ProductSelector extends JsonController
 
 		$values = [];
 
-		$property = $entity->getPropertyCollection()->findByCode(MorePhotoImage::CODE);
+		$property = $entity->getPropertyCollection()->findByCodeLazy(MorePhotoImage::CODE);
 		foreach ($imageValues as $key => $newImage)
 		{
 			$newImage = $this->prepareMorePhotoValue($newImage, $entity);
@@ -998,11 +1011,6 @@ class ProductSelector extends JsonController
 		/** @var BaseProduct $parentProduct */
 		$parentProduct = $sku->getParent();
 
-		if (isset($fields['BRANDS']) && is_array($fields['BRANDS']))
-		{
-			$parentProduct->getPropertyCollection()->setValues(['BRAND_FOR_FACEBOOK' => $fields['BRANDS']]);
-		}
-
 		if (isset($sectionId))
 		{
 			$parentProduct->setField('IBLOCK_SECTION_ID', $sectionId);
@@ -1107,7 +1115,7 @@ class ProductSelector extends JsonController
 		return $imageField->getFormattedField();
 	}
 
-	public function getFileInputAction(int $iblockId, int $skuId = null): ?Response\Component
+	public function getFileInputAction(int $iblockId, ?int $skuId = null): ?Response\Component
 	{
 		$productFactory = ServiceContainer::getProductFactory($iblockId);
 		if (!$productFactory)
@@ -1173,7 +1181,7 @@ class ProductSelector extends JsonController
 		}
 
 		$item = $selectedItems[0];
-		if ($item['hidden'] === true)
+		if (($item['hidden'] ?? null) === true)
 		{
 			return null;
 		}

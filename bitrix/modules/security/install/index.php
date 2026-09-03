@@ -1,8 +1,15 @@
-<?
+<?php
+
+use Bitrix\Main\Application;
+
+if(class_exists("security"))
+{
+	return;
+}
+
 IncludeModuleLangFile(__FILE__);
 
-if(class_exists("security")) return;
-Class security extends CModule
+class security extends CModule
 {
 	var $MODULE_ID = "security";
 	var $MODULE_VERSION;
@@ -11,12 +18,13 @@ Class security extends CModule
 	var $MODULE_DESCRIPTION;
 	var $MODULE_CSS;
 	var $MODULE_GROUP_RIGHTS = "Y";
+	var $errors;
 
 	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		include(__DIR__.'/version.php');
+		include __DIR__ . '/version.php';
 
 		$this->MODULE_VERSION = $arModuleVersion["VERSION"];
 		$this->MODULE_VERSION_DATE = $arModuleVersion["VERSION_DATE"];
@@ -103,14 +111,15 @@ Class security extends CModule
 	function InstallDB($arParams = array())
 	{
 		global $DB, $APPLICATION;
+
+		$connection = Application::getConnection();
 		$this->errors = false;
 
 		// Database tables creation
-		if(!$DB->Query("SELECT 'x' FROM b_sec_iprule WHERE 1=0", true))
+		if (!$DB->TableExists('b_sec_filter_mask'))
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/db/mysql/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/security/install/db/' . $connection->getType() . '/install.sql');
 		}
-
 
 		if($this->errors !== false)
 		{
@@ -122,9 +131,11 @@ Class security extends CModule
 			$this->InstallTasks();
 
 			RegisterModule("security");
-			RegisterModuleDependences("main", "OnUserDelete", "security", "CSecurityUser", "OnUserDelete");
+			RegisterModuleDependences("main", "OnAfterUserDelete", "security", "CSecurityUser", "onUserDelete");
+			RegisterModuleDependences("main", "OnAfterUserUpdate", "security", "CSecurityUser", "onAfterUserUpdate");
 			RegisterModuleDependences("main", "OnEventLogGetAuditTypes", "security", "CSecurityFilter", "GetAuditTypes");
 			RegisterModuleDependences("main", "OnEventLogGetAuditTypes", "security", "CSecurityAntiVirus", "GetAuditTypes");
+			RegisterModuleDependences("main", "OnEventLogGetAuditTypes", "security", '\Bitrix\Security\Mfa\Otp', "getAuditTypes");
 			RegisterModuleDependences("main", "OnAdminInformerInsertItems", "security", "CSecurityFilter", "OnAdminInformerInsertItems");
 			RegisterModuleDependences("main", "OnAdminInformerInsertItems", "security", "CSecuritySiteChecker", "OnAdminInformerInsertItems");
 			CModule::IncludeModule("security");
@@ -162,15 +173,19 @@ Class security extends CModule
 	function UnInstallDB($arParams = array())
 	{
 		global $DB, $APPLICATION;
+
+		$connection = Application::getConnection();
 		$this->errors = false;
 
 		UnRegisterModuleDependences("main", "OnPageStart", "security", "CSecurityIPRule", "OnPageStart");
 		UnRegisterModuleDependences("main", "OnBeforeProlog", "security", "CSecurityFilter", "OnBeforeProlog");
 		UnRegisterModuleDependences("main", "OnEndBufferContent", "security", "CSecurityXSSDetect", "OnEndBufferContent");
 		UnRegisterModuleDependences("main", "OnBeforeUserLogin", "security", "CSecurityUser", "OnBeforeUserLogin");
-		UnRegisterModuleDependences("main", "OnUserDelete", "security", "CSecurityUser", "OnUserDelete");
+		UnRegisterModuleDependences("main", "OnAfterUserDelete", "security", "CSecurityUser", "onUserDelete");
+		UnRegisterModuleDependences("main", "OnAfterUserUpdate", "security", "CSecurityUser", "onAfterUserUpdate");
 		UnRegisterModuleDependences("main", "OnEventLogGetAuditTypes", "security", "CSecurityFilter", "GetAuditTypes");
 		UnRegisterModuleDependences("main", "OnEventLogGetAuditTypes", "security", "CSecurityAntiVirus", "GetAuditTypes");
+		UnRegisterModuleDependences("main", "OnEventLogGetAuditTypes", "security", '\Bitrix\Security\Mfa\Otp', "getAuditTypes");
 		UnRegisterModuleDependences("main", "OnBeforeLocalRedirect", "security", "CSecurityRedirect", "BeforeLocalRedirect");
 		UnRegisterModuleDependences("main", "OnEndBufferContent", "security", "CSecurityRedirect", "EndBufferContent");
 		UnRegisterModuleDependences("main", "OnAdminInformerInsertItems", "security", "CSecurityFilter", "OnAdminInformerInsertItems");
@@ -183,7 +198,7 @@ Class security extends CModule
 
 		if(!array_key_exists("save_tables", $arParams) || $arParams["save_tables"] != "Y")
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/db/mysql/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/db/".$connection->getType()."/uninstall.sql");
 			$this->UnInstallTasks();
 		}
 
@@ -200,37 +215,43 @@ Class security extends CModule
 
 	function InstallEvents()
 	{
-		global $DB;
-		$sIn = "'VIRUS_DETECTED'";
-		$rs = $DB->Query("SELECT count(*) C FROM b_event_type WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		$ar = $rs->Fetch();
-		if($ar["C"] <= 0)
+		$dbEvent = CEventMessage::GetList('', '', ['EVENT_NAME' => 'VIRUS_DETECTED']);
+		if (!$dbEvent->Fetch())
 		{
-			include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/events.php");
+			include __DIR__ . "/events.php";
 		}
 		return true;
 	}
 
 	function UnInstallEvents()
 	{
-		global $DB;
-		$sIn = "'VIRUS_DETECTED'";
-		$DB->Query("DELETE FROM b_event_message WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		$DB->Query("DELETE FROM b_event_type WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$eventTypes = [
+			'VIRUS_DETECTED',
+			'USER_OTP_AUTH_CODE',
+			'USER_OTP_EMAIL_CONFIRM',
+		];
+		foreach ($eventTypes as $eventType)
+		{
+			$dbEvent = CEventMessage::GetList('id', 'asc', ['EVENT_NAME' => $eventType]);
+			while ($arEvent = $dbEvent->Fetch())
+			{
+				CEventMessage::Delete($arEvent['ID']);
+			}
+			CEventType::Delete($eventType);
+		}
+
 		return true;
 	}
 
 	function InstallFiles($arParams = array())
 	{
-		if($_ENV["COMPUTERNAME"]!='BX')
-		{
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/otp", $_SERVER["DOCUMENT_ROOT"]."/bitrix/otp", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/js/security", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js/security", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/images", $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/security", false, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/themes", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", True, True);
-		}
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/otp", $_SERVER["DOCUMENT_ROOT"]."/bitrix/otp", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/js/security", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js/security", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/images", $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/security", false, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/themes", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/security/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", True, True);
+
 		return true;
 	}
 
@@ -248,7 +269,8 @@ Class security extends CModule
 
 	function DoInstall()
 	{
-		global $DB, $DOCUMENT_ROOT, $APPLICATION, $step;
+		global $APPLICATION, $step;
+
 		$SEC_RIGHT = $APPLICATION->GetGroupRight("security");
 		if($SEC_RIGHT >= "W")
 		{
@@ -272,7 +294,8 @@ Class security extends CModule
 
 	function DoUninstall()
 	{
-		global $DB, $DOCUMENT_ROOT, $APPLICATION, $step;
+		global $APPLICATION, $step;
+
 		$SEC_RIGHT = $APPLICATION->GetGroupRight("security");
 		if($SEC_RIGHT >= "W")
 		{
@@ -311,11 +334,5 @@ Class security extends CModule
 			)
 		);
 		return $arr;
-	}
-
-	public function migrateToBox()
-	{
-		CModule::IncludeModule('security');
-		CSecuritySession::deactivate();
 	}
 }

@@ -18,7 +18,8 @@ CREATE TABLE b_lang
 	SITE_NAME varchar(255),
 	EMAIL varchar(255),
 	CULTURE_ID int,
-	PRIMARY KEY (LID)
+	PRIMARY KEY (LID),
+	INDEX ix_b_lang_def_active (DEF, ACTIVE)
 );
 
 CREATE TABLE b_language
@@ -236,7 +237,9 @@ CREATE TABLE b_user
 	INDEX ix_b_user_activity_date (LAST_ACTIVITY_DATE),
 	INDEX IX_B_USER_XML_ID (XML_ID),
 	INDEX ix_user_last_login(LAST_LOGIN),
-	INDEX ix_user_date_register(DATE_REGISTER)
+	INDEX ix_user_date_register(DATE_REGISTER),
+	INDEX ix_b_user_external_auth_id_active (EXTERNAL_AUTH_ID, ACTIVE),
+	INDEX ix_b_user_personal_birthdate (PERSONAL_BIRTHDATE)
 );
 
 CREATE TABLE b_user_password
@@ -338,7 +341,7 @@ CREATE TABLE b_module_to_module
 
 CREATE TABLE b_agent
 (
-	ID INT not null auto_increment,
+	ID bigint not null auto_increment,
 	MODULE_ID varchar(50),
 	SORT INT not null default '100',
 	NAME text null,
@@ -350,12 +353,13 @@ CREATE TABLE b_agent
 	IS_PERIOD char(1) default 'Y',
 	USER_ID INT,
 	RUNNING char(1) not null default 'N',
-	RETRY_COUNT int,
+	RETRY_COUNT int not null default 0,
 	PRIMARY KEY (ID),
-	INDEX ix_act_next_exec(ACTIVE, NEXT_EXEC),
 	INDEX ix_agent_user_id(USER_ID),
 	INDEX ix_agent_name(NAME(100)),
-	INDEX ix_agent_act_period_next_exec(ACTIVE, IS_PERIOD, NEXT_EXEC)
+	INDEX ix_agent_act_period_next_exec(ACTIVE, IS_PERIOD, NEXT_EXEC),
+	INDEX ix_agent_next_exec(NEXT_EXEC),
+	INDEX ix_agent_module_act(MODULE_ID, ACTIVE)
 );
 
 CREATE TABLE b_file
@@ -384,7 +388,7 @@ CREATE TABLE b_file_duplicate
 	COUNTER int not null default 1,
 	ORIGINAL_DELETED char(1) not null default 'N',
 	primary key (DUPLICATE_ID, ORIGINAL_ID),
-	index ix_file_duplicate_duplicate(ORIGINAL_ID)
+	index ix_file_duplicate_original_del(ORIGINAL_ID, ORIGINAL_DELETED)
 );
 
 CREATE TABLE b_file_hash
@@ -489,7 +493,8 @@ CREATE TABLE b_user_option
 	VALUE mediumtext null,
 	COMMON char(1) not null default 'N',
 	PRIMARY KEY (ID),
-	UNIQUE INDEX ux_user_category_name(USER_ID, CATEGORY, NAME)
+	UNIQUE INDEX ux_user_category_name(USER_ID, CATEGORY, NAME),
+	INDEX ix_b_user_option_category_name (CATEGORY, NAME)
 );
 
 CREATE TABLE b_captcha
@@ -532,7 +537,7 @@ CREATE TABLE b_user_field_lang
 	PRIMARY KEY (USER_FIELD_ID, LANGUAGE_ID)
 );
 
-CREATE TABLE if not exists b_user_field_enum
+CREATE TABLE b_user_field_enum
 (
 	ID int not null auto_increment,
 	USER_FIELD_ID int,
@@ -541,15 +546,16 @@ CREATE TABLE if not exists b_user_field_enum
 	SORT int not null default 500,
 	XML_ID varchar(255) not null,
 	PRIMARY KEY (ID),
-	UNIQUE ux_user_field_enum(USER_FIELD_ID, XML_ID)
+	UNIQUE ux_user_field_enum(USER_FIELD_ID, XML_ID),
+	INDEX ix_b_user_field_enum_def (DEF)
 );
 
 CREATE TABLE b_user_field_permission
 (
 	ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	ENTITY_TYPE_ID TINYINT UNSIGNED NOT NULL,
+	ENTITY_TYPE_ID INT NOT NULL,
 	USER_FIELD_ID INT UNSIGNED NOT NULL,
-	ACCESS_CODE VARCHAR(8) NOT NULL,
+	ACCESS_CODE VARCHAR(100) NOT NULL,
 	PERMISSION_ID VARCHAR(32) NOT NULL,
 	VALUE TINYINT UNSIGNED NOT NULL,
 	PRIMARY KEY (ID),
@@ -739,7 +745,8 @@ CREATE TABLE b_rating_voting_reaction
 
 CREATE TABLE b_rating_prepare
 (
-	ID int NULL
+	ID int not null,
+	PRIMARY KEY (ID)
 );
 
 CREATE TABLE b_rating_rule
@@ -814,27 +821,18 @@ insert into b_rating_weight (RATING_FROM, RATING_TO, WEIGHT, COUNT) VALUES (-100
 
 CREATE TABLE b_event_log
 (
-	/*SYSTEM GENERATED*/
-	ID INT not null auto_increment,
-	TIMESTAMP_X timestamp,
-
-	/*CALLER INFO*/
-	SEVERITY VARCHAR(50) not null, /*SECURITY, WARNING, NOTICE*/
-	AUDIT_TYPE_ID VARCHAR(50) not null, /*LOGIN_OK, LOGIN_WRONG_PASSWORD*/
-	MODULE_ID VARCHAR(50) not null, /*main, iblock, main.register */
-	ITEM_ID VARCHAR(255) not null, /*user login, element id*/
-
-	/*FROM $_SERVER*/
+	ID BIGINT not null auto_increment,
+	TIMESTAMP_X datetime,
+	SEVERITY VARCHAR(50) not null,
+	AUDIT_TYPE_ID VARCHAR(50) not null,
+	MODULE_ID VARCHAR(50) not null,
+	ITEM_ID VARCHAR(255) not null,
 	REMOTE_ADDR VARCHAR(40),
-	USER_AGENT TEXT, /*2000 for oracle and mssql*/
-	REQUEST_URI TEXT, /*2000 for oracle and mssql*/
-
-	/*FROM CONSTANTS AND VARIABLES*/
-	SITE_ID CHAR(2), /*if defined*/
-	USER_ID INT, /*if logged in*/
-	GUEST_ID INT, /* if statistics installed*/
-
-	/*ADDITIONAL*/
+	USER_AGENT TEXT,
+	REQUEST_URI TEXT,
+	SITE_ID CHAR(2),
+	USER_ID INT,
+	GUEST_ID INT,
 	DESCRIPTION MEDIUMTEXT,
 	PRIMARY KEY (ID),
 	INDEX ix_b_event_log_time(TIMESTAMP_X),
@@ -877,8 +875,19 @@ CREATE TABLE b_cache_tag
 	RELATIVE_PATH varchar(255),
 	TAG varchar(100),
 	PRIMARY KEY pk_b_cache_tag(ID),
-	INDEX ix_b_cache_tag_0 (SITE_ID, CACHE_SALT, RELATIVE_PATH(50)),
-	INDEX ix_b_cache_tag_1 (TAG)
+	INDEX `ix_init_tag` (`SITE_ID`,`CACHE_SALT`,`RELATIVE_PATH`,`TAG`),
+	INDEX `ix_relative_path` (`RELATIVE_PATH`),
+	INDEX `ix_tag_relative_path` (`TAG`,`RELATIVE_PATH`)
+);
+
+CREATE TABLE b_cache_clean_path
+(
+	`ID` BIGINT NOT NULL AUTO_INCREMENT,
+	`PREFIX` TEXT,
+	`CLEAN_FROM` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`CLUSTER_GROUP` INT NOT NULL DEFAULT 0,
+	PRIMARY KEY (`ID`),
+	INDEX IX_CLEAN(`CLUSTER_GROUP`, `CLEAN_FROM`)
 );
 
 CREATE TABLE b_user_hit_auth
@@ -960,10 +969,10 @@ CREATE TABLE b_user_access
 	PROVIDER_ID varchar(50),
 	ACCESS_CODE varchar(100),
 	PRIMARY KEY (ID),
+	UNIQUE INDEX ux_ua_user_access (USER_ID, ACCESS_CODE),
 	INDEX ix_ua_user_provider (USER_ID, PROVIDER_ID),
-	INDEX ix_ua_user_access (USER_ID, ACCESS_CODE),
-	INDEX ix_ua_access (ACCESS_CODE),
-	INDEX ix_ua_provider (PROVIDER_ID)
+	INDEX ix_ua_provider (PROVIDER_ID),
+	INDEX ix_b_user_access_access_code_user_id (ACCESS_CODE, USER_ID)
 );
 
 insert into b_user_access (USER_ID, PROVIDER_ID, ACCESS_CODE) values (0, 'group', 'G2');
@@ -972,7 +981,8 @@ CREATE TABLE b_user_access_check
 (
 	USER_ID int,
 	PROVIDER_ID varchar(50),
-	UNIQUE ux_uac_user_provider (USER_ID, PROVIDER_ID)
+	DATE_CHECK datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE ux_uac_user_provider_date (USER_ID, PROVIDER_ID, DATE_CHECK)
 );
 
 CREATE TABLE b_user_counter
@@ -1307,8 +1317,8 @@ CREATE TABLE b_consent_user_consent
   ORIGIN_ID VARCHAR(30) DEFAULT NULL,
   ORIGINATOR_ID VARCHAR(30) DEFAULT NULL,
   PRIMARY KEY (ID),
-  INDEX IX_B_CONSENT_USER_CONSENT (AGREEMENT_ID),
-  INDEX IX_CONSENT_USER_CONSENT_USER_ORIGIN (USER_ID, ORIGIN_ID)
+  INDEX IX_CONSENT_USER_CONSENT_USER_ORIGIN (USER_ID, ORIGIN_ID),
+  INDEX ix_b_consent_user_consent_agreement_id_user_id (AGREEMENT_ID, USER_ID)
 );
 
 CREATE TABLE b_consent_agreement
@@ -1410,8 +1420,11 @@ CREATE TABLE b_main_mail_sender
 	IS_CONFIRMED TINYINT NOT NULL DEFAULT 0,
 	IS_PUBLIC TINYINT NOT NULL DEFAULT 0,
 	OPTIONS TEXT NULL,
+	PARENT_MODULE_ID VARCHAR(50) NOT NULL DEFAULT 'main',
+	PARENT_ID INT(18) DEFAULT NULL,
 	PRIMARY KEY (ID),
-	INDEX IX_B_MAIN_MAIL_SENDER_USER_ID (USER_ID, IS_CONFIRMED, IS_PUBLIC)
+	INDEX IX_B_MAIN_MAIL_SENDER_USER_ID (USER_ID, IS_CONFIRMED, IS_PUBLIC),
+	INDEX IX_B_MAIN_MAIL_SENDER_EMAIL (EMAIL)
 );
 
 CREATE TABLE b_main_mail_sender_send_counter
@@ -1553,8 +1566,11 @@ CREATE TABLE b_user_device
 	PLATFORM varchar(25),
 	USER_AGENT varchar(1000),
 	COOKABLE char(1) not null default 'N',
+	APP_PASSWORD_ID int,
 	PRIMARY KEY(ID),
-	INDEX ix_user_device_user(USER_ID, DEVICE_UID)
+	INDEX ix_user_device_user(USER_ID, DEVICE_UID),
+	INDEX ix_b_user_device_user_id_cookable(USER_ID, COOKABLE),
+	INDEX ix_b_user_device_user_id_app_password_id(USER_ID, APP_PASSWORD_ID)
 );
 
 CREATE TABLE b_user_device_login
@@ -1580,4 +1596,104 @@ CREATE TABLE b_geoname
 	LANGUAGE_CODE varchar(35),
 	NAME varchar(600),
 	PRIMARY KEY(ID, LANGUAGE_CODE)
+);
+
+CREATE TABLE b_sidepanel_toolbar
+(
+	ID BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+	USER_ID INT NOT NULL,
+	CONTEXT VARCHAR(50) NOT NULL,
+	COLLAPSED CHAR(1) NOT NULL,
+	CREATED_DATE DATETIME NOT NULL,
+	PRIMARY KEY (ID),
+	UNIQUE UX_SIDEPANEL_TOOLBAR(USER_ID, CONTEXT)
+);
+
+CREATE TABLE b_sidepanel_toolbar_item
+(
+	ID BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+	TOOLBAR_ID BIGINT UNSIGNED NOT NULL,
+	URL VARCHAR(2000) NOT NULL,
+	TITLE varchar(255) NOT NULL,
+	ENTITY_TYPE varchar(50) NOT NULL,
+	ENTITY_ID varchar(50) NOT NULL,
+	CREATED_DATE DATETIME NOT NULL,
+	LAST_USE_DATE DATETIME NOT NULL,
+	PRIMARY KEY (ID),
+	UNIQUE(TOOLBAR_ID, ENTITY_TYPE, ENTITY_ID),
+	INDEX IX_SP_TOOLBAR_ITEM_TOOLBAR_ID_USE_DATE(TOOLBAR_ID, LAST_USE_DATE)
+);
+
+CREATE TABLE b_sec_wwall_rules
+(
+	`ID` INT(11) NOT NULL auto_increment,
+	`DATA` TEXT NUll,
+	`MODULE` VARCHAR(50) not null,
+	`MODULE_VERSION` VARCHAR(20) not null,
+	PRIMARY KEY(`ID`)
+);
+
+CREATE TABLE b_sec_vendor_notification
+(
+	`VENDOR_ID` VARCHAR(50) not null,
+	`DATA` TEXT,
+	PRIMARY KEY(`VENDOR_ID`)
+);
+
+CREATE TABLE b_sec_vendor_notification_sign
+(
+	`ID` INT(11) NOT NULL auto_increment,
+	`USER_ID` INT(11) NOT NULL,
+	`NOTIFICATION_VENDOR_ID` VARCHAR(50) not null,
+	`DATE` DATETIME NOT NULL,
+	PRIMARY KEY(`ID`),
+	UNIQUE(`USER_ID`, `NOTIFICATION_VENDOR_ID`)
+);
+
+CREATE TABLE `b_main_messenger_message`
+(
+	`ID` int NOT NULL AUTO_INCREMENT,
+	`QUEUE_ID` varchar(255) NOT NULL,
+	`ITEM_ID` varchar(255),
+	`CLASS` varchar(255) NOT NULL,
+	`PAYLOAD` text NOT NULL,
+	`CREATED_AT` datetime NOT NULL,
+	`UPDATED_AT` datetime NOT NULL,
+	`TTL` int NOT NULL,
+	`AVAILABLE_AT` datetime NOT NULL,
+	`STATUS` varchar(255) NOT NULL,
+	PRIMARY KEY(`ID`),
+	INDEX IX_QUEUE_ID_STATUS_AVAILABLE_AT (`QUEUE_ID`, `STATUS`, `AVAILABLE_AT`),
+	INDEX IX_STATUS_AVAILABLE_AT (`STATUS`, `UPDATED_AT`)
+);
+
+CREATE TABLE b_persistent_storage (
+	`KEY` varchar(255) NOT NULL,
+	`VALUE` text NOT NULL,
+	`CREATED_AT` datetime NOT NULL,
+	`EXPIRED_AT` datetime NOT NULL,
+	PRIMARY KEY (`KEY`),
+	INDEX `B_PERSISTENT_STORAGE_IX1` (`EXPIRED_AT`)
+);
+
+CREATE TABLE b_feature_flag (
+	`CODE` varchar(255) not null,
+	`MODULE_ID` varchar(50) not null,
+	`ENABLED` char(1) not null default 'N',
+	`MODIFIED_AT` datetime not null,
+	`MODIFIED_BY` int null,
+	PRIMARY KEY (`CODE`),
+	INDEX ix_b_feature_flag_module_id (`MODULE_ID`)
+);
+
+CREATE TABLE b_feature_flag_rule (
+	`ID` int not null auto_increment,
+	`FEATURE_CODE` varchar(255) not null,
+	`POLICY` varchar(10) not null,
+	`RULE_CODE` varchar(255) not null,
+	`RULE_ARGS` varchar(255) null,
+	`MODIFIED_AT` datetime not null,
+	`MODIFIED_BY` int null,
+	PRIMARY KEY (`ID`),
+	INDEX ix_b_feature_flag_rule_feature_code (`FEATURE_CODE`)
 );

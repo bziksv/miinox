@@ -6,6 +6,7 @@ class CForumUser extends CAllForumUser
 	public static function GetList($arOrder = Array("ID"=>"ASC"), $arFilter = Array(), $arAddParams = array())
 	{
 		global $DB;
+		$sqlHelper = \Bitrix\Main\Application::getConnection()->getSqlHelper();
 		$arSqlSearch = array();
 		$arSqlOrder = array();
 		$strSqlSearch = "";
@@ -26,8 +27,12 @@ class CForumUser extends CAllForumUser
 			$val = $arFilter['PERSONAL_BIRTHDAY_DATE'];
 			$strNegative = $key_res["NEGATIVE"];
 			$strOperation = $key_res["OPERATION"];
-			$subQuery .= ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":" U.PERSONAL_BIRTHDAY IS NOT NULL AND ")."(DATE_FORMAT(U.PERSONAL_BIRTHDAY, '%m-%d') ".$strOperation." '".$DB->ForSql($val)."')";
-			$db_sub_res = $DB->Query($subQuery, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$subQuery .= ( $strNegative === "Y"
+					? " U.PERSONAL_BIRTHDAY IS NULL OR NOT "
+					: " U.PERSONAL_BIRTHDAY IS NOT NULL AND ")
+						. "(" . $sqlHelper->formatDate('MM-DD', 'U.PERSONAL_BIRTHDAY')
+						. $strOperation . " '".$DB->ForSql($val)."')";
+			$db_sub_res = $DB->Query($subQuery);
 			$arUserID = array();
 			if ($db_sub_res)
 			{
@@ -109,7 +114,7 @@ class CForumUser extends CAllForumUser
 						$arSqlSearch[] = ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":"")."(U.PERSONAL_BIRTHDAY ".$strOperation." ".$DB->CharToDateFunction($DB->ForSql($val), "SHORT").")";
 					break;
 				case "PERSONAL_BIRTHDAY_DATE":
-					$arSqlSearch[] = ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":"")."(DATE_FORMAT(U.PERSONAL_BIRTHDAY, '%m-%d') ".$strOperation." '".$DB->ForSql($val)."')";
+					$arSqlSearch[] = ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":"")."(" . $sqlHelper->formatDate('MM-DD', 'U.PERSONAL_BIRTHDAY') . $strOperation." '".$DB->ForSql($val)."')";
 					break;
 				case "LAST_VISIT":
 					if($val == '')
@@ -236,7 +241,7 @@ class CForumUser extends CAllForumUser
 					" FROM b_forum_user FU LEFT JOIN b_user U ON (FU.USER_ID = U.ID)"
 				).
 				" WHERE 1 = 1 ".$strSqlSearch;
-			$db_res = $DB->Query($strSqlCount, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSqlCount);
 			if ($db_res && ($res = $db_res->Fetch()))
 				$iCnt = $res["CNT"];
 
@@ -245,7 +250,7 @@ class CForumUser extends CAllForumUser
 		}
 		else
 		{
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 		}
 		return $db_res;
 	}
@@ -253,12 +258,13 @@ class CForumUser extends CAllForumUser
 	public static function GetListEx($arOrder = Array("ID"=>"ASC"), $arFilter = Array())
 	{
 		global $DB;
+		$sqlHelper = \Bitrix\Main\Application::getConnection()->getSqlHelper();
 		$arSqlSearch = array();
 		$arSqlSelect = array();
 		$arSqlFrom = array();
 		$arSqlGroup = array();
 		$arSqlOrder = array();
-		$arSql = array(); 
+		$arSql = array();
 		$strSqlSearch = "";
 		$strSqlSelect = "";
 		$strSqlFrom = "";
@@ -277,44 +283,44 @@ class CForumUser extends CAllForumUser
 			"WORK_PAGER"=>"S", "WORK_STREET"=>"S", "WORK_MAILBOX"=>"S", "WORK_CITY"=>"S", "WORK_STATE"=>"S",
 			"WORK_ZIP"=>"S", "WORK_COUNTRY"=>"I", "WORK_PROFILE"=>"S", "WORK_NOTES"=>"S");
 		$arSqlSelectConst = array(
-			"FU.ID" => "FU.ID", 
-			"USER_ID" => "U.ID", 
-			"FU.SHOW_NAME" => "FU.SHOW_NAME", 
-			"FU.DESCRIPTION" => "FU.DESCRIPTION", 
-			"FU.IP_ADDRESS" => "FU.IP_ADDRESS", 
-			"FU.REAL_IP_ADDRESS" => "FU.REAL_IP_ADDRESS", 
-			"FU.AVATAR" => "FU.AVATAR", 
-			"FU.NUM_POSTS" => "FU.NUM_POSTS", 
-			"NUM_POINTS" => "FU.POINTS", 
-			"FU.INTERESTS" => "FU.INTERESTS", 
-			"FU.SUBSC_GROUP_MESSAGE" => "FU.SUBSC_GROUP_MESSAGE", 
-			"FU.SUBSC_GET_MY_MESSAGE" => "FU.SUBSC_GET_MY_MESSAGE", 
-			"FU.LAST_POST" => "FU.LAST_POST", 
-			"FU.ALLOW_POST" => "FU.ALLOW_POST", 
-			"FU.SIGNATURE" => "FU.SIGNATURE", 
-			"FU.RANK_ID" => "FU.RANK_ID", 
-			"FU.POINTS" => "FU.POINTS", 
-			"FU.HIDE_FROM_ONLINE" => "FU.HIDE_FROM_ONLINE", 
-			"U.DATE_REGISTER" => "U.DATE_REGISTER", 
-			"U.EMAIL" => "U.EMAIL", 
+			"FU.ID" => "FU.ID",
+			"USER_ID" => "U.ID",
+			"FU.SHOW_NAME" => "FU.SHOW_NAME",
+			"FU.DESCRIPTION" => "FU.DESCRIPTION",
+			"FU.IP_ADDRESS" => "FU.IP_ADDRESS",
+			"FU.REAL_IP_ADDRESS" => "FU.REAL_IP_ADDRESS",
+			"FU.AVATAR" => "FU.AVATAR",
+			"FU.NUM_POSTS" => "FU.NUM_POSTS",
+			"NUM_POINTS" => "FU.POINTS",
+			"FU.INTERESTS" => "FU.INTERESTS",
+			"FU.SUBSC_GROUP_MESSAGE" => "FU.SUBSC_GROUP_MESSAGE",
+			"FU.SUBSC_GET_MY_MESSAGE" => "FU.SUBSC_GET_MY_MESSAGE",
+			"FU.LAST_POST" => "FU.LAST_POST",
+			"FU.ALLOW_POST" => "FU.ALLOW_POST",
+			"FU.SIGNATURE" => "FU.SIGNATURE",
+			"FU.RANK_ID" => "FU.RANK_ID",
+			"FU.POINTS" => "FU.POINTS",
+			"FU.HIDE_FROM_ONLINE" => "FU.HIDE_FROM_ONLINE",
+			"U.DATE_REGISTER" => "U.DATE_REGISTER",
+			"U.EMAIL" => "U.EMAIL",
 			"U.NAME" => "U.NAME",
 			"U.SECOND_NAME" => "U.SECOND_NAME",
 			"U.LAST_NAME" => "U.LAST_NAME",
 			"U.LOGIN" => "U.LOGIN",
-			"U.PERSONAL_BIRTHDATE" => "U.PERSONAL_BIRTHDATE", 
-			"U.PERSONAL_ICQ" => "U.PERSONAL_ICQ", 
-			"U.PERSONAL_WWW" => "U.PERSONAL_WWW", 
-			"U.PERSONAL_PROFESSION" => "U.PERSONAL_PROFESSION", 
-			"U.PERSONAL_CITY" => "U.PERSONAL_CITY", 
-			"U.PERSONAL_COUNTRY" => "U.PERSONAL_COUNTRY", 
+			"U.PERSONAL_BIRTHDATE" => "U.PERSONAL_BIRTHDATE",
+			"U.PERSONAL_ICQ" => "U.PERSONAL_ICQ",
+			"U.PERSONAL_WWW" => "U.PERSONAL_WWW",
+			"U.PERSONAL_PROFESSION" => "U.PERSONAL_PROFESSION",
+			"U.PERSONAL_CITY" => "U.PERSONAL_CITY",
+			"U.PERSONAL_COUNTRY" => "U.PERSONAL_COUNTRY",
 			"U.EXTERNAL_AUTH_ID" => "U.EXTERNAL_AUTH_ID",
 			"U.PERSONAL_PHOTO" => "U.PERSONAL_PHOTO",
 			"U.PERSONAL_GENDER" => "U.PERSONAL_GENDER",
 			"DATE_REG" => $DB->DateToCharFunction("FU.DATE_REG", "SHORT"),
 			"LAST_VISIT" => $DB->DateToCharFunction("FU.LAST_VISIT", "FULL"),
 			"PERSONAL_BIRTHDAY" => $DB->DateToCharFunction("U.PERSONAL_BIRTHDAY", "SHORT"),
-			"U.WORK_POSITION" => "U.WORK_POSITION", 
-			"U.WORK_COMPANY" => "U.WORK_COMPANY" 
+			"U.WORK_POSITION" => "U.WORK_POSITION",
+			"U.WORK_COMPANY" => "U.WORK_COMPANY"
 			);
 
 		foreach ($arFilter as $key => $val)
@@ -369,7 +375,7 @@ class CForumUser extends CAllForumUser
 						$arSqlSearch[] = ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":"")."(U.PERSONAL_BIRTHDAY ".$strOperation." ".$DB->CharToDateFunction($DB->ForSql($val), "SHORT").")";
 					break;
 				case "PERSONAL_BIRTHDAY_DATE":
-					$arSqlSearch[] = ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":"")."(DATE_FORMAT(U.PERSONAL_BIRTHDAY, '%m-%d') ".$strOperation." '".$DB->ForSql($val)."')";
+					$arSqlSearch[] = ($strNegative=="Y"?" U.PERSONAL_BIRTHDAY IS NULL OR NOT ":"")."( ". $sqlHelper->formatDate('MM-DD', 'U.PERSONAL_BIRTHDAY') .") ".$strOperation." '".$DB->ForSql($val)."')";
 					break;
 				case "LAST_VISIT":
 					if($val == '')
@@ -442,7 +448,7 @@ class CForumUser extends CAllForumUser
 		{
 			if ($val != $key)
 				$tmp[] = $val." AS ".$key;
-			else 
+			else
 				$tmp[] = $val;
 		}
 		$strSqlSelect = implode(", ", $tmp);
@@ -490,7 +496,7 @@ class CForumUser extends CAllForumUser
 			}
 		}
 
-		DelDuplicateSort($arSqlOrder); 
+		DelDuplicateSort($arSqlOrder);
 		if (count($arSqlOrder) > 0)
 			$strSqlOrder = " ORDER BY ".implode(", ", $arSqlOrder);
 
@@ -502,7 +508,7 @@ class CForumUser extends CAllForumUser
 					".$strSqlSearch."
 					".$strSqlGroup."
 					".$strSqlOrder;
-		$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$db_res = $DB->Query($strSql);
 		return $db_res;
 	}
 
@@ -564,12 +570,12 @@ class CForumUser extends CAllForumUser
 			)";
 
 		$iCnt = 0;
-		if ($arAddParams["bCount"] || is_set($arAddParams, "bDescPageNumbering"))
+		if ((isset($arAddParams["bCount"]) && $arAddParams["bCount"]) || is_set($arAddParams, "bDescPageNumbering"))
 		{
 			$strSql = "SELECT COUNT(U.ID) AS CNT FROM b_user U LEFT JOIN b_forum_user F ON (F.USER_ID = U.ID) WHERE ".$strSqlSearch;
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 			$iCnt = ($db_res && ($res = $db_res->Fetch()) ? intval($res["CNT"]) : 0);
-			if ($arAddParams["bCount"])
+			if (isset($arAddParams["bCount"]) && $arAddParams["bCount"])
 				return $iCnt;
 		}
 
@@ -589,7 +595,7 @@ class CForumUser extends CAllForumUser
 		} else {
 			if ($arAddParams["nTopCount"] > 0)
 				$strSql .= " LIMIT 0,".$arAddParams["nTopCount"];
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 		}
 
 		return $db_res;
@@ -604,13 +610,14 @@ class CForumUser extends CAllForumUser
 	public static function GetNameFieldsForQuery($sNameTemplate, $userTablePrefix = "U.")
 	{
 		global $DB;
+		$sqlHelper = \Bitrix\Main\Application::getConnection()->getSqlHelper();
 		$sNameTemplate = (empty($sNameTemplate) ? CSite::GetDefaultNameFormat() : $sNameTemplate);
-		if (!preg_match("/(#NAME#)|(#LAST_NAME#\,)|(#LAST_NAME#)|(#SECOND_NAME#)|(#NAME_SHORT#)|(#SECOND_NAME_SHORT#)/".BX_UTF_PCRE_MODIFIER, $sNameTemplate, $matches))
+		if (!preg_match("/(#NAME#)|(#LAST_NAME#\,)|(#LAST_NAME#)|(#SECOND_NAME#)|(#NAME_SHORT#)|(#SECOND_NAME_SHORT#)/u", $sNameTemplate, $matches))
 			$sNameTemplate = CSite::GetDefaultNameFormat();
 		if (mb_strpos($sNameTemplate, "#NOBR#") !== false)
-			$sNameTemplate = preg_replace("/\#NOBR\#(.+?)\#\/NOBR\#/".BX_UTF_PCRE_MODIFIER, "\\1", $sNameTemplate);
+			$sNameTemplate = preg_replace("/\#NOBR\#(.+?)\#\/NOBR\#/u", "\\1", $sNameTemplate);
 
-		preg_match_all("/(#NAME#)|(#LAST_NAME#\,)|(#LAST_NAME#)|(#SECOND_NAME#)|(#NAME_SHORT#)|(#SECOND_NAME_SHORT#)/".BX_UTF_PCRE_MODIFIER, $sNameTemplate, $matches);
+		preg_match_all("/(#NAME#)|(#LAST_NAME#\,)|(#LAST_NAME#)|(#SECOND_NAME#)|(#NAME_SHORT#)|(#SECOND_NAME_SHORT#)/u", $sNameTemplate, $matches);
 
 		$tmp = array();
 		foreach($matches[0] as $val) {
@@ -629,11 +636,11 @@ class CForumUser extends CAllForumUser
 				),
 				array(
 					$userTablePrefix."NAME",
-					"IF (LENGTH(TRIM(".$userTablePrefix."LAST_NAME)) <= 0, '', CONCAT(".$userTablePrefix."LAST_NAME, ','))",
+					"case when LENGTH(TRIM(".$userTablePrefix."LAST_NAME)) <= 0 then '' else " . $sqlHelper->getConcatFunction($userTablePrefix.'LAST_NAME', "','") . " END",
 					$userTablePrefix."LAST_NAME",
 					$userTablePrefix."SECOND_NAME",
-					"IF (LENGTH(TRIM(".$userTablePrefix."NAME)) <= 0,'',CONCAT(SUBSTRING(".$userTablePrefix."NAME,1,1),'.'))",
-					"IF (LENGTH(TRIM(".$userTablePrefix."SECOND_NAME)) <= 0,'',CONCAT(SUBSTRING(".$userTablePrefix."SECOND_NAME,1,1),'.'))"
+					"case when LENGTH(TRIM(".$userTablePrefix."NAME)) <= 0 then '' else " . $sqlHelper->getConcatFunction("SUBSTRING(".$userTablePrefix."NAME,1,1)", "'.'") . " END",
+					"case when LENGTH(TRIM(".$userTablePrefix."SECOND_NAME)) <= 0 then '' else " . $sqlHelper->getConcatFunction("SUBSTRING(".$userTablePrefix."SECOND_NAME,1,1)", "'.'") . " END"
 				),
 				$val
 			);
@@ -700,23 +707,24 @@ class CForumRank extends CAllForumRank
 
 		$arInsert = $DB->PrepareInsert("b_forum_rank", $arFields);
 		$strSql = "INSERT INTO b_forum_rank(".$arInsert[0].") VALUES(".$arInsert[1].")";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 		$ID = intval($DB->LastID());
 		foreach ($arFields["LANG"] as $i => $val)
 		{
 			$arInsert = $DB->PrepareInsert("b_forum_rank_lang", $arFields["LANG"][$i]);
 			$strSql = "INSERT INTO b_forum_rank_lang(RANK_ID, ".$arInsert[0].") VALUES(".$ID.", ".$arInsert[1].")";
-			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 		}
 		return $ID;
 	}
 }
 
-class CForumStat extends CALLForumStat 
+class CForumStat extends CALLForumStat
 {
 	public static function GetListEx($arOrder = Array("ID"=>"ASC"), $arFilter = Array(), $arAddParams = array())
 	{
 		global $DB;
+		$sqlHelper = \Bitrix\Main\Application::getConnection()->getSqlHelper();
 		$arSqlSearch = array();
 		$arSqlFrom = array();
 		$arSqlOrder = array();
@@ -774,9 +782,11 @@ class CForumStat extends CALLForumStat
 					if($val == '')
 						$arSqlSearch[] = ($strNegative=="Y"?"NOT":"")."(FSTAT.LAST_VISIT IS NULL)";
 					else
-						$arSqlSearch[] = ($strNegative=="Y"?" FSTAT.LAST_VISIT IS NULL OR NOT ":"").
-							"(FROM_UNIXTIME(UNIX_TIMESTAMP(CURRENT_TIMESTAMP) - ".intval($val).") ".$strOperation."  FSTAT.LAST_VISIT)";
-						break;
+					{
+						$arSqlSearch[] = ($strNegative == "Y" ? " FSTAT.LAST_VISIT IS NULL OR NOT " : "") .
+							'(' . $sqlHelper->addSecondsToDateTime(-intval($val)) . ' ' . $strOperation . "  FSTAT.LAST_VISIT)";
+					}
+					break;
 				case "HIDE_FROM_ONLINE":
 					$arSqlFrom["FU"] = "LEFT JOIN b_forum_user FU ON (FSTAT.USER_ID=FU.USER_ID)";
 					if ($val == '')
@@ -784,7 +794,6 @@ class CForumStat extends CALLForumStat
 					else
 						$arSqlSearch[] = ($strNegative=="Y"?" FU.".$key." IS NULL OR NOT ":"")."(((FU.".$key." ".$strOperation." '".$DB->ForSql($val)."' ) AND (FSTAT.USER_ID > 0)) OR (FSTAT.USER_ID <= 0))";
 					break;
-				break;
 				case "ACTIVE":
 						$arSqlFrom["U"] = "LEFT JOIN b_user U ON (FSTAT.USER_ID=U.ID)";
 						$arSqlSearch[] = ($strNegative=="Y"?" U.".$key." IS NULL OR NOT ":"")."(FSTAT.USER_ID = 0 OR U.ACTIVE = 'Y')";
@@ -851,7 +860,7 @@ class CForumStat extends CALLForumStat
 			"LEFT JOIN b_user U ON (FST.USER_ID = U.ID) ".
 			$strSqlOrder;
 		}
-		$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$db_res = $DB->Query($strSql);
 		return $db_res;
 	}
 }

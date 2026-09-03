@@ -2,18 +2,22 @@
 
 namespace Bitrix\MessageService\Sender\Sms;
 
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Result;
+use Bitrix\MessageService\Providers;
 use Bitrix\MessageService\Providers\Base;
+use Bitrix\MessageService\Providers\CacheManager;
+use Bitrix\MessageService\Providers\Edna\RegionHelper;
 use Bitrix\MessageService\Providers\Edna\WhatsApp;
 use Bitrix\MessageService\Sender;
 
 class Ednaru extends Sender\BaseConfigurable
 {
 	public const ID = 'ednaru';
+	public const DISABLE_INTERNATIONAL = 'disable_international';
 
-	use Sender\Traits\RussianProvider;
-
-	protected \Bitrix\MessageService\Providers\Edna\EdnaRu $utils;
+	protected Providers\Edna\EdnaRu $utils;
 	protected WhatsApp\EmojiConverter $emoji;
 
 	public function __construct()
@@ -22,7 +26,7 @@ class Ednaru extends Sender\BaseConfigurable
 		$this->optionManager = new Base\Option($this->getType(), $this->getId());
 		$this->utils = new WhatsApp\Utils($this->getId(), $this->optionManager);
 		$this->registrar = new WhatsApp\Registrar($this->getId(), $this->optionManager, $this->utils);
-		$this->initiator = new WhatsApp\Initiator($this->optionManager, $this->registrar, $this->utils);
+		$this->initiator = new WhatsApp\Initiator($this->optionManager, $this->registrar, $this->utils, $this->getId());
 		$emojiConverter = new WhatsApp\EmojiConverter();
 		$this->sender = new WhatsApp\Sender($this->optionManager, $this->registrar, $this->utils, $emojiConverter);
 		$this->templateManager = new WhatsApp\TemplateManager($this->getId(), $this->utils, $emojiConverter);
@@ -31,6 +35,32 @@ class Ednaru extends Sender\BaseConfigurable
 	public function isAvailable(): bool
 	{
 		return self::isSupported();
+	}
+
+	public static function isSupported()
+	{
+		if (\Bitrix\Main\Config\Option::get('messageservice', 'force_enable') === 'Y')
+		{
+			return parent::isSupported();
+		}
+
+		/** @todo remove this check and disable option 'disable_international' in next update */
+		if (
+			RegionHelper::isInternational()
+			&& \Bitrix\Main\Application::getInstance()->getLicense()->getRegion() !== 'kz'
+			&& (new \Bitrix\Main\Type\DateTime('2024-05-29 00:00:00', 'Y-m-d H:i:s'))->getTimestamp() > time()
+		)
+		{
+			return false;
+		}
+
+		/** @todo force disable region by */
+		if (\Bitrix\Main\Application::getInstance()->getLicense()->getRegion() === 'by')
+		{
+			return false;
+		}
+
+		return parent::isSupported();
 	}
 
 	public function getId(): string
@@ -55,7 +85,19 @@ class Ednaru extends Sender\BaseConfigurable
 
 	public function register(array $fields): Result
 	{
-		return $this->registrar->register($fields);
+		$result = $this->registrar->register($fields);
+		if ($result->isSuccess())
+		{
+			\Bitrix\Main\Application::getInstance()->addBackgroundJob([$this, 'refreshFromList']);
+			\Bitrix\Main\Application::getInstance()->addBackgroundJob([$this, 'addRefreshFromListAgent']);
+			\CAgent::AddAgent(static::class . "::registerAutoTemplatesAgent();", 'messageservice', 'N', 10);
+		}
+		return $result;
+	}
+
+	public function resetCallback(): Result
+	{
+		return $this->registrar->resetCallback();
 	}
 
 	public function getOwnerInfo(): array
@@ -83,9 +125,22 @@ class Ednaru extends Sender\BaseConfigurable
 		return (new WhatsApp\ConnectorLine($this->utils))->testConnection();
 	}
 
+	/**
+	 * @return array<array{id: int, name: string, channelPhone: string}>
+	 */
 	public function getFromList(): array
 	{
 		return $this->initiator->getFromList();
+	}
+
+	/**
+	 * The agent's goal is regular refreshing FromList.
+	 * @return void
+	 */
+	public function refreshFromList(): void
+	{
+		$this->utils->updateSavedChannelList($this->initiator->getChannelType());
+		$this->utils->clearCache(Providers\CacheManager::CHANNEL_CACHE_ENTITY_ID);
 	}
 
 	public static function resolveStatus($serviceStatus): ?int
@@ -93,9 +148,9 @@ class Ednaru extends Sender\BaseConfigurable
 		return (new WhatsApp\StatusResolver())->resolveStatus($serviceStatus);
 	}
 
-	public function getLineId(): ?int
+	public function getLineId(?int $subjectId = null): ?int
 	{
-		return (new WhatsApp\ConnectorLine($this->utils))->getLineId();
+		return (new WhatsApp\ConnectorLine($this->utils))->getLineId($subjectId);
 	}
 
 	public function getCallbackUrl(): string
@@ -164,4 +219,84 @@ class Ednaru extends Sender\BaseConfigurable
 		return $this;
 	}
 
+	public function sendTemplate(string $name, string $text, array $examples = [], ?string $langCode = null): Result
+	{
+		return $this->utils->sendTemplate($name, $text, $examples, $langCode);
+	}
+
+	/**
+	 * Adds agent for execution.
+	 * @return void
+	 * @see refreshFromListAgent
+	 */
+	public function addRefreshFromListAgent(): void
+	{
+		$cacheManager = new CacheManager($this->getId());
+		$period = (int)ceil( $cacheManager->getTtl(CacheManager::CHANNEL_CACHE_ENTITY_ID) * .9);// async with cache expiration
+
+		\CAgent::AddAgent(static::class . "::refreshFromListAgent();", 'messageservice', 'Y', $period);
+	}
+
+	/**
+	 * The agent's goal is regular refreshing FromList cache.
+	 * @return string
+	 */
+	public static function refreshFromListAgent(): string
+	{
+		$sender = new static();
+		if (!$sender::isSupported() || !$sender->isRegistered())
+		{
+			return '';
+		}
+
+		$sender->refreshFromList();
+
+		return __METHOD__ . '();';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function  checkAutoTemplatesAgent(): string
+	{
+		$sender = new static();
+		if (!$sender::isSupported() || !$sender->isRegistered())
+		{
+			return '';
+		}
+
+		\CAgent::AddAgent(static::class . "::registerAutoTemplatesAgent();", 'messageservice', 'N', 10);
+
+		return '';
+	}
+
+	public static function registerAutoTemplatesAgent(): string
+	{
+		if (!Loader::includeModule('messageservice') || !($languageId = Loc::getCurrentLang()))
+		{
+			return '';
+		}
+
+		$notificationsApiClient = new \Bitrix\Messageservice\ApiClient();
+		$listTemplatesResult = $notificationsApiClient->listAutoTemplates($languageId);
+		if ($listTemplatesResult->isSuccess())
+		{
+			$templates = $listTemplatesResult->getData();
+			$sender = Sender\SmsManager::getSenderById(self::ID);
+			if (!$sender::isSupported() || !$sender->isRegistered())
+			{
+				return '';
+			}
+
+			foreach ($templates as $template)
+			{
+				$template['EXAMPLES'] = is_array($template['EXAMPLES']) ? $template['EXAMPLES'] : [];
+				$sender->sendTemplate($template['NAME'], $template['CONTENT'], $template['EXAMPLES'], $template['LANGUAGE_ID']);
+			}
+
+			\Bitrix\MessageService\Internal\Entity\TemplateTable::refreshTemplates($templates);
+		}
+
+		return '';
+	}
 }

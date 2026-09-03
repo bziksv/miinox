@@ -1,21 +1,24 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
+
 /**
  * @var array $arResult
  * @var array $arParams
  * @var CMain $APPLICATION
- */
+ * @var ?\CUser $user */
+$user = $arParams['USER'] ?? null;
+
 foreach (GetModuleEvents('forum', 'OnCommentFormDisplay', true) as $arEvent)
 {
 	$arExt = ExecuteModuleEventEx($arEvent);
 	if ($arExt !== null)
 	{
 		foreach($arExt as $arTpl)
-			$APPLICATION->AddViewContent(implode('_', array($tplID, 'EDIT', $arTpl['DISPLAY'])), $arTpl['TEXT'], $arTpl['SORT']);
+			$APPLICATION->AddViewContent(implode('_', array($arParams["tplID"], 'EDIT', $arTpl['DISPLAY'])), $arTpl['TEXT'], $arTpl['SORT']);
 	}
 }
 ob_start();
 /* GUEST PANEL */
-if (!$GLOBALS["USER"]->IsAuthorized())
+if ($user?->IsAuthorized() !== true)
 {
 	?>
 	<div class="comments-reply-fields">
@@ -78,12 +81,12 @@ if(!empty($arResult["Smiles"]))
 		?>id="<?=$arParams["FORM_ID"]?>" <?
 		?>name="<?=$arParams["FORM_ID"]?>" <?
 		?>method="POST" enctype="multipart/form-data" class="comments-form">
-		<input type="hidden" name="back_page" value="<?=$arResult["CURRENT_PAGE"]?>" />
 		<input type="hidden" name="ENTITY_XML_ID" value="<?=$arParams["ENTITY_XML_ID"]?>" />
 		<input type="hidden" name="ENTITY_TYPE" value="<?=$arParams["ENTITY_TYPE"]?>" />
 		<input type="hidden" name="ENTITY_ID" value="<?=$arParams["ENTITY_ID"]?>" />
 		<input type="hidden" name="REVIEW_USE_SMILES" value="Y"  />
 		<input type="hidden" name="comment_review" value="Y"  />
+		<input type="hidden" name="SOURCE_ID" value="MOBILE"  />
 	</form>
 <?
 $APPLICATION->IncludeComponent("bitrix:main.post.form",
@@ -124,9 +127,12 @@ $APPLICATION->IncludeComponent("bitrix:main.post.form",
 			array_merge((is_array($arResult["USER_FIELDS"]["UF_FORUM_MESSAGE_DOC"]) ? $arResult["USER_FIELDS"]["UF_FORUM_MESSAGE_DOC"] : array()), (is_array($arParams["USER_FIELDS_SETTINGS"]["UF_FORUM_MESSAGE_DOC"]) ? $arParams["USER_FIELDS_SETTINGS"]["UF_FORUM_MESSAGE_DOC"] : array())),
 		),
 		"SMILES" => array("VALUE" => $arSmiles),
-		"HTML_BEFORE_TEXTAREA" => $APPLICATION->GetViewContent(implode('_', array($tplID, 'EDIT', 'BEFORE'))).$html_before_textarea,
-		"HTML_AFTER_TEXTAREA" => $APPLICATION->GetViewContent(implode('_', array($tplID, 'EDIT', 'AFTER'))).$html_after_textarea,
-		"FORUM_CONTEXT" => (!empty($arParams["POST_CONTENT_TYPE_ID"]) ? $arParams["POST_CONTENT_TYPE_ID"] : '')
+		"HTML_BEFORE_TEXTAREA" => $APPLICATION->GetViewContent(implode('_', array($arParams["tplID"], 'EDIT', 'BEFORE'))).$html_before_textarea,
+		"HTML_AFTER_TEXTAREA" => $APPLICATION->GetViewContent(implode('_', array($arParams["tplID"], 'EDIT', 'AFTER'))).$html_after_textarea,
+		"FORUM_CONTEXT" => (!empty($arParams["POST_CONTENT_TYPE_ID"]) ? $arParams["POST_CONTENT_TYPE_ID"] : ''),
+		"ATTRIBUTES" =>  [
+			...(!empty($arParams["ATTRIBUTES"]) && is_array($arParams["ATTRIBUTES"]) ? $arParams["ATTRIBUTES"] : []),
+		],
 	),
 	false,
 	array("HIDE_ICONS" => "Y")

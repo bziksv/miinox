@@ -1,9 +1,10 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2026 Bitrix
  */
 
 /**
@@ -12,43 +13,45 @@
  * @global CMain $APPLICATION
  * @global CDatabase $DB
  * @global CUserTypeManager $USER_FIELD_MANAGER
- * @global string $by
- * @global string $order
+ * @global CAdminSidePanelHelper $adminSidePanelHelper
  */
 
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "users/user_admin.php");
 $entity_id = "USER";
 
 if(!($USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('edit_all_users') || $USER->CanDoOperation('edit_subordinate_users')))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-use Bitrix\Main\ORM\Fields\Relations\Reference;
-use Bitrix\Main\ORM\Query\Join;
 use Bitrix\Main\UserTable;
 use Bitrix\Main\UserGroupTable;
-use Bitrix\Main\Entity\Query;
+use Bitrix\Main\UserAuthActionTable;
+use Bitrix\Main\UserUtils;
+use Bitrix\Main\ORM\Entity;
+use Bitrix\Main\ORM\Query\Join;
+use Bitrix\Main\ORM\Query\Query;
+use Bitrix\Main\ORM\Fields\Relations\Reference;
+use Bitrix\Main\ORM\Fields\ExpressionField;
 use Bitrix\Main\DB\SqlExpression;
-use Bitrix\Main\Entity\ExpressionField;
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\Type\DateTime;
 
 IncludeModuleLangFile(__FILE__);
 
-//authorize as user
-if(isset($_REQUEST["action"]) && $_REQUEST["action"] == "authorize" && check_bitrix_sessid() && $USER->CanDoOperation('edit_php'))
+if (isset($_REQUEST["action"], $_REQUEST["ID"]) && $_REQUEST["ID"] > 0 && ($_REQUEST["action"] == "authorize" || $_REQUEST["action"] == "logout_user"))
 {
-	$USER->Logout();
-	$USER->Authorize(intval($_REQUEST["ID"] ?? 0), false, true, null, false);
-	LocalRedirect("user_admin.php?lang=".LANGUAGE_ID);
-}
-
-//logout user
-if(isset($_REQUEST["action"]) && $_REQUEST["action"] == "logout_user" && check_bitrix_sessid() && $USER->CanDoOperation('edit_php'))
-{
-	\Bitrix\Main\UserAuthActionTable::addLogoutAction($_REQUEST["ID"] ?? 0);
-	LocalRedirect("user_admin.php?lang=".LANGUAGE_ID);
+	if (check_bitrix_sessid() && $USER->CanDoOperation('edit_php'))
+	{
+		if ($_REQUEST["action"] == "authorize")
+		{
+			$USER->LoginAs((int)$_REQUEST["ID"]);
+		}
+		else
+		{
+			UserAuthActionTable::addLogoutAction($_REQUEST["ID"]);
+		}
+		LocalRedirect("user_admin.php?lang=" . LANGUAGE_ID);
+	}
 }
 
 $sTableID = "tbl_user";
@@ -148,21 +151,20 @@ $lAdmin->AddFilter($filterFields, $arFilter);
 
 $USER_FIELD_MANAGER->AdminListAddFilterV2($entity_id, $arFilter, $sTableID, $filterFields);
 
-$arUserSubordinateGroups = array();
-if(!$USER->CanDoOperation('edit_all_users') && !$USER->CanDoOperation('view_all_users'))
+$arUserSubordinateGroups = [];
+if (!$USER->CanDoOperation('edit_all_users'))
 {
-	$arUserGroups = CUser::GetUserGroup($USER->GetID());
-	for ($j = 0, $len = count($arUserGroups); $j < $len; $j++)
+	$arUserSubordinateGroups = CUser::GetSubordinateGroups();
+
+	if (!$USER->CanDoOperation('view_all_users'))
 	{
-		$arSubordinateGroups = CGroup::GetSubordinateGroups($arUserGroups[$j]);
-		$arUserSubordinateGroups = array_merge ($arUserSubordinateGroups, $arSubordinateGroups);
+		$arFilter["CHECK_SUBORDINATE"] = $arUserSubordinateGroups;
+
+		if ($USER->CanDoOperation('edit_own_profile'))
+		{
+			$arFilter["CHECK_SUBORDINATE_AND_OWN"] = $USER->GetID();
+		}
 	}
-	$arUserSubordinateGroups = array_unique($arUserSubordinateGroups);
-
-	$arFilter["CHECK_SUBORDINATE"] = $arUserSubordinateGroups;
-
-	if($USER->CanDoOperation('edit_own_profile'))
-		$arFilter["CHECK_SUBORDINATE_AND_OWN"] = $USER->GetID();
 }
 
 if (!$USER->CanDoOperation('edit_php'))
@@ -211,7 +213,7 @@ if($lAdmin->EditAction())
 
 		foreach($arFields as $key => $field)
 		{
-			if(!isset($editableFields[$key]) && strpos($key, "UF_") !== 0)
+			if(!isset($editableFields[$key]) && !str_starts_with($key, "UF_"))
 			{
 				unset($arFields[$key]);
 			}
@@ -271,7 +273,6 @@ if(($arID = $lAdmin->GroupAction()) && ($USER->CanDoOperation('edit_all_users') 
 		switch($action)
 		{
 			case "delete":
-				@set_time_limit(0);
 				$DB->StartTransaction();
 				if(!CUser::Delete($ID))
 				{
@@ -374,7 +375,7 @@ while ($userData = $result->fetch())
 
 	$userId = $userData["ID"];
 	$userEditUrl = "user_edit.php?lang=".LANGUAGE_ID."&ID=".$userId;
-	$row =& $lAdmin->addRow($userId, $userData, $userEditUrl);
+	$row = $lAdmin->addRow($userId, $userData, $userEditUrl);
 	$USER_FIELD_MANAGER->addUserFields($entity_id, $userData, $row);
 	$row->addViewField("ID", "<a href='".$userEditUrl."' title='".GetMessage("MAIN_EDIT_TITLE")."'>".$userId."</a>");
 	$own_edit = ($USER->canDoOperation('edit_own_profile') && ($USER->getParam("USER_ID") == $userId));
@@ -625,8 +626,6 @@ function setUFHeadersColumn(&$arHeaders)
 
 function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode, $tableId, $nav = null)
 {
-	global $by, $order;
-
 	$totalCountRequest = $lAdmin->isTotalCountRequest();
 
 	$userQuery = new Query(UserTable::getEntity());
@@ -639,12 +638,12 @@ function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode
 		$listSelectFields = array_diff($listSelectFields, $listRatingColumn);
 
 	$userQuery->setSelect($listSelectFields);
-	$sortBy = strtoupper($by);
+	$sortBy = strtoupper($lAdmin->getSorting()->getField());
 	if(!UserTable::getEntity()->hasField($sortBy))
 	{
 		$sortBy = "ID";
 	}
-	$sortOrder = strtoupper($order);
+	$sortOrder = strtoupper($lAdmin->getSorting()->getOrder());
 	if($sortOrder <> "DESC" && $sortOrder <> "ASC")
 	{
 		$sortOrder = "DESC";
@@ -666,7 +665,7 @@ function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode
 	$filterData = $filterOption->getFilter($filterFields);
 	if (!empty($filterData["FIND"]))
 	{
-		$userQuery->setFilter(\Bitrix\Main\UserUtils::getAdminSearchFilter(array("FIND" => $filterData["FIND"])));
+		$userQuery->setFilter(UserUtils::getAdminSearchFilter(array("FIND" => $filterData["FIND"])));
 	}
 
 	foreach ($listRatingColumn as $ratingColumn)
@@ -694,8 +693,10 @@ function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode
 		$filterQueryObject = new CFilterQuery("and", "yes", "N", array(), "N", "Y", "N");
 		$nameWords = $filterQueryObject->CutKav($nameWords);
 		$nameWords = $filterQueryObject->ParseQ($nameWords);
+
+		$parsedNameWords = [];
 		if ($nameWords <> '' && $nameWords !== "( )")
-			$parsedNameWords = preg_split('/[&&(||)]/',  $nameWords, -1, PREG_SPLIT_NO_EMPTY);
+			$parsedNameWords = preg_split('/[&(|)]/',  $nameWords, -1, PREG_SPLIT_NO_EMPTY);
 
 		$filterOr = Query::filter()->logic("or");
 		foreach ($listFields as $fieldId)
@@ -741,7 +742,7 @@ function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode
 		$userGroupQuery = UserGroupTable::query();
 		$userGroupQuery->addSelect("USER_ID");
 		$userGroupQuery->setGroup(["USER_ID"]);
-		$userGroupQuery = \Bitrix\Main\ORM\Entity::getInstanceByQuery($userGroupQuery);
+		$userGroupQuery = Entity::getInstanceByQuery($userGroupQuery);
 		$userQuery->registerRuntimeField("",
 			(new Reference("UGNA", $userGroupQuery, Join::on("this.ID", "ref.USER_ID")))->configureJoinType("inner")
 		);
@@ -791,7 +792,7 @@ function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode
 			->where("DATE_ACTIVE_TO", ">=", $nowTimeExpression)
 		);
 		$userGroupQuery->setGroup(["USER_ID"]);
-		$userGroupQuery = \Bitrix\Main\ORM\Entity::getInstanceByQuery($userGroupQuery);
+		$userGroupQuery = Entity::getInstanceByQuery($userGroupQuery);
 		$userQuery->registerRuntimeField("",
 			(new Reference("UG", $userGroupQuery, Join::on("this.ID", "ref.USER_ID")))->configureJoinType("inner")
 		);
@@ -810,8 +811,11 @@ function getUserQuery(CAdminUiList $lAdmin, $arFilter, $filterFields, $excelMode
 		$filterQueryObject = new CFilterQuery("and", "yes", "N", array(), "N", "Y", "N");
 		$keyWords = $filterQueryObject->CutKav($keyWords);
 		$keyWords = $filterQueryObject->ParseQ($keyWords);
+
+		$parsedKeyWords = [];
 		if ($keyWords <> '' && $keyWords !== "( )")
-			$parsedKeyWords = preg_split('/[&&(||)]/',  $keyWords, -1, PREG_SPLIT_NO_EMPTY);
+			$parsedKeyWords = preg_split('/[&(|)]/',  $keyWords, -1, PREG_SPLIT_NO_EMPTY);
+
 		$filterOr = Query::filter()->logic("or");
 		foreach ($listFields as $fieldId)
 		{

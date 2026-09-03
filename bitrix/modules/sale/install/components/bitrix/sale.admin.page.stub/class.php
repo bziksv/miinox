@@ -32,10 +32,6 @@ class SaleAdminPageStub extends \CBitrixComponent
 				"page" => "/shop/orders/",
 				"title" => Loc::getMessage("SAPS_SALE_ORDER"),
 			],
-			"sale_cashbox.php" => [
-				"page" => "/shop/settings/menu_sale_cashbox/",
-				"title" => Loc::getMessage("SAPS_SALE_CASHBOX"),
-			],
 			"sale_cashbox_list.php" => [
 				"page" => "/shop/settings/sale_cashbox_list/",
 				"title" => Loc::getMessage("SAPS_SALE_CASHBOX_LIST"),
@@ -70,7 +66,7 @@ class SaleAdminPageStub extends \CBitrixComponent
 			],
 			"cat_store_document_list.php" => [
 				"page" => "/shop/documents/",
-				"title" => Loc::getMessage("SAPS_CAT_STORE_DOCUMENT_LIST"),
+				"title" => Loc::getMessage("SAPS_CAT_STORE_DOCUMENT_LIST_MSGVER_1"),
 				"adminPageAvailable" => false,
 			],
 			"cat_contractor_list.php" => [
@@ -203,12 +199,14 @@ class SaleAdminPageStub extends \CBitrixComponent
 		}
 		else
 		{
+			/** @todo Use SiteTable::getDefaultSite() */
 			$site = Main\SiteTable::getList([
 				"select" => ["SERVER_NAME"],
-				"filter" => ["=DEF" => "Y"]
+				"filter" => ["=DEF" => "Y", '=ACTIVE' => 'Y'],
+				'cache' => ['ttl' => 86400],
 			])->fetch();
 
-			if ($site && isset($site["SERVER_NAME"]) && !empty($site["SERVER_NAME"]))
+			if (!empty($site["SERVER_NAME"]))
 			{
 				return $site["SERVER_NAME"];
 			}

@@ -12,6 +12,7 @@
 		};
 
 	window.FCList = function (params, add) {
+		this.author = params.author;
 		this.exemplarId = params["EXEMPLAR_ID"]/* || BX.util.getRandomString(20)*/; // To identify myself
 		this.ENTITY_XML_ID = params["ENTITY_XML_ID"]; // like groupId for lists
 		this.template = params["template"]; //html message
@@ -624,7 +625,7 @@
 				BX.addCustomEvent(this.quotePopup, "onQuote", this.__quoteShowClick);
 				BX.addCustomEvent(this.quotePopup, "onHide", this.__quoteShowHide);
 			}
-			this.quotePopup.show(e);
+			this.quotePopup.show(e, params);
 		},
 		displayPagenavigation : function(status, startHeight) {
 			var fxStart;
@@ -848,7 +849,7 @@
 			e["UCDone"] = true;
 			setTimeout(this.quoteShow, 50, e, params);
 		},
-		reply : function(node) {
+		reply : function(node, context = 'add_comment_field') {
 			var author = {
 				id: undefined,
 				name: undefined,
@@ -865,7 +866,16 @@
 			}
 			if (this.form)
 			{
-				BX.onCustomEvent(this.form, "onReply", [this, author]);
+				if (
+					this.form.handler
+					&& this.form.handler.htmlEditor
+					&& this.form.handler.htmlEditor.IsVisible()
+					&& !node
+				)
+				{
+					return;
+				}
+				BX.onCustomEvent(this.form, "onReply", [this, author, context]);
 			}
 			else
 			{
@@ -1049,26 +1059,33 @@
 				return false;
 			}
 
-			var id = messageId.join("-");
-			var html = (data["message"] ||  window.fcParseTemplate(
-					{ messageFields : data["messageFields"] },
-					{
-						EXEMPLAR_ID : this.exemplarId,
-						RIGHTS : this.rights,
-						DATE_TIME_FORMAT : this.DATE_TIME_FORMAT,
-						VIEW_URL : this.params.VIEW_URL,
-						EDIT_URL : this.params.EDIT_URL,
-						MODERATE_URL : this.params.MODERATE_URL,
-						DELETE_URL : this.params.DELETE_URL,
-						AUTHOR_URL : this.params.AUTHOR_URL,
-						AUTHOR_URL_PARAMS : this.params.AUTHOR_URL_PARAMS,
+			var id = messageId.join('-');
+			var html = (data.message || window.fcParseTemplate(
+				{ messageFields: data.messageFields },
+				{
+					EXEMPLAR_ID: this.exemplarId,
+					RIGHTS: this.rights,
+					DATE_TIME_FORMAT: this.DATE_TIME_FORMAT,
+					VIEW_URL: this.params.VIEW_URL,
+					EDIT_URL: this.params.EDIT_URL,
+					MODERATE_URL: this.params.MODERATE_URL,
+					DELETE_URL: this.params.DELETE_URL,
+					AUTHOR_URL: this.params.AUTHOR_URL,
+					AUTHOR_URL_PARAMS: this.params.AUTHOR_URL_PARAMS,
 
-						NAME_TEMPLATE : this.params.NAME_TEMPLATE,
-						SHOW_LOGIN : this.params.SHOW_LOGIN,
-						CLASSNAME : BX.type.isPlainObject(options) && options.live ? 'feed-com-block-live' : '',
-					},
-					this.getTemplate()
-				));
+					NAME_TEMPLATE: this.params.NAME_TEMPLATE,
+					SHOW_LOGIN: this.params.SHOW_LOGIN,
+					CLASSNAME: BX.type.isPlainObject(options) && options.live ? 'feed-com-block-live' : '',
+				},
+				this.getTemplate(),
+			));
+
+			let fileCountDownloaded = document.getElementsByClassName('diskuf-files-entity').length;
+			if (fileCountDownloaded === 0)
+			{
+				BX.load(['/bitrix/js/disk/css/legacy_uf_common.css']);
+			}
+
 			var ob = BX.processHTML(html, false);
 			var results;
 			var newCommentsContainer = this.node.newComments;
@@ -1199,6 +1216,24 @@
 				}, 1000);
 			}
 
+			const messageFields = data.messageFields;
+			const fieldAuthor = messageFields?.AUTHOR;
+
+			const authorTitle = container.querySelector('.post-comment-author');
+			if (authorTitle && this.author.AUTHOR_TYPE)
+			{
+				BX.Dom.addClass(authorTitle, `feed-com-name-${this.author.AUTHOR_TYPE}`);
+			}
+
+			BX?.MPL?.UIAvatar?.({
+				node: container,
+				user: {
+					name: fieldAuthor.FULL_NAME,
+					image: fieldAuthor.AVATAR,
+					type: fieldAuthor.TYPE,
+				},
+			});
+
 			if (
 				animation !== "simple"
 				&& BX.Type.isUndefined(window.BXMobileApp) // non-mobile
@@ -1259,31 +1294,32 @@
 			var cnt = 0,
 			func = function()
 			{
-				if (100 < ++cnt)
-				{
-					return;
-				}
-				if (this.getCommentNode(messageId[1]).childNodes.length > 0)
-				{
-					BX.ajax.processScripts(ob.SCRIPT);
-					if (this.params["BIND_VIEWER"] === "Y" && BX["viewElementBind"])
+					if (100 < ++cnt)
 					{
-						BX.viewElementBind(
-							this.getCommentNode(messageId[1]), {},
-							function(node ){
-								return BX.type.isElementNode(node) && (node.getAttribute("data-bx-viewer") || node.getAttribute("data-bx-image"));
-							}
-						);
+						return;
 					}
-				}
-				else
-				{
-					setTimeout(func, 500)
-				}
-				BX.onCustomEvent(window, "OnUCRecordHasDrawn", [this.ENTITY_XML_ID, messageId, (data["messageFields"] || data)]);
-				BX.onCustomEvent(window, "OnUCCommentWasAdded", [this.ENTITY_XML_ID, messageId, (data["messageFields"] || data)]);
-				BX.onCustomEvent(window, "OnUCFeedChanged", [messageId]);
-			}.bind(this);
+					if (this.getCommentNode(messageId[1]).childNodes.length > 0)
+					{
+						BX.ajax.processScripts(ob.SCRIPT);
+						if (this.params["BIND_VIEWER"] === "Y" && BX["viewElementBind"])
+						{
+							BX.viewElementBind(
+								this.getCommentNode(messageId[1]), {},
+								function(node ){
+									return BX.type.isElementNode(node) && (node.getAttribute("data-bx-viewer") || node.getAttribute("data-bx-image"));
+								}
+							);
+						}
+					}
+					else
+					{
+						setTimeout(func, 500)
+					}
+
+					BX.onCustomEvent(window, "OnUCRecordHasDrawn", [this.ENTITY_XML_ID, messageId, (messageFields || data)]);
+					BX.onCustomEvent(window, "OnUCCommentWasAdded", [this.ENTITY_XML_ID, messageId, (messageFields || data)]);
+					BX.onCustomEvent(window, "OnUCFeedChanged", [messageId]);
+				}.bind(this);
 			setTimeout(func, 500);
 			return true;
 		},
@@ -2295,7 +2331,10 @@
 		"#AUTHOR_EXTRANET_STYLE#" =>
 			($res["AUTHOR"]["IS_EXTRANET"] == "Y" ? " feed-com-name-extranet" : ""),
 		"background:url("") no-repeat center;" =>
-			""
+			"",
+	 	"#MOBILE_HINTS#" => (isset($res['SHOW_MOBILE_HINTS']) && $res['SHOW_MOBILE_HINTS'] === 'Y')
+				? '<span class="feed__mobile_btn"></span>'
+				: '',
 	 *     )
 	 * )
 	 * @param data
@@ -2303,71 +2342,74 @@
 	 * @param txt
 	 * @return string
 	 */
-	window["fcParseTemplate"] = function(data, params, txt) {
+	window.fcParseTemplate = function(data, params, txt) {
 		params = (params || {});
 
-		params["RIGHTS"] = (params["RIGHTS"] || {});
-		for (var ii = 0, rights = ["MODERATE", "EDIT", "DELETE"]; ii < rights.length; ii++)
+		params.RIGHTS = (params.RIGHTS || {});
+		for (var ii = 0, rights = ['MODERATE', 'EDIT', 'DELETE']; ii < rights.length; ii++)
 		{
-			params["RIGHTS"][rights[ii]] =
-				BX.util.in_array(params["RIGHTS"][rights[ii]], ["Y", "ALL", "OWN", "OWNLAST"]) ? params["RIGHTS"][rights[ii]] : "N";
+			params.RIGHTS[rights[ii]] =	BX.util.in_array(
+				params.RIGHTS[rights[ii]],
+				['Y', 'ALL', 'OWN', 'OWNLAST'],
+			) ? params.RIGHTS[rights[ii]] : 'N';
 		}
 
-		params["DATE_TIME_FORMAT"] = (!!params["DATE_TIME_FORMAT"] ? params["DATE_TIME_FORMAT"] : 'd F Y G:i');
-		params["TIME_FORMAT"] = (!!params["DATE_TIME_FORMAT"] && params["DATE_TIME_FORMAT"].indexOf("a") >= 0 ? 'g:i a' : 'G:i');
+		params.DATE_TIME_FORMAT = (params.DATE_TIME_FORMAT ? params.DATE_TIME_FORMAT : 'd F Y G:i');
+		params.TIME_FORMAT = (params.DATE_TIME_FORMAT && params.DATE_TIME_FORMAT.includes('a') ? 'g:i a' : 'G:i');
 
-		params["VIEW_URL"] = (params["VIEW_URL"] || "");
-		params["EDIT_URL"] = (params["EDIT_URL"] || "");
-		params["MODERATE_URL"] = (params["MODERATE_URL"] || "");
-		params["DELETE_URL"] = (params["DELETE_URL"] || "");
-		params["AUTHOR_URL"] = (params["AUTHOR_URL"] || "");
+		params.VIEW_URL = (params.VIEW_URL || '');
+		params.EDIT_URL = (params.EDIT_URL || '');
+		params.MODERATE_URL = (params.MODERATE_URL || '');
+		params.DELETE_URL = (params.DELETE_URL || '');
+		params.AUTHOR_URL = (params.AUTHOR_URL || '');
 
-		params["NAME_TEMPLATE"] = (params["NAME_TEMPLATE"] || "");
-		params["SHOW_LOGIN"] = (params["SHOW_LOGIN"] || "");
+		params.NAME_TEMPLATE = (params.NAME_TEMPLATE || '');
+		params.SHOW_LOGIN = (params.SHOW_LOGIN || '');
 
-		var res = (data && data["messageFields"] ? data["messageFields"] : data);
+		var res = (data && data.messageFields ? data.messageFields : data);
 		var replacement = {
-				"ID" : "",
-				"FULL_ID" : "",
-				"CONTENT_ID" : "",
-				"ENTITY_XML_ID" : "",
-				"EXEMPLAR_ID" : "",
-				"NEW" : "old",
-				"APPROVED" : "Y",
-				"DATE" : "",
-				"TEXT" : "",
-				"CLASSNAME" : "",
-				"VIEW_URL" : "",
-				"VIEW_SHOW" : "N",
-				"EDIT_URL" : "",
-				"EDIT_SHOW" : "N",
-				"MODERATE_URL" : "",
-				"MODERATE_SHOW" : "N",
-				"DELETE_URL" : "",
-				"DELETE_SHOW" : "N",
-				"CREATETASK_SHOW" : "N",
-				"BEFORE_HEADER" : "",
-				"BEFORE_ACTIONS" : "",
-				"AFTER_ACTIONS" : "",
-				"AFTER_HEADER" : "",
-				"BEFORE" : "",
-				"AFTER" : "",
-				"BEFORE_RECORD" : "",
-				"AFTER_RECORD" : "",
-				"AUTHOR_ID" : 0,
-				"AUTHOR_AVATAR_IS" : "N",
-				"AUTHOR_AVATAR" : "",
-				"AUTHOR_URL" : "",
-				"AUTHOR_NAME" : "",
-				"AUTHOR_EXTRANET_STYLE" : "",
-				"SHOW_POST_FORM" : "Y",
-				"SHOW_MENU" : "Y",
-				"VOTE_ID" : "",
-				"AUTHOR_TOOLTIP_PARAMS" : "",
-				"background:url('') no-repeat center;" : "",
-				"LIKE_REACT" : "",
-				"RATING_NONEMPTY_CLASS" : ""
-			};
+			ID: '',
+			FULL_ID: '',
+			CONTENT_ID: '',
+			ENTITY_XML_ID: '',
+			EXEMPLAR_ID: '',
+			NEW: 'old',
+			APPROVED: 'Y',
+			DATE: '',
+			TEXT: '',
+			CLASSNAME: '',
+			VIEW_URL: '',
+			VIEW_SHOW: 'N',
+			EDIT_URL: '',
+			EDIT_SHOW: 'N',
+			MODERATE_URL: '',
+			MODERATE_SHOW: 'N',
+			DELETE_URL: '',
+			DELETE_SHOW: 'N',
+			CREATETASK_SHOW: 'N',
+			BEFORE_HEADER: '',
+			BEFORE_ACTIONS: '',
+			AFTER_ACTIONS: '',
+			AFTER_HEADER: '',
+			BEFORE: '',
+			AFTER: '',
+			BEFORE_RECORD: '',
+			AFTER_RECORD: '',
+			AUTHOR_ID: '',
+			AUTHOR_AVATAR_IS: 'N',
+			AUTHOR_AVATAR: '',
+			AUTHOR_URL: '',
+			AUTHOR_NAME: '',
+			AUTHOR_EXTRANET_STYLE: '',
+			SHOW_POST_FORM: 'Y',
+			SHOW_MENU: 'Y',
+			VOTE_ID: '',
+			AUTHOR_TOOLTIP_PARAMS: '',
+			"background:url('') no-repeat center;": '',
+			LIKE_REACT: '',
+			RATING_NONEMPTY_CLASS: '',
+			MOBILE_HINTS: '',
+		};
 		if (!!res && !!data["messageFields"])
 		{
 			res["AUTHOR"] = (!!res["AUTHOR"] ? res["AUTHOR"] : {});
@@ -2388,6 +2430,10 @@
 				else if (res["AUTHOR"]["TYPE"] === "EXTRANET")
 				{
 					authorStyle = " feed-com-name-extranet";
+				}
+				else if (res["AUTHOR"]["TYPE"] === "COLLABER")
+				{
+					authorStyle = " feed-com-name-collaber";
 				}
 			}
 			else if (res["AUTHOR"]["IS_EXTRANET"] == "Y")
@@ -2481,8 +2527,8 @@
 				"AFTER_RECORD" : res["AFTER_RECORD"],
 				"AUTHOR_ID" : res["AUTHOR"]["ID"],
 				"AUTHOR_AVATAR_IS" : (!!res["AUTHOR"]["AVATAR"] ? "Y" : "N"),
-				"AUTHOR_AVATAR" : (!!res["AUTHOR"]["AVATAR"] ? res["AUTHOR"]["AVATAR"] : '/bitrix/images/1.gif'),
-				"AUTHOR_AVATAR_BG" : (!!res["AUTHOR"]["AVATAR"] ? "background-image:url('" + res["AUTHOR"]["AVATAR"] + "')" : ""),
+				"AUTHOR_AVATAR" : (!!res["AUTHOR"]["AVATAR"] ? encodeURI(res["AUTHOR"]["AVATAR"]) : '/bitrix/images/1.gif'),
+				"AUTHOR_AVATAR_BG" : (!!res["AUTHOR"]["AVATAR"] ? "background-image:url('" + encodeURI(res["AUTHOR"]["AVATAR"]) + "')" : ""),
 				"AUTHOR_URL" : params["AUTHOR_URL"].
 					replace("#ID#", res["ID"]).
 					replace("#id#", res["ID"]).
@@ -2494,6 +2540,7 @@
 							? (params["AUTHOR_URL"].indexOf("?") >= 0 ? '&' : '?') + 'entityType=' + params["AUTHOR_URL_PARAMS"]["entityType"] + '&entityId=' + params["AUTHOR_URL_PARAMS"]["entityId"]
 							: ''
 					),
+				"AUTHOR_TYPE": res["AUTHOR"]["TYPE"],
 				"AUTHOR_NAME" : BX.formatName(res["AUTHOR"], params["NAME_TEMPLATE"], params["SHOW_LOGIN"]),
 				"AUTHOR_EXTRANET_STYLE" : authorStyle,
 				"VOTE_ID" : (res["RATING"] && res["RATING"]["VOTE_ID"] ? res["RATING"]["VOTE_ID"] : ""),
@@ -2503,7 +2550,8 @@
 				"LIKE_REACT" : (!!res["LIKE_REACT"] ? res["LIKE_REACT"] : ""),
 				"RATING_NONEMPTY_CLASS" : (res["RATING"] && res["RATING"]["TOTAL_VOTES"] ? "comment-block-rating-nonempty" : ""),
 				"POST_ENTITY_TYPE" : (!!params["POST_CONTENT_TYPE_ID"] ? params["POST_CONTENT_TYPE_ID"] : ""),
-				"COMMENT_ENTITY_TYPE" : (!!params["COMMENT_CONTENT_TYPE_ID"] ? params["COMMENT_CONTENT_TYPE_ID"] : "")
+				"COMMENT_ENTITY_TYPE" : (!!params["COMMENT_CONTENT_TYPE_ID"] ? params["COMMENT_CONTENT_TYPE_ID"] : ""),
+				"MOBILE_HINTS" : "",
 			};
 		}
 		else
@@ -2553,34 +2601,17 @@
 		this.closeByEsc = true;
 		this.autoHide = true;
 		this.autoHideTimeout = 5000;
-
-		this.node = document.createElement("A");
-		BX.adjust(this.node, {
-			style: {
-				zIndex: BX.PopupWindow.getOption("popupZindex") + 1,
-				position: "absolute",
-				display: "none",
-				top: "0px",
-				left: "0px",
-			},
-			attrs : {
-				className: "mpl-quote-block",
-				href: "#",
-			},
-			events: {
-				click: this.fire.bind(this),
-			}
-		});
-
 		this.checkEsc = this.checkEsc.bind(this);
 		this.hide = this.hide.bind(this);
-		document.body.appendChild(this.node);
 	};
 	MPLQuote.prototype = {
-		show : function(e){
-			var pos = this.getPosition(this.node, e);
-			BX.adjust(this.node, {style : {top : pos.y + "px", left : pos.x + "px", display : "block"}});
-			BX.addClass(this.node, "mpl-quote-block-show");
+		show : function(e, params) {
+			if (window.getSelection().toString() === '')
+			{
+				return;
+			}
+
+			this.render(e, params);
 
 			if (this.closeByEsc && this.closeByEscBound !== true)
 			{
@@ -2609,6 +2640,154 @@
 				this.autoHideTimeoutPointer = setTimeout(this.hide, this.autoHideTimeout);
 			}
 		},
+		render: function(e, params) {
+			if (this.wrap)
+			{
+				BX.ZIndexManager.unregister(this.wrap);
+				this.wrap.remove();
+			}
+
+			const copilotParams = params?.options?.copilotParams;
+			this.wrap = copilotParams ? this.renderQuoteWithCopilot(copilotParams) : this.renderQuote();
+
+			document.body.appendChild(this.wrap);
+			BX.ZIndexManager.register(this.wrap);
+
+			const pos = this.getPosition(this.wrap, e);
+			BX.adjust(this.wrap, {
+				style: {
+					top: `${pos.y}px`,
+					left: `${pos.x}px`,
+					display : 'block',
+				},
+			});
+			BX.addClass(this.wrap, 'mpl-quote-block-show');
+			BX.ZIndexManager.bringToFront(this.wrap);
+		},
+		renderQuote: function() {
+			const quote = BX.Tag.render`
+				<a class="mpl-quote-block" href="#" style="display: none;"></a>
+			`;
+			quote.addEventListener('click', this.fire.bind(this));
+
+			return quote;
+		},
+		renderQuoteWithCopilot: function(copilotParams) {
+			const quoteButton = BX.Tag.render`
+				<div class="mpl-quote-block-quote">
+					<div class="ui-icon-set --quote"></div>
+				</div>
+			`;
+			quoteButton.addEventListener('click', this.fire.bind(this));
+
+			const copilotButton = BX.Tag.render`
+				<div class="mpl-quote-block-copilot">
+					<div class="ui-icon-set --copilot-ai"></div>
+					<div class="mpl-quote-block-copilot-text">${BX.message('MPL_QUOTE_COPILOT')}</div>
+				</div>
+			`;
+			copilotButton.addEventListener('click', this.onCopilotButtonClickHandler.bind(this, copilotParams));
+
+			const quoteWithCopilot = BX.Tag.render`
+				<a class="mpl-quote-block mpl-quote-block-with-copilot" href="#" style="display: none;">
+					<div class="mpl-quote-block-with-copilot-container">
+						${quoteButton}
+						<div class="mpl-quote-block-separator"></div>
+						${copilotButton}
+					</div>
+				</a>
+			`;
+			quoteWithCopilot.addEventListener('click', this.emptyClick.bind(this));
+
+			return quoteWithCopilot;
+		},
+		onCopilotButtonClickHandler: function(copilotParams, e) {
+			this.emptyClick(e);
+
+			this.getCopilot(copilotParams).then((copilot) => {
+				this.showCopilot(copilot);
+			});
+		},
+		showCopilot: function(copilot) {
+			const selection = window.getSelection();
+			const selectedText = selection.toString();
+			const range = selection.getRangeAt(0);
+			const clonedRange = range.cloneRange();
+
+			let selectTextOnBlur = true;
+			const selectText = () => {
+				if (selectTextOnBlur && window.getSelection().toString() !== selectedText)
+				{
+					window.getSelection().removeAllRanges();
+					window.getSelection().addRange(clonedRange);
+				}
+			};
+			const startAdjustAnimation = () => new BX.easing({
+				duration: 1000,
+				start: {},
+				finish: {},
+				transition: BX.easing.makeEaseOut(BX.easing.transitions.linear),
+				step: () => {
+					if (copilot.isShown())
+					{
+						copilot.adjust({ position: this.getBindElement(clonedRange) });
+					}
+				},
+			}).animate();
+			document.addEventListener('mouseup', selectText);
+			document.addEventListener('mousedown', selectText);
+			BX.Event.EventEmitter.subscribe('onPullEvent-unicomments', startAdjustAnimation);
+
+			const stopSelectText = () => {
+				selectTextOnBlur = false;
+				window.getSelection().removeAllRanges();
+				document.removeEventListener('mouseup', selectText);
+				document.removeEventListener('mousedown', selectText);
+				BX.Event.EventEmitter.unsubscribe('onPullEvent-unicomments', startAdjustAnimation);
+				BX.Event.EventEmitter.unsubscribe('AI.Copilot:hide', stopSelectText);
+				BX.Event.EventEmitter.unsubscribe('AI.Copilot.Menu:open', selectText);
+			};
+			BX.Event.EventEmitter.subscribe('AI.Copilot:hide', stopSelectText);
+			BX.Event.EventEmitter.subscribe('AI.Copilot.Menu:open', selectText);
+
+			copilot.setContext(selectedText);
+			copilot.show({ bindElement: this.getBindElement(clonedRange) });
+		},
+		getBindElement: function(range) {
+			const pivotRect = range.getBoundingClientRect();
+
+			return {
+				top: pivotRect.bottom + window.scrollY + 10,
+				left: pivotRect.x + window.scrollX,
+			};
+		},
+		getCopilot: async function(copilotParams) {
+			const key = JSON.stringify(copilotParams);
+
+			MPLQuote.copilots ??= {};
+			if (MPLQuote.copilots[key])
+			{
+				return MPLQuote.copilots[key];
+			}
+
+			const { Copilot } = await BX.Runtime.loadExtension('ai.copilot');
+
+			MPLQuote.copilots[key] = new Copilot({
+				readonly: true,
+				autoHide: true,
+				...copilotParams,
+			});
+
+			return new Promise((resolve) => {
+				MPLQuote.copilots[key].subscribe('finish-init', () => resolve(MPLQuote.copilots[key]));
+				MPLQuote.copilots[key].init();
+			});
+		},
+		emptyClick: function(e) {
+			e.preventDefault();
+			this.cancelBubble(e);
+			this.wrap.style.display = 'none';
+		},
 		fire: function(e) {
 
 			e.preventDefault();
@@ -2625,7 +2804,7 @@
 
 			this.cancelBubble(e);
 
-			this.node.style.display = "none";
+			this.wrap.style.display = "none";
 
 			BX.onCustomEvent(this, "onQuote", [e, this]);
 
@@ -2648,7 +2827,7 @@
 
 			BX.onCustomEvent(this, "onHide", [this]);
 
-			BX.remove(this.node);
+			BX.remove(this.wrap);
 		},
 		getPosition: function(node, e) {
 			var nodePos;
@@ -2669,7 +2848,7 @@
 			};
 		},
 		isShown: function() {
-			return (this.node.style.display === "block");
+			return (this.wrap.style.display === "block");
 		},
 		cancelBubble: function(event) {
 			if (!event)
@@ -2730,9 +2909,10 @@
 	 * @param node
 	 * @param xmlId
 	 * @param author_id
+	 * @param options {{copilotParams}}
 	 * @returns {boolean}
 	 */
-	window.mplCheckForQuote = function(e, node, xmlId, author_id) {
+	window.mplCheckForQuote = function(e, node, xmlId, author_id, options = null) {
 		e = (document.all ? window.event : e);
 		var text = "", range, author = null;
 
@@ -2824,7 +3004,7 @@
 		}
 		if (closestEntity !== null)
 		{
-			BX.onCustomEvent(closestEntity.eventNode, "onQuote", [e, {text : text, author : author}]);
+			BX.onCustomEvent(closestEntity.eventNode, "onQuote", [e, {text : text, author : author, options}]);
 		}
 	};
 	window.mplReplaceUserPath = function(text) {
@@ -3052,4 +3232,68 @@
 		});
 	});
 	BX.onCustomEvent("main.post.list/default", []);
+
+	class MobileButton
+	{
+		constructor(options)
+		{
+			const { containerId } = options;
+			const container = document.getElementById(`${containerId}`);
+			if (!container)
+			{
+				return;
+			}
+
+			const mobileButtons = Array.from(container.querySelectorAll('.feed__mobile_btn'));
+			this.onButtonClickHandler = this.handleButtonClick.bind(this);
+			mobileButtons.forEach(mobileButton => {
+				mobileButton.addEventListener('click', this.onButtonClickHandler);
+			});
+		}
+
+		handleButtonClick(event)
+		{
+			const popup = new BX.PopupWindow({
+				bindElement: event,
+				content: BX.Tag.render`
+					<div class="feed__mobile__popup_content">
+						<div class="feed__mobile__popup_content__text">${BX.message('MPL_MOBILE_HINTS')}</div>
+						<span onclick="${this.handleLinkClick.bind(this)}" class="feed__mobile__popup_content__link">${
+					BX.message('MPL_MOBILE_HINTS_DETAILS')
+				}</span>
+					</div>`,
+				bindOptions: {
+					position: 'top',
+				},
+				darkMode: true,
+				autoHide: true,
+				closeByEsc: true,
+				animation: 'fading',
+			});
+			popup.show();
+		}
+
+		handleLinkClick(event)
+		{
+			BX.Runtime.loadExtension('ui.qrauthorization').then(exports => {
+				const { QrAuthorization } = exports;
+				const qrAuthPopup = new QrAuthorization({
+					title: {
+						text: BX.message('MPL_MOBILE_POPUP_TITLE'),
+						size: 'sm'
+					},
+					bottomText: {
+						text: BX.message('MPL_MOBILE_POPUP_BOTTOM_TEXT'),
+						size: 'sm'
+					},
+					popupParam: {
+						overlay: true
+					}
+				});
+				qrAuthPopup.show();
+			});
+		}
+	}
+	BX.namespace('BX.Main.PostList');
+	BX.Main.PostList.MobileButton = MobileButton;
 })();

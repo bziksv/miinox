@@ -1,12 +1,11 @@
-<?
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2004 - 2006 Bitrix           #
-# http://www.bitrix.ru                       #
-# mailto:admin@bitrix.ru                     #
-##############################################
-*/
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage form
+ * @copyright 2001-2025 Bitrix
+ */
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
@@ -72,8 +71,8 @@ else define("HELP_FILE","form_field_list.php");
 $F_RIGHT = CForm::GetPermission($WEB_FORM_ID);
 if($F_RIGHT<25) $APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-$copy_id = intval($copy_id);
-if (intval($copy_id)>0 && $F_RIGHT >= 30 && check_bitrix_sessid())
+$copy_id = intval($_REQUEST['copy_id'] ?? 0);
+if ($copy_id > 0 && $F_RIGHT >= 30 && check_bitrix_sessid())
 {
 	$new_id = CFormField::Copy($copy_id);
 	LocalRedirect("form_field_list.php?lang=".LANGUAGE_ID."&WEB_FORM_ID=$WEB_FORM_ID&additional=$additional");
@@ -133,8 +132,10 @@ if ($lAdmin->EditAction() && $FORM_RIGHT>="W" && $F_RIGHT>=30 && check_bitrix_se
 			$lAdmin->AddUpdateError(GetMessage("FORM_ERROR").$ID.": ".GetMessage("FORM_ERROR_SAVE"), $ID);
 			$DB->Rollback();
 		}
-
-		$DB->Commit();
+		else
+		{
+			$DB->Commit();
+		}
 	}
 }
 
@@ -160,10 +161,13 @@ if(($arID = $lAdmin->GroupAction()) && $FORM_RIGHT=="W" && $F_RIGHT>=30 && check
 				$DB->StartTransaction();
 				if(!CFormField::Delete($ID))
 				{
-						$DB->Rollback();
-						$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
+					$DB->Rollback();
+					$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
 				}
-				$DB->Commit();
+				else
+				{
+					$DB->Commit();
+				}
 			break;
 			case "activate":
 			case "deactivate":
@@ -172,10 +176,13 @@ if(($arID = $lAdmin->GroupAction()) && $FORM_RIGHT=="W" && $F_RIGHT>=30 && check
 				$arFieldsStore=array("ACTIVE"=>($_REQUEST['action']=="activate")?"'Y'":"'N'");
 				if (!$DB->Update("b_form_field",$arFieldsStore,"WHERE ID='".$ID."'",$err_mess.__LINE__))
 				{
-						$DB->Rollback();
-						$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
+					$DB->Rollback();
+					$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
 				}
-				$DB->Commit();
+				else
+				{
+					$DB->Commit();
+				}
 			break;
 		}
 	}

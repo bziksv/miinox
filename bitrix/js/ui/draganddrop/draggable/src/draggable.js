@@ -1,29 +1,29 @@
-import {Type, Dom, Cache, Runtime, Tag, Text} from 'main.core';
-import {EventEmitter} from 'main.core.events';
+import { Type, Dom, Cache, Runtime, Tag, Text } from 'main.core';
+import { EventEmitter } from 'main.core.events';
 
 import typeof Sensor from './sensor/sensor';
 import MouseSensor from './sensor/mousesensor/mousesensor';
 import TouchSensor from './sensor/touchsensor/touchsensor';
 
-import {DragBeforeStartEvent} from './events/drag.before.start.event';
-import {DragStartEvent} from './events/drag.start.event';
-import {DragMoveEvent} from './events/drag.move.event';
-import {DragOverEvent} from './events/drag.over.event';
-import {DragOverContainerEvent} from './events/drag.over.container.event';
-import {DragEnterEvent} from './events/drag.enter.event';
-import {DragEnterContainerEvent} from './events/drag.enter.container.event';
-import {DragOutEvent} from './events/drag.out.event';
-import {DragOutContainerEvent} from './events/drag.out.container.event';
-import {DragEndEvent} from './events/drag.end.event';
-import {DragOverDropzoneEvent} from './events/drag.over.dropzone.event';
-import {DragEnterDropzoneEvent} from './events/drag.enter.dropzone.event';
-import {DragOutDropzoneEvent} from './events/drag.out.dropzone.event';
-import {DragDropEvent} from './events/drag.drop.event';
+import { DragBeforeStartEvent } from './events/drag.before.start.event';
+import { DragStartEvent } from './events/drag.start.event';
+import { DragMoveEvent } from './events/drag.move.event';
+import { DragOverEvent } from './events/drag.over.event';
+import { DragOverContainerEvent } from './events/drag.over.container.event';
+import { DragEnterEvent } from './events/drag.enter.event';
+import { DragEnterContainerEvent } from './events/drag.enter.container.event';
+import { DragOutEvent } from './events/drag.out.event';
+import { DragOutContainerEvent } from './events/drag.out.container.event';
+import { DragEndEvent } from './events/drag.end.event';
+import { DragOverDropzoneEvent } from './events/drag.over.dropzone.event';
+import { DragEnterDropzoneEvent } from './events/drag.enter.dropzone.event';
+import { DragOutDropzoneEvent } from './events/drag.out.dropzone.event';
+import { DragDropEvent } from './events/drag.drop.event';
 
-import typeof {DragStartSensorEvent} from './sensor/events/drag.start.sensor.event';
-import typeof {DragMoveSensorEvent} from './sensor/events/drag.move.sensor.event';
-import typeof {DragEndSensorEvent} from './sensor/events/drag.end.sensor.event';
-import typeof {DragDropSensorEvent} from './sensor/events/drag.drop.sensor.event';
+import typeof { DragStartSensorEvent } from './sensor/events/drag.start.sensor.event';
+import typeof { DragMoveSensorEvent } from './sensor/events/drag.move.sensor.event';
+import typeof { DragEndSensorEvent } from './sensor/events/drag.end.sensor.event';
+import typeof { DragDropSensorEvent } from './sensor/events/drag.drop.sensor.event';
 
 import './css/style.css';
 
@@ -32,6 +32,7 @@ type DraggableOptions = {
 	dropzone: HTMLElement | Array<HTMLElement> | NodeList,
 	draggable?: string,
 	dragElement?: string,
+	elementsPreventingDrag?: string[],
 	delay?: number,
 	sensors?: Array<Sensor>,
 	transitionDuration: number,
@@ -40,6 +41,7 @@ type DraggableOptions = {
 		x?: number,
 		y?: number,
 	},
+	type?: string,
 };
 
 const defaultSensors = [
@@ -113,22 +115,22 @@ export class Draggable extends EventEmitter
 			throw new Error('Option container not a HTMLElement, Array of HTMLElement or NodeList');
 		}
 
-		if (!Type.isNil(options.dropzone))
-		{
-			if (
+		if (
+			!Type.isNil(options.dropzone)
+			&& (
 				Type.isArray(options.dropzone)
 				|| Type.isDomNode(options.dropzone)
 				|| options.dropzone instanceof NodeList
 			)
+		)
+		{
+			if (options.dropzone instanceof NodeList)
 			{
-				if (options.dropzone instanceof NodeList)
-				{
-					this.addDropzone(...[...options.dropzone]);
-				}
-				else
-				{
-					this.addDropzone(...[options.dropzone].flat());
-				}
+				this.addDropzone(...options.dropzone);
+			}
+			else
+			{
+				this.addDropzone(...[options.dropzone].flat());
 			}
 		}
 
@@ -137,11 +139,11 @@ export class Draggable extends EventEmitter
 			...options,
 		});
 
-		const {sensors} = this.getOptions();
-		this.addSensor(...[
+		const { sensors } = this.getOptions();
+		this.addSensor(
 			...defaultSensors,
 			...sensors,
-		]);
+		);
 	}
 
 	getDocument(): HTMLDocument
@@ -156,7 +158,7 @@ export class Draggable extends EventEmitter
 
 	setOptions(options: {[key: string]: any})
 	{
-		this[optionsKey] = {...options};
+		this[optionsKey] = { ...options };
 
 		if (!Type.isString(this[optionsKey].dragElement))
 		{
@@ -218,10 +220,15 @@ export class Draggable extends EventEmitter
 		];
 	}
 
+	destroy(): void
+	{
+		this.removeSensor(...this.getSensors());
+	}
+
 	removeSensor(...sensors: Array<Sensor>)
 	{
 		const removedSensors = this.getSensors().filter((sensor) => {
-			return sensors.includes(sensor.constructor);
+			return sensors.includes(sensor);
 		});
 
 		removedSensors.forEach((sensor: Sensor) => {
@@ -229,7 +236,7 @@ export class Draggable extends EventEmitter
 			sensor.unsubscribe('drag:move', this.onDragMove);
 			sensor.unsubscribe('drag:end', this.onDragEnd);
 			sensor.unsubscribe('drag:drop', this.onDragDrop);
-			sensor.enable();
+			sensor.disable();
 		});
 
 		this[sensorsKey] = this.getSensors().filter((sensor) => {
@@ -347,6 +354,7 @@ export class Draggable extends EventEmitter
 	getLastDraggableElementOfContainer(container): ?HTMLElement
 	{
 		const draggableElements = this.getDraggableElementsOfContainer(container);
+
 		return draggableElements[draggableElements.length - 1] || null;
 	}
 
@@ -358,14 +366,14 @@ export class Draggable extends EventEmitter
 	getDropPreview()
 	{
 		return this.cache.remember('dropPreview', () => {
-			const {type} = this.getOptions();
+			const { type } = this.getOptions();
 			const source = this.getSource();
 			if (source === null)
 			{
 				return Tag.render`<div></div>`;
 			}
 			const sourceRect = this.getSourceClientRect();
-			let dropPreview;
+			let dropPreview = null;
 
 			if (type === Draggable.CLONE)
 			{
@@ -387,9 +395,9 @@ export class Draggable extends EventEmitter
 		});
 	}
 
-	move(element, {x = 0, y = 0})
+	move(element, { x = 0, y = 0 })
 	{
-		const {transitionDuration} = this.getOptions();
+		const { transitionDuration } = this.getOptions();
 
 		requestAnimationFrame(() => {
 			Dom.style(element, {
@@ -430,7 +438,7 @@ export class Draggable extends EventEmitter
 	 */
 	adjustDropPreview(target: HTMLElement, options = {})
 	{
-		const {x = false, y = false, force = true, skipOffset = false, transition = true} = options;
+		const { x = false, y = false, force = true, skipOffset = false, transition = true } = options;
 		const dropPreview = this.getDropPreview();
 		const targetRect = Dom.getRelativePosition(target, target.parentElement);
 		const dropPreviewRect = Dom.getRelativePosition(dropPreview, dropPreview.parentElement);
@@ -452,7 +460,7 @@ export class Draggable extends EventEmitter
 			}
 		}
 
-		const {transitionDuration} = this.getOptions();
+		const { transitionDuration } = this.getOptions();
 		const adjustPosition = () => {
 			const style = {
 				transition: transition ? `all ${transitionDuration}ms ease 0ms` : 'null',
@@ -488,7 +496,7 @@ export class Draggable extends EventEmitter
 		const marginTop = Text.toNumber(Dom.style(element, 'margin-top'));
 		const bottom = elementRect.bottom + marginBottom + marginTop;
 
-		const {transitionDuration} = this.getOptions();
+		const { transitionDuration } = this.getOptions();
 
 		requestAnimationFrame(() => {
 			Dom.style(this.getDropPreview(), {
@@ -514,7 +522,7 @@ export class Draggable extends EventEmitter
 		this.invalidateContainersCache();
 	}
 
-	resetDraggableElementsPosition(container: ?HTMLElement, {transition = true} = {})
+	resetDraggableElementsPosition(container: ?HTMLElement, { transition = true } = {})
 	{
 		const draggableElements = (() => {
 			if (container)
@@ -528,7 +536,7 @@ export class Draggable extends EventEmitter
 		draggableElements.forEach((element) => {
 			Dom.style(element, {
 				transform: null,
-				transition: !transition ? 'none' : undefined,
+				transition: transition ? undefined : 'none',
 			});
 		});
 	}
@@ -558,7 +566,8 @@ export class Draggable extends EventEmitter
 			const sourceRect = this.getSourceClientRect();
 			const marginTop = Text.toNumber(Dom.style(source, 'margin-top'));
 			const marginBottom = Text.toNumber(Dom.style(source, 'margin-bottom'));
-			return sourceRect.height + (marginTop + marginBottom);
+
+			return Math.round(sourceRect.height + (marginTop + marginBottom));
 		});
 	}
 
@@ -569,6 +578,7 @@ export class Draggable extends EventEmitter
 			const sourceRect = this.getSourceClientRect();
 			const marginLeft = Text.toNumber(Dom.style(source, 'margin-left'));
 			const marginRight = Text.toNumber(Dom.style(source, 'margin-right'));
+
 			return sourceRect.width + (marginLeft + marginRight);
 		});
 	}
@@ -577,6 +587,7 @@ export class Draggable extends EventEmitter
 	getElementMiddlePoint(element: HTMLElement): {x: number, y: number}
 	{
 		const elementRect = element.getBoundingClientRect();
+
 		return {
 			x: elementRect.left + (elementRect.width / 2),
 			y: elementRect.top + (elementRect.height / 2),
@@ -594,6 +605,7 @@ export class Draggable extends EventEmitter
 	): [Array<HTMLElement>, Array<HTMLElement>]
 	{
 		let useRect = true;
+
 		return this.getDraggableElementsOfContainer(container)
 			.reduce((acc, element) => {
 				if (useRect)
@@ -639,7 +651,8 @@ export class Draggable extends EventEmitter
 
 	isDepthEditorEnabled(): boolean
 	{
-		const {depth, type} = this.getOptions();
+		const { depth, type } = this.getOptions();
+
 		return (
 			Type.isPlainObject(depth)
 			&& (type === Draggable.DROP_PREVIEW || type === Draggable.CLONE)
@@ -648,17 +661,18 @@ export class Draggable extends EventEmitter
 
 	getDepthProperty(): string
 	{
-		const {depth} = this.getOptions();
+		const { depth } = this.getOptions();
+
 		return depth.property || 'margin-left';
 	}
 
 	getDepthMargin(): number
 	{
-		const {depth} = this.getOptions();
+		const { depth } = this.getOptions();
+
 		return Text.toNumber(depth.margin) || 20;
 	}
 
-	// eslint-disable-next-line
 	getElementDepth(element: HTMLElement): number
 	{
 		return Text.toNumber(Dom.attr(element, 'data-depth'));
@@ -689,6 +703,7 @@ export class Draggable extends EventEmitter
 			const source = this.getSource();
 			const sourceRect = Dom.getRelativePosition(source, source.parentElement);
 			const sourceMargin = this.getStartSourceDepth() * this.getDepthMargin();
+
 			return sourceRect.left - sourceMargin;
 		});
 	}
@@ -750,10 +765,11 @@ export class Draggable extends EventEmitter
 		const container = this.getContainerByChild(parent);
 		const [, nextElements] = this.splitDraggableElementsListByPoint(
 			container,
-			{x: parentRect.left, y: parentRect.bottom},
+			{ x: parentRect.left, y: parentRect.bottom },
 		);
 
 		let stop = false;
+
 		return nextElements.reduce((acc, element) => {
 			if (!stop)
 			{
@@ -776,7 +792,7 @@ export class Draggable extends EventEmitter
 		const container = this.getContainerByChild(element);
 		const [prevElements] = this.splitDraggableElementsListByPoint(
 			container,
-			{x: elementRect.left, y: elementRect.top},
+			{ x: elementRect.left, y: elementRect.top },
 		);
 
 		if (Type.isArrayFilled(prevElements))
@@ -789,7 +805,7 @@ export class Draggable extends EventEmitter
 
 	onDragStart(event: DragStartSensorEvent)
 	{
-		const {originalSource, sourceContainer, clientX, clientY} = event.data;
+		const { originalSource, sourceContainer, clientX, clientY } = event.data;
 
 		const source = this.getDraggableElementByChild(originalSource);
 
@@ -798,7 +814,7 @@ export class Draggable extends EventEmitter
 			clientY,
 			source,
 			sourceContainer,
-			originalSource
+			originalSource,
 		});
 
 		this.emit('beforeStart', dragBeforeStartEvent);
@@ -816,7 +832,7 @@ export class Draggable extends EventEmitter
 		const sourceRect = this.getSourceClientRect();
 		const pointerOffsetX = clientX - sourceRect.left;
 		const pointerOffsetY = clientY - sourceRect.top;
-		const {type} = this.getOptions();
+		const { type } = this.getOptions();
 
 		let draggable = source;
 		if (type !== Draggable.HEADLESS)
@@ -859,7 +875,7 @@ export class Draggable extends EventEmitter
 		if (type === Draggable.DROP_PREVIEW || type === Draggable.CLONE)
 		{
 			this.pushDraggableElementToContainer(dropPreview, sourceContainer);
-			this.adjustDropPreview(source, {force: true, x: true, y: true, transition: false});
+			this.adjustDropPreview(source, { force: true, x: true, y: true, transition: false });
 		}
 
 		Dom.addClass(source, 'ui-draggable--source');
@@ -889,6 +905,7 @@ export class Draggable extends EventEmitter
 		}
 	}
 
+	// eslint-disable-next-line max-lines-per-function
 	onDragMove(event: DragMoveSensorEvent): void
 	{
 		if (!this.isDragging())
@@ -896,7 +913,7 @@ export class Draggable extends EventEmitter
 			return;
 		}
 
-		const {clientX, clientY, sourceContainer, originalSource} = event.data;
+		const { clientX, clientY, sourceContainer, originalSource } = event.data;
 		const {
 			clientX: startClientX,
 			clientY: startClientY,
@@ -941,7 +958,7 @@ export class Draggable extends EventEmitter
 		const over = this.getDraggableElementByChild(originalOver);
 		const overContainer = this.getContainerByChild(originalOver);
 
-		const {type} = this.getOptions();
+		const { type } = this.getOptions();
 		if (type !== Draggable.HEADLESS)
 		{
 			Dom.style(draggable, {
@@ -958,6 +975,7 @@ export class Draggable extends EventEmitter
 				draggableElements.forEach((element, index) => {
 					if (element !== source)
 					{
+						// eslint-disable-next-line @bitrix24/bitrix24-rules/no-style
 						const currentTransform = element.style.transform;
 						const elementMiddlePoint = this.getElementMiddlePoint(element);
 
@@ -972,8 +990,8 @@ export class Draggable extends EventEmitter
 							&& currentTransform !== `translate3d(0px, ${-sortOffsetY}px, 0px)`
 						)
 						{
-							this.adjustDropPreview(element, {y: true});
-							this.move(element, {y: -sortOffsetY});
+							this.adjustDropPreview(element, { y: true });
+							this.move(element, { y: -sortOffsetY });
 							this.insertType = 'after';
 							this.insertElement = element;
 						}
@@ -984,8 +1002,8 @@ export class Draggable extends EventEmitter
 							&& currentTransform !== `translate3d(0px, ${sortOffsetY}px, 0px)`
 						)
 						{
-							this.adjustDropPreview(element, {y: true});
-							this.move(element, {y: sortOffsetY});
+							this.adjustDropPreview(element, { y: true });
+							this.move(element, { y: sortOffsetY });
 							this.insertType = 'before';
 							this.insertElement = element;
 						}
@@ -997,8 +1015,8 @@ export class Draggable extends EventEmitter
 							&& currentTransform !== ''
 						)
 						{
-							this.adjustDropPreview(element, {y: true});
-							this.move(element, {y: 0});
+							this.adjustDropPreview(element, { y: true });
+							this.move(element, { y: 0 });
 
 							this.insertElement = element;
 
@@ -1147,7 +1165,7 @@ export class Draggable extends EventEmitter
 					const lastContainer = this.getContainerByChild(source);
 					const [beforeElements, afterElements] = this.splitDraggableElementsListByPoint(
 						overContainer,
-						{x: clientX, y: clientY},
+						{ x: clientX, y: clientY },
 					);
 
 					if (type === Draggable.DROP_PREVIEW || type === Draggable.CLONE)
@@ -1193,15 +1211,12 @@ export class Draggable extends EventEmitter
 					this.resetDraggableElementsTransition(lastContainer);
 					this.resetDraggableElementsPosition(lastContainer);
 
-					if (type !== Draggable.HEADLESS)
+					if (type !== Draggable.HEADLESS && Type.isArrayFilled(afterElements))
 					{
-						if (Type.isArrayFilled(afterElements))
-						{
-							const sortOffsetY = this.getSortOffsetY();
-							afterElements.forEach((element) => {
-								this.move(element, {y: sortOffsetY});
-							});
-						}
+						const sortOffsetY = this.getSortOffsetY();
+						afterElements.forEach((element) => {
+							this.move(element, { y: sortOffsetY });
+						});
 					}
 				}
 			}
@@ -1232,7 +1247,7 @@ export class Draggable extends EventEmitter
 			endContainer: this.lastOverContainer,
 		});
 
-		const {source, draggable} = this.dragStartEvent.data;
+		const { source, draggable } = this.dragStartEvent.data;
 
 		if (this.getOptions().type !== Draggable.HEADLESS)
 		{
@@ -1251,18 +1266,15 @@ export class Draggable extends EventEmitter
 		this.resetDraggableElementsPosition();
 		this.resetDraggableElementsTransition();
 
-		if (this.getOptions().type !== Draggable.HEADLESS)
+		if (this.getOptions().type !== Draggable.HEADLESS && Type.isString(this.insertType))
 		{
-			if (Type.isString(this.insertType))
+			if (this.insertType === 'after')
 			{
-				if (this.insertType === 'after')
-				{
-					Dom.insertAfter(source, this.insertElement);
-				}
-				else
-				{
-					Dom.insertBefore(source, this.insertElement);
-				}
+				Dom.insertAfter(source, this.insertElement);
+			}
+			else
+			{
+				Dom.insertBefore(source, this.insertElement);
 			}
 		}
 
@@ -1274,6 +1286,7 @@ export class Draggable extends EventEmitter
 				{
 					return this.currentDepth - startSourceDepth;
 				}
+
 				return 0;
 			})();
 

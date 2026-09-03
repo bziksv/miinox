@@ -38,7 +38,14 @@ if ($itemCount > 0)
 {
 	?>
 	<div class="catalog-compare-count mb-2">
-		<?=GetMessage('CP_BCCL_TPL_MESS_COMPARE_COUNT'); ?>&nbsp;<span data-block="count"><?=$itemCount; ?></span>
+		<?=
+			GetMessage(
+				'CP_BCCL_TPL_MESS_COMPARE_COUNT_MSGVER_2',
+				[
+					'#COUNT_NUMBER#' => '<span data-block="count">' . $itemCount . '</span>',
+				]
+			);
+		?>
 		<br />
 		<a href="<?=$arParams["COMPARE_URL"]; ?>"><?=GetMessage('CP_BCCL_TPL_MESS_COMPARE_PAGE'); ?></a>
 	</div>
@@ -107,7 +114,7 @@ $jsParams = array(
 	)
 );
 ?>
-	<script type="text/javascript">
+	<script>
 		var <?=$obCompare; ?> = new JCCatalogCompareList(<? echo CUtil::PhpToJSObject($jsParams, false, true); ?>)
 	</script>
 </div>

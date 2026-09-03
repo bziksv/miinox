@@ -13,21 +13,19 @@ namespace Bitrix\Translate;
  * @property int $nextFileId File Id.
  * @property string $path File stricture path.
  * @property int $tabId Storage Id.
- *
+ * @property bool $recursively Perform process recursively.
+ * @internal
  */
-class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
+class Filter implements \Iterator, \Countable, \ArrayAccess
 {
 	const STORAGE_NAME = 'TRANSLATE_FILTER';
 	const STORAGE_TAB_CNT = 'TRANSLATE_FILTER_TAB';
 
-	/** @var array */
-	private $params = array();
+	private array $params = [];
 
-	/** @var array */
-	private $iterateCodes = array();
+	private array $iterateCodes = [];
 
-	/** @var int */
-	private $iteratePosition;
+	private int $iteratePosition = 0;
 
 
 	/**
@@ -112,8 +110,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return string|null
 	 */
-	#[\ReturnTypeWillChange]
-	public function current()
+	public function current(): mixed
 	{
 		$code = $this->iterateCodes[$this->iteratePosition];
 
@@ -135,8 +132,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return int|null
 	 */
-	#[\ReturnTypeWillChange]
-	public function key()
+	public function key(): mixed
 	{
 		return $this->iterateCodes[$this->iteratePosition] ?: null;
 	}
@@ -167,28 +163,21 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	// region Serializable
 
 	/**
-	 * String representation of object.
-	 * @return string
+	 * Serialize object data.
+	 * @return array
 	 */
-	public function serialize()
+	public function __serialize(): array
 	{
-		return \serialize($this->params);
+		return $this->params;
 	}
 
 	/**
-	 * Constructs the object from a string representation.
-	 * @param string $data Data to deserialize.
+	 * Restore object from serialized data.
+	 * @param array $data Serialized data.
 	 */
-	public function unserialize($data)
+	public function __unserialize(array $data): void
 	{
-		if (!empty($data))
-		{
-			$deserialized = \unserialize($data, ['allowed_classes' => false]);
-			if (\is_array($deserialized))
-			{
-				$this->params = $deserialized;
-			}
-		}
+		$this->params = $data;
 	}
 
 	//endregion
@@ -200,7 +189,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 * @param bool $increment Generate new id.
 	 * @return int
 	 */
-	public static function getTabId($increment = true)
+	public static function getTabId(bool $increment = true): int
 	{
 		$tabId = 0;
 		if (isset($_SESSION[self::STORAGE_TAB_CNT]))
@@ -221,31 +210,35 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 * Stories the object into storage.
 	 * @return void
 	 */
-	public function store()
+	public function store(): void
 	{
 		if (!isset($_SESSION[self::STORAGE_NAME]))
 		{
-			$_SESSION[self::STORAGE_NAME] = array();
+			$_SESSION[self::STORAGE_NAME] = [];
 		}
 		if (!isset($this->tabId))
 		{
 			$this->tabId = self::getTabId();
 		}
 
-		$_SESSION[self::STORAGE_NAME][$this->tabId] = $this->serialize();
+		$_SESSION[self::STORAGE_NAME][$this->tabId] = \serialize($this);
 	}
 
 	/**
 	 * Reconstructs the object from storage.
 	 * @param int $id In of the saved date in storage.
 	 */
-	public function restore($id)
+	public function restore(int $id): void
 	{
-		if (isset($_SESSION[self::STORAGE_NAME], $_SESSION[self::STORAGE_NAME][(int)$id]))
+		if (isset($_SESSION[self::STORAGE_NAME], $_SESSION[self::STORAGE_NAME][$id]))
 		{
-			$this->unserialize($_SESSION[self::STORAGE_NAME][(int)$id]);
+			$restored = \unserialize($_SESSION[self::STORAGE_NAME][$id], ['allowed_classes' => [self::class]]);
+			if ($restored instanceof self)
+			{
+				$this->params = $restored->params;
+			}
 		}
-		$this->tabId = (int)$id;
+		$this->tabId = $id;
 	}
 
 	// endregion
@@ -271,8 +264,7 @@ class Filter implements \Iterator, \Countable, \Serializable, \ArrayAccess
 	 *
 	 * @return mixed|null
 	 */
-	#[\ReturnTypeWillChange]
-	public function offsetGet($code)
+	public function offsetGet($code): mixed
 	{
 		if (isset($this->params[$code]))
 		{

@@ -65,7 +65,7 @@ class Lang
 			$langList = static::listLanguage();
 			foreach ($langList as $lang)
 			{
-				if (is_array($data[static::KEY_LANG_ALL][$lang]))
+				if (!empty($data[static::KEY_LANG_ALL][$lang])  && is_array($data[static::KEY_LANG_ALL][$lang]))
 				{
 					$useLang = $lang;
 					break;
@@ -114,7 +114,7 @@ class Lang
 					$result[static::KEY_LANG_ALL][$langDefault][$key] = $value;
 					$result[$key] = trim($param[$key]);
 				}
-				elseif ($defaultValues[$key])
+				elseif (isset($defaultValues[$key]) && $defaultValues[$key])
 				{
 					$result[static::KEY_LANG_ALL][$langDefault][$key] = $defaultValues[$key];
 					$result[$key] = $defaultValues[$key];

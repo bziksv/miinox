@@ -158,7 +158,7 @@ class CAllBlogUser
 					"FROM b_blog_user FU, b_file F ".
 					"WHERE FU.ID = ".$arUser["ID"]." ".
 					"	AND FU.AVATAR = F.ID ";
-				$z = $DB->Query($strSql, false, "FILE: ".__FILE__." LINE:".__LINE__);
+				$z = $DB->Query($strSql);
 				while ($zr = $z->Fetch())
 					CFile::Delete($zr["ID"]);
 
@@ -372,7 +372,7 @@ class CAllBlogUser
 				"	".$DB->DateToCharFunction("B.DATE_REG", "FULL")." as DATE_REG ".
 				"FROM b_blog_user B ".
 				"WHERE B.".(($selectType == BLOG_BY_USER_ID) ? "USER_ID" : "ID")." = ".$ID."";
-			$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbResult = $DB->Query($strSql);
 			if ($arResult = $dbResult->Fetch())
 			{
 				$GLOBALS["BLOG_USER"]["BLOG_USER_CACHE_".$arResult["ID"]] = $arResult;
@@ -428,7 +428,7 @@ class CAllBlogUser
 				"ORDER BY B.NAME ASC";
 		}
 
-		$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$dbResult = $DB->Query($strSql);
 
 		return $dbResult;
 	}
@@ -483,7 +483,7 @@ class CAllBlogUser
 				if(!$bUrl)
 					$strSql .= "	AND UG.BLOG_ID = ".$blogID." ";
 
-				$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$dbResult = $DB->Query($strSql);
 
 				while ($arResult = $dbResult->Fetch())
 					$arGroups[] = intval($arResult["USER_GROUP_ID"]);
@@ -540,7 +540,7 @@ class CAllBlogUser
 					"	AND P.USER_GROUP_ID IN (".$strGroups.") ".
 					"	AND P.PERMS_TYPE = '".$DB->ForSql($permsType)."' ".
 					"	AND P.POST_ID = ".$postID." ";
-				$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$dbResult = $DB->Query($strSql);
 				if (($arResult = $dbResult->Fetch()) && ($arResult["PERMS"] <> ''))
 				{
 					$GLOBALS["BLOG_USER"][$varName][$strGroups] = $arResult["PERMS"];
@@ -555,7 +555,7 @@ class CAllBlogUser
 				"	AND P.USER_GROUP_ID IN (".$strGroups.") ".
 				"	AND P.PERMS_TYPE = '".$DB->ForSql($permsType)."' ".
 				"	AND P.POST_ID IS NULL ";
-			$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbResult = $DB->Query($strSql);
 			if (($arResult = $dbResult->Fetch()) && ($arResult["PERMS"] <> ''))
 			{
 				$GLOBALS[$varName][$strGroups] = $arResult["PERMS"];
@@ -616,17 +616,17 @@ class CAllBlogUser
 
 	public static function GetUserIP()
 	{
-		if ($_SERVER["HTTP_X_FORWARDED_FOR"])
+		if ($_SERVER["HTTP_X_FORWARDED_FOR"] ?? null)
 		{
 			$clientIP = $_SERVER["HTTP_X_FORWARDED_FOR"];
 		}
 		else
 		{
-			$clientIP = $_SERVER["HTTP_CLIENT_IP"];
+			$clientIP = $_SERVER["HTTP_CLIENT_IP"] ?? null;
 		}
 
 		$clientProxy = $_SERVER["REMOTE_ADDR"];
-		if($clientIP == '')
+		if (!$clientIP)
 		{
 			$clientIP = $clientProxy;
 			$clientProxy = "";
@@ -643,10 +643,10 @@ class CAllBlogUser
 		}
 		else
 		{
-			if (intval($arParams["AVATAR_SIZE"]) <= 0)
+			if (intval($arParams["AVATAR_SIZE"] ?? null) <= 0)
 				$arParams["AVATAR_SIZE"] = 100;
 
-			if (intval($arParams["AVATAR_SIZE_COMMENT"]) <= 0)
+			if (intval($arParams["AVATAR_SIZE_COMMENT"] ?? null) <= 0)
 				$arParams["AVATAR_SIZE_COMMENT"] = 100;
 
 			$bResizeImmediate = (isset($arParams["RESIZE_IMMEDIATE"]) && $arParams["RESIZE_IMMEDIATE"] == "Y");
@@ -755,7 +755,7 @@ class CAllBlogUser
 				$arParams["AVATAR_SIZE"] = 100;
 			}
 
-			if (intval($arParams["AVATAR_SIZE_COMMENT"]) <= 0)
+			if (intval($arParams["AVATAR_SIZE_COMMENT"] ?? null) <= 0)
 			{
 				$arParams["AVATAR_SIZE_COMMENT"] = 100;
 			}

@@ -5,6 +5,7 @@ namespace Bitrix\Sale\PaySystem;
 use Bitrix\Main\Entity\EntityError;
 use Bitrix\Main\Error;
 use Bitrix\Main\Event;
+use Bitrix\Main\EventResult;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\NotSupportedException;
 use Bitrix\Main\Request;
@@ -70,20 +71,19 @@ class Service implements RestrictableService
 	 * @param Request|null $request
 	 * @param int $mode
 	 * @return ServiceResult
-	 * @throws NotSupportedException
-	 * @throws SystemException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\ArgumentNullException
-	 * @throws \Bitrix\Main\ArgumentOutOfRangeException
-	 * @throws \Bitrix\Main\ArgumentTypeException
-	 * @throws \Bitrix\Main\LoaderException
-	 * @throws \Bitrix\Main\NotImplementedException
-	 * @throws \Bitrix\Main\ObjectException
-	 * @throws \Bitrix\Main\ObjectPropertyException
 	 */
-	public function initiatePay(Payment $payment, Request $request = null, $mode = BaseServiceHandler::STREAM)
+	public function initiatePay(Payment $payment, ?Request $request = null, $mode = BaseServiceHandler::STREAM)
 	{
-		$this->callEventOnBeforeInitiatePay($payment);
+		$onBeforeInitResult = $this->callEventOnBeforeInitiatePay($payment);
+		if (!$onBeforeInitResult->isSuccess())
+		{
+			$error = implode("\n", $onBeforeInitResult->getErrorMessages());
+			Logger::addError(get_class($this->handler) . '. OnBeforeInitiatePay: ' . $error);
+
+			$this->markPayment($payment, $onBeforeInitResult);
+
+			return $onBeforeInitResult;
+		}
 
 		$this->handler->setInitiateMode($mode);
 		$initResult = $this->handler->initiatePay($payment, $request);
@@ -117,12 +117,9 @@ class Service implements RestrictableService
 		else
 		{
 			$error = implode("\n", $initResult->getErrorMessages());
-			Logger::addError(get_class($this->handler).". InitiatePay: ".$error);
+			Logger::addError(get_class($this->handler) . '. InitiatePay: ' . $error);
 
-			(new PaymentMarker($this, $payment))
-				->mark($initResult)
-				->save()
-			;
+			$this->markPayment($payment, $onBeforeInitResult);
 
 			$this->callEventOnInitiatePayError($payment, $initResult);
 		}
@@ -130,8 +127,10 @@ class Service implements RestrictableService
 		return $initResult;
 	}
 
-	private function callEventOnBeforeInitiatePay(Payment $payment)
+	private function callEventOnBeforeInitiatePay(Payment $payment): ServiceResult
 	{
+		$result = new ServiceResult();
+
 		$event = new Event(
 			'sale',
 			self::EVENT_BEFORE_ON_INITIATE_PAY,
@@ -142,6 +141,25 @@ class Service implements RestrictableService
 		);
 
 		$event->send();
+
+		foreach($event->getResults() as $eventResult)
+		{
+			if ($eventResult->getType() === EventResult::ERROR)
+			{
+				$parameters = $eventResult->getParameters();
+				$error = $parameters['ERROR'] ?? null;
+
+				$result->addError(
+					$error instanceof Error
+						? $error
+						: Sale\PaySystem\Error::create(
+							Loc::getMessage('SALE_PS_SERVICE_ERROR_ON_BEFORE_INITIATE_PAY')
+						)
+				);
+			}
+		}
+
+		return $result;
 	}
 
 	private function callEventOnInitiatePaySuccess(Payment $payment)
@@ -391,10 +409,7 @@ class Service implements RestrictableService
 			$error = implode("\n", $serviceResult->getErrorMessages());
 			Logger::addError(get_class($this->handler).'. ProcessRequest Error: '.$error);
 
-			(new PaymentMarker($this, $payment))
-				->mark($serviceResult)
-				->save()
-			;
+			$this->markPayment($payment, $serviceResult);
 
 			PullManager::onFailurePayment($payment);
 		}
@@ -543,24 +558,28 @@ class Service implements RestrictableService
 	public function canPrintCheckSelf(Payment $payment): bool
 	{
 		$service = $payment->getPaySystem();
-		if (!$this->isSupportPrintCheck() || !$this->canPrintCheck())
+		if (!$service || !$this->isSupportPrintCheck() || !$this->canPrintCheck())
 		{
 			return false;
 		}
 
 		/** @var Cashbox\CashboxPaySystem $cashboxClass */
 		$cashboxClass = $this->getCashboxClass();
+		$kkm = $cashboxClass::getKkmValue($service);
 
-		$paySystemParams = $service->getParamsBusValue($payment);
-		$paySystemCodeForKkm = $cashboxClass::getPaySystemCodeForKkm();
+		$filter = [
+			'=ACTIVE' => 'Y',
+			'=HANDLER' => $cashboxClass,
+		];
+
+		if (!empty($kkm))
+		{
+			$filter['=KKM_ID'] = $kkm;
+		}
 
 		return (bool)Cashbox\Manager::getList([
 			'select' => ['ID'],
-			'filter' => [
-				'=ACTIVE' => 'Y',
-				'=HANDLER' => $cashboxClass,
-				'=KKM_ID' => $paySystemParams[$paySystemCodeForKkm],
-			],
+			'filter' => $filter,
 		])->fetch();
 	}
 
@@ -698,7 +717,7 @@ class Service implements RestrictableService
 	 * @param $templateName
 	 * @return ServiceResult
 	 */
-	public function showTemplate(Payment $payment = null, $templateName)
+	public function showTemplate(?Payment $payment = null, $templateName)
 	{
 		return $this->handler->showTemplate($payment, $templateName);
 	}
@@ -716,7 +735,7 @@ class Service implements RestrictableService
 	 * @param Request $request
 	 * @throws NotSupportedException
 	 */
-	public function initPrePayment(Payment $payment = null, Request $request)
+	public function initPrePayment(?Payment $payment = null, Request $request)
 	{
 		if ($this->isPrePayable())
 			return $this->handler->initPrePayment($payment, $request);
@@ -968,7 +987,7 @@ class Service implements RestrictableService
 	 * @param Request|null $request
 	 * @return ServiceResult
 	 */
-	public function repeatRecurrent(Payment $payment, Request $request = null): ServiceResult
+	public function repeatRecurrent(Payment $payment, ?Request $request = null): ServiceResult
 	{
 		$result = new ServiceResult();
 
@@ -985,7 +1004,7 @@ class Service implements RestrictableService
 	 * @param Request|null $request
 	 * @return ServiceResult
 	 */
-	public function cancelRecurrent(Payment $payment, Request $request = null): ServiceResult
+	public function cancelRecurrent(Payment $payment, ?Request $request = null): ServiceResult
 	{
 		$result = new ServiceResult();
 
@@ -1033,6 +1052,35 @@ class Service implements RestrictableService
 		);
 	}
 
+	/**
+	 * Returns true if handler extends IFiscalizationAware interface
+	 *
+	 * @return bool
+	 */
+	public function isFiscalizationAware(): bool
+	{
+		return $this->handler instanceof Sale\PaySystem\Cashbox\IFiscalizationAware;
+	}
+
+	/**
+	 * Returns indicator showing if fiscalization is enabled on the payment system side
+	 *
+	 * @param Payment $payment
+	 * @return bool
+	 * @throws NotSupportedException
+	 */
+	public function isFiscalizationEnabled(Payment $payment): bool
+	{
+		if ($this->isFiscalizationAware())
+		{
+			return $this->handler->isFiscalizationEnabled($payment);
+		}
+
+		throw new NotSupportedException(
+			'Handler does not implement interface '.Sale\PaySystem\Cashbox\IFiscalizationAware::class
+		);
+	}
+
 	public function getStartupRestrictions(): RestrictionInfoCollection
 	{
 		if ($this->handler instanceof Sale\Services\PaySystem\Restrictions\RestrictableServiceHandler)
@@ -1046,5 +1094,13 @@ class Service implements RestrictableService
 	public function getServiceId(): int
 	{
 		return (int)($this->getField('ID') ?? 0);
+	}
+
+	private function markPayment(Payment $payment, ServiceResult $serviceResult): void
+	{
+		(new PaymentMarker($this, $payment))
+			->mark($serviceResult)
+			->save()
+		;
 	}
 }

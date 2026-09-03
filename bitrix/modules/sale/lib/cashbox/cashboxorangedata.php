@@ -3,9 +3,8 @@
 namespace Bitrix\Sale\Cashbox;
 
 use Bitrix\Main;
-use Bitrix\Main\Text;
 use Bitrix\Main\Localization;
-use Bitrix\Sale\Cashbox\Errors;
+use Bitrix\Main\PhoneNumber;
 use Bitrix\Sale\Result;
 use Bitrix\Catalog;
 
@@ -35,11 +34,12 @@ class CashboxOrangeData
 
 	const CODE_VAT_0 = 5;
 	const CODE_VAT_10 = 2;
-	const CODE_VAT_20 = 1;
+	const CODE_VAT_22 = 1;
 	const CODE_CALC_VAT_10 = 4;
-	const CODE_CALC_VAT_20 = 3;
+	const CODE_CALC_VAT_22 = 3;
 
 	private const MAX_TEXT_LENGTH = 128;
+	protected const MAX_UUID_LENGTH = 64;
 
 	/**
 	 * @return string
@@ -129,25 +129,72 @@ class CashboxOrangeData
 					'taxationSystem' => $this->getValueFromSettings('TAX', 'SNO'),
 				],
 				'customerContact' => $this->getCustomerContact($checkData),
+				'isInternetStore' => $this->getField('USE_OFFLINE') === 'N',
 			],
 			'meta' => self::PARTNER_CODE_BITRIX
 		];
 
+		$items = [];
 		foreach ($checkData['items'] as $item)
 		{
-			$result['content']['positions'][] = $this->buildPosition($checkData, $item, $isSellReturn);
+			array_push($items, ...$this->splitItemForPriceQuantityApi($item));
+		}
+
+		$hasVat20 = false;
+		$hasVat22 = false;
+		foreach ($items as $item)
+		{
+			$position = $this->buildPosition($checkData, $item, $isSellReturn);
+			if (
+				(int)$position['tax'] === self::CODE_VAT_22
+				|| (int)$position['tax'] === self::CODE_CALC_VAT_22
+			)
+			{
+				$itemVatRate = $this->getVatRateByVatId((int)$item['vat']);
+				$hasVat22 = $hasVat22 || $itemVatRate === 22.0;
+				$hasVat20 = $hasVat20 || $itemVatRate === 20.0;
+			}
+			$result['content']['positions'][] = $position;
+		}
+
+		if ($hasVat20 && !$hasVat22)
+		{
+			$result['content']['useTax20'] = true;
 		}
 
 		$paymentTypeMap = $this->getPaymentTypeMap();
 		foreach ($checkData['payments'] as $payment)
 		{
+			$paymentCurrency = $payment['currency'] ?? '';
 			$result['content']['checkClose']['payments'][] = [
 				'type' => $paymentTypeMap[$payment['type']],
-				'amount' => $payment['sum'],
+				'amount' => $this->roundMoney((float)$payment['sum'], $paymentCurrency),
 			];
 		}
 
 		return $result;
+	}
+
+	private function getVatRateByVatId(int $vatId): ?float
+	{
+		if (!Main\Loader::includeModule('catalog'))
+		{
+			return null;
+		}
+
+		$vatData = Catalog\VatTable::getRow([
+			'select' => ['ID', 'RATE'],
+			'filter' => ['=ID' => $vatId],
+			'cache' => [
+				'ttl' => 86400,
+			],
+		]);
+		if (!$vatData)
+		{
+			return null;
+		}
+
+		return (float)$vatData['RATE'];
 	}
 
 	/**
@@ -170,6 +217,12 @@ class CashboxOrangeData
 		if (isset($item['nomenclature_code']))
 		{
 			$result['nomenclatureCode'] = $this->buildPositionNomenclatureCode($item);
+		}
+
+		if (isset($item['supplier_info']))
+		{
+			$result += $this->buildPositionAgentInfo();
+			$result += $this->buildPositionSupplier($item['supplier_info']);
 		}
 
 		return $result;
@@ -195,11 +248,13 @@ class CashboxOrangeData
 
 	/**
 	 * @param array $item
-	 * @return mixed
+	 * @return float
 	 */
 	protected function buildPositionPrice(array $item)
 	{
-		return $item['price'];
+		$currency = $item['currency'] ?? '';
+
+		return $this->roundMoney((float)$item['price'], $currency);
 	}
 
 	/**
@@ -249,6 +304,61 @@ class CashboxOrangeData
 		return base64_encode($item['nomenclature_code']);
 	}
 
+	protected function buildPositionAgentInfo(): array
+	{
+		/**
+		 * tag 1222, 6 - another agent
+		 */
+		return [
+			'agentType' => 6,
+		];
+	}
+
+	protected function buildPositionSupplier(array $supplier): array
+	{
+		$result = [
+			'supplierInfo' => null,
+			'supplierINN' => null,
+		];
+
+		// 239 max length for supplierInfo's tag
+		$maxTagLength = 239;
+		$phoneLength = 0;
+
+		if (!empty($supplier['phones']))
+		{
+			$phoneParser = PhoneNumber\Parser::getInstance();
+
+			foreach ($supplier['phones'] as $phone)
+			{
+				$phoneNumber = $phoneParser->parse($phone);
+				$formattedPhone = $phoneNumber->format(PhoneNumber\Format::E164);
+				if ($formattedPhone)
+				{
+					$phoneLength += mb_strlen($formattedPhone) + 4;
+					if ($phoneLength > $maxTagLength)
+					{
+						break;
+					}
+
+					$result['supplierInfo']['phoneNumbers'][] = $formattedPhone;
+				}
+			}
+		}
+
+		if (!empty($supplier['name']) && $phoneLength < $maxTagLength)
+		{
+			$result['supplierInfo']['name'] = mb_substr($supplier['name'], 0, $maxTagLength - $phoneLength);
+		}
+
+		if (!empty($supplier['supplier_info']['inn']))
+		{
+			$result['supplierINN'] = $supplier['supplier_info']['inn'];
+		}
+
+		return $result;
+	}
+
 	/**
 	 * @param $checkType
 	 * @param $vat
@@ -256,26 +366,21 @@ class CashboxOrangeData
 	 */
 	private function mapVatValue($checkType, $vat)
 	{
-		$map = [
-			self::CODE_VAT_10 => [
-				PrepaymentCheck::getType() => self::CODE_CALC_VAT_10,
-				PrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_10,
-				PrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_10,
-				FullPrepaymentCheck::getType() => self::CODE_CALC_VAT_10,
-				FullPrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_10,
-				FullPrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_10,
-			],
-			self::CODE_VAT_20 => [
-				PrepaymentCheck::getType() => self::CODE_CALC_VAT_20,
-				PrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_20,
-				PrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_20,
-				FullPrepaymentCheck::getType() => self::CODE_CALC_VAT_20,
-				FullPrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_20,
-				FullPrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_20,
-			],
-		];
+		$mapper = new Tools\Vat2PrepaymentCheckMapper(
+			$this->getVatToCalcVatMap()
+		);
+
+		$map = $mapper->getMap();
 
 		return $map[$vat][$checkType] ?? $vat;
+	}
+
+	protected function getVatToCalcVatMap() : array
+	{
+		return [
+			self::CODE_VAT_10 => self::CODE_CALC_VAT_10,
+			self::CODE_VAT_22 => self::CODE_CALC_VAT_22,
+		];
 	}
 
 	/**
@@ -386,7 +491,7 @@ class CashboxOrangeData
 		$header .= "Accept: application/json\r\n";
 		$header .= "Content-Type: application/json\r\n";
 		$header .= "X-Signature: ".$sign."\r\n";
-		$header .= sprintf("Content-length: %s\r\n", Text\BinaryString::getLength($data));
+		$header .= sprintf("Content-length: %s\r\n", strlen($data));
 		$header .= "\r\n";
 
 		return $header;
@@ -884,14 +989,11 @@ class CashboxOrangeData
 			$vatList = $dbRes->fetchAll();
 			if ($vatList)
 			{
-				$defaultVatList = [
-					0 => self::CODE_VAT_0,
-					10 => self::CODE_VAT_10,
-					20 => self::CODE_VAT_20
-				];
+				$defaultVatList = static::getDefaultVatList();
+
 				foreach ($vatList as $vat)
 				{
-					$value = '';
+					$value = null;
 					if (isset($defaultVatList[(int)$vat['RATE']]))
 						$value = $defaultVatList[(int)$vat['RATE']];
 
@@ -944,6 +1046,16 @@ class CashboxOrangeData
 		];
 
 		return $settings;
+	}
+
+	protected static function getDefaultVatList() : array
+	{
+		return [
+			0 => self::CODE_VAT_0,
+			10 => self::CODE_VAT_10,
+			20 => self::CODE_VAT_22,
+			22 => self::CODE_VAT_22,
+		];
 	}
 
 	/**
@@ -1055,6 +1167,8 @@ class CashboxOrangeData
 
 		$calculatedSignMap = $this->getCalculatedSignMap();
 
+		$correctionCurrency = $data['currency'] ?? '';
+
 		$result = [
 			'id' => static::buildUuid(static::UUID_TYPE_CHECK, $data['unique_id']),
 			'inn' => $this->getValueFromSettings('SERVICE', 'INN'),
@@ -1065,21 +1179,20 @@ class CashboxOrangeData
 				'correctionType' => $this->getCorrectionTypeMap($data['correction_info']['type']),
 				'causeDocumentDate' => $this->getCorrectionCauseDocumentDate($data['correction_info']),
 				'causeDocumentNumber' => $this->getCorrectionCauseDocumentNumber($data['correction_info']),
-				'totalSum' => $this->getCorrectionTotalSum($data['correction_info']),
+				'totalSum' => $this->getCorrectionTotalSum($data['correction_info'], $correctionCurrency),
 				'taxationSystem' => $this->getValueFromSettings('TAX', 'SNO')
 			],
 		];
 
 		foreach ($data['payments'] as $payment)
 		{
-			if ($payment['type'] === Check::PAYMENT_TYPE_CASH)
-			{
-				$result['content']['cashSum'] = (float)$payment['sum'];
-			}
-			else
-			{
-				$result['content']['eCashSum'] = (float)$payment['sum'];
-			}
+			$cashKey = $payment['type'] === Check::PAYMENT_TYPE_CASH ? 'cashSum' : 'eCashSum';
+			$result['content'][$cashKey] = $this->roundMoney((float)$payment['sum'], $correctionCurrency);
+		}
+
+		if ($this->useTax20ForCorrection($data))
+		{
+			$result['content']['useTax20'] = true;
 		}
 
 		$vats = $this->getVatsByCheckData($data);
@@ -1092,6 +1205,25 @@ class CashboxOrangeData
 		}
 
 		return $result;
+	}
+
+	protected function useTax20ForCorrection(array $data): bool
+	{
+		if (empty($data['vats']) || !is_array($data['vats']))
+		{
+			return false;
+		}
+
+		foreach ($data['vats'] as $vat)
+		{
+			$itemVatRate = $this->getVatRateByVatId((int)$vat['type']);
+			if ($itemVatRate === 20.0)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -1115,12 +1247,14 @@ class CashboxOrangeData
 	}
 
 	/**
-	 * @param $correctionInfo
-	 * @return mixed
+	 * @param array $correctionInfo
+	 * @param string $currency
+	 * 
+	 * @return float
 	 */
-	protected function getCorrectionTotalSum($correctionInfo)
+	protected function getCorrectionTotalSum(array $correctionInfo, string $currency = ''): float
 	{
-		return $correctionInfo['total_sum'];
+		return $this->roundMoney($correctionInfo['total_sum'], $currency);
 	}
 
 	/**
@@ -1151,7 +1285,7 @@ class CashboxOrangeData
 				case self::CODE_VAT_10:
 					$vatKey = '2Sum';
 					break;
-				case self::CODE_VAT_20:
+				case self::CODE_VAT_22:
 					$vatKey = '1Sum';
 					break;
 				default:

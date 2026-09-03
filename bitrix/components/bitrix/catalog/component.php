@@ -71,6 +71,11 @@ $arParams['ELEMENT_SORT_ORDER_BOX'] = (string)($arParams['ELEMENT_SORT_ORDER_BOX
 $arParams['ELEMENT_SORT_FIELD_BOX2'] = (string)($arParams['ELEMENT_SORT_FIELD_BOX2'] ?? 'ID');
 $arParams['ELEMENT_SORT_ORDER_BOX2'] = (string)($arParams['ELEMENT_SORT_ORDER_BOX2'] ?? 'DESC');
 
+if (!\Bitrix\Main\Analytics\Catalog::isOn())
+{
+	$arParams['USE_BIG_DATA'] = 'N';
+}
+
 //default gifts
 if(empty($arParams['USE_GIFTS_SECTION']))
 {
@@ -318,6 +323,8 @@ else
 
 $arResult["VARIABLES"]["SMART_FILTER_PATH"] ??= '';
 $arResult["VARIABLES"]["SECTION_ID"] ??= 0;
+$arResult["VARIABLES"]["SECTION_CODE"] ??= '';
 $arResult['VARIABLES']['ELEMENT_ID'] ??= 0;
+$arResult['VARIABLES']['ELEMENT_CODE'] ??= '';
 
 $this->IncludeComponentTemplate($componentPage);

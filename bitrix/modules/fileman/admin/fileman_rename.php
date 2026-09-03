@@ -8,6 +8,7 @@ if (!$USER->CanDoOperation('fileman_admin_files'))
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/include.php");
 IncludeModuleLangFile(__FILE__);
 
+$logical = $logical ?? null;
 $addUrl = 'lang='.LANGUAGE_ID.($logical == "Y"?'&logical=Y':'');
 
 $strWarning = "";
@@ -38,7 +39,7 @@ if(!$io->FileExists($abs_path) && !$io->DirectoryExists($abs_path))
 	$strWarning .= GetMessage("FILEMAN_FILEORFOLDER_NOT_FOUND");
 else
 {
-	if($REQUEST_METHOD=="POST" && $save <> '' && check_bitrix_sessid())
+	if($_SERVER['REQUEST_METHOD']=="POST" && $save <> '' && check_bitrix_sessid())
 	{
 		$pathTmp = $path;
 		foreach($arFiles as $ind => $file)

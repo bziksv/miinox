@@ -12,7 +12,10 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 global $APPLICATION;
 
-\Bitrix\Main\UI\Extension::load(['catalog.store-use', 'ui.fonts.opensans']);
+\Bitrix\Main\UI\Extension::load([
+	'catalog.store-enable-wizard',
+	'ui.fonts.opensans',
+]);
 CBitrixComponent::includeComponentClass("bitrix:catalog.feedback");
 
 if ($arResult['IS_IFRAME_MODE'])
@@ -37,5 +40,6 @@ $APPLICATION->IncludeComponent(
 	[
 		'ID' => 'store_documents',
 		'ITEMS' => $arResult['ITEMS'],
+		'THEME' => defined('AIR_SITE_TEMPLATE') ? 'air' : null,
 	]
 );

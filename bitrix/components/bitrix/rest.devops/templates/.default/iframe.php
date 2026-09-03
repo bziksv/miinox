@@ -1,8 +1,8 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-/** @var \CAllMain $APPLICATION*/
-/** @var \CBitrixComponentTemplate $this*/
+/** @var CMain $APPLICATION*/
+/** @var CBitrixComponentTemplate $this*/
 /** @var array $arResult*/
 /** @var array $arParams*/
 
@@ -25,5 +25,6 @@ $APPLICATION->IncludeComponent(
 		'PAGE_MODE'=> false,
 		'PAGE_MODE_OFF_BACK_URL' =>	$arResult['PATH_TO_INDEX'],
 		'BUTTONS' => ['close'],
+		'USE_UI_TOOLBAR' => 'Y',
 	)
 );

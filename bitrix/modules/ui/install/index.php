@@ -23,7 +23,8 @@ class UI extends \CModule
 	protected $events = [
 		'main' => [
 			'OnUserDelete' => ['\Bitrix\UI\Integration\Main\User', 'onDelete'],
-			'OnFileDelete' => ['\Bitrix\UI\Avatar\Mask\Item', 'onFileDelete']
+			'OnFileDelete' => ['\Bitrix\UI\Avatar\Mask\Item', 'onFileDelete'],
+			'OnUserTypeBuildList' => ['\Bitrix\UI\UserField\Types\RichTextType', 'getUserTypeDescription'],
 		],
 		'rest' => [
 			'onRestAppDelete' => ['\Bitrix\UI\Integration\Rest\App', 'onRestAppDelete'],
@@ -34,6 +35,13 @@ class UI extends \CModule
 			'onRestApplicationConfigurationExport' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationExport'],
 			'onRestApplicationConfigurationEntity' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationEntity'],
 			'onRestApplicationConfigurationImport' => ['\Bitrix\UI\Integration\Rest\MaskManifest', 'onRestApplicationConfigurationImport'],
+		],
+		'humanresources' => [
+			'OnMemberAdded' => ['Bitrix\Ui\EntityForm\Scope', 'handleMemberAddedToDepartment'],
+		],
+		'socialnetwork' => [
+			'OnSocNetUserToGroupAdd' => ['Bitrix\Ui\EntityForm\Scope', 'handleMemberAddedToSocialGroup'],
+			'OnSocNetUserToGroupUpdate' => ['Bitrix\Ui\EntityForm\Scope', 'handleMemberAddedToSocialGroup'],
 		],
 	];
 
@@ -83,13 +91,12 @@ class UI extends \CModule
 	function installDB()
 	{
 		global $DB;
-
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
-		if (!$DB->Query("SELECT 'x' FROM b_ui_entity_editor_config", true))
+
+		if (!$DB->TableExists('b_ui_entity_editor_config'))
 		{
-			$this->errors = $DB->RunSQLBatch(
-				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/ui/install/db/mysql/install.sql'
-			);
+			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/ui/install/db/' . $connection->getType() . '/install.sql');
 		}
 
 		if (is_array($this->errors))
@@ -127,9 +134,10 @@ class UI extends \CModule
 	function uninstallDB()
 	{
 		global $DB;
+		$connection = \Bitrix\Main\Application::getConnection();
 
 		$this->errors = $DB->RunSQLBatch(
-			$_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/ui/install/db/mysql/uninstall.sql'
+			$_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/ui/install/db/' . $connection->getType() . '/uninstall.sql'
 		);
 
 		if (is_array($this->errors))

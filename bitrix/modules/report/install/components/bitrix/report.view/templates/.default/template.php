@@ -10,7 +10,10 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	'ui.fonts.opensans',
 	'ui.buttons',
 	'ui.buttons.icons',
+	'intranet.old-interface.intranet-common',
 ]);
+
+\Bitrix\Main\UI\Extension::load('intranet.old-interface.sidebar-filter');
 
 /** @var CBitrixComponentTemplate $this */
 
@@ -38,10 +41,27 @@ function reportViewShowTopButtons(&$component, &$arParams, &$arResult)
 		$stExportManagerId = $arResult['STEXPORT_PARAMS']['managerId'];
 	}
 
-	$component->SetViewTarget("pagetitle", 100);?>
+	if (\Bitrix\Main\Loader::includeModule('ui'))
+	{
+		\Bitrix\UI\Toolbar\Facade\Toolbar::addButton(
+			new \Bitrix\UI\Buttons\SettingsButton([
+				'dataset' => [
+					'role' => 'action-report',
+				],
+			])
+		);
 
+		\Bitrix\UI\Toolbar\Facade\Toolbar::addButton(
+			new \Bitrix\UI\Buttons\Button([
+				'color' => \Bitrix\UI\Buttons\Color::PRIMARY,
+				'icon' => \Bitrix\UI\Buttons\Icon::BACK,
+				'link' => CComponentEngine::makePathFromTemplate($arParams['PATH_TO_REPORT_LIST']),
+				'text' => GetMessage('REPORT_RETURN_TO_LIST'),
+			])
+		);
+	}
 
-<script>
+	?><script>
 	(function ()
 	{
 		BX.ready(function ()
@@ -93,13 +113,7 @@ function reportViewShowTopButtons(&$component, &$arParams, &$arResult)
 			)
 		})
 	})();
-</script>
-
-<button class="ui-btn ui-btn-light-border ui-btn-icon-setting ui-btn-themes" data-role="action-report"></button>
-<a class="ui-btn ui-btn-primary ui-btn-icon-back" href="<?=CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_REPORT_LIST"], array());?>"><?= htmlspecialcharsbx(GetMessage('REPORT_RETURN_TO_LIST')) ?></a>
-
-<?php
-	$component->EndViewTarget();
+</script><?php
 }
 
 if (!empty($arResult['ERROR']))
@@ -111,7 +125,7 @@ if (!empty($arResult['ERROR']))
 	return false;
 }
 
-if ($arParams['USE_CHART'] && $arResult['settings']['chart']['display'])
+if (($arParams['USE_CHART'] ?? false) && ($arResult['settings']['chart']['display'] ?? false))
 {
 	require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/img.php');
 	// amCharts
@@ -177,7 +191,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 
 
 <div class="reports-result-list-wrap">
-	<?php if ($arParams['USE_CHART'] && $arResult['settings']['chart']['display']): ?>
+	<?php if (($arParams['USE_CHART'] ?? false) && ($arResult['settings']['chart']['display'] ?? false)): ?>
 	<style type="text/css">
 		div.graph {
 			background-color: white;
@@ -449,9 +463,9 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 		{
 			$chartTypeIds = array();
 			foreach ($chartTypes as $chartTypeInfo)
-            {
-                $chartTypeIds[] = $chartTypeInfo['id'];
-            }
+			{
+				$chartTypeIds[] = $chartTypeInfo['id'];
+			}
 			$chartTypesIndexes = array_flip($chartTypeIds);
 			$columnYValueTypes = $chartTypes[$chartTypesIndexes[$chartInfo['requestData']['type']]]['value_types'];
 			if (isset($chartInfo['requestData']['type']) && in_array($chartInfo['requestData']['type'], $chartTypeIds))
@@ -728,6 +742,10 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 					foreach ($chartInfo['requestData']['data'] as $dataRow)
 					{
 						$index = $dataRow[0];
+						if (!isset($arConsolidated[$index]))
+						{
+							$arConsolidated[$index] = 0.0;
+						}
 						$arConsolidated[$index] += $dataRow[1];
 					}
 					$sumAll = 0.0;
@@ -837,7 +855,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 	?>
 	<div style="margin-bottom: 14px;"><a id="report-chart-showhide" class="report-chart-show"><?= htmlspecialcharsbx(GetMessage('REPORT_CHART_HIDE')) ?></a></div>
 	<div id="report-chart-container" class="graph"<?php echo ($chartErrorCode > 0) ? '' : ' style="height: 540px;"'; ?>><?= htmlspecialcharsbx($chartErrorMessage) ?></div>
-	<script type="text/javascript">
+	<script>
 		function reportChartShowHide()
 		{
 			var chartContainer = BX("report-chart-container");
@@ -1209,7 +1227,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 							{
 								$finalValue = join(' / ', $finalValue);
 							}
-							if ($arResult['settings']['red_neg_vals'] === true)
+							if (($arResult['settings']['red_neg_vals'] ?? false) === true)
 							{
 								if ($redSign || (is_numeric($finalValue) && $finalValue < 0))
 									$td_class .= ' report-red-neg-val';
@@ -1280,7 +1298,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 			</tbody>
 		</table>
 		</div>
-		<script type="text/javascript">
+		<script>
 		BX.ready(function(){
 			var rows = BX.findChildren(BX('<?= $resultTableId ?>'), {tag:'th'}, true);
 			for (i = 0 ; i < rows.length ; i++)
@@ -1410,7 +1428,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 			<option value="true"><?=htmlspecialcharsbx(GetMessage('REPORT_BOOLEAN_VALUE_TRUE'))?></option>
 			<option value="false"><?=htmlspecialcharsbx(GetMessage('REPORT_BOOLEAN_VALUE_FALSE'))?></option>
 		</select>
-		<script type="text/javascript">
+		<script>
 			function RTFilter_chooseBooleanCatch(value)
 			{
 				setSelectValue(RTFilter_chooseBoolean_LAST_CALLER, value);
@@ -1475,13 +1493,13 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 									alt="<?= htmlspecialcharsbx(GetMessage("TASKS_PICK_DATE"))?>"></a></span>
 				</span>
 				<span class="filter-day-interval<?php
-				if ($arResult["FILTER"]["F_DATE_TYPE"] == "days"):
+				if (($arResult["FILTER"]["F_DATE_TYPE"] ?? '') === "days"):
 					?> filter-day-interval-selected<?php
 				endif;
 				?>"><input type="text" size="5" class="filter-date-days"
 						value="<?= htmlspecialcharsbx($arResult['form_date']['days']) ?>"
 						name="F_DATE_DAYS"/> <?= htmlspecialcharsbx(GetMessage("TASKS_REPORT_DAYS")); ?></span>
-				<script type="text/javascript">
+				<script>
 
 					function OnTaskIntervalChange(select)
 					{
@@ -1567,7 +1585,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 					$name = isset($chFilter['name']) ? $chFilter['name'] : ($field ? $field->GetName() : '');
 					$info[] = array(
 						'TITLE' => $chFilter['title'],
-						'COMPARE' => ToLower(GetMessage('REPORT_FILTER_COMPARE_VAR_'.$chFilter['compare'])),
+						'COMPARE' => mb_strtolower(GetMessage('REPORT_FILTER_COMPARE_VAR_'.$chFilter['compare'])),
 						'NAME' =>$chFilter['formName'],
 						'ID' => $chFilter['formId'],
 						'VALUE' => $chFilter['value'],
@@ -1614,7 +1632,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 					);
 				}
 			?>
-			<script type="text/javascript">
+			<script>
 
 			BX.ready(function() {
 				var info = <?=CUtil::PhpToJSObject($info)?>;
@@ -1723,7 +1741,7 @@ function getResultColumnDataType(&$viewColumnInfo, &$customColumnTypes, $helperC
 				<input id="report-rewrite-filter-button" type="submit" value="<?=htmlspecialcharsbx(GetMessage('REPORT_FILTER_APPLY'))?>" class="filter-submit">&nbsp;&nbsp;<input id="report-reset-filter-button" type="submit" name="del_filter_company_search" value="<?=GetMessage('REPORT_FILTER_CANCEL')?>" class="filter-submit">
 			</div>
 
-			<script type="text/javascript">
+			<script>
 
 			BX.ready(function(){
 				BX.bind(BX('report-reset-filter-button'), 'click', function(){
@@ -2018,7 +2036,7 @@ if ($arResult['allowHorizontalScroll'])
 		'classFadeShadowRight' => 'main-grid-fade-shadow-right'
 	);
 	?>
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 			BX.loadScript(
 				[
@@ -2309,7 +2327,7 @@ if (is_array($arResult['STEXPORT_PARAMS']))
 	Bitrix\Main\Page\Asset::getInstance()->addJs('/bitrix/js/report/lrpdialog.js');
 	Bitrix\Main\Page\Asset::getInstance()->addJs('/bitrix/js/report/stexport.js');
 	?>
-	<script type="text/javascript">
+	<script>
 		BX.ready(
 			function()
 			{

@@ -21,7 +21,7 @@ use Bitrix\Sale\Delivery\ExtraServices;
 use Bitrix\Sale\Internals\ShipmentTable;
 use Bitrix\Sale\Delivery\CalculationResult;
 use Bitrix\Sale\Internals\ServiceRestrictionTable;
-use Bitrix\Sale\Delivery\Services\Base;
+use Bitrix\Sale\Delivery\Rest\Internals\DeliveryRestHandlerTable;
 
 Loc::loadMessages(__FILE__);
 
@@ -320,7 +320,7 @@ class Manager
 	 * @param array $skipChecks self::SKIP_CHILDREN_PARENT_CHECK || self::SKIP_PROFILE_PARENT_CHECK
 	 * @return array Array of active delivery services fields filtered by restrictions.
 	 */
-	public static function getRestrictedList(Shipment $shipment = null, $restrictionMode, array $skipChecks = array())
+	public static function getRestrictedList(?Shipment $shipment = null, $restrictionMode, array $skipChecks = array())
 	{
 		$result = array();
 
@@ -653,8 +653,11 @@ class Manager
 		if (!$init)
 		{
 			$init = true;
-			$restHandlerList = \Bitrix\Sale\Delivery\Rest\Internals\DeliveryRestHandlerTable::getList([
+			$restHandlerList = DeliveryRestHandlerTable::getList([
 				'select' => ['ID', 'NAME', 'CODE', 'SORT', 'DESCRIPTION', 'SETTINGS', 'PROFILES'],
+				'cache' => [
+					'ttl' => 86400,
+				],
 			])->fetchAll();
 			foreach ($restHandlerList as $restHandler)
 			{
@@ -701,30 +704,31 @@ class Manager
 	 * @throws SystemException
 	 * @throws \Exception
 	 */
-	public static function getGroupId($name)
+	public static function getGroupId(string $name): int
 	{
-		$res = Table::getList( array(
-			'select' => array("ID"),
-			'filter' => array(
-				"=NAME" => $name,
-				"=CLASS_NAME" => '\Bitrix\Sale\Delivery\Services\Group'
-			)
-		));
+		$group = Table::getRow([
+			'select' => ['ID'],
+			'filter' => [
+				'=NAME' => $name,
+				'=CLASS_NAME' => '\Bitrix\Sale\Delivery\Services\Group',
+			]
+		]);
 
-		if($group = $res->fetch())
+		if ($group)
 		{
 			$result = $group["ID"];
 		}
 		else
 		{
-			$res = self::add(array(
-				"NAME" => $name,
-				"CLASS_NAME" => '\Bitrix\Sale\Delivery\Services\Group',
-				"ACTIVE" => "Y"
-			));
+			$res = self::add([
+				'NAME' => $name,
+				'CLASS_NAME' => '\Bitrix\Sale\Delivery\Services\Group',
+				'ACTIVE' => 'Y',
+				'CURRENCY' => Option::get('sale', 'default_currency'),
+			]);
 
 			if($res->isSuccess())
-				$result = $res->getId();
+				$result = (int)$res->getId();
 			else
 				throw new SystemException(implode("<br>\n",$res->getErrorMessages()));
 		}
@@ -1363,7 +1367,7 @@ class Manager
 	/**
 	 * @deprecated use \Bitrix\Sale\Delivery\Services\Manager::getRestrictedList()
 	 */
-	public static function getServicesBriefsForShipment(Shipment $shipment = null, array $skipChecks = array(), $getAll = false)
+	public static function getServicesBriefsForShipment(?Shipment $shipment = null, array $skipChecks = array(), $getAll = false)
 	{
 		return self::getRestrictedList($shipment, Restrictions\Manager::MODE_CLIENT, $skipChecks);
 	}

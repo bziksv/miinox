@@ -1,8 +1,12 @@
-<?
+<?php
+
+use Bitrix\Main\Web\Json;
+
 /**
  * @global CMain $APPLICATION
  * @global CUser $USER
  */
+
 if (!array_key_exists("component_name", $_GET))
 {
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/public/component_props.php");
@@ -53,8 +57,6 @@ CComponentParamsManager::Init(array(
 ));
 
 IncludeModuleLangFile(__FILE__);
-
-CUtil::JSPostUnescape();
 
 $obJSPopup = new CJSPopup('',
 	array(
@@ -147,7 +149,7 @@ if($strWarning == "")
 						$aPostValues[$name] = [];
 					}
 				}
-				elseif ($bLimitPhpAccess && mb_substr($value, 0, 2) == '={' && mb_substr($value, -1) == '}')
+				elseif ($bLimitPhpAccess && str_starts_with($value, '={') && str_ends_with($value, '}'))
 				{
 					$aPostValues[$name] = $arValues[$name];
 				}
@@ -165,25 +167,7 @@ if($strWarning == "")
 				}
 			}
 
-			$functionParams = "";
-			if(!empty($arComponent["DATA"]["FUNCTION_PARAMS"]))
-			{
-				$functionParams = ",\n".
-					"\tarray(\n".
-					"\t\t".PHPParser::ReturnPHPStr2($arComponent["DATA"]["FUNCTION_PARAMS"])."\n".
-					"\t)";
-			}
-
-			$code = ($arComponent["DATA"]["VARIABLE"]? $arComponent["DATA"]["VARIABLE"]." = ":"").
-				"\$APPLICATION->IncludeComponent(\n".
-				"\t\"".$arComponent["DATA"]["COMPONENT_NAME"]."\", \n".
-				"\t\"".$sTemplateName."\", \n".
-				"\tarray(\n".
-				"\t\t".PHPParser::ReturnPHPStr2($aPostValues)."\n".
-				"\t),\n".
-				"\t".($arComponent["DATA"]["PARENT_COMP"] <> ''? $arComponent["DATA"]["PARENT_COMP"] : "false").
-				$functionParams.
-				"\n);";
+			$code = PHPParser::buildComponentCode($arComponent, $sTemplateName, $aPostValues);
 
 			$filesrc_for_save = mb_substr($filesrc, 0, $arComponent["START"]).$code.mb_substr($filesrc, $arComponent["END"]);
 
@@ -229,12 +213,12 @@ if($strWarning !== "")
 			}
 		})();
 	</script>
-	<?
+<?php
 }
 
 $obJSPopup->StartContent();?>
 
-<?if($strWarning === ""):?>
+<?php if($strWarning === ""):?>
 <script>
 (function()
 {
@@ -295,7 +279,7 @@ $obJSPopup->StartContent();?>
 		}
 	};
 
-	window.publicComponentDialogManager = new CompDialogManager(<?=CUtil::PhpToJSObject(array(
+	window.publicComponentDialogManager = new CompDialogManager(<?= Json::encode(array(
 		'name' => $componentName,
 		'template' => $curTemplate,
 		'siteTemplate' => $templateId,
@@ -306,12 +290,19 @@ $obJSPopup->StartContent();?>
 })();
 </script>
 <div id="bx-comp-params-wrap" class="bxcompprop-wrap-public"></div>
-<?CComponentParamsManager::DisplayFileDialogsScripts();?>
-<?endif; /*($strWarning === "") */?>
+<?php
+	CComponentParamsManager::DisplayFileDialogsScripts();
+?>
+<?php endif; /*($strWarning === "") */?>
 
-<?$obJSPopup->StartButtons();?>
+<?php
+$obJSPopup->StartButtons();
+?>
 	<input type="button" id="bx-comp-params-save-button" value="<?= GetMessage("comp_prop_save")?>" onclick="<?=$obJSPopup->jsPopup?>.PostParameters('<?= PageParams().'&amp;action=save'?>');" title="<?= GetMessage("comp_prop_save_title")?>" name="save" class="adm-btn-save" />
 	<input type="button" value="<?= GetMessage("comp_prop_cancel")?>" onclick="<?=$obJSPopup->jsPopup?>.CloseDialog()" title="<?= GetMessage("comp_prop_cancel_title")?>" />
-<?$obJSPopup->EndButtons();?>
+<?php
+$obJSPopup->EndButtons();
+?>
 
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");?>
+<?php
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");

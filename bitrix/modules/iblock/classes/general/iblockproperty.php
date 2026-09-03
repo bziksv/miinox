@@ -1,4 +1,6 @@
 <?php
+
+use Bitrix\Main;
 use Bitrix\Iblock;
 
 global $IBLOCK_CACHE_PROPERTY;
@@ -7,7 +9,7 @@ IncludeModuleLangFile(__FILE__);
 
 class CAllIBlockProperty
 {
-	public $LAST_ERROR = "";
+	public string $LAST_ERROR = '';
 
 	public static function GetList($arOrder=Array(), $arFilter=Array())
 	{
@@ -121,7 +123,7 @@ class CAllIBlockProperty
 				ORDER BY ".implode(", ", $arSqlOrder)."
 			";
 
-		$res = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+		$res = $DB->Query($strSql);
 
 		return new CIBlockPropertyResult($res);
 	}
@@ -249,6 +251,7 @@ class CAllIBlockProperty
 			$arFields["MULTIPLE"]="N";
 		if(is_set($arFields, "LIST_TYPE") && $arFields["LIST_TYPE"]!="C")
 			$arFields["LIST_TYPE"]="L";
+		$arFields['IS_REQUIRED'] = ($arFields['IS_REQUIRED'] ?? 'N') === 'Y' ? 'Y' : 'N';
 
 		if(!$this->CheckFields($arFields))
 		{
@@ -259,43 +262,59 @@ class CAllIBlockProperty
 		{
 			$arFields["VERSION"] = CIBlockElement::GetIBVersion($arFields["IBLOCK_ID"]);
 			unset($arFields["ID"]);
-			if(isset($arFields["USER_TYPE"]))
+			if (isset($arFields['USER_TYPE']))
 			{
-				$arUserType = CIBlockProperty::GetUserType($arFields["USER_TYPE"]);
-				if(array_key_exists("ConvertToDB", $arUserType))
+				$arUserType = [];
+				$userTypeId = (string)$arFields['USER_TYPE'];
+				if ($userTypeId !== '')
 				{
-					$arValue = array(
-						"VALUE" => $arFields["DEFAULT_VALUE"],
-						"DEFAULT_VALUE" => true
-					);
-					$arValue = call_user_func_array($arUserType["ConvertToDB"], array($arFields, $arValue));
-					if(is_array($arValue) && isset($arValue["VALUE"]) && mb_strlen($arValue["VALUE"]))
-						$arFields["DEFAULT_VALUE"] = $arValue["VALUE"];
-					else
-						$arFields["DEFAULT_VALUE"] = false;
+					$arUserType = CIBlockProperty::GetUserType($userTypeId);
 				}
-				if(array_key_exists("PrepareSettings", $arUserType))
+				if (isset($arUserType['ConvertToDB']))
 				{
-					$arFieldsResult = call_user_func_array($arUserType["PrepareSettings"], array($arFields));
+					$arValue = [
+						'VALUE' => $arFields['DEFAULT_VALUE'],
+						'DEFAULT_VALUE' => true,
+					];
+					$arValue = call_user_func_array(
+						$arUserType['ConvertToDB'],
+						[$arFields, $arValue]
+					);
+					$arFields['DEFAULT_VALUE'] = $this->prepareDefaultValue($arValue);
+					unset($arValue);
+				}
+				if (isset($arUserType['PrepareSettings']))
+				{
+					$arFieldsResult = call_user_func_array(
+						$arUserType['PrepareSettings'],
+						[$arFields]
+					);
 					if (is_array($arFieldsResult) && array_key_exists('USER_TYPE_SETTINGS', $arFieldsResult))
 					{
 						$arFields = array_merge($arFields, $arFieldsResult);
-						$arFields["USER_TYPE_SETTINGS"] = serialize($arFields["USER_TYPE_SETTINGS"]);
+						$arFields['USER_TYPE_SETTINGS'] = serialize($arFields['USER_TYPE_SETTINGS']);
 					}
 					else
 					{
-						$arFields["USER_TYPE_SETTINGS"] = serialize($arFieldsResult);
+						$arFields['USER_TYPE_SETTINGS'] = serialize($arFieldsResult);
 					}
 				}
 				else
 				{
-					$arFields["USER_TYPE_SETTINGS"] = false;
+					$arFields['USER_TYPE_SETTINGS'] = false;
 				}
 			}
 			else
 			{
-				$arFields["USER_TYPE_SETTINGS"] = false;
+				$arFields['USER_TYPE_SETTINGS'] = false;
 			}
+
+			unset($arFields['TIMESTAMP_X']);
+			$connection = Main\Application::getConnection();
+			$helper = $connection->getSqlHelper();
+			$arFields['~TIMESTAMP_X'] = $helper->getCurrentDateTimeFunction();
+			unset($helper, $connection);
+
 			$ID = $DB->Add("b_iblock_property", $arFields, array('USER_TYPE_SETTINGS'), "iblock");
 
 			if($arFields["VERSION"]==2)
@@ -410,15 +429,49 @@ class CAllIBlockProperty
 			}
 		}
 
-		if(isset($arFields["USER_TYPE"]))
+		if (isset($arFields['USER_TYPE']))
 		{
-			$arUserType = CIBlockProperty::GetUserType($arFields["USER_TYPE"]);
-			if(isset($arUserType["CheckFields"]))
+			if ($ID === false)
 			{
-				$value=array("VALUE"=>$arFields["DEFAULT_VALUE"]);
-				$arError = call_user_func_array($arUserType["CheckFields"],array($arFields,$value));
-				if(is_array($arError) && count($arError)>0)
-					$this->LAST_ERROR .= implode("<br>", $arError)."<br>";
+				$arFields['DEFAULT_VALUE'] ??= false;
+			}
+			$arUserType = CIBlockProperty::GetUserType($arFields['USER_TYPE']);
+			if (
+				isset($arUserType['CheckFields'])
+				&& ($ID === false || array_key_exists('DEFAULT_VALUE', $arFields))
+			)
+			{
+				$value = [
+					'VALUE' => $arFields['DEFAULT_VALUE'],
+				];
+				$arError = call_user_func_array(
+					$arUserType['CheckFields'],
+					[
+						$arFields,
+						$value
+					]
+				);
+				if (!empty($arError) && is_array($arError))
+				{
+					$this->LAST_ERROR .= implode('<br>', $arError) . '<br>';
+				}
+			}
+		}
+
+		if (
+			$ID === false
+		)
+		{
+			$simpleType = true;
+			$userTypeId = (string)($arFields['USER_TYPE'] ?? '');
+			if ($userTypeId !== '')
+			{
+				$userType = CIBlockProperty::GetUserType($userTypeId);
+				$simpleType = empty($userType);
+			}
+			if ($simpleType && isset($arFields['DEFAULT_VALUE']) && !is_scalar($arFields['DEFAULT_VALUE']))
+			{
+				$this->LAST_ERROR .= GetMessage('IBLOCK_PROPERTY_BAD_DEFAULT_VALUE') . '<br>';
 			}
 		}
 
@@ -454,10 +507,7 @@ class CAllIBlockProperty
 			}
 		}
 
-		if($this->LAST_ERROR <> '')
-			return false;
-
-		return true;
+		return $this->LAST_ERROR === '';
 	}
 
 	///////////////////////////////////////////////////////////////////
@@ -499,28 +549,46 @@ class CAllIBlockProperty
 			}
 			if (!empty($arUserType))
 			{
-				if(array_key_exists("ConvertToDB", $arUserType))
+				if (array_key_exists('DEFAULT_VALUE', $arFields))
 				{
-					$arValue = array(
-						"VALUE" => $arFields["DEFAULT_VALUE"],
-						"DEFAULT_VALUE" => true
-					);
-					$arValue = call_user_func_array($arUserType["ConvertToDB"], array($arFields, $arValue));
-					if(is_array($arValue) && isset($arValue["VALUE"]) && mb_strlen($arValue["VALUE"]))
-						$arFields["DEFAULT_VALUE"] = $arValue["VALUE"];
+					if (isset($arUserType['ConvertToDB']))
+					{
+						$arValue = [
+							'VALUE' => $arFields['DEFAULT_VALUE'],
+							'DEFAULT_VALUE' => true,
+						];
+						$arValue = call_user_func_array(
+							$arUserType['ConvertToDB'],
+							[$arFields, $arValue]
+						);
+						$arFields['DEFAULT_VALUE'] = $this->prepareDefaultValue($arValue);
+						unset($arValue);
+					}
 					else
-						$arFields["DEFAULT_VALUE"] = false;
+					{
+						if (!is_scalar($arFields['DEFAULT_VALUE']))
+						{
+							$arFields['DEFAULT_VALUE'] = false;
+						}
+					}
 				}
 
-				if(array_key_exists("PrepareSettings", $arUserType))
+				if (isset($arUserType['PrepareSettings']))
 				{
 					if (!isset($arFields["USER_TYPE_SETTINGS"]))
 					{
-						$oldData = Iblock\PropertyTable::getList(array(
-							'select' => array('ID', 'PROPERTY_TYPE', 'USER_TYPE', 'USER_TYPE_SETTINGS'),
-							'filter' => array('=ID' => $ID)
-						))->fetch();
-						if (!empty($oldData) && is_array($oldData))
+						$oldData = Iblock\PropertyTable::getRow([
+							'select' => [
+								'ID',
+								'PROPERTY_TYPE',
+								'USER_TYPE',
+								'USER_TYPE_SETTINGS',
+							],
+							'filter' => [
+								'=ID' => $ID,
+							],
+						]);
+						if (!empty($oldData))
 						{
 							if ($arFields["USER_TYPE"] == $oldData["USER_TYPE"] && !empty($oldData["USER_TYPE_SETTINGS"]))
 							{
@@ -573,6 +641,10 @@ class CAllIBlockProperty
 			unset($arFields["ID"]);
 			unset($arFields["VERSION"]);
 			unset($arFields["TIMESTAMP_X"]);
+			$connection = Main\Application::getConnection();
+			$helper = $connection->getSqlHelper();
+			$arFields['~TIMESTAMP_X'] = $helper->getCurrentDateTimeFunction();
+			unset($helper, $connection);
 
 			$strUpdate = $DB->PrepareUpdate("b_iblock_property", $arFields);
 			if($strUpdate <> '')
@@ -654,134 +726,340 @@ class CAllIBlockProperty
 	///////////////////////////////////////////////////////////////////
 	public static function GetByID($ID, $IBLOCK_ID=false, $IBLOCK_CODE=false)
 	{
-		global $DB;
+		$iblockId = null;
+		$iblockCode = null;
+		if (is_numeric($IBLOCK_ID))
+		{
+			$IBLOCK_ID = (int)$IBLOCK_ID;
+			if ($IBLOCK_ID > 0)
+			{
+				$iblockId = $IBLOCK_ID;
+			}
+		}
+		if (is_string($IBLOCK_CODE))
+		{
+			$IBLOCK_CODE = trim($IBLOCK_CODE);
+			if ($IBLOCK_CODE !== '')
+			{
+				$iblockCode = $IBLOCK_CODE;
+			}
+		}
 
-		if($IBLOCK_CODE && $IBLOCK_ID)
-			$cond = " AND (B.ID = ".(int)$IBLOCK_ID." OR B.CODE = '".$DB->ForSql($IBLOCK_CODE)."') ";
-		elseif($IBLOCK_CODE)
-			$cond = " AND B.CODE = '".$DB->ForSql($IBLOCK_CODE)."' ";
-		elseif($IBLOCK_ID)
-			$cond = " AND B.ID = ".(int)$IBLOCK_ID." ";
+		$runtime = [];
+		$filter = [];
+		if ($iblockCode && $iblockId)
+		{
+			$filter[] = [
+				'LOGIC' => 'OR',
+				'=IBLOCK.ID' => $iblockId,
+				'=IBLOCK.CODE' => $iblockCode,
+			];
+		}
+		elseif ($iblockCode)
+		{
+			$filter['=IBLOCK.CODE'] = $iblockCode;
+		}
+		elseif ($iblockId)
+		{
+			$filter['=IBLOCK.ID'] = $iblockId;
+		}
+		if (!is_int($ID))
+		{
+			$ID = (string)$ID;
+			if (is_numeric($ID))
+			{
+				$ID = (int)$ID;
+			}
+		}
+		if (is_int($ID))
+		{
+			$filter['=ID'] = $ID;
+		}
 		else
-			$cond = "";
+		{
+			$ID = mb_strtoupper($ID);
+			$connection = Main\Application::getConnection();
+			if ($connection instanceof Main\DB\MysqlCommonConnection)
+			{
+				$filter['=CODE'] = $ID;
+			}
+			else
+			{
+				$filter['=UPPER_PROPERTY_CODE'] = $ID;
+				$runtime[] = self::getUpperExpressionFields();
+			}
+			unset($connection);
+		}
 
-		$strSql =
-			"SELECT BP.* ".
-			"FROM b_iblock_property BP, b_iblock B ".
-			"WHERE BP.IBLOCK_ID=B.ID ".
-			$cond.
-			(is_numeric(mb_substr($ID, 0, 1))
-			?
-				"	AND BP.ID=".(int)$ID
-			:
-				"	AND UPPER(BP.CODE)=UPPER('".$DB->ForSql($ID)."') "
-			);
+		$params = [
+			'select' => ['*'],
+			'filter' => $filter,
+			'limit' => 1,
+		];
+		if (!empty($runtime))
+		{
+			$params['runtime'] = $runtime;
+		}
 
-		return new CIBlockPropertyResult($DB->Query($strSql));
+		return new CIBlockPropertyResult(Iblock\PropertyTable::getList($params));
 	}
 
 	public static function GetPropertyArray($ID, $IBLOCK_ID, $bCached=true)
 	{
-		global $DB;
-
-		$block_id = false;
-		$block_code = false;
-		if(is_array($IBLOCK_ID))
+		if (!is_int($ID) && !is_string($ID))
 		{
-			foreach($IBLOCK_ID as $v)
+			return false;
+		}
+
+		$iblockIdList = [];
+		$iblockCodeList = [];
+
+		if (is_array($IBLOCK_ID))
+		{
+			foreach ($IBLOCK_ID as $value)
 			{
-				if(is_numeric($v))
+				if (is_numeric($value))
 				{
-					if($block_id)
-						$block_id .= ", ";
-					else
-						$block_id = "";
-
-					$block_id .= (int)$v;
+					$value = (int)$value;
+					if ($value > 0)
+					{
+						$iblockIdList[$value] = $value;
+					}
 				}
-				elseif($v <> '')
+				elseif (is_string($value))
 				{
-					if($block_code)
-						$block_code .= ", ";
-					else
-						$block_code = "";
-
-					$block_code .= "'".$DB->ForSQL($v, 200)."'";
+					$value = trim($value);
+					if ($value !== '')
+					{
+						$iblockCodeList[$value] = $value;
+					}
 				}
 			}
 		}
-		elseif(is_numeric($IBLOCK_ID))
-			$block_id = (int)$IBLOCK_ID;
-		elseif($IBLOCK_ID <> '')
-			$block_code = "'".$DB->ForSQL($IBLOCK_ID, 200)."'";
+		elseif (is_numeric($IBLOCK_ID))
+		{
+			$iblockId = (int)$IBLOCK_ID;
+			if ($iblockId > 0)
+			{
+				$iblockIdList[$iblockId] = $iblockId;
+			}
+			unset($iblockId);
+		}
+		elseif (is_string($IBLOCK_ID))
+		{
+			$iblockCode = trim($IBLOCK_ID);
+			if ($iblockCode !== '')
+			{
+				$iblockCodeList[$iblockCode] = $iblockCode;
+			}
+			unset($iblockCode);
+		}
+		$iblockIdList = array_values($iblockIdList);
+		$iblockCodeList = array_values($iblockCodeList);
 
-		$cacheId = $ID . '|' . $block_id . '|' . $block_code;
+		$cacheId = $ID . '|' . implode(', ', $iblockIdList) . '|' . implode(', ', $iblockCodeList);
 
 		global $IBLOCK_CACHE_PROPERTY;
-
 		if ($bCached && isset($IBLOCK_CACHE_PROPERTY[$cacheId]))
 		{
 			return $IBLOCK_CACHE_PROPERTY[$cacheId];
 		}
 
-		if($block_code && $block_id)
-			$cond = " AND (B.ID IN (".$block_id.") OR B.CODE IN (".$block_code.")) ";
-		elseif($block_code)
-			$cond = " AND B.CODE IN (".$block_code.") ";
-		elseif($block_id)
-			$cond = " AND B.ID IN (".$block_id.") ";
-		else
-			$cond = "";
+		$runtime = [];
+		$filter = [];
 
-		$upperID = mb_strtoupper($ID);
-
-		$strSql = "
-			SELECT BP.*
-			FROM
-				b_iblock_property BP
-				,b_iblock B
-			WHERE BP.IBLOCK_ID=B.ID
-			".$cond."
-			".(mb_substr($upperID, -6) == '_VALUE'?
-				(is_numeric(mb_substr($ID, 0, 1))?
-					"AND BP.ID=".(int)$ID
-				:
-					"AND ((UPPER(BP.CODE)='".$DB->ForSql($upperID)."' AND BP.PROPERTY_TYPE!='L') OR (UPPER(BP.CODE)='".$DB->ForSql(mb_substr($upperID, 0, -6))."' AND BP.PROPERTY_TYPE='L'))"
-				)
-			:
-				(is_numeric(mb_substr($ID, 0, 1))?
-					"AND BP.ID=".(int)$ID
-				:
-					"AND UPPER(BP.CODE)='".$DB->ForSql($upperID)."'"
-				)
-			);
-
-		$res = $DB->Query($strSql);
-		if($arr = $res->Fetch())
+		$iblockFilter = [];
+		if (!empty($iblockIdList) && !empty($iblockCode))
 		{
-			$arr["ORIG_ID"] = $arr["ID"];    //it saves original (digital) id
-			$arr["IS_CODE_UNIQUE"] = true;   //boolean check for global code uniquess
-			$arr["IS_VERSION_MIXED"] = false;//boolean check if varios versions of ibformation block properties
-			while($arr2 = $res->Fetch())
+			$iblockFilter[] = [
+				'LOGIC' => 'OR',
+				'@ID' => $iblockIdList,
+				'@CODE' => $iblockCodeList
+			];
+		}
+		elseif (!empty($iblockIdList))
+		{
+			$iblockFilter['@ID'] = $iblockIdList;
+		}
+		elseif (!empty($iblockCodeList))
+		{
+			$iblockFilter['@CODE'] = $iblockCodeList;
+		}
+		if (!empty($iblockFilter))
+		{
+			$iblockIds = [];
+			$iterator = Iblock\IblockTable::getList([
+				'select' => [
+					'ID',
+				],
+				'filter' => $iblockFilter,
+				'cache' => [
+					'ttl' => 86400,
+				],
+			]);
+			while ($row = $iterator->fetch())
 			{
-				$arr["IS_CODE_UNIQUE"] = false;
-				if($arr["VERSION"] != $arr2["VERSION"])
-					$arr["IS_VERSION_MIXED"] = true;
+				$iblockId = (int)$row['ID'];
+				$iblockIds[$iblockId] = $iblockId;
 			}
+			unset(
+				$iblockId,
+				$row,
+				$iterator,
+			);
+			if (empty($iblockIds))
+			{
+				return false;
+			}
+			$filter['@IBLOCK_ID'] = $iblockIds;
+			unset($iblockIds);
+		}
+		unset($iblockFilter);
 
-			if(
-				mb_substr($upperID, -6) == '_VALUE'
-				&& $arr["PROPERTY_TYPE"] == "L"
-				&& mb_strtoupper($arr["CODE"]) == mb_substr($upperID, 0, -6)
-			)
-				$arr["ID"] = mb_substr($ID, 0, -6);
+		$propertyId = null;
+		$propertyCode = null;
+		$propertyFullCode = null;
+		$existsValuePostfix = false;
+		if (is_int($ID))
+		{
+			$propertyId = $ID;
+		}
+		else
+		{
+			$upperId = mb_strtoupper($ID);
+			$preparedId = [];
+			if (preg_match('/^([A-Za-z0-9_]+)(_VALUE)$/', $upperId, $preparedId))
+			{
+				$existsValuePostfix = true;
+				$value = (int)$preparedId[1];
+				if ($value > 0)
+				{
+					$propertyId = $value;
+				}
+				else
+				{
+					$propertyCode = $preparedId[1];
+					$propertyFullCode = $preparedId[0];
+				}
+			}
 			else
-				$arr["ID"] = $ID;
+			{
+				$value = (int)$upperId;
+				if ($value > 0)
+				{
+					$propertyId = $value;
+				}
+				else
+				{
+					$propertyCode = $upperId;
+				}
+			}
+			unset(
+				$value,
+				$preparedId,
+				$upperId,
+			);
 		}
 
-		$IBLOCK_CACHE_PROPERTY[$cacheId] = $arr;
+		if ($propertyId !== null)
+		{
+			$filter['=ID'] = $propertyId;
+		}
+		else
+		{
+			$connection = Main\Application::getConnection();
+			if ($connection instanceof Main\DB\MysqlCommonConnection)
+			{
+				$fieldName = '=CODE';
+			}
+			else
+			{
+				$fieldName = '=UPPER_PROPERTY_CODE';
+				$runtime[] = self::getUpperExpressionFields();
+			}
+			unset($connection);
+			if ($existsValuePostfix)
+			{
+				$filter[] = [
+					'LOGIC' => 'OR',
+					[
+						$fieldName => $propertyFullCode,
+						'!=PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_LIST,
+					],
+					[
+						$fieldName => $propertyCode,
+						'=PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_LIST,
+					]
+				];
+			}
+			else
+			{
+				$filter[$fieldName] = $propertyCode;
+			}
+		}
 
-		return $arr;
+		$params = [
+			'select' => ['*'],
+			'filter' => $filter,
+			'cache' => [
+				'ttl' => 86400,
+			],
+		];
+		if (!empty($runtime))
+		{
+			$params['runtime'] = $runtime;
+		}
+
+		$iterator = Iblock\PropertyTable::getList($params);
+		$propertyRow = $iterator->fetch();
+		if (!empty($propertyRow))
+		{
+			unset($propertyRow['USER_TYPE_SETTINGS_LIST']);
+			if ($propertyRow['TIMESTAMP_X'] instanceof Main\Type\DateTime)
+			{
+				$propertyRow['TIMESTAMP_X'] = $propertyRow['TIMESTAMP_X']->format('Y-m-d H:i:s');
+			}
+			$propertyRow['ORIG_ID'] = $propertyRow['ID']; //it saves original (digital) id
+			$propertyRow['IS_CODE_UNIQUE'] = true; //boolean check for global code uniquess
+			$propertyRow['IS_VERSION_MIXED'] = false; //boolean check if varios versions of ibformation block properties
+
+			while ($row = $iterator->fetch())
+			{
+				$propertyRow['IS_CODE_UNIQUE'] = false;
+				if ($propertyRow['VERSION'] !== $row['VERSION'])
+				{
+					$propertyRow['IS_VERSION_MIXED'] = true;
+				}
+			}
+			unset($row);
+
+			if (
+				$existsValuePostfix
+				&& $propertyRow['PROPERTY_TYPE'] === Iblock\PropertyTable::TYPE_LIST
+				&& mb_strtoupper((string)$propertyRow['CODE']) === $propertyCode
+			)
+			{
+				$propertyRow['ID'] = mb_substr($ID, 0, -6);
+			}
+			else
+			{
+				$propertyRow['ID'] = $ID;
+			}
+		}
+		unset($iterator);
+
+		$IBLOCK_CACHE_PROPERTY[$cacheId] = $propertyRow;
+
+		return $propertyRow;
+	}
+
+	private static function getUpperExpressionFields(): Main\ORM\Fields\ExpressionField
+	{
+		return new Main\ORM\Fields\ExpressionField(
+			'UPPER_PROPERTY_CODE',
+			'UPPER(%s)',
+			'CODE'
+		);
 	}
 
 	public static function GetPropertyEnum($PROP_ID, $arOrder = array("SORT"=>"asc"), $arFilter = array())
@@ -857,26 +1135,31 @@ class CAllIBlockProperty
 		");
 	}
 
-	function UpdateEnum($ID, $arVALUES, $bForceDelete = true)
+	public function UpdateEnum($ID, $arVALUES, $bForceDelete = true)
 	{
 		global $DB, $CACHE_MANAGER;
-		$ID = intval($ID);
+		$ID = (int)$ID;
 
-		if(!is_array($arVALUES) || (empty($arVALUES) && $bForceDelete))
+		if (!is_array($arVALUES) || (empty($arVALUES) && $bForceDelete))
 		{
 			CIBlockPropertyEnum::DeleteByPropertyID($ID);
+
 			return true;
 		}
 
-		$ar_XML_ID = array();
+		$ar_XML_ID = [];
 		$db_res = $this->GetPropertyEnum($ID);
-		while($res = $db_res->Fetch())
+		while ($res = $db_res->Fetch())
 		{
 			$ar_XML_ID[rtrim($res["XML_ID"], " ")] = $res["ID"];
 		}
+		unset(
+			$res,
+			$db_res,
+		);
 
 		$sqlWhere = "";
-		if(!$bForceDelete)
+		if (!$bForceDelete)
 		{
 			$rsProp = CIBlockProperty::GetByID($ID);
 			if($arProp = $rsProp->Fetch())
@@ -909,7 +1192,7 @@ class CAllIBlockProperty
 		{
 			$VALUE = $arVALUES[$res["ID"]];
 			$VAL = is_array($VALUE)? $VALUE["VALUE"]: $VALUE;
-			UnSet($arVALUES[$res["ID"]]);
+			unset($arVALUES[$res["ID"]]);
 
 			if((string)$VAL == '')
 			{
@@ -966,6 +1249,10 @@ class CAllIBlockProperty
 				$DB->Query($strSql);
 			}
 		}
+		unset(
+			$res,
+			$db_res,
+		);
 
 		foreach($arVALUES as $id => $VALUE)
 		{
@@ -1027,6 +1314,8 @@ class CAllIBlockProperty
 
 		if (defined("BX_COMP_MANAGED_CACHE"))
 			$CACHE_MANAGER->ClearByTag("iblock_property_enum_".$ID);
+
+		Iblock\PropertyEnumerationTable::cleanCache();
 
 		return true;
 	}
@@ -1194,5 +1483,39 @@ class CAllIBlockProperty
 	function _Add($ID, $arFields)
 	{
 		return false;
+	}
+
+	public function getLastError(): string
+	{
+		return $this->LAST_ERROR;
+	}
+
+	/**
+	 * Prepare default value for custom property type.
+	 *
+	 * @param mixed $value ConvertToDB method result for custom property type.
+	 * @return string|bool|int|float
+	 */
+	protected function prepareDefaultValue(mixed $value): string|bool|int|float
+	{
+		$result = false;
+		if (
+			is_array($value)
+			&& isset($value['VALUE'])
+		)
+		{
+			$defaultValue = $value['VALUE'];
+			if (
+				(is_string($defaultValue) && $defaultValue !== '')
+				|| is_int($defaultValue)
+				|| is_float($defaultValue)
+				|| ($defaultValue === true)
+			)
+			{
+				$result = $defaultValue;
+			}
+		}
+
+		return $result;
 	}
 }

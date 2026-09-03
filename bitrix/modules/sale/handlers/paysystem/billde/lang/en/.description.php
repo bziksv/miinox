@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["SALE_HPS_BILL_DE_TITLE"] = "Invoice (German)";
 $MESS["SALE_HPS_BILL_DE_DATE"] = "Order date";
 $MESS["SALE_HPS_BILL_DE_DATE_DESC"] = "Date when the order was created";
@@ -35,7 +35,7 @@ $MESS["SALE_HPS_BILL_DE_REG_SUPPLI"] = "Registered in";
 $MESS["SALE_HPS_BILL_DE_REG_SUPPLI_DESC"] = "Companies House registration details";
 $MESS["SALE_HPS_BILL_DE_DIR_POS_SUPPLI"] = "Supervisor job position";
 $MESS["SALE_HPS_BILL_DE_DIR_POS_SUPPLI_DESC"] = "Supervisor job position (sales)";
-$MESS["SALE_HPS_BILL_DE_DIR_POS_SUPPLI_VAL"] = "Geschäftsführer";
+$MESS["SALE_HPS_BILL_DE_DIR_POS_SUPPLI_VAL"] = "GeschÃ¤ftsfÃ¼hrer";
 $MESS["SALE_HPS_BILL_DE_ACC_POS_SUPPLI"] = "Accountant job position";
 $MESS["SALE_HPS_BILL_DE_ACC_POS_SUPPLI_DESC"] = "Accountant job position (sales)";
 $MESS["SALE_HPS_BILL_DE_ACC_POS_SUPPLI_VAL"] = "Buchhalter";
@@ -86,4 +86,3 @@ $MESS["SALE_HPS_BILL_DE_TOTAL_SHOW"] = "Show summary";
 $MESS["SALE_HPS_BILL_DE_COLUMN_TITLE"] = "Column title ";
 $MESS["SALE_HPS_BILL_DE_COLUMN_SHOW"] = "Active";
 $MESS["SALE_HPS_BILL_DE_COLUMN_SORT"] = "Sort";
-?>

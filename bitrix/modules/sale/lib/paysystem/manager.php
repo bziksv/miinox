@@ -4,6 +4,8 @@ namespace Bitrix\Sale\PaySystem;
 
 use Bitrix\Main\Application;
 use Bitrix\Main\ArgumentException;
+use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main\ArgumentOutOfRangeException;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventResult;
@@ -156,7 +158,7 @@ final class Manager
 	public static function add(array $data): \Bitrix\Main\ORM\Data\AddResult
 	{
 		$data['PS_CLIENT_TYPE'] = (new Service($data))->getClientTypeFromHandler();
-		
+
 		return PaySystemActionTable::add($data);
 	}
 
@@ -225,7 +227,7 @@ final class Manager
 
 		$folder = str_replace('Handler', '', $className);
 		$folder = self::sanitize($folder);
-		$folder = ToLower($folder);
+		$folder = mb_strtolower($folder);
 
 		return $folder;
 	}
@@ -330,7 +332,7 @@ final class Manager
 	 * @throws \Bitrix\Main\NotSupportedException
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function getListWithRestrictionsByOrder(Order $order, float $sum = null, int $mode = Restrictions\Manager::MODE_CLIENT): array
+	public static function getListWithRestrictionsByOrder(Order $order, ?float $sum = null, int $mode = Restrictions\Manager::MODE_CLIENT): array
 	{
 		/** @var Order $orderClone */
 		$orderClone = $order->createClone();
@@ -366,7 +368,7 @@ final class Manager
 			'=ACTIVE' => 'Y',
 			'=ENTITY_REGISTRY_TYPE' => $payment::getRegistryType(),
 		];
-		
+
 		$bindingPaySystemIds = [];
 		if ($mode == Restrictions\Manager::MODE_CLIENT)
 		{
@@ -652,7 +654,7 @@ final class Manager
 			$data = PaySystemActionTable::getRow(
 				[
 					'select' => ['ID'],
-					'filter' => ['ACTION_FILE' => 'inner']
+					'filter' => ['=ACTION_FILE' => 'inner']
 				]
 			);
 			if ($data === null)
@@ -796,6 +798,10 @@ final class Manager
 			'CONNECT_SETTINGS_BEPAID' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_BEPAID'), 'SORT' => 100],
 			'CONNECT_SETTINGS_WOOPPAY' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_WOOPPAY'), 'SORT' => 100],
 			'CONNECT_SETTINGS_PLATON' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_PLATON'), 'SORT' => 100],
+			'CONNECT_SETTINGS_TBB' => [
+				'NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_TBB'),
+				'SORT' => 100,
+			],
 		];
 	}
 
@@ -1083,5 +1089,26 @@ final class Manager
 			$className,
 			$handlerType,
 		];
+	}
+
+	public static function getHandlerName(string $handler, string $psMode = ''): string
+	{
+		$handlerDescription = Manager::getHandlerDescription($handler, $psMode);
+
+		if (!$handlerDescription)
+		{
+			return '';
+		}
+
+		if (isset($handlerDescription['HANDLER_MODE_LIST'][$psMode]))
+		{
+			return $handlerDescription['HANDLER_MODE_LIST'][$psMode];
+		}
+		elseif (isset($handlerDescription['NAME']))
+		{
+			return $handlerDescription['NAME'];
+		}
+
+		return '';
 	}
 }

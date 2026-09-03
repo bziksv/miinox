@@ -2,10 +2,12 @@
 namespace Bitrix\Rest\Api;
 
 
-use Bitrix\Main\ArgumentException;
-use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main;
+use Bitrix\Main\Application;
 use Bitrix\Main\Entity\ExpressionField;
+use Bitrix\Main\Error;
 use Bitrix\Main\Loader;
+use Bitrix\Main\Result;
 use Bitrix\Rest\AccessException;
 use Bitrix\Rest\AppTable;
 use Bitrix\Rest\AuthTypeException;
@@ -14,8 +16,8 @@ use Bitrix\Rest\OAuth\Auth;
 use Bitrix\Rest\PlacementLangTable;
 use Bitrix\Rest\PlacementTable;
 use Bitrix\Rest\RestException;
+use Bitrix\Rest\Exceptions;
 use Bitrix\Rest\Lang;
-use Bitrix\Main\ArgumentTypeException;
 
 class Placement extends \IRestService
 {
@@ -97,22 +99,27 @@ class Placement extends \IRestService
 
 		$params = array_change_key_case($params, CASE_UPPER);
 
-		$placement = toUpper($params['PLACEMENT']);
+		if(!is_string($params['PLACEMENT']))
+		{
+			throw new Exceptions\ArgumentTypeException('PLACEMENT', 'string');
+		}
+
+		$placement = mb_strtoupper($params['PLACEMENT']);
 		$placementHandler = $params['HANDLER'];
 
 		if($placement == '')
 		{
-			throw new ArgumentNullException("PLACEMENT");
+			throw new Exceptions\ArgumentNullException("The placement code is not specified");
 		}
 
 		if($placement == PlacementTable::PLACEMENT_DEFAULT)
 		{
-			throw new ArgumentException("Wrong value", "PLACEMENT");
+			throw new Exceptions\ArgumentNullException("The placement code has an incorrect value");
 		}
 
 		if($placementHandler == '')
 		{
-			throw new ArgumentNullException("HANDLER");
+			throw new Exceptions\ArgumentNullException("The URL of the placement handler is not specified");
 		}
 
 		$appInfo = static::getApplicationInfo($server);
@@ -122,7 +129,7 @@ class Placement extends \IRestService
 		$scopeList[] = \CRestUtil::GLOBAL_SCOPE;
 
 		$placementList = static::getPlacementList($server, $scopeList);
-		$placementInfo = $placementList[$placement];
+		$placementInfo = $placementList[$placement] ?? null;
 
 		if (is_array($placementInfo) && (!isset($placementInfo['private']) || !$placementInfo['private']))
 		{
@@ -152,20 +159,31 @@ class Placement extends \IRestService
 			$langList = Lang::listLanguage();
 			$langDefault = reset($langList);
 
+			$ensureValueIsString = static function (mixed $value, string $field = ''): void
+			{
+				if (!is_string($value))
+				{
+					throw new Exceptions\ArgumentTypeException($field, 'string');
+				}
+			};
+
 			if (empty($params['LANG_ALL']))
 			{
 				if (!empty($params['TITLE']))
 				{
+					$ensureValueIsString($params['TITLE'], 'TITLE');
 					$placementLangList[$langDefault]['TITLE'] = trim($params['TITLE']);
 				}
 
 				if (!empty($params['DESCRIPTION']))
 				{
+					$ensureValueIsString($params['DESCRIPTION'], 'DESCRIPTION');
 					$placementLangList[$langDefault]['DESCRIPTION'] = trim($params['DESCRIPTION']);
 				}
 
 				if (!empty($params['GROUP_NAME']))
 				{
+					$ensureValueIsString($params['GROUP_NAME'], 'GROUP_NAME');
 					$placementLangList[$langDefault]['GROUP_NAME'] = trim($params['GROUP_NAME']);
 				}
 			}
@@ -180,6 +198,7 @@ class Placement extends \IRestService
 				{
 					foreach ($fieldList as $field)
 					{
+						$ensureValueIsString($langItem[$field] ?? '', 'LANG_ALL.' . $langCode . '.' . $field);
 						$placementLangList[$langCode][$field] = trim($langItem[$field] ?? '');
 					}
 				}
@@ -256,7 +275,22 @@ class Placement extends \IRestService
 				}
 			}
 
-			$result = PlacementTable::add($placementBind);
+			$lockKey = implode('|', [
+				$placementBind['APP_ID'],
+				$placementBind['PLACEMENT'],
+				$placementBind['PLACEMENT_HANDLER']
+			]);
+
+			if (Application::getConnection()->lock($lockKey))
+			{
+				$result = PlacementTable::add($placementBind);
+				Application::getConnection()->unlock($lockKey);
+			}
+			else
+			{
+				$result = (new Result())->addError(new Error('Process of binding the handler has already started'));
+			}
+
 			if ($result->isSuccess())
 			{
 				$placementId = $result->getId();
@@ -317,7 +351,7 @@ class Placement extends \IRestService
 		{
 			if (!empty($requiredOptions))
 			{
-				throw new ArgumentTypeException('options', 'array');
+				throw new Exceptions\ArgumentTypeException('options', 'array');
 			}
 
 			return $defaultOptions;
@@ -352,7 +386,7 @@ class Placement extends \IRestService
 				case 'array':
 					if (!is_array($optionValue))
 					{
-						throw new ArgumentTypeException($optionName, 'array');
+						throw new Exceptions\ArgumentTypeException($optionName, 'array');
 					}
 					$result[$optionName] = self::prepareCompositeOptions($optionValue, $optionSetting);
 
@@ -368,14 +402,14 @@ class Placement extends \IRestService
 	 * @param array $paramOptionData
 	 * @param array $optionSetting
 	 * @return array
-	 * @throws ArgumentTypeException
+	 * @throws Main\ArgumentTypeException
 	 */
 	private static function prepareCompositeOptions(array $paramOptionData, array $optionSetting): array
 	{
 		$result = [];
 		if (!is_array($optionSetting['typeValue']))
 		{
-			throw new ArgumentTypeException('typeValue', 'array');
+			throw new Main\ArgumentTypeException('typeValue', 'array');
 		}
 
 		$allowedTypes = ['integer', 'string', 'array'];
@@ -454,7 +488,7 @@ class Placement extends \IRestService
 	 * @param array $paramsOptions
 	 * @param array $requiredOptions
 	 * @return void
-	 * @throws ArgumentNullException
+	 * @throws Exceptions\ArgumentNullException
 	 */
 	private static function checkRequiredOptionsInParamsOptions(array $paramsOptions, array $requiredOptions): void
 	{
@@ -462,7 +496,7 @@ class Placement extends \IRestService
 		{
 			if (!array_key_exists($requiredOption, $paramsOptions))
 			{
-				throw new ArgumentNullException($requiredOption);
+				throw new Exceptions\ArgumentNullException($requiredOption);
 			}
 		}
 	}
@@ -509,15 +543,15 @@ class Placement extends \IRestService
 
 		if (!is_string($params['PLACEMENT']))
 		{
-			throw new ArgumentTypeException('PLACEMENT', 'string');
+			throw new Exceptions\ArgumentTypeException('PLACEMENT', 'string');
 		}
 
-		$placement = toUpper($params['PLACEMENT']);
+		$placement = mb_strtoupper($params['PLACEMENT']);
 		$placementHandler = $params['HANDLER'];
 
 		if ($placement == '')
 		{
-			throw new ArgumentNullException("PLACEMENT");
+			throw new Exceptions\ArgumentNullException("PLACEMENT");
 		}
 
 		$cnt = 0;
@@ -549,7 +583,6 @@ class Placement extends \IRestService
 
 			while($placementHandler = $dbRes->fetch())
 			{
-				$cnt++;
 				$result = PlacementTable::delete($placementHandler["ID"]);
 				if($result->isSuccess())
 				{
@@ -602,6 +635,7 @@ class Placement extends \IRestService
 					}
 				}
 				$result[] = array(
+					'id' => $placement->getId(),
 					'placement' => $placement->getPlacement(),
 					'userId' => $placement->getUserId(),
 					'handler' => $placement->getPlacementHandler(),
@@ -672,8 +706,7 @@ class Placement extends \IRestService
 
 		foreach($scopeList as $scope)
 		{
-			if(
-				isset($serviceDescription[$scope])
+			if (!empty($serviceDescription[$scope][\CRestUtil::PLACEMENTS])
 				&& is_array($serviceDescription[$scope][\CRestUtil::PLACEMENTS])
 			)
 			{

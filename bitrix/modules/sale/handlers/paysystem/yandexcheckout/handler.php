@@ -4,8 +4,10 @@ namespace Sale\Handlers\PaySystem;
 
 use Bitrix\Main\Localization;
 use Bitrix\Main;
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Request;
 use Bitrix\Main\Web\HttpClient;
+use Bitrix\Sale\Cashbox;
 use Bitrix\Sale\Payment;
 use Bitrix\Sale\PaymentCollection;
 use Bitrix\Sale\PaySystem;
@@ -25,8 +27,9 @@ class YandexCheckoutHandler
 	implements
 	PaySystem\IRefund,
 	PaySystem\IPartialHold,
-	PaySystem\Domain\Verification\IVerificationable,
-	PaySystem\IRecurring
+	PaySystem\IRecurring,
+	PaySystem\Cashbox\ISupportPrintCheck,
+	PaySystem\Cashbox\IFiscalizationAware
 {
 	const CMS_NAME = 'api_1c-bitrix';
 
@@ -51,13 +54,11 @@ class YandexCheckoutHandler
 	public const PAYMENT_METHOD_BANK_CARD = 'bank_card';
 	public const PAYMENT_METHOD_YANDEX_MONEY = 'yoo_money';
 	public const PAYMENT_METHOD_SBERBANK = 'sberbank';
-	public const PAYMENT_METHOD_QIWI = 'qiwi';
-	public const PAYMENT_METHOD_WEBMONEY = 'webmoney';
 	public const PAYMENT_METHOD_CASH = 'cash';
 	public const PAYMENT_METHOD_EMBEDDED = 'embedded';
 	public const PAYMENT_METHOD_TINKOFF_BANK = 'tinkoff_bank';
 	public const PAYMENT_METHOD_SBP = 'sbp';
-	public const PAYMENT_METHOD_INSTALLMENTS = 'installments';
+	public const PAYMENT_METHOD_SBER_LOAN = 'sber_loan';
 
 	public const MODE_SMART = '';
 	public const MODE_ALFABANK = 'alfabank';
@@ -66,14 +67,12 @@ class YandexCheckoutHandler
 	public const MODE_SBERBANK = 'sberbank';
 	public const MODE_SBERBANK_SMS = 'sberbank_sms';
 	public const MODE_SBERBANK_QR = 'sberbank_qr';
-	public const MODE_QIWI = 'qiwi';
-	public const MODE_WEBMONEY = 'webmoney';
 	public const MODE_CASH = 'cash';
 	public const MODE_MOBILE_BALANCE = 'mobile_balance';
 	public const MODE_EMBEDDED = 'embedded';
 	public const MODE_TINKOFF_BANK = 'tinkoff_bank';
 	public const MODE_SBP = 'sbp';
-	public const MODE_INSTALLMENTS = 'installments';
+	public const MODE_SBER_LOAN = 'sber_loan';
 
 	public const URL = 'https://api.yookassa.ru/v3';
 
@@ -94,6 +93,8 @@ class YandexCheckoutHandler
 	private const SEND_METHOD_HTTP_POST = "POST";
 	private const SEND_METHOD_HTTP_GET = "GET";
 
+	use PaySystem\Cashbox\CheckTrait;
+
 	/**
 	 * @param Payment $payment
 	 * @param Request|null $request
@@ -107,7 +108,7 @@ class YandexCheckoutHandler
 	 * @throws Main\ObjectPropertyException
 	 * @throws Main\SystemException
 	 */
-	public function initiatePay(Payment $payment, Request $request = null)
+	public function initiatePay(Payment $payment, ?Request $request = null)
 	{
 		if ($request === null)
 		{
@@ -115,13 +116,6 @@ class YandexCheckoutHandler
 		}
 
 		$result = new PaySystem\ServiceResult();
-
-		$checkYandexSettingsResult = $this->checkYandexSettings($payment);
-		if (!$checkYandexSettingsResult->isSuccess())
-		{
-			$result->addErrors($checkYandexSettingsResult->getErrors());
-			return $result;
-		}
 
 		$yandexPaymentData = [];
 
@@ -218,8 +212,8 @@ class YandexCheckoutHandler
 	protected function getTemplateParams(Payment $payment, $template, $additionalParams = []) : array
 	{
 		$params = [
-			'SUM' => PriceMaths::roundPrecision($payment->getSum()),
-			'CURRENCY' => $payment->getField('CURRENCY'),
+			'SUM' => PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()),
+			'CURRENCY' => $payment->getCurrency(),
 		];
 
 		if ($template === 'template')
@@ -355,6 +349,21 @@ class YandexCheckoutHandler
 		else
 		{
 			$params = $this->getYandexPaymentQueryParams($payment, $request);
+		}
+
+		if ($this->service->canPrintCheckSelf($payment))
+		{
+			$receiptResult = $this->getReceipt($payment);
+			if (!$receiptResult->isSuccess())
+			{
+				$result->addErrors($receiptResult->getErrors());
+				return $result;
+			}
+
+			$receiptData = $receiptResult->getData();
+			$params['receipt'] = $receiptData['receipt'];
+
+			PaySystem\Logger::addDebugInfo(__CLASS__ . ": receipt = " . self::encode($receiptData['receipt']));
 		}
 
 		$sendResult = $this->send(self::SEND_METHOD_HTTP_POST, $url, $headers, $params);
@@ -529,8 +538,8 @@ class YandexCheckoutHandler
 		return [
 			'description' => $this->getPaymentDescription($payment),
 			'amount' => [
-				'value' => (string)PriceMaths::roundPrecision($payment->getSum()),
-				'currency' => $payment->getField('CURRENCY'),
+				'value' => (string)PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()),
+				'currency' => $payment->getCurrency(),
 			],
 			'capture' => true,
 			'metadata' => [
@@ -620,6 +629,33 @@ class YandexCheckoutHandler
 		}
 
 		return $query;
+	}
+
+	private function getReceipt(Payment $payment): PaySystem\ServiceResult
+	{
+		$result = new PaySystem\ServiceResult();
+
+		$checkQueryResult = $this->buildCheckQuery($payment);
+		if ($checkQueryResult->isSuccess())
+		{
+			$receiptData = $checkQueryResult->getData();
+			if (!empty($receiptData['items']) && !empty($receiptData['customer']))
+			{
+				$result->setData([
+					'receipt' => $receiptData,
+				]);
+			}
+			else
+			{
+				$result->addError(PaySystem\Error::create(Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_ERROR_EMPTY_RECEIPT')));
+			}
+		}
+		else
+		{
+			$result->addErrors($checkQueryResult->getErrors());
+		}
+
+		return $result;
 	}
 
 	/**
@@ -944,11 +980,12 @@ class YandexCheckoutHandler
 	 */
 	private function isSumCorrect(Payment $payment, array $paymentData)
 	{
+		$currency = $payment->getCurrency();
 		PaySystem\Logger::addDebugInfo(
-			__CLASS__.': yandexSum='.PriceMaths::roundPrecision($paymentData['amount']['value'])."; paymentSum=".PriceMaths::roundPrecision($payment->getSum())
+			__CLASS__.': yandexSum='.PriceMaths::roundByFormatCurrency($paymentData['amount']['value'], $currency)."; paymentSum=".PriceMaths::roundByFormatCurrency($payment->getSum(), $currency)
 		);
 
-		return PriceMaths::roundPrecision($paymentData['amount']['value']) === PriceMaths::roundPrecision($payment->getSum());
+		return PriceMaths::roundByFormatCurrency($paymentData['amount']['value'], $currency) === PriceMaths::roundByFormatCurrency($payment->getSum(), $currency);
 	}
 
 	/**
@@ -982,88 +1019,6 @@ class YandexCheckoutHandler
 
 	/**
 	 * @param Payment $payment
-	 * @return PaySystem\ServiceResult
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\ArgumentTypeException
-	 * @throws Main\ObjectException
-	 */
-	private function getYandexSettings(Payment $payment): PaySystem\ServiceResult
-	{
-		$result = new PaySystem\ServiceResult();
-
-		$url = $this->getUrl($payment, 'settings');
-		$headers = $this->getHeaders($payment);
-
-		$sendResult = $this->send(self::SEND_METHOD_HTTP_GET, $url, $headers);
-		if ($sendResult->isSuccess())
-		{
-			$result->setData($sendResult->getData());
-		}
-		else
-		{
-			$result->addErrors($sendResult->getErrors());
-		}
-
-		return $result;
-	}
-
-	/**
-	 * @param Payment $payment
-	 * @return PaySystem\ServiceResult
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\ArgumentTypeException
-	 * @throws Main\ObjectException
-	 */
-	private function checkYandexSettings(Payment $payment): PaySystem\ServiceResult
-	{
-		$result = new PaySystem\ServiceResult();
-
-		$yandexSettingsResult = $this->getYandexSettings($payment);
-		if ($yandexSettingsResult->isSuccess())
-		{
-			$yandexSettingsData = $yandexSettingsResult->getData();
-			if ($yandexSettingsData['fiscalization_enabled'])
-			{
-				$result->addError(
-					PaySystem\Error::create(
-						Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_ERROR_FISCALIZATION_ENABLE')
-					)
-				);
-			}
-
-			$paymentMethods = $yandexSettingsData['payment_methods'];
-			$psMode = $this->getYandexHandlerType($this->service->getField('PS_MODE'));
-			if ($psMode
-				&& !in_array($psMode, $paymentMethods, true)
-				&& !$this->isSetEmbeddedPaymentType()
-			)
-			{
-				$result->addError(
-					PaySystem\Error::create(
-						Localization\Loc::getMessage(
-							'SALE_HPS_YANDEX_CHECKOUT_ERROR_PAYMENT_METHOD_NOT_SUPPORT',
-							[
-								'#PAYMENT_METHOD#' => static::getHandlerModeList()[$psMode]
-							]
-						)
-					)
-				);
-			}
-		}
-		else
-		{
-			$result->addErrors($yandexSettingsResult->getErrors());
-		}
-
-		return $result;
-	}
-
-	/**
-	 * @param Payment $payment
 	 * @param $refundableSum
 	 * @return PaySystem\ServiceResult
 	 * @throws Main\ArgumentNullException
@@ -1085,9 +1040,10 @@ class YandexCheckoutHandler
 		}
 
 		$response = $sendResult->getData();
-
-		if ($response['status'] === static::PAYMENT_STATUS_SUCCEEDED
-			&& PriceMaths::roundPrecision($response['amount']['value']) === PriceMaths::roundPrecision($refundableSum)
+		$currency = $payment->getCurrency();
+		if (
+			$response['status'] === static::PAYMENT_STATUS_SUCCEEDED
+			&& PriceMaths::roundByFormatCurrency($response['amount']['value'], $currency) === PriceMaths::roundByFormatCurrency($refundableSum, $currency)
 		)
 		{
 			$result->setOperationType(PaySystem\ServiceResult::MONEY_LEAVING);
@@ -1140,7 +1096,7 @@ class YandexCheckoutHandler
 
 		$params = array(
 			'amount' => array(
-				'value' => (string)PriceMaths::roundPrecision($sum),
+				'value' => (string)PriceMaths::roundByFormatCurrency($sum, $payment->getField('CURRENCY')),
 				'currency' => $payment->getField('CURRENCY')
 			)
 		);
@@ -1254,7 +1210,7 @@ class YandexCheckoutHandler
 		return array(
 			'payment_id' => $payment->getField('PS_INVOICE_ID'),
 			'amount' => array(
-				'value' => (string)PriceMaths::roundPrecision($refundableSum),
+				'value' => (string)PriceMaths::roundByFormatCurrency($refundableSum, $payment->getField('CURRENCY')),
 				'currency' => $payment->getField('CURRENCY'),
 			),
 		);
@@ -1288,22 +1244,7 @@ class YandexCheckoutHandler
 	 */
 	public static function getHandlerModeList()
 	{
-		return [
-			static::MODE_SMART => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_SMART'),
-			static::MODE_BANK_CARD=> Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_BANK_CARDS'),
-			static::MODE_YANDEX_MONEY => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_YANDEX_MONEY'),
-			static::MODE_SBERBANK => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_SBERBANK'),
-			static::MODE_SBERBANK_SMS => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_SBERBANK_SMS'),
-			static::MODE_SBERBANK_QR => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_SBERBANK_QR'),
-			static::MODE_QIWI => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_QIWI'),
-			static::MODE_WEBMONEY => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_WEBMONEY'),
-			static::MODE_ALFABANK => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_ALFABANK'),
-			static::MODE_CASH => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_CASH'),
-			static::MODE_EMBEDDED => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_EMBEDDED'),
-			static::MODE_TINKOFF_BANK => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_TINKOFF_BANK'),
-			static::MODE_INSTALLMENTS => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_INSTALLMENTS'),
-			static::MODE_SBP => Localization\Loc::getMessage('SALE_HPS_YANDEX_CHECKOUT_SBP'),
-		];
+		return PaySystem\Manager::getHandlerDescription('YandexCheckout')['HANDLER_MODE_LIST'];
 	}
 
 	/**
@@ -1320,12 +1261,10 @@ class YandexCheckoutHandler
 			static::MODE_SBERBANK => static::PAYMENT_METHOD_SBERBANK,
 			static::MODE_SBERBANK_SMS => static::PAYMENT_METHOD_SBERBANK,
 			static::MODE_SBERBANK_QR => static::PAYMENT_METHOD_SBERBANK,
-			static::MODE_QIWI => static::PAYMENT_METHOD_QIWI,
-			static::MODE_WEBMONEY => static::PAYMENT_METHOD_WEBMONEY,
 			static::MODE_CASH => static::PAYMENT_METHOD_CASH,
 			static::MODE_EMBEDDED => static::PAYMENT_METHOD_EMBEDDED,
 			static::MODE_TINKOFF_BANK => static::PAYMENT_METHOD_TINKOFF_BANK,
-			static::MODE_INSTALLMENTS => static::PAYMENT_METHOD_INSTALLMENTS,
+			static::MODE_SBER_LOAN => static::PAYMENT_METHOD_SBER_LOAN,
 			static::MODE_SBP => static::PAYMENT_METHOD_SBP,
 		];
 
@@ -1395,7 +1334,7 @@ class YandexCheckoutHandler
 	 * @param string $action
 	 * @return string
 	 */
-	protected function getUrl(Payment $payment = null, $action)
+	protected function getUrl(?Payment $payment = null, $action)
 	{
 		$url = parent::getUrl($payment, $action);
 		if ($payment !== null &&
@@ -1419,7 +1358,6 @@ class YandexCheckoutHandler
 	{
 		$paymentMethodFields = array(
 			static::MODE_ALFABANK => array('login'),
-			static::MODE_QIWI => array('phone'),
 			static::MODE_MOBILE_BALANCE => array('phone'),
 			static::MODE_SBERBANK_SMS => array('phone'),
 		);
@@ -1476,7 +1414,6 @@ class YandexCheckoutHandler
 	private function getPhoneFields(): array
 	{
 		return [
-			static::MODE_QIWI => ['phone'],
 			static::MODE_MOBILE_BALANCE => ['phone'],
 			static::MODE_SBERBANK_SMS => ['phone'],
 		];
@@ -1508,16 +1445,6 @@ class YandexCheckoutHandler
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public static function getModeList(): array
-	{
-		return [
-			self::MODE_EMBEDDED,
-		];
-	}
-
-	/**
 	 * @param Payment $payment
 	 * @param Request|null $request
 	 * @return PaySystem\ServiceResult
@@ -1529,7 +1456,7 @@ class YandexCheckoutHandler
 	 * @throws Main\ObjectException
 	 * @throws Main\SystemException
 	 */
-	public function repeatRecurrent(Payment $payment, Request $request = null): PaySystem\ServiceResult
+	public function repeatRecurrent(Payment $payment, ?Request $request = null): PaySystem\ServiceResult
 	{
 		if ($request === null)
 		{
@@ -1544,7 +1471,7 @@ class YandexCheckoutHandler
 	 * @param Request|null $request
 	 * @return PaySystem\ServiceResult
 	 */
-	public function cancelRecurrent(Payment $payment, Request $request = null): PaySystem\ServiceResult
+	public function cancelRecurrent(Payment $payment, ?Request $request = null): PaySystem\ServiceResult
 	{
 		return (new PaySystem\ServiceResult());
 	}
@@ -1617,11 +1544,11 @@ class YandexCheckoutHandler
 		$psMode = $this->service->getField('PS_MODE');
 
 		$baseRestrictions = parent::getRestrictionList();
-		if ($psMode === self::PAYMENT_METHOD_INSTALLMENTS)
+		if ($psMode === self::PAYMENT_METHOD_SBER_LOAN)
 		{
 			$restrictionInfo = new RestrictionInfo('Price', [
 				'MIN_VALUE' => 3000,
-				'MAX_VALUE' => 150000,
+				'MAX_VALUE' => 600000,
 			]);
 
 			$baseRestrictions->add($restrictionInfo);
@@ -1645,5 +1572,26 @@ class YandexCheckoutHandler
 	private static function generateQrCode(string $data): ?string
 	{
 		return (new PaySystem\BarcodeGenerator())->generate($data);
+	}
+
+	public static function getCashboxClass(): string
+	{
+		return '\\'.Cashbox\CashboxYooKassa::class;
+	}
+
+	public function isFiscalizationEnabled(Payment $payment): bool
+	{
+		$url = $this->getUrl($payment, 'settings');
+		$headers = $this->getHeaders($payment);
+
+		$sendResult = $this->send(self::SEND_METHOD_HTTP_GET, $url, $headers);
+		if ($sendResult->isSuccess())
+		{
+			$data = $sendResult->getData();
+
+			return $data['fiscalization']['enabled'] ?? false;
+		}
+
+		return false;
 	}
 }

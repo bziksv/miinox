@@ -14,10 +14,20 @@ use Bitrix\Main\ArgumentTypeException;
 /** @internal */
 class BaseContext
 {
-	const EMPTY_CONTEXT_ID = 0; // Context with no attributes.
+	public const EMPTY_CONTEXT_ID = 0; // Context with no attributes.
 
 	protected $id = null;
-	protected $attributes = array();
+	protected array $attributes = [];
+
+	public function setId(?int $id): void
+	{
+		$this->id = $id;
+	}
+
+	public function getId(): ?int
+	{
+		return $this->id;
+	}
 
 	/** Add value to counter. If counter not exists set counter to value. Save to database.
 	 * @param Date      $day   - counter date
@@ -89,7 +99,7 @@ class BaseContext
 	 */
 	public function subCounter($day, $name, $value = 1)
 	{
-		return $this->addCounter($day, $name, -$value);
+		$this->addCounter($day, $name, -$value);
 	}
 
 	/** Set attribute with value.
@@ -140,7 +150,6 @@ class BaseContext
 			if (! $groupedTypes)
 			{
 				$groupedTypes = AttributeManager::getGroupedTypes();
-				unset($groupedTypes[null]);
 			}
 
 			foreach ($groupedTypes as $types)

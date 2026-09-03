@@ -4,13 +4,11 @@
 /**    MODIFICATION OF THIS FILE WILL ENTAIL SITE FAILURE            **/
 /**********************************************************************/
 
-//TODO: СИСТЕМА ОБНОВЛЕНИЙ, module.php, module_admin.php,
-//все файлы с CModule::CreateModuleObject ИЗМЕНЕНЫ!
+use Bitrix\Main\Application;
 
 if (!defined('DEFAULT_UPDATE_SERVER'))
 {
-	define("DEFAULT_UPDATE_SERVER", "www.bitrixsoft.com");
-	//define("DEFAULT_UPDATE_SERVER", "mysql.smn");
+	define("DEFAULT_UPDATE_SERVER", "www.1c-bitrix.ru");
 }
 
 IncludeModuleLangFile(__FILE__);
@@ -26,24 +24,21 @@ if (!defined("US_BASE_MODULE"))
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/update_class.php");
 
-$GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] = "";
-
 class CUpdateClientPartner
 {
 	public static function RegisterModules(&$strError, $lang = false, $stableVersionsOnly = false)
 	{
-		$strError_tmp = "";
+		$strError_tmp = '';
+		$updatesDirFull = '';
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::RegisterModules");
 
 		$strQuery = CUpdateClientPartner::__CollectRequestData(
 			$strError_tmp,
 			$lang,
-			$stableVersionsOnly,
-			array(),
-			array()
+			$stableVersionsOnly
 		);
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
+		if ($strQuery == '' || $strError_tmp <> '')
 		{
 			$strError .= $strError_tmp;
 			CUpdateClientPartner::AddMessage2Log("Empty query list", "GUL01");
@@ -61,18 +56,18 @@ class CUpdateClientPartner
 				$strError_tmp = "[GNSU02] ".GetMessage("SUPZ_EMPTY_ANSWER").". ";
 		}
 
-		CUpdateClientPartner::AddMessage2Log("TIME RegisterModules(request) ".Round(microtime(true) - $stime, 3)." sec");
+		CUpdateClientPartner::AddMessage2Log("TIME RegisterModules(request) ".round(microtime(true) - $stime,3)." sec");
 
 		if ($strError_tmp == '')
 		{
 			if (!($fp1 = fopen($_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/update_archive.gz", "wb")))
-				$strError_tmp .= "[URV02] ".str_replace("#FILE#", $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates", GetMessage("SUPP_RV_ER_TEMP_FILE")).". ";
+				$strError_tmp .= "[URV02] ".GetMessage("SUPP_RV_ER_TEMP_FILE", ["#FILE#" => $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates"]).". ";
 		}
 
 		if ($strError_tmp == '')
 		{
 			if (!fwrite($fp1, $content))
-				$strError_tmp .= "[URV03] ".str_replace("#FILE#", $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/update_archive.gz", GetMessage("SUPP_RV_WRT_TEMP_FILE")).". ";
+				$strError_tmp .= "[URV03] ".GetMessage("SUPP_RV_WRT_TEMP_FILE", ["#FILE#" => $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/update_archive.gz"]).". ";
 
 			@fclose($fp1);
 		}
@@ -80,7 +75,7 @@ class CUpdateClientPartner
 		if ($strError_tmp == '')
 		{
 			$updatesDirTmp = "";
-			if (!CUpdateClientPartner::UnGzipArchive($updatesDirTmp, $strError_tmp, true))
+			if (!CUpdateClientPartner::UnGzipArchive($updatesDirTmp, $strError_tmp))
 				$strError_tmp .= "[URV04] ".GetMessage("SUPP_RV_BREAK").". ";
 		}
 
@@ -88,13 +83,13 @@ class CUpdateClientPartner
 		{
 			$updatesDirFull = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updatesDirTmp;
 			if (!file_exists($updatesDirFull."/update_info.xml") || !is_file($updatesDirFull."/update_info.xml"))
-				$strError_tmp .= "[URV05] ".str_replace("#FILE#", $updatesDirFull."/update_info.xml", GetMessage("SUPP_RV_ER_DESCR_FILE")).". ";
+				$strError_tmp .= "[URV05] ".GetMessage("SUPP_RV_ER_DESCR_FILE", ["#FILE#" => $updatesDirFull."/update_info.xml"]).". ";
 		}
 
 		if ($strError_tmp == '')
 		{
 			if (!is_readable($updatesDirFull."/update_info.xml"))
-				$strError_tmp .= "[URV06] ".str_replace("#FILE#", $updatesDirFull."/update_info.xml", GetMessage("SUPP_RV_READ_DESCR_FILE")).". ";
+				$strError_tmp .= "[URV06] ".GetMessage("SUPP_RV_READ_DESCR_FILE", ["#FILE#" => $updatesDirFull."/update_info.xml"]).". ";
 		}
 
 		if ($strError_tmp == '')
@@ -110,7 +105,7 @@ class CUpdateClientPartner
 
 		if ($strError_tmp == '')
 		{
-			if (isset($arRes["DATA"]["#"]["ERROR"]) && is_array($arRes["DATA"]["#"]["ERROR"]) && !empty($arRes["DATA"]["#"]["ERROR"]))
+			if (!empty($arRes["DATA"]["#"]["ERROR"]) && is_array($arRes["DATA"]["#"]["ERROR"]))
 			{
 				for ($i = 0, $n = count($arRes["DATA"]["#"]["ERROR"]); $i < $n; $i++)
 				{
@@ -186,7 +181,7 @@ class CUpdateClientPartner
 		}
 
 		$temporaryUpdatesDir = "";
-		if (!CUpdateClientPartner::UnGzipArchive($temporaryUpdatesDir, $errorMessage, true))
+		if (!CUpdateClientPartner::UnGzipArchive($temporaryUpdatesDir, $errorMessage))
 		{
 			$errorMessage .= "[LM4W04] ".GetMessage("SUPC_ME_PACK").". ";
 			CUpdateClientPartner::AddMessage2Log(GetMessage("SUPC_ME_PACK"), "LM4W04");
@@ -230,7 +225,9 @@ class CUpdateClientPartner
 
 	public static function LoadModuleNoDemand($moduleId, &$strError, $stableVersionsOnly = "Y", $lang = false)
 	{
-		$strError_tmp = "";
+		$strError_tmp = '';
+		$content = '';
+		$temporaryUpdatesDir = '';
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::LoadModuleNoDemand");
 
@@ -240,7 +237,7 @@ class CUpdateClientPartner
 			$lang = LANGUAGE_ID;
 
 		$strQuery = CUpdateClientPartner::__CollectRequestData($strError_tmp, $lang, $stableVersionsOnly, array($moduleId), array(), true);
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
+		if ($strQuery == '' || $strError_tmp <> '')
 		{
 			if ($strError_tmp == '')
 				$strError_tmp = "[GNSU01] ".GetMessage("SUPZ_NO_QSTRING").". ";
@@ -258,13 +255,13 @@ class CUpdateClientPartner
 					$strError_tmp = "[GNSU02] ".GetMessage("SUPZ_EMPTY_ANSWER").". ";
 			}
 
-			CUpdateClientPartner::AddMessage2Log("TIME LoadModuleNoDemand(request) ".Round(microtime(true) - $stime, 3)." sec");
+			CUpdateClientPartner::AddMessage2Log("TIME LoadModuleNoDemand(request) ".round(microtime(true) - $stime,3)." sec");
 		}
 
 		if ($strError_tmp == '')
 		{
 			if (!($fp1 = fopen($_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/update_archive.gz", "wb")))
-				$strError_tmp = "[GNSU03] ".str_replace("#FILE#", $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates", GetMessage("SUPP_RV_ER_TEMP_FILE")).". ";
+				$strError_tmp = "[GNSU03] ".GetMessage("SUPP_RV_ER_TEMP_FILE", ["#FILE#" => $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates"]).". ";
 		}
 
 		if ($strError_tmp == '')
@@ -275,8 +272,7 @@ class CUpdateClientPartner
 
 		if ($strError_tmp == '')
 		{
-			$temporaryUpdatesDir = "";
-			if (!CUpdateClientPartner::UnGzipArchive($temporaryUpdatesDir, $strError_tmp, true))
+			if (!CUpdateClientPartner::UnGzipArchive($temporaryUpdatesDir, $strError_tmp))
 			{
 				$strError_tmp .= "[CL02] ".GetMessage("SUPC_ME_PACK").". ";
 				CUpdateClientPartner::AddMessage2Log(GetMessage("SUPC_ME_PACK"), "CL02");
@@ -318,7 +314,6 @@ class CUpdateClientPartner
 	public static function SearchModulesEx($arOrder, $arFilter, $searchPage, $lang, &$strError)
 	{
 		$strError_tmp = "";
-		$arResult = array();
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::SearchModulesEx");
 
@@ -339,7 +334,7 @@ class CUpdateClientPartner
 				"search_page" => $searchPage
 			)
 		);
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
+		if ($strQuery == '' || $strError_tmp <> '')
 		{
 			$strError .= $strError_tmp;
 			CUpdateClientPartner::AddMessage2Log("Empty query list", "GUL01");
@@ -351,7 +346,7 @@ class CUpdateClientPartner
 		$stime = microtime(true);
 		$content = CUpdateClientPartner::__GetHTTPPage("SEARCH", $strQuery, $strError_tmp);
 
-		CUpdateClientPartner::AddMessage2Log("TIME SearchModulesEx(request) ".Round(microtime(true) - $stime, 3)." sec");
+		CUpdateClientPartner::AddMessage2Log("TIME SearchModulesEx(request) ".round(microtime(true) - $stime,3)." sec");
 
 		$arResult = Array();
 		if ($strError_tmp == '')
@@ -389,20 +384,18 @@ class CUpdateClientPartner
 	public static function SearchModules($searchModule, $lang)
 	{
 		$strError_tmp = "";
-		$arResult = array();
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::SearchModules");
 
 		$strQuery = CUpdateClientPartner::__CollectRequestData(
 			$strError_tmp,
 			$lang,
-			$stableVersionsOnly,
+			'Y',
 			array(),
 			array("search_module" => $searchModule)
 		);
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
+		if ($strQuery == '' || $strError_tmp <> '')
 		{
-			$strError .= $strError_tmp;
 			CUpdateClientPartner::AddMessage2Log("Empty query list", "GUL01");
 			return false;
 		}
@@ -412,7 +405,7 @@ class CUpdateClientPartner
 		$stime = microtime(true);
 		$content = CUpdateClientPartner::__GetHTTPPage("SEARCH", $strQuery, $strError_tmp);
 
-		CUpdateClientPartner::AddMessage2Log("TIME SearchModules(request) ".Round(microtime(true) - $stime, 3)." sec");
+		CUpdateClientPartner::AddMessage2Log("TIME SearchModules(request) ".round(microtime(true) - $stime,3)." sec");
 
 		$arResult = Array();
 		if ($strError_tmp == '')
@@ -434,14 +427,12 @@ class CUpdateClientPartner
 		if ($strError_tmp <> '')
 		{
 			CUpdateClientPartner::AddMessage2Log($strError_tmp, "GUL02");
-			$strError .= $strError_tmp;
 			return false;
 		}
-		else
-			return $arResult;
+		return $arResult;
 	}
 
-	/** Пишет сообщения в лог файл системы обновлений. Чистит лог, если нужно. **/
+	/** РџРёС€РµС‚ СЃРѕРѕР±С‰РµРЅРёСЏ РІ Р»РѕРі С„Р°Р№Р» СЃРёСЃС‚РµРјС‹ РѕР±РЅРѕРІР»РµРЅРёР№. Р§РёСЃС‚РёС‚ Р»РѕРі, РµСЃР»Рё РЅСѓР¶РЅРѕ. **/
 	public static function AddMessage2Log($sText, $sErrorCode = "")
 	{
 		$MAX_LOG_SIZE = 1000000;
@@ -506,6 +497,7 @@ class CUpdateClientPartner
 			}
 			ignore_user_abort($old_abort_status);
 		}
+		return true;
 	}
 
 	public static function GetRequestedModules($strAddModule)
@@ -519,7 +511,7 @@ class CUpdateClientPartner
 			{
 				foreach ($arClientModules as $key => $value)
 				{
-					if (strpos($key, ".") !== false)
+					if (str_contains($key, "."))
 						$arRequestedModules[] = $key;
 				}
 			}
@@ -531,7 +523,7 @@ class CUpdateClientPartner
 			foreach ($arAddModule as $value)
 			{
 				$value = trim($value);
-				if ($value <> '' && strpos($value, ".") !== false)
+				if ($value <> '' && str_contains($value, "."))
 					$arRequestedModules[] = $value;
 			}
 		}
@@ -544,65 +536,15 @@ class CUpdateClientPartner
 	 */
 	public static function GetLicenseKey()
 	{
-		$license = \Bitrix\Main\Application::getInstance()->getLicense();
+		$license = Application::getInstance()->getLicense();
 		return $license->getKey();
 	}
 
-	/* Получить обновления следующего шага */
-	public static function GetNextStepUpdates(&$strError, $lang = false, $stableVersionsOnly = "Y", $arRequestedModules = array(), $bStrongList = false)
-	{
-		$strError_tmp = "";
-
-		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::GetNextStepUpdates");
-
-		$strQuery = CUpdateClientPartner::__CollectRequestData($strError_tmp, $lang, $stableVersionsOnly, $arRequestedModules, array(), $bStrongList);
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
-		{
-			if ($strError_tmp == '')
-				$strError_tmp = "[GNSU01] ".GetMessage("SUPZ_NO_QSTRING").". ";
-		}
-
-		if ($strError_tmp == '')
-		{
-			CUpdateClientPartner::AddMessage2Log(preg_replace("/LICENSE_KEY=[^&]*/i", "LICENSE_KEY=X", $strQuery));
-
-			$stime = microtime(true);
-			$content = CUpdateClientPartner::__GetHTTPPage("STEPM", $strQuery, $strError_tmp);
-			if ($content == '')
-			{
-				if ($strError_tmp == '')
-					$strError_tmp = "[GNSU02] ".GetMessage("SUPZ_EMPTY_ANSWER").". ";
-			}
-
-			CUpdateClientPartner::AddMessage2Log("TIME GetNextStepUpdates(request) ".Round(microtime(true) - $stime, 3)." sec");
-		}
-
-		if ($strError_tmp == '')
-		{
-			if (!($fp1 = fopen($_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/update_archive.gz", "wb")))
-				$strError_tmp = "[GNSU03] ".str_replace("#FILE#", $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates", GetMessage("SUPP_RV_ER_TEMP_FILE")).". ";
-		}
-
-		if ($strError_tmp == '')
-		{
-			fwrite($fp1, $content);
-			fclose($fp1);
-		}
-
-		if ($strError_tmp <> '')
-		{
-			CUpdateClientPartner::AddMessage2Log($strError_tmp, "GNSU00");
-			$strError .= $strError_tmp;
-			return false;
-		}
-		else
-			return true;
-	}
-
-	// Распаковывает архив файлов update_archive.gz в папкy $updatesDir
+	// Р Р°СЃРїР°РєРѕРІС‹РІР°РµС‚ Р°СЂС…РёРІ С„Р°Р№Р»РѕРІ update_archive.gz РІ РїР°РїРєy $updatesDir
 	public static function UnGzipArchive(&$updatesDir, &$strError, $bDelArch = true)
 	{
-		$strError_tmp = "";
+		$strError_tmp = '';
+		$updatesDirFull = '';
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::UnGzipArchive");
 		$stime = microtime(true);
@@ -610,24 +552,24 @@ class CUpdateClientPartner
 		$archiveFileName = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/update_archive.gz";
 
 		if (!file_exists($archiveFileName) || !is_file($archiveFileName))
-			$strError_tmp .= "[UUGZA01] ".str_replace("#FILE#", $archiveFileName, GetMessage("SUPP_UGA_NO_TMP_FILE")).". ";
+			$strError_tmp .= "[UUGZA01] ".GetMessage("SUPP_UGA_NO_TMP_FILE", ["#FILE#" => $archiveFileName]).". ";
 
 		if ($strError_tmp == '')
 		{
 			if (!is_readable($archiveFileName))
-				$strError_tmp .= "[UUGZA02] ".str_replace("#FILE#", $archiveFileName, GetMessage("SUPP_UGA_NO_READ_FILE")).". ";
+				$strError_tmp .= "[UUGZA02] ".GetMessage("SUPP_UGA_NO_READ_FILE", ["#FILE#" => $archiveFileName]).". ";
 		}
 
 		if ($strError_tmp == '')
 		{
 			$updatesDir = "update_m".time();
 			$updatesDirFull = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updatesDir;
-			CUpdateClientPartner::__CheckDirPath($updatesDirFull."/", true);
+			CUpdateClientPartner::__CheckDirPath($updatesDirFull."/");
 
 			if (!file_exists($updatesDirFull) || !is_dir($updatesDirFull))
-				$strError_tmp .= "[UUGZA03] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_UGA_NO_TMP_CAT")).". ";
+				$strError_tmp .= "[UUGZA03] ".GetMessage("SUPP_UGA_NO_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 			elseif (!is_writable($updatesDirFull))
-				$strError_tmp .= "[UUGZA04] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_UGA_WRT_TMP_CAT")).". ";
+				$strError_tmp .= "[UUGZA04] ".GetMessage("SUPP_UGA_WRT_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 		}
 
 		if ($strError_tmp == '')
@@ -650,7 +592,7 @@ class CUpdateClientPartner
 				$zp = fopen($archiveFileName, "rb");
 
 			if (!$zp)
-				$strError_tmp .= "[UUGZA05] ".str_replace("#FILE#", $archiveFileName, GetMessage("SUPP_UGA_CANT_OPEN")).". ";
+				$strError_tmp .= "[UUGZA05] ".GetMessage("SUPP_UGA_CANT_OPEN", ["#FILE#" => $archiveFileName]).". ";
 		}
 
 		if ($strError_tmp == '')
@@ -662,7 +604,7 @@ class CUpdateClientPartner
 
 			if ($flabel != "BITRIX")
 			{
-				$strError_tmp .= "[UUGZA06] ".str_replace("#FILE#", $archiveFileName, GetMessage("SUPP_UGA_BAD_FORMAT")).". ";
+				$strError_tmp .= "[UUGZA06] ".GetMessage("SUPP_UGA_BAD_FORMAT", ["#FILE#" => $archiveFileName]).". ";
 
 				if ($bCompressionUsed)
 					gzclose($zp);
@@ -690,7 +632,7 @@ class CUpdateClientPartner
 				else
 				{
 					if ($add_info_size != "RTIBE")
-						$strError_tmp .= "[UUGZA071] ".str_replace("#FILE#", $archiveFileName, GetMessage("SUPP_UGA_BAD_FORMAT")).". ";
+						$strError_tmp .= "[UUGZA071] ".GetMessage("SUPP_UGA_BAD_FORMAT", ["#FILE#" => $archiveFileName]).". ";
 
 					break;
 				}
@@ -703,7 +645,7 @@ class CUpdateClientPartner
 				$add_info_arr = explode("|", $add_info);
 				if (count($add_info_arr) != 3)
 				{
-					$strError_tmp .= "[UUGZA072] ".str_replace("#FILE#", $archiveFileName, GetMessage("SUPP_UGA_BAD_FORMAT")).". ";
+					$strError_tmp .= "[UUGZA072] ".GetMessage("SUPP_UGA_BAD_FORMAT", ["#FILE#" => $archiveFileName]).". ";
 					break;
 				}
 
@@ -724,22 +666,22 @@ class CUpdateClientPartner
 
 				if ($crc32_new != $crc32)
 				{
-					$strError_tmp .= "[UUGZA073] ".str_replace("#FILE#", $curpath, GetMessage("SUPP_UGA_FILE_CRUSH")).". ";
+					$strError_tmp .= "[UUGZA073] ".GetMessage("SUPP_UGA_FILE_CRUSH", ["#FILE#" => $curpath]).". ";
 					break;
 				}
 				else
 				{
-					CUpdateClientPartner::__CheckDirPath($updatesDirFull.$curpath, true);
+					CUpdateClientPartner::__CheckDirPath($updatesDirFull.$curpath);
 
 					if (!($fp1 = fopen($updatesDirFull.$curpath, "wb")))
 					{
-						$strError_tmp .= "[UUGZA074] ".str_replace("#FILE#", $updatesDirFull.$curpath, GetMessage("SUPP_UGA_CANT_OPEN_WR")).". ";
+						$strError_tmp .= "[UUGZA074] ".GetMessage("SUPP_UGA_CANT_OPEN_WR", ["#FILE#" => $updatesDirFull.$curpath]).". ";
 						break;
 					}
 
 					if ($contents <> '' && !fwrite($fp1, $contents))
 					{
-						$strError_tmp .= "[UUGZA075] ".str_replace("#FILE#", $updatesDirFull.$curpath, GetMessage("SUPP_UGA_CANT_WRITE_F")).". ";
+						$strError_tmp .= "[UUGZA075] ".GetMessage("SUPP_UGA_CANT_WRITE_F", ["#FILE#" => $updatesDirFull.$curpath]).". ";
 						@fclose($fp1);
 						break;
 					}
@@ -750,7 +692,7 @@ class CUpdateClientPartner
 						$crc32_new = dechex(crc32(file_get_contents($updatesDirFull.$curpath)));
 						if ($crc32_new != $crc32)
 						{
-							$strError_tmp .= "[UUGZA0761] ".str_replace("#FILE#", $curpath, GetMessage("SUPP_UGA_FILE_CRUSH")).". ";
+							$strError_tmp .= "[UUGZA0761] ".GetMessage("SUPP_UGA_FILE_CRUSH", ["#FILE#", $curpath]).". ";
 							break;
 						}
 					}
@@ -769,7 +711,7 @@ class CUpdateClientPartner
 				@unlink($archiveFileName);
 		}
 
-		CUpdateClientPartner::AddMessage2Log("TIME UnGzipArchive ".Round(microtime(true) - $stime, 3)." sec");
+		CUpdateClientPartner::AddMessage2Log("TIME UnGzipArchive ".round(microtime(true) - $stime,3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -781,18 +723,18 @@ class CUpdateClientPartner
 			return true;
 	}
 
-	// Возвращает информацию по загруженным в папку $updatesDir обновлениям модулей
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Рј РІ РїР°РїРєСѓ $updatesDir РѕР±РЅРѕРІР»РµРЅРёСЏРј РјРѕРґСѓР»РµР№
 	public static function CheckUpdatability($updatesDir, &$strError)
 	{
 		$strError_tmp = "";
 
 		$updatesDirFull = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updatesDir;
 		if (!file_exists($updatesDirFull) || !is_dir($updatesDirFull))
-			$strError_tmp .= "[UCU01] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_CU_NO_TMP_CAT")).". ";
+			$strError_tmp .= "[UCU01] ".GetMessage("SUPP_CU_NO_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 
 		if ($strError_tmp == '')
 			if (!is_readable($updatesDirFull))
-				$strError_tmp .= "[UCU02] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_CU_RD_TMP_CAT")).". ";
+				$strError_tmp .= "[UCU02] ".GetMessage("SUPP_CU_RD_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 
 		if ($handle = @opendir($updatesDirFull))
 		{
@@ -811,7 +753,7 @@ class CUpdateClientPartner
 					if (file_exists($strRealPath))
 					{
 						if (!is_writeable($strRealPath))
-							$strError_tmp .= "[UCU03] ".str_replace("#FILE#", $strRealPath, GetMessage("SUPP_CU_MAIN_ERR_FILE")).". ";
+							$strError_tmp .= "[UCU03] ".GetMessage("SUPP_CU_MAIN_ERR_FILE", ["#FILE#" => $strRealPath]).". ";
 					}
 					else
 					{
@@ -827,7 +769,7 @@ class CUpdateClientPartner
 							if (file_exists($strRealPath) && is_dir($strRealPath))
 							{
 								if (!is_writable($strRealPath))
-									$strError_tmp .= "[UCU04] ".str_replace("#FILE#", $strRealPath, GetMessage("SUPP_CU_MAIN_ERR_CAT")).". ";
+									$strError_tmp .= "[UCU04] ".GetMessage("SUPP_CU_MAIN_ERR_CAT", ["#FILE#" => $strRealPath]).". ";
 
 								break;
 							}
@@ -850,7 +792,7 @@ class CUpdateClientPartner
 			return true;
 	}
 
-	// Возвращает информацию по загруженным в папку $updatesDir обновлениям модулей
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Рј РІ РїР°РїРєСѓ $updatesDir РѕР±РЅРѕРІР»РµРЅРёСЏРј РјРѕРґСѓР»РµР№
 	public static function GetStepUpdateInfo($updatesDir, &$strError)
 	{
 		$arResult = array();
@@ -860,19 +802,19 @@ class CUpdateClientPartner
 
 		$updatesDirFull = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updatesDir;
 		if (!file_exists($updatesDirFull) || !is_dir($updatesDirFull))
-			$strError_tmp .= "[UGLMU01] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_CU_NO_TMP_CAT")).". ";
+			$strError_tmp .= "[UGLMU01] ".GetMessage("SUPP_CU_NO_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 
 		if ($strError_tmp == '')
 			if (!is_readable($updatesDirFull))
-				$strError_tmp .= "[UGLMU02] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_CU_RD_TMP_CAT")).". ";
+				$strError_tmp .= "[UGLMU02] ".GetMessage("SUPP_CU_RD_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 
 		if ($strError_tmp == '')
 			if (!file_exists($updatesDirFull."/update_info.xml") || !is_file($updatesDirFull."/update_info.xml"))
-				$strError_tmp .= "[UGLMU03] ".str_replace("#FILE#", $updatesDirFull."/update_info.xml", GetMessage("SUPP_RV_ER_DESCR_FILE")).". ";
+				$strError_tmp .= "[UGLMU03] ".GetMessage("SUPP_RV_ER_DESCR_FILE", ["#FILE#" => $updatesDirFull."/update_info.xml"]).". ";
 
 		if ($strError_tmp == '')
 			if (!is_readable($updatesDirFull."/update_info.xml"))
-				$strError_tmp .= "[UGLMU04] ".str_replace("#FILE#", $updatesDirFull."/update_info.xml", GetMessage("SUPP_RV_READ_DESCR_FILE")).". ";
+				$strError_tmp .= "[UGLMU04] ".GetMessage("SUPP_RV_READ_DESCR_FILE", ["#FILE#" => $updatesDirFull."/update_info.xml"]).". ";
 
 		if ($strError_tmp == '')
 			$content = file_get_contents($updatesDirFull."/update_info.xml");
@@ -901,7 +843,6 @@ class CUpdateClientPartner
 
 	public static function __CollectRequestData(&$strError, $lang = false, $stableVersionsOnly = "Y", $arRequestedModules = array(), $arAdditionalData = array(), $bStrongList = false)
 	{
-		$strResult = "";
 		$strError_tmp = "";
 
 		if ($lang === false)
@@ -911,17 +852,17 @@ class CUpdateClientPartner
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::__CollectRequestData");
 
-		CUpdateClientPartner::__CheckDirPath($_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/", true);
+		CUpdateClientPartner::__CheckDirPath($_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/");
 
 		$arClientModules = CUpdateClientPartner::GetCurrentModules($strError_tmp);
 
 		if ($strError_tmp == '')
 		{
-			$license = \Bitrix\Main\Application::getInstance()->getLicense();
+			$license = Application::getInstance()->getLicense();
 
 			$dbv = $GLOBALS["DB"]->GetVersion();
 
-			$strResult = "utf=".urlencode(defined('BX_UTF') ? "Y" : "N").
+			$strResult = "utf=Y".
 				"&lang=".urlencode($lang).
 				"&stable=".urlencode($stableVersionsOnly).
 				"&CANGZIP=".urlencode((CUpdateClientPartner::__IsGzipInstalled()) ? "Y" : "N").
@@ -934,7 +875,7 @@ class CUpdateClientPartner
 				"&TYPENC=".($license->isDemo() ? "D" : ($license->isEncoded() ? "E" : ($license->isTimeBound() ? "T" : "F"))).
 				"&CLIENT_PHPVER=".urlencode(phpversion()).
 				"&NGINX=".urlencode(COption::GetOptionString("main", "update_use_nginx", "Y")).
-				"&dbv=".urlencode($dbv != false ? $dbv : "");
+				"&dbv=".urlencode($dbv ?: "");
 
 			$strResultTmp = "";
 			if (!empty($arClientModules))
@@ -996,7 +937,7 @@ class CUpdateClientPartner
 		return false;
 	}
 
-	/** Собирает клиентские модули с версиями **/
+	/** РЎРѕР±РёСЂР°РµС‚ РєР»РёРµРЅС‚СЃРєРёРµ РјРѕРґСѓР»Рё СЃ РІРµСЂСЃРёСЏРјРё **/
 	public static function GetCurrentModules(&$strError)
 	{
 		$arClientModules = array();
@@ -1030,8 +971,8 @@ class CUpdateClientPartner
 						$arInfo = CUpdateClientPartner::__GetModuleInfo($module_dir);
 						if (!isset($arInfo["VERSION"]) || $arInfo["VERSION"] == '')
 						{
-							CUpdateClientPartner::AddMessage2Log(str_replace("#MODULE#", $dir, GetMessage("SUPP_GM_ERR_DMOD")), "Ux11");
-							$strError .= "[Ux11] ".str_replace("#MODULE#", $dir, GetMessage("SUPP_GM_ERR_DMOD")).". ";
+							CUpdateClientPartner::AddMessage2Log(GetMessage("SUPP_GM_ERR_DMOD", ["#MODULE#" => $dir]), "Ux11");
+							$strError .= "[Ux11] ".GetMessage("SUPP_GM_ERR_DMOD", ["#MODULE#" => $dir]).". ";
 
 							return array();
 						}
@@ -1043,7 +984,7 @@ class CUpdateClientPartner
 					}
 					else
 					{
-						CUpdateClientPartner::AddMessage2Log(str_replace("#MODULE#", $dir, GetMessage("SUPP_GM_ERR_DMOD")), "Ux12");
+						CUpdateClientPartner::AddMessage2Log(GetMessage("SUPP_GM_ERR_DMOD", ["#MODULE#" => $dir]), "Ux12");
 					}
 				}
 			}
@@ -1060,16 +1001,15 @@ class CUpdateClientPartner
 		return $arClientModules;
 	}
 
-	/* Получить список доступных обновлений */
+	/* РџРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РґРѕСЃС‚СѓРїРЅС‹С… РѕР±РЅРѕРІР»РµРЅРёР№ */
 	public static function GetUpdatesList(&$strError, $lang = false, $stableVersionsOnly = "Y", $arRequestedModules = array(), $aditData = Array())
 	{
 		$strError_tmp = "";
-		$arResult = array();
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::GetUpdatesList");
 
 		$strQuery = CUpdateClientPartner::__CollectRequestData($strError_tmp, $lang, $stableVersionsOnly, $arRequestedModules, $aditData);
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
+		if ($strQuery == '' || $strError_tmp <> '')
 		{
 			$strError .= $strError_tmp;
 			CUpdateClientPartner::AddMessage2Log("Empty query list", "GUL01");
@@ -1081,7 +1021,7 @@ class CUpdateClientPartner
 		$stime = microtime(true);
 		$content = CUpdateClientPartner::__GetHTTPPage("LIST", $strQuery, $strError_tmp);
 
-		CUpdateClientPartner::AddMessage2Log("TIME GetUpdatesList(request) ".Round(microtime(true) - $stime, 3)." sec");
+		CUpdateClientPartner::AddMessage2Log("TIME GetUpdatesList(request) ".round(microtime(true) - $stime,3)." sec");
 
 		$arResult = Array();
 		if ($strError_tmp == '')
@@ -1113,7 +1053,6 @@ class CUpdateClientPartner
 	public static function ClearUpdateFolder($updatesDirFull)
 	{
 		CUpdateClientPartner::__DeleteDirFilesEx($updatesDirFull);
-		bx_accelerator_reset();
 	}
 
 	public static function LoadModulesUpdates(&$errorMessage, &$arUpdateDescription, $lang = false, $stableVersionsOnly = "Y", $arRequestedModules = array(), $bStrongList = false)
@@ -1181,7 +1120,7 @@ class CUpdateClientPartner
 			}
 
 			CUpdateClientPartner::AddMessage2Log(
-				"TIME LoadModulesUpdates(request) ".Round(microtime(true) - $stime, 3)." sec"
+				"TIME LoadModulesUpdates(request) ".round(microtime(true) - $stime,3)." sec"
 			);
 
 			CUpdateClientPartner::__ParseServerData($content, $arUpdateDescription, $errorMessage);
@@ -1214,9 +1153,7 @@ class CUpdateClientPartner
 
 			if (!($fp1 = fopen($filename.".log", "wb")))
 			{
-				$errorMessage = "[GNSU03] ".str_replace(
-						"#FILE#", $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates", GetMessage("SUPP_RV_ER_TEMP_FILE")
-					).". ";
+				$errorMessage = "[GNSU03] ".GetMessage("SUPP_RV_ER_TEMP_FILE", ["#FILE#" => $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates"]).". ";
 				CUpdateClientPartner::AddMessage2Log($errorMessage, "LMU006");
 
 				return "E";
@@ -1289,13 +1226,10 @@ class CUpdateClientPartner
 		return $r;
 	}
 
-	private static function getAddr($serverIp = null, $serverPort = null)
+	private static function getAddr()
 	{
-		if (!$serverIp)
-			$serverIp = COption::GetOptionString("main", "update_site", DEFAULT_UPDATE_SERVER);
-		if (!$serverPort)
-			$serverPort = 80;
-
+		$serverIp = COption::GetOptionString("main", "update_site", DEFAULT_UPDATE_SERVER);
+		$https = COption::GetOptionString("main", "update_use_https", "N") == "Y";
 		$proxyAddr = COption::GetOptionString("main", "update_site_proxy_addr", "");
 		$proxyPort = COption::GetOptionString("main", "update_site_proxy_port", "");
 		$proxyUserName = COption::GetOptionString("main", "update_site_proxy_user", "");
@@ -1306,9 +1240,8 @@ class CUpdateClientPartner
 		$result = array(
 			"USE_PROXY" => $useProxy,
 			"IP" => $serverIp,
-			"PORT" => $serverPort,
-			"SOCKET_IP" => $serverIp,
-			"SOCKET_PORT" => $serverPort,
+			"SOCKET_IP" => ($https ? 'tls://' : '') . $serverIp,
+			"SOCKET_PORT" => ($https ? 443 : 80),
 		);
 
 		if ($useProxy)
@@ -1328,14 +1261,12 @@ class CUpdateClientPartner
 
 	private static function getSocketError($errstr, $errno, $addrParams)
 	{
-		if (class_exists('CUtil') && method_exists('CUtil', 'ConvertToLangCharset'))
-			$errstr = CUtil::ConvertToLangCharset($errstr);
 		$error = GetMessage("SUPP_GHTTP_ER").": [".$errno."] ".$errstr.". ";
 		if (intval($errno) <= 0)
 			$error .= GetMessage("SUPP_GHTTP_ER_DEF")." ";
 
 		CUpdateClientPartner::AddMessage2Log(
-			"Error connecting 2 ".$addrParams["SOCKET_IP"].": [".$errno."] ".$errstr."", "ERRCONN1"
+			"Error connecting to ".$addrParams["SOCKET_IP"].": [".$errno."] ".$errstr, "ERRCONN1"
 		);
 
 		return $error;
@@ -1346,7 +1277,7 @@ class CUpdateClientPartner
 		$timeout = intval($timeout);
 		$startTime = 0;
 		if ($timeout > 0)
-			$startTime = getmicrotime();
+			$startTime = microtime(true);
 
 		$addrParams = static::getAddr();
 
@@ -1380,7 +1311,7 @@ class CUpdateClientPartner
 		$request .= "Host: ".$addrParams["IP"]."\r\n";
 		$request .= "Accept-Language: en\r\n";
 		$request .= "Content-type: application/x-www-form-urlencoded\r\n";
-		$request .= "Content-length: ".mb_strlen($requestQueryString)."\r\n\r\n";
+		$request .= "Content-length: ".strlen($requestQueryString)."\r\n\r\n";
 		$request .= $requestQueryString;
 		$request .= "\r\n";
 
@@ -1395,7 +1326,7 @@ class CUpdateClientPartner
 		$contentLength = 0;
 		for ($i = 0, $cnt = count($replyHeaderArray); $i < $cnt; $i++)
 		{
-			if (strpos($replyHeaderArray[$i], "Content-Length") !== false)
+			if (str_contains($replyHeaderArray[$i], "Content-Length"))
 			{
 				$pos = mb_strpos($replyHeaderArray[$i], ":");
 				$contentLength = intval(trim(mb_substr($replyHeaderArray[$i], $pos + 1, mb_strlen($replyHeaderArray[$i]) - $pos + 1)));
@@ -1502,13 +1433,11 @@ class CUpdateClientPartner
 		$timeout = intval($timeout);
 		$startTime = 0;
 		if ($timeout > 0)
-			$startTime = getmicrotime();
+			$startTime = microtime(true);
 
 		$startSize = file_exists($outputFilename.".tmp") ? filesize($outputFilename.".tmp") : 0;
 
-		//$realRequestedUrlParsed = parse_url($requestedUrl);
-
-		$addrParams = static::getAddr(/*$realRequestedUrlParsed["host"], $realRequestedUrlParsed["port"]*/);
+		$addrParams = static::getAddr();
 
 		$socketHandler = fsockopen($addrParams["SOCKET_IP"], $addrParams["SOCKET_PORT"], $errorNum, $errorMsg, 30);
 		if (!$socketHandler)
@@ -1564,11 +1493,11 @@ class CUpdateClientPartner
 
 		$replyContentRange = "";
 		$replyContentLength = 0;
-		for ($i = 1; $i < count($replyHeaderArray); $i++)
+		for ($i = 1, $n = count($replyHeaderArray); $i < $n; $i++)
 		{
-			if (strpos($replyHeaderArray[$i], "Content-Range") !== false)
+			if (str_contains($replyHeaderArray[$i], "Content-Range"))
 				$replyContentRange = trim(mb_substr($replyHeaderArray[$i], mb_strpos($replyHeaderArray[$i], ":") + 1, mb_strlen($replyHeaderArray[$i]) - mb_strpos($replyHeaderArray[$i], ":") + 1));
-			elseif (strpos($replyHeaderArray[$i], "Content-Length") !== false)
+			elseif (str_contains($replyHeaderArray[$i], "Content-Length"))
 				$replyContentLength = doubleval(trim(mb_substr($replyHeaderArray[$i], mb_strpos($replyHeaderArray[$i], ":") + 1, mb_strlen($replyHeaderArray[$i]) - mb_strpos($replyHeaderArray[$i], ":") + 1)));
 		}
 
@@ -1607,17 +1536,15 @@ class CUpdateClientPartner
 		}
 
 		$isFinished = true;
-		$downloadSize = (double) $startSize;
 		while (true)
 		{
-			if ($timeout > 0 && (getmicrotime() - $startTime) > $timeout)
+			if ($timeout > 0 && (microtime(true) - $startTime) > $timeout)
 			{
 				$isFinished = false;
 				break;
 			}
 
 			$result = fread($socketHandler, 256 * 1024);
-			$downloadSize += mb_strlen($result);
 			if ($result == "")
 				break;
 
@@ -1664,11 +1591,11 @@ class CUpdateClientPartner
 		$updatesDirFull = $_SERVER["DOCUMENT_ROOT"]."/bitrix/updates/".$updatesDir;
 
 		if (!file_exists($updatesDirFull) || !is_dir($updatesDirFull))
-			$strError_tmp .= "[UUK01] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_CU_NO_TMP_CAT")).". ";
+			$strError_tmp .= "[UUK01] ".GetMessage("SUPP_CU_NO_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 
 		if ($strError_tmp == '')
 			if (!is_readable($updatesDirFull))
-				$strError_tmp .= "[UUK03] ".str_replace("#FILE#", $updatesDirFull, GetMessage("SUPP_CU_RD_TMP_CAT")).". ";
+				$strError_tmp .= "[UUK03] ".GetMessage("SUPP_CU_RD_TMP_CAT", ["#FILE#" => $updatesDirFull]).". ";
 
 		$arModules = array();
 		if ($strError_tmp == '')
@@ -1699,32 +1626,32 @@ class CUpdateClientPartner
 				$updateDirFrom = $updatesDirFull."/".$arModules[$i];
 				$updateDirTo = $_SERVER["DOCUMENT_ROOT"].US_SHARED_KERNEL_PATH."/modules/".$arModules[$i];
 
-				CUpdateClientPartner::__CheckDirPath($updateDirTo."/", true);
+				CUpdateClientPartner::__CheckDirPath($updateDirTo."/");
 
 				if (!file_exists($updateDirTo) || !is_dir($updateDirTo))
-					$strError_tmp1 .= "[UUK04] ".str_replace("#MODULE_DIR#", $updateDirTo, GetMessage("SUPP_UK_NO_MODIR")).". ";
+					$strError_tmp1 .= "[UUK04] ".GetMessage("SUPP_UK_NO_MODIR", ["#MODULE_DIR#" => $updateDirTo]).". ";
 
 				if ($strError_tmp1 == '')
 					if (!is_writable($updateDirTo))
-						$strError_tmp1 .= "[UUK05] ".str_replace("#MODULE_DIR#", $updateDirTo, GetMessage("SUPP_UK_WR_MODIR")).". ";
+						$strError_tmp1 .= "[UUK05] ".GetMessage("SUPP_UK_WR_MODIR", ["#MODULE_DIR#" => $updateDirTo]).". ";
 
 				if ($strError_tmp1 == '')
 					if (!file_exists($updateDirFrom) || !is_dir($updateDirFrom))
-						$strError_tmp1 .= "[UUK06] ".str_replace("#DIR#", $updateDirFrom, GetMessage("SUPP_UK_NO_FDIR")).". ";
+						$strError_tmp1 .= "[UUK06] ".GetMessage("SUPP_UK_NO_FDIR", ["#DIR#" => $updateDirFrom]).". ";
 
 				if ($strError_tmp1 == '')
 					if (!is_readable($updateDirFrom))
-						$strError_tmp1 .= "[UUK07] ".str_replace("#DIR#", $updateDirFrom, GetMessage("SUPP_UK_READ_FDIR")).". ";
+						$strError_tmp1 .= "[UUK07] ".GetMessage("SUPP_UK_READ_FDIR", ["#DIR#" => $updateDirFrom]).". ";
 
+				$arUpdaters = array();
 				if ($strError_tmp1 == '')
 				{
 					$handle = @opendir($updateDirFrom);
-					$arUpdaters = array();
 					if ($handle)
 					{
 						while (false !== ($dir = readdir($handle)))
 						{
-							if (mb_substr($dir, 0, 7) == "updater")
+							if (str_starts_with($dir, "updater"))
 							{
 								$bPostUpdater = "N";
 								if (is_file($updateDirFrom."/".$dir))
@@ -1788,10 +1715,15 @@ class CUpdateClientPartner
 							CUpdateClientPartner::__RunUpdaterScript($updateDirFrom.$arUpdaters[$i1][0], $strError_tmp2, "/bitrix/updates/".$updatesDir."/".$arModules[$i], $arModules[$i]);
 							if ($strError_tmp2 <> '')
 							{
-								$strError_tmp1 .=
-										str_replace("#MODULE#", $arModules[$i], str_replace("#VER#", $arUpdaters[$i1][1], GetMessage("SUPP_UK_UPDN_ERR"))).": ".
-										$strError_tmp2.". ";
-								$strError_tmp1 .= str_replace("#MODULE#", $arModules[$i], GetMessage("SUPP_UK_UPDN_ERR_BREAK"))." ";
+								$strError_tmp1 .= GetMessage("SUPP_UK_UPDN_ERR", [
+										"#VER#" => $arUpdaters[$i1][1],
+										"#MODULE#", $arModules[$i],
+									])
+									. ": "
+									. $strError_tmp2
+									. ". "
+									. GetMessage("SUPP_UK_UPDN_ERR_BREAK", ["#MODULE#" => $arModules[$i]])
+									. " ";
 								break;
 							}
 						}
@@ -1799,7 +1731,7 @@ class CUpdateClientPartner
 				}
 
 				if ($strError_tmp1 == '')
-					CUpdateClientPartner::__CopyDirFiles($updateDirFrom, $updateDirTo, $strError_tmp1, true);
+					CUpdateClientPartner::__CopyDirFiles($updateDirFrom, $updateDirTo, $strError_tmp1);
 
 				if ($strError_tmp1 == '')
 				{
@@ -1811,10 +1743,15 @@ class CUpdateClientPartner
 							CUpdateClientPartner::__RunUpdaterScript($updateDirFrom.$arUpdaters[$i1][0], $strError_tmp2, "/bitrix/updates/".$updatesDir."/".$arModules[$i], $arModules[$i]);
 							if ($strError_tmp2 <> '')
 							{
-								$strError_tmp1 .=
-										str_replace("#MODULE#", $arModules[$i], str_replace("#VER#", $arUpdaters[$i1][1], GetMessage("SUPP_UK_UPDY_ERR"))).": ".
-										$strError_tmp2.". ";
-								$strError_tmp1 .= str_replace("#MODULE#", $arModules[$i], GetMessage("SUPP_UK_UPDN_ERR_BREAK"))." ";
+								$strError_tmp1 .= GetMessage("SUPP_UK_UPDY_ERR", [
+										"#VER#" => $arUpdaters[$i1][1],
+										"#MODULE#" => $arModules[$i],
+									])
+									. ": "
+									. $strError_tmp2
+									. ". "
+									. GetMessage("SUPP_UK_UPDN_ERR_BREAK", ["#MODULE#" => $arModules[$i]])
+									. " ";
 								break;
 							}
 						}
@@ -1827,7 +1764,7 @@ class CUpdateClientPartner
 			CUpdateClientPartner::ClearUpdateFolder($updatesDirFull);
 		}
 
-		CUpdateClientPartner::AddMessage2Log("TIME UpdateStepModules ".Round(microtime(true) - $stime, 3)." sec");
+		CUpdateClientPartner::AddMessage2Log("TIME UpdateStepModules ".round(microtime(true) - $stime,3)." sec");
 
 		if ($strError_tmp <> '')
 		{
@@ -1850,8 +1787,8 @@ class CUpdateClientPartner
 
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::ActivateCoupon");
 
-		$strQuery = CUpdateClientPartner::__CollectRequestData($strError_tmp, $lang, $stableVersionsOnly, array(), array());
-		if ($strQuery === false || $strQuery == '' || $strError_tmp <> '')
+		$strQuery = CUpdateClientPartner::__CollectRequestData($strError_tmp, $lang, $stableVersionsOnly);
+		if ($strQuery == '' || $strError_tmp <> '')
 		{
 			if ($strError_tmp == '')
 				$strError_tmp = "[RV01] ".GetMessage("SUPZ_NO_QSTRING").". ";
@@ -1864,7 +1801,7 @@ class CUpdateClientPartner
 				\Bitrix\Rest\OAuthService::register();
 				\Bitrix\Rest\OAuthService::getEngine()->getClient()->getApplicationList();
 			}
-			catch(\Bitrix\Main\SystemException $e)
+			catch(\Bitrix\Main\SystemException)
 			{
 			}
 		}
@@ -1887,7 +1824,7 @@ class CUpdateClientPartner
 					$strError_tmp = "[GNSU02] ".GetMessage("SUPZ_EMPTY_ANSWER").". ";
 			}
 
-			CUpdateClientPartner::AddMessage2Log("TIME ActivateCoupon(request) ".Round(microtime(true) - $stime, 3)." sec");
+			CUpdateClientPartner::AddMessage2Log("TIME ActivateCoupon(request) ".round(microtime(true) - $stime,3)." sec");
 		}
 
 		if ($strError_tmp == '')
@@ -1898,7 +1835,7 @@ class CUpdateClientPartner
 
 		if ($strError_tmp == '')
 		{
-			if (isset($arRes["DATA"]["#"]["ERROR"]) && is_array($arRes["DATA"]["#"]["ERROR"]) && !empty($arRes["DATA"]["#"]["ERROR"]))
+			if (!empty($arRes["DATA"]["#"]["ERROR"]) && is_array($arRes["DATA"]["#"]["ERROR"]))
 			{
 				for ($i = 0, $n = count($arRes["DATA"]["#"]["ERROR"]); $i < $n; $i++)
 				{
@@ -1920,24 +1857,19 @@ class CUpdateClientPartner
 			return true;
 	}
 
-	/** Запускает updater модуля **/
+	/** Р—Р°РїСѓСЃРєР°РµС‚ updater РјРѕРґСѓР»СЏ **/
 	public static function __RunUpdaterScript($path, &$strError, $updateDirFrom, $moduleID)
 	{
 		global $DBType, $DB, $APPLICATION, $USER;
 
-		if (!isset($GLOBALS["UPDATE_STRONG_UPDATE_CHECK"])
-			|| ($GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] != "Y" && $GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] != "N"))
-		{
-			$GLOBALS["UPDATE_STRONG_UPDATE_CHECK"] = ((US_CALL_TYPE != "DB") ? COption::GetOptionString("main", "strong_update_check", "Y") : "Y");
-		}
-		$strongUpdateCheck = $GLOBALS["UPDATE_STRONG_UPDATE_CHECK"];
+		$strongUpdateCheck = (US_CALL_TYPE != "DB" ? COption::GetOptionString("main", "strong_update_check", "Y") : "Y");
 
 		$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
 
 		$path = str_replace("\\", "/", $path);
 		$updaterPath = dirname($path);
 		$updaterPath = mb_substr($updaterPath, mb_strlen($_SERVER["DOCUMENT_ROOT"]));
-		$updaterPath = Trim($updaterPath, " \t\n\r\0\x0B/\\");
+		$updaterPath = trim($updaterPath," \t\n\r\0\x0B/\\");
 		if ($updaterPath <> '')
 			$updaterPath = "/".$updaterPath;
 
@@ -1946,11 +1878,13 @@ class CUpdateClientPartner
 		CUpdateClientPartner::AddMessage2Log("Run updater '".$updaterName."'", "CSURUS1");
 
 		$updater = new CUpdater();
-		$updater->Init($updaterPath, 'mysql', $updaterName, $updateDirFrom, $moduleID, US_CALL_TYPE);
+		$updater->Init($updaterPath, $DB->type, $updaterName, $updateDirFrom, $moduleID, US_CALL_TYPE);
 
 		$errorMessage = "";
 
+		$updater->beforeIncludeUpdaterFile();
 		include($path);
+		$updater->afterIncludeUpdaterFile();
 
 		if ($errorMessage <> '')
 			$strError .= $errorMessage;
@@ -1960,10 +1894,10 @@ class CUpdateClientPartner
 		unset($updater);
 	}
 
-	/** Сравнение двух версий в формате XX.XX.XX  **/
-	/** Возвращает 1, если $strVers1 > $strVers2  **/
-	/** Возвращает -1, если $strVers1 < $strVers2 **/
-	/** Возвращает 0, если $strVers1 == $strVers2 **/
+	/** РЎСЂР°РІРЅРµРЅРёРµ РґРІСѓС… РІРµСЂСЃРёР№ РІ С„РѕСЂРјР°С‚Рµ XX.XX.XX. **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ 1, РµСЃР»Рё $strVers1 > $strVers2  **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ -1, РµСЃР»Рё $strVers1 < $strVers2 **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ 0, РµСЃР»Рё $strVers1 == $strVers2 **/
 	public static function __CompareVersions($strVers1, $strVers2)
 	{
 		$strVers1 = trim($strVers1);
@@ -1990,25 +1924,14 @@ class CUpdateClientPartner
 		return -1;
 	}
 
-	/** Запрашивает методом POST страницу $page со списком параметров **/
-	/** $strVars и возвращает тело ответа. В параметре $strError      **/
-	/** возвращается текст ошибки, если таковая была.                 **/
+	/**
+	 * Р—Р°РїСЂР°С€РёРІР°РµС‚ РјРµС‚РѕРґРѕРј POST СЃС‚СЂР°РЅРёС†Сѓ $page СЃРѕ СЃРїРёСЃРєРѕРј РїР°СЂР°РјРµС‚СЂРѕРІ
+	 * $strVars Рё РІРѕР·РІСЂР°С‰Р°РµС‚ С‚РµР»Рѕ РѕС‚РІРµС‚Р°. Р’ РїР°СЂР°РјРµС‚СЂРµ $strError
+	 * РІРѕР·РІСЂР°С‰Р°РµС‚СЃСЏ С‚РµРєСЃС‚ РѕС€РёР±РєРё, РµСЃР»Рё С‚Р°РєРѕРІР°СЏ Р±С‹Р»Р°.
+	 */
 	public static function __GetHTTPPage($page, $strVars, &$strError)
 	{
-		global $SERVER_NAME, $DB;
-
 		CUpdateClientPartner::AddMessage2Log("exec CUpdateClientPartner::GetHTTPPage");
-
-		$ServerIP = COption::GetOptionString("main", "update_site", DEFAULT_UPDATE_SERVER);
-//		$ServerIP = 'www.1c-bitrix.ru';
-		$ServerPort = 80;
-
-		$proxyAddr = COption::GetOptionString("main", "update_site_proxy_addr", "");
-		$proxyPort = COption::GetOptionString("main", "update_site_proxy_port", "");
-		$proxyUserName = COption::GetOptionString("main", "update_site_proxy_user", "");
-		$proxyPassword = COption::GetOptionString("main", "update_site_proxy_pass", "");
-
-		$bUseProxy = ($proxyAddr <> '' && $proxyPort <> '');
 
 		if ($page == "LIST")
 			$page = "smp_updater_list.php";
@@ -2027,45 +1950,34 @@ class CUpdateClientPartner
 
 		$strVars .= "&product=".(IsModuleInstalled("intranet") ? "CORPORTAL" : "BSM")."&verfix=2";
 
-		if ($bUseProxy)
-		{
-			$proxyPort = intval($proxyPort);
-			if ($proxyPort <= 0)
-				$proxyPort = 80;
+		$addrParams = static::getAddr();
 
-			$requestIP = $proxyAddr;
-			$requestPort = $proxyPort;
-		}
-		else
-		{
-			$requestIP = $ServerIP;
-			$requestPort = $ServerPort;
-		}
-
-		$FP = fsockopen($requestIP, $requestPort, $errno, $errstr, 120);
+		$FP = fsockopen($addrParams["SOCKET_IP"], $addrParams["SOCKET_PORT"], $errno, $errstr, 120);
 
 		if ($FP)
 		{
 			$strRequest = "";
 
-			if ($bUseProxy)
+			if ($addrParams["USE_PROXY"])
 			{
-				$strRequest .= "POST http://".$ServerIP."/bitrix/updates/".$page." HTTP/1.0\r\n";
-				if ($proxyUserName <> '')
-					$strRequest .= "Proxy-Authorization: Basic ".base64_encode($proxyUserName.":".$proxyPassword)."\r\n";
+				$strRequest .= "POST http://".$addrParams["IP"]."/bitrix/updates/".$page." HTTP/1.0\r\n";
+				if ($addrParams["PROXY_USERNAME"] <> '')
+					$strRequest .= "Proxy-Authorization: Basic ".base64_encode($addrParams["PROXY_USERNAME"].":".$addrParams["PROXY_PASSWORD"])."\r\n";
 			}
 			else
+			{
 				$strRequest .= "POST /bitrix/updates/".$page." HTTP/1.0\r\n";
+			}
 
 			$strRequest .= "User-Agent: BitrixSMUpdater\r\n";
 			$strRequest .= "Accept: */*\r\n";
-			$strRequest .= "Host: ".$ServerIP."\r\n";
+			$strRequest .= "Host: ".$addrParams["IP"]."\r\n";
 			$strRequest .= "Accept-Language: en\r\n";
 			$strRequest .= "Content-type: application/x-www-form-urlencoded\r\n";
-			$strRequest .= "Content-length: ".mb_strlen($strVars)."\r\n\r\n";
-			$strRequest .= "$strVars";
+			$strRequest .= "Content-length: ".strlen($strVars)."\r\n\r\n";
+			$strRequest .= $strVars;
 			$strRequest .= "\r\n";
-//CUpdateClientPartner::AddMessage2Log($strRequest, "!!!!!");
+
 			fputs($FP, $strRequest);
 
 			$bChunked = false;
@@ -2088,8 +2000,7 @@ class CUpdateClientPartner
 			{
 				$maxReadSize = 4096;
 
-				$length = 0;
-				$line = FGets($FP, $maxReadSize);
+				$line = fgets($FP, $maxReadSize);
 				$line = mb_strtolower($line);
 
 				$strChunkSize = "";
@@ -2114,16 +2025,15 @@ class CUpdateClientPartner
 						$newSize = $chunkSize - $processedSize;
 						$readSize = (($newSize > $maxReadSize) ? $maxReadSize : $newSize);
 					}
-					$length += $chunkSize;
 
-					$line = FGets($FP, $maxReadSize);
+					fgets($FP, $maxReadSize);
 
-					$line = FGets($FP, $maxReadSize);
-					$line = mb_strtolower($line);
+					$line = fgets($FP, $maxReadSize);
+					$line = strtolower($line);
 
 					$strChunkSize = "";
 					$i = 0;
-					while ($i < mb_strlen($line) && in_array($line[$i], array("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f")))
+					while ($i < strlen($line) && in_array($line[$i], array("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f")))
 					{
 						$strChunkSize .= $line[$i];
 						$i++;
@@ -2144,20 +2054,17 @@ class CUpdateClientPartner
 		{
 			$content = "";
 			$strError .= GetMessage("SUPP_GHTTP_ER").": [".$errno."] ".$errstr.". ";
-			if (intval($errno) <= 0)
+			if ($errno <= 0)
 				$strError .= GetMessage("SUPP_GHTTP_ER_DEF")." ";
 
-			CUpdateClientPartner::AddMessage2Log("Error connecting 2 ".$ServerIP.": [".$errno."] ".$errstr."", "ERRCONN");
+			CUpdateClientPartner::AddMessage2Log("Error connecting to ".$addrParams["IP"].": [".$errno."] ".$errstr, "ERRCONN");
 		}
-		//CUpdateClientPartner::AddMessage2Log($content, "!1!");
-
-		//echo "content:<br>".$content."<br><br>";
 
 		return $content;
 	}
 
-	/** Проверяет на ошибки ответ сервера $strServerOutput **/
-	/** и парсит в массив $arRes                           **/
+	/** РџСЂРѕРІРµСЂСЏРµС‚ РЅР° РѕС€РёР±РєРё РѕС‚РІРµС‚ СЃРµСЂРІРµСЂР° $strServerOutput. **/
+	/** РџР°СЂСЃРёС‚ РІ РјР°СЃСЃРёРІ $arRes. **/
 	public static function __ParseServerData(&$strServerOutput, &$arRes, &$strError)
 	{
 		$strError_tmp = "";
@@ -2173,9 +2080,9 @@ class CUpdateClientPartner
 
 		if ($strError_tmp == '')
 		{
-			if (mb_substr($strServerOutput, 0, mb_strlen("<DATA>")) != "<DATA>" && CUpdateClientPartner::__IsGzipInstalled())
+			if (!str_starts_with($strServerOutput, "<DATA>") && CUpdateClientPartner::__IsGzipInstalled())
 				$strServerOutput = @gzuncompress($strServerOutput);
-			if (mb_substr($strServerOutput, 0, mb_strlen("<DATA>")) != "<DATA>")
+			if (!str_starts_with($strServerOutput, "<DATA>"))
 			{
 				CUpdateClientPartner::AddMessage2Log(mb_substr($strServerOutput, 0, 100), "UPSD02");
 				$strError_tmp .= "[UPSD02] ".GetMessage("SUPP_PSD_BAD_RESPONSE").". ";
@@ -2205,7 +2112,7 @@ class CUpdateClientPartner
 				if ($CRCCode <> '')
 					COption::SetOptionString(US_BASE_MODULE, "crc_code", $CRCCode);
 			}
-			if (isset($arRes["DATA"]["#"]["CLIENT"]) && isset($arRes["DATA"]["#"]["CLIENT"][0]["@"]["DATE_TO_SOURCE"]))
+			if (isset($arRes["DATA"]["#"]["CLIENT"][0]["@"]["DATE_TO_SOURCE"]))
 				COption::SetOptionString(US_BASE_MODULE, "~support_finish_date", $arRes["DATA"]["#"]["CLIENT"][0]["@"]["DATE_TO_SOURCE"]);
 		}
 
@@ -2219,11 +2126,11 @@ class CUpdateClientPartner
 			return true;
 	}
 
-	/** Проверка на установку GZip компрессии **/
+	/** РџСЂРѕРІРµСЂРєР° РЅР° СѓСЃС‚Р°РЅРѕРІРєСѓ GZip РєРѕРјРїСЂРµСЃСЃРёРё **/
 	public static function __IsGzipInstalled()
 	{
 		if (function_exists("gzcompress"))
-			return (COption::GetOptionString("main", "update_is_gzip_installed", "Y") == "Y" ? true : false);
+			return COption::GetOptionString("main", "update_is_gzip_installed", "Y") == "Y";
 
 		return false;
 	}
@@ -2232,25 +2139,25 @@ class CUpdateClientPartner
 	{
 		$db = CLang::GetList("", "", array("ACTIVE" => "Y"));
 		$cnt = 0;
-		while ($ar = $db->Fetch())
+		while ($db->Fetch())
 			$cnt++;
 		return $cnt;
 	}
 
-	/** Создание путя, если его нет, и установка прав писать **/
+	/** РЎРѕР·РґР°РЅРёРµ РїСѓС‚СЏ, РµСЃР»Рё РµРіРѕ РЅРµС‚, Рё СѓСЃС‚Р°РЅРѕРІРєР° РїСЂР°РІ РїРёСЃР°С‚СЊ **/
 	public static function __CheckDirPath($path, $bPermission = true)
 	{
 		$badDirs = Array();
 		$path = str_replace("\\", "/", $path);
 		$path = str_replace("//", "/", $path);
 
-		if ($path[mb_strlen($path) - 1] != "/") //отрежем имя файла
+		if ($path[mb_strlen($path) - 1] != "/") //РѕС‚СЂРµР¶РµРј РёРјСЏ С„Р°Р№Р»Р°
 		{
 			$p = CUpdateClientPartner::__bxstrrpos($path, "/");
 			$path = mb_substr($path, 0, $p);
 		}
 
-		while (mb_strlen($path) > 1 && $path[mb_strlen($path) - 1]=="/") //отрежем / в конце, если есть
+		while (mb_strlen($path) > 1 && $path[mb_strlen($path) - 1]=="/") //РѕС‚СЂРµР¶РµРј / РІ РєРѕРЅС†Рµ, РµСЃР»Рё РµСЃС‚СЊ
 			$path = mb_substr($path, 0, mb_strlen($path) - 1);
 
 		$p = CUpdateClientPartner::__bxstrrpos($path, "/");
@@ -2277,7 +2184,7 @@ class CUpdateClientPartner
 		}
 	}
 
-	/** Рекурсивное копирование из $path_from в $path_to **/
+	/** Р РµРєСѓСЂСЃРёРІРЅРѕРµ РєРѕРїРёСЂРѕРІР°РЅРёРµ РёР· $path_from РІ $path_to **/
 	public static function __CopyDirFiles($path_from, $path_to, &$strError, $bSkipUpdater = true)
 	{
 		$strError_tmp = "";
@@ -2294,7 +2201,7 @@ class CUpdateClientPartner
 		if ($strError_tmp == '')
 		{
 			if (!file_exists($path_from))
-				$strError_tmp .= "[UCDF02] ".str_replace("#FILE#", $path_from, GetMessage("SUPP_CDF_NO_PATH")).". ";
+				$strError_tmp .= "[UCDF02] ".GetMessage("SUPP_CDF_NO_PATH", ["#FILE#" => $path_from]).". ";
 		}
 
 		if ($strError_tmp == '')
@@ -2306,9 +2213,9 @@ class CUpdateClientPartner
 				CUpdateClientPartner::__CheckDirPath($path_to."/");
 
 				if (!file_exists($path_to) || !is_dir($path_to))
-					$strError_tmp .= "[UCDF03] ".str_replace("#FILE#", $path_to, GetMessage("SUPP_CDF_CANT_CREATE")).". ";
+					$strError_tmp .= "[UCDF03] ".GetMessage("SUPP_CDF_CANT_CREATE", ["#FILE#" => $path_to]).". ";
 				elseif (!is_writable($path_to))
-					$strError_tmp .= "[UCDF04] ".str_replace("#FILE#", $path_to, GetMessage("SUPP_CDF_CANT_WRITE")).". ";
+					$strError_tmp .= "[UCDF04] ".GetMessage("SUPP_CDF_CANT_WRITE", ["#FILE#" => $path_to]).". ";
 
 				if ($strError_tmp == '')
 				{
@@ -2319,7 +2226,7 @@ class CUpdateClientPartner
 							if ($file == "." || $file == "..")
 								continue;
 
-							if ($bSkipUpdater && mb_substr($file, 0, mb_strlen("updater")) == "updater")
+							if ($bSkipUpdater && str_starts_with($file, "updater"))
 								continue;
 
 							if (is_dir($path_from."/".$file))
@@ -2330,7 +2237,7 @@ class CUpdateClientPartner
 							{
 								if (file_exists($path_to."/".$file) && !is_writable($path_to."/".$file))
 								{
-									$strError_tmp .= "[UCDF05] ".str_replace("#FILE#", $path_to."/".$file, GetMessage("SUPP_CDF_CANT_FILE")).". ";
+									$strError_tmp .= "[UCDF05] ".GetMessage("SUPP_CDF_CANT_FILE", ["#FILE#" => $path_to."/".$file]).". ";
 								}
 								else
 								{
@@ -2345,7 +2252,7 @@ class CUpdateClientPartner
 										$crc32_new = dechex(crc32(file_get_contents($path_to."/".$file)));
 										if ($crc32_new != $crc32_old)
 										{
-											$strError_tmp .= "[UCDF061] ".str_replace("#FILE#", $path_to."/".$file, GetMessage("SUPP_UGA_FILE_CRUSH")).". ";
+											$strError_tmp .= "[UCDF061] ".GetMessage("SUPP_UGA_FILE_CRUSH", ["#FILE#" => $path_to."/".$file]).". ";
 										}
 									}
 								}
@@ -2362,9 +2269,9 @@ class CUpdateClientPartner
 				CUpdateClientPartner::__CheckDirPath($path_to_dir."/");
 
 				if (!file_exists($path_to_dir) || !is_dir($path_to_dir))
-					$strError_tmp .= "[UCDF06] ".str_replace("#FILE#", $path_to_dir, GetMessage("SUPP_CDF_CANT_FOLDER")).". ";
+					$strError_tmp .= "[UCDF06] ".GetMessage("SUPP_CDF_CANT_FOLDER", ["#FILE#" => $path_to_dir]).". ";
 				elseif (!is_writable($path_to_dir))
-					$strError_tmp .= "[UCDF07] ".str_replace("#FILE#", $path_to_dir, GetMessage("SUPP_CDF_CANT_FOLDER_WR")).". ";
+					$strError_tmp .= "[UCDF07] ".GetMessage("SUPP_CDF_CANT_FOLDER_WR", ["#FILE#" => $path_to_dir]).". ";
 
 				if ($strError_tmp == '')
 				{
@@ -2379,7 +2286,7 @@ class CUpdateClientPartner
 						$crc32_new = dechex(crc32(file_get_contents($path_to)));
 						if ($crc32_new != $crc32_old)
 						{
-							$strError_tmp .= "[UCDF0611] ".str_replace("#FILE#", $path_to, GetMessage("SUPP_UGA_FILE_CRUSH")).". ";
+							$strError_tmp .= "[UCDF0611] ".GetMessage("SUPP_UGA_FILE_CRUSH", ["#FILE#" => $path_to]).". ";
 						}
 					}
 				}
@@ -2396,7 +2303,7 @@ class CUpdateClientPartner
 			return true;
 	}
 
-	/** Рекурсивное удаление $path **/
+	/** Р РµРєСѓСЂСЃРёРІРЅРѕРµ СѓРґР°Р»РµРЅРёРµ $path **/
 	public static function __DeleteDirFilesEx($path)
 	{
 		if (!file_exists($path))
@@ -2438,22 +2345,16 @@ class CUpdateClientPartner
 		return $index;
 	}
 
-	/** Возвращает экземпляр класса-инсталятора модуля по абсолютному пути $path **/
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ СЌРєР·РµРјРїР»СЏСЂ РєР»Р°СЃСЃР°-РёРЅСЃС‚Р°Р»СЏС‚РѕСЂР° РјРѕРґСѓР»СЏ РїРѕ Р°Р±СЃРѕР»СЋС‚РЅРѕРјСѓ РїСѓС‚Рё $path **/
 	public static function __GetModuleInfo($path)
 	{
-		$arModuleVersion = array();
-
-		include_once($path."/install/index.php");
-
-		$arr = explode("/", $path);
-		$i = array_search("modules", $arr);
-		$module_code = $arr[$i+1];
-
+		$module_code = basename($path);
 		$class_name = str_replace(".", "_", $module_code);
-		if (!class_exists($class_name))
-			return array();
 
-		$cls = new $class_name;
+		if (!($cls = CModule::CreateModuleObject($module_code)))
+		{
+			return array();
+		}
 
 		if (!method_exists($cls, '__construct') && method_exists($cls, $class_name))
 		{

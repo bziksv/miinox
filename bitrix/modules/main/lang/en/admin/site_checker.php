@@ -35,14 +35,13 @@ $MESS["MAIN_SC_COMPRESSION_TEST"] = "Page compression and acceleration";
 $MESS["MAIN_SC_COMP_DISABLED"] = "The server doesn't support compression, using the Bitrix Compression module instead (PHP)";
 $MESS["MAIN_SC_COMP_DISABLED_MOD"] = "The server doesn't support compression, the compression module disabled";
 $MESS["MAIN_SC_CORRECT"] = "Correct";
-$MESS["MAIN_SC_CORRECT_DESC"] = "Intranet requires special configuration of the server environment. <a href=\"http://www.bitrixsoft.com/products/virtual_appliance/\" target=\"_blank\">Bitrix Virtual Appliance</a> is configured properly out-of-the-box. Some features may be unavailable if you fail to adjust the required parameters.";
+$MESS["MAIN_SC_CORRECT_DESC"] = "Intranet requires special configuration of the server environment. <a href=\"https://www.bitrixsoft.com/products/virtual_appliance/\" target=\"_blank\">Bitrix Virtual Appliance</a> is configured properly out-of-the-box. Some features may be unavailable if you fail to adjust the required parameters.";
 $MESS["MAIN_SC_CORRECT_SETTINGS"] = "Settings are correct";
 $MESS["MAIN_SC_DEFAULT_CHARSET"] = "The default_charset parameter must not be empty.";
 $MESS["MAIN_SC_DOCS_EDIT_MS_OFFICE"] = "Editing documents in Microsoft Office";
 $MESS["MAIN_SC_ENABLED"] = "The server supports compression, the Bitrix Compression module needs to be uninstalled";
 $MESS["MAIN_SC_ENABLED_MOD"] = "Using the web server module for compression";
 $MESS["MAIN_SC_ENC_EQUAL"] = "The mbstring.internal_encoding and default_charset values do not match. It is recommended to clear mbstring.internal_encoding and set default_charset values.";
-$MESS["MAIN_SC_ENC_NON_UTF"] = "The value of default_charset must be set to an encoding other than UTF-8.";
 $MESS["MAIN_SC_ENC_UTF"] = "The value of default_charset must be set to UTF-8.";
 $MESS["MAIN_SC_ERROR_PRECISION"] = "The \"precision\" parameter value is invalid.";
 $MESS["MAIN_SC_EXTERNAL_ANSWER_INCORRECT"] = "External connection to the Intranet was a success, but the server returned an incorrect status.";
@@ -61,7 +60,6 @@ $MESS["MAIN_SC_GOT_ERRORS"] = "Intranet has errors. <a href=\"#LINK#\">Check and
 $MESS["MAIN_SC_MAIL_INTEGRATION"] = "External e-mail account integration is OK, but none of the users configured integration settings.";
 $MESS["MAIN_SC_MAIL_IS_NOT_INSTALLED"] = "The Mail module is not installed.";
 $MESS["MAIN_SC_MAIL_TEST"] = "E-mail notifications";
-$MESS["MAIN_SC_MBSTRING_SETTIGNS_DIFFER"] = "mbstring preferences in <i>/bitrix/.settings.php</i> (utf_mode) and <i>/bitrix/php_interface/dbconn.php</i> (BX_UTF) are different.";
 $MESS["MAIN_SC_MCRYPT"] = "Encryption features";
 $MESS["MAIN_SC_METHOD_NOT_SUP"] = "The server does not support the method #METHOD#.";
 $MESS["MAIN_SC_NOT_AVAIL"] = "Unavailable";
@@ -89,7 +87,7 @@ $MESS["MAIN_SC_NO_SOCIAL_SERVICES_24NET"] = "bitrix24.net integration is not con
 $MESS["MAIN_SC_NO_SUB_CONNECTION_2"] = "Cannot connect to the Push server to read instant messages";
 $MESS["MAIN_SC_NO_WEBDAV_MODULE"] = "The Document Library module is not installed.";
 $MESS["MAIN_SC_NTLM_SUCCESS"] = "NTLM authentication is OK, current user: ";
-$MESS["MAIN_SC_OPTION_SWITCHED_OFF"] = "NTLM authentication is enabled in the LDAP module settings.";
+$MESS["MAIN_SC_OPTION_SWITCHED_OFF"] = "NTLM authentication is disabled in the LDAP module settings.";
 $MESS["MAIN_SC_PATH_PUB"] = "Incorrect publish path specified in the Push and Pull module settings";
 $MESS["MAIN_SC_PATH_SUB"] = "The message read URL is incorrect in the Push and Pull module settings.";
 $MESS["MAIN_SC_PERFORM"] = "Performance";
@@ -107,7 +105,7 @@ $MESS["MAIN_SC_STREAM_DISABLED_2"] = "Push server is not configured in the Push 
 $MESS["MAIN_SC_SYSTEST_LOG"] = "System check log";
 $MESS["MAIN_SC_TEST_COMMENTS"] = "Live comments";
 $MESS["MAIN_SC_TEST_DOCS"] = "Editing documents in Google Docs and Microsoft Office Online";
-$MESS["MAIN_SC_TEST_FAST_FILES"] = "Bitrix24.Drive. Fast file operations";
+$MESS["MAIN_SC_TEST_FAST_FILES_MSGVER_1"] = "Bitrix24 Drive. Fast file operations";
 $MESS["MAIN_SC_TEST_IS_INCORRECT"] = "The test has failed to produce correct results.";
 $MESS["MAIN_SC_TEST_LDAP"] = "Active Directory integration";
 $MESS["MAIN_SC_TEST_MAIL_INTEGRATION"] = "Internal corporate mail integration";
@@ -130,9 +128,6 @@ $MESS["MAIN_SC_WINDOWS_ENV"] = "Windows environment integration";
 $MESS["MAIN_TMP_FILE_ERROR"] = "Could not create a temporary test file";
 $MESS["MAIN_WRONG_ANSWER_PULL"] = "PUSH server replied with an unknown response.";
 $MESS["PHP_VER_NOTIFY"] = "Attention! You are not receiving system or security updates because your PHP version #CUR# is outdated. Please update your PHP to version #REQ#. Make sure you've read this <a href=\"https://helpdesk.bitrix24.com/open/17347208/\">Helpdesk page</a> before updating PHP.";
-$MESS["SC_BX_UTF"] = "Use the following code in <i>/bitrix/php_interface/dbconn.php</i>:
-<code>define('BX_UTF', true);</code> ";
-$MESS["SC_BX_UTF_DISABLE"] = "The BX_UTF constant must not be defined";
 $MESS["SC_CACHED_EVENT_WARN"] = "Found cached e-mail sending data which might be due to an error. Try to clear cache.";
 $MESS["SC_CHARSET_CONN_VS_RES"] = "The connection charset (#CONN#) is different than the result charset (#RES#).";
 $MESS["SC_CHECK_B"] = "Check";
@@ -150,13 +145,16 @@ $MESS["SC_COLLATE_WARN"] = "The collation value for &quot;#TABLE#&quot; (#VAL0#)
 $MESS["SC_CONNECTION_CHARSET"] = "Connection charset";
 $MESS["SC_CONNECTION_CHARSET_NA"] = "Verification failed due to connection encoding error.";
 $MESS["SC_CONNECTION_CHARSET_WRONG"] = "The database connection charset must be #VAL#, the current value is #VAL1#.";
-$MESS["SC_CONNECTION_CHARSET_WRONG_NOT_UTF"] = "The database connection charset must not be UTF-8, the current value is: #VAL#.";
 $MESS["SC_CONNECTION_COLLATION_WRONG_UTF"] = "The database connection collation must be utf8_unicode_ci, the current value is #VAL#.";
 $MESS["SC_CRON_WARN"] = "The constant BX_CRONTAB_SUPPORT is defined in /bitrix/php_interface/dbconn.php, this requires running agents using cron.";
 $MESS["SC_DATABASE_CHARSET_DIFF"] = "The database charset (#VAL1#) does not match the connection charset (#VAL0#).";
 $MESS["SC_DATABASE_COLLATION_DIFF"] = "The database collation (#VAL1#) does not match the connection collation (#VAL0#).";
+$MESS["SC_DATABASE_LC_CTYPE"] = "Collation used by the database (#VAL0#) is not UTF-8. Some functions will not work correctly. To fix the issue, export the database, create a new one by executing \"CREATE DATABASE newDB lc_ctype='C.UTF-8' template template0\", and then import the exported data back to it. Finally, change the site parameters to use the new database.";
 $MESS["SC_DB_CHARSET"] = "Database charset";
 $MESS["SC_DB_ERR"] = "Problem database version:";
+$MESS["SC_DB_ERR_DEFAULT_STORAGE_ENGINE"] = "default_storage_engine=#VALUE#, InnoDB is required";
+$MESS["SC_DB_ERR_INNODB_DEFAULT_ROW_FORMAT"] = "innodb_default_row_format=#VALUE#, DYNAMIC is required";
+$MESS["SC_DB_ERR_INNODB_LARGE_PREFIX"] = "innodb_large_prefix=#VALUE#, ON is required";
 $MESS["SC_DB_ERR_INNODB_STRICT"] = "innodb_strict_mode=#VALUE#, OFF is required";
 $MESS["SC_DB_ERR_MODE"] = "The sql_mode variable in MySQL must be empty. Current value:";
 $MESS["SC_DB_MISC_CHARSET"] = "The table #TBL# charset (#T_CHAR#) does not match the database charset (#CHARSET#).";
@@ -165,10 +163,9 @@ $MESS["SC_ERROR0"] = "Error!";
 $MESS["SC_ERROR1"] = "The test has failed to complete.";
 $MESS["SC_ERRORS_FOUND"] = "There&nbsp;were&nbsp;errors";
 $MESS["SC_ERRORS_NOT_FOUND"] = "No&nbsp;errors&nbsp;detected";
-$MESS["SC_ERR_CONNECT_MAIL001"] = "Cannot connect mail server mail-001.bitrix24.com";
-$MESS["SC_ERR_CONN_DIFFER"] = "in .settings.php and dbconn.php are different.";
+$MESS["SC_ERR_CONNECT_MAIL001"] = "Cannot connect mail server mail-us.bitrix24.com";
 $MESS["SC_ERR_DNS"] = "Cannot get MX record for domain #DOMAIN#";
-$MESS["SC_ERR_DNS_WRONG"] = "DNS configuration is incorrect. Only one MX record has to be there: mail-001.bitrix24.com (current: #DOMAIN#).";
+$MESS["SC_ERR_DNS_WRONG"] = "DNS configuration is incorrect. Only one MX record has to be there: mail-us.bitrix24.com (current: #DOMAIN#).";
 $MESS["SC_ERR_FIELD_DIFFERS"] = "Table #TABLE#: the field #FIELD# \"#CUR#\" does not match the description \"#NEW#\"";
 $MESS["SC_ERR_NO_FIELD"] = "The field #FIELD# is missing from the table #TABLE#";
 $MESS["SC_ERR_NO_INDEX"] = "Index #INDEX# is missing from the table #TABLE#";
@@ -206,8 +203,8 @@ $MESS["SC_HELP_CHECK_ACCESS_MOBILE"] = "The mobile application requires that you
 
 The test employs a special server at checker.internal.bitrix24.com that attempts a connection to your Intranet using the current Bitrix24 URL as provided by the web browser. No user data is transmitted while the connection with the remote server is active.
 
-Instant messaging requires that the read port of Nginx's push-stream-module can be connected to. The port number comes from the <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module settings.";
-$MESS["SC_HELP_CHECK_AD"] = "If a Windows AD or LDAP server is set up on your local network, it is advised to check that AD is <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=20&CHAPTER_ID=04264\">properly configured</a>.
+Instant messaging requires that the read port of Nginx's push-stream-module can be connected to. The port number comes from the <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module settings.";
+$MESS["SC_HELP_CHECK_AD"] = "If a Windows AD or LDAP server is set up on your local network, it is advised to check that AD is <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=20&CHAPTER_ID=04264\">properly configured</a>.
 
 This feature requires that the PHP ldap module is installed.";
 $MESS["SC_HELP_CHECK_BX_CRONTAB"] = "To migrate the non-periodic agents and e-mail to cron, add the following constant to <i>/bitrix/php_interface/dbconn.php</i>:
@@ -234,24 +231,18 @@ $MESS["SC_HELP_CHECK_DBCONN"] = "This will check the text output in the configur
 Even an excess space or newline may cause a compressed page to be unpackable and unreadable by a client browser.
 
 Besides, authorizations and CAPTCHA problems may occur.";
-$MESS["SC_HELP_CHECK_DBCONN_SETTINGS"] = "This test will compare database connection parameters specified in <i>/bitrix/php_interface/dbconn.php</i> with those in <i>/bitrix/.settings.php</i>. 
-These settings must be the same in both files. Otherwise, some SQL queries may divert to another database which will entail unpredictable consequences.
-
-The new D7 kernel uses parameters in <i>.settings.php</i>. Due to backward compatibility issues, the use of <i>dbconn.php</i> cannot be avoided.
-
-However, if <i>.settings.php</i> does not specify connection parameters at all, the new kernel uses those in <i>dbconn.php</i>.";
 $MESS["SC_HELP_CHECK_EXEC"] = "If PHP runs in CGI/FastCGI mode on a Unix system, the scripts require execution permissions, otherwise they will not run.
 If this test fails, contact your hosting techsupport for necessary file permissions and set the contants <b>BX_FILE_PERMISSIONS</b> and <b>BX_DIR_PERMISSIONS</b> in <i>dbconn.php</i> accordingly.
 
 Configure PHP to run as an Apache module if possible.";
-$MESS["SC_HELP_CHECK_EXTRANET"] = "The <a href=\"http://www.bitrixsoft.com/products/intranet/features/collaboration/extranet.php\">Extranet</a> module requires that your Intranet is externally accessible via the Internet.
+$MESS["SC_HELP_CHECK_EXTRANET"] = "The <a href=\"https://www.bitrixsoft.com/products/intranet/features/collaboration/extranet.php\">Extranet</a> module requires that your Intranet is externally accessible via the Internet.
 
 If you don't need features provided by this module, simply <a href=\"/bitrix/admin/module_admin.php\">uninstall it</a>.";
 $MESS["SC_HELP_CHECK_FAST_DOWNLOAD"] = "Fast file download is implemented using <a href=\"http://wiki.nginx.org/X-accel\">nginx's internal redirection</a>. The file access permissions are checked using PHP calls, while the actual download is handled by nginx. 
 
 Once a request has been served, PHP resources are freed to process a subsequent request in the queue. This significantly improves Intranet performance and boosts file download speed when accessed via Bitrix.Drive, Document Library or when downloading attachments from Activity Stream posts.
 
-Enable this option in the <a href=\"/bitrix/admin/settings.php?mid=main\">Kernel settings</a>. <a href=\"http://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> supports fast file downloads by default.
+Enable this option in the <a href=\"/bitrix/admin/settings.php?mid=main\">Kernel settings</a>. <a href=\"https://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> supports fast file downloads by default.
 
 ";
 $MESS["SC_HELP_CHECK_GETIMAGESIZE"] = "When you add a Flash object, the visual editor needs to get the object size and calls the standard PHP function <b>getimagesize</b> which requires the <b>Zlib</b> extension. This function may fail when called for a compressed Flash object if the <b>Zlib</b> extension is installed as a module. It needs to be built statically.
@@ -295,16 +286,7 @@ Website encoding needs to be specified as a value of the default_charset paramet
 
 <b>default_charset=utf-8</b>
 
-Misconfiguration will lead to numerous issues: texts will be haphazardly truncated, XML import and the Update System will be broken etc.
-
-Add this code to <i>/bitrix/php_interface/dbconn.php</I> to enable UTF-8 on your site:
-<code>define('BX_UTF', true);</code>
-and add this code to <i>/bitrix/.settings.php</i>:
-<code>'utf_mode' => 
-  array (
-    'value' => true,
-    'readonly' => true,
-  ),</code>";
+Misconfiguration will lead to numerous issues: texts will be haphazardly truncated, XML import and the Update System will be broken etc.";
 $MESS["SC_HELP_CHECK_MEMORY_LIMIT"] = "This test creates an isolated PHP process to generate a variable whose size is incremented gradually. In the end, this will produce the amount of memory available to the PHP process.
 
 PHP defines the memory limit in php.ini by setting the <b>memory_limit</b> parameter. However, this may be overridden on shared hostings. You should not trust this parameter.
@@ -314,8 +296,6 @@ The test attempts to increase the value of <b>memory_limit</b> using the code:
 
 If the current value is less than that, add this line of code to <i>/bitrix/php_interface/dbconn.php</i>.
 ";
-$MESS["SC_HELP_CHECK_METHOD_EXISTS"] = "The script fails when calling <i>method_exists</I> on some PHP versions. Please refer to this discussion for more information: <a href='http://bugs.php.net/bug.php?id=51425' target=_blank>http://bugs.php.net/bug.php?id=51425</a>
-Install a different PHP version to resolve the issue.";
 $MESS["SC_HELP_CHECK_MYSQL_BUG_VERSION"] = "There are known MySQL versions containing errors which may cause website malfunction.
 <b>4.1.21</b> - sort functions work incorrectly in certain conditions;
 <b>5.0.41</b> - the EXISTS function works incorrectly; the search functions return incorrect results;
@@ -351,6 +331,10 @@ $MESS["SC_HELP_CHECK_MYSQL_TABLE_CHARSET"] = "The charset of all the tables and 
 The table collation should match the database collations as well. If the charsets are configured correctly, mismatching collation will be fixed automatically.
 
 <b>Attention!</b> Always create full backup copy of the database before changing the charset.";
+$MESS["SC_HELP_CHECK_MYSQL_TABLE_FORMAT"] = "The system has the following database requirements:
+
+1. InnoDB storage engine for maximum reliability and transaction support.
+2. Row format must not be REDUNDANT or COMPACT because it may cause indexes to fail when in UTF-8 encoding due to row length limit.";
 $MESS["SC_HELP_CHECK_MYSQL_TABLE_STATUS"] = "This test uses the conventional MySQL table check mechanism. If the test finds one or more damaged table, you will be prompted to fix them.";
 $MESS["SC_HELP_CHECK_MYSQL_TABLE_STRUCTURE"] = "The module installation packages always include information on the structure of database tables they use. When updating, the module installers may change the table structure and the module files (scripts).
 
@@ -371,7 +355,7 @@ Set the database time zone by adding the following code to <i>/bitrix/php_interf
 Please refer to http://en.wikipedia.org/wiki/List_of_tz_database_time_zones to find a correct standard value for your region and city.";
 $MESS["SC_HELP_CHECK_NTLM"] = "<a href=\"http://en.wikipedia.org/wiki/Single_sign-on\">Single sign-on</a> authentication technology requires that a web server is configured in a special way and NTLM authentication is enabled and configured on the Intranet.
 
-Setting up NTLM on Linux is definitely not a trivial task; <a href=\"http://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> includes NTLM authentication fully configured since version 4.2.";
+Setting up NTLM on Linux is definitely not a trivial task; <a href=\"https://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> includes NTLM authentication fully configured since version 4.2.";
 $MESS["SC_HELP_CHECK_PCRE_RECURSION"] = "The parameter <i>pcre.recursion_limit</i> is set to 100000 by default. If recursion eats more memory than the system stack size can provide (commonly 8 MB), PHP will error out on complex regular expressions showing a <i>Segmentation fault</i> error message.
 
 To disable stack size limit, edit the Apache startup script: <code>ulimit -s unlimited</code>
@@ -380,29 +364,32 @@ On FreeBSD, you will have to rebuild PCRE using the option --disable-stack-for-r
 Alternatively, you can decrease the value of <i>pcre.recursion_limit</i> to 1000 or less. This solution also applies to Windows based installations.
 
 This will prevent PHP catastrophic failures but may lead to inconsistencies in the behavior of string functions: for example, the forums may begin to show empty posts.";
-$MESS["SC_HELP_CHECK_PERF"] = "Server performance evaluation as provided by <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=20&CHAPTER_ID=04955\">Performance Monitor</a>.
+$MESS["SC_HELP_CHECK_PERF"] = "Server performance evaluation as provided by <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=20&CHAPTER_ID=04955\">Performance Monitor</a>.
 
 Shows the number of empty pages the server can serve per second. This value is the inverse of the time required to generate an empty page that contains only the mandatory kernel inclusion call.
 
-The reference <a href=\"http://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> usually scores 30 points.
+The reference <a href=\"https://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> usually scores 30 points.
 
 Getting a bad value on a non-loaded machine is indicative of poor configuration. Decrease of an otherwise good score during high load periods may be due to insufficient hardware resources.";
+$MESS["SC_HELP_CHECK_PGSQL_CONNECTION_CHARSET"] = "PostgreSQL connection encoding must be UTF-8.";
+$MESS["SC_HELP_CHECK_PGSQL_DB_CHARSET"] = "PostgreSQL locale must be UTF-8.";
+$MESS["SC_HELP_CHECK_PGSQL_VERSION"] = "PostgreSQL server version must meet the minimum requirements.";
 $MESS["SC_HELP_CHECK_PHP_MODULES"] = "This will check for the PHP extensions required by the system. If there are missing extensions, shows the modules that cannot run without these extensions.
 
 To add missing PHP extensions, contact your hosting techsupport. If you run the system at a local machine, you will have to install them manually; refer to documentation available at php.net.";
 $MESS["SC_HELP_CHECK_PHP_SETTINGS"] = "This will check for the critical parameters defined in php.ini. Shows the parameters whose values will cause system malfunction. You will find the detailed parameter description at php.net.";
 $MESS["SC_HELP_CHECK_POST"] = "This will send a POST request with a large number of parameters. Some server protector software like \"suhosin\" may block verbose requests. This may prevent information block elements from being saved which is definitely a problem.";
-$MESS["SC_HELP_CHECK_PULL_COMMENTS"] = "To make comments in Avtivity Stream available to all readers right away, the Push and Pull module may require additional configuration. Namely, your Nginx instance needs to have push-stream-module installed, and then activated in the <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module settings.
+$MESS["SC_HELP_CHECK_PULL_COMMENTS"] = "To make comments in Avtivity Stream available to all readers right away, the Push and Pull module may require additional configuration. Namely, your Nginx instance needs to have push-stream-module installed, and then activated in the <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module settings.
 
-<a href=\"http://www.bitrixsoft.com/products/virtual_appliance/index.php\">Bitrix Virtual Appliance</a> comes fully preconfigured to support this feature since version 4.2.
+<a href=\"https://www.bitrixsoft.com/products/virtual_appliance/index.php\">Bitrix Virtual Appliance</a> comes fully preconfigured to support this feature since version 4.2.
 ";
-$MESS["SC_HELP_CHECK_PULL_STREAM"] = "The <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module requires that your server supports this feature.
+$MESS["SC_HELP_CHECK_PULL_STREAM"] = "The <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module requires that your server supports this feature.
 
 This module handles the delivery of instant messages to Web Messenger and the mobile application. It is also used to update Activity Stream.
 
-<a href=\"http://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> supports this module since version 4.2.
+<a href=\"https://www.bitrixsoft.com/products/virtual_appliance/\">Bitrix Virtual Appliance</a> supports this module since version 4.2.
 ";
-$MESS["SC_HELP_CHECK_PUSH_BITRIX"] = "The <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module handles the delivery of instant messages (Pull), and sends Push notifications to mobile devices (<a href=\"http://www.bitrixsoft.com/products/intranet/features/bitrixmobile.php\">Bitrix mobile application</a>).
+$MESS["SC_HELP_CHECK_PUSH_BITRIX"] = "The <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=26&LESSON_ID=5144\">Push and Pull</a> module handles the delivery of instant messages (Pull), and sends Push notifications to mobile devices (<a href=\"https://www.bitrixsoft.com/products/intranet/features/bitrixmobile.php\">Bitrix mobile application</a>).
 
 Sending notification to Apple and Android devices is performed using the secure (HTTPS) Bitrix messaging center https://cloud-messaging.bitrix24.com.
 
@@ -411,7 +398,7 @@ Your Intranet needs access to this server for push notifications to work as desi
 $MESS["SC_HELP_CHECK_REST"] = "The REST module is required to integrate external applications and run a number of Bitrix24.Market applications. To integrate your own applications into Bitrix24, please follow <a href=\"https://training.bitrix24.com/rest_help/\" target=\"_blank\">the guidelines</a>.";
 $MESS["SC_HELP_CHECK_SEARCH"] = "The system can search text in documents in Open XML format (introduced in Microsoft Office 2007) out of the box. To support other file formats, specify paths to parsing applications <a href=\"/bitrix/admin/settings.php?mid=intranet\">in the Intranet module settings</a>. Otherwise, the system will be able to search filenames only.
 
-<a href=\"http://www.1c-bitrix.ru/products/vmbitrix/index.php\">Bitrix Virtual Appliance</a> supports it by default.";
+<a href=\"https://www.bitrix24.com/self-hosted/installation.php\">Bitrix Environment</a> supports it by default.";
 $MESS["SC_HELP_CHECK_SECURITY"] = "The Apache's mod_security module, like the PHP's suhosin, is intended to protect the website against hackers, but eventually it just prevents normal user actions. It is recommended that you use the standard \"Proactive Protection\" module instead of mod_security.";
 $MESS["SC_HELP_CHECK_SERVER_VARS"] = "This will check the server variables.
 
@@ -454,7 +441,7 @@ Insufficient disk space may cause this problem as well.";
 $MESS["SC_HELP_CHECK_UPLOAD_RAW"] = "Sends binary data in the body of a POST request. However, the data sometimes may become damaged on the server side in which case the Flash based image uploader won't work.";
 $MESS["SC_HELP_CHECK_WEBDAV"] = "<a href=\"http://en.wikipedia.org/wiki/WebDAV\">WebDAV</a> is the protocol that enables a user to open, edit and save documents in Microsoft Office directly from or to the Intranet without having to download or upload them from/to a server. A mandatory requirement is that the server on which the Intranet is installed passes WebDAV requests to PHP scripts exactly as received, unmodified. If the server blocks these requests, direct editing will not be possible.
 
-Notice that some extra configuration might be required <a href=\"http://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=27&LESSON_ID=1466#office\">on the client side</a> to support direct editing, and there's no way to verify it remotely.
+Notice that some extra configuration might be required <a href=\"https://www.bitrixsoft.com/support/training/course/index.php?COURSE_ID=27&LESSON_ID=1466#office\">on the client side</a> to support direct editing, and there's no way to verify it remotely.
 ";
 $MESS["SC_HELP_NOTOPIC"] = "Sorry, no help on this topic.";
 $MESS["SC_MBSTRING_NA"] = "Verification failed due to UTF configuration errors";
@@ -463,9 +450,7 @@ $MESS["SC_MB_UTF"] = "The website runs in UTF encoding";
 $MESS["SC_MEMORY_CHANGED"] = "The value of memory_limit was increased from #VAL0# to #VAL1# using ini_set while testing.";
 $MESS["SC_MOD_GD"] = "GD Library";
 $MESS["SC_MOD_GD_JPEG"] = "GD JPEG support";
-$MESS["SC_MOD_JSON"] = "Support JSON";
 $MESS["SC_MOD_MBSTRING"] = "mbstring support";
-$MESS["SC_MOD_PERL_REG"] = "Regular Expression support (Perl-Compatible)";
 $MESS["SC_MOD_XML"] = "XML support";
 $MESS["SC_MYSQL_ERR_VER"] = "MySQL #CUR# is currently installed, but #REQ# is required.";
 $MESS["SC_NOT_FILLED"] = "The problem description is required.";
@@ -475,6 +460,7 @@ $MESS["SC_NO_ROOT_ACCESS"] = "Cannot access the folder ";
 $MESS["SC_NO_TMP_FOLDER"] = "Temporary folder does not exist.";
 $MESS["SC_PATH_FAIL_SET"] = "The website root path must be empty, the current path is:";
 $MESS["SC_PCRE_CLEAN"] = "Long text strings may be handled incorrectly due to system restrictions.";
+$MESS["SC_PGSQL_ERR_VER"] = "Current PostgreSQL version: #CUR#, required: #REQ#.";
 $MESS["SC_PORTAL_WORK"] = "Intranet operability";
 $MESS["SC_PORTAL_WORK_DESC"] = "Intranet operability check";
 $MESS["SC_PROXY_ERR_RESP"] = "Invalid proxy assisted update server response.";
@@ -489,10 +475,8 @@ $MESS["SC_START_TEST_B"] = "Start Test";
 $MESS["SC_STOP_B"] = "Stop";
 $MESS["SC_STOP_TEST_B"] = "Stop";
 $MESS["SC_STRLEN_FAIL_PHP56"] = "String functions work incorrectly.  ";
-$MESS["SC_STRTOUPPER_FAIL"] = "The string functions strtoupper and strtolower produce incorrect results";
 $MESS["SC_SUBTITLE_DISK"] = "Checking the disk access";
 $MESS["SC_SUBTITLE_DISK_DESC"] = "The site scripts must have write access to site files. This is required for proper functioning of the file manager, file upload and the update system that is used to keep the site kernel up-to-date.";
-$MESS["SC_SUPPORT_COMMENT"] = "If you have problems sending the message, please use the contact form at our site:";
 $MESS["SC_SWF_WARN"] = "SWF objects may not run.";
 $MESS["SC_SYSTEM_TEST"] = "System check";
 $MESS["SC_TABLES_NEED_REPAIR"] = "Table integrity damaged, they need to be fixed.";
@@ -501,9 +485,11 @@ $MESS["SC_TABLE_CHARSET_WARN"] = "The &quot;#TABLE#&quot; table contains fields 
 $MESS["SC_TABLE_CHECK_NA"] = "Verification failed due to database charset error.";
 $MESS["SC_TABLE_COLLATION_NA"] = "Not checked due to table charset errors";
 $MESS["SC_TABLE_ERR"] = "Error in table #VAL#:";
+$MESS["SC_TABLE_ROW_FORMAT"] = "&quot;#TABLE#&quot; format is not InnoDB, or string format is now Dynamic.";
+$MESS["SC_TABLE_ROW_FORMAT_ERRORS"] = "Not all of the InnoDB tables are in Dynamic format. Total errors: #VAL#, of which #VAL1# can be fixed automatically.";
+$MESS["SC_TABLE_ROW_FORMAT_NA"] = "Not checked due to table storage format errors.";
 $MESS["SC_TABLE_SIZE_WARN"] = "The size of the &quot;#TABLE#&quot; table is possibly too large (#SIZE# M).";
 $MESS["SC_TAB_2"] = "Access check";
-$MESS["SC_TAB_5"] = "Technical support";
 $MESS["SC_TESTING"] = "Now checking...";
 $MESS["SC_TESTING1"] = "Testing...";
 $MESS["SC_TEST_CONFIG"] = "Configuration Check";
@@ -513,14 +499,6 @@ $MESS["SC_TEST_START"] = "Start test";
 $MESS["SC_TEST_SUCCESS"] = "Success";
 $MESS["SC_TEST_WARN"] = "The server configuration report is about to be collected.
 If an error occurs, please uncheck the \"Send Test Log\" option and try again.";
-$MESS["SC_TIK_ADD_TEST"] = "Send Test Log";
-$MESS["SC_TIK_DESCR"] = "Problem description";
-$MESS["SC_TIK_DESCR_DESCR"] = "sequence of operations that caused the error, error description,...";
-$MESS["SC_TIK_LAST_ERROR"] = "Last error text";
-$MESS["SC_TIK_LAST_ERROR_ADD"] = "attached";
-$MESS["SC_TIK_SEND_MESS"] = "Send message";
-$MESS["SC_TIK_SEND_SUCCESS"] = "The message has been sent successfully. Please check your inbox #EMAIL# after some time for confirmation of the message receipt from the technical support system.";
-$MESS["SC_TIK_TITLE"] = "Send message to the technical support system";
 $MESS["SC_TIME_DIFF"] = "The time is off by #VAL# seconds.";
 $MESS["SC_TMP_FOLDER_PERMS"] = "Insufficient permission to write to temporary folder.";
 $MESS["SC_T_APACHE"] = "Web server modules";
@@ -530,8 +508,8 @@ $MESS["SC_T_CHARSET"] = "Database table charset";
 $MESS["SC_T_CHECK"] = "Table Check";
 $MESS["SC_T_CLONE"] = "Passing objects by reference";
 $MESS["SC_T_DBCONN"] = "Redundant output in configuration files";
-$MESS["SC_T_DBCONN_SETTINGS"] = "Database connection parameters";
 $MESS["SC_T_EXEC"] = "File creation and execution";
+$MESS["SC_T_FORMAT"] = "Database table format";
 $MESS["SC_T_GETIMAGESIZE"] = "getimagesize support for SWF";
 $MESS["SC_T_INSTALL_SCRIPTS"] = "Service scripts in the site root";
 $MESS["SC_T_MAIL"] = "E-mail sending";
@@ -543,6 +521,7 @@ $MESS["SC_T_MEMORY"] = "Memory limit";
 $MESS["SC_T_METHOD_EXISTS"] = "method_exists called on line";
 $MESS["SC_T_MODULES"] = "Required PHP Modules";
 $MESS["SC_T_MYSQL_VER"] = "MySQL version";
+$MESS["SC_T_PGSQL_VER"] = "PostgreSQL server version";
 $MESS["SC_T_PHP"] = "PHP Required Parameters";
 $MESS["SC_T_POST"] = "POST requests with many parameters";
 $MESS["SC_T_RECURSION"] = "Stack size; pcre.recursion_limit";

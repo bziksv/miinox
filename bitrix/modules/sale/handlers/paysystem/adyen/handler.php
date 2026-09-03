@@ -53,7 +53,7 @@ class AdyenHandler
 	 * @throws Main\ArgumentTypeException
 	 * @throws Main\ObjectException
 	 */
-	public function initiatePay(Payment $payment, Request $request = null): PaySystem\ServiceResult
+	public function initiatePay(Payment $payment, ?Request $request = null): PaySystem\ServiceResult
 	{
 		$result = new PaySystem\ServiceResult();
 
@@ -101,7 +101,7 @@ class AdyenHandler
 			"PAYSYSTEM_ID" => $this->service->getField("ID"),
 			"MERCHANT_ID" => $this->getBusinessValue($payment, "APPLE_PAY_MERCHANT_ID"),
 			"ORDER_ID" => $payment->getOrder()->getId(),
-			"TOTAL_SUM" => PriceMaths::roundPrecision($payment->getSum()),
+			"TOTAL_SUM" => PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()),
 			"CURRENCY" => $payment->getField("CURRENCY"),
 			"MAKE_PAYMENT_ACTION" => "makePaymentAction",
 		);
@@ -303,7 +303,6 @@ class AdyenHandler
 		$data = array_map(static function($value) {
 			return str_replace(":", "\\:", str_replace("\\", "\\\\", $value));
 		}, $data);
-		$data = Main\Text\Encoding::convertEncoding($data, LANG_CHARSET, "UTF-8");
 
 		return implode(":", $data);
 	}
@@ -319,11 +318,12 @@ class AdyenHandler
 	 */
 	private function isSumCorrect(Payment $payment, $sum): bool
 	{
+		$currency = $payment->getField('CURRENCY');
 		PaySystem\Logger::addDebugInfo(
-			"Adyen: adyenSum=".PriceMaths::roundPrecision($sum)."; paymentSum=".PriceMaths::roundPrecision($payment->getSum())
+			"Adyen: adyenSum=" . PriceMaths::roundByFormatCurrency($sum, $currency) . "; paymentSum=".PriceMaths::roundByFormatCurrency($payment->getSum(), $currency)
 		);
 
-		return PriceMaths::roundPrecision($sum) === PriceMaths::roundPrecision($payment->getSum());
+		return PriceMaths::roundByFormatCurrency($sum, $currency) === PriceMaths::roundByFormatCurrency($payment->getSum(), $currency);
 	}
 
 	/**
@@ -534,7 +534,7 @@ class AdyenHandler
 	 * @param string $action
 	 * @return mixed|string
 	 */
-	protected function getUrl(Payment $payment = null, $action)
+	protected function getUrl(?Payment $payment = null, $action)
 	{
 		$url = parent::getUrl($payment, $action);
 		if ($payment !== null && !$this->isTestMode($payment))
@@ -584,7 +584,7 @@ class AdyenHandler
 	 * @param Payment $payment
 	 * @return bool
 	 */
-	protected function isTestMode(Payment $payment = null): bool
+	protected function isTestMode(?Payment $payment = null): bool
 	{
 		return ($this->getBusinessValue($payment, "PS_IS_TEST") === "Y");
 	}
@@ -634,7 +634,7 @@ class AdyenHandler
 		$requestParameters = [
 			"originalReference" => $payment->getField("PS_INVOICE_ID"),
 			"modificationAmount" => [
-				"value" => PriceMaths::roundPrecision($refundableSum * 100),
+				"value" => PriceMaths::roundByFormatCurrency($refundableSum, $payment->getCurrency()) * 100,
 				"currency" => $payment->getField("CURRENCY"),
 			],
 			"reference" => $payment->getId(),
@@ -835,7 +835,7 @@ class AdyenHandler
 	private function getAmount(Payment $payment): array
 	{
 		return [
-			"value" => PriceMaths::roundPrecision($payment->getSum() * 100),
+			"value" => PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()) * 100,
 			"currency" => $payment->getField("CURRENCY"),
 		];
 	}

@@ -1,4 +1,5 @@
-<?global $DOCUMENT_ROOT, $MESS;
+<?php
+
 if (!function_exists("CreatePattern"))
 {
 	function CreatePattern($pattern="", $DICTIONARY_ID=0)
@@ -23,7 +24,7 @@ if (!function_exists("CreatePattern"))
 			"SELECT ID, LETTER, REPLACEMENT, DICTIONARY_ID
 			FROM b_forum_letter
 			WHERE DICTIONARY_ID=".intval($DICTIONARY_ID);
-		$letters = $GLOBALS["DB"]->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$letters = $GLOBALS["DB"]->Query($strSql);
 		$lettPatt = array();
 		$lettersPatt = array();
 		while ($lett = $letters->Fetch())
@@ -69,7 +70,7 @@ if (!function_exists("CreatePattern"))
 			}
 			else 
 			{
-				$lettersPatt["/".preg_quote($lett["LETTER"])."/is".BX_UTF_PCRE_MODIFIER] = "(".implode("|", $arrRes).")";
+				$lettersPatt["/".preg_quote($lett["LETTER"])."/isu"] = "(".implode("|", $arrRes).")";
 			}
 		}
 		foreach ($lettersPatt as $key => $val)
@@ -98,7 +99,7 @@ if (!function_exists("CreatePattern"))
 			}
 			$res .= $separator;
 		}
-		$res = "/(?<=".$word_separator.")(".$res.")(?=".$word_separator.")/is".BX_UTF_PCRE_MODIFIER;
+		$res = "/(?<=".$word_separator.")(".$res.")(?=".$word_separator.")/isu";
 		return $res;
 	}
 }
@@ -117,7 +118,7 @@ if (!function_exists("GenPatternAll"))
 				"SELECT FM.ID, FM.DICTIONARY_ID, FM.WORDS, FM.PATTERN, FM.REPLACEMENT, FM.DESCRIPTION,  FM.USE_IT, FM.PATTERN_CREATE ".
 				"FROM b_forum_filter FM ".
 				"WHERE FM.DICTIONARY_ID=".intval($DICTIONARY_ID_W);
-			$db_res = $GLOBALS["DB"]->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $GLOBALS["DB"]->Query($strSql);
 			while ($res = $db_res->Fetch())
 			{
 				if ((trim($res["WORDS"]) <> '') && ($res["PATTERN_CREATE"] == "TRNSL")):
@@ -126,7 +127,7 @@ if (!function_exists("GenPatternAll"))
 					{
 						$strUpdate = $GLOBALS["DB"]->PrepareUpdate("b_forum_filter", array("PATTERN"=>$pattern));
 						$strSql = "UPDATE b_forum_filter SET ".$strUpdate." WHERE ID=".$res["ID"];
-						$GLOBALS["DB"]->QueryBind($strSql, Array("PATTERN"=>$pattern), false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+						$GLOBALS["DB"]->QueryBind($strSql, Array("PATTERN"=>$pattern));
 					}
 				endif;
 			}
@@ -161,11 +162,6 @@ class forum extends CModule
 			$this->MODULE_VERSION = $arModuleVersion["VERSION"];
 			$this->MODULE_VERSION_DATE = $arModuleVersion["VERSION_DATE"];
 		}
-		else
-		{
-			$this->MODULE_VERSION = FORUM_VERSION;
-			$this->MODULE_VERSION_DATE = FORUM_VERSION_DATE;
-		}
 
 		$this->MODULE_NAME = GetMessage("FORUM_MODULE_NAME");
 		$this->MODULE_DESCRIPTION = GetMessage("FORUM_MODULE_DESCRIPTION");
@@ -173,17 +169,21 @@ class forum extends CModule
 	
 	function InstallDB()
 	{
+		global $APPLICATION, $DB;
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
-		$arInstall = array(
-			"INSTALL_FILTER" => ($_REQUEST["install_forum"] == "Y" && $_REQUEST["INSTALL_FILTER"] != "Y" ? "N" : "Y"));
+
+		$arInstall = [
+			"INSTALL_FILTER" => ($_REQUEST["install_forum"] == "Y" && $_REQUEST["INSTALL_FILTER"] != "Y" ? "N" : "Y")
+		];
 		
-		if (!$GLOBALS["DB"]->Query("SELECT 'x' FROM b_forum", true))
+		if (!$DB->TableExists('b_forum'))
 		{
-			$this->errors = $GLOBALS["DB"]->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/mysql/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/forum/install/' . $connection->getType() . '/install.sql');
 			
-			if($this->errors !== false)
+			if ($this->errors !== false)
 			{
-				$GLOBALS["APPLICATION"]->ThrowException(implode("", $this->errors));
+				$APPLICATION->ThrowException(implode("", $this->errors));
 				return false;
 			}
 		}
@@ -233,18 +233,17 @@ class forum extends CModule
 		$eventManager->registerEventHandler('socialnetwork', 'onLogCommentIndexGetContent', 'forum', '\Bitrix\Forum\Integration\Socialnetwork\LogComment', 'onIndexGetContent');
 		$eventManager->registerEventHandler('socialnetwork', 'onContentViewed', 'forum', '\Bitrix\Forum\Integration\Socialnetwork\ContentViewHandler', 'onContentViewed');
 
-		if ($GLOBALS["DB"]->TableExists("b_forum_pm_folder") || $GLOBALS["DB"]->TableExists("B_FORUM_PM_FOLDER"))
+		if ($DB->TableExists("b_forum_pm_folder"))
 		{
-			$db_res = $GLOBALS["DB"]->Query("SELECT ID FROM b_forum_pm_folder WHERE USER_ID IS NULL OR USER_ID <= 0");
+			$db_res = $DB->Query("SELECT ID FROM b_forum_pm_folder WHERE USER_ID IS NULL OR USER_ID <= 0");
 			if (!($db_res && $res = $db_res->Fetch()))
 			{
-				$this->errors = $GLOBALS["DB"]->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/mysql/install2.sql");
+				$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/".$connection->getType()."/install2.sql");
 			}
 		}
 		if ($arInstall["INSTALL_FILTER"] == "Y")
 		{
-			if (($GLOBALS["DB"]->TableExists("b_forum_dictionary") || $GLOBALS["DB"]->TableExists("B_FORUM_DICTIONARY")) && 
-				($GLOBALS["DB"]->TableExists("b_forum_filter") || $GLOBALS["DB"]->TableExists("B_FORUM_FILTER")))
+			if ($DB->TableExists("b_forum_dictionary") && $DB->TableExists("b_forum_filter"))
 			{
 				$sites = CLanguage::GetList('lid', 'desc');
 				while($site = $sites->Fetch())
@@ -252,7 +251,7 @@ class forum extends CModule
 					if (!in_array($site["LID"], array("ru", "en", "de")))
 						continue;
 
-					$tmp_res_q = $GLOBALS["DB"]->Query(
+					$tmp_res_q = $DB->Query(
 					"SELECT 
 						FD.ID, COUNT(FF.ID) AS COUNT_WORDS
 						FROM b_forum_dictionary FD
@@ -261,8 +260,11 @@ class forum extends CModule
 					GROUP BY FD.ID", True);
 					if (!($tmp_res_q && ($res = $tmp_res_q->Fetch())))
 					{
-						if(file_exists(	$_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/mysql/".$site["LID"]."/".$site["LID"].".sql"))
-							$this->errors = $GLOBALS["DB"]->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/mysql/".$site["LID"]."/".$site["LID"].".sql");
+						$sqlFile = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/forum/install/' . $connection->getType() . '/' . $site['LID'] . '/' . $site['LID'] . '.sql';
+						if (file_exists($sqlFile))
+						{
+							$this->errors = $DB->RunSQLBatch($sqlFile);
+						}
 					}
 					if ($site["LID"] == "ru")
 					{
@@ -295,6 +297,7 @@ class forum extends CModule
 	{
 		/** @var CDataBase $DB */
 		global $DB;
+		$connection = \Bitrix\Main\Application::getConnection();
 		$this->errors = false;
 
 		$arSQLErrors = array();
@@ -314,7 +317,7 @@ class forum extends CModule
 				$DB->Query("DROP TABLE b_forum_smile");
 				$DB->Query("DROP TABLE b_forum_smile_lang");
 			}
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/mysql/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/".$connection->getType()."/uninstall.sql");
 		}
 		if(!empty($this->errors))
 		{
@@ -374,17 +377,15 @@ class forum extends CModule
 	function UnInstallEvents()
 	{
 		$GLOBALS["DB"]->Query(
-			"DELETE FROM b_event_type WHERE EVENT_NAME IN ('NEW_FORUM_MESSAGE','EDIT_FORUM_MESSAGE','NEW_FORUM_PRIV','NEW_FORUM_PRIVATE_MESSAGE') ", 
-			false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			"DELETE FROM b_event_type WHERE EVENT_NAME IN ('NEW_FORUM_MESSAGE','EDIT_FORUM_MESSAGE','NEW_FORUM_PRIV','NEW_FORUM_PRIVATE_MESSAGE') ");
 		$GLOBALS["DB"]->Query(
-			"DELETE FROM b_event_message WHERE EVENT_NAME IN ('NEW_FORUM_MESSAGE','EDIT_FORUM_MESSAGE','NEW_FORUM_PRIV','NEW_FORUM_PRIVATE_MESSAGE') ", 
-			false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			"DELETE FROM b_event_message WHERE EVENT_NAME IN ('NEW_FORUM_MESSAGE','EDIT_FORUM_MESSAGE','NEW_FORUM_PRIV','NEW_FORUM_PRIVATE_MESSAGE') ");
 		return true;
 	}
 
 	function InstallFiles()
 	{
-		if($_SERVER["DevServer"] != "Y" && $_ENV["COMPUTERNAME"]!="BX")
+		if($_SERVER["DevServer"] != "Y")
 		{
 			CheckDirPath($_SERVER["DOCUMENT_ROOT"]."/bitrix/images/forum/", true, true);
 			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/images",  $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/forum", true, true);
@@ -399,7 +400,7 @@ class forum extends CModule
 
 	function UnInstallFiles()
 	{
-		if($_SERVER["DevServer"] != "Y" && $_ENV["COMPUTERNAME"]!="BX")
+		if($_SERVER["DevServer"] != "Y")
 		{
 			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
 			DeleteDirFiles(
@@ -603,4 +604,3 @@ class forum extends CModule
 		}
 	}
 }
-?>

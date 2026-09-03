@@ -1,6 +1,8 @@
-<?
+<?php
+
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)die();
-use \Bitrix\Main\Localization\Loc;
+
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Text\Converter;
 use Bitrix\Main\Web\Json;
 
@@ -30,12 +32,31 @@ $this->addExternalJs($templateFolder."/utils.js");
  * @property {number} counter Counter value
  * @property {boolean} locked Is locked
  */
+
+$context = $arParams["THEME"] === 'default' ? ' --ui-context-content-light' : '';
+
+$styles = '';
+
+if (!empty($arParams["THEME_VARS"]))
+{
+	$styles = ' style="';
+	foreach ($arParams["THEME_VARS"] as $var => $value)
+	{
+		$styles .= htmlspecialcharsbx($var) . ':' . htmlspecialcharsbx($value) . '";';
+	}
+
+	$styles .= '"';
+}
+
 ?>
 
-<div class="main-buttons<?=$arParams["THEME_ID"]?>">
-	<div class="main-buttons-box">
-		<div class="main-buttons-inner-container" id="<?=$arResult["ID"]?>">
-		<? foreach ($arResult["ITEMS"] as $key => $arItem) :
+<div
+	role="navigation"
+	aria-label="<?=htmlspecialcharsbx($arParams["ARIA_LABEL"])?>"
+	class="main-buttons main-buttons__scope ui-icon-set__scope<?=$arParams["THEME_ID"]?><?=$context?>"<?=$styles?>>
+	<div class="main-buttons-box" role="list">
+		<div class="main-buttons-inner-container" id="<?=$arResult["ID"]?>" role="presentation">
+		<?php foreach ($arResult["ITEMS"] as $key => $arItem) :
 			if (isset($arItem['PARENT_ITEM_ID']) && !empty($arItem['PARENT_ITEM_ID']))
 			{
 				continue;
@@ -80,75 +101,88 @@ $this->addExternalJs($templateFolder."/utils.js");
 				$title = mb_substr($title, 0, $arParams['MAX_ITEM_LENGTH'] - 3) . '...';
 			}
 
+			$attrs = '';
+			if ($arItem["HAS_MENU"])
+			{
+				$attrs .= ' aria-haspopup="true"';
+				$attrs .= ' aria-expanded="false"';
+			}
+
+			if (isset($arItem['IS_CURRENT']) && $arItem['IS_CURRENT'] === true)
+			{
+				$attrs .= ' aria-current="' . htmlspecialcharsbx($arParams["ARIA_CURRENT"]) . '"';
+			}
+
 			?><div
 				class="main-buttons-item <?=$itemClass?>"
+				role="listitem"
 				id="<?=$arItem["ID"]?>"
 				data-disabled="<?=$arItem["IS_DISABLED"]?>"
 				data-class="<?=$arItem["CLASS_SUBMENU_ITEM"]?>"
 				data-id="<?=$arItem["DATA_ID"]?>"
 				data-item="<?= htmlspecialcharsbx(Json::encode($arItem))?>"
 				data-top-menu-id="<?=$arResult["ID"]?>"
-				<? if (isset($arItem['PARENT_ITEM_ID'])) : ?>
+				<?php if (isset($arItem['PARENT_ITEM_ID'])) : ?>
 				data-parent-item-id="<?=$arItem['PARENT_ITEM_ID']?>"
-				<? endif;?>
-				<? if (isset($arItem['HAS_CHILD']) && $arItem['HAS_CHILD'] === true): ?>
+				<?php endif;?>
+				<?php if (isset($arItem['HAS_CHILD']) && $arItem['HAS_CHILD'] === true): ?>
 				data-has-child="true"
-				<? endif; ?>
-				<? if (isset($arItem['IS_DISBANDED']) && $arItem['IS_DISBANDED'] === true): ?>
+				<?php endif; ?>
+				<?php if (isset($arItem['IS_DISBANDED']) && $arItem['IS_DISBANDED'] === true): ?>
 				data-disbanded="true"
-				<? endif; ?>
-				title="<?=htmlspecialcharsbx($arItem["TITLE"])?>"><?
+				<?php endif; ?>
+				title="<?=htmlspecialcharsbx($arItem["TITLE"])?>"><?php
 				if (!$arItem["HTML"]):
 					if (!empty($arItem["URL"])):
-						?><a class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"
-						href="<?=htmlspecialcharsbx($arItem["URL"])?>"><?
+						?><a tabindex="0" <?=$attrs?> class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"
+						href="<?=htmlspecialcharsbx($arItem["URL"])?>"><?php
 					else:
-						?><span class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"><?
+						?><button type="button" tabindex="0" <?=$attrs?> class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"><?php
 					endif
-						?><span class="main-buttons-item-icon<?=$arParams["CLASS_ITEM_ICON"] ? " ".$arParams["CLASS_ITEM_ICON"] : ""?>"></span><?
-						?><span class="main-buttons-item-text<?=$arParams["CLASS_ITEM_TEXT"] ? " ".$arParams["CLASS_ITEM_TEXT"] : ""?>"><?
-							?><span class="main-buttons-item-drag-button" data-slider-ignore-autobinding="true"></span><?
+						?><span class="main-buttons-item-icon<?=$arParams["CLASS_ITEM_ICON"] ? " ".$arParams["CLASS_ITEM_ICON"] : ""?>"></span><?php
+						?><span class="main-buttons-item-text<?=$arParams["CLASS_ITEM_TEXT"] ? " ".$arParams["CLASS_ITEM_TEXT"] : ""?>"><?php
+							?><span class="main-buttons-item-drag-button" data-slider-ignore-autobinding="true"></span><?php
 							if ($arItem['SUPER_TITLE']):
 								['TEXT' => $text, 'CLASS' => $className, 'COLOR' => $color] = $arItem['SUPER_TITLE'];
 								$className = empty($className) ? '' : ' '. $className;
 								$style = empty($color) ? '' : ' style="color:' . $color . '"';
-								?><span class="main-buttons-item-super-title<?=$className?>"<?=$style?>><?=$text?></span><?
+								?><span class="main-buttons-item-super-title<?=$className?>"<?=$style?>><?=$text?></span><?php
 							endif
-							?><span class="main-buttons-item-text-title"><?
-								?><span class="main-buttons-item-text-box"><?=htmlspecialcharsbx($title)?><span class="main-buttons-item-menu-arrow"></span></span><?
-							?></span><?
-							?><span class="main-buttons-item-edit-button" data-slider-ignore-autobinding="true"></span><?
-							?><span class="main-buttons-item-text-marker"></span><?
-						?></span><?
+							?><span class="main-buttons-item-text-title"><?php
+								?><span class="main-buttons-item-text-box"><?=htmlspecialcharsbx($title)?><span class="main-buttons-item-menu-arrow"></span></span><?php
+							?></span><?php
+							?><span class="main-buttons-item-edit-button" data-slider-ignore-autobinding="true"></span><?php
+							?><span class="main-buttons-item-text-marker"></span><?php
+						?></span><?php
 						?><span
 							<?= $dataCounterId ?>
-							class="main-buttons-item-counter<?=!empty($arParams["CLASS_ITEM_COUNTER"]) ? (" ".$arParams["CLASS_ITEM_COUNTER"]) : ""?>"><?=(isset($arItem["COUNTER"]) && ($arItem["COUNTER"] > $arItem['MAX_COUNTER_SIZE'])) ? $arItem['MAX_COUNTER_SIZE'].'+' : ($arItem["COUNTER"] ?? '')?></span><?
+							class="main-buttons-item-counter<?=!empty($arParams["CLASS_ITEM_COUNTER"]) ? (" ".$arParams["CLASS_ITEM_COUNTER"]) : ""?>"><?=(isset($arItem["COUNTER"]) && ($arItem["COUNTER"] > $arItem['MAX_COUNTER_SIZE'])) ? $arItem['MAX_COUNTER_SIZE'].'+' : ($arItem["COUNTER"] ?? '')?></span><?php
 					if (!empty($arItem["URL"])):
-						?></a><?
+						?></a><?php
 					else:
-						?></span><?
+						?></span><?php
 					endif;
 					if ($arItem["SUB_LINK"]):
-						?><a class="main-buttons-item-sublink<?=" ".$arItem["SUB_LINK"]["CLASS"]?>" href="<?=htmlspecialcharsbx($arItem["SUB_LINK"]["URL"])?>"></a><?
+						?><a tabindex="-1" aria-hidden="true" class="main-buttons-item-sublink<?=" ".($arItem["SUB_LINK"]["CLASS"] ?? '')?>" href="<?=htmlspecialcharsbx($arItem["SUB_LINK"]["URL"])?>"></a><?php
 					endif;
 				else:
 					echo $arItem["HTML"];
 				endif;
-			?></div><?
+			?></div><?php
 			if (isset($arItem['HAS_CHILD']) && $arItem['HAS_CHILD'] === true):
 				if ($arItem["EXPANDED"]):
 					?><div data-is-opened="true" class="main-buttons-item-child main-buttons-item-child-button-cloned">
 						<div class="main-buttons-item-child-button"></div>
-					</div><?
-				endif ?><?
+					</div><?php
+				endif ?><?php
 				?><div class="main-buttons-item-child"
 					data-id="<?=$arItem["DATA_ID"]?>"
 					data-child-items="<?= Converter::getHtmlConverter()->encode(Json::encode($arItem['CHILD_ITEMS']))?>"
 					<?=$arItem['EXPANDED'] ? ' data-is-opened="true"' : ''?>
-				><?
+				><?php
 					?><div class="main-buttons-item-child-list" style="<?=$arItem['EXPANDED'] ? 'max-width: none;opacity: 1; overflow: visible;' : ''?>">
 						<div class="main-buttons-item-child-list-inner">
-							<? foreach ($arItem["CHILD_ITEMS"] as $childKey => $arChildItem) :
+							<?php foreach ($arItem["CHILD_ITEMS"] as $childKey => $arChildItem) :
 								$itemClass = $arChildItem["CLASS"];
 
 								if ($arChildItem["IS_PASSIVE"])
@@ -206,80 +240,79 @@ $this->addExternalJs($templateFolder."/utils.js");
 									data-locked="<?=$arChildItem["IS_LOCKED"]?>"
 									data-item="<?= Converter::getHtmlConverter()->encode(Json::encode($arChildItem))?>"
 									data-top-menu-id="<?=$arResult["ID"]?>"
-									<? if (isset($arChildItem['PARENT_ITEM_ID'])) : ?>
+									<?php if (isset($arChildItem['PARENT_ITEM_ID'])) : ?>
 										data-parent-item-id="<?=$arChildItem['PARENT_ITEM_ID']?>"
-									<? endif;?>
-									<? if (isset($arChildItem['HAS_CHILD']) && $arChildItem['HAS_CHILD'] === true): ?>
+									<?php endif;?>
+									<?php if (isset($arChildItem['HAS_CHILD']) && $arChildItem['HAS_CHILD'] === true): ?>
 										data-has-child="true"
-									<? endif; ?>
-									<? if (isset($arChildItem['IS_DISBANDED']) && $arChildItem['IS_DISBANDED'] === true): ?>
+									<?php endif; ?>
+									<?php if (isset($arChildItem['IS_DISBANDED']) && $arChildItem['IS_DISBANDED'] === true): ?>
 										data-disbanded="true"
-									<? endif; ?>
-									title="<?=htmlspecialcharsbx($arChildItem["TITLE"])?>"><?
+									<?php endif; ?>
+									title="<?=htmlspecialcharsbx($arChildItem["TITLE"])?>"><?php
 								if (!$arChildItem["HTML"]):
 									if (!empty($arChildItem["URL"])):
 										?><a class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"
-										href="<?=htmlspecialcharsbx($arChildItem["URL"])?>"><?
+										href="<?=htmlspecialcharsbx($arChildItem["URL"])?>"><?php
 									else:
-										?><span class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"><?
+										?><button type="button" tabindex="0" class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"><?php
 									endif;
 
-									?><span class="main-buttons-item-icon<?=$arParams["CLASS_ITEM_ICON"] ? " ".$arParams["CLASS_ITEM_ICON"] : ""?>"></span><?
-									?><span class="main-buttons-item-text<?=$arParams["CLASS_ITEM_TEXT"] ? " ".$arParams["CLASS_ITEM_TEXT"] : ""?>"><?
-										?><span class="main-buttons-item-drag-button" data-slider-ignore-autobinding="true"></span><?
+									?><span class="main-buttons-item-icon<?=$arParams["CLASS_ITEM_ICON"] ? " ".$arParams["CLASS_ITEM_ICON"] : ""?>"></span><?php
+									?><span class="main-buttons-item-text<?=$arParams["CLASS_ITEM_TEXT"] ? " ".$arParams["CLASS_ITEM_TEXT"] : ""?>"><?php
+										?><span class="main-buttons-item-drag-button" data-slider-ignore-autobinding="true"></span><?php
 										if ($arChildItem['SUPER_TITLE']):
 											['TEXT' => $text, 'CLASS' => $className, 'COLOR' => $color] = $arChildItem['SUPER_TITLE'];
 											$className = empty($className) ? '' : ' '. $className;
 											$style = empty($color) ? '' : ' style="color:' . $color . '"';
-											?><span class="main-buttons-item-super-title<?=$className?>"<?=$style?>><?=$text?></span><?
+											?><span class="main-buttons-item-super-title<?=$className?>"<?=$style?>><?=$text?></span><?php
 										endif
-										?><span class="main-buttons-item-text-title"><?
-											?><span class="main-buttons-item-text-box"><?=htmlspecialcharsbx($title)?></span><?
-										?></span><?
-										?><span class="main-buttons-item-edit-button" data-slider-ignore-autobinding="true"></span><?
-										?><span class="main-buttons-item-text-marker"></span><?
-									?></span><?
+										?><span class="main-buttons-item-text-title"><?php
+											?><span class="main-buttons-item-text-box"><?=htmlspecialcharsbx($title)?></span><?php
+										?></span><?php
+										?><span class="main-buttons-item-edit-button" data-slider-ignore-autobinding="true"></span><?php
+										?><span class="main-buttons-item-text-marker"></span><?php
+									?></span><?php
 									?><span
 										<?= $dataCounterId ?>
-										class="main-buttons-item-counter<?=$arParams["CLASS_ITEM_COUNTER"] ? " ".$arParams["CLASS_ITEM_COUNTER"] : ""?>"><?=$counterValue?></span><?
+										class="main-buttons-item-counter<?=$arParams["CLASS_ITEM_COUNTER"] ? " ".$arParams["CLASS_ITEM_COUNTER"] : ""?>"><?=$counterValue?></span><?php
 									if (!empty($arChildItem["URL"])):
-										?></a><?
+										?></a><?php
 									else:
-										?></span><?
+										?></span><?php
 									endif;
 
 									if ($arChildItem["SUB_LINK"]):
-										?><a class="main-buttons-item-sublink<?=" ".$arChildItem["SUB_LINK"]["CLASS"]?>" href="<?=htmlspecialcharsbx($arChildItem["SUB_LINK"]["URL"])?>"></a><?
+										?><a tabindex="-1" aria-hidden="true" class="main-buttons-item-sublink<?=" ".($arChildItem["SUB_LINK"]["CLASS"] ?? '')?>" href="<?=htmlspecialcharsbx($arChildItem["SUB_LINK"]["URL"])?>"></a><?php
 									endif;
 								else:
 									echo $arChildItem["HTML"];
 								endif;
-								?></div><?
+								?></div><?php
 							endforeach
-						?></div><?
-					?></div><?
-					?><div class="main-buttons-item-child-button"></div><?
-				?></div><?
+						?></div><?php
+					?></div><?php
+					?><div class="main-buttons-item-child-button"></div><?php
+				?></div><?php
 				endif;
 			endforeach;
 		?></div>
-		<div class="main-buttons-item <?=$arResult["MORE_BUTTON"]["CLASS"]?> main-buttons-item-more --has-menu" id="<?=$arResult["ID"]?>_more_button"<?=$arParams["DISABLE_SETTINGS"] ? " style=\"display: none;\"" : ""?>>
-		<? if (!$arResult["MORE_BUTTON"]["HTML"]):
-			?><span class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"><?
-				?><span class="main-buttons-item-icon<?=$arParams["CLASS_ITEM_ICON"] ? " ".$arParams["CLASS_ITEM_ICON"] : ""?>"></span><?
-				?><span class="main-buttons-item-text<?=$arParams["CLASS_ITEM_TEXT"] ? " ".$arParams["CLASS_ITEM_TEXT"] : ""?>"><?
-					?><span class="main-buttons-item-text-title"><?
-						?><span class="main-buttons-item-text-box"><?=$arResult["MORE_BUTTON"]["TEXT"]?><span class="main-buttons-item-menu-arrow"></span></span><?
-					?></span><?
-				?></span><?
-				?><span class="main-buttons-item-counter"></span><?
-			?></span>
-		<? else : ?>
+		<div role="listitem" class="main-buttons-item <?=$arResult["MORE_BUTTON"]["CLASS"]?> main-buttons-item-more --has-menu" id="<?=$arResult["ID"]?>_more_button"<?=$arParams["DISABLE_SETTINGS"] ? " style=\"display: none;\"" : ""?>>
+		<?php if (!$arResult["MORE_BUTTON"]["HTML"]):
+			?><button type="button" tabindex="0" aria-haspopup="true" aria-expanded="false" class="main-buttons-item-link<?=$arParams["CLASS_ITEM_LINK"] ? " ".$arParams["CLASS_ITEM_LINK"] : ""?>"><?php
+				?><span class="main-buttons-item-icon<?=$arParams["CLASS_ITEM_ICON"] ? " ".$arParams["CLASS_ITEM_ICON"] : ""?>"></span><?php
+				?><span class="main-buttons-item-text<?=$arParams["CLASS_ITEM_TEXT"] ? " ".$arParams["CLASS_ITEM_TEXT"] : ""?>"><?php
+					?><span class="main-buttons-item-text-title"><?php
+						?><span class="main-buttons-item-text-box"><?=$arResult["MORE_BUTTON"]["TEXT"]?><span class="main-buttons-item-menu-arrow"></span></span><?php
+					?></span><?php
+				?></span><?php
+				?><span class="main-buttons-item-counter"></span><?php
+			?></button>
+		<?php else : ?>
 			<?=$arResult["MORE_BUTTON"]["HTML"]?>
-		<? endif; ?>
+		<?php endif; ?>
 	</div>
 	</div>
-	<iframe height="100%" width="100%" id="maininterfacebuttons-tmp-frame-<?=$arResult["ID"]?>" name="maininterfacebuttonstmpframe-<?=$arResult["ID"]?>" style="position: absolute; z-index: -1; opacity: 0;"></iframe>
 </div>
 
 <script>
@@ -287,8 +320,9 @@ $this->addExternalJs($templateFolder."/utils.js");
 	const init = () => {
 		BX.Main.interfaceButtonsManager.init({
 			containerId: '<?=$arResult["ID"]?>',
-			disableSettings: '<?=CUtil::PhpToJSObject($arParams["DISABLE_SETTINGS"])?>',
+			disableSettings: '<?= Json::encode($arParams["DISABLE_SETTINGS"])?>',
 			theme: '<?=CUtil::JSEscape($arParams["THEME"])?>',
+			ariaCurrent: '<?=CUtil::JSEscape($arParams["ARIA_CURRENT"])?>',
 			maxItemLength: <?=(int)$arParams['MAX_ITEM_LENGTH']?>,
 			ajaxSettings: {
 				componentName: '<?= $this->getComponent()->getName() ?>',

@@ -1,4 +1,5 @@
-<?
+<?php
+
 namespace Bitrix\Iblock\Component;
 
 use Bitrix\Iblock;
@@ -16,8 +17,6 @@ use Bitrix\Sale\Internals\FacebookConversion;
  * @global \CMain $APPLICATION
  */
 
-Loc::loadMessages(__FILE__);
-
 abstract class Element extends Base
 {
 	public function onPrepareComponentParams($params)
@@ -31,14 +30,17 @@ abstract class Element extends Base
 		$params = parent::onPrepareComponentParams($params);
 		$params['IBLOCK_TYPE'] = trim((string)($params['IBLOCK_TYPE'] ?? ''));
 
-		if ((int)$params['ELEMENT_ID'] > 0 && (int)$params['ELEMENT_ID'] != $params['ELEMENT_ID'] && Loader::includeModule('iblock'))
+		if (isset($params['ELEMENT_ID']))
 		{
-			$this->errorCollection->setError(new Error(Loc::getMessage('CATALOG_ELEMENT_NOT_FOUND'), self::ERROR_404));
+			if ((int)$params['ELEMENT_ID'] > 0 && (int)$params['ELEMENT_ID'] != $params['ELEMENT_ID'] && Loader::includeModule('iblock'))
+			{
+				$this->errorCollection->setError(new Error(Loc::getMessage('CATALOG_ELEMENT_NOT_FOUND'), self::ERROR_404));
 
-			return $params;
+				return $params;
+			}
 		}
 
-		$params['ELEMENT_ID'] = (int)$params['ELEMENT_ID'];
+		$params['ELEMENT_ID'] = (int)($params['ELEMENT_ID'] ?? 0);
 		$params['ELEMENT_CODE'] = trim((string)($params['ELEMENT_CODE'] ?? ''));
 
 		$params['CHECK_SECTION_ID_VARIABLE'] = isset($params['CHECK_SECTION_ID_VARIABLE']) && $params['CHECK_SECTION_ID_VARIABLE'] === 'Y' ? 'Y' : 'N';
@@ -694,9 +696,10 @@ abstract class Element extends Base
 					'IBLOCK_ID' => $element['IBLOCK_ID'],
 					'ACTIVE' => 'Y',
 				);
-				$rsSection = \CIBlockSection::GetList(array(), $sectionFilter);
-				$rsSection->SetUrlTemplates('', $this->arParams['SECTION_URL']);
-				$this->storage['SECTION'] = $rsSection->GetNext();
+				$sectionIterator = \CIBlockSection::GetList(array(), $sectionFilter);
+				$sectionIterator->SetUrlTemplates('', $this->arParams['SECTION_URL']);
+				$this->storage['SECTION'] = $sectionIterator->GetNext();
+				unset($sectionIterator);
 			}
 
 			if (!empty($this->storage['SECTION']))
@@ -716,7 +719,7 @@ abstract class Element extends Base
 				unset($fieldName, $blackList);
 
 				$this->storage['SECTION']['PATH'] = array();
-				$rsPath = \CIBlockSection::GetNavChain(
+				$pathIterator = \CIBlockSection::GetNavChain(
 					$element['IBLOCK_ID'],
 					$this->storage['SECTION']['ID'],
 					array(
@@ -725,8 +728,8 @@ abstract class Element extends Base
 						'DEPTH_LEVEL', 'SECTION_PAGE_URL'
 					)
 				);
-				$rsPath->SetUrlTemplates('', $this->arParams['SECTION_URL']);
-				while ($path = $rsPath->GetNext())
+				$pathIterator->SetUrlTemplates('', $this->arParams['SECTION_URL']);
+				while ($path = $pathIterator->GetNext())
 				{
 					if ($this->arParams["ADD_SECTIONS_CHAIN"])
 					{
@@ -736,6 +739,7 @@ abstract class Element extends Base
 
 					$this->storage['SECTION']['PATH'][] = $path;
 				}
+				unset($path, $pathIterator);
 
 				if ($this->arParams['SECTIONS_CHAIN_START_FROM'] > 0)
 				{
@@ -973,7 +977,7 @@ abstract class Element extends Base
 
 		if ($this->arParams['SET_TITLE'])
 		{
-			$APPLICATION->SetTitle($arResult["META_TAGS"]["TITLE"], $this->storage['TITLE_OPTIONS']);
+			$APPLICATION->SetTitle($arResult["META_TAGS"]["TITLE"], $this->storage['TITLE_OPTIONS'] ?? null);
 		}
 
 		if ($this->arParams['SET_BROWSER_TITLE'] === 'Y')
@@ -1581,6 +1585,11 @@ abstract class Element extends Base
 			{
 				$item['OFFER_GROUP'] = (isset($item['PRODUCT']['BUNDLE']) && $item['PRODUCT']['BUNDLE'] === 'Y');
 			}
+
+			// fix warnings in templates for simple products
+			$item['OFFERS_IBLOCK'] ??= ($this->storage['SKU_IBLOCK_INFO']['IBLOCK_ID'] ?? 0);
+			$item['OFFERS_SELECTED'] ??= 0;
+			// end fix
 		}
 
 		if (!empty($item['DISPLAY_PROPERTIES']))

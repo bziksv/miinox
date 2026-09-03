@@ -12,9 +12,6 @@
  * @global CMain $APPLICATION
  */
 
-if(!method_exists($USER, "CanDoOperation"))
-	return false;
-
 IncludeModuleLangFile(__FILE__);
 
 global $adminMenu, $adminPage;
@@ -455,7 +452,7 @@ if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('view_e
 		);
 		$toolsItems[] = array(
 			"text" => GetMessage("MAIN_MENU_SQL"),
-			"url" => "sql.php?lang=".LANGUAGE_ID."&amp;del_query=Y",
+			"url" => "sql.php?lang=".LANGUAGE_ID,
 			"more_url" => array("sql.php"),
 			"title" => GetMessage("MAIN_MENU_SQL_ALT"),
 		);
@@ -552,7 +549,7 @@ if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('view_e
 	);
 }
 
-if($USER->CanDoOperation('install_updates') || (in_array(LANGUAGE_ID, array("ru", "ua", "bg")) && ($USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('edit_own_profile') || $USER->CanDoOperation('view_groups') || $USER->CanDoOperation('view_other_settings'))))
+if ($USER->CanDoOperation('install_updates') || (in_array(LANGUAGE_ID, array("ru", "kz")) && ($USER->CanDoOperation('view_all_users') || $USER->CanDoOperation('view_subordinate_users') || $USER->CanDoOperation('edit_own_profile') || $USER->CanDoOperation('view_groups') || $USER->CanDoOperation('view_other_settings'))))
 {
 	$arMarket = array();
 	if(method_exists($adminMenu, "IsSectionActive"))
@@ -581,7 +578,7 @@ if($USER->CanDoOperation('install_updates') || (in_array(LANGUAGE_ID, array("ru"
 					$ht->setProxy($proxyAddr, $proxyPort, $proxyUserName, $proxyPassword);
 				}
 
-				if($res = $ht->get("http://marketplace.1c-bitrix.ru/data_export.php"))
+				if($res = $ht->get("https://marketplace.1c-bitrix.ru/data_export.php"))
 				{
 					if($ht->getStatus() == "200")
 					{
@@ -708,7 +705,7 @@ if($USER->CanDoOperation('install_updates') || (in_array(LANGUAGE_ID, array("ru"
 			"page_icon"   => "update_page_icon",
 			"text"        => GetMessage("MAIN_MENU_UPDATES_NEW"),
 			"url"         => "update_system.php?lang=".LANGUAGE_ID,
-			"more_url"    => array("sysupdate_log.php", "sysupdate.php", "update_system.php", "buy_support.php"),
+			"more_url"    => array("sysupdate_log.php", "update_system.php", "buy_support.php"),
 			"title"       => GetMessage("MAIN_MENU_UPDATES_NEW_ALT"),
 		);
 	}
@@ -793,11 +790,6 @@ if($USER->CanDoOperation('view_other_settings'))
 		"more_url" => array("promo_https.php"),
 		"items" => array(),
 	);
-}
-
-if ($USER->CanDoOperation("view_other_settings") && \Bitrix\Main\Analytics\SiteSpeed::isOn())
-{
-	AddEventHandler("main", "OnBuildGlobalMenu", array("\\Bitrix\\Main\\Analytics\\SiteSpeed", "onBuildGlobalMenu"));
 }
 
 return $aMenu;

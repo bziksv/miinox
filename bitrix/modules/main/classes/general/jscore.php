@@ -4,6 +4,7 @@ use Bitrix\Main;
 use Bitrix\Main\Page\Asset;
 use Bitrix\Main\Page\AssetLocation;
 use Bitrix\Main\UI\Extension;
+use Bitrix\Main\Web\Json;
 
 class CJSCore
 {
@@ -100,6 +101,28 @@ class CJSCore
 
 		$ret = '';
 
+		if ($bNeedCore && !self::isBaselineLoaded())
+		{
+			self::markExtensionLoaded('main.baseline');
+
+			$baselineConfig = Extension::getConfig('main.baseline');
+			$baselineLang = self::_loadLang($baselineConfig['lang'], true);
+			$baselineSettings = self::loadSettings('main.baseline', $baselineConfig['settings'], true);
+			$baselineJs = self::_loadJS($baselineConfig['js'], true);
+
+			if ($bReturn)
+			{
+				$ret .= $baselineLang;
+				$ret .= $baselineSettings;
+				$ret .= $baselineJs;
+			}
+
+			$asset = Asset::getInstance();
+			$asset->addString($baselineLang, true, AssetLocation::AFTER_CSS);
+			$asset->addString($baselineSettings, true, AssetLocation::AFTER_CSS);
+			$asset->addString($baselineJs, true, AssetLocation::AFTER_CSS);
+		}
+
 		if ($bNeedCore && !self::isCoreLoaded())
 		{
 			$config = self::getCoreConfig();
@@ -110,7 +133,7 @@ class CJSCore
 			$includes = '';
 			if (is_array($config['includes']))
             {
-                foreach ($config['includes'] as $key => $item)
+                foreach ($config['includes'] as $item)
                 {
 					self::markExtensionLoaded($item);
                 }
@@ -129,6 +152,7 @@ class CJSCore
 			$coreLang = self::_loadLang($config['lang'], true);
 			$coreSettings = self::loadSettings('main.core', $config['settings'], true);
             $coreJs = self::_loadJS($config['js'], true);
+            $registerExtension = self::registerExtensionAsLoaded('main.core', true);
 
 			if ($bReturn)
 			{
@@ -136,6 +160,7 @@ class CJSCore
 			    $ret .= $coreSettings;
 				$ret .= $relativities;
 			    $ret .= $coreJs;
+			    $ret .= $registerExtension;
 			    $ret .= $includes;
             }
 
@@ -144,6 +169,7 @@ class CJSCore
 			$asset->addString($coreSettings, true, AssetLocation::AFTER_CSS);
             $asset->addString($relativities, true, AssetLocation::AFTER_CSS);
             $asset->addString($coreJs, true, AssetLocation::AFTER_CSS);
+            $asset->addString($registerExtension, true, AssetLocation::AFTER_CSS);
             $asset->addString($includes, true, AssetLocation::AFTER_CSS);
 		}
 
@@ -164,14 +190,14 @@ class CJSCore
         {
             $result = '';
 
-            if (isset($assets['js']) && is_array($assets['js']) && !empty($assets['js']))
+            if (!empty($assets['js']) && is_array($assets['js']))
             {
-                $result .= "BX.setJSList(".CUtil::phpToJSObject($assets['js']).");\n";
+                $result .= "BX.setJSList(".Json::encode($assets['js']).");\n";
             }
 
-			if (isset($assets['css']) && is_array($assets['css']) && !empty($assets['css']))
+			if (!empty($assets['css']) && is_array($assets['css']))
 			{
-				$result .= "BX.setCSSList(".CUtil::phpToJSObject($assets['css']).");";
+				$result .= "BX.setCSSList(".Json::encode($assets['css']).");";
 			}
 
             return '<script>'.$result.'</script>';
@@ -198,6 +224,14 @@ class CJSCore
 			self::isExtensionLoaded("core")
 			|| self::isExtensionLoaded("main.core")
         );
+	}
+
+	/**
+	 * @return bool
+	 */
+	public static function isBaselineLoaded()
+	{
+		return self::isExtensionLoaded("main.baseline");
 	}
 
 	/**
@@ -228,7 +262,7 @@ class CJSCore
 			"FORMAT_DATETIME" => FORMAT_DATETIME,
 			"COOKIE_PREFIX" => COption::GetOptionString("main", "cookie_name", "BITRIX_SM"),
 			"SERVER_TZ_OFFSET" => date("Z"),
-			"UTF_MODE" => Main\Application::isUtfMode()? 'Y': 'N',
+			"UTF_MODE" => 'Y',
 		);
 
 		if (!defined("ADMIN_SECTION") || ADMIN_SECTION !== true)
@@ -273,7 +307,7 @@ class CJSCore
 
 	/**
 	 *
-	 * When all of scripts are moved to the body, we need this code to add special classes (bx-chrome, bx-ie...) to <html> tag.
+	 * When all scripts are moved to the body, we need this code to add special classes (bx-chrome, bx-ie...) to <html> tag.
 	 * @return string
 	 */
 	public static function GetInlineCoreJs()
@@ -317,8 +351,11 @@ class CJSCore
 				? " bx-retina"
 				: " bx-no-retina";
 
-			var ieVersion = -1;
-			if (/AppleWebKit/.test(ua))
+			if (/Safari/i.test(ua) && !/Chrome/i.test(ua))
+			{
+				cl += " bx-safari";
+			}
+			else if (/AppleWebKit/.test(ua))
 			{
 				cl += " bx-chrome";
 			}
@@ -335,7 +372,7 @@ class CJSCore
 
 		})(window, document, navigator);
 JS;
-		return '<script type="text/javascript" data-skip-moving="true">'.str_replace(array("\n", "\t"), "", $js)."</script>";
+		return '<script data-skip-moving="true">'.str_replace(array("\n", "\t"), "", $js)."</script>";
 	}
 
 	public static function GetScriptsList()
@@ -366,8 +403,6 @@ JS;
 	private static function _loadExt($ext, $bReturn)
 	{
 		$ret = '';
-
-		$ext = preg_replace('/[^a-z0-9_\.\-]/i', '', $ext);
 
 		if (!self::IsExtRegistered($ext))
 		{
@@ -473,8 +508,43 @@ JS;
 			}
 		}
 
+        $ret .= self::registerExtensionAsLoaded($ext, $bReturn);
+
 		return $ret;
 	}
+
+    public static function registerExtensionAsLoaded($extension, $bReturn = false): string
+    {
+        if (self::isCoreLoaded())
+        {
+            $options = [
+                'name' => $extension,
+                'namespace' => 'window',
+                'loaded' => true,
+            ];
+
+            $bundleConfig = Extension::getBundleConfig($extension);
+            if (is_array($bundleConfig))
+            {
+                if (isset($bundleConfig['namespace']) && is_string($bundleConfig['namespace']))
+                {
+                    $options['namespace'] = $bundleConfig['namespace'];
+                }
+            }
+
+            $jsOptions = Json::encode($options);
+            $result = '<script>BX.Runtime.registerExtension(' . $jsOptions . ');</script>';
+
+            if ($bReturn)
+            {
+                return $result;
+            }
+
+            Asset::getInstance()->addString($result, true, AssetLocation::AFTER_CSS);
+        }
+
+        return '';
+    }
 
 	public static function ShowTimer($params)
 	{
@@ -492,14 +562,13 @@ JS;
 			$arJSParams['accuracy'] = intval($params['accuracy']).'000';
 
 		$res = '<span id="'.htmlspecialcharsbx($id).'"></span>';
-		$res .= '<script type="text/javascript">BX.timer(\''.CUtil::JSEscape($id).'\', '.CUtil::PhpToJSObject($arJSParams).')</script>';
+		$res .= '<script>BX.timer(\''.CUtil::JSEscape($id).'\', '.Json::encode($arJSParams).')</script>';
 
 		return $res;
 	}
 
 	public static function IsExtRegistered($ext)
 	{
-		$ext = preg_replace('/[^a-z0-9_\.\-]/i', '', $ext);
 		return isset(self::$arRegisteredExt[$ext]) && is_array(self::$arRegisteredExt[$ext]);
 	}
 
@@ -528,7 +597,7 @@ JS;
 
 				if ($fullPath)
 				{
-					$res .= '<script type="text/javascript" src="'.$fullPath.'"></script>'."\r\n";
+					$res .= '<script src="'.$fullPath.'"></script>'."\r\n";
 				}
 			}
 			return $res;
@@ -561,19 +630,19 @@ JS;
 				$messLang = \Bitrix\Main\Localization\Loc::loadLanguageFile($_SERVER['DOCUMENT_ROOT'].$path);
 				if (!empty($messLang))
 				{
-					$jsMsg .= '(window.BX||top.BX).message('.CUtil::PhpToJSObject($messLang, false).');';
+					$jsMsg .= '(window.BX||top.BX).message('.Json::encode($messLang).');';
 				}
 			}
 		}
 
 		if (is_array($arAdditionalMess))
 		{
-			$jsMsg = '(window.BX||top.BX).message('.CUtil::PhpToJSObject($arAdditionalMess, false).');'.$jsMsg;
+			$jsMsg = '(window.BX||top.BX).message('.Json::encode($arAdditionalMess).');'.$jsMsg;
 		}
 
 		if ($jsMsg !== '')
 		{
-			$jsMsg = '<script type="text/javascript">'.$jsMsg.'</script>';
+			$jsMsg = '<script>'.$jsMsg.'</script>';
 			if ($bReturn)
 			{
 				return $jsMsg."\r\n";
@@ -661,5 +730,10 @@ JS;
 		$files = is_array($files) ? $files : array($files);
 
 		Asset::getInstance()->addCssKernelInfo($bundleName, $files);
+	}
+
+	public static function resetLoadedExtensionsList()
+	{
+		static::$arCurrentlyLoadedExt = [];
 	}
 }

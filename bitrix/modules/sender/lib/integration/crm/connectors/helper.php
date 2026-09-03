@@ -15,7 +15,7 @@ use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Orm;
+use Bitrix\Main\ORM;
 use Bitrix\Main\UI\Filter\AdditionalDateType;
 use Bitrix\Main\UI\Filter\Type as UiFilterType;
 use Bitrix\Sender\Connector;
@@ -36,16 +36,16 @@ class Helper
 	private const PERSONALIZE_NAMESPACE = "\\Bitrix\\Sender\\Integration\\Crm\\Connectors\\Personalize\\";
 
 	/**
-	 * Create Orm expression field for selecting multi field.
+	 * Create ORM expression field for selecting multi field.
 	 *
 	 * @param string $entityName Entity name.
 	 * @param string $multiFieldTypeId Multi-field type ID.
-	 * @return Orm\Fields\ExpressionField
+	 * @return ORM\Fields\ExpressionField
 	 */
 	public static function createExpressionMultiField($entityName, $multiFieldTypeId)
 	{
 		$sqlHelper = Application::getConnection()->getSqlHelper();
-		return new Orm\Fields\ExpressionField(
+		return new ORM\Fields\ExpressionField(
 			$multiFieldTypeId,
 			'(' . $sqlHelper->getTopSql(
 				"
@@ -149,6 +149,12 @@ class Helper
 			return [];
 		}
 
+		$fields = self::filterOnlyAllowedFields((string)$entityType, (array)$fields);
+		if (empty($fields))
+		{
+			return [];
+		}
+
 		return $documentClass::isFactoryBased($entityType)
 			? FactoryBased::getData($entityType, $entityIds, $fields)
 			: $documentClass::getData($entityType, $entityIds, $fields)
@@ -193,9 +199,11 @@ class Helper
 	 * Get filter user fields.
 	 *
 	 * @param integer $entityTypeId Entity type ID.
+	 * @param bool $checkAccessRights
+	 *
 	 * @return array
 	 */
-	public static function getFilterUserFields($entityTypeId)
+	public static function getFilterUserFields(int $entityTypeId, bool $checkAccessRights = true): array
 	{
 		$list = array();
 		$ufManager = is_object($GLOBALS['USER_FIELD_MANAGER']) ? $GLOBALS['USER_FIELD_MANAGER'] : null;
@@ -207,8 +215,14 @@ class Helper
 		$ufEntityId = \CCrmOwnerType::resolveUserFieldEntityID($entityTypeId);
 		$crmUserType = new \CCrmUserType($ufManager, $ufEntityId);
 		$logicFilter = array();
-		$crmUserType->prepareListFilterFields($list, $logicFilter);
-		$originalList = $crmUserType->getFields();
+		$fieldsParams = [];
+
+		if (!$checkAccessRights)
+		{
+			$fieldsParams = ['skipUserFieldVisibilityCheck' => true];
+		}
+		$crmUserType->prepareListFilterFields($list, $logicFilter, $fieldsParams);
+		$originalList = $crmUserType->getFields($fieldsParams);
 		$restrictedTypes = ['address', 'file', 'crm', 'resourcebooking'];
 
 		$list = array_filter(
@@ -368,11 +382,15 @@ class Helper
 		$column = $entityDbName ? 'CRM_ENTITY_ID' : 'ID';
 
 		$entityTypeName = $entityName ?? mb_strtoupper($query->getEntity()->getName());
+
+		$sqlHelper = Application::getConnection()->getSqlHelper();
+		$regexp = "'^imol\\\\|(" . implode('|', $codes) . ")'";
+
 		$filterImolSql = "SELECT FM.VALUE " .
 			"FROM b_crm_field_multi FM " .
 			"WHERE FM.ENTITY_ID = '$entityTypeName' AND FM.ELEMENT_ID = ?#.{$column} " .
 			"AND FM.TYPE_ID = 'IM' " .
-			"AND FM.VALUE NOT REGEXP '^imol\\\\|(" . implode('|', $codes) . ")' " .
+			"AND NOT {$sqlHelper->getRegexpOperator('FM.VALUE', $regexp)} " .
 			"ORDER BY FM.ID LIMIT 1";
 
 		return new SqlExpression($filterImolSql, $query->getInitAlias());
@@ -682,7 +700,12 @@ class Helper
 
 	protected static function getIdFilter($value, &$filter)
 	{
-		$filter['@CRM_ENTITY_ID'] = array_map('trim', explode(",", $value[0]));
+		if (is_array($value))
+		{
+			$value = $value[0];
+		}
+
+		$filter['@CRM_ENTITY_ID'] = array_map('trim', explode(",", $value));
 	}
 
 	protected static function getNoPurchasesFilter($value, &$filter, $extraCallbackParams = [])
@@ -728,6 +751,40 @@ class Helper
 		{
 			$filter['DEAL'][] = ['SGT_DEAL.CATEGORY_ID', 'in', $values];
 		}
+	}
+
+	protected static function getInactiveRecipientsFilter(
+		array $value,
+		array &$filter,
+		array $extraCallbackParams = [],
+	): void
+	{
+		$days = self::normalizeInactiveDays($value);
+		if ($days <= 0)
+		{
+			return;
+		}
+
+		$filter['INACTIVE_RECIPIENTS'] = $days;
+	}
+
+	protected static function normalizeInactiveDays(array $filterValue): int
+	{
+		$daysFrom = (int)($filterValue['CLIENT_INACTIVE_DAYS_from'] ?? 0);
+		$daysTo = (int)($filterValue['CLIENT_INACTIVE_DAYS_to'] ?? 0);
+		$days = $daysFrom > 0 ? $daysFrom : $daysTo;
+
+		if ($days < 1)
+		{
+			return 0;
+		}
+
+		if ($days > 730)
+		{
+			$days = 730;
+		}
+
+		return $days;
 	}
 
 	/**
@@ -852,5 +909,45 @@ class Helper
 	public static function isCrmSaleEnabled()
 	{
 		return Loader::includeModule("sale") && (Option::get("crm", "crm_shop_enabled", "N") != 'N');
+	}
+
+	/**
+	 * @param string $entityType
+	 * @param array<string> $fields
+	 *
+	 * @return array<string>
+	 */
+	private static function filterOnlyAllowedFields(string $entityType, array $fields): array
+	{
+		$allowedFields = self::getPersonalizeFieldsFromConnectors();
+
+		return array_filter($fields, static function (string $field) use ($allowedFields, $entityType): bool
+		{
+			if ($field === '*')
+			{
+				return true;
+			}
+
+			$entityField = "$entityType.$field";
+
+			foreach ($allowedFields as $allowedField)
+			{
+				if (($allowedField['CODE'] ?? null) !== $entityType)
+				{
+					continue;
+				}
+
+				$items = (array)($allowedField['ITEMS'] ?? []);
+				foreach ($items as $item)
+				{
+					if (($item['CODE'] ?? null) === $entityField)
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		});
 	}
 }

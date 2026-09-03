@@ -5,13 +5,16 @@ namespace Bitrix\MobileApp\Janative\Entity;
 use Bitrix\Main\IO\File;
 use Bitrix\Main\IO\Path;
 use Bitrix\Main\SystemException;
+use Bitrix\Main\Web\Json;
 use Bitrix\MobileApp\Janative\Manager;
 use Bitrix\MobileApp\Janative\Utils;
 
 class Extension extends Base
 {
-	protected static $modificationDates = [];
-	protected static $dependencies = [];
+	protected static array $modificationDates = [];
+	protected static array $dependencies = [];
+	protected static array $resolvedDependencies = [];
+	protected static array $extensionCache = [];
 	protected static $paths = [];
 	public ?string $result = null;
 
@@ -21,6 +24,16 @@ class Extension extends Base
 	 * @param $identifier
 	 * @throws \Exception
 	 */
+	public static function getInstance($identifier): Extension
+	{
+		if (!isset(self::$extensionCache[$identifier]))
+		{
+			self::$extensionCache[$identifier] = new Extension($identifier);
+		}
+
+		return self::$extensionCache[$identifier];
+	}
+
 	public function __construct($identifier)
 	{
 		$identifier = Path::normalize($identifier);
@@ -113,7 +126,7 @@ JS;
 
 		if (!empty($result) && is_array($result))
 		{
-			return json_encode($result);
+			return Json::encode($result);
 		}
 
 		return null;
@@ -141,7 +154,7 @@ JS;
 	 */
 	public static function getResolvedDependencyList($name, &$list = [], &$alreadyResolved = [], $margin = 0): array
 	{
-		$baseExtension = new Extension($name);
+		$baseExtension = Extension::getInstance($name);
 		$depsList = $baseExtension->getDependencyList();
 		$alreadyResolved[] = $name;
 		if (!empty($depsList))
@@ -149,7 +162,7 @@ JS;
 			$margin++;
 			foreach ($depsList as $ext)
 			{
-				$depExtension = new Extension($ext);
+				$depExtension = Extension::getInstance($ext);
 				$extDepsList = $depExtension->getDependencyList();
 				if (empty($extDepsList))
 				{
@@ -190,20 +203,19 @@ JS;
 		return self::getResolvedDependencyList($name);
 	}
 
-	public function getDependencyList()
+	public function getDependencies(): array
 	{
-		$fullName = "$this->namespace:$this->name";
-		if (isset(self::$dependencies[$fullName]))
-		{
-			return self::$dependencies[$fullName];
-		}
-		else
-		{
-			$list = parent::getDependencyList();
-			self::$dependencies[$fullName] = $list;
-		}
+		$fullyQualifiedName = $this->getFullyQualifiedName();
+		self::$resolvedDependencies[$fullyQualifiedName] ??= array_values($this->resolveDependencies());
 
-		return self::$dependencies[$fullName];
+		return self::$resolvedDependencies[$fullyQualifiedName];
 	}
 
+	public function getDependencyList()
+	{
+		$fullyQualifiedName = $this->getFullyQualifiedName();
+		self::$dependencies[$fullyQualifiedName] ??= parent::getDependencyList();
+
+		return self::$dependencies[$fullyQualifiedName];
+	}
 }

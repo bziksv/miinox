@@ -46,7 +46,11 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/js/helpers/inline-video.js',
 		],
 		'lang' => $pathLang . '/js/video_alert.php',
-		'rel' => ['mediaplayer', 'loader']
+		'rel' => [
+			'landing.utils',
+			'mediaplayer',
+			'loader',
+		]
 	],
 
 	'polyfill' => [
@@ -64,7 +68,8 @@ $jsConfig = [
 		],
 		'rel' => [
 			'polyfill',
-			'popup'
+			'popup',
+			'landing.loc',
 		],
 		'lang' => $pathLang . '/js/action_dialog.php'
 	],
@@ -81,6 +86,14 @@ $jsConfig = [
 			'landing_event_tracker',
 			'polyfill',
 			'landing.utils',
+		],
+	],
+
+	// Framework-independent responder for the sandboxed editor device preview.
+	// No 'rel' on purpose: it must not pull main.core (runs in an opaque-origin frame).
+	'landing_device_preview_responder' => [
+		'js' => [
+			$pathJS . '/device_preview/responder.js',
 		],
 	],
 
@@ -117,7 +130,6 @@ $jsConfig = [
 	'landing_critical_grid' => [
 		'css' => [
 			$pathTemplate24 . '/assets/vendor/bootstrap/bootstrap.css',
-			$pathTemplate24 . '/assets/css/custom-grid.css',
 			$pathTemplate24 . '/theme.css',
 			$pathCSS . '/landing_public.css',
 		],
@@ -253,6 +265,7 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/js/helpers/form_init.js',
 		],
 		'lang' => $pathLang . '/js/webform_alerts.php',
+		'rel' => ['landing.backend'],
 	],
 
 	'landing_gallery_cards' => [
@@ -281,7 +294,7 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/vendor/slick-carousel/slick/landing-slick.css',
 		],
 		'rel' => ['landing_core','landing_jquery'],
-],
+	],
 
 	'landing_countdown' => [
 		'js' => [
@@ -291,7 +304,7 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/js/helpers/countdown_init.js',
 		],
 		'rel' => ['landing_core', 'landing_jquery'],
-],
+	],
 
 	'landing_google_maps_new' => [
 		'rel' => [
@@ -322,6 +335,7 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/js/helpers/auto_font_scale_init.js',
 		],
 		'rel' => [
+			'landing.utils',
 			'landing.ui.tool.auto_font_scale',
 		]
 	],
@@ -331,15 +345,6 @@ $jsConfig = [
 			$pathTemplate24 . '/assets/js/helpers/backlinks/backlinks.js',
 		],
 	],
-
-	// todo: not used? can del?
-	// 'landing_bootstrap_modal' => array(
-	// 	'js' => array(
-	// 		$pathTemplate24 . '/assets/vendor/bootstrap/js/dist/util.js',
-	// 		$pathTemplate24 . '/assets/vendor/bootstrap/js/dist/modal.js',
-	// 	),
-	// 	'rel' => ['landing_core','landing_jquery'],
-	// ),
 ];
 
 

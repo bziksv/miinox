@@ -458,7 +458,7 @@ export class FormStyleAdapter extends EventEmitter
 		});
 	}
 
-	getStyleForm(): Array<any>
+	getStyleForm(collapsed = true): Array<any>
 	{
 		return this.cache.remember('styleForm', () => {
 			return new StyleForm({
@@ -538,6 +538,8 @@ export class FormStyleAdapter extends EventEmitter
 
 					return value;
 				},
+				collapsed: collapsed,
+				specialType: 'crm_forms',
 			});
 		});
 	}
@@ -589,7 +591,7 @@ export class FormStyleAdapter extends EventEmitter
 	// eslint-disable-next-line class-methods-use-this
 	isCrmFormPage(): boolean
 	{
-		return Env.getInstance().getOptions().specialType === 'crm_forms';
+		return Env.getInstance().getSpecialType() === 'crm_forms';
 	}
 
 	saveFormDesign()
@@ -651,7 +653,8 @@ export class FormStyleAdapter extends EventEmitter
 					siteId: currentBlock.siteId,
 				},
 				{code: currentBlock.manifest.code},
-			);
+			)
+			.then(BX.Landing.History.getInstance().push());
 	}
 
 	onDebouncedFormChange()

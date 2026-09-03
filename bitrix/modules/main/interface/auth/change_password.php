@@ -1,7 +1,12 @@
-<?
+<?php
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
-$login = ($USER_LOGIN <> '') ? $USER_LOGIN : $last_login;
+/**
+ * @var string $last_login
+ * @var string $authUrl
+ */
+$login = $_REQUEST['USER_LOGIN'] ?? $last_login;
+$checkword = $_REQUEST['USER_CHECKWORD'] ?? '';
 $bNeedCaptcha = (COption::GetOptionString("main", "captcha_restoring_password", "N") == "Y");
 ?>
 
@@ -14,14 +19,14 @@ $bNeedCaptcha = (COption::GetOptionString("main", "captcha_restoring_password", 
 			<div class="login-popup-field">
 				<div class="login-popup-field-title"><?=GetMessage("AUTH_LOGIN")?></div>
 				<div class="login-input-wrap">
-					<input type="email" onfocus="BX.addClass(this.parentNode, 'login-input-active')" onblur="BX.removeClass(this.parentNode, 'login-input-active')" class="login-input" name="USER_LOGIN" value="<?echo htmlspecialcharsbx($login)?>">
+					<input type="email" onfocus="BX.addClass(this.parentNode, 'login-input-active')" onblur="BX.removeClass(this.parentNode, 'login-input-active')" class="login-input" name="USER_LOGIN" value="<?= htmlspecialcharsbx($login)?>">
 					<div class="login-inp-border"></div>
 				</div>
 			</div>
 			<div class="login-popup-field">
 				<div class="login-popup-field-title"><?=GetMessage("AUTH_CHECKWORD")?></div>
 				<div class="login-input-wrap">
-					<input type="text" onfocus="BX.addClass(this.parentNode, 'login-input-active')" onblur="BX.removeClass(this.parentNode, 'login-input-active')" class="login-input" name="USER_CHECKWORD" value="<?echo htmlspecialcharsbx($USER_CHECKWORD)?>">
+					<input type="text" onfocus="BX.addClass(this.parentNode, 'login-input-active')" onblur="BX.removeClass(this.parentNode, 'login-input-active')" class="login-input" name="USER_CHECKWORD" value="<?= htmlspecialcharsbx($checkword)?>">
 					<div class="login-inp-border"></div>
 				</div>
 			</div>
@@ -41,19 +46,19 @@ $bNeedCaptcha = (COption::GetOptionString("main", "captcha_restoring_password", 
 				</div>
 			</div>
 		</div>
-		<a href="javascript:void(0)" onclick="toggleAuthForm('forgot_password')" style="display: none;" id="change_password_forgot_link" class="login-popup-forget-pas"><?echo GetMessage("AUTH_GOTO_FORGOT_FORM")?></a>
+		<a href="javascript:void(0)" onclick="toggleAuthForm('forgot_password')" style="display: none;" id="change_password_forgot_link" class="login-popup-forget-pas"><?= GetMessage("AUTH_GOTO_FORGOT_FORM")?></a>
 		<div class="login-btn-wrap" id="change_password_button"><a class="login-popup-link login-popup-return-auth" href="javascript:void(0)" onclick="BX.adminLogin.toggleAuthForm('authorize')"><?=GetMessage('AUTH_GOTO_AUTH_FORM_1')?></a><input type="submit" name="change_pwd" value="<?=GetMessage("AUTH_CHANGE")?>" class="login-btn"></div>
 	</div>
 </div>
 
-<script type="text/javascript">
+<script>
 BX.message({
 	'AUTH_NEW_PASSWORD_CONFIRM_WRONG':'<?=GetMessageJS('AUTH_NEW_PASSWORD_CONFIRM_WRONG')?>'
 });
 
 var obChangeMsg = new BX.authFormChangePasswordMessage('change_password_message', {url:''}),
 	obChange = new BX.authFormChangePassword('change_password', {
-		url: '<?echo CUtil::JSEscape($authUrl."?change_password=yes".(($s=DeleteParam(array("change_password"))) == ""? "":"&".$s))?>',
+		url: '<?= CUtil::JSEscape($authUrl."?change_password=yes".(($s=DeleteParam(array("change_password"))) == ""? "":"&".$s))?>',
 		needCaptcha: <?=$bNeedCaptcha?'true':'false'?>,
 		message: obChangeMsg
 });

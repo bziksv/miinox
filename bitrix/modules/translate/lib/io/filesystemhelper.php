@@ -3,6 +3,9 @@ namespace Bitrix\Translate\IO;
 
 use Bitrix\Translate;
 
+/**
+ * @internal
+ */
 class FileSystemHelper
 {
 	/**
@@ -12,7 +15,7 @@ class FileSystemHelper
 	 *
 	 * @return string[]
 	 */
-	public static function getFolderList($path)
+	public static function getFolderList(string $path): array
 	{
 		$path = Translate\IO\Path::tidy(\rtrim($path, '/'));
 		if (defined('GLOB_BRACE'))
@@ -32,7 +35,7 @@ class FileSystemHelper
 	 *
 	 * @return string[]
 	 */
-	public static function getFileList($path)
+	public static function getFileList(string $path): array
 	{
 		$path = Translate\IO\Path::tidy(\rtrim($path, '/'));
 		if (defined('GLOB_BRACE'))

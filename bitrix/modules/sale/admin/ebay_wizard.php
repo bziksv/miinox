@@ -232,7 +232,7 @@ namespace
 		</table>
 
 		<?if($adminMessage = $wizardStep->getAdminMessage()):?>
-			<script type="text/javascript">
+			<script>
 				BX.ready( function(){
 					BX("adm-sale-ebay-wiazard-admin-msg").innerHTML = "<?=CUtil::JSEscape($adminMessage->Show())?>";
 				});
@@ -480,7 +480,7 @@ namespace Bitrix\Sale\TradingPlatform\Ebay\Wizard
 					if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME <> '')
 						$domainName = SITE_SERVER_NAME;
 					else
-						$domainName = \COption::GetOptionString("main", "server_name", "www.bitrixsoft.com");
+						$domainName = \COption::GetOptionString("main", "server_name");
 				}
 			}
 
@@ -753,7 +753,7 @@ namespace Bitrix\Sale\TradingPlatform\Ebay\Wizard
 			$isConfirmed = $this->isSucceed($this->siteId, $this->ebaySettings);
 
 			return
-				self::getLampHtml($isConfirmed).' '.Loc::getMessage('SALE_EBAY_W_STEP_CONTACTS_DETAILS').' '.($isConfirmed ? Loc::getMessage('SALE_EBAY_W_STEP_CONFIRMED') : Loc::getMessage('SALE_EBAY_W_STEP_CONFIRMED')).'.'.
+				self::getLampHtml($isConfirmed).' '.Loc::getMessage('SALE_EBAY_W_STEP_CONTACTS_DETAILS').' '.($isConfirmed ? Loc::getMessage('SALE_EBAY_W_STEP_CONFIRMED') : Loc::getMessage('SALE_EBAY_W_STEP_NOT_CONFIRMED')).'.'.
 				'<br><br><hr><br>'.
 				Loc::getMessage('SALE_EBAY_W_STEP_CONFIRMED_DETAIL',array(
 					'#C1#' => '<a href="http://scgi.ebay.com/ws/eBayISAPI.dll?SellerSignin2&clientapptype=7" target="blank">',

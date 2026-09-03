@@ -1,4 +1,4 @@
-<?
+<?php
 
 define("NO_KEEP_STATISTIC", true);
 define("NO_AGENT_STATISTIC", true);
@@ -15,7 +15,6 @@ $response->addHeader("Content-Type", "application/json");
 global $USER;
 
 $request = Bitrix\Main\Application::getInstance()->getContext()->getRequest();
-$request->addFilter(new Web\PostDecodeFilter);
 
 if (!$request->isAjaxRequest())
 {

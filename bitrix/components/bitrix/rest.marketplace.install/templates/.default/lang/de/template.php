@@ -13,5 +13,5 @@ $MESS["REST_MARKETPLACE_INSTALL_MODULE_UNINSTALL_BITRIX24"] = "Einige Services, 
 $MESS["REST_MARKETPLACE_INSTALL_PRIVACY_LINK"] = "https://www.bitrix24.de/privacy/";
 $MESS["REST_MARKETPLACE_INSTALL_PRIVACY_TEXT"] = "Ich habe die <a href=\"#LINK#\" target=\"_blank\">Datenschutzerklärung</a> gelesen und akzeptiert";
 $MESS["REST_MARKETPLACE_INSTALL_REQUIRED_RIGHTS"] = "Die Anwendung erfordert folgende Zugriffsrechte:";
-$MESS["REST_MARKETPLACE_INSTALL_TERMS_OF_SERVICE_TEXT"] = "Wenn Sie Apps oder Lösungen installieren oder herunterladen, akzeptieren Sie die <a href=\"#LINK#\" target=\"_blank\">Nutzungsbedingungen von  Bitrix24.Market</a>";
-$MESS["REST_MARKETPLACE_INSTALL_TOS_ERROR"] = "Sie müssen die Nutzungsbedingungen von Bitrix24.Market akzeptieren";
+$MESS["REST_MARKETPLACE_INSTALL_TERMS_OF_SERVICE_TEXT_MSGVER_1"] = "Indem Sie Apps oder Lösungen installieren oder herunterladen, stimmen Sie den <a href=\"#LINK#\" target=\"_blank\">Bitrix24 Market Nutzungsbedingungen</a> zu.";
+$MESS["REST_MARKETPLACE_INSTALL_TOS_ERROR_MSGVER_1"] = "Sie müssen den Bitrix24 Market Nutzungsbedingungen zustimmen, um die Anwendung installieren zu können.";

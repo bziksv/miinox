@@ -53,9 +53,8 @@ if ($gid > 0 && ($dbRes = \Bitrix\Forum\GroupTable::getList([
 else
 {
 	$fields = [
-		"ID" => 0,
 		"SORT" => 150,
-		"PARENT_ID" => ($_REQUEST["PARENT_ID"] > 0 ? $_REQUEST["PARENT_ID"] : 0),
+		"PARENT_ID" => (isset($_REQUEST["PARENT_ID"]) && $_REQUEST["PARENT_ID"] > 0 ? $_REQUEST["PARENT_ID"] : 0),
 		"LANG" => []
 	];
 }
@@ -195,11 +194,11 @@ if (!empty($arError))
 					foreach ($groups as $res)
 					{
 						?><option <?
-					if ($ID > 0 && ($ID == $res["ID"] || $fields["LEFT_MARGIN"] < $res["LEFT_MARGIN"] && $res["RIGHT_MARGIN"] < $fields["RIGHT_MARGIN"]))
+					if ($ID > 0 && ($ID == $res["ID"] || (isset($fields["LEFT_MARGIN"]) && $fields["LEFT_MARGIN"] < $res["LEFT_MARGIN"] && $res["RIGHT_MARGIN"] < $fields["RIGHT_MARGIN"])))
 					{
 						?> disabled="disabled" <?
 					}
-						?>value="<?=$res["ID"]?>" <?=($res["ID"] == $fields["PARENT_ID"] ? "selected" : "")?>><?=str_pad("", ($res["DEPTH_LEVEL"] - 1), ".")?><?=$res["NAME"]?></option><?
+						?>value="<?=$res["ID"]?>" <?=($res["ID"] == $fields["PARENT_ID"] ? "selected" : "")?>><?=str_pad("", (isset($res["DEPTH_LEVEL"]) ? $res["DEPTH_LEVEL"] - 1 : 0), ".")?><?=$res["NAME"]?></option><?
 					}
 					?></select>
 			</td>
@@ -234,4 +233,4 @@ if (!empty($arError))
 		$tabControl->End();
 		?>
 	</form>
-<?require($DOCUMENT_ROOT."/bitrix/modules/main/include/epilog_admin.php");?>
+<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");?>

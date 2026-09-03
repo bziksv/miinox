@@ -3,18 +3,29 @@
 namespace Bitrix\Landing\History\Action;
 
 use Bitrix\Landing\Block;
+use Bitrix\Landing\History\ActionParamsGuard;
 use Bitrix\Landing\Node;
 
 class EditLinkAction extends BaseAction
 {
 	protected const JS_COMMAND = 'editLink';
 
-	public function execute(bool $undo = true): bool
+	public static function getSanitizableParamKeys(): array
+	{
+		return ['valueBefore', 'valueAfter'];
+	}
+
+	protected function doExecute(bool $undo = true): bool
 	{
 		$block = new Block((int)$this->params['block']);
 		$selector = $this->params['selector'] ?: '';
 		$position = (int)($this->params['position'] ?: 0);
 		$value = $undo ? $this->params['valueBefore'] : $this->params['valueAfter'];
+		$value = ActionParamsGuard::prepareNodeValue($value);
+		if ($value === null)
+		{
+			return false;
+		}
 
 		if ($selector)
 		{
@@ -41,14 +52,22 @@ class EditLinkAction extends BaseAction
 		 * @var $block Block
 		 */
 		$block = $params['block'];
+		$checked = ActionParamsGuard::rejectUnsafeValueParams(
+			[
+				'valueAfter' => $params['valueAfter'] ?? '',
+				'valueBefore' => $params['valueBefore'] ?? '',
+			],
+			static::getSanitizableParamKeys(),
+			static::class,
+		);
 
 		return [
 			'block' => $block->getId(),
 			'selector' => $params['selector'] ?: '',
 			'position' => $params['position'] ?: 0,
 			'lid' => $block->getLandingId(),
-			'valueAfter' => $params['valueAfter'] ?: '',
-			'valueBefore' => $params['valueBefore'] ?: '',
+			'valueAfter' => $checked['valueAfter'],
+			'valueBefore' => $checked['valueBefore'],
 		];
 	}
 

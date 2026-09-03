@@ -4,7 +4,9 @@ namespace Bitrix\Translate\Controller\Editor;
 use Bitrix\Main;
 use Bitrix\Translate;
 
-
+/**
+ * @internal
+ */
 class File
 	extends Translate\Controller\Controller
 {
@@ -76,10 +78,10 @@ class File
 	/**
 	 * @return array
 	 */
-	public function cancelAction()
+	public function cancelAction(): array
 	{
-		return array(
+		return [
 			'STATUS' => Translate\Controller\STATUS_COMPLETED
-		);
+		];
 	}
 }

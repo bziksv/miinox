@@ -490,6 +490,8 @@ input.pagetitle-item {
 	font-weight: var(--ui-font-weight-regular, 400);
 	line-height: normal;
 	margin-top: 5px;
+	padding-right: 20px;
+	padding-bottom: 10px;
 }
 
 .catalog-document-type-selector-text {
@@ -514,19 +516,9 @@ input.pagetitle-item {
 	transition: .2s;
 }
 
-.document-status-label {
-	vertical-align: middle;
-	text-transform: uppercase;
-	margin-left: 5px;
-}
-
 .catalog-title-buttons-wrapper {
 	display: inline-flex;
 	align-items: center;
-}
-
-.catalog-title-buttons-wrapper .ui-label-inner {
-	font-weight: var(--ui-font-weight-bold, 700);
 }
 
 .catalog-document-card-left {
@@ -563,4 +555,9 @@ input.pagetitle-item {
 		margin: 0 auto;
 		max-width: 600px;
 	}
+}
+
+.document-status-label
+{
+	margin-left: 10px;
 }

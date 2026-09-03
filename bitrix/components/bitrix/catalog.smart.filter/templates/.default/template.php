@@ -66,7 +66,7 @@ $this->addExternalCss("/bitrix/css/main/font-awesome.css");
 						?>
 						<div class="<?if ($arParams["FILTER_VIEW_MODE"] == "HORIZONTAL"):?>col-sm-6 col-md-4<?else:?>col-lg-12<?endif?> bx-filter-parameters-box bx-active">
 							<span class="bx-filter-container-modef"></span>
-							<div class="bx-filter-parameters-box-title" onclick="smartFilter.hideFilterProps(this)"><span><?=$arItem["NAME"]?> <i data-role="prop_angle" class="fa fa-angle-<?if ($arItem["DISPLAY_EXPANDED"]== "Y"):?>up<?else:?>down<?endif?>"></i></span></div>
+							<div class="bx-filter-parameters-box-title" onclick="smartFilter.hideFilterProps(this)"><span><?=$arItem["NAME"]?> <i data-role="prop_angle" class="fa fa-angle-<?if (isset($arItem["DISPLAY_EXPANDED"]) && $arItem["DISPLAY_EXPANDED"] == "Y"):?>up<?else:?>down<?endif?>"></i></span></div>
 							<div class="bx-filter-block" data-role="bx_filter_block">
 								<div class="row bx-filter-parameters-box-container">
 									<div class="col-xs-6 bx-filter-parameters-box-container-block bx-left">
@@ -136,7 +136,7 @@ $this->addExternalCss("/bitrix/css/main/font-awesome.css");
 							"colorAvailableInactive" => 'colorAvailableInactive_'.$key,
 						);
 						?>
-						<script type="text/javascript">
+						<script>
 							BX.ready(function(){
 								window['trackBar<?=$key?>'] = new BX.Iblock.SmartFilter(<?=CUtil::PhpToJSObject($arJsParams)?>);
 							});
@@ -165,7 +165,7 @@ $this->addExternalCss("/bitrix/css/main/font-awesome.css");
 							<span class="bx-filter-parameters-box-hint"><?=$arItem["NAME"]?>
 								<?if ($arItem["FILTER_HINT"] <> ""):?>
 									<i id="item_title_hint_<?echo $arItem["ID"]?>" class="fa fa-question-circle"></i>
-									<script type="text/javascript">
+									<script>
 										new top.BX.CHint({
 											parent: top.BX("item_title_hint_<?echo $arItem["ID"]?>"),
 											show_timeout: 10,
@@ -264,7 +264,7 @@ $this->addExternalCss("/bitrix/css/main/font-awesome.css");
 										"colorAvailableInactive" => 'colorAvailableInactive_'.$key,
 									);
 									?>
-									<script type="text/javascript">
+									<script>
 										BX.ready(function(){
 											window['trackBar<?=$key?>'] = new BX.Iblock.SmartFilter(<?=CUtil::PhpToJSObject($arJsParams)?>);
 										});
@@ -665,6 +665,6 @@ $this->addExternalCss("/bitrix/css/main/font-awesome.css");
 		</form>
 	</div>
 </div>
-<script type="text/javascript">
+<script>
 	var smartFilter = new JCSmartFilter('<?echo CUtil::JSEscape($arResult["FORM_ACTION"])?>', '<?=CUtil::JSEscape($arParams["FILTER_VIEW_MODE"])?>', <?=CUtil::PhpToJSObject($arResult["JS_FILTER_PARAMS"])?>);
 </script>

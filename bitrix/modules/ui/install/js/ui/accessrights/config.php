@@ -1,11 +1,12 @@
-<?
+<?php
+
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
 return [
-	'css' => 'src/style.css',
+	'css' => 'dist/accessrights.bundle.css',
 	'js' => 'dist/accessrights.bundle.js',
 	'rel' => [
 		'main.loader',
@@ -18,6 +19,8 @@ return [
 		'ui.hint',
 		'ui.fonts.opensans',
 		'ui.design-tokens',
+		'ui.icon-set.main',
+		'ui.icon-set.actions',
 	],
 	'skip_core' => false,
 ];

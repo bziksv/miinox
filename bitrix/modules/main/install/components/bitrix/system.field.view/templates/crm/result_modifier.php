@@ -1,17 +1,21 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+
+/**
+ * @var array $arResult
+ */
 
 if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 {
 	if(!CModule::IncludeModule("crm"))
 		return;
-		
+
 	$arParams['ENTITY_TYPE'] = Array();
 	if ($arParams['arUserField']['SETTINGS']['LEAD'] == 'Y')
 		$arParams['ENTITY_TYPE'][] = 'LEAD';
 	if ($arParams['arUserField']['SETTINGS']['CONTACT'] == 'Y')
 		$arParams['ENTITY_TYPE'][] = 'CONTACT';
 	if ($arParams['arUserField']['SETTINGS']['COMPANY'] == 'Y')
-		$arParams['ENTITY_TYPE'][] = 'COMPANY';	
+		$arParams['ENTITY_TYPE'][] = 'COMPANY';
 	if ($arParams['arUserField']['SETTINGS']['DEAL'] == 'Y')
 		$arParams['ENTITY_TYPE'][] = 'DEAL';
 	if ($arParams['arUserField']['SETTINGS']['ORDER'] == 'Y')
@@ -23,7 +27,7 @@ if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 	if(!empty($arParams['usePrefix']))
 		$arResult['PREFIX'] = 'Y';
 
-	$arValue = Array();	
+	$arValue = Array();
 	foreach ($arResult['VALUE'] as $value)
 	{
 		if (is_numeric($value))
@@ -49,6 +53,7 @@ if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 		{
 			$arResult['VALUE']['LEAD'][$arRes['ID']] = Array(
 				'ENTITY_TITLE' => $arRes['TITLE'],
+				'ENTITY_TYPE_ID' => CCrmOwnerType::Lead,
 				'ENTITY_LINK' => CCrmOwnerType::GetEntityShowPath(CCrmOwnerType::Lead, $arRes['ID']),
 			);
 		}
@@ -86,6 +91,7 @@ if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 
 			$arResult['VALUE']['CONTACT'][$arRes['ID']] = Array(
 				'ENTITY_TITLE' => $title,
+				'ENTITY_TYPE_ID' => CCrmOwnerType::Contact,
 				'ENTITY_LINK' => CCrmOwnerType::GetEntityShowPath(CCrmOwnerType::Contact, $arRes['ID']),
 			);
 		}
@@ -97,6 +103,7 @@ if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 		{
 			$arResult['VALUE']['COMPANY'][$arRes['ID']] = Array(
 				'ENTITY_TITLE' => $arRes['TITLE'],
+				'ENTITY_TYPE_ID' => CCrmOwnerType::Company,
 				'ENTITY_LINK' => CCrmOwnerType::GetEntityShowPath(CCrmOwnerType::Company, $arRes['ID']),
 			);
 		}
@@ -108,6 +115,7 @@ if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 		{
 			$arResult['VALUE']['DEAL'][$arRes['ID']] = Array(
 				'ENTITY_TITLE' => $arRes['TITLE'],
+				'ENTITY_TYPE_ID' => CCrmOwnerType::Deal,
 				'ENTITY_LINK' => CCrmOwnerType::GetEntityShowPath(CCrmOwnerType::Deal, $arRes['ID']),
 			);
 		}
@@ -124,6 +132,7 @@ if (is_array($arResult['VALUE']) && !empty($arResult['VALUE']))
 		{
 			$arResult['VALUE']['ORDER'][$order['ID']] = array(
 				'ENTITY_TITLE' => $order['ACCOUNT_NUMBER'],
+				'ENTITY_TYPE_ID' => CCrmOwnerType::Order,
 				'ENTITY_LINK' => CCrmOwnerType::GetEntityShowPath(CCrmOwnerType::Order, $order['ID']),
 			);
 		}

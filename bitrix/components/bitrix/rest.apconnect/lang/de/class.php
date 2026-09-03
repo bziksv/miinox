@@ -9,5 +9,5 @@ $MESS["APC_PASSWORD_NOT_REGISTERD"] = "Fehler: Passwort der Anwendung kann nicht
 $MESS["APC_REST_MODULE_NOT_INSTALLED"] = "Das Modul \"rest\" ist nicht installiert.";
 $MESS["APC_SOCIALSERVICES_MODULE_NOT_INSTALLED"] = "Das Modul \"Soziales Netzwerk\" ist nicht installiert.";
 $MESS["APC_TITLE"] = "Ihre Website verbinden";
-$MESS["APC_TRANSPORT_INITIALIZE_FAILED"] = "Keine Verbindungsdaten für Bitrix24.Network sind verfügbar.";
-$MESS["APC_VERIFY_REQUEST_FAILED"] = "Fehler der Client-Verifizierung: Verbindung mit Bitrix24.Network kann nicht hergestellt werden";
+$MESS["APC_TRANSPORT_INITIALIZE_FAILED_MSGVER_1"] = "Keine Verbindungsdaten für Network sind verfügbar.";
+$MESS["APC_VERIFY_REQUEST_FAILED_MSGVER_1"] = "Fehler der Client-Verifizierung: Verbindung mit Bitrix24 Network kann nicht hergestellt werden";

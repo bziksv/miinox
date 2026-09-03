@@ -12,19 +12,30 @@ export default class Primary extends EventEmitter
 	static CSS_VAR: string = '--primary';
 
 	// todo: layout or control?
-	constructor()
+	constructor(options = {})
 	{
 		super();
 		this.cache = new Cache.MemoryCache();
 		this.setEventNamespace('BX.Landing.UI.Field.Color.Primary');
 		Event.bind(this.getLayout(), 'click', () => this.onClick());
+		Event.bind(this.getLayout(), 'keydown', this.onKeyDown.bind(this));
+
+		if (options.content && options.content === 'var(--primary)')
+		{
+			this.setActive();
+		}
 	}
 
 	getLayout(): HTMLElement
 	{
 		return this.cache.remember('layout', () => {
 			return Tag.render`
-				<div class="landing-ui-field-color-primary">
+				<div
+					class="landing-ui-field-color-primary"
+					role="button"
+					tabindex="0"
+					aria-pressed="false"
+				>
 					<i class="landing-ui-field-color-primary-preview"></i>
 					<span class="landing-ui-field-color-primary-text">
 						${Loc.getMessage('LANDING_FIELD_COLOR-PRIMARY_TITLE')}
@@ -32,6 +43,15 @@ export default class Primary extends EventEmitter
 				</div>
 			`;
 		});
+	}
+
+	onKeyDown(event: KeyboardEvent)
+	{
+		if (event.key === 'Enter' || event.key === ' ')
+		{
+			event.preventDefault();
+			this.onClick();
+		}
 	}
 
 	getValue(): ColorValue
@@ -50,11 +70,13 @@ export default class Primary extends EventEmitter
 	setActive()
 	{
 		Dom.addClass(this.getLayout(), Primary.ACTIVE_CLASS);
+		Dom.attr(this.getLayout(), 'aria-pressed', 'true');
 	}
 
 	unsetActive()
 	{
 		Dom.removeClass(this.getLayout(), Primary.ACTIVE_CLASS);
+		Dom.attr(this.getLayout(), 'aria-pressed', 'false');
 	}
 
 	isActive(): boolean

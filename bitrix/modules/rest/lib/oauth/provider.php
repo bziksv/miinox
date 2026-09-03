@@ -1,7 +1,8 @@
 <?php
+
 namespace Bitrix\Rest\OAuth;
 
-
+use Bitrix\Main\SystemException;
 use Bitrix\Rest\AuthProviderInterface;
 use Bitrix\Rest\Event\Session;
 use Bitrix\Rest\OAuthService;
@@ -55,7 +56,7 @@ class Provider implements AuthProviderInterface
 			$client = $this->getClient();
 			$authResult = $client->getAuth($clientId, $scope, $additionalParams);
 
-			if($authResult['result'])
+			if (!empty($authResult['result']) && is_array($authResult['result']))
 			{
 				if($authResult['result']['access_token'])
 				{
@@ -84,6 +85,17 @@ class Provider implements AuthProviderInterface
 
 	protected function getClient()
 	{
+		if (!OAuthService::getEngine()->isRegistered())
+		{
+			try
+			{
+				OAuthService::register();
+			}
+			catch (SystemException)
+			{
+			}
+		}
+
 		return OAuthService::getEngine()->getClient();
 	}
 

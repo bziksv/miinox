@@ -1,10 +1,12 @@
 <?php
 
 use Bitrix\Catalog;
-use Bitrix\Catalog\Component\UseStore;
+use Bitrix\Catalog\Document\DocumentFieldsManager;
 use Bitrix\Catalog\Integration\PullManager;
-use Bitrix\Main\Localization\Loc;
 use Bitrix\Catalog\v2\Contractor;
+use Bitrix\Main\Application;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -35,6 +37,7 @@ class CAllCatalogDocs
 		/** @global CDataBase $DB */
 		global $DB;
 		global $APPLICATION;
+		global $USER_FIELD_MANAGER;
 		$id = (int)$id;
 
 		if ($id <= 0)
@@ -57,22 +60,47 @@ class CAllCatalogDocs
 			return false;
 		}
 
-		foreach(GetModuleEvents("catalog", "OnBeforeDocumentUpdate", true) as $arEvent)
-			if(ExecuteModuleEventEx($arEvent, array($id, &$arFields)) === false)
+		foreach (GetModuleEvents("catalog", "OnBeforeDocumentUpdate", true) as $arEvent)
+		{
+			if (ExecuteModuleEventEx($arEvent, array($id, &$arFields)) === false)
+			{
 				return false;
+			}
+		}
 
-		if(array_key_exists('DATE_CREATE',$arFields))
+		if (array_key_exists('DATE_CREATE',$arFields))
+		{
 			unset($arFields['DATE_CREATE']);
-		if(array_key_exists('DATE_MODIFY', $arFields))
+		}
+		if (array_key_exists('DATE_MODIFY', $arFields))
+		{
 			unset($arFields['DATE_MODIFY']);
-		if(array_key_exists('DATE_STATUS', $arFields))
+		}
+		if (array_key_exists('DATE_STATUS', $arFields))
+		{
 			unset($arFields['DATE_STATUS']);
-		if(array_key_exists('CREATED_BY', $arFields))
+		}
+		if (array_key_exists('CREATED_BY', $arFields))
+		{
 			unset($arFields['CREATED_BY']);
+		}
+		if (array_key_exists('DOC_TYPE', $arFields))
+		{
+			unset($arFields['DOC_TYPE']);
+		}
+		if (array_key_exists('ID', $arFields))
+		{
+			unset($arFields['ID']);
+		}
 
 		$arFields['~DATE_MODIFY'] = $DB->GetNowFunction();
 
 		if (!static::checkFields('UPDATE', $arFields))
+		{
+			return false;
+		}
+
+		if (!static::checkRequiredFields($arFields, $oldFields['DOC_TYPE']))
 		{
 			return false;
 		}
@@ -84,7 +112,7 @@ class CAllCatalogDocs
 		if(!empty($strUpdate))
 		{
 			$strSql = "update b_catalog_store_docs set ".$strUpdate." where ID = ".$id;
-			if(!$DB->Query($strSql, true, "File: ".__FILE__."<br>Line: ".__LINE__))
+			if(!$DB->Query($strSql, true))
 				return false;
 
 			if(isset($arFields["ELEMENT"]))
@@ -103,6 +131,12 @@ class CAllCatalogDocs
 		if (isset($arFields['DOCUMENT_FILES']) && is_array($arFields['DOCUMENT_FILES']))
 		{
 			static::saveFiles($id, $arFields['DOCUMENT_FILES']);
+		}
+
+		$typeTableClass = Catalog\Document\StoreDocumentTableManager::getTableClassByType($allOldFields['DOC_TYPE']);
+		if ($typeTableClass)
+		{
+			$USER_FIELD_MANAGER->Update($typeTableClass::getUfId(), $id, $arFields);
 		}
 
 		$item = [
@@ -352,6 +386,8 @@ class CAllCatalogDocs
 	public static function delete($id)
 	{
 		global $DB;
+		global $USER_FIELD_MANAGER;
+
 		$id = (int)$id;
 		if ($id <= 0)
 		{
@@ -362,6 +398,7 @@ class CAllCatalogDocs
 			'select' => [
 				'ID',
 				'STATUS',
+				'DOC_TYPE',
 			],
 			'filter' => [
 				'=ID' => $id,
@@ -391,14 +428,24 @@ class CAllCatalogDocs
 
 		$DB->Query("DELETE FROM b_catalog_store_docs WHERE ID = ".$id, true);
 
+		$typeTableClass = Catalog\Document\StoreDocumentTableManager::getTableClassByType($document['DOC_TYPE']);
+		if ($typeTableClass)
+		{
+			$USER_FIELD_MANAGER->Delete($typeTableClass::getUfId(), $id);
+		}
+
 		static::deleteDocumentFiles($id);
 		Catalog\StoreDocumentElementTable::deleteByDocument($id);
 		Catalog\StoreDocumentBarcodeTable::deleteByDocument($id);
 
-		$contractorsProvider = Contractor\Provider\Manager::getActiveProvider();
+		$contractorsProvider = Contractor\Provider\Manager::getActiveProvider(Contractor\Provider\Manager::PROVIDER_STORE_DOCUMENT);
 		if ($contractorsProvider)
 		{
 			$contractorsProvider::onAfterDocumentDelete($id);
+		}
+		if (Loader::includeModule('crm'))
+		{
+			\Bitrix\Crm\Timeline\TimelineEntry::deleteByOwner(\CCrmOwnerType::StoreDocument, $id);
 		}
 
 		// First and second event - only for compatibility. Attention - order cannot change
@@ -447,6 +494,39 @@ class CAllCatalogDocs
 			'delete from ' . $helper->quote(Catalog\StoreDocumentFileTable::getTableName())
 			. ' where ' . $helper->quote('DOCUMENT_ID') . ' = ' . $documentId
 		);
+	}
+
+	/**
+	 * @param array $arFields
+	 * @param string $docType
+	 * @return bool
+	 */
+	protected static function checkRequiredFields(array $arFields, string $docType): bool
+	{
+		global $APPLICATION;
+
+		$requiredFields = DocumentFieldsManager::getRequiredFields($docType);
+		foreach ($requiredFields as $requiredField)
+		{
+			if (
+				array_key_exists($requiredField, $arFields)
+				&& !$arFields[$requiredField]
+			)
+			{
+				$APPLICATION->ThrowException(
+					GetMessage(
+						'CAT_DOC_ERROR_REQUIRED_FIELD',
+						[
+							'#FIELD_NAME#' => $requiredField,
+						]
+					)
+				);
+
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -499,12 +579,20 @@ class CAllCatalogDocs
 	{
 		global $APPLICATION;
 
-		if (!UseStore::isUsed())
+		if (!Catalog\Config\State::isUsedInventoryManagement())
 		{
 			$APPLICATION->ThrowException(
 				Loc::getMessage('CAT_DOC_CONDUCT_UNCONDUCT_NOT_AVAILABLE'),
 				self::STORE_CONTROL_DISABLED_CONDUCT_ERROR,
 			);
+
+			return false;
+		}
+
+		if (Catalog\Store\EnableWizard\Manager::isOnecMode())
+		{
+			$APPLICATION->ThrowException(Loc::getMessage('CAT_DOC_CONDUCT_UNCONDUCT_NOT_AVAILABLE_EXTERNAL_CATALOG'));
+
 			return false;
 		}
 
@@ -588,12 +676,20 @@ class CAllCatalogDocs
 	{
 		global $APPLICATION;
 
-		if (!UseStore::isUsed())
+		if (!Catalog\Config\State::isUsedInventoryManagement())
 		{
 			$APPLICATION->ThrowException(
 				GetMessage('CAT_DOC_CONDUCT_UNCONDUCT_NOT_AVAILABLE'),
 				self::STORE_CONTROL_DISABLED_CONDUCT_ERROR
 			);
+
+			return false;
+		}
+
+		if (Catalog\Store\EnableWizard\Manager::isOnecMode())
+		{
+			$APPLICATION->ThrowException(Loc::getMessage('CAT_DOC_CONDUCT_UNCONDUCT_NOT_AVAILABLE_EXTERNAL_CATALOG'));
+
 			return false;
 		}
 
@@ -677,7 +773,7 @@ class CAllCatalogDocs
 		global $APPLICATION;
 
 		$productID = (int)$productID;
-		if ($productID > 0)
+		if ($productID > 0 && \Bitrix\Catalog\Config\State::isUsedInventoryManagement())
 		{
 			$iterator = Catalog\StoreDocumentElementTable::getList([
 				'select' => [
@@ -706,5 +802,32 @@ class CAllCatalogDocs
 		}
 
 		return true;
+	}
+
+	public static function synchronizeStockQuantity($storeId, $iblockId = 0)
+	{
+		$storeId = (int)$storeId;
+		if ($storeId <= 0)
+		{
+			return false;
+		}
+		$iblockId = (int)$iblockId;
+
+		$connection = Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$internalSql = 'select CP.QUANTITY + ' . $helper->getIsNullFunction('CP.QUANTITY_RESERVED', 0) . ', CP.ID, '.$storeId.' ';
+		if ($iblockId <= 0)
+		{
+			$internalSql .= 'from b_catalog_product CP where 1 = 1';
+		}
+		else
+		{
+			$internalSql .= 'from b_catalog_product CP inner join b_iblock_element IE on (CP.ID = IE.ID) where IE.IBLOCK_ID = '.$iblockId;
+		}
+
+		return $connection->query(
+			"insert into b_catalog_store_product (AMOUNT, PRODUCT_ID, STORE_ID) (".$internalSql.")"
+		);
 	}
 }

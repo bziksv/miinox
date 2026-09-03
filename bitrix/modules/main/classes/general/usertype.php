@@ -1,225 +1,145 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2022 Bitrix
+ * @copyright 2001-2026 Bitrix
  */
 
-/**
- * usertype.php, Пользовательские свойства
- *
- * Содержит классы для поддержки пользовательских свойств.
- * @author Bitrix <support@bitrixsoft.com>
- * @version 1.0
- * @package usertype
- * @todo Добавить подсказку
- */
+use Bitrix\Main\Application;
+use Bitrix\Main\UserFieldTable;
+use Bitrix\Main\UserFieldLangTable;
+use Bitrix\Main\ORM\Fields;
 
 IncludeModuleLangFile(__FILE__);
 
 /**
- * Данный класс используется для управления метаданными пользовательских свойств.
+ * This class is used to manage metadata of user properties.
  *
- * <p>Выборки, Удаление Добавление и обновление метаданных таблицы b_user_field.</p>
- * create table b_user_field (
- * ID    int(11) not null auto_increment,
- * ENTITY_ID  varchar(50),
- * FIELD_NAME  varchar(50),
- * USER_TYPE_ID  varchar(50),
- * XML_ID    varchar(255),
- * SORT    int,
- * MULTIPLE  char(1) not null default 'N',
- * MANDATORY  char(1) not null default 'N',
- * SHOW_FILTER  char(1) not null default 'N',
- * SHOW_IN_LIST  char(1) not null default 'Y',
- * EDIT_IN_LIST  char(1) not null default 'Y',
- * IS_SEARCHABLE  char(1) not null default 'N',
- * SETTINGS  text,
- * PRIMARY KEY (ID),
- * UNIQUE ux_user_type_entity(ENTITY_ID, FIELD_NAME)
- * )
- * ------------------
+ * <p>Selections, Deletion, Addition, and Update of metadata in the b_user_field table.</p>
  * ID
  * ENTITY_ID (example: IBLOCK_SECTION, USER ....)
  * FIELD_NAME (example: UF_EMAIL, UF_SOME_COUNTER ....)
  * SORT -- used to do check in the specified order
  * BASE_TYPE - String, Number, Integer, Enumeration, File, DateTime
  * USER_TYPE_ID
- * SETTINGS (blob) -- to store some settings which may be useful for an field instance
- * [some base settings comon to all types: mandatory or no, etc.]
- * <p>b_user_field</p>
- * <ul>
- * <li><b>ID</b> int(11) not null auto_increment
- * <li>ENTITY_ID varchar(50)
- * <li>FIELD_NAME varchar(20)
- * <li>USER_TYPE_ID varchar(50)
- * <li>XML_ID varchar(255)
- * <li>SORT int
- * <li>MULTIPLE char(1) not null default 'N'
- * <li>MANDATORY char(1) not null default 'N'
- * <li>SHOW_FILTER char(1) not null default 'N'
- * <li>SHOW_IN_LIST char(1) not null default 'Y'
- * <li>EDIT_IN_LIST char(1) not null default 'Y'
- * <li>IS_SEARCHABLE char(1) not null default 'N'
- * <li>SETTINGS text
- * <li>PRIMARY KEY (ID),
- * <li>UNIQUE ux_user_type_entity(ENTITY_ID, FIELD_NAME)
- * </ul>
- * create table b_user_field_lang (
- * USER_FIELD_ID int(11) REFERENCES b_user_field(ID),
- * LANGUAGE_ID char(2),
- * EDIT_FORM_LABEL varchar(255),
- * LIST_COLUMN_LABEL varchar(255),
- * LIST_FILTER_LABEL varchar(255),
- * ERROR_MESSAGE varchar(255),
- * HELP_MESSAGE varchar(255),
- * PRIMARY KEY (USER_FIELD_ID, LANGUAGE_ID)
- * )
- * <p>b_user_field_lang</p>
- * <ul>
- * <li><b>USER_FIELD_ID</b> int(11) REFERENCES b_user_field(ID)
- * <li><b>LANGUAGE_ID</b> char(2)
- * <li>EDIT_FORM_LABEL varchar(255)
- * <li>LIST_COLUMN_LABEL varchar(255)
- * <li>LIST_FILTER_LABEL varchar(255)
- * <li>ERROR_MESSAGE varchar(255)
- * <li>HELP_MESSAGE varchar(255)
- * <li>PRIMARY KEY (USER_FIELD_ID, LANGUAGE_ID)
- * </ul>
- * @package usertype
- * @subpackage classes
+ * SETTINGS (blob) -- to store some settings which may be useful for a field instance
+ * [some base settings common to all types: mandatory or no, etc.]
  */
 class CAllUserTypeEntity extends CDBResult
 {
-	function CreatePropertyTables($entity_id)
-	{
-		global $DB, $APPLICATION;
-		if(!$DB->TableExists("b_utm_".strtolower($entity_id)))
-		{
-			if(defined("MYSQL_TABLE_TYPE"))
-				$DB->Query("SET storage_engine = '".MYSQL_TABLE_TYPE."'", true);
-			$rs = $DB->Query("
-				create table IF NOT EXISTS b_utm_".strtolower($entity_id)." (
-					ID int(11) not null auto_increment,
-					VALUE_ID int(11) not null,
-					FIELD_ID int(11) not null,
-					VALUE text,
-					VALUE_INT int,
-					VALUE_DOUBLE float,
-					VALUE_DATE datetime,
-					INDEX ix_utm_".$entity_id."_2(VALUE_ID),
-					INDEX ix_utm_".$entity_id."_4(FIELD_ID, VALUE_ID, VALUE_INT),
-					PRIMARY KEY (ID)
-				)
-			", false, "FILE: ".__FILE__."<br>LINE: ".__LINE__);
-			if(!$rs)
-			{
-				$APPLICATION->ThrowException(GetMessage("USER_TYPE_TABLE_CREATION_ERROR",array(
-					"#ENTITY_ID#"=>htmlspecialcharsbx($entity_id),
-				)));
-				return false;
-			}
-		}
-		if(!$DB->TableExists("b_uts_".strtolower($entity_id)))
-		{
-			if(defined("MYSQL_TABLE_TYPE"))
-				$DB->Query("SET storage_engine = '".MYSQL_TABLE_TYPE."'", true);
+	protected static $cache = [];
 
-			$rs = $DB->Query("
-				create table IF NOT EXISTS b_uts_".strtolower($entity_id)." (
-					VALUE_ID int(11) not null,
-					PRIMARY KEY (VALUE_ID)
-				)
-			", false, "FILE: ".__FILE__."<br>LINE: ".__LINE__);
-			if(!$rs)
-			{
-				$APPLICATION->ThrowException(GetMessage("USER_TYPE_TABLE_CREATION_ERROR",array(
-					"#ENTITY_ID#"=>htmlspecialcharsbx($entity_id),
-				)));
-				return false;
-			}
-		}
-		return true;
-	}
-
-	function DropColumnSQL($strTable, $arColumns)
+	protected function CreatePropertyTables($entityId)
 	{
-		return array("ALTER TABLE ".$strTable." DROP ".implode(", DROP ", $arColumns));
+		$entityId = strtolower($entityId);
+
+		$connection = Application::getConnection();
+
+		if (!$connection->isTableExists("b_utm_" . $entityId))
+		{
+			$connection->createTable("b_utm_" . $entityId, [
+				'ID' => new Fields\IntegerField('ID'),
+				'VALUE_ID' => new Fields\IntegerField('VALUE_ID'),
+				'FIELD_ID' => new Fields\IntegerField('FIELD_ID'),
+				'VALUE' => new Fields\TextField('VALUE', ['nullable' => true]),
+				'VALUE_INT' => new Fields\IntegerField('VALUE_INT', ['nullable' => true]),
+				'VALUE_DOUBLE' => new Fields\FloatField('VALUE_DOUBLE', ['nullable' => true]),
+				'VALUE_DATE' => new Fields\DatetimeField('VALUE_DATE', ['nullable' => true]),
+			], ['ID'], ['ID']);
+
+			$connection->createIndex("b_utm_" . $entityId, "ix_utm_" . $entityId . "_2", ["VALUE_ID"]);
+			$connection->createIndex("b_utm_" . $entityId, "ix_utm_" . $entityId . "_4", ["FIELD_ID", "VALUE_ID", "VALUE_INT"]);
+		}
+
+		if (!$connection->isTableExists("b_uts_" . $entityId))
+		{
+			$connection->createTable("b_uts_" . $entityId, [
+				'VALUE_ID' => new Fields\IntegerField('VALUE_ID'),
+			], ['VALUE_ID']);
+		}
 	}
 
 	/**
-	 * Функция для выборки метаданных пользовательского свойства.
+	 * Function to fetch metadata of a user property.
 	 *
-	 * <p>Возвращает ассоциативный массив метаданных который можно передать в Update.</p>
-	 * @param integer $ID идентификатор свойства
-	 * @return array Если свойство не найдено, то возвращается false
+	 * <p>Returns an associative array of metadata that can be passed to Update.</p>
+	 * @param integer $ID Property identifier
+	 * @return array If the property is not found, false is returned
 	 * @static
 	 */
 	public static function GetByID($ID)
 	{
 		global $DB;
-		static $arLabels = array("EDIT_FORM_LABEL", "LIST_COLUMN_LABEL", "LIST_FILTER_LABEL", "ERROR_MESSAGE", "HELP_MESSAGE");
-		static $cache = array();
 
-		if(!array_key_exists($ID, $cache))
+		static $arLabels = ["EDIT_FORM_LABEL", "LIST_COLUMN_LABEL", "LIST_FILTER_LABEL", "ERROR_MESSAGE", "HELP_MESSAGE"];
+
+		if (!array_key_exists($ID, static::$cache))
 		{
-			$rsUserField = CUserTypeEntity::GetList(array(), array("ID" => intval($ID)));
-			if($arUserField = $rsUserField->Fetch())
+			$rsUserField = CUserTypeEntity::GetList([], ["ID" => intval($ID)]);
+			if ($arUserField = $rsUserField->Fetch())
 			{
-				$rs = $DB->Query("SELECT * FROM b_user_field_lang WHERE USER_FIELD_ID = " . intval($ID), false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-				while($ar = $rs->Fetch())
+				$rs = $DB->Query("SELECT * FROM b_user_field_lang WHERE USER_FIELD_ID = " . intval($ID));
+				while ($ar = $rs->Fetch())
 				{
-					foreach($arLabels as $label)
+					foreach ($arLabels as $label)
+					{
 						$arUserField[$label][$ar["LANGUAGE_ID"]] = $ar[$label];
+					}
 				}
-				$cache[$ID] = $arUserField;
+				static::$cache[$ID] = $arUserField;
 			}
 			else
-				$cache[$ID] = false;
+			{
+				static::$cache[$ID] = false;
+			}
 		}
-		return $cache[$ID];
+		return static::$cache[$ID];
 	}
 
 	/**
-	 * Функция для выборки метаданных пользовательских свойств.
+	 * Function to fetch metadata of user properties.
 	 *
-	 * <p>Возвращает CDBResult - выборку в зависимости от фильтра и сортировки.</p>
-	 * <p>Параметр aSort по умолчанию имеет вид array("SORT"=>"ASC", "ID"=>"ASC").</p>
-	 * <p>Если в aFilter передается LANG, то дополнительно выбираются языковые сообщения.</p>
-	 * @param array $aSort ассоциативный массив сортировки (ID, ENTITY_ID, FIELD_NAME, SORT, USER_TYPE_ID)
-	 * @param array $aFilter ассоциативный массив фильтра со строгим сообветствием (<b>равно</b>) (ID, ENTITY_ID, FIELD_NAME, USER_TYPE_ID, SORT, MULTIPLE, MANDATORY, SHOW_FILTER)
+	 * <p>Returns CDBResult - a selection based on filter and sorting.</p>
+	 * <p>The aSort parameter defaults to array("SORT"=>"ASC", "ID"=>"ASC").</p>
+	 * <p>If LANG is passed in aFilter, language messages are additionally selected.</p>
+	 * @param array $aSort Associative array for sorting (ID, ENTITY_ID, FIELD_NAME, SORT, USER_TYPE_ID)
+	 * @param array $aFilter Associative array for filtering with strict matching (<b>equals</b>) (ID, ENTITY_ID, FIELD_NAME, USER_TYPE_ID, SORT, MULTIPLE, MANDATORY, SHOW_FILTER)
 	 * @return CDBResult
 	 * @static
 	 */
-	public static function GetList($aSort = array(), $aFilter = array())
+	public static function GetList($aSort = [], $aFilter = [])
 	{
 		global $DB, $CACHE_MANAGER;
 
-		if(CACHED_b_user_field !== false)
+		$aFilter = array_change_key_case($aFilter, CASE_UPPER);
+
+		if (CACHED_b_user_field !== false)
 		{
 			$cacheId = "b_user_type" . md5(serialize($aSort) . "." . serialize($aFilter));
-			if($CACHE_MANAGER->Read(CACHED_b_user_field, $cacheId, "b_user_field"))
+			$cachDir = isset($aFilter['ENTITY_ID']) ? "b_user_field_" . strtolower($aFilter['ENTITY_ID']) : "b_user_field";
+			if ($CACHE_MANAGER->Read(CACHED_b_user_field, $cacheId, $cachDir))
 			{
 				$arResult = $CACHE_MANAGER->Get($cacheId);
 				$res = new CDBResult;
 				$res->InitFromArray($arResult);
-				$res = new CUserTypeEntity($res);
-				return $res;
+				return new CUserTypeEntity($res);
 			}
 		}
 
 		$bLangJoin = false;
-		$arFilter = array();
-		foreach($aFilter as $key => $val)
+		$arFilter = [];
+		foreach ($aFilter as $key => $val)
 		{
-			if(is_array($val) || (string)$val == '')
+			if (is_array($val) || (string)$val == '')
+			{
 				continue;
+			}
 
-			$key = mb_strtoupper($key);
 			$val = $DB->ForSql($val);
 
-			switch($key)
+			switch ($key)
 			{
 				case "ID":
 				case "ENTITY_ID":
@@ -241,12 +161,12 @@ class CAllUserTypeEntity extends CDBResult
 			}
 		}
 
-		$arOrder = array();
-		foreach($aSort as $key => $val)
+		$arOrder = [];
+		foreach ($aSort as $key => $val)
 		{
-			$key = mb_strtoupper($key);
-			$ord = (mb_strtoupper($val) <> "ASC" ? "DESC" : "ASC");
-			switch($key)
+			$key = strtoupper($key);
+			$ord = (strtoupper($val) <> "ASC" ? "DESC" : "ASC");
+			switch ($key)
 			{
 				case "ID":
 				case "ENTITY_ID":
@@ -258,7 +178,7 @@ class CAllUserTypeEntity extends CDBResult
 					break;
 			}
 		}
-		if(empty($arOrder))
+		if (empty($arOrder))
 		{
 			$arOrder[] = "UF.SORT asc";
 			$arOrder[] = "UF.ID asc";
@@ -266,10 +186,14 @@ class CAllUserTypeEntity extends CDBResult
 		DelDuplicateSort($arOrder);
 		$sOrder = "\nORDER BY " . implode(", ", $arOrder);
 
-		if(empty($arFilter))
+		if (empty($arFilter))
+		{
 			$sFilter = "";
+		}
 		else
+		{
 			$sFilter = "\nWHERE " . implode("\nAND ", $arFilter);
+		}
 
 		$strSql = "
 			SELECT
@@ -298,19 +222,21 @@ class CAllUserTypeEntity extends CDBResult
 				" . ($bLangJoin ? "LEFT JOIN b_user_field_lang UFL on UFL.LANGUAGE_ID = '" . $bLangJoin . "' AND UFL.USER_FIELD_ID = UF.ID" : "") . "
 			" . $sFilter . $sOrder;
 
-		if(CACHED_b_user_field === false)
+		if (CACHED_b_user_field === false)
 		{
-			$res = $DB->Query($strSql, false, "FILE: " . __FILE__ . "<br> LINE: " . __LINE__);
+			$res = $DB->Query($strSql);
 		}
 		else
 		{
-			$arResult = array();
-			$res = $DB->Query($strSql, false, "FILE: " . __FILE__ . "<br> LINE: " . __LINE__);
-			while($ar = $res->Fetch())
+			$arResult = [];
+			$res = $DB->Query($strSql);
+			while ($ar = $res->Fetch())
+			{
 				$arResult[] = $ar;
+			}
 
 			/** @noinspection PhpUndefinedVariableInspection */
-			$CACHE_MANAGER->Set($cacheId, $arResult);
+			$CACHE_MANAGER->SetImmediate($cacheId, $arResult);
 
 			$res = new CDBResult;
 			$res->InitFromArray($arResult);
@@ -320,69 +246,89 @@ class CAllUserTypeEntity extends CDBResult
 	}
 
 	/**
-	 * Функция проверки корректности значений метаданных пользовательских свойств.
+	 * Function to validate metadata values of user properties.
 	 *
-	 * <p>Вызывается в методах Add и Update для проверки правильности введенных значений.</p>
-	 * <p>Проверки:</p>
+	 * <p>Called in Add and Update methods to check the correctness of the entered values.</p>
+	 * <p>Validations:</p>
 	 * <ul>
-	 * <li>ENTITY_ID - обязательное
-	 * <li>ENTITY_ID - не более 50-ти символов
-	 * <li>ENTITY_ID - не должно содержать никаких символов кроме 0-9 A-Z и _
-	 * <li>FIELD_NAME - обязательное
-	 * <li>FIELD_NAME - не менее 4-х символов
-	 * <li>FIELD_NAME - не более 50-ти символов
-	 * <li>FIELD_NAME - не должно содержать никаких символов кроме 0-9 A-Z и _
-	 * <li>FIELD_NAME - должно начинаться на UF_
-	 * <li>USER_TYPE_ID - обязательное
-	 * <li>USER_TYPE_ID - должен быть зарегистрирован
+	 * <li>ENTITY_ID - required
+	 * <li>ENTITY_ID - no more than 50 characters
+	 * <li>ENTITY_ID - must not contain any characters other than 0-9, A-Z, and _
+	 * <li>FIELD_NAME - required
+	 * <li>FIELD_NAME - at least 4 characters
+	 * <li>FIELD_NAME - no more than 50 characters
+	 * <li>FIELD_NAME - must not contain any characters other than 0-9, A-Z, and _
+	 * <li>FIELD_NAME - must start with UF_
+	 * <li>USER_TYPE_ID - required
+	 * <li>USER_TYPE_ID - must be registered
 	 * </ul>
-	 * <p>В случае ошибки ловите исключение приложения!</p>
-	 * @param integer $ID - идентификатор свойства. 0 - для нового.
-	 * @param array $arFields метаданные свойства
+	 * <p>In case of an error, catch the application exception!</p>
+	 * @param integer $ID - property identifier. 0 - for new.
+	 * @param array $arFields Property metadata
 	 * @param bool $bCheckUserType
-	 * @return boolean false - если хоть одна проверка не прошла.
+	 * @return boolean false - if any validation fails.
 	 */
-	function CheckFields($ID, $arFields, $bCheckUserType = true)
+	public function CheckFields($ID, $arFields, $bCheckUserType = true)
 	{
 		/** @global CUserTypeManager $USER_FIELD_MANAGER */
 		global $APPLICATION, $USER_FIELD_MANAGER;
-		$aMsg = array();
+		$aMsg = [];
 		$ID = intval($ID);
 
-		if(($ID <= 0 || array_key_exists("ENTITY_ID", $arFields)) && $arFields["ENTITY_ID"] == '')
-			$aMsg[] = array("id" => "ENTITY_ID", "text" => GetMessage("USER_TYPE_ENTITY_ID_MISSING"));
-		if(array_key_exists("ENTITY_ID", $arFields))
+		if (($ID <= 0 || array_key_exists("ENTITY_ID", $arFields)) && $arFields["ENTITY_ID"] == '')
 		{
-			if(mb_strlen($arFields["ENTITY_ID"]) > 50)
-				$aMsg[] = array("id" => "ENTITY_ID", "text" => GetMessage("USER_TYPE_ENTITY_ID_TOO_LONG1"));
-			if(!preg_match('/^[0-9A-Z_]+$/', $arFields["ENTITY_ID"]))
-				$aMsg[] = array("id" => "ENTITY_ID", "text" => GetMessage("USER_TYPE_ENTITY_ID_INVALID"));
+			$aMsg[] = ["id" => "ENTITY_ID", "text" => GetMessage("USER_TYPE_ENTITY_ID_MISSING")];
+		}
+		if (array_key_exists("ENTITY_ID", $arFields))
+		{
+			if (mb_strlen($arFields["ENTITY_ID"]) > 50)
+			{
+				$aMsg[] = ["id" => "ENTITY_ID", "text" => GetMessage("USER_TYPE_ENTITY_ID_TOO_LONG1")];
+			}
+			if (!preg_match('/^[0-9A-Z_]+$/', $arFields["ENTITY_ID"]))
+			{
+				$aMsg[] = ["id" => "ENTITY_ID", "text" => GetMessage("USER_TYPE_ENTITY_ID_INVALID")];
+			}
 		}
 
-		if(($ID <= 0 || array_key_exists("FIELD_NAME", $arFields)) && $arFields["FIELD_NAME"] == '')
-			$aMsg[] = array("id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_MISSING"));
-		if(array_key_exists("FIELD_NAME", $arFields))
+		if (($ID <= 0 || array_key_exists("FIELD_NAME", $arFields)) && $arFields["FIELD_NAME"] == '')
 		{
-			if(mb_strlen($arFields["FIELD_NAME"]) < 4)
-				$aMsg[] = array("id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_TOO_SHORT"));
-			if(mb_strlen($arFields["FIELD_NAME"]) > 50)
-				$aMsg[] = array("id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_TOO_LONG1"));
-			if(strncmp($arFields["FIELD_NAME"], "UF_", 3) !== 0)
-				$aMsg[] = array("id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_NOT_UF"));
-			if(!preg_match('/^[0-9A-Z_]+$/', $arFields["FIELD_NAME"]))
-				$aMsg[] = array("id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_INVALID"));
+			$aMsg[] = ["id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_MISSING")];
+		}
+		if (array_key_exists("FIELD_NAME", $arFields))
+		{
+			if (mb_strlen($arFields["FIELD_NAME"]) < 4)
+			{
+				$aMsg[] = ["id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_TOO_SHORT")];
+			}
+			if (mb_strlen($arFields["FIELD_NAME"]) > 50)
+			{
+				$aMsg[] = ["id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_TOO_LONG1")];
+			}
+			if (strncmp($arFields["FIELD_NAME"], "UF_", 3) !== 0)
+			{
+				$aMsg[] = ["id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_NOT_UF")];
+			}
+			if (!preg_match('/^[0-9A-Z_]+$/', $arFields["FIELD_NAME"]))
+			{
+				$aMsg[] = ["id" => "FIELD_NAME", "text" => GetMessage("USER_TYPE_FIELD_NAME_INVALID")];
+			}
 		}
 
-		if(($ID <= 0 || array_key_exists("USER_TYPE_ID", $arFields)) && $arFields["USER_TYPE_ID"] == '')
-			$aMsg[] = array("id" => "USER_TYPE_ID", "text" => GetMessage("USER_TYPE_USER_TYPE_ID_MISSING"));
-		if(
+		if (($ID <= 0 || array_key_exists("USER_TYPE_ID", $arFields)) && $arFields["USER_TYPE_ID"] == '')
+		{
+			$aMsg[] = ["id" => "USER_TYPE_ID", "text" => GetMessage("USER_TYPE_USER_TYPE_ID_MISSING")];
+		}
+		if (
 			$bCheckUserType
 			&& array_key_exists("USER_TYPE_ID", $arFields)
 			&& !$USER_FIELD_MANAGER->GetUserType($arFields["USER_TYPE_ID"])
 		)
-			$aMsg[] = array("id" => "USER_TYPE_ID", "text" => GetMessage("USER_TYPE_USER_TYPE_ID_INVALID"));
+		{
+			$aMsg[] = ["id" => "USER_TYPE_ID", "text" => GetMessage("USER_TYPE_USER_TYPE_ID_INVALID")];
+		}
 
-		if(!empty($aMsg))
+		if (!empty($aMsg))
 		{
 			$e = new CAdminException($aMsg);
 			$APPLICATION->ThrowException($e);
@@ -392,287 +338,350 @@ class CAllUserTypeEntity extends CDBResult
 	}
 
 	/**
-	 * Функция добавляет пользовательское свойство.
+	 * Function to add a user property.
 	 *
-	 * <p>Сначала вызывается метод экземпляра объекта CheckFields (т.е. $this->CheckFields($arFields) ).</p>
-	 * <p>Если проверка прошла успешно, выполняется проверка на существование такого поля для данной сущности.</p>
-	 * <p>Далее при необходимости создаются таблички вида <b>b_uts_[ENTITY_ID]</b> и <b>b_utm_[ENTITY_ID]</b>.</p>
-	 * <p>После чего метаданные сохраняются в БД.</p>
-	 * <p>И только после этого <b>изменяется стуктура таблицы b_uts_[ENTITY_ID]</b>.</p>
-	 * <p>Массив arFields:</p>
+	 * <p>First, the instance method CheckFields is called (i.e., $this->CheckFields($arFields) ).</p>
+	 * <p>If the validation is successful, a check is performed to see if such a field already exists for the given entity.</p>
+	 * <p>Then, if necessary, tables of the form <b>b_uts_[ENTITY_ID]</b> and <b>b_utm_[ENTITY_ID]</b> are created.</p>
+	 * <p>After that, the metadata is saved in the database.</p>
+	 * <p>Only after this, <b>the structure of the table b_uts_[ENTITY_ID] is modified</b>.</p>
+	 * <p>Array arFields:</p>
 	 * <ul>
-	 * <li>ENTITY_ID - сущность
-	 * <li>FIELD_NAME - фактически имя столбца в БД в котором будут храниться значения свойства.
-	 * <li>USER_TYPE_ID - тип свойства
-	 * <li>XML_ID - идентификатор для использования при импорте/экспорте
-	 * <li>SORT - порядок сортировки (по умолчанию 100)
-	 * <li>MULTIPLE - признак множественности Y/N (по умолчанию N)
-	 * <li>MANDATORY - признак обязательности ввода значения Y/N (по умолчанию N)
-	 * <li>SHOW_FILTER - показывать или нет в фильтре админ листа и какой тип использовать. см. ниже.
-	 * <li>SHOW_IN_LIST - показывать или нет в админ листе (по умолчанию Y)
-	 * <li>EDIT_IN_LIST - разрешать редактирование в формах, но не в API! (по умолчанию Y)
-	 * <li>IS_SEARCHABLE - поле участвует в поиске (по умолчанию N)
-	 * <li>SETTINGS - массив с настройками свойства зависимыми от типа свойства. Проходят "очистку" через обработчик типа PrepareSettings.
-	 * <li>EDIT_FORM_LABEL - массив языковых сообщений вида array("ru"=>"привет", "en"=>"hello")
+	 * <li>ENTITY_ID - entity
+	 * <li>FIELD_NAME - the actual column name in the database where the property values will be stored.
+	 * <li>USER_TYPE_ID - property type
+	 * <li>XML_ID - identifier for use in import/export
+	 * <li>SORT - sort order (default 100)
+	 * <li>MULTIPLE - multiplicity flag Y/N (default N)
+	 * <li>MANDATORY - mandatory value input flag Y/N (default N)
+	 * <li>SHOW_FILTER - whether to show in the admin list filter and what type to use. See below.
+	 * <li>SHOW_IN_LIST - whether to show in the admin list (default Y)
+	 * <li>EDIT_IN_LIST - allow editing in forms, but not in API! (default Y)
+	 * <li>IS_SEARCHABLE - field participates in search (default N)
+	 * <li>SETTINGS - array with property settings dependent on the property type. They are "cleaned" through the type handler PrepareSettings.
+	 * <li>EDIT_FORM_LABEL - array of language messages in the form array("ru"=>"привет", "en"=>"hello")
 	 * <li>LIST_COLUMN_LABEL
 	 * <li>LIST_FILTER_LABEL
 	 * <li>ERROR_MESSAGE
 	 * <li>HELP_MESSAGE
 	 * </ul>
-	 * <p>В случае ошибки ловите исключение приложения!</p>
-	 * <p>Значения для SHOW_FILTER:</p>
+	 * <p>In case of an error, catch the application exception!</p>
+	 * <p>Values for SHOW_FILTER:</p>
 	 * <ul>
-	 * <li>N - не показывать
-	 * <li>I - точное совпадение
-	 * <li>E - маска
-	 * <li>S - подстрока
+	 * <li>N - do not show
+	 * <li>I - exact match
+	 * <li>E - mask
+	 * <li>S - substring
 	 * </ul>
-	 * @param array $arFields метаданные нового свойства
+	 * @param array $arFields Metadata of the new property
 	 * @param bool $bCheckUserType
-	 * @return integer - иднтификатор добавленного свойства, false - если свойство не было добавлено.
+	 * @return integer - identifier of the added property, false - if the property was not added.
 	 */
-	function Add($arFields, $bCheckUserType = true)
+	public function Add($arFields, $bCheckUserType = true)
 	{
-		global $DB, $APPLICATION, $USER_FIELD_MANAGER, $CACHE_MANAGER;
+		global $DB, $APPLICATION, $USER_FIELD_MANAGER;
 
-		if(!$this->CheckFields(0, $arFields, $bCheckUserType))
+		if (!$this->CheckFields(0, $arFields, $bCheckUserType))
+		{
 			return false;
+		}
 
-		$rs = CUserTypeEntity::GetList(array(), array(
+		$rs = CUserTypeEntity::GetList([], [
 			"ENTITY_ID" => $arFields["ENTITY_ID"],
 			"FIELD_NAME" => $arFields["FIELD_NAME"],
-		));
+		]);
 
-		if($rs->Fetch())
+		if ($rs->Fetch())
 		{
-			$aMsg = array();
-			$aMsg[] = array(
+			$aMsg = [];
+			$aMsg[] = [
 				"id" => "FIELD_NAME",
-				"text" => GetMessage("USER_TYPE_ADD_ALREADY_ERROR", array(
+				"text" => GetMessage("USER_TYPE_ADD_ALREADY_ERROR", [
 					"#FIELD_NAME#" => htmlspecialcharsbx($arFields["FIELD_NAME"]),
 					"#ENTITY_ID#" => htmlspecialcharsbx($arFields["ENTITY_ID"]),
-				)),
-			);
+				]),
+			];
 			$e = new CAdminException($aMsg);
 			$APPLICATION->ThrowException($e);
 			return false;
 		}
 
 		unset($arFields["ID"]);
-		if(!isset($arFields["SORT"]) || intval($arFields["SORT"]) <= 0)
+		if (!isset($arFields["SORT"]) || intval($arFields["SORT"]) <= 0)
+		{
 			$arFields["SORT"] = 100;
-		if(!isset($arFields["MULTIPLE"]) || $arFields["MULTIPLE"] !== "Y")
+		}
+		if (!isset($arFields["MULTIPLE"]) || $arFields["MULTIPLE"] !== "Y")
+		{
 			$arFields["MULTIPLE"] = "N";
-		if(!isset($arFields["MANDATORY"]) || $arFields["MANDATORY"] !== "Y")
+		}
+		if (!isset($arFields["MANDATORY"]) || $arFields["MANDATORY"] !== "Y")
+		{
 			$arFields["MANDATORY"] = "N";
+		}
 		$arFields["SHOW_FILTER"] = mb_substr($arFields["SHOW_FILTER"] ?? '', 0, 1);
-		if($arFields["SHOW_FILTER"] == '' || mb_strpos("NIES", $arFields["SHOW_FILTER"]) === false)
+		if ($arFields["SHOW_FILTER"] == '' || mb_strpos("NIES", $arFields["SHOW_FILTER"]) === false)
+		{
 			$arFields["SHOW_FILTER"] = "N";
-		if(!isset($arFields["SHOW_IN_LIST"]) || $arFields["SHOW_IN_LIST"] !== "N")
+		}
+		if (!isset($arFields["SHOW_IN_LIST"]) || $arFields["SHOW_IN_LIST"] !== "N")
+		{
 			$arFields["SHOW_IN_LIST"] = "Y";
-		if(!isset($arFields["EDIT_IN_LIST"]) || $arFields["EDIT_IN_LIST"] !== "N")
+		}
+		if (!isset($arFields["EDIT_IN_LIST"]) || $arFields["EDIT_IN_LIST"] !== "N")
+		{
 			$arFields["EDIT_IN_LIST"] = "Y";
-		if(!isset($arFields["IS_SEARCHABLE"]) || $arFields["IS_SEARCHABLE"] !== "Y")
+		}
+		if (!isset($arFields["IS_SEARCHABLE"]) || $arFields["IS_SEARCHABLE"] !== "Y")
+		{
 			$arFields["IS_SEARCHABLE"] = "N";
+		}
 
-		if(!array_key_exists("SETTINGS", $arFields))
-			$arFields["SETTINGS"] = array();
+		if (!array_key_exists("SETTINGS", $arFields))
+		{
+			$arFields["SETTINGS"] = [];
+		}
 		$arFields["SETTINGS"] = serialize($USER_FIELD_MANAGER->PrepareSettings(0, $arFields, $bCheckUserType));
 
 		/**
 		 * events
 		 * PROVIDE_STORAGE - use own uf subsystem to store data (uts/utm tables)
 		 */
-		$commonEventResult = array('PROVIDE_STORAGE' => true);
+		$commonEventResult = ['PROVIDE_STORAGE' => true];
 
-		foreach(GetModuleEvents("main", "OnBeforeUserTypeAdd", true) as $arEvent)
+		foreach (GetModuleEvents("main", "OnBeforeUserTypeAdd", true) as $arEvent)
 		{
-			$eventResult = ExecuteModuleEventEx($arEvent, array(&$arFields));
+			$eventResult = ExecuteModuleEventEx($arEvent, [&$arFields]);
 
-			if($eventResult === false)
+			if ($eventResult === false)
 			{
-				if($e = $APPLICATION->GetException())
+				if ($APPLICATION->GetException())
 				{
 					return false;
 				}
 
-				$aMsg = array();
-				$aMsg[] = array(
+				$aMsg = [];
+				$aMsg[] = [
 					"id" => "FIELD_NAME",
-					"text" => GetMessage("USER_TYPE_ADD_ERROR", array(
+					"text" => GetMessage("USER_TYPE_ADD_ERROR", [
 						"#FIELD_NAME#" => htmlspecialcharsbx($arFields["FIELD_NAME"]),
 						"#ENTITY_ID#" => htmlspecialcharsbx($arFields["ENTITY_ID"]),
-					))
-				);
+					]),
+				];
 
 				$e = new CAdminException($aMsg);
 				$APPLICATION->ThrowException($e);
 
 				return false;
 			}
-			elseif(is_array($eventResult))
+			elseif (is_array($eventResult))
 			{
 				$commonEventResult = array_merge($commonEventResult, $eventResult);
 			}
 		}
 
-		if(is_object($USER_FIELD_MANAGER))
-			$USER_FIELD_MANAGER->CleanCache();
-
-		if($commonEventResult['PROVIDE_STORAGE'])
+		if (is_object($USER_FIELD_MANAGER))
 		{
-			if(!$this->CreatePropertyTables($arFields["ENTITY_ID"]))
-				return false;
+			$USER_FIELD_MANAGER->CleanCache();
+		}
 
+		$entityId = strtolower($arFields['ENTITY_ID']);
+
+		$connection = Application::getConnection();
+
+		// prevents concurrent execution
+		$connection->lock('uf_add_' . $entityId, -1);
+
+		$result = true;
+		if ($commonEventResult['PROVIDE_STORAGE'])
+		{
 			$strType = $USER_FIELD_MANAGER->getUtsDBColumnType($arFields);
 
-			if(!$strType)
+			if (!$strType)
 			{
-				$aMsg = array();
-				$aMsg[] = array(
+				$aMsg = [[
 					"id" => "FIELD_NAME",
-					"text" => GetMessage("USER_TYPE_ADD_ERROR", array(
+					"text" => GetMessage("USER_TYPE_ADD_ERROR", [
 						"#FIELD_NAME#" => htmlspecialcharsbx($arFields["FIELD_NAME"]),
 						"#ENTITY_ID#" => htmlspecialcharsbx($arFields["ENTITY_ID"]),
-					)),
-				);
+					]),
+				]];
 				$e = new CAdminException($aMsg);
 				$APPLICATION->ThrowException($e);
+
 				return false;
 			}
 
-			if(!$DB->Query("select ".$arFields["FIELD_NAME"]." from b_uts_".mb_strtolower($arFields["ENTITY_ID"]) . " where 1=0", true))
+			$this->CreatePropertyTables($arFields["ENTITY_ID"]);
+
+			$tableName = 'b_uts_' . $entityId;
+			$tableFields = $DB->GetTableFields($tableName, false);
+
+			if (isset($tableFields[$arFields['FIELD_NAME']]))
 			{
-				$ddl = "ALTER TABLE b_uts_".mb_strtolower($arFields["ENTITY_ID"]) . " ADD " . $arFields["FIELD_NAME"] . " " . $strType;
-				if(!$DB->DDL($ddl, true, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__))
-				{
-					$aMsg = array();
-					$aMsg[] = array(
-						"id" => "FIELD_NAME",
-						"text" => GetMessage("USER_TYPE_ADD_ERROR", array(
-							"#FIELD_NAME#" => htmlspecialcharsbx($arFields["FIELD_NAME"]),
-							"#ENTITY_ID#" => htmlspecialcharsbx($arFields["ENTITY_ID"]),
-						))
-					);
-					$e = new CAdminException($aMsg);
-					$APPLICATION->ThrowException($e);
-					return false;
-				}
+				// delayed drop hasn't finished job yet, call it manually
+				static::syncColumnsAgent($arFields['ENTITY_ID']);
+			}
+
+			$result = (bool)$DB->DDL('ALTER TABLE ' . $tableName . ' ADD ' . $arFields['FIELD_NAME'] . ' ' . $strType, true);
+
+			if (!$result)
+			{
+				$aMsg = [[
+					"id" => "FIELD_NAME",
+					"text" => GetMessage("USER_TYPE_ADD_ERROR", [
+						"#FIELD_NAME#" => htmlspecialcharsbx($arFields["FIELD_NAME"]),
+						"#ENTITY_ID#" => htmlspecialcharsbx($arFields["ENTITY_ID"]),
+					]),
+				]];
+				$e = new CAdminException($aMsg);
+				$APPLICATION->ThrowException($e);
 			}
 		}
 
-		if($ID = $DB->Add("b_user_field", $arFields, array("SETTINGS")))
+		if ($result)
 		{
-			if(CACHED_b_user_field !== false)
-				$CACHE_MANAGER->CleanDir("b_user_field");
-
-			$arLabels = array("EDIT_FORM_LABEL", "LIST_COLUMN_LABEL", "LIST_FILTER_LABEL", "ERROR_MESSAGE", "HELP_MESSAGE");
-			$arLangs = array();
-			foreach($arLabels as $label)
+			if ($ID = $DB->Add("b_user_field", $arFields, ["SETTINGS"], '', true))
 			{
-				if(isset($arFields[$label]) && is_array($arFields[$label]))
+				$arLabels = ["EDIT_FORM_LABEL", "LIST_COLUMN_LABEL", "LIST_FILTER_LABEL", "ERROR_MESSAGE", "HELP_MESSAGE"];
+				$arLangs = [];
+				foreach ($arLabels as $label)
 				{
-					foreach($arFields[$label] as $lang => $value)
+					if (isset($arFields[$label]) && is_array($arFields[$label]))
 					{
-						$arLangs[$lang][$label] = $value;
+						foreach ($arFields[$label] as $lang => $value)
+						{
+							$arLangs[mb_strtolower($lang)][$label] = $value;
+						}
 					}
 				}
-			}
 
-			foreach($arLangs as $lang => $arLangFields)
-			{
-				$arLangFields["USER_FIELD_ID"] = $ID;
-				$arLangFields["LANGUAGE_ID"] = $lang;
-				$DB->Add("b_user_field_lang", $arLangFields);
+				foreach ($arLangs as $lang => $arLangFields)
+				{
+					$arLangFields["USER_FIELD_ID"] = $ID;
+					$arLangFields["LANGUAGE_ID"] = $lang;
+					$arInsert = $DB->PrepareInsert("b_user_field_lang", $arLangFields);
+					$DB->Query("INSERT INTO b_user_field_lang (" . $arInsert[0] . ") VALUES (" . $arInsert[1] . ")");
+				}
+
+				static::cleanCache($entityId);
 			}
+			else
+			{
+				$result = false;
+			}
+		}
+
+		$connection->unlock('uf_add_' . $entityId);
+
+		if (!$result)
+		{
+			return false;
 		}
 
 		// post event
 		$arFields['ID'] = $ID;
 
-		foreach(GetModuleEvents("main", "OnAfterUserTypeAdd", true) as $arEvent)
+		foreach (GetModuleEvents("main", "OnAfterUserTypeAdd", true) as $arEvent)
 		{
-			ExecuteModuleEventEx($arEvent, array($arFields));
+			ExecuteModuleEventEx($arEvent, [$arFields]);
 		}
 
 		return $ID;
 	}
 
 	/**
-	 * Функция изменяет метаданные пользовательского свойства.
+	 * Function to modify metadata of a user property.
 	 *
-	 * <p>Надо сказать, что для скорейшего завершения разработки было решено пока не реализовывать
-	 * такую же гибкость как в инфоблоках (обойдемся пока без alter'ов и прочего).</p>
-	 * <p>Сначала вызывается метод экземпляра объекта CheckFields (т.е. $this->CheckFields($arFields) ).</p>
-	 * <p>После чего метаданные сохраняются в БД.</p>
-	 * <p>Массив arFields (только то что можно изменять):</p>
+	 * <p>It should be noted that for the sake of faster development, it was decided not to implement
+	 * the same flexibility as in infoblocks (we will do without alters and other things for now).</p>
+	 * <p>First, the instance method CheckFields is called (i.e., $this->CheckFields($arFields) ).</p>
+	 * <p>After that, the metadata is saved in the database.</p>
+	 * <p>Array arFields (only what can be changed):</p>
 	 * <ul>
-	 * <li>SORT - порядок сортировки
-	 * <li>MANDATORY - признак обязательности ввода значения Y/N
-	 * <li>SHOW_FILTER - признак показа в фильтре списка Y/N
-	 * <li>SHOW_IN_LIST - признак показа в списке Y/N
-	 * <li>EDIT_IN_LIST - разрешать редактирование поля в формах админки или нет Y/N
-	 * <li>IS_SEARCHABLE - признак поиска Y/N
-	 * <li>SETTINGS - массив с настройками свойства зависимыми от типа свойства. Проходят "очистку" через обработчик типа PrepareSettings.
-	 * <li>EDIT_FORM_LABEL - массив языковых сообщений вида array("ru"=>"привет", "en"=>"hello")
+	 * <li>SORT - sort order
+	 * <li>MANDATORY - mandatory value input flag Y/N
+	 * <li>SHOW_FILTER - flag to show in the list filter Y/N
+	 * <li>SHOW_IN_LIST - flag to show in the list Y/N
+	 * <li>EDIT_IN_LIST - allow editing the field in admin forms or not Y/N
+	 * <li>IS_SEARCHABLE - search flag Y/N
+	 * <li>SETTINGS - array with property settings dependent on the property type. They are "cleaned" through the type handler PrepareSettings.
+	 * <li>EDIT_FORM_LABEL - array of language messages in the form array("ru"=>"привет", "en"=>"hello")
 	 * <li>LIST_COLUMN_LABEL
 	 * <li>LIST_FILTER_LABEL
 	 * <li>ERROR_MESSAGE
 	 * <li>HELP_MESSAGE
 	 * </ul>
-	 * <p>В случае ошибки ловите исключение приложения!</p>
-	 * @param integer $ID идентификатор свойства
-	 * @param array $arFields новые метаданные свойства
-	 * @return boolean - true в случае успешного обновления, false - в противном случае.
+	 * <p>In case of an error, catch the application exception!</p>
+	 * @param integer $ID Property identifier
+	 * @param array $arFields New property metadata
+	 * @return boolean - true if the update is successful, false otherwise.
 	 */
-	function Update($ID, $arFields)
+	public function Update($ID, $arFields)
 	{
-		global $DB, $USER_FIELD_MANAGER, $CACHE_MANAGER, $APPLICATION;
+		global $DB, $USER_FIELD_MANAGER, $APPLICATION;
+
 		$ID = intval($ID);
+
+		$entityId = $arFields["ENTITY_ID"] ?? null;
 
 		unset($arFields["ENTITY_ID"]);
 		unset($arFields["FIELD_NAME"]);
 		unset($arFields["USER_TYPE_ID"]);
 		unset($arFields["MULTIPLE"]);
 
-		if(!$this->CheckFields($ID, $arFields))
+		if (!$this->CheckFields($ID, $arFields))
+		{
 			return false;
+		}
 
-		if(array_key_exists("SETTINGS", $arFields))
+		if (array_key_exists("SETTINGS", $arFields))
+		{
 			$arFields["SETTINGS"] = serialize($USER_FIELD_MANAGER->PrepareSettings($ID, $arFields));
-		if(array_key_exists("MANDATORY", $arFields) && $arFields["MANDATORY"] !== "Y")
+		}
+		if (array_key_exists("MANDATORY", $arFields) && $arFields["MANDATORY"] !== "Y")
+		{
 			$arFields["MANDATORY"] = "N";
-		if(array_key_exists("SHOW_FILTER", $arFields))
+		}
+		if (array_key_exists("SHOW_FILTER", $arFields))
 		{
 			$arFields["SHOW_FILTER"] = mb_substr($arFields["SHOW_FILTER"], 0, 1);
-			if(mb_strpos("NIES", $arFields["SHOW_FILTER"]) === false)
+			if (mb_strpos("NIES", $arFields["SHOW_FILTER"]) === false)
+			{
 				$arFields["SHOW_FILTER"] = "N";
+			}
 		}
-		if(array_key_exists("SHOW_IN_LIST", $arFields) && $arFields["SHOW_IN_LIST"] !== "N")
+		if (array_key_exists("SHOW_IN_LIST", $arFields) && $arFields["SHOW_IN_LIST"] !== "N")
+		{
 			$arFields["SHOW_IN_LIST"] = "Y";
-		if(array_key_exists("EDIT_IN_LIST", $arFields) && $arFields["EDIT_IN_LIST"] !== "N")
+		}
+		if (array_key_exists("EDIT_IN_LIST", $arFields) && $arFields["EDIT_IN_LIST"] !== "N")
+		{
 			$arFields["EDIT_IN_LIST"] = "Y";
-		if(array_key_exists("IS_SEARCHABLE", $arFields) && $arFields["IS_SEARCHABLE"] !== "Y")
+		}
+		if (array_key_exists("IS_SEARCHABLE", $arFields) && $arFields["IS_SEARCHABLE"] !== "Y")
+		{
 			$arFields["IS_SEARCHABLE"] = "N";
+		}
 
 		// events
-		foreach(GetModuleEvents("main", "OnBeforeUserTypeUpdate", true) as $arEvent)
+		foreach (GetModuleEvents("main", "OnBeforeUserTypeUpdate", true) as $arEvent)
 		{
-			if(ExecuteModuleEventEx($arEvent, array(&$arFields)) === false)
+			if (ExecuteModuleEventEx($arEvent, [&$arFields]) === false)
 			{
-				if($e = $APPLICATION->GetException())
+				if ($APPLICATION->GetException())
 				{
 					return false;
 				}
 
-				$aMsg = array();
-				$aMsg[] = array(
+				$aMsg = [];
+				$aMsg[] = [
 					"id" => "FIELD_NAME",
-					"text" => GetMessage("USER_TYPE_UPDATE_ERROR", array(
+					"text" => GetMessage("USER_TYPE_UPDATE_ERROR", [
 						"#FIELD_NAME#" => htmlspecialcharsbx($arFields["FIELD_NAME"]),
 						"#ENTITY_ID#" => htmlspecialcharsbx($arFields["ENTITY_ID"]),
-					))
-				);
+					]),
+				];
 
 				$e = new CAdminException($aMsg);
 				$APPLICATION->ThrowException($e);
@@ -681,56 +690,73 @@ class CAllUserTypeEntity extends CDBResult
 			}
 		}
 
-		if(is_object($USER_FIELD_MANAGER))
+		if (is_object($USER_FIELD_MANAGER))
+		{
 			$USER_FIELD_MANAGER->CleanCache();
+		}
 
 		$strUpdate = $DB->PrepareUpdate("b_user_field", $arFields);
 
-		static $arLabels = array("EDIT_FORM_LABEL", "LIST_COLUMN_LABEL", "LIST_FILTER_LABEL", "ERROR_MESSAGE", "HELP_MESSAGE");
-		$arLangs = array();
-		foreach($arLabels as $label)
+		static $arLabels = ["EDIT_FORM_LABEL", "LIST_COLUMN_LABEL", "LIST_FILTER_LABEL", "ERROR_MESSAGE", "HELP_MESSAGE"];
+		$arLangs = [];
+		foreach ($arLabels as $label)
 		{
-			if(is_array($arFields[$label]))
+			if (isset($arFields[$label]) && is_array($arFields[$label]))
 			{
-				foreach($arFields[$label] as $lang => $value)
+				foreach ($arFields[$label] as $lang => $value)
 				{
-					$arLangs[$lang][$label] = $value;
+					$arLangs[mb_strtolower($lang)][$label] = $value;
 				}
 			}
 		}
 
-		if($strUpdate <> "" || !empty($arLangs))
+		if ($strUpdate <> "" || !empty($arLangs))
 		{
-			if(CACHED_b_user_field !== false)
+			if ($entityId === null)
 			{
-				$CACHE_MANAGER->CleanDir("b_user_field");
-			}
-
-			if($strUpdate <> "")
-			{
-				$strSql = "UPDATE b_user_field SET " . $strUpdate . " WHERE ID = " . $ID;
-				if(array_key_exists("SETTINGS", $arFields))
-					$arBinds = array("SETTINGS" => $arFields["SETTINGS"]);
-				else
-					$arBinds = array();
-				$DB->QueryBind($strSql, $arBinds);
-			}
-
-			if(!empty($arLangs))
-			{
-				$DB->Query("DELETE FROM b_user_field_lang WHERE USER_FIELD_ID = " . $ID, false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-
-				foreach($arLangs as $lang => $arLangFields)
+				$rsUserField = CUserTypeEntity::GetList([], ["ID" => $ID]);
+				if ($usersField = $rsUserField->Fetch())
 				{
-					$arLangFields["USER_FIELD_ID"] = $ID;
-					$arLangFields["LANGUAGE_ID"] = $lang;
-					$DB->Add("b_user_field_lang", $arLangFields);
+					$entityId = $usersField["ENTITY_ID"];
 				}
 			}
 
-			foreach(GetModuleEvents("main", "OnAfterUserTypeUpdate", true) as $arEvent)
+			if ($strUpdate <> "")
 			{
-				ExecuteModuleEventEx($arEvent, array($arFields, $ID));
+				$strSql = "UPDATE b_user_field SET " . $strUpdate . " WHERE ID = " . $ID;
+				if (array_key_exists("SETTINGS", $arFields))
+				{
+					$arBinds = ["SETTINGS" => $arFields["SETTINGS"]];
+				}
+				else
+				{
+					$arBinds = [];
+				}
+				$DB->QueryBind($strSql, $arBinds);
+			}
+
+			if (!empty($arLangs))
+			{
+				$DB->StartTransaction();
+
+				$DB->Query("DELETE FROM b_user_field_lang WHERE USER_FIELD_ID = " . $ID);
+
+				foreach ($arLangs as $lang => $arLangFields)
+				{
+					$arLangFields["USER_FIELD_ID"] = $ID;
+					$arLangFields["LANGUAGE_ID"] = $lang;
+					$arInsert = $DB->PrepareInsert("b_user_field_lang", $arLangFields);
+					$DB->Query("INSERT INTO b_user_field_lang (" . $arInsert[0] . ") VALUES (" . $arInsert[1] . ")");
+				}
+
+				$DB->Commit();
+			}
+
+			static::cleanCache(strtolower($entityId ?? ''));
+
+			foreach (GetModuleEvents("main", "OnAfterUserTypeUpdate", true) as $arEvent)
+			{
+				ExecuteModuleEventEx($arEvent, [$arFields, $ID]);
 			}
 		}
 
@@ -738,183 +764,245 @@ class CAllUserTypeEntity extends CDBResult
 	}
 
 	/**
-	 * Функция удаляет пользовательское свойство и все его значения.
+	 * Function to delete a user property and all its values.
 	 *
-	 * <p>Сначала удаляются метаданные свойства.</p>
-	 * <p>Затем из таблички вида <b>b_utm_[ENTITY_ID]</b> удаляются все значения множественных свойств.</p>
-	 * <p>После чего у таблички вида <b>b_uts_[ENTITY_ID]</b> дропается колонка.</p>
-	 * <p>И если это было "последнее" свойство для сущности, то дропаются сами таблички хранившие значения.</p>
-	 * @param integer $ID идентификатор свойства
-	 * @return CDBResult - результат выполнения последнего запроса функции.
+	 * <p>First, the property metadata is deleted.</p>
+	 * <p>Then, all values of multiple properties are deleted from the table of the form <b>b_utm_[ENTITY_ID]</b>.</p>
+	 * <p>After that, the column is dropped from the table of the form <b>b_uts_[ENTITY_ID]</b>.</p>
+	 * @param integer $ID Property identifier
+	 * @return CDBResult | false - result of the last query executed by the function.
 	 */
-	function Delete($ID)
+	public function Delete($ID)
 	{
-		global $DB, $CACHE_MANAGER, $USER_FIELD_MANAGER, $APPLICATION;
+		global $DB, $USER_FIELD_MANAGER, $APPLICATION;
+
 		$ID = intval($ID);
 
-		$rs = $this->GetList(array(), array("ID" => $ID));
-		if($arField = $rs->Fetch())
+		$rs = $this->GetList([], ["ID" => $ID]);
+		if ($arField = $rs->Fetch())
 		{
 			/**
 			 * events
 			 * PROVIDE_STORAGE - use own uf subsystem to store data (uts/utm tables)
 			 */
-			$commonEventResult = array('PROVIDE_STORAGE' => true);
+			$commonEventResult = ['PROVIDE_STORAGE' => true];
 
-			foreach(GetModuleEvents("main", "OnBeforeUserTypeDelete", true) as $arEvent)
+			foreach (GetModuleEvents("main", "OnBeforeUserTypeDelete", true) as $arEvent)
 			{
-				$eventResult = ExecuteModuleEventEx($arEvent, array(&$arField));
+				$eventResult = ExecuteModuleEventEx($arEvent, [&$arField]);
 
-				if($eventResult === false)
+				if ($eventResult === false)
 				{
-					if($e = $APPLICATION->GetException())
+					if ($APPLICATION->GetException())
 					{
 						return false;
 					}
 
-					$aMsg = array();
-					$aMsg[] = array(
+					$aMsg = [];
+					$aMsg[] = [
 						"id" => "FIELD_NAME",
-						"text" => GetMessage("USER_TYPE_DELETE_ERROR", array(
+						"text" => GetMessage("USER_TYPE_DELETE_ERROR", [
 							"#FIELD_NAME#" => htmlspecialcharsbx($arField["FIELD_NAME"]),
 							"#ENTITY_ID#" => htmlspecialcharsbx($arField["ENTITY_ID"]),
-						))
-					);
+						]),
+					];
 
 					$e = new CAdminException($aMsg);
 					$APPLICATION->ThrowException($e);
 
 					return false;
 				}
-				elseif(is_array($eventResult))
+				elseif (is_array($eventResult))
 				{
 					$commonEventResult = array_merge($commonEventResult, $eventResult);
 				}
 			}
 
-			if(is_object($USER_FIELD_MANAGER))
-				$USER_FIELD_MANAGER->CleanCache();
+			$entityId = strtolower($arField["ENTITY_ID"]);
 
 			$arType = $USER_FIELD_MANAGER->GetUserType($arField["USER_TYPE_ID"]);
 			//We need special handling of file type properties
-			if($arType)
+			if ($arType)
 			{
-				if($arType["BASE_TYPE"] == "file" && $commonEventResult['PROVIDE_STORAGE'])
+				if ($arType["BASE_TYPE"] == "file" && $commonEventResult['PROVIDE_STORAGE'])
 				{
 					// only if we store values
-					if($arField["MULTIPLE"] == "Y")
-						$strSql = "SELECT VALUE_INT VALUE FROM b_utm_".mb_strtolower($arField["ENTITY_ID"]) . " WHERE FIELD_ID=" . $arField["ID"];
+					if ($arField["MULTIPLE"] == "Y")
+					{
+						$strSql = "SELECT VALUE_INT AS VALUE FROM b_utm_" . $entityId . " WHERE FIELD_ID=" . $arField["ID"];
+					}
 					else
-						$strSql = "SELECT ".$arField["FIELD_NAME"]." VALUE FROM b_uts_".mb_strtolower($arField["ENTITY_ID"]);
-					$rsFile = $DB->Query($strSql, false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-					while($arFile = $rsFile->Fetch())
+					{
+						$strSql = "SELECT " . $arField["FIELD_NAME"] . " AS VALUE FROM b_uts_" . $entityId;
+					}
+					$rsFile = $DB->Query($strSql);
+					while ($arFile = $rsFile->Fetch())
 					{
 						CFile::Delete($arFile["VALUE"]);
 					}
 				}
-				elseif($arType["BASE_TYPE"] == "enum")
+				elseif ($arType["BASE_TYPE"] == "enum")
 				{
 					$obEnum = new CUserFieldEnum;
 					$obEnum->DeleteFieldEnum($arField["ID"]);
 				}
 			}
 
-			if(CACHED_b_user_field !== false) $CACHE_MANAGER->CleanDir("b_user_field");
-			$rs = $DB->Query("DELETE FROM b_user_field_lang WHERE USER_FIELD_ID = " . $ID, false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-			if($rs)
-				$rs = $DB->Query("DELETE FROM b_user_field WHERE ID = " . $ID, false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
+			$rs = $DB->Query("DELETE FROM b_user_field_lang WHERE USER_FIELD_ID = " . $ID);
+			if ($rs)
+			{
+				$rs = $DB->Query("DELETE FROM b_user_field WHERE ID = " . $ID);
+			}
 
-			if($rs && $commonEventResult['PROVIDE_STORAGE'])
+			static::cleanCache($entityId);
+
+			foreach (GetModuleEvents("main", "OnAfterUserTypeDelete", true) as $arEvent)
+			{
+				ExecuteModuleEventEx($arEvent, [$arField, $ID]);
+			}
+
+			if ($rs && $commonEventResult['PROVIDE_STORAGE'])
 			{
 				// only if we store values
-				$rs = $this->GetList(array(), array("ENTITY_ID" => $arField["ENTITY_ID"]));
-				if($rs->Fetch()) // more than one
-				{
-					foreach($this->DropColumnSQL("b_uts_".mb_strtolower($arField["ENTITY_ID"]), array($arField["FIELD_NAME"])) as $strSql)
-						$DB->Query($strSql, false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-					$rs = $DB->Query("DELETE FROM b_utm_".mb_strtolower($arField["ENTITY_ID"]) . " WHERE FIELD_ID = '" . $ID . "'", false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-				}
-				else
-				{
-					$DB->Query("DROP SEQUENCE SQ_B_UTM_" . $arField["ENTITY_ID"], true);
-					$DB->Query("DROP TABLE b_uts_".mb_strtolower($arField["ENTITY_ID"]), false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-					$rs = $DB->Query("DROP TABLE b_utm_".mb_strtolower($arField["ENTITY_ID"]), false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-				}
-			}
+				$DB->Query("DELETE FROM b_utm_" . $entityId . " WHERE FIELD_ID = '" . $ID . "'");
 
-			foreach(GetModuleEvents("main", "OnAfterUserTypeDelete", true) as $arEvent)
-			{
-				ExecuteModuleEventEx($arEvent, array($arField, $ID));
+				// delayed column drop
+				CTimeZone::Disable();
+				CAgent::AddAgent("CUserTypeEntity::syncColumnsAgent('{$arField["ENTITY_ID"]}');", 'main', 'N', 1, '', 'Y', ConvertTimeStamp(time() + 30, 'FULL'), 100, false, false);
+				CTimeZone::Enable();
 			}
 		}
+
 		return $rs;
 	}
 
 	/**
-	 * Функция удаляет ВСЕ пользовательские свойства сущности.
+	 * Function to delete ALL user properties of an entity.
 	 *
-	 * <p>Сначала удаляются метаданные свойств.</p>
-	 * <p>Можно вызвать при удалении инфоблока например.</p>
-	 * <p>Затем таблички вида <b>b_utm_[ENTITY_ID]</b> и <b>b_uts_[ENTITY_ID]</b> дропаются.</p>
-	 * @param string $entity_id идентификатор сущности
-	 * @return CDBResult - результат выполнения последнего запроса функции.
+	 * <p>First, the property metadata is deleted.</p>
+	 * <p>Can be called, for example, when deleting an infoblock.</p>
+	 * <p>Then, the tables of the form <b>b_utm_[ENTITY_ID]</b> and <b>b_uts_[ENTITY_ID]</b> are dropped.</p>
+	 * @param string $entity_id Entity identifier
+	 * @return CDBResult - result of the last query executed by the function.
 	 */
-	function DropEntity($entity_id)
+	public function DropEntity($entity_id)
 	{
-		global $DB, $CACHE_MANAGER, $USER_FIELD_MANAGER;
+		global $DB, $USER_FIELD_MANAGER;
+
 		$entity_id = preg_replace("/[^0-9A-Z_]+/", "", $entity_id);
 
 		$rs = true;
-		$rsFields = $this->GetList(array(), array("ENTITY_ID" => $entity_id));
+		$rsFields = $this->GetList([], ["ENTITY_ID" => $entity_id]);
 		//We need special handling of file and enum type properties
-		while($arField = $rsFields->Fetch())
+		while ($arField = $rsFields->Fetch())
 		{
 			$arType = $USER_FIELD_MANAGER->GetUserType($arField["USER_TYPE_ID"]);
-			if($arType && ($arType["BASE_TYPE"] == "file" || $arType["BASE_TYPE"] == "enum"))
+			if ($arType && ($arType["BASE_TYPE"] == "file" || $arType["BASE_TYPE"] == "enum"))
 			{
 				$this->Delete($arField["ID"]);
 			}
 		}
 
-		$bDropTable = false;
-		$rsFields = $this->GetList(array(), array("ENTITY_ID" => $entity_id));
-		while($arField = $rsFields->Fetch())
+		$rsFields = $this->GetList([], ["ENTITY_ID" => $entity_id]);
+		while ($arField = $rsFields->Fetch())
 		{
-			$bDropTable = true;
-			$DB->Query("DELETE FROM b_user_field_lang WHERE USER_FIELD_ID = " . $arField["ID"], false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-			$rs = $DB->Query("DELETE FROM b_user_field WHERE ID = " . $arField["ID"], false, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
+			$DB->Query("DELETE FROM b_user_field_lang WHERE USER_FIELD_ID = " . $arField["ID"]);
+			$rs = $DB->Query("DELETE FROM b_user_field WHERE ID = " . $arField["ID"]);
+
+			foreach (GetModuleEvents("main", "OnAfterUserTypeDelete", true) as $arEvent)
+			{
+				ExecuteModuleEventEx($arEvent, [$arField, $arField["ID"]]);
+			}
 		}
 
-		if($bDropTable)
-		{
-			$DB->Query("DROP SEQUENCE SQ_B_UTM_" . $entity_id, true);
-			$DB->Query("DROP TABLE b_uts_".mb_strtolower($entity_id), true, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-			$rs = $DB->Query("DROP TABLE b_utm_".mb_strtolower($entity_id), true, "FILE: " . __FILE__ . "<br>LINE: " . __LINE__);
-		}
+		$entityId = strtolower($entity_id);
 
-		if(CACHED_b_user_field !== false)
-			$CACHE_MANAGER->CleanDir("b_user_field");
+		static::cleanCache($entityId);
 
-		if(is_object($USER_FIELD_MANAGER))
-			$USER_FIELD_MANAGER->CleanCache();
+		$DB->Query("DROP TABLE IF EXISTS b_uts_" . $entityId);
+		$DB->Query("DROP TABLE IF EXISTS b_utm_" . $entityId);
 
 		return $rs;
 	}
 
+	protected static function cleanCache(string $entityId): void
+	{
+		global $CACHE_MANAGER, $USER_FIELD_MANAGER;
+
+		if (CACHED_b_user_field !== false)
+		{
+			$CACHE_MANAGER->CleanDir("b_user_field_{$entityId}");
+			$CACHE_MANAGER->CleanDir("b_user_field");
+		}
+		UserFieldTable::cleanCache();
+		UserFieldLangTable::cleanCache();
+		$USER_FIELD_MANAGER->CleanCache();
+		static::$cache = [];
+	}
+
 	/**
-	 * Функция Fetch.
+	 * Fetch function.
 	 *
-	 * <p>Десериализует поле SETTINGS.</p>
-	 * @return array возвращает false в случае последней записи выборки.
+	 * <p>Deserializes the SETTINGS field.</p>
+	 * @return array Returns false in case of the last record in the selection.
 	 */
 	function Fetch()
 	{
 		$res = parent::Fetch();
-		if($res && $res["SETTINGS"] <> '')
+		if ($res && $res["SETTINGS"] <> '')
 		{
 			$res["SETTINGS"] = unserialize($res["SETTINGS"], ['allowed_classes' => false]);
 		}
 		return $res;
+	}
+
+	public static function syncColumnsAgent(string $entityId): string
+	{
+		global $DB;
+
+		$entityId = strtolower($entityId);
+		$table = 'b_uts_' . $entityId;
+
+		$connection = Application::getConnection();
+
+		if (!$connection->isTableExists($table))
+		{
+			return '';
+		}
+
+		// prevents concurrent execution
+		$connection->lock('uf_sync_' . $entityId, -1);
+
+		$fields = [];
+		$fieldsResult = UserFieldTable::getList([
+			'select' => ['FIELD_NAME'],
+			'filter' => ['=ENTITY_ID' => strtoupper($entityId)],
+		]);
+		while ($field = $fieldsResult->fetch())
+		{
+			$fields[$field["FIELD_NAME"]] = 1;
+		}
+
+		$columns = array_keys($DB->GetTableFields($table, false));
+
+		$drops = [];
+		foreach ($columns as $column)
+		{
+			if (str_starts_with($column, 'UF_') && !isset($fields[$column]))
+			{
+				$drops[] = 'DROP ' . $column;
+			}
+		}
+
+		if (!empty($drops))
+		{
+			$DB->DDL('ALTER TABLE ' . $table . ' '. implode(', ', $drops));
+		}
+
+		$connection->unlock('uf_sync_' . $entityId);
+
+		// one time agent
+		return '';
 	}
 }
 

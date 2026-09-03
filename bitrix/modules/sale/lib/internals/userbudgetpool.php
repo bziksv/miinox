@@ -5,8 +5,6 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Sale;
 use Bitrix\Main;
 
-Loc::loadMessages(__FILE__);
-
 class UserBudgetPool
 {
 	private const STATUS_LOCKED_NOW = 1;
@@ -39,9 +37,8 @@ class UserBudgetPool
 	 * @param $budgetType
 	 * @param Sale\Order $order
 	 * @param Sale\Payment|null $payment
-	 * @throws Main\Db\SqlQueryException
 	 */
-	public function add($sum, $budgetType, Sale\Order $order, Sale\Payment $payment = null)
+	public function add($sum, $budgetType, Sale\Order $order, ?Sale\Payment $payment = null)
 	{
 		if (!$this->isLocked())
 		{
@@ -70,17 +67,14 @@ class UserBudgetPool
 	}
 
 	/**
-	 * @throws Main\Db\SqlQueryException
+	 * @return void
 	 */
-	protected function lock()
+	protected function lock(): void
 	{
 		if ($this->statusLock === self::STATUS_NOT_LOCKED)
 		{
 			$connection = Main\Application::getConnection();
-			$name = $connection->getSqlHelper()->forSql($this->getUniqLockName());
-			$dbRes = $connection->query("SELECT GET_LOCK('{$name}', 0) as L");
-			$result = $dbRes->fetch();
-			if ($result['L'] === '0')
+			if (!$connection->lock($this->getUniqLockName()))
 			{
 				$this->statusLock = self::STATUS_LOCKED_EARLIER;
 
@@ -97,22 +91,21 @@ class UserBudgetPool
 	}
 
 	/**
-	 * @throws Main\Db\SqlQueryException
 	 * @return void
 	 */
-	protected function unlock()
+	protected function unlock(): void
 	{
 		if ($this->statusLock === self::STATUS_LOCKED_NOW)
 		{
 			$connection = Main\Application::getConnection();
-			$name = $connection->getSqlHelper()->forSql($this->getUniqLockName());
-			$connection->query("SELECT RELEASE_LOCK('{$name}')");
+			$connection->unlock($this->getUniqLockName());
+			unset($connection);
 
 			$this->statusLock = self::STATUS_NOT_LOCKED;
 		}
 	}
 
-	protected function isLocked()
+	protected function isLocked(): bool
 	{
 		return
 			$this->statusLock === self::STATUS_LOCKED_EARLIER
@@ -120,7 +113,7 @@ class UserBudgetPool
 		;
 	}
 
-	protected function isStatusLockEarlier()
+	protected function isStatusLockEarlier(): bool
 	{
 		return $this->statusLock === self::STATUS_LOCKED_EARLIER;
 	}
@@ -180,7 +173,7 @@ class UserBudgetPool
 	 * @param Sale\Payment|null $payment
 	 * @throws Main\Db\SqlQueryException
 	 */
-	public static function addPoolItem(Sale\Order $order, $value, $type, Sale\Payment $payment = null)
+	public static function addPoolItem(Sale\Order $order, $value, $type, ?Sale\Payment $payment = null)
 	{
 		if (floatval($value) == 0)
 			return;

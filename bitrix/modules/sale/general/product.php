@@ -397,7 +397,7 @@ class CALLSaleProduct
 	/** @deprecated */
 	public static function RefreshProductList()
 	{
-		$liveTime = (int)Main\Config\Option::get('sale', 'p2p_del_exp', 10);
+		$liveTime = (int)Main\Config\Option::get('sale', 'p2p_del_exp');
 		\Bitrix\Sale\Product2ProductTable::refreshProductStatistic($liveTime);
 
 		return "CSaleProduct::RefreshProductList();";
@@ -506,7 +506,7 @@ class CALLSaleProduct
 				Catalog\Product\Price\Calculation::pushConfig();
 				Catalog\Product\Price\Calculation::setConfig(array(
 					'CURRENCY' => Sale\Internals\SiteCurrencyTable::getSiteCurrency($LID),
-					'PRECISION' => (int)Main\Config\Option::get('sale', 'value_precision'),
+					'PRECISION' => Sale\PriceMaths::getCurrentPrecision(),
 					'USE_DISCOUNTS' => true,
 					'RESULT_WITH_VAT' => true
 				));
@@ -587,7 +587,7 @@ class CAllSaleViewedProduct
 		$strSql = "UPDATE b_sale_viewed_product SET ".
 						" ".$strUpdate.$strUpdateSql.
 						" WHERE ID = ".$ID." ";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 
 		foreach(GetModuleEvents("sale", "OnViewedUpdate", true) as $arEvent)
 			ExecuteModuleEventEx($arEvent, array($ID, $arFields));

@@ -8,12 +8,12 @@ class Updater
 {
 	protected $dbType = '';
 	protected $delimiter = '';
-	/** @var \Bitrix\Perfmon\Sql\Table  */
+	/** @var \Bitrix\Perfmon\Sql\Table */
 	protected $tableCheck = null;
-	protected $conditions = array();
+	protected $columns = [];
 
 	/** @var \Bitrix\Perfmon\Php\Statement[]*/
-	protected  $statements = array();
+	protected $statements = [];
 
 	/**
 	 * Sets database type. Currently supported:
@@ -93,22 +93,15 @@ class Updater
 			}
 
 			if (!$this->tableCheck)
-				throw new NotSupportedException("no CHECK TABLE found.");
+			{
+				throw new NotSupportedException('no CHECK TABLE found.');
+			}
 
-			$php = $this->handle($diff);
-
-			return
-				"if (\$updater->CanUpdateDatabase() && \$updater->TableExists('".EscapePHPString($this->tableCheck->name)."'))\n".
-				"{\n".
-				"\tif (\$DB->type == \"".EscapePHPString($this->dbType)."\")\n".
-				"\t{\n".
-				$php.
-				"\t}\n".
-				"}\n";
+			return $this->handle($diff);
 		}
 		else
 		{
-			return "";
+			return '';
 		}
 	}
 
@@ -119,7 +112,7 @@ class Updater
 	 */
 	protected function handle(array $diff)
 	{
-		$this->conditions = array();
+		$this->columns = [];
 		foreach ($diff as $pair)
 		{
 			if (!isset($pair[0]))
@@ -136,16 +129,35 @@ class Updater
 			}
 		}
 
-		$result = "";
-		foreach ($this->conditions as $condition => $statements)
+		foreach ($this->columns as $columns)
 		{
-			$result .= $condition;
-			if ($condition)
-				$result .= "\t\t{\n";
-			$result .= implode("", $statements);
-			if ($condition)
-				$result .= "\t\t}\n";
+			$ddl = ''; $predicate2 = [];
+			foreach ($columns as $column)
+			{
+				$predicate2[] = $column[0];
+				if ($ddl)
+				{
+					$ddl .= ', ' . preg_replace('/^ALTER TABLE [^ ]+ /', '', $column[1]);
+				}
+				else
+				{
+					$ddl = $column[1];
+				}
+			}
+
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\');');
+			$stmt->dependOn = $columns[0][2];
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
+			$stmt->addCondition($columns[0][3]);
+			$stmt->addCondition($columns[0][0]);
+
+			$this->statements[] = $stmt;
 		}
+
+		$updaterSteps = $this->getStatements();
+		$codeTree = new \Bitrix\Perfmon\Php\CodeTree($updaterSteps);
+		$result = $codeTree->getCode(0);
 
 		return $result;
 	}
@@ -157,93 +169,72 @@ class Updater
 	 */
 	protected function handleCreate(BaseObject $object)
 	{
+		$stmt = null;
+
 		if ($object instanceof Sequence || $object instanceof Procedure)
 		{
 			$ddl = $object->getCreateDdl($this->dbType);
 
-			$this->conditions[""][] = $this->multiLinePhp("\t\t\$DB->Query(\"", $ddl, "\", true);\n");
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
-			$stmt->dependOn = $this->tableCheck->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($this->tableCheck->getLowercasedName())."\")");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\', true);');
+			$stmt->dependOn = $this->tableCheck->getUnquotedName();
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
+			$stmt->addCondition('$updater->TableExists(\'' . EscapePHPString($this->tableCheck->getUnquotedName(), '\'') . '\')');
 		}
 		elseif ($object instanceof Table)
 		{
 			$ddl = $object->getCreateDdl($this->dbType);
-			$predicate = "!\$updater->TableExists(\"".EscapePHPString($object->name)."\")";
-			$cond = "\t\tif ($predicate)\n";
+			$predicate = '!$updater->TableExists(\'' . EscapePHPString($object->name, '\'') . '\')';
+			$cond = "\tif (${predicate})\n";
 
-			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"\n\t\t\t\t", str_replace("\n", "\n\t\t\t\t", $ddl), "\n\t\t\t\");\n");
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
-			$stmt->tableName = $object->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($this->tableCheck->getLowercasedName())."\")");
-			$stmt->addCondition("!\$updater->TableExists(\"".EscapePHPString($object->getLowercasedName())."\")");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\', true);');
+			$stmt->tableName = $object->getUnquotedName();
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
+			if ($this->tableCheck->getUnquotedName() !== $object->getUnquotedName())
+			{
+				$stmt->addCondition('$updater->TableExists(\'' . EscapePHPString($this->tableCheck->getUnquotedName(), '\'') . '\')');
+			}
+			$stmt->addCondition('!$updater->TableExists(\'' . EscapePHPString($object->getUnquotedName(), '\'') . '\')');
 		}
 		elseif ($object instanceof Column)
 		{
 			$ddl = $object->getCreateDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
-			$predicate2 = "!\$DB->Query(\"SELECT ".EscapePHPString($object->name)." FROM ".EscapePHPString($object->parent->getLowercasedName())." WHERE 1=0\", true)";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\')';
+			$cond = "\t\tif (${predicate})\n";
+			$predicate2 = '!$DB->Query(\'SELECT ' . EscapePHPString($object->name, '\'') . ' FROM ' . EscapePHPString($object->parent->getUnquotedName(), '\'') . ' WHERE 1=0\', true)';
 
-			$this->conditions[$cond][] =
-				"\t\t\tif ($predicate2)\n".
-				"\t\t\t{\n".
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $ddl, "\");\n").
-				"\t\t\t}\n";
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
-			$stmt->dependOn = $object->parent->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition($predicate);
-			$stmt->addCondition($predicate2);
+			$this->columns[$cond][] = [$predicate2, $ddl, $object->parent->getUnquotedName(), $predicate, $predicate2];
 		}
 		elseif ($object instanceof Index)
 		{
 			$ddl = $object->getCreateDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
-			$predicate2 = "!\$DB->IndexExists(\"".EscapePHPString($object->parent->getUnquotedName())."\", array(".$this->multiLinePhp("\"", $object->getUnquotedName($object->columns), "\", ")."), true)";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\')';
+			$predicate2 = '!$DB->IndexExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\', [' . $this->multiLinePhp('\'', $object->getUnquotedName($object->columns), '\', ') . '], true)';
 
-			$this->conditions[$cond][] =
-				"\t\t\tif ($predicate2)\n".
-				"\t\t\t{\n".
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $ddl, "\");\n").
-				"\t\t\t}\n";
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
-			$stmt->dependOn = $object->parent->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\');');
+			$stmt->dependOn = $object->parent->getUnquotedName();
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 			$stmt->addCondition($predicate2);
 		}
 		elseif ($object instanceof Trigger || $object instanceof Constraint)
 		{
 			$ddl = $object->getCreateDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\')';
 
-			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"", $ddl, "\", true);\n");
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
-			$stmt->dependOn = $object->parent->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\', true);');
+			$stmt->dependOn = $object->parent->getUnquotedName();
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 		}
 		else
 		{
-			$this->conditions[""][] = "\t\t//create for ".get_class($object)." not supported yet\n";
-			$stmt = $this->createStatement("", "//create for ".get_class($object)." not supported yet", "");
+			$stmt = $this->createStatement('', '//create for ' . get_class($object) . ' not supported yet', '');
 		}
-		
+
 		if ($stmt)
 		{
 			$this->statements[] = $stmt;
@@ -257,85 +248,61 @@ class Updater
 	 */
 	protected function handleDrop(BaseObject $object)
 	{
+		$stmt = false;
+
 		if ($object instanceof Sequence || $object instanceof Procedure)
 		{
 			$ddl = $object->getDropDdl($this->dbType);
 
-			$this->conditions[""][] = "\t\t\$DB->Query(\"".EscapePHPString($ddl)."\", true);\n";
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($this->tableCheck->getLowercasedName())."\")");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\', true);');
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
+			$stmt->addCondition('$updater->TableExists(\'' . EscapePHPString($this->tableCheck->getUnquotedName(), '\'') . '\')');
 		}
 		elseif ($object instanceof Table)
 		{
 			$ddl = $object->getDropDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->getUnquotedName(), '\'') . '\')';
 
-			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"", $ddl, "\");\n");
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\');');
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 		}
 		elseif ($object instanceof Column)
 		{
 			$ddl = $object->getDropDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->parent->name)."\")";
-			$cond = "\t\tif ($predicate)\n";
-			$predicate2 = "\$DB->Query(\"SELECT ".EscapePHPString($object->name)." FROM ".EscapePHPString($object->parent->getLowercasedName())." WHERE 1=0\", true)";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->parent->name, '\'') . '\')';
+			$cond = "\t\tif (${predicate})\n";
+			$predicate2 = '$DB->Query(\'SELECT ' . EscapePHPString($object->name, '\'') . ' FROM ' . EscapePHPString($object->parent->getUnquotedName(), '\'') . ' WHERE 1=0\', true)';
 
-			$this->conditions[$cond][] =
-				"\t\t\tif ($predicate2)\n".
-				"\t\t\t{\n".
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $ddl, "\");\n").
-				"\t\t\t}\n";
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition($predicate);
-			$stmt->addCondition($predicate2);
+			$this->columns[$cond][] = [$predicate2, $ddl, $object->parent->getUnquotedName(), $predicate, $predicate2];
 		}
 		elseif ($object instanceof Index)
 		{
 			$ddl = $object->getDropDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
-			$predicate2 = "\$DB->IndexExists(\"".EscapePHPString($object->parent->getUnquotedName())."\", array(".$this->multiLinePhp("\"", $object->getUnquotedName($object->columns), "\", ")."), true)";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\')';
+			$predicate2 = '$DB->IndexExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\', [' . $this->multiLinePhp('\'', $object->getUnquotedName($object->columns), '\', ') . '], true)';
 
-			$this->conditions[$cond][] =
-				"\t\t\tif ($predicate2)\n".
-				"\t\t\t{\n".
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $ddl, "\");\n").
-				"\t\t\t}\n";
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\');');
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 			$stmt->addCondition($predicate2);
 		}
 		elseif ($object instanceof Trigger || $object instanceof Constraint)
 		{
 			$ddl = $object->getDropDdl($this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($object->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($object->parent->getUnquotedName(), '\'') . '\')';
 
-			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"", $ddl, "\", true);\n");
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\', true);');
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 		}
 		else
 		{
-			$this->conditions[""][] = "\t\t//drop for ".get_class($object)." not supported yet\n";
-			$stmt = $this->createStatement("", "//drop for ".get_class($object)." not supported yet", "");
+			$stmt = $this->createStatement('', '//drop for ' . get_class($object) . ' not supported yet', '');
 		}
 
 		if ($stmt)
@@ -352,83 +319,60 @@ class Updater
 	 */
 	protected function handleChange(BaseObject $source, BaseObject $target)
 	{
+		$stmt = null;
+
 		if ($source instanceof Sequence || $source instanceof Procedure)
 		{
-			$this->conditions[""][] =
-				$this->multiLinePhp("\t\t\$DB->Query(\"", $source->getDropDdl($this->dbType), "\", true);\n").
-				$this->multiLinePhp("\t\t\$DB->Query(\"", $target->getCreateDdl($this->dbType), "\", true);\n");
-
-			$dropStmt = $this->createStatement("\$DB->Query(\"", $source->getDropDdl($this->dbType), "\", true);");
-			$createStmt = $this->createStatement("\$DB->Query(\"", $target->getCreateDdl($this->dbType), "\", true);");
+			$dropStmt = $this->createStatement('$DB->Query(\'', $source->getDropDdl($this->dbType), '\', true);');
+			$createStmt = $this->createStatement('$DB->Query(\'', $target->getCreateDdl($this->dbType), '\', true);');
 			$stmt = new Php\Statement;
-			$stmt->dependOn = $this->tableCheck->getLowercasedName();
+			$stmt->dependOn = $this->tableCheck->getUnquotedName();
 			$stmt->merge($dropStmt);
 			$stmt->merge($createStmt);
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition("\$updater->TableExists(\"".EscapePHPString($this->tableCheck->getLowercasedName())."\")");
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
+			$stmt->addCondition('$updater->TableExists(\'' . EscapePHPString($this->tableCheck->getUnquotedName(), '\'') . '\')');
 		}
 		elseif ($target instanceof Column)
 		{
 			$ddl = $source->getModifyDdl($target, $this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($source->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
-			$predicate2 = "\$DB->Query(\"SELECT ".EscapePHPString($source->name)." FROM ".EscapePHPString($source->parent->getLowercasedName())." WHERE 1=0\", true)";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($source->parent->getUnquotedName(), '\'') . '\')';
+			$cond = "\t\tif (${predicate})\n";
+			$predicate2 = '$DB->Query(\'SELECT ' . EscapePHPString($source->name, '\'') . ' FROM ' . EscapePHPString($source->parent->getUnquotedName(), '\'') . ' WHERE 1=0\', true)';
 
-			$this->conditions[$cond][] =
-				"\t\t\tif ($predicate2)\n".
-				"\t\t\t{\n".
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $ddl, "\");\n").
-				"\t\t\t}\n";
-
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\");");
-			$stmt->dependOn = $source->parent->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
-			$stmt->addCondition($predicate);
-			$stmt->addCondition($predicate2);
+			$this->columns[$cond][] = [$predicate2, $ddl, $source->parent->getUnquotedName(), $predicate, $predicate2];
 		}
 		elseif ($source instanceof Index)
 		{
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($source->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
-			$predicate2 = "\$DB->IndexExists(\"".EscapePHPString($source->parent->getUnquotedName())."\", array(".$this->multiLinePhp("\"", $source->getUnquotedName($source->columns), "\", ")."), true)";
-			$this->conditions[$cond][] =
-				"\t\t\tif ($predicate2)\n".
-				"\t\t\t{\n".
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $source->getDropDdl($this->dbType), "\");\n").
-				$this->multiLinePhp("\t\t\t\t\$DB->Query(\"", $target->getCreateDdl($this->dbType), "\");\n").
-				"\t\t\t}\n";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($source->parent->getUnquotedName(), '\'') . '\')';
+			$predicate2 = '$DB->IndexExists(\'' . EscapePHPString($source->parent->getUnquotedName(), '\'') . '\', [' . $this->multiLinePhp('\'', $source->getUnquotedName($source->columns), '\', ') . '], true)';
 
-			$dropStmt = $this->createStatement("\$DB->Query(\"", $source->getDropDdl($this->dbType), "\", true);");
-			$createStmt = $this->createStatement("\$DB->Query(\"", $target->getCreateDdl($this->dbType), "\", true);");
+			$dropStmt = $this->createStatement('$DB->Query(\'', $source->getDropDdl($this->dbType), '\', true);');
+			$createStmt = $this->createStatement('$DB->Query(\'', $target->getCreateDdl($this->dbType), '\', true);');
 			$stmt = new Php\Statement;
-			$stmt->dependOn = $source->parent->getLowercasedName();
+			$stmt->dependOn = $source->parent->getUnquotedName();
 			$stmt->merge($dropStmt);
 			$stmt->merge($createStmt);
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 			$stmt->addCondition($predicate2);
-			$stmt->addCondition("!\$DB->IndexExists(\"".EscapePHPString($target->parent->getUnquotedName())."\", array(".$this->multiLinePhp("\"", $source->getUnquotedName($source->columns), "\", ")."), true)");
+			$stmt->addCondition('!$DB->IndexExists(\'' . EscapePHPString($target->parent->getUnquotedName(), '\'') . '\', [' . $this->multiLinePhp('\'', $source->getUnquotedName($source->columns), '\', ') . '], true)');
 		}
 		elseif ($source instanceof Trigger || $source instanceof Constraint)
 		{
 			$ddl = $source->getModifyDdl($target, $this->dbType);
-			$predicate = "\$updater->TableExists(\"".EscapePHPString($source->parent->getLowercasedName())."\")";
-			$cond = "\t\tif ($predicate)\n";
+			$predicate = '$updater->TableExists(\'' . EscapePHPString($source->parent->getUnquotedName(), '\'') . '\')';
 
-			$this->conditions[$cond][] = $this->multiLinePhp("\t\t\t\$DB->Query(\"", $ddl, "\", true);\n");
-			$stmt = $this->createStatement("\$DB->Query(\"", $ddl, "\", true);");
-			$stmt->dependOn = $source->parent->getLowercasedName();
-			$stmt->addCondition("\$updater->CanUpdateDatabase()");
-			$stmt->addCondition("\$DB->type == \"".EscapePHPString($this->dbType)."\"");
+			$stmt = $this->createStatement('$DB->Query(\'', $ddl, '\', true);');
+			$stmt->dependOn = $source->parent->getUnquotedName();
+			$stmt->addCondition('$updater->CanUpdateDatabase()');
+			$stmt->addCondition('$DB->type == \'' . EscapePHPString($this->dbType, '\'') . '\'');
 			$stmt->addCondition($predicate);
 		}
 		else
 		{
-			$this->conditions[""][] = "\t\t//change for ".get_class($source)." not supported yet\n";
-			$stmt = $this->createStatement("", "//change for ".get_class($source)." not supported yet", "");
+			$stmt = $this->createStatement('', '//change for ' . get_class($source) . ' not supported yet', '');
 		}
 
 		if ($stmt)
@@ -448,19 +392,19 @@ class Updater
 	 */
 	protected function multiLinePhp($prefix, $body, $suffix)
 	{
-		$result  = array();
+		$result = [];
 		if (is_array($body))
 		{
 			foreach ($body as $line)
 			{
-				$result[] = $prefix.EscapePHPString($line).$suffix;
+				$result[] = $prefix . EscapePHPString($line) . $suffix;
 			}
 		}
 		else
 		{
-			$result[] = $prefix.EscapePHPString($body).$suffix;
+			$result[] = $prefix . EscapePHPString($body) . $suffix;
 		}
-		return implode("", $result);
+		return implode('', $result);
 	}
 
 	/**
@@ -474,17 +418,17 @@ class Updater
 	 */
 	protected function createStatement($prefix, $body, $suffix)
 	{
-		$result  = new Php\Statement;
+		$result = new Php\Statement;
 		if (is_array($body))
 		{
 			foreach ($body as $line)
 			{
-				$result->addLine($prefix.EscapePHPString($line).$suffix);
+				$result->addLine($prefix . EscapePHPString($line, '\'') . $suffix);
 			}
 		}
 		else
 		{
-			$result->addLine($prefix.EscapePHPString($body).$suffix);
+			$result->addLine($prefix . EscapePHPString($body, '\'') . $suffix);
 		}
 		return $result;
 	}

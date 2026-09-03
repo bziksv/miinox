@@ -3,7 +3,6 @@
  * @var array $arParams
  * @var array $arResult
  * @var CMain $APPLICATION
- * @var CUser $USER
  * @var CBitrixComponentTemplate $this
  */
 
@@ -22,6 +21,7 @@ $link = $APPLICATION->GetCurPageParam("MID=#ID#", array(
 	"FILTER",
 	"result",
 	"clear_cache"));
+
 $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 	"bitrix:main.post.list",
 	"",
@@ -37,24 +37,8 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 		"PREORDER" => $arParams["PREORDER"],
 		"RIGHTS" => array(
 			"MODERATE" =>  $arResult["PANELS"]["MODERATE"],
-			"EDIT" => (
-				$arResult["PANELS"]["EDIT"] == "N"
-					? (
-						$arParams["ALLOW_EDIT_OWN_MESSAGE"] === "ALL"
-							? "OWN"
-							: ($arParams["ALLOW_EDIT_OWN_MESSAGE"] === "LAST" ? "OWNLAST" : "N")
-					)
-					: "Y"
-			),
-			"DELETE" => (
-				$arResult["PANELS"]["EDIT"] == "N"
-					? (
-						$arParams["ALLOW_EDIT_OWN_MESSAGE"] === "ALL"
-							? "OWN"
-							: ($arParams["ALLOW_EDIT_OWN_MESSAGE"] === "LAST" ? "OWNLAST" : "N")
-					)
-				: "Y"
-			),
+			"EDIT" => $arResult['EDIT_RIGHT'],
+			"DELETE" => $arResult['EDIT_RIGHT'],
 			"CREATETASK" => ($arResult["bTasksAvailable"] ? "Y" : "N")
 		),
 		"VISIBLE_RECORDS_COUNT" => $arResult["VISIBLE_RECORDS_COUNT"],
@@ -93,7 +77,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 					"empty_get_comments")),
 			"FIELDS" => array(
 			)
-		)
+		),
 	),
 	$this->__component
 );

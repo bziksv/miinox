@@ -10,12 +10,14 @@
  * Bitrix vars
  * @global CUser $USER
  * @global CMain $APPLICATION
- * @param array $arParams
- * @param array $arResult
- * @param CBitrixComponent $this
+ * @var array $arParams
+ * @var array $arResult
+ * @var CBitrixComponent $this
  */
 
 use Bitrix\Main\Security\Password;
+use Bitrix\Main\Authentication;
+use Bitrix\Main\Authentication\Method;
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 	die();
@@ -153,7 +155,11 @@ else
 						ExecuteModuleEventEx($arEvent, array($arResult["USER"]["ID"], $arFields));
 					}
 
-					$obUser->Authorize($arResult["USER"]["ID"], $_POST["USER_REMEMBER"] == "Y");
+					$context = (new Authentication\Context())
+						->setUserId($arResult["USER"]["ID"])
+						->setMethod(Method::Registration)
+					;
+					$obUser->Authorize($context, $_POST["USER_REMEMBER"] == "Y");
 
 					$SITE_DIR = SITE_DIR;
 

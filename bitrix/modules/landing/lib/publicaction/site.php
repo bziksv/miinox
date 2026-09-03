@@ -1,6 +1,7 @@
 <?php
 namespace Bitrix\Landing\PublicAction;
 
+use \Bitrix\Landing\Copilot\Services\CreateAiSiteChecker;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\File;
 use \Bitrix\Landing\Rights;
@@ -13,6 +14,8 @@ Loc::loadMessages(__FILE__);
 
 class Site
 {
+	const ERROR_AI_SITE_EXPORT_NOT_ALLOWED = 'AI_SITE_EXPORT_NOT_ALLOWED';
+
 	/**
 	 * Clear disallow keys from add/update fields.
 	 * @param array $fields Array fields.
@@ -102,6 +105,7 @@ class Site
 		$params = $result->sanitizeKeys($params);
 		$getPublicUrl = false;
 		$getPreviewPicture = false;
+		$getPhone = false;
 		$mobileHit = $initiator === 'mobile';
 
 		if ($mobileHit)
@@ -167,8 +171,13 @@ class Site
 			{
 				$getPreviewPicture = true;
 			}
+			if (in_array('PHONE', $params['select']))
+			{
+				$getPhone = true;
+				$params['select'][] = 'ID';
+			}
 			// delete this keys for ORM
-			$deleted = ['DOMAIN_NAME', 'PUBLIC_URL', 'PREVIEW_PICTURE'];
+			$deleted = ['DOMAIN_NAME', 'PUBLIC_URL', 'PREVIEW_PICTURE', 'PHONE'];
 			foreach ($params['select'] as $k => $code)
 			{
 				if (in_array($code, $deleted))
@@ -220,6 +229,12 @@ class Site
 			if ($getPreviewPicture)
 			{
 				$row['PREVIEW_PICTURE'] = '';
+			}
+			if ($getPhone)
+			{
+				$row['PHONE'] = \Bitrix\Landing\Connector\Crm::getContacts(
+					$row['ID']
+				)['PHONE'] ?? null;
 			}
 			$data[$row['ID']] = $row;
 		}
@@ -629,6 +644,17 @@ class Site
 	public static function fullExport($id, array $params = array())
 	{
 		$result = new PublicActionResult();
+		$id = (int)$id;
+
+		if ((new CreateAiSiteChecker())->isSiteCreated($id))
+		{
+			$error = new \Bitrix\Landing\Error();
+			$error->addError(self::ERROR_AI_SITE_EXPORT_NOT_ALLOWED, 'AI sites export is not supported.');
+			$result->setResult(false);
+			$result->setError($error);
+
+			return $result;
+		}
 
 		$result->setResult(
 			SiteCore::fullExport($id, $params)
@@ -799,7 +825,7 @@ class Site
 	{
 		$result = new PublicActionResult();
 
-		if (Rights::hasAccessForSite($id, Rights::ACCESS_TYPES['read']))
+		if (Rights::hasAccessForSite($id, Rights::ACCESS_TYPES['read']) && !$binding->isForbiddenBindingAction())
 		{
 			if ($bind)
 			{

@@ -1,4 +1,4 @@
-<?
+<?php
 
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
@@ -34,9 +34,6 @@ $bReadOnly = !$accessController->check(ActionDictionary::ACTION_MEASURE_EDIT);
 IncludeModuleLangFile(__FILE__);
 
 $bCanAdd = true;
-$bExport = false;
-if($_REQUEST["mode"] == "excel")
-	$bExport = true;
 
 if($ex = $APPLICATION->GetException())
 {
@@ -57,10 +54,17 @@ $lAdmin = new CAdminUiList($sTableID, $oSort);
 
 $by = mb_strtoupper($oSort->getField());
 $order = mb_strtoupper($oSort->getOrder());
+$listOrder = [
+	$by => $order,
+];
+if ($by !== 'ID')
+{
+	$listOrder['ID'] = 'ASC';
+}
 
 $arFilter = array();
 
-if($lAdmin->EditAction() && !$bReadOnly)
+if ($lAdmin->EditAction() && !$bReadOnly)
 {
 	foreach ($_POST['FIELDS'] as $ID => $arFields)
 	{
@@ -86,9 +90,10 @@ if($lAdmin->EditAction() && !$bReadOnly)
 	}
 }
 
-if(($arID = $lAdmin->GroupAction()) && !$bReadOnly)
+$arID = $lAdmin->GroupAction();
+if (!$bReadOnly && !empty($arID) && is_array($arID))
 {
-	if($_REQUEST['action_target']=='selected')
+	if ($lAdmin->IsGroupActionToAll())
 	{
 		$arID = Array();
 		$dbResultList = CCatalogMeasure::getList(array($_REQUEST["by"] => $_REQUEST["order"]), $arFilter, false, false, array('ID'));
@@ -96,12 +101,13 @@ if(($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 			$arID[] = $arResult['ID'];
 	}
 
+	$action = $lAdmin->GetAction();
 	foreach ($arID as $ID)
 	{
 		if($ID == '')
 			continue;
 
-		switch ($_REQUEST['action'])
+		switch ($action)
 		{
 			case "delete":
 				@set_time_limit(0);
@@ -141,13 +147,14 @@ $arSelect = array(
 	"IS_DEFAULT",
 );
 
-if(array_key_exists("mode", $_REQUEST) && $_REQUEST["mode"] == "excel")
-	$arNavParams = false;
-else
-	$arNavParams = array("nPageSize"=>CAdminUiResult::GetNavSize($sTableID));
+$arNavParams = (
+	$lAdmin->isExportMode()
+		? false
+		: ["nPageSize" => CAdminUiResult::GetNavSize($sTableID)]
+);
 
 $dbResultList = CCatalogMeasure::getList(
-	array($by => $order),
+	$listOrder,
 	array(),
 	false,
 	$arNavParams,
@@ -220,34 +227,24 @@ $arSelectFieldsMap = array_merge($arSelectFieldsMap, array_fill_keys($arSelectFi
 
 $arUserList = array();
 $arUserID = array();
-$strNameFormat = CSite::GetNameFormat(true);
+$strNameFormat = CSite::GetNameFormat();
 
 $arRows = array();
 
 while($arRes = $dbResultList->Fetch())
 {
 	$arRes['ID'] = (int)$arRes['ID'];
-	if($arSelectFieldsMap['USER_ID'])
-	{
-		$arRes['USER_ID'] = (int)$arRes['USER_ID'];
-		if(0 < $arRes['USER_ID'])
-			$arUserID[$arRes['USER_ID']] = true;
-	}
-	if($arSelectFieldsMap['MODIFIED_BY'])
-	{
-		$arRes['MODIFIED_BY'] = (int)$arRes['MODIFIED_BY'];
-		if(0 < $arRes['MODIFIED_BY'])
-			$arUserID[$arRes['MODIFIED_BY']] = true;
-	}
 
 	$editUrl = $selfFolderUrl."cat_measure_edit.php?ID=".$arRes["ID"]."&lang=".LANGUAGE_ID;
 	$editUrl = $adminSidePanelHelper->editUrlToPublicPage($editUrl);
 	$arRows[$arRes['ID']] = $row =& $lAdmin->AddRow($arRes['ID'], $arRes, $editUrl);
 	$row->AddField("ID", $arRes['ID']);
+	if ($arSelectFieldsMap['CODE'])
+	{
+		$row->AddInputField('CODE', false);
+	}
 	if($bReadOnly)
 	{
-		if($arSelectFieldsMap['CODE'])
-			$row->AddInputField("CODE", false);
 		if($arSelectFieldsMap['MEASURE_TITLE'])
 			$row->AddInputField("MEASURE_TITLE", false);
 		if($arSelectFieldsMap['SYMBOL_RUS'])
@@ -256,13 +253,9 @@ while($arRes = $dbResultList->Fetch())
 			$row->AddInputField("SYMBOL_INTL", false);
 		if($arSelectFieldsMap['SYMBOL_LETTER_INTL'])
 			$row->AddInputField("SYMBOL_LETTER_INTL", false);
-		if($arSelectFieldsMap['IS_DEFAULT'])
-			$row->AddCheckField("IS_DEFAULT", false);
 	}
 	else
 	{
-		if($arSelectFieldsMap['CODE'])
-			$row->AddInputField("CODE", false);
 		if($arSelectFieldsMap['MEASURE_TITLE'])
 			$row->AddInputField("MEASURE_TITLE", array("size" => 30));
 		if($arSelectFieldsMap['SYMBOL_RUS'])
@@ -271,14 +264,9 @@ while($arRes = $dbResultList->Fetch())
 			$row->AddInputField("SYMBOL_INTL", array("size" => 8));
 		if($arSelectFieldsMap['SYMBOL_LETTER_INTL'])
 			$row->AddInputField("SYMBOL_LETTER_INTL", array("size" => 8));
-		if($arSelectFieldsMap['IS_DEFAULT'])
-			$row->AddCheckField("IS_DEFAULT", false);
 	}
-
-	if($arSelectFieldsMap['DATE_CREATE'])
-		$row->AddCalendarField("DATE_CREATE", false);
-	if($arSelectFieldsMap['DATE_MODIFY'])
-		$row->AddCalendarField("DATE_MODIFY", false);
+	if($arSelectFieldsMap['IS_DEFAULT'])
+		$row->AddCheckField("IS_DEFAULT", false);
 
 	$arActions = array();
 	$arActions[] = array(
@@ -299,54 +287,7 @@ while($arRes = $dbResultList->Fetch())
 
 	$row->AddActions($arActions);
 }
-if(isset($row))
-	unset($row);
-
-if($arSelectFieldsMap['USER_ID'] || $arSelectFieldsMap['MODIFIED_BY'])
-{
-	if(!empty($arUserID))
-	{
-		$rsUsers = CUser::GetList(
-			'ID',
-			'ASC',
-			array('ID' => implode(' | ', array_keys($arUserID))),
-			array('FIELDS' => array('ID', 'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL'))
-		);
-		while($arOneUser = $rsUsers->Fetch())
-		{
-			$arOneUser['ID'] = (int)$arOneUser['ID'];
-			$userEdit = $selfFolderUrl."user_edit.php?lang=".LANGUAGE_ID."&ID=".$arOneUser["ID"];
-			if ($publicMode)
-				$arUserList[$arOneUser['ID']] = CUser::FormatName($strNameFormat, $arOneUser);
-			else
-				$arUserList[$arOneUser['ID']] = '<a href="'.$userEdit.'">'.CUser::FormatName($strNameFormat, $arOneUser).'</a>';
-		}
-	}
-
-	foreach ($arRows as &$row)
-	{
-		if($arSelectFieldsMap['USER_ID'])
-		{
-			$strCreatedBy = '';
-			if(0 < $row->arRes['USER_ID'] && isset($arUserList[$row->arRes['USER_ID']]))
-			{
-				$strCreatedBy = $arUserList[$row->arRes['USER_ID']];
-			}
-			$row->AddViewField("USER_ID", $strCreatedBy);
-		}
-		if($arSelectFieldsMap['MODIFIED_BY'])
-		{
-			$strModifiedBy = '';
-			if(0 < $row->arRes['MODIFIED_BY'] && isset($arUserList[$row->arRes['USER_ID']]))
-			{
-				$strModifiedBy = $arUserList[$row->arRes['MODIFIED_BY']];
-			}
-			$row->AddViewField("MODIFIED_BY", $strModifiedBy);
-		}
-	}
-	if(isset($row))
-		unset($row);
-}
+unset($row);
 
 if (!$bReadOnly)
 {
@@ -383,6 +324,10 @@ $lAdmin->CheckListMode();
 $APPLICATION->SetTitle(GetMessage("CAT_MEASURE_TITLE"));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 
-$lAdmin->DisplayList();
+$listParams = [
+	'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+	'ENABLE_FIELDS_SEARCH' => 'Y',
+];
+$lAdmin->DisplayList($listParams);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

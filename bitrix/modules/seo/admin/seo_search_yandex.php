@@ -1,4 +1,4 @@
-<?
+<?php
 require_once($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/main/include/prolog_admin_before.php");
 
 define('ADMIN_MODULE_NAME', 'seo');
@@ -7,6 +7,7 @@ use Bitrix\Main;
 use Bitrix\Main\Text\Converter;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Seo\Engine;
+use Bitrix\Main\Web\Uri;
 
 Loc::loadMessages(__DIR__.'/../../main/tools.php');
 Loc::loadMessages(__DIR__.'/seo_search.php');
@@ -76,7 +77,7 @@ $rsData = new CAdminResult($dbSites, $sTableID);
 
 while($arSite = $dbSites->fetch(Converter::getHtmlConverter()))
 {
-	$arSite['DOMAIN'] = ToLower($arSite['DOMAIN']);
+	$arSite['DOMAIN'] = mb_strtolower($arSite['DOMAIN']);
 
 	$row =& $lAdmin->AddRow($arSite['DOMAIN'], $arSite);
 
@@ -85,7 +86,7 @@ while($arSite = $dbSites->fetch(Converter::getHtmlConverter()))
 	$siteDomainEncView = Converter::getHtmlConverter()->encode(\CBXPunycode::ToUnicode($arSite['DOMAIN'], $e));
 	$siteDirEnc = Converter::getHtmlConverter()->encode($arSite['SITE_DIR']);
 
-	$row->AddViewField("DOMAIN", '<a href="http://'.Converter::getHtmlConverter()->encode($arSite['DOMAIN'].CHTTP::urnEncode($arSite['SITE_DIR'])).'">'.$siteDomainEncView.$siteDirEnc.'</a>');
+	$row->AddViewField("DOMAIN", '<a href="http://'.Converter::getHtmlConverter()->encode($arSite['DOMAIN'] . Uri::urnEncode($arSite['SITE_DIR'])) . '">'.$siteDomainEncView.$siteDirEnc.'</a>');
 	$row->AddViewField("SITE", '[<a href="site_edit.php?lang='.LANGUAGE_ID.'&amp;LID='.urlencode($arSite['LID']).'">'.$arSite['LID'].'</a>] '.$arSite['SITE_NAME']);
 	$row->AddCheckField("SITE_ACTIVE", false);
 
@@ -113,7 +114,7 @@ if($strError != '')
 
 ?>
 <div id="ajax_status"></div>
-<script type="text/javascript">
+<script>
 	BX.message({'SEO_VERIFY_STATUS_NONE':'<?=Loc::getMessage('SEO_VERIFY_STATUS_NONE')?>'});
 	BX.message({'SEO_VERIFY_STATUS_VERIFIED':'<?=Loc::getMessage('SEO_VERIFY_STATUS_VERIFIED')?>'});
 	BX.message({'SEO_VERIFY_STATUS_IN_PROGRESS':'<?=Loc::getMessage('SEO_VERIFY_STATUS_IN_PROGRESS')?>'});
@@ -266,7 +267,7 @@ function setAjaxStatus(text)
 
 $arYandexSites = array();
 ?>
-<script type="text/javascript">
+<script>
 function makeNewAuth()
 {
 	BX.showWait(BX('auth_result'));
@@ -308,7 +309,7 @@ if(!$bNeedAuth)
 <?
 	}
 ?>
-<script type="text/javascript">updateInfo();</script>
+<script>updateInfo();</script>
 <?
 }
 ?>

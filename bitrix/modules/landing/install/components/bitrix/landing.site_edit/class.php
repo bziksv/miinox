@@ -4,6 +4,8 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+use Bitrix\Landing\Binding\Group;
+use Bitrix\Landing\Copilot\Services\CreateAiSiteChecker;
 use \Bitrix\Landing\Hook;
 use Bitrix\Landing\Hook\Page\Theme;
 use Bitrix\Landing\Node\Component;
@@ -19,6 +21,7 @@ use Bitrix\Main\Config\Option;
 use Bitrix\Main\Event;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Landing\Restriction;
+use Bitrix\Landing\Connector;
 
 CBitrixComponent::includeComponentClass('bitrix:landing.base.form');
 
@@ -112,6 +115,29 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 					$langs[$code] = $lang['NAME'];
 				}
 			}
+
+			if (!isset($langs['by'], $langs['uz']))
+			{
+				Loc::loadMessages(Manager::getDocRoot() . '/bitrix/modules/landing/install/components/bitrix/landing.site_edit/class_notranslate.php');
+				$langsWithFake = [];
+				foreach ($langs as $lang => $langName)
+				{
+					$langsWithFake[$lang] = $langName;
+					if ($lang === 'ru')
+					{
+						if (!isset($langs['by']))
+						{
+							$langsWithFake['by'] = Loc::getMessage('LANDING_SITE_EDIT_BY_LANG');
+						}
+						if (!isset($langs['uz']))
+						{
+							$langsWithFake['uz'] = Loc::getMessage('LANDING_SITE_EDIT_UZ_LANG');
+						}
+					}
+				}
+				$langs = $langsWithFake;
+			}
+
 			return $langs;
 		}
 
@@ -133,6 +159,20 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 	}
 
 	/**
+	 * Returns true, if this site was created by the AI scenario.
+	 * @return bool
+	 */
+	protected function isAiSiteCreated(): bool
+	{
+		return (new CreateAiSiteChecker())->isSiteCreated((int)$this->arParams['SITE_ID']);
+	}
+
+	protected function isAiSitesEnabled(): bool
+	{
+		return \Bitrix\Landing\Copilot\Manager::isAiSitesEnabled();
+	}
+
+	/**
 	 * Base executable method.
 	 * @return void
 	 */
@@ -145,6 +185,7 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 			$this->checkParam('SITE_ID', 0);
 			$this->checkParam('TYPE', '');
 			$this->checkParam('PAGE_URL_SITES', '');
+			$this->checkParam('PAGE_URL_LANDINGS', '');
 			$this->checkParam('PAGE_URL_LANDING_VIEW', '');
 			$this->checkParam('PAGE_URL_SITE_DOMAIN', '');
 			$this->checkParam('PAGE_URL_SITE_COOKIES', '');
@@ -160,13 +201,23 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 
 			$this->arResult['SITE'] = $site = $this->getRow();
 			$this->arResult['LANG_CODES'] = $this->getLangCodes();
-			$this->arResult['TEMPLATES'] = $this->getTemplates();
+			$isAiSiteCreated = $this->isAiSitesEnabled() && $this->isAiSiteCreated();
+			$this->arResult['TEMPLATES'] = $isAiSiteCreated ? [] : $this->getTemplates();
 			$this->arResult['IS_INTRANET'] = $this->isIntranet();
 			$this->arResult['SHOW_RIGHTS'] = Rights::isAdmin() && Rights::isExtendedMode();
 			$this->arResult['SETTINGS'] = [];
+			$this->arResult['HOOKS'] = [];
+			$this->arResult['TEMPLATES_REF'] = [];
 			$this->arResult['REGISTER'] = Register::getInstance();
 			$this->arResult['SITE_INCLUDES_SCRIPT'] = Cookies::isSiteIncludesScript($this->id);
 			$this->arResult['COOKIES_AGREEMENT'] = Cookies::getMainAgreement();
+			$this->arResult['SPECIAL_TYPE'] = Site\Type::getSiteSpecialType($this->arResult['SITE']['CODE']['CURRENT']);
+			// ai
+			$this->arResult['AI_TEXT_AVAILABLE'] = Connector\Ai::isTextAvailable();
+			$this->arResult['AI_TEXT_ACTIVE'] = Connector\Ai::isTextActive();
+			$this->arResult['AI_IMAGE_AVAILABLE'] = Connector\Ai::isImageAvailable();
+			$this->arResult['AI_IMAGE_ACTIVE'] = Connector\Ai::isImageActive();
+			$this->arResult['AI_UNACTIVE_INFO_CODE'] = self::getAiUnactiveInfoCode();
 
 			if (
 				!defined('LANDING_DISABLE_B24_MODE') &&
@@ -262,12 +313,13 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 
 			$this->arResult['COLORS'] = Theme::getColorCodes();
 			$this->arResult['PREPARE_COLORS'] = self::prepareColors($this->arResult['COLORS']);
-			$themeHookFields = $this->arResult['HOOKS']['THEME']->getPageFields();
-			if ($themeHookFields['THEME_CODE'])
+			$themeHook = $this->arResult['HOOKS']['THEME'] ?? null;
+			$themeHookFields = $themeHook ? $themeHook->getPageFields() : [];
+			if (isset($themeHookFields['THEME_CODE']))
 			{
 				$this->arResult['LANDING_VALUE_CODE'] = $themeHookFields['THEME_CODE']->getValue();
 			}
-			if ($themeHookFields['THEME_COLOR'])
+			if (isset($themeHookFields['THEME_COLOR']))
 			{
 				$this->arResult['LANDING_VALUE_COLOR'] = $themeHookFields['THEME_COLOR']->getValue();
 			}
@@ -275,8 +327,10 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 			{
 				$themeHookFields['THEME_USE']->setValue('Y');
 			}
-			$this->arResult['CURRENT_COLORS']['value'] = htmlspecialcharsbx(trim($themeHookFields['THEME_COLOR']->getValue()));
-			if (!$this->arResult['CURRENT_COLORS']['value'])
+			$this->arResult['CURRENT_COLORS']['value'] = isset($themeHookFields['THEME_COLOR'])
+				? htmlspecialcharsbx(trim($themeHookFields['THEME_COLOR']->getValue()))
+				: '';
+			if (!$this->arResult['CURRENT_COLORS']['value'] && isset($themeHookFields['THEME_CODE']))
 			{
 				$this->arResult['CURRENT_COLORS']['theme'] = htmlspecialcharsbx(trim($themeHookFields['THEME_CODE']->getValue()));
 			}
@@ -340,6 +394,40 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 						$primary['ID'],
 						$data
 					);
+				}
+				if ($this->arParams['TYPE'] === 'GROUP' && $_REQUEST['fields'])
+				{
+					$groupUnbind = $_REQUEST['fields']['GROUP_UNBIND'];
+					$groupDelete = $_REQUEST['fields']['GROUP_DELETE'];
+					if ($groupUnbind === 'on' || $groupDelete === 'on')
+					{
+						$siteId = $this->arParams['SITE_ID'];
+						$groupId = Site\Scope\Group::getGroupIdBySiteId($siteId);
+						if ($groupId)
+						{
+							$binding = new Group($groupId);
+							if (!$binding->isForbiddenBindingAction())
+							{
+								$binding->unbindSite($siteId);
+							}
+						}
+						if ($this->arParams['IS_CHANGED_TYPE'] !== true)
+						{
+							$this->arParams['IS_CHANGED_TYPE'] = true;
+							Site::changeType($siteId, 'KNOWLEDGE');
+						}
+						if ($this->arParams['IS_CHANGED_CODE'] !== true)
+						{
+							$this->arParams['IS_CHANGED_CODE'] = true;
+							$newCode = $this->arResult['SITE']['CODE']['CURRENT'] . '_'  . time();
+							Site::changeCode($siteId, $newCode);
+						}
+						if ($groupDelete === 'on' && $this->arParams['IS_SITE_DELETE'] !== true)
+						{
+							$this->arParams['IS_SITE_DELETE'] = true;
+							Site::markDelete($siteId);
+						}
+					}
 				}
 				// rights
 				if (Rights::isAdmin() && Rights::isExtendedMode())
@@ -450,6 +538,11 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 	 */
 	public static function getCurrentTheme(array $hooks, array $colors): string
 	{
+		if (!isset($hooks['THEME']))
+		{
+			return self::DEFAULT_SITE_COLOR;
+		}
+
 		$themeHookFields = $hooks['THEME']->getPageFields();
 		$themeCurr = htmlspecialcharsbx(trim($themeHookFields['THEME_COLOR']->getValue()));
 		if (!$themeCurr)

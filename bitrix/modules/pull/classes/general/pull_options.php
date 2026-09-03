@@ -169,6 +169,7 @@ class CPullOptions
 	{
 		Option::set("pull", "server_mode", $mode);
 	}
+
 	public static function IsServerShared()
 	{
 		return static::GetQueueServerMode() == static::SERVER_MODE_SHARED;
@@ -189,6 +190,16 @@ class CPullOptions
 			CAgent::RemoveAgent("CPushManager::SendAgent();", "pull");
 
 		return true;
+	}
+
+	public static function SetSharedWorkerAllowed(bool $val): void
+	{
+		Option::set('pull', 'shared_worker_allowed', $val ? 'Y' : 'N') ;
+	}
+
+	public static function IsSharedWorkerAllowed(): bool
+	{
+		return Option::get('pull', 'shared_worker_allowed', 'Y') === 'Y';
 	}
 
 	public static function GetPushMessagePerHit()
@@ -482,6 +493,17 @@ class CPullOptions
 		return COption::GetOptionInt("pull", "config_timestamp", self::GetDefaultOption("config_timestamp"));
 	}
 
+	public static function GetConfigTtl(): int
+	{
+		// TODO: remove after B24 has switched to push-go
+		if (IsModuleInstalled('bitrix24'))
+		{
+			return 86400;
+		}
+
+		return (int)COption::GetOptionInt("pull", "config_ttl", self::GetDefaultOption("config_ttl"));
+	}
+
 	public static function GetMaxPayload()
 	{
 		$maxPayload = (int)Option::get('pull', static::MAX_PAYLOAD);
@@ -533,7 +555,14 @@ class CPullOptions
 			'params' => Array()
 		);
 		CPullStack::AddShared($arMessage);
-		\Bitrix\Pull\Event::send();
+		try
+		{
+			\Bitrix\Pull\Event::send();
+		}
+		catch(Throwable $e)
+		{
+			// ignore exception
+		}
 	}
 
 	public static function GetDefaultOption($optionName)
@@ -604,7 +633,7 @@ class CPullOptions
 		{
 			$userId = intval($GLOBALS['USER']->GetID());
 		}
-		else if (IsModuleInstalled('statistic') && intval($_SESSION["SESS_SEARCHER_ID"]) <= 0 && intval($_SESSION["SESS_GUEST_ID"]) > 0 && COption::GetOptionString("pull", "guest", self::GetDefaultOption("guest")) == 'Y')
+		else if (IsModuleInstalled('statistic') && intval($_SESSION["SESS_SEARCHER_ID"] ?? 0) <= 0 && intval($_SESSION["SESS_GUEST_ID"] ?? 0) > 0 && COption::GetOptionString("pull", "guest", self::GetDefaultOption("guest")) == 'Y')
 		{
 			$userId = intval($_SESSION["SESS_GUEST_ID"])*-1;
 		}
@@ -615,7 +644,7 @@ class CPullOptions
 
 			if (CPullOptions::CheckNeedRun())
 			{
-				Asset::getInstance()->addString('<script type="text/javascript">BX.bind(window, "load", function(){BX.PULL.start();});</script>');
+				Asset::getInstance()->addString('<script>BX.bind(window, "load", function(){BX.PULL.start();});</script>');
 			}
 		}
 	}

@@ -8,6 +8,8 @@ use Bitrix\Translate\Index;
 
 /**
  * Harvester of the lang folder disposition.
+ *
+ * @internal
  */
 class CollectLangPath
 	extends Translate\Controller\Action
@@ -17,16 +19,16 @@ class CollectLangPath
 	use Translate\Controller\ProcessParams;
 
 	/** @var string */
-	private $seekPath;
+	private $seekPath = '';
 
 	/** @var int */
-	private $seekOffset;
+	private $seekOffset = 0;
 
 	/** @var string[] */
-	private $pathList;
+	private $pathList = [];
 
 	/** @var string[] */
-	private $languages;
+	private $languages = [];
 
 
 	/**
@@ -36,7 +38,7 @@ class CollectLangPath
 	 * @param Main\Engine\Controller $controller Parent controller object.
 	 * @param array $config Additional configuration.
 	 */
-	public function __construct($name, Main\Engine\Controller $controller, $config = array())
+	public function __construct($name, Main\Engine\Controller $controller, array $config = [])
 	{
 		$this->keepField(['seekPath', 'pathList', 'seekOffset', 'languages']);
 
@@ -78,7 +80,7 @@ class CollectLangPath
 
 			if (empty($pathList))
 			{
-				$pathList = array($path);
+				$pathList = [$path];
 			}
 
 			$checkIndexExists = $this->controller->getRequest()->get('checkIndexExists') === 'Y';
@@ -97,7 +99,7 @@ class CollectLangPath
 					}
 				}
 
-				if (\mb_substr($testPath, -4) === '.php')
+				if (Translate\IO\Path::isPhpFile($testPath))
 				{
 					if (!Translate\IO\Path::isLangDir($testPath))
 					{
@@ -110,9 +112,9 @@ class CollectLangPath
 
 			if (empty($this->pathList))
 			{
-				return array(
+				return [
 					'STATUS' => Translate\Controller\STATUS_COMPLETED,
-				);
+				];
 			}
 
 			$languages = $this->controller->getRequest()->get('languages');
@@ -137,7 +139,7 @@ class CollectLangPath
 	 *
 	 * @return array
 	 */
-	private function runIndexing()
+	private function runIndexing(): array
 	{
 		$indexer = new Index\PathLangCollection();
 
@@ -225,9 +227,9 @@ class CollectLangPath
 			$this->clearProgressParameters();
 		}
 
-		return array(
+		return [
 			'PROCESSED_ITEMS' => $this->processedItems,
 			'TOTAL_ITEMS' => $this->totalItems,
-		);
+		];
 	}
 }

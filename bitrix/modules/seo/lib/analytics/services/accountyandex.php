@@ -1,24 +1,23 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Analytics\Services;
 
-use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Data\Cache;
-use Bitrix\Main\Engine\CurrentUser;
 use Bitrix\Main\Error;
+use Bitrix\Main\Result;
 use Bitrix\Seo\Analytics\Internals\Expenses;
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\Type\Date;
 use Bitrix\Seo\Retargeting\Response;
 use Bitrix\Seo\Retargeting\Services\ResponseYandex;
 use Bitrix\Seo\Retargeting\IRequestDirectly;
+use Bitrix\Seo\Analytics\Account;
 
-class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDirectly
+class AccountYandex extends Account implements IRequestDirectly
 {
 	const TYPE_CODE = 'yandex';
-	const ERROR_CODE_REPORT_OFFLINE = 100201;
 
-	protected $currency;
+	protected ?string $currency = null;
 
 	/**
 	 * Get list.
@@ -125,7 +124,7 @@ class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDir
 		];
 
 		$profile = $this->getProfile();
-		if(empty($profile['NAME']))
+		if (empty($profile['NAME']))
 		{
 			return $result->addError(new Error("Can not find user name."));
 		}
@@ -140,11 +139,11 @@ class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDir
 			Json::encode($options)
 		);
 
-		if($client->getStatus() != 200)
+		if ($client->getStatus() != 200)
 		{
-			return $result->addError($this->getReportErrorByHttpStatus($client->getStatus()));
+			return $result->addError(Helpers\Yandex\Sender::getErrorByHttpStatus($client->getStatus()));
 		}
-		if($response)
+		if ($response)
 		{
 			$expenses->add($this->parseReportData($response));
 		}
@@ -152,6 +151,57 @@ class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDir
 		{
 			return $result->addError(new Error('Empty report data'));
 		}
+
+		return $result;
+	}
+
+	/**
+	 * Return true if it has daily expenses report
+	 *
+	 * @return bool
+	 */
+	public function hasDailyExpensesReport(): bool
+	{
+		return true;
+	}
+
+	/**
+	 * @param string|null $accountId
+	 * @param Date|null $dateFrom
+	 * @param Date|null $dateTo
+	 *
+	 * @return Result
+	 */
+	public function getDailyExpensesReport(?string $accountId, ?Date $dateFrom, ?Date $dateTo): Result
+	{
+		$result = new Result();
+
+		$reportBuilder = new Helpers\Yandex\ReportBuilder(new Helpers\Yandex\Sender($this));
+		$reportBuilder->setPeriod($dateFrom, $dateTo);
+
+		$buildResult = $reportBuilder->buildDailyExpensesReport();
+		if (!$buildResult->isSuccess())
+		{
+			$errorsMsg = [];
+			foreach ($buildResult->getErrors() as $key => $value)
+			{
+				if (is_string($key))
+				{
+					$errorsMsg[] = "[{$key}] {$value}";
+				}
+				else
+				{
+					$errorsMsg[] = $value;
+				}
+			}
+
+			$errorsMessage = implode(',', $errorsMsg);
+			$errorMessage = $this->buildErrorMessage("Error occurred while load daily expenses: {$errorsMessage}");
+
+			return $result->addError(new Error($errorMessage));
+		}
+
+		$result->setData(['expenses' => $buildResult->getData()['expenses']]);
 
 		return $result;
 	}
@@ -167,93 +217,22 @@ class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDir
 		return Response::create('yandex');
 	}
 
-	protected function getCurrency()
+	/**
+	 * @return string|null
+	 *
+	 * @throws \Bitrix\Main\ArgumentException
+	 */
+	protected function getCurrency(): ?string
 	{
-		if($this->currency)
+		if ($this->currency)
 		{
 			return $this->currency;
 		}
-		// currency is global for an account, so we get it from the first campaign.
-		$cacheString = 'analytics_yandex_currency';
-		$cachePath = '/seo/analytics/yandex/';
-		$cacheTime = 3600;
-		$cache = Cache::createInstance();
-		$currency = null;
-		if($cache->initCache($cacheTime, $cacheString, $cachePath))
-		{
-			$currency = $cache->getVars()['currency'];
-		}
-		if(!$currency)
-		{
-			$cache->clean($cacheString, $cachePath);
-			$cache->startDataCache($cacheTime);
 
-			$response = $this->getClient()->post(
-				$this->getYandexServerAdress() . 'campaigns',
-				Json::encode([
-					'method' => 'get',
-					'params' => [
-						'SelectionCriteria' => new \stdClass(),
-						'FieldNames' => ['Currency'],
-						'Page' => [
-							'Limit' => 1,
-						],
-					],
-				])
-			);
-			if($response)
-			{
-				$response = Json::decode($response);
-				if(!isset($response['error']) && isset($response['result']) && isset($response['result']['Campaigns']))
-				{
-					foreach($response['result']['Campaigns'] as $campaign)
-					{
-						$currency = $campaign['Currency'];
-						break;
-					}
-				}
-			}
+		$sender = new Helpers\Yandex\Sender($this);
+		$this->currency = $sender->getCurrency();
 
-			if($currency)
-			{
-				$cache->endDataCache(['currency' => $currency]);
-			}
-		}
-
-		$this->currency = $currency;
-
-		return $currency;
-	}
-
-	/**
-	 * @param $status
-	 * @return Error
-	 */
-	protected function getReportErrorByHttpStatus($status)
-	{
-		// https://tech.yandex.ru/direct/doc/examples-v5/php5-curl-stat1-docpage/
-		$message = 'Unknown error';
-		$code = 0;
-
-		if($status == 400)
-		{
-			$message = 'Wrong parameters or too many reports';
-		}
-		elseif($status == 201 || $status == 202)
-		{
-			$message = 'Please try later';
-			$code = static::ERROR_CODE_REPORT_OFFLINE;
-		}
-		elseif($status == 500)
-		{
-			$message = 'Some server error. Please try later';
-		}
-		elseif($status == 502)
-		{
-			$message = 'Server could not process your request in limited time. Please change your request';
-		}
-
-		return new Error($message, $code);
+		return $this->currency;
 	}
 
 	/**
@@ -262,46 +241,73 @@ class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDir
 	 */
 	protected function parseReportData($data)
 	{
-		$result = [];
-		if(!is_string($data) || empty($data))
+		if (!is_string($data) || empty($data))
 		{
-			return $result;
+			return [];
 		}
 
 		$titles = [];
 		$strings = explode("\n", $data);
-		foreach($strings as $number => $string)
+		foreach ($strings as $number => $string)
 		{
-			if($number === 0)
+			if ($number === 0)
 			{
 				$titles = explode("\t", $string);
 			}
-			elseif(!empty($string) && mb_strpos($string, 'Total') !== 0)
+			elseif (!empty($string) && mb_strpos($string, 'Total') !== 0)
 			{
 				$row = array_combine($titles, explode("\t", $string));
-
-				$result = $row;
 			}
 		}
 
-		$conversions = (is_numeric($result['Conversions']) && $result['Conversions'])
-			? $result['Conversions']
-			: 0;
-		$clicks = (is_numeric($result['Clicks']) && $result['Clicks'])
-			? $result['Clicks']
-			: 0;
+		if (empty($row))
+		{
+			return [];
+		}
 
-		$result = [
-			'impressions' => $result['Impressions'],
-			'clicks' => $result['Clicks'],
+		return $this->formatReportData($row);
+	}
+
+	private function formatReportData(array $row): array
+	{
+		$conversions =
+			(is_numeric($row['Conversions']) && $row['Conversions'])
+				? $row['Conversions']
+				: 0
+		;
+
+		$clicks =
+			(is_numeric($row['Clicks']) && $row['Clicks'])
+				? $row['Clicks']
+				: 0
+		;
+
+		$impressions =
+			(is_numeric($row['Impressions']) && $row['Impressions'])
+				? $row['Impressions']
+				: 0
+		;
+
+		$cpm = 0;
+		if ($impressions > 0)
+		{
+			$cpm = round(($row['Cost'] / $impressions) * 1000, 2);
+		}
+
+		$date = !empty($row['Date']) ? new Date($row['Date'], 'Y-m-d') : null;
+
+		return [
+			'impressions' => $impressions,
+			'campaignName' => $row['CampaignName'],
+			'campaignId' => $row['CampaignId'],
+			'clicks' => $clicks,
 			'actions' => $conversions + $clicks,
-			'spend' => $result['Cost'],
-			'cpc' => $result['AvgCpc'],
-			'cpm' => $result['AvgCpm'],
+			'spend' => $row['Cost'],
+			'cpc' => $row['AvgCpc'],
+			'date' => $date,
+			'cpm' => $cpm,
 			'currency' => $this->getCurrency(),
 		];
-
-		return $result;
 	}
 
 	/**
@@ -310,7 +316,6 @@ class AccountYandex extends \Bitrix\Seo\Analytics\Account implements IRequestDir
 	protected function getYandexServerAdress()
 	{
 		$isSandbox = false;
-		//$isSandbox = true;
 
 		return 'https://api' . ($isSandbox ? '-sandbox' : '') . '.direct.yandex.com/json/v5/';
 	}

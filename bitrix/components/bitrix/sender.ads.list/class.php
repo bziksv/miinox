@@ -1,4 +1,4 @@
-<?
+<?php
 
 use Bitrix\Main\Grid\Options as GridOptions;
 use Bitrix\Main\Localization\Loc;
@@ -12,6 +12,7 @@ use Bitrix\Sender\Integration;
 use Bitrix\Sender\Internals\PrettyDate;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\UI\PageNavigation;
+use Bitrix\Sender\Security;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
@@ -102,6 +103,10 @@ class SenderAdsListComponent extends Bitrix\Sender\Internals\CommonSenderCompone
 		switch ($action)
 		{
 			case 'delete':
+				if (!Security\Access::getInstance()->canModifyAds())
+				{
+					return;
+				}
 				if (!is_array($ids))
 				{
 					$ids = array($ids);
@@ -120,7 +125,6 @@ class SenderAdsListComponent extends Bitrix\Sender\Internals\CommonSenderCompone
 		/* Set title */
 		if ($this->arParams['SET_TITLE'])
 		{
-			/**@var CAllMain*/
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_LETTER_LIST_COMP_TITLE'));
 		}
 		$this->arResult['ERRORS'] = array();
@@ -446,7 +450,7 @@ class SenderAdsListComponent extends Bitrix\Sender\Internals\CommonSenderCompone
 		$result = array();
 		foreach ($list as $data)
 		{
-			$result[$data['USER_ID']] = \CAllUser::FormatName(
+			$result[$data['USER_ID']] = CUser::FormatName(
 				$this->arParams['NAME_TEMPLATE'],
 				array(
 					'LOGIN' => $data['USER_LOGIN'],
@@ -508,7 +512,7 @@ class SenderAdsListComponent extends Bitrix\Sender\Internals\CommonSenderCompone
 		}
 
 		$data['USER_PATH'] = str_replace('#id#', $data['USER_ID'], $this->arParams['PATH_TO_USER_PROFILE']);
-		$data['USER'] = \CAllUser::FormatName(
+		$data['USER'] = CUser::FormatName(
 			$this->arParams['NAME_TEMPLATE'],
 			array(
 				'LOGIN' => $data['USER_LOGIN'],
@@ -544,5 +548,10 @@ class SenderAdsListComponent extends Bitrix\Sender\Internals\CommonSenderCompone
 	public function getViewAction()
 	{
 		return ActionDictionary::ACTION_ADS_VIEW;
+	}
+
+	protected function canEdit()
+	{
+		$this->arParams['CAN_EDIT'] = $this->arParams['CAN_EDIT'] ?? Security\Access::getInstance()->canModifyAds();
 	}
 }

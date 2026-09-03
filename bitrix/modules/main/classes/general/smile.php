@@ -377,7 +377,7 @@ class CSmile
 			FROM b_smile s
 			LEFT JOIN b_smile_lang sl ON sl.TYPE = '".self::TYPE_SMILE."' AND sl.SID = s.ID".($lang !== false? " AND sl.LID = '".$DB->ForSql(htmlspecialcharsbx($lang))."'": "")."
 			WHERE s.ID = ".$id."";
-		$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query($strSql);
 
 		if ($lang !== self::GET_ALL_LANGUAGE)
 		{
@@ -509,7 +509,7 @@ class CSmile
 			if($nTopCount > 0)
 			{
 				$strSql = $DB->TopSql($strSelect.$strSql, $nTopCount);
-				$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$res = $DB->Query($strSql);
 			}
 			else
 			{
@@ -525,7 +525,7 @@ class CSmile
 		}
 		else
 		{
-			$res = $DB->Query($strSelect.$strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query($strSelect.$strSql);
 		}
 
 		if (isset($arParams['RETURN_RES']) && $arParams['RETURN_RES'] == 'Y')
@@ -693,9 +693,6 @@ class CSmile
 					$csvFile->SetFirstHeader(false);
 					while($smile = $csvFile->Fetch())
 					{
-						if (defined('BX_UTF') && BX_UTF && $res["LID"] == 'ru')
-							$smile[1] = \Bitrix\Main\Text\Encoding::convertEncoding($smile[1], 'windows-1251', 'utf-8');
-
 						$arLang[$smile[0]][$res["LID"]] = $smile[1];
 					}
 				}
@@ -767,20 +764,20 @@ class CSmile
 							$smileHR = self::IMAGE_SD;
 							$smileType = CSmile::TYPE_SMILE;
 							$smileCode = GetFileNameWithoutExtension($file);
-							if (strpos($file, 'smile_') === 0)
+							if (str_starts_with($file, 'smile_'))
 							{
 								$smileCode = mb_substr($smileCode, 6);
 							}
-							elseif (strpos($file, 'smile') === 0)
+							elseif (str_starts_with($file, 'smile'))
 							{
 								$smileCode = mb_substr($smileCode, 5);
 							}
-							elseif (strpos($file, 'icon_') === 0)
+							elseif (str_starts_with($file, 'icon_'))
 							{
 								$smileType = CSmile::TYPE_ICON;
 								$smileCode = mb_substr($smileCode, 5);
 							}
-							else if (strpos($file, 'icon') === 0)
+							else if (str_starts_with($file, 'icon'))
 							{
 								$smileType = CSmile::TYPE_ICON;
 								$smileCode = mb_substr($smileCode, 4);
@@ -1388,7 +1385,7 @@ class CSmileSet
 			FROM b_smile_set ss
 			LEFT JOIN b_smile_lang sl ON sl.TYPE = ss.TYPE AND sl.SID = ss.ID".($lang !== false? " AND sl.LID = '".$DB->ForSql(htmlspecialcharsbx($lang))."'": "")."
 			WHERE ss.ID = ".$id."";
-		$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query($strSql);
 
 		if ($lang !== self::GET_ALL_LANGUAGE)
 		{
@@ -1428,7 +1425,7 @@ class CSmileSet
 			FROM b_smile_set ss
 			LEFT JOIN b_smile_lang sl ON sl.TYPE = ss.TYPE AND sl.SID = ss.ID".($lang !== false? " AND sl.LID = '".$DB->ForSql(htmlspecialcharsbx($lang))."'": "")."
 			WHERE ss.STRING_ID = '".$DB->ForSql($stringId)."' AND ss.TYPE = '".$DB->ForSql($type)."'";
-		$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query($strSql);
 
 		if ($lang !== false)
 		{
@@ -1588,7 +1585,7 @@ class CSmileSet
 			if($nTopCount > 0)
 			{
 				$strSql = $DB->TopSql($strSelect.$strSql, $nTopCount);
-				$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$res = $DB->Query($strSql);
 			}
 			else
 			{
@@ -1604,7 +1601,7 @@ class CSmileSet
 		}
 		else
 		{
-			$res = $DB->Query($strSelect.$strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query($strSelect.$strSql);
 		}
 
 		if (isset($arParams['RETURN_RES']) && $arParams['RETURN_RES'] == 'Y')

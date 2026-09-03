@@ -1,6 +1,6 @@
 /**
  * Do not edit directly
- * Generated on Fri, 11 Nov 2022 07:59:19 GMT
+ * Generated on Tue, 26 Mar 2024 08:05:46 GMT
  */
 
 :root {
@@ -30,11 +30,17 @@
   --ui-space-inset-4xl: 36px;
   --ui-space-inset-3xl: 32px;
   --ui-space-inset-2xl: 28px;
+  --ui-space-inset-xl2: 26px;
   --ui-space-inset-xl: 24px;
+  --ui-space-inset-lg2: 22px;
   --ui-space-inset-lg: 20px;
+  --ui-space-inset-md2: 18px;
   --ui-space-inset-md: 16px;
+  --ui-space-inset-sm2: 14px;
   --ui-space-inset-sm: 12px;
+  --ui-space-inset-xs2: 10px;
   --ui-space-inset-xs: 8px;
+  --ui-space-inset-2xs2: 6px;
   --ui-space-inset-2xs: 4px;
   --ui-space-inset-3xs: 2px;
   --ui-space-inset-none: 0;
@@ -45,11 +51,17 @@
   --ui-space-inline-4xl-neg: -36px;
   --ui-space-inline-3xl-neg: -32px;
   --ui-space-inline-2xl-neg: -28px;
+  --ui-space-inline-xl2-neg: -26px;
   --ui-space-inline-xl-neg: -24px;
+  --ui-space-inline-lg2-neg: -22px;
   --ui-space-inline-lg-neg: -20px;
+  --ui-space-inline-md2-neg: -18px;
   --ui-space-inline-md-neg: -16px;
+  --ui-space-inline-sm2-neg: -14px;
   --ui-space-inline-sm-neg: -12px;
+  --ui-space-inline-xs2-neg: -10px;
   --ui-space-inline-xs-neg: -8px;
+  --ui-space-inline-2xs2-neg: -6px;
   --ui-space-inline-2xs-neg: -4px;
   --ui-space-inline-3xs-neg: -2px;
   --ui-space-inline-8xl: 72px;
@@ -59,11 +71,17 @@
   --ui-space-inline-4xl: 36px;
   --ui-space-inline-3xl: 32px;
   --ui-space-inline-2xl: 28px;
+  --ui-space-inline-xl2: 26px;
   --ui-space-inline-xl: 24px;
+  --ui-space-inline-lg2: 22px;
   --ui-space-inline-lg: 20px;
+  --ui-space-inline-md2: 18px;
   --ui-space-inline-md: 16px;
+  --ui-space-inline-sm2: 14px;
   --ui-space-inline-sm: 12px;
+  --ui-space-inline-xs2: 10px;
   --ui-space-inline-xs: 8px;
+  --ui-space-inline-2xs2: 6px;
   --ui-space-inline-2xs: 4px;
   --ui-space-inline-3xs: 2px;
   --ui-space-inline-none: 0;
@@ -74,11 +92,17 @@
   --ui-space-stack-4xl-neg: -36px;
   --ui-space-stack-3xl-neg: -32px;
   --ui-space-stack-2xl-neg: -28px;
+  --ui-space-stack-xl2-neg: -26px;
   --ui-space-stack-xl-neg: -24px;
+  --ui-space-stack-lg2-neg: -22px;
   --ui-space-stack-lg-neg: -20px;
+  --ui-space-stack-md2-neg: -18px;
   --ui-space-stack-md-neg: -16px;
+  --ui-space-stack-sm2-neg: -14px;
   --ui-space-stack-sm-neg: -12px;
+  --ui-space-stack-xs2-neg: -10px;
   --ui-space-stack-xs-neg: -8px;
+  --ui-space-stack-2xs2-neg: -6px;
   --ui-space-stack-2xs-neg: -4px;
   --ui-space-stack-3xs-neg: -2px;
   --ui-space-stack-8xl: 72px;
@@ -88,11 +112,17 @@
   --ui-space-stack-4xl: 36px;
   --ui-space-stack-3xl: 32px;
   --ui-space-stack-2xl: 28px;
+  --ui-space-stack-xl2: 26px;
   --ui-space-stack-xl: 24px;
+  --ui-space-stack-lg2: 22px;
   --ui-space-stack-lg: 20px;
+  --ui-space-stack-md2: 18px;
   --ui-space-stack-md: 16px;
+  --ui-space-stack-sm2: 14px;
   --ui-space-stack-sm: 12px;
+  --ui-space-stack-xs2: 10px;
   --ui-space-stack-xs: 8px;
+  --ui-space-stack-2xs2: 6px;
   --ui-space-stack-2xs: 4px;
   --ui-space-stack-3xs: 2px;
   --ui-space-stack-none: 0;
@@ -103,11 +133,17 @@
   --ui-size-4xl: 36px;
   --ui-size-3xl: 32px;
   --ui-size-2xl: 28px;
+  --ui-size-xl2: 26px;
   --ui-size-xl: 24px;
+  --ui-size-lg2: 22px;
   --ui-size-lg: 20px;
+  --ui-size-md2: 18px;
   --ui-size-md: 16px;
+  --ui-size-sm2: 14px;
   --ui-size-sm: 12px;
+  --ui-size-xs2: 10px;
   --ui-size-xs: 8px;
+  --ui-size-2xs2: 6px;
   --ui-size-2xs: 4px;
   --ui-size-3xs: 2px;
   --ui-size-none: 0;
@@ -252,6 +288,8 @@
   --ui-color-palette-red-25-rgb: 255, 220, 219;
   --ui-color-palette-red-20: #ffe8e8;
   --ui-color-palette-red-20-rgb: 255, 232, 232;
+  --ui-color-palette-red-15: #fff0f0;
+  --ui-color-palette-red-15-rgb: 255, 240, 240;
   --ui-color-palette-red-10: #fff8f8;
   --ui-color-palette-red-10-rgb: 255, 248, 248;
   --ui-color-palette-orange-95: #614000;
@@ -274,6 +312,8 @@
   --ui-color-palette-orange-25-rgb: 255, 233, 190;
   --ui-color-palette-orange-20: #fff1d6;
   --ui-color-palette-orange-20-rgb: 255, 241, 214;
+  --ui-color-palette-orange-15: #fff5e3;
+  --ui-color-palette-orange-15-rgb: 255, 245, 227;
   --ui-color-palette-orange-10: #fffaf0;
   --ui-color-palette-orange-10-rgb: 255, 250, 240;
   --ui-color-palette-green-95: #3d4f00;
@@ -286,8 +326,8 @@
   --ui-color-palette-green-70-rgb: 127, 168, 0;
   --ui-color-palette-green-60: #8dbb00;
   --ui-color-palette-green-60-rgb: 141, 187, 0;
-  --ui-color-palette-green-55: #9dcf00;
-  --ui-color-palette-green-55-rgb: 157, 207, 0;
+  --ui-color-palette-green-55: #95c500;
+  --ui-color-palette-green-55-rgb: 149, 197, 0;
   --ui-color-palette-green-50: #9dcf00;
   --ui-color-palette-green-50-rgb: 157, 207, 0;
   --ui-color-palette-green-40: #bbde4d;
@@ -300,6 +340,8 @@
   --ui-color-palette-green-25-rgb: 250, 246, 195;
   --ui-color-palette-green-20: #f1fbd0;
   --ui-color-palette-green-20-rgb: 241, 251, 208;
+  --ui-color-palette-green-15: #f5fcde;
+  --ui-color-palette-green-15-rgb: 245, 252, 222;
   --ui-color-palette-green-10: #fafded;
   --ui-color-palette-green-10-rgb: 250, 253, 237;
   --ui-color-palette-blue-95: #004f69;
@@ -371,6 +413,12 @@
   --ui-color-link-primary-base-rgb: 32, 102, 176;
   --ui-color-background-none: none;
   --ui-color-background-transparent: transparent;
+  --ui-color-copilot-primary: #8e52ec;
+  --ui-color-copilot-primary-rgb: 142, 82, 236;
+  --ui-color-copilot-secondary: #b095dc;
+  --ui-color-copilot-secondary-rgb: 176, 149, 220;
+  --ui-color-copilot-dark: #682ac6;
+  --ui-color-copilot-dark-rgb: 104, 42, 198;
   --ui-border-width-thick: 2px;
   --ui-border-width-thin: 1px;
   --ui-border-radius-pill: 99rem;

@@ -11,7 +11,32 @@ use Bitrix\Main\Result;
 
 final class Catalog extends Controller
 {
+	use GetAction; // default getAction realization
+	use CheckExists; // default implementation of existence check
+
+	protected function isExistsRow(int $id): bool
+	{
+		$entityTable = $this->getEntityTable();
+
+		$row = $entityTable::getRow([
+			'select' => [
+				'IBLOCK_ID',
+			],
+			'filter' => [
+				'=IBLOCK_ID' => $id,
+			],
+		]);
+
+		return !empty($row);
+	}
+
 	//region Actions
+
+	/**
+	 * Returns fields list for rest methods.
+	 *
+	 * @return array
+	 */
 	public function getFieldsAction(): array
 	{
 		return ['CATALOG' => $this->getViewFields()];
@@ -52,19 +77,10 @@ final class Catalog extends Controller
 		});
 	}
 
-	public function getAction($id)
-	{
-		$r = $this->exists($id);
-		if($r->isSuccess())
-		{
-			return ['CATALOG'=>$this->get($id)];
-		}
-		else
-		{
-			$this->addErrors($r->getErrors());
-			return null;
-		}
-	}
+	/**
+	 * public function getAction
+	 * @see GetAction::getAction
+	 */
 
 	public function addAction($fields)
 	{
@@ -158,16 +174,6 @@ final class Catalog extends Controller
 		return new CatalogIblockTable();
 	}
 
-	protected function exists($id)
-	{
-		$r = new Result();
-
-		if(isset($this->get($id)['ID']) == false)
-			$r->addError(new Error('Catalog is not exists'));
-
-		return $r;
-	}
-
 	protected function get($id)
 	{
 		return \CCatalog::GetByID($id);
@@ -177,7 +183,7 @@ final class Catalog extends Controller
 	{
 		$r = new Result();
 
-		if(!\CCatalog::CheckFields("ADD", $fields, $fields['ID']))
+		if(!\CCatalog::CheckFields("ADD", $fields, $fields['ID'] ?? 0))
 		{
 			if ($ex = self::getApplication()->GetException())
 				$r->addError(new Error($ex->GetString(), $ex->GetId()));
@@ -192,7 +198,7 @@ final class Catalog extends Controller
 	{
 		$r = new Result();
 
-		if(!\CCatalog::CheckFields("UPDATE", $fields, $fields['ID']))
+		if(!\CCatalog::CheckFields("UPDATE", $fields, $fields['ID'] ?? 0))
 		{
 			if ($ex = self::getApplication()->GetException())
 				$r->addError(new Error($ex->GetString(), $ex->GetId()));
@@ -236,7 +242,7 @@ final class Catalog extends Controller
 		{
 			if (!$this->accessController->check(ActionDictionary::ACTION_CATALOG_SETTINGS_ACCESS))
 			{
-				$r->addError(new Error('Access Denied', 200040300020));
+				$r->addError($this->getErrorModifyAccessDenied());
 			}
 		}
 
@@ -250,7 +256,7 @@ final class Catalog extends Controller
 		$user = CurrentUser::get();
 		if(!$user->canDoOperation('view_other_settings') && !$user->canDoOperation('edit_other_settings'))
 		{
-			$r->addError(new Error('Access Denied', 200040300010));
+			$r->addError($this->getErrorReadAccessDenied());
 		}
 
 		if (

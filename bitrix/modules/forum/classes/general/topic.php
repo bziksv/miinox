@@ -1,4 +1,4 @@
-<?
+<?php
 IncludeModuleLangFile(__FILE__);
 /**********************************************************************/
 /************** FORUM TOPIC *******************************************/
@@ -246,7 +246,7 @@ class CAllForumTopic
 				{
 					$data[$k] = new \Bitrix\Main\Type\DateTime(\Bitrix\Main\Type\DateTime::isCorrect($v) ? $v : null);
 				}
-				else if (preg_match("/{$k}\s*(\+|\-)\s*(\d+)/", $v, $matches))
+				else if (isset($v) && preg_match("/{$k}\s*(\+|\-)\s*(\d+)/", $v, $matches))
 				{
 					$data[$k] = new \Bitrix\Main\DB\SqlExpression("?# $matches[1] $matches[2]", $k);
 				}
@@ -361,10 +361,10 @@ class CAllForumTopic
 				CForumTopic::Update($res["ID"], array("FORUM_ID" => $FID), true);
 				// move message
 				$strSql = "UPDATE b_forum_message SET FORUM_ID=".$FID.", POST_MESSAGE_HTML='' WHERE TOPIC_ID=".$res["ID"];
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 				// move subscribe
 				$strSql = "UPDATE b_forum_subscribe SET FORUM_ID=".intval($FID)." WHERE TOPIC_ID=".$res["ID"];
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 
 				$arForums[$res["FORUM_ID"]] = $res["FORUM_ID"];
 				unset($GLOBALS["FORUM_CACHE"]["TOPIC"][$res["ID"]]);
@@ -459,7 +459,7 @@ class CAllForumTopic
 			else
 				$strSql .= "WHERE FT.XML_ID = '".$DB->ForSql($ID)."'";
 
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 			if ($db_res && $res = $db_res->Fetch())
 			{
 				$GLOBALS["FORUM_CACHE"]["TOPIC"][$ID] = $res;
@@ -488,7 +488,7 @@ class CAllForumTopic
 		endif;
 
 		$arAddParams = (is_array($arAddParams) ? $arAddParams : array($arAddParams));
-		$arAddParams["GET_FORUM_INFO"] = ($arAddParams["GET_FORUM_INFO"] == "Y" ? "Y" : "N");
+		$arAddParams["GET_FORUM_INFO"] = (isset($arAddParams["GET_FORUM_INFO"]) && $arAddParams["GET_FORUM_INFO"] == "Y" ? "Y" : "N");
 		$arSQL = array("select" => array(), "join" => array());
 		if (!empty($arAddParams["sNameTemplate"]))
 		{
@@ -512,7 +512,7 @@ class CAllForumTopic
 					"sFieldName" => "ABS_LAST_POSTER_NAME_FRMT",
 					"sUserIDFieldName" => "FT.ABS_LAST_POSTER_ID"))));
 		}
-		if ($arAddParams["GET_FORUM_INFO"] == "Y")
+		if (isset($arAddParams["GET_FORUM_INFO"]) && $arAddParams["GET_FORUM_INFO"] == "Y")
 		{
 			$arSQL["select"][] = CForumNew::GetSelectFields(array("sPrefix" => "F_", "sReturnResult" => "string"));
 			$arSQL["join"][] =  "INNER JOIN b_forum F ON (FT.FORUM_ID = F.ID)";
@@ -529,7 +529,7 @@ class CAllForumTopic
 			"FROM b_forum_topic FT \n".
 			"	".$arSQL["join"]."\n".
 			"WHERE FT.ID = ".$ID;
-		$db_res = new _CTopicDBResult($DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__));
+		$db_res = new _CTopicDBResult($DB->Query($strSql));
 
 		if ($res = $db_res->Fetch())
 		{
@@ -716,40 +716,62 @@ class CAllForumTopic
 		return "CForumTopic::CleanUp();";
 	}
 
-
 	//---------------> Topic utils
-	public static function SetStat($ID = 0, $arParams = array())
+	public static function SetStat($ID = 0, $params = [])
 	{
-		global $DB;
-		$ID = intval($ID);
-		if ($ID <= 0):
-			return false;
-		endif;
-		$arParams = (is_array($arParams) ? $arParams : array());
-		$arMessage = (is_array($arParams["MESSAGE"]) ? $arParams["MESSAGE"] : array());
-		if ($arMessage["TOPIC_ID"] != $ID)
-			$arMessage = array();
-		$arFields = array();
-
-		if (!empty($arMessage))
+		if (empty($ID))
 		{
-			$arFields = array(
-				"ABS_LAST_POSTER_ID" => ((intval($arMessage["AUTHOR_ID"])>0) ? $arMessage["AUTHOR_ID"] : false),
-				"ABS_LAST_POSTER_NAME" => $arMessage["AUTHOR_NAME"],
-				"ABS_LAST_POST_DATE" => $arMessage["POST_DATE"],
-				"ABS_LAST_MESSAGE_ID" => $arMessage["ID"]);
-			if ($arMessage["APPROVED"] == "Y"):
+			return;
+		}
+
+		$ID = intval($ID);
+		$params = is_array($params) ? $params : [];
+
+		if (!empty($params["MESSAGE"]["TOPIC_ID"]) && $params["MESSAGE"]["TOPIC_ID"] == $ID)
+		{
+			$message = $params["MESSAGE"];
+
+			$arFields = [
+				"ABS_LAST_POSTER_ID" => $message["AUTHOR_ID"],
+				"ABS_LAST_POSTER_NAME" => $message["AUTHOR_NAME"],
+				"ABS_LAST_POST_DATE" => $message["POST_DATE"],
+				"ABS_LAST_MESSAGE_ID" => $message["ID"]
+			];
+
+			if ($message["APPROVED"] == "Y")
+			{
 				$arFields["APPROVED"] = "Y";
 				$arFields["LAST_POSTER_ID"] = $arFields["ABS_LAST_POSTER_ID"];
 				$arFields["LAST_POSTER_NAME"] = $arFields["ABS_LAST_POSTER_NAME"];
 				$arFields["LAST_POST_DATE"] = $arFields["ABS_LAST_POST_DATE"];
 				$arFields["LAST_MESSAGE_ID"] = $arFields["ABS_LAST_MESSAGE_ID"];
-				if ($arMessage["NEW_TOPIC"] != "Y"):
+				if ($message["NEW_TOPIC"] != "Y")
+				{
 					$arFields["=POSTS"] = "POSTS+1";
-				endif;
-			else:
+				}
+			}
+			else
+			{
 				$arFields["=POSTS_UNAPPROVED"] = "POSTS_UNAPPROVED+1";
-			endif;
+			}
+		}
+		else if (isset($params['DELETED_MESSAGE'])
+			&& ($arTopic = CForumTopic::GetByID($ID))
+			&& (
+				$params['DELETED_MESSAGE']['ID'] < $arTopic['LAST_MESSAGE_ID']
+				|| IsModuleInstalled('bitrix24')
+			)
+		)
+		{
+			$deleteMessage = $params['DELETED_MESSAGE'];
+			if ($deleteMessage['APPROVED'] === 'Y')
+			{
+				$arFields['=POSTS'] = 'POSTS-1';
+			}
+			else
+			{
+				$arFields['=POSTS_UNAPPROVED'] = 'POSTS_UNAPPROVED-1';
+			}
 		}
 		else
 		{
@@ -758,7 +780,7 @@ class CAllForumTopic
 			$res["CNT"] = ($res["CNT"] > 0 ? $res["CNT"] : 0);
 			if (intval($res["ABS_FIRST_MESSAGE_ID"]) > 0 && intval($res["ABS_FIRST_MESSAGE_ID"]) != intval($res["FIRST_MESSAGE_ID"]))
 			{
-				$GLOBALS["DB"]->Query("UPDATE b_forum_message SET NEW_TOPIC = (CASE WHEN ID=".intval($res["ABS_FIRST_MESSAGE_ID"])." THEN 'Y' ELSE 'N' END) WHERE TOPIC_ID=".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$GLOBALS["DB"]->Query("UPDATE b_forum_message SET NEW_TOPIC = (CASE WHEN ID=".intval($res["ABS_FIRST_MESSAGE_ID"])." THEN 'Y' ELSE 'N' END) WHERE TOPIC_ID=".$ID);
 
 				CForumMessage::Reindex($res["ABS_FIRST_MESSAGE_ID"]);
 				CForumMessage::Reindex($res["FIRST_MESSAGE_ID"]);
@@ -1000,7 +1022,7 @@ class _CTopicDBResult extends CDBResult
 					if (!empty($arSqlSearch)):
 						$strSql = "SELECT FM.ID, ".$DB->DateToCharFunction("FM.POST_DATE", "FULL")." AS POST_DATE ".
 							"FROM b_forum_message FM WHERE ".implode(" OR ", $arSqlSearch);
-						$db_res = $DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+						$db_res = $DB->Query($strSql);
 						if($db_res && $val = $db_res->Fetch()):
 							do
 							{

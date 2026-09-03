@@ -1,3 +1,7 @@
+import {Runtime, Dom, Tag} from 'main.core';
+
+import {PageObject} from 'landing.pageobject';
+
 import editText from '../action/edit-text';
 import editEmbed from '../action/edit-embed';
 import editMap from '../action/edit-map';
@@ -6,6 +10,7 @@ import editIcon from '../action/edit-icon';
 import editLink from '../action/edit-link';
 import changeNodeName from '../action/change-node-name';
 import sortBlock from '../action/sort-block';
+import moveBlock from '../action/move-block';
 import addBlock from '../action/add-block';
 import removeBlock from '../action/remove-block';
 import addCard from '../action/add-card';
@@ -13,8 +18,12 @@ import removeCard from '../action/remove-card';
 import addNode from '../action/add-node';
 import removeNode from '../action/remove-node';
 import editStyle from '../action/edit-style';
+import editAttributes from '../action/edit-attributes';
+import editComponent from '../action/edit-component';
 import updateContent from '../action/update-content';
 import multiply from '../action/multiply';
+import replaceLanding from '../action/replace-landing';
+import changeAnchor from '../action/change-anchor';
 
 import Command from '../history-command';
 
@@ -85,6 +94,13 @@ export default function registerBaseCommands(history: History)
 
 	history.registerCommand(
 		new Command({
+			id: 'moveBlock',
+			command: moveBlock,
+		}),
+	);
+
+	history.registerCommand(
+		new Command({
 			id: 'addBlock',
 			command: addBlock,
 		}),
@@ -137,6 +153,49 @@ export default function registerBaseCommands(history: History)
 		new Command({
 			id: 'updateContent',
 			command: updateContent,
+		}),
+	);
+
+	history.registerCommand(
+		new Command({
+			id: 'replaceLanding',
+			command: replaceLanding,
+			onBeforeCommand: () => {
+				return Runtime.loadExtension('main.loader')
+					.then(() => {
+						const editor = BX.Landing.PageObject.getEditorWindow();
+						if (editor)
+						{
+							const container = Tag.render`<div class="landing-ui-modal"></div>`;
+							Dom.append(container, editor.document.body);
+							const loader = new BX.Loader({target: container});
+							loader.show();
+						}
+
+						return Promise.resolve();
+					});
+			}
+		}),
+	);
+
+	history.registerCommand(
+		new Command({
+			id: 'changeAnchor',
+			command: changeAnchor,
+		}),
+	);
+
+	history.registerCommand(
+		new Command({
+			id: 'editAttributes',
+			command: editAttributes,
+		}),
+	);
+
+	history.registerCommand(
+		new Command({
+			id: 'editComponent',
+			command: editComponent,
 		}),
 	);
 

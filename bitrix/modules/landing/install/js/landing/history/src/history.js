@@ -1,107 +1,99 @@
-import {Event} from 'main.core';
-import {PageObject} from 'landing.pageobject';
-import {RESOLVED, PENDING} from './internal/constants';
+import {
+	Main
+} from 'landing.main';
+import {
+	PageObject
+} from 'landing.pageobject';
+import {
+	Backend
+} from 'landing.backend';
+import {
+	Env
+} from 'landing.env';
+import {
+	TailwindRuntimeBatchSync,
+	TailwindRuntimeSync,
+	getPendingBlockIds,
+} from 'landing.tailwind.runtimesync';
+import {
+	RESOLVED,
+	PENDING,
+	HISTORY_TYPES
+} from './internal/constants';
 import registerBaseCommands from './internal/register-base-commands';
 import removePageHistory from './internal/remove-page-history';
-import loadStack from './internal/load-stack';
-import fetchEntities from './internal/fetch-entities';
-import removeEntities from './internal/remove-entities';
 import clear from './internal/clear';
 import onUpdate from './internal/on-update';
 import onInit from './internal/on-init';
 import Command from './history-command';
 import Entry from './history-entry';
-import Highlight from './history-highlight';
-import editText from './action/edit-text';
-import editEmbed from './action/edit-embed';
-import editMap from './action/edit-map';
-import editImage from './action/edit-image';
-import editIcon from './action/edit-icon';
-import editLink from './action/edit-link';
-import sortBlock from './action/sort-block';
-import addBlock from './action/add-block';
-import removeBlock from './action/remove-block';
-import addCard from './action/add-card';
-import removeCard from './action/remove-card';
-import addNode from './action/add-node';
-import removeNode from './action/remove-node';
-import editStyle from './action/edit-style';
-import updateContent from './action/update-content';
-import {Main} from 'landing.main';
+import Stack from './stack';
+import Highlight from './history-highlight'; // not delete - just for export
+
+import './css/style.css';
+
+const TAILWIND_HISTORY_PENDING_ATTRIBUTE = 'data-history-tailwind-pending';
+const TAILWIND_HISTORY_PENDING_VISIBILITY_ATTRIBUTE = 'data-history-tailwind-pending-visibility';
+const TAILWIND_HISTORY_PENDING_STYLE_ID = 'history-tailwind-pending-style';
 
 /**
  * Implements interface for works with landing history
  * Implements singleton pattern use as BX.Landing.History.getInstance()
  * @memberOf BX.Landing
  */
-export class History
-{
-	static TYPE_LANDING = 'L';
-	static TYPE_DESIGNER_BLOCK = 'D';
-
-	stack: number;
-	commands: {};
+export class History {
 	/**
-	 * From 1 to X. 0 - is state without any history
+	 * Stack of action commands
+	 */
+	stack: ? Stack = null;
+
+	/**
+	 * Key - command name, value - a Command object
+	 */
+	commands: {
+		[string]: Command
+	} = {};
+
+	/**
+	 * If command now running - set to PENDING
+	 * @type {string}
+	 */
+	commandState: string = RESOLVED;
+
+	/**
+	 * Type of current entity
+	 * @type {string}
+	 */
+	entityType: string = HISTORY_TYPES.landing;
+
+	/**
+	 * Landing or Block ID in relation to type
 	 * @type {number}
 	 */
-	step: number;
-	commandState: string;
-	landingId: number;
-	designerBlockId: ?number = null;
+	entityId: number;
 
-	constructor()
-	{
-		this.type = History.TYPE_LANDING;
-		this.stack = 0;
-		this.commands = {};
-		this.step = 0;
-		this.commandState = RESOLVED;
-		this.onStorage = this.onStorage.bind(this);
-
-		try
-		{
-			this.landingId = Main.getInstance().id;
-		}
-		catch (err)
-		{
-			this.landingId = -1;
+	constructor() {
+		try {
+			this.entityId = Main.getInstance().id;
+		} catch (err) {
+			this.entityId = -1;
 		}
 
-		Event.bind(window, 'storage', this.onStorage);
-
-		registerBaseCommands(this)
-			.then(loadStack)
+		this.stack = new Stack(this.entityId);
+		this.stack.init()
+			.then(() => {
+				return registerBaseCommands(this)
+			})
 			.then(onInit);
 	}
 
 	static Command = Command;
 	static Entry = Entry;
-	static Highlight = Highlight;
-	// todo: need?
-	// static Action = {
-	// 	editText,
-	// 	editEmbed,
-	// 	editMap,
-	// 	editImage,
-	// 	editIcon,
-	// 	editLink,
-	// 	sortBlock,
-	// 	addBlock,
-	// 	removeBlock,
-	// 	addCard,
-	// 	removeCard,
-	// 	editStyle,
-	// 	addNode,
-	// 	removeNode,
-	// 	updateContent
-	// };
+	static Highlight = Highlight; // not delete - just for export
 
-	static getInstance(): History
-	{
+	static getInstance(): History {
 		const rootWindow = PageObject.getRootWindow();
-		if (!rootWindow.BX.Landing.History.instance)
-		{
+		if (!rootWindow.BX.Landing.History.instance) {
 			rootWindow.BX.Landing.History.instance = new BX.Landing.History();
 		}
 
@@ -109,87 +101,109 @@ export class History
 	}
 
 	/**
-	 * Set special type for designer block
+	 * Set special type for designer block history
 	 * @param blockId
 	 * @return {Promise<BX.Landing.History>|*}
 	 */
-	setTypeDesignerBlock(blockId: number): Promise<History>
-	{
-		this.type = History.TYPE_DESIGNER_BLOCK;
-		this.designerBlockId = blockId;
+	setTypeDesignerBlock(blockId: number): Promise < History > {
+		this.entityType = HISTORY_TYPES.designerBlock;
+		this.entityId = blockId;
 
-		return loadStack(this);
+		return this.stack.setTypeDesignerBlock(blockId)
+			.then(() => {
+				return this;
+			})
 	}
 
-	getUndoAction(): string
-	{
-		if (this.type === History.TYPE_DESIGNER_BLOCK)
-		{
-			return "History::undoDesignerBlock";
-		}
-
-		return "History::undoLanding";
+	getEntityId(): number {
+		return this.entityId;
 	}
 
-	getRedoAction(): string
-	{
-		if (this.type === History.TYPE_DESIGNER_BLOCK)
-		{
-			return "History::redoDesignerBlock";
+	beforeUndo(): Promise {
+		const commandName = this.stack.getCommandName();
+		if (commandName && this.commands[commandName]) {
+			const command = this.commands[commandName];
+
+			return command.onBeforeCommand();
 		}
 
-		return "History::redoLanding";
+		return Promise.resolve();
 	}
 
-	getActionParams(): string
-	{
-		if (
-			this.type === History.TYPE_DESIGNER_BLOCK
-			&& this.designerBlockId
-		)
-		{
-			return {
-				blockId: this.designerBlockId,
-			};
+	beforeRedo(): Promise {
+		const commandName = this.stack.getCommandName(false);
+		if (commandName && this.commands[commandName]) {
+			const command = this.commands[commandName];
+
+			return command.onBeforeCommand();
 		}
 
-		return {
-			lid: this.landingId,
-		};
+		return Promise.resolve();
 	}
 
 	/**
 	 * Applies preview history entry
 	 * @return {Promise}
 	 */
-	undo()
-	{
-		if (this.canUndo())
-		{
-			return BX.Landing.Backend.getInstance()
-				.action(
-					this.getUndoAction(),
-					this.getActionParams(),
-				)
+	undo(): Promise {
+		if (this.canUndo()) {
+			const entityId = this.stack.getCommandEntityId(true);
+			let historyCommand = null;
+			let tailwindBatchSync = null;
+			this.commandState = PENDING;
+			return this.beforeUndo()
+				.then(() => {
+					return Backend.getInstance()
+						.action(
+							this.getBackendActionName(true),
+							this.getBackendActionParams(true),
+						)
+				})
 				.then(command => {
-					if (command)
-					{
+					if (command) {
+						historyCommand = command;
 						const params = command.params;
 						const entry = new Entry({
 							block: params.block,
 							selector: params.selector,
 							command: command.command,
 							params: params,
+							onAfterCommand: null,
 						});
 
-						return this.runCommand(entry, -1);
+						return this.prepareTailwindRuntimeBeforeHistoryCommand(entityId, historyCommand)
+							.then(() => {
+								return this.prepareTailwindRuntimeBatchBeforeHistoryCommand(entityId, historyCommand);
+							})
+							.then(batchSync => {
+								tailwindBatchSync = batchSync;
+								entry.onAfterCommand = this.createTailwindRuntimeAfterHistoryCommandCallback(
+									entityId,
+									historyCommand,
+									tailwindBatchSync,
+								);
+
+								return this.runCommand(entry);
+							});
 					}
 
 					return Promise.reject();
 				})
-				.then(res => {
-					return this.offset(-1).then(onUpdate);
+				.then(() => {
+					return this.offset();
 				})
+				.then(onUpdate)
+				.then(history => {
+					return this.rebuildTailwindAfterHistoryCommand(
+						history,
+						entityId,
+						historyCommand,
+						tailwindBatchSync,
+					);
+				})
+				.then(history => {
+					return this.publicationAfterHistoryCommand(history, entityId, historyCommand);
+				});
 		}
 
 		return Promise.resolve(this);
@@ -200,63 +214,381 @@ export class History
 	 * Applies preview next history entry
 	 * @return {Promise}
 	 */
-	redo()
-	{
-		if (this.canRedo())
-		{
-			return BX.Landing.Backend.getInstance()
-				.action(
-					this.getRedoAction(),
-					this.getActionParams(),
-				)
+	redo(): Promise {
+		if (this.canRedo()) {
+			const entityId = this.stack.getCommandEntityId(false);
+			let historyCommand = null;
+			let tailwindBatchSync = null;
+			this.commandState = PENDING;
+			return this.beforeRedo()
+				.then(() => {
+					return Backend.getInstance()
+						.action(
+							this.getBackendActionName(false),
+							this.getBackendActionParams(false),
+						)
+				})
 				.then(command => {
-					if (command)
-					{
+					if (command) {
+						historyCommand = command;
 						const params = command.params;
 						const entry = new Entry({
 							block: params.block,
 							selector: params.selector,
 							command: command.command,
 							params: params,
+							onAfterCommand: null,
 						});
 
-						return this.runCommand(entry, 1);
+						return this.prepareTailwindRuntimeBeforeHistoryCommand(entityId, historyCommand)
+							.then(() => {
+								return this.prepareTailwindRuntimeBatchBeforeHistoryCommand(entityId, historyCommand);
+							})
+							.then(batchSync => {
+								tailwindBatchSync = batchSync;
+								entry.onAfterCommand = this.createTailwindRuntimeAfterHistoryCommandCallback(
+									entityId,
+									historyCommand,
+									tailwindBatchSync,
+								);
+
+								return this.runCommand(entry);
+							});
 					}
 
 					return Promise.reject();
 				})
-				.then(res => {
-					return this.offset(1).then(onUpdate);
+				.then(() => {
+					return this.offset(false);
 				})
+				.then(onUpdate)
+				.then(history => {
+					return this.rebuildTailwindAfterHistoryCommand(
+						history,
+						entityId,
+						historyCommand,
+						tailwindBatchSync,
+					);
+				})
+				.then(history => {
+					return this.publicationAfterHistoryCommand(history, entityId, historyCommand);
+				});
 		}
 
 		return Promise.resolve(this);
 	}
 
-	offset(offsetValue: number): Promise<History>
-	{
-		if (this.commandState === PENDING)
-		{
-			return Promise.resolve(this);
+	/**
+	 * Get name for backend action
+	 * @param {boolean} undo - true, if need undo, false for redo
+	 * @return {string}
+	 */
+	getBackendActionName(undo: boolean = true): string {
+		if (this.entityType === HISTORY_TYPES.designerBlock) {
+			return undo ? 'History::undoDesignerBlock' : 'History::redoDesignerBlock';
 		}
 
-		let step = this.step + offsetValue;
-
-		if (step >= 0 && step <= this.stack)
-		{
-			this.step = step;
-		}
-
-		return Promise.resolve(this);
+		return undo ? 'History::undoLanding' : 'History::redoLanding';
 	}
 
-	runCommand(entry: Entry, offsetValue: number)
-	{
-		if (entry)
-		{
+	/**
+	 * Get id for entity for backend action
+	 * @param {boolean} undo - true, if need undo, false for redo
+	 * @return {string}
+	 */
+	getBackendActionParams(undo: boolean = true): string {
+		if (this.entityType === HISTORY_TYPES.designerBlock) {
+			return {
+				blockId: this.entityId,
+			};
+		}
+
+		return {
+			lid: this.stack.getCommandEntityId(undo),
+		};
+	}
+
+	isAutoPublicationEnabled(): boolean {
+		const rootWindow = PageObject.getRootWindow();
+		const topWindow = rootWindow && rootWindow.top ? rootWindow.top : window.top;
+		if (
+			topWindow &&
+			topWindow.window &&
+			typeof topWindow.window.autoPublicationEnabled === 'boolean'
+		) {
+			return topWindow.window.autoPublicationEnabled;
+		}
+
+		const option = Env.getInstance().getOptions().autoPublicationEnabled;
+		return option === true || option === 'Y' || option === 1 || option === '1';
+	}
+
+	isTailwindRuntimeEnabled(): boolean {
+		const option = Env.getInstance().getOptions().tailwindRuntimeEnabled;
+
+		return option === true || option === 'Y' || option === 1 || option === '1';
+	}
+
+	publicationAfterHistoryCommand(history: History, entityId: ? number, command : ? Object): Promise < History > {
+		const landingId = this.resolveTailwindRuntimeLandingId(entityId, command) || entityId || this.entityId;
+		if (
+			this.entityType !== HISTORY_TYPES.landing ||
+			!this.isAutoPublicationEnabled() ||
+			!landingId ||
+			this.isTailwindRebuildFailed(command)
+		) {
+			return Promise.resolve(history);
+		}
+
+		return Backend.getInstance()
+			.action('Landing::publication', {
+				lid: landingId,
+			})
+			.then(() => history)
+			.catch(() => history);
+	}
+
+	prepareTailwindRuntimeBeforeHistoryCommand(entityId: ? number, command : ? Object): Promise {
+		if (!this.isTailwindRuntimeEnabled()) {
+			return Promise.resolve();
+		}
+
+		const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+		const pendingBlockIds = getPendingBlockIds(this.normalizeTailwindHistoryOperations(command));
+		if (!landingId || pendingBlockIds.size <= 0) {
+			return Promise.resolve();
+		}
+
+		return PageObject.getInstance()
+			.view()
+			.then(iframe => {
+				return TailwindRuntimeSync.preloadRuntimeForWindow(
+					iframe?.contentWindow, {
+						helpersBasePath: this.resolveTailwindRuntimeHelpersBasePath(),
+					},
+				);
+			})
+			.catch(err => {
+				this.commandState = RESOLVED;
+				console.error('History Tailwind runtime preload failed.', err);
+
+				return Promise.reject(err);
+			});
+	}
+
+	prepareTailwindRuntimeBatchBeforeHistoryCommand(entityId: ? number, command : ? Object): Promise < ? TailwindRuntimeBatchSync > {
+		if (!this.isTailwindRuntimeEnabled()) {
+			return Promise.resolve(null);
+		}
+
+		const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+		const operations = this.normalizeTailwindHistoryOperations(command);
+		const pendingBlockIds = getPendingBlockIds(operations);
+		if (!landingId || pendingBlockIds.size <= 0) {
+			return Promise.resolve(null);
+		}
+
+		return PageObject.getInstance()
+			.view()
+			.then(iframe => {
+				const targetDocument = this.resolveTailwindRuntimeDocument(iframe);
+				if (!targetDocument?.head) {
+					return Promise.reject(new Error('History Tailwind visual guard target document is not available.'));
+				}
+
+				return this.resolveTailwindRuntimeBlocks()
+					.then((blocks) => {
+						const batchSync = new TailwindRuntimeBatchSync({
+							landingId,
+							targetWindow: iframe?.contentWindow,
+							targetDocument,
+							helpersBasePath: this.resolveTailwindRuntimeHelpersBasePath(),
+							pendingStyleId: TAILWIND_HISTORY_PENDING_STYLE_ID,
+							pendingAttribute: TAILWIND_HISTORY_PENDING_ATTRIBUTE,
+							pendingVisibilityAttribute: TAILWIND_HISTORY_PENDING_VISIBILITY_ATTRIBUTE,
+							operations,
+							finalRebuildRequired: true,
+							resolveBlockNode: (blockId) => this.resolveTailwindRuntimeBlockNode(blocks, blockId),
+							onFailure: (err) => {
+								if (command && command.tailwindRuntime) {
+									command.tailwindRuntime.rebuildFailed = true;
+								}
+
+								console.error('History Tailwind CSS rebuild failed.', err);
+								this.reloadEditorWindowAfterTailwindRuntimeFailure();
+							},
+						});
+
+						return batchSync.prepare()
+							.then(() => batchSync);
+					});
+			})
+			.catch(err => {
+				this.commandState = RESOLVED;
+				console.error('History Tailwind visual guard failed.', err);
+
+				return Promise.reject(err);
+			});
+	}
+
+	rebuildTailwindAfterHistoryCommand(
+		history: History,
+		entityId: ? number,
+		command : ? Object,
+		batchSync : ? TailwindRuntimeBatchSync = null,
+	): Promise < History > {
+		const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+		if (
+			!batchSync ||
+			!this.isTailwindRuntimeEnabled() ||
+			!landingId ||
+			this.isTailwindRebuildFailed(command) ||
+			(typeof batchSync.finalize !== 'function')
+		) {
+			return Promise.resolve(history);
+		}
+
+		return batchSync.finalize()
+			.then(() => history)
+			.then((result) => result);
+	}
+
+	createTailwindRuntimeAfterHistoryCommandCallback(
+		entityId: ? number,
+		command : ? Object,
+		batchSync : ? TailwindRuntimeBatchSync,
+	): ? Function {
+		const commandName = String(command?.command || '').trim();
+		const landingId = this.resolveTailwindRuntimeLandingId(entityId, command);
+		if (
+			commandName !== 'multiply' ||
+			!this.isTailwindRuntimeEnabled() ||
+			!landingId ||
+			!batchSync ||
+			typeof batchSync.afterOperation !== 'function' ||
+			batchSync.getPendingBlockIds().size <= 0
+		) {
+			return null;
+		}
+
+		return (singleCommand) => {
+			return batchSync.afterOperation(this.normalizeTailwindHistoryOperation(singleCommand));
+		};
+	}
+
+	reloadEditorWindowAfterTailwindRuntimeFailure(): void {
+		const editorWindow = PageObject.getEditorWindow();
+		if (editorWindow?.location && typeof editorWindow.location.reload === 'function') {
+			TailwindRuntimeSync.reloadWindow(editorWindow);
+
+			return;
+		}
+
+		TailwindRuntimeSync.reloadWindow(window);
+	}
+
+	resolveTailwindRuntimeDocument(iframe: ? HTMLIFrameElement): ? Document {
+		return iframe?.contentDocument || iframe?.contentWindow?.document || document;
+	}
+
+	resolveTailwindRuntimeHelpersBasePath(): ? string {
+		try {
+			const bx = PageObject.getRootWindow()?.BX;
+			if (typeof bx?.message !== 'function') {
+				return null;
+			}
+
+			const templatePath = String(bx.message('SITE_TEMPLATE_PATH') || '').trim().replace(/\/+$/, '');
+			if (templatePath === '') {
+				return null;
+			}
+
+			return `${templatePath}/assets/js/helpers`;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	resolveTailwindRuntimeBlocks(): Promise {
+		return PageObject.getInstance()
+			.blocks()
+			.catch(() => null);
+	}
+
+	resolveTailwindRuntimeBlockNode(blocks: ? Object, blockId : number): ? Element {
+		const block = blocks && typeof blocks.get === 'function' ? blocks.get(blockId) : null;
+
+		return block?.node || null;
+	}
+
+	normalizeTailwindHistoryOperation(command: ? Object): ? Object {
+		if (!command) {
+			return null;
+		}
+
+		const typeMap = {
+			updateContent: 'update_block',
+			addBlock: 'add_block',
+			removeBlock: 'delete_block',
+			moveBlock: 'move_block',
+		};
+		const commandName = String(command.command || '').trim();
+		const type = typeMap[commandName] || null;
+		const blockId = parseInt(command?.params?.block, 10);
+		if (!type || !(blockId > 0)) {
+			return null;
+		}
+
+		return {
+			type,
+			blockId,
+			raw: command,
+		};
+	}
+
+	normalizeTailwindHistoryOperations(command: ? Object): Array < Object > {
+		if (!command) {
+			return [];
+		}
+
+		const commandName = String(command.command || '').trim();
+		if (commandName === 'multiply' && Array.isArray(command.params)) {
+			return command.params.flatMap((singleCommand) => this.normalizeTailwindHistoryOperations(singleCommand));
+		}
+
+		const operation = this.normalizeTailwindHistoryOperation(command);
+
+		return operation ? [operation] : [];
+	}
+
+	resolveTailwindRuntimeLandingId(entityId: ? number, command : ? Object): ? number {
+		const tailwindRuntime = command && command.tailwindRuntime;
+		const landingId = (tailwindRuntime && tailwindRuntime.landingId) || entityId || this.entityId;
+		if (
+			this.entityType !== HISTORY_TYPES.landing ||
+			!tailwindRuntime ||
+			tailwindRuntime.rebuildRequired !== true ||
+			!landingId
+		) {
+			return null;
+		}
+
+		return landingId;
+	}
+
+	isTailwindRebuildFailed(command: ? Object): boolean {
+		return Boolean(
+			command &&
+			command.tailwindRuntime &&
+			command.tailwindRuntime.rebuildRequired === true &&
+			command.tailwindRuntime.rebuildFailed === true
+		);
+	}
+
+	runCommand(entry: Entry) {
+		if (entry) {
 			const command = this.commands[entry.command];
-			if (command)
-			{
+			if (command) {
 				this.commandState = PENDING;
 
 				return command.command(entry)
@@ -265,25 +597,35 @@ export class History
 
 						return this;
 					})
-					.catch(() => {
+					.catch(err => {
+						console.error(`History error in command ${command.id}.`, err);
 						this.commandState = RESOLVED;
-						// todo: how check and process error
-						return this.offset(offsetValue);
+
+						return this;
 					});
 			}
 		}
 	}
 
+	offset(undo: boolean = true): Promise < History > {
+		if (this.commandState === PENDING) {
+			return Promise.resolve(this);
+		}
+
+		return this.stack.offset(undo)
+			.then(() => {
+				return this;
+			});
+	}
 
 	/**
 	 * Check that there are actions to undo
 	 * @returns {boolean}
 	 */
-	canUndo()
-	{
+	canUndo() {
 		return (
-			this.commandState !== PENDING
-			&& (this.step > 0 && this.stack > 0 && this.step <= this.stack)
+			this.commandState !== PENDING &&
+			this.stack.canUndo()
 		);
 	}
 
@@ -292,30 +634,29 @@ export class History
 	 * Check that there are actions to redo
 	 * @returns {boolean}
 	 */
-	canRedo()
-	{
+	canRedo() {
 		return (
-			this.commandState !== PENDING
-			&& (this.step < this.stack && this.step >= 0)
+			this.commandState !== PENDING &&
+			this.stack.canRedo()
 		);
 	}
 
 
 	/**
 	 * Adds entry to history stack
-	 * @param {BX.Landing.History.Entry} entry
 	 */
-	push(entry)
-	{
-		if (this.step < this.stack)
-		{
-			this.stack = this.step;
-		}
+	push(): Promise < History > {
+		return this.stack.push()
+			.then(() => {
+				return onUpdate(this);
+			});
+	}
 
-		this.step++;
-		this.stack++;
-
-		onUpdate(this);
+	reload(): Promise < History > {
+		return this.stack.reload()
+			.then(() => {
+				return onUpdate(this);
+			});
 	}
 
 
@@ -323,38 +664,29 @@ export class History
 	 * Registers unique history command
 	 * @param {Command} command
 	 */
-	registerCommand(command)
-	{
-		if (command instanceof Command)
-		{
+	registerCommand(command: Command) {
+		if (command instanceof Command) {
 			this.commands[command.id] = command;
 		}
 	}
-
 
 	/**
 	 * Removes page history from storage
 	 * @param {int} pageId
 	 * @return {Promise<BX.Landing.History>}
 	 */
-	removePageHistory(pageId)
-	{
-		// todo: publication clear method
+	removePageHistory(pageId) {
 		return removePageHistory(pageId, this)
 			.then((history) => {
 				let currentPageId;
 
-				try
-				{
+				try {
 					currentPageId = BX.Landing.Main.getInstance().id;
-				}
-				catch (err)
-				{
+				} catch (err) {
 					currentPageId = -1;
 				}
 
-				if (currentPageId === pageId)
-				{
+				if (currentPageId === pageId) {
 					return clear(history);
 				}
 
@@ -362,35 +694,5 @@ export class History
 			})
 			.then(onUpdate)
 			.catch(() => {});
-	}
-
-
-	/**
-	 * Handles storage event
-	 * @param {StorageEvent} event
-	 */
-	onStorage(event)
-	{
-		if (event.key === null)
-		{
-			if (!window.localStorage.history)
-			{
-				clear(this).then(onUpdate);
-			}
-		}
-	}
-
-
-	/**
-	 * Handles new branch events
-	 * @param {BX.Landing.History.Entry[]} entries
-	 * @return {Promise<History>}
-	 */
-	onNewBranch(entries)
-	{
-		return fetchEntities(entries, this)
-			.then((entities) => {
-				return removeEntities(entities, this);
-			});
 	}
 }

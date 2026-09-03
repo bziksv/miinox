@@ -8,8 +8,8 @@ namespace Bitrix\Perfmon\Sql;
  */
 class Collection
 {
-	/** @var array[BaseObject]  */
-	private $list = array();
+	/** @var array[BaseObject] */
+	private $list = [];
 
 	/**
 	 * Add object into the tail of the collection.
@@ -21,6 +21,19 @@ class Collection
 	public function add(BaseObject $object)
 	{
 		$this->list[] = $object;
+	}
+
+	/**
+	 * Replaces object in the collection.
+	 *
+	 * @param int $index Collection index for replacement.
+	 * @param BaseObject $object Object to add.
+	 *
+	 * @return void
+	 */
+	public function set($index, BaseObject $object)
+	{
+		$this->list[$index] = $object;
 	}
 
 	/**
@@ -36,7 +49,29 @@ class Collection
 		foreach ($this->list as $object)
 		{
 			if ($object->compareName($name) == 0)
+			{
 				return $object;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Searches collection for an object by it's name.
+	 *
+	 * @param string $name Object name to look up.
+	 *
+	 * @return int|null
+	 */
+	public function searchIndex($name)
+	{
+		/** @var BaseObject $object */
+		foreach ($this->list as $i => $object)
+		{
+			if ($object->compareName($name) == 0)
+			{
+				return $i;
+			}
 		}
 		return null;
 	}
@@ -66,16 +101,16 @@ class Collection
 	 */
 	public function compare(Collection $targetList, $compareBody = true)
 	{
-		$difference = array();
+		$difference = [];
 		/** @var BaseObject $source */
 		foreach ($this->list as $source)
 		{
 			if (!$targetList->search($source->name))
 			{
-				$difference[] = array(
+				$difference[] = [
 					$source,
 					null,
-				);
+				];
 			}
 		}
 		/** @var BaseObject $target */
@@ -84,20 +119,20 @@ class Collection
 			$source = $this->search($target->name);
 			if (!$source)
 			{
-				$difference[] = array(
+				$difference[] = [
 					null,
 					$target,
-				);
+				];
 			}
 			elseif (
 				!$compareBody
 				|| $source->body !== $target->body
 			)
 			{
-				$difference[] = array(
+				$difference[] = [
 					$source,
 					$target,
-				);
+				];
 			}
 		}
 		return $difference;

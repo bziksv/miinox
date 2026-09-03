@@ -9,26 +9,26 @@ import './css/style.css';
 /**
  * @memberOf BX.Landing.UI.Field
  */
-export class Icon extends Image
+export class Icon
 {
 	constructor(data)
 	{
-		super(data);
-		this.uploadButton.layout.innerText = BX.Landing.Loc.getMessage("LANDING_ICONS_FIELD_BUTTON_REPLACE");
-		this.editButton.layout.hidden = true;
-		this.clearButton.layout.hidden = true;
+		const self = Reflect.construct(Image, [data], new.target);
+		self.uploadButton.layout.innerText = BX.Landing.Loc.getMessage("LANDING_ICONS_FIELD_BUTTON_REPLACE");
+		self.editButton.layout.hidden = true;
+		self.clearButton.layout.hidden = true;
 
-		this.dropzone.removeEventListener("dragover", this.onDragOver);
-		this.dropzone.removeEventListener("dragleave", this.onDragLeave);
-		this.dropzone.removeEventListener("drop", this.onDrop);
-		this.preview.removeEventListener("dragenter", this.onImageDragEnter);
+		self.dropzone.removeEventListener("dragover", self.onDragOver);
+		self.dropzone.removeEventListener("dragleave", self.onDragLeave);
+		self.dropzone.removeEventListener("drop", self.onDrop);
+		self.preview.removeEventListener("dragenter", self.onImageDragEnter);
 
-		this.options = new IconOptionsCard();
-		Dom.append(this.options.getLayout(), this.right);
-		this.onOptionClick = this.onOptionClick.bind(this);
-		this.options.subscribe('onChange', this.onOptionClick);
+		self.options = new IconOptionsCard();
+		Dom.append(self.options.getLayout(), self.right);
+		self.onOptionClick = self.onOptionClick.bind(self);
+		self.options.subscribe('onChange', self.onOptionClick);
 
-		const sourceClassList = this.content.classList;
+		const sourceClassList = self.content.classList;
 		const newClassList = [];
 		IconPanel
 			.getLibraries()
@@ -71,7 +71,9 @@ export class Icon extends Image
 				}
 
 				this.options.setOptionsByItem(newClassList);
-			}.bind(this));
+			}.bind(self));
+
+		return self;
 	}
 
 	onUploadClick(event)
@@ -99,12 +101,155 @@ export class Icon extends Image
 		});
 	}
 
-	isChanged()
+	/**
+	 * Checks whether the current value differs from the stored one.
+	 *
+	 * @returns {boolean} True if the value has changed, false otherwise.
+	 */
+	isChanged(): boolean
 	{
-		return this.getValue().classList.some(function (className)
+		const previous = this.prepareValue(this.content);
+		const current = this.prepareValue(this.getValue());
+
+		return !this.isEqual(previous, current);
+	}
+
+
+	/**
+	 * Compares two objects by value.
+	 * Assumes objects are already normalized.
+	 *
+	 * @param {Object} a
+	 * @param {Object} b
+	 * @returns {boolean}
+	 */
+	isEqual(a: Object, b: Object): boolean
+	{
+		return JSON.stringify(a) === JSON.stringify(b);
+	}
+
+	/**
+	 * Prepares a value for comparison:
+	 * - clones the object
+	 * - normalizes classList
+	 * - normalizes url
+	 *
+	 * @param {Object} value
+	 * @returns {Object}
+	 */
+	prepareValue(value): Object
+	{
+		const prepared = BX.Landing.Utils.clone(value);
+
+		prepared.classList = this.normalizeClassList(prepared.classList);
+		prepared.url = this.normalizeUrl(prepared.url);
+
+		return prepared;
+	}
+
+	/**
+	 * Normalizes a CSS class list:
+	 * - converts string to array
+	 * - ensures array type
+	 * - adds selector class if missing
+	 * - removes duplicates
+	 * - sorts alphabetically
+	 *
+	 * @param {string|string[]|null|undefined} classList
+	 * @returns {string[]}
+	 */
+	normalizeClassList(classList: string | string[] | null | undefined): string[]
+	{
+		let list = classList;
+
+		if (Type.isString(list))
 		{
-			return this.content.classList.indexOf(className) === -1;
-		}, this);
+			list = list.split(' ');
+		}
+
+		if (!Array.isArray(list))
+		{
+			list = [];
+		}
+
+		this.addSelectorClass(list);
+
+		return BX.Landing.Utils.arrayUnique(list).sort();
+	}
+
+	/**
+	 * Adds a class extracted from this.selector into the class list.
+	 *
+	 * Example:
+	 *  ".button@hover" -> "button"
+	 *
+	 * @param {string[]} classList
+	 * @returns {void}
+	 */
+	addSelectorClass(classList: string[]): void
+	{
+		if (!this.selector)
+		{
+			return;
+		}
+
+		const selectorClass = this.selector
+			.split('@')[0]
+			.replace('.', '');
+
+		if (selectorClass && !classList.includes(selectorClass))
+		{
+			classList.push(selectorClass);
+		}
+	}
+
+	/**
+	 * Normalizes a URL value into a predictable object structure.
+	 *
+	 * @param {string|Object|null|undefined} url
+	 * @returns {Object} Normalized URL object
+	 */
+	normalizeUrl(url: string | Object | null | undefined): Object
+	{
+		let value = url;
+
+		if (Type.isString(value))
+		{
+			value = BX.Landing.Utils.decodeDataValue(value);
+		}
+
+		if (!Type.isPlainObject(value))
+		{
+			return this.getEmptyUrl();
+		}
+
+		const result = {
+			...this.getEmptyUrl(),
+			enabled: true,
+			...value,
+		};
+
+		if (result.href === '' || result.href === '#')
+		{
+			result.enabled = false;
+		}
+
+		return result;
+	}
+
+	/**
+	 * Returns an empty (disabled) URL object.
+	 *
+	 * @returns {{ text: string, href: string, target: string, enabled: boolean }}
+	 */
+	getEmptyUrl(): Object
+	{
+		return {
+			text: '',
+			href: '',
+			target: '',
+			enabled: false,
+		};
 	}
 
 	getValue()
@@ -140,3 +285,6 @@ export class Icon extends Image
 		});
 	}
 }
+
+Object.setPrototypeOf(Icon, Image);
+Object.setPrototypeOf(Icon.prototype, Image.prototype);

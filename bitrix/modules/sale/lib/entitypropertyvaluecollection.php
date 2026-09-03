@@ -168,17 +168,30 @@ abstract class EntityPropertyValueCollection extends EntityCollection
 	 */
 	public function getAttribute($name)
 	{
+		$selectedEntityPropertyValueList = [];
+
 		/** @var EntityPropertyValue $item */
 		foreach ($this->collection as $item)
 		{
 			$property = $item->getPropertyObject();
 			if ($property->getField($name) === 'Y')
 			{
-				return $item;
+				$selectedEntityPropertyValueList[] = $item;
 			}
 		}
 
-		return null;
+		if (count($selectedEntityPropertyValueList) > 1)
+		{
+			foreach ($selectedEntityPropertyValueList as $item)
+			{
+				if (!empty($item->getValue()))
+				{
+					return $item;
+				}
+			}
+		}
+
+		return $selectedEntityPropertyValueList[0] ?? null;
 	}
 
 	/**
@@ -424,8 +437,8 @@ abstract class EntityPropertyValueCollection extends EntityCollection
 			$itemsFromDbList = static::getList(
 				[
 					"filter" => [
-						"ENTITY_ID" => $entity->getId(),
-						"ENTITY_TYPE" => static::getEntityType()
+						"=ENTITY_ID" => $entity->getId(),
+						"=ENTITY_TYPE" => static::getEntityType()
 					],
 					"select" => [
 						"ID", "NAME", "CODE", "VALUE", "ORDER_PROPS_ID", "ENTITY_ID", "ENTITY_TYPE"
@@ -523,7 +536,7 @@ abstract class EntityPropertyValueCollection extends EntityCollection
 	public function refreshRelated(): void
 	{
 		/** @var EntityPropertyValue $propertyValueClassName*/
-	    $propertyValueClassName = static::getPropertyValueClassName();
+		$propertyValueClassName = static::getPropertyValueClassName();
 		$props = $propertyValueClassName::loadForEntity($this->getEntityParent());
 
 		/** @var EntityPropertyValue $propertyValue */

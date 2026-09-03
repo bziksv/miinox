@@ -11,7 +11,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 
 /**
  * Bitrix vars
- * @param array $arCurrentValues
+ * @var array $arCurrentValues
  */
 
 $arComponentParameters = array(
@@ -56,16 +56,6 @@ if (IsModuleInstalled('intranet'))
 		'NAME' => GetMessage('CMDESKTOP_PARAMS_PATH_TO_CONPANY_DEPARTMENT'),
 		'PARENT' => 'ADDITIONAL_SETTINGS',
 	);
-
-	if (IsModuleInstalled("video"))
-	{
-		$arComponentParameters["PARAMETERS"]["PATH_TO_VIDEO_CALL"] = array(
-			'TYPE' => 'STRING',
-			'DEFAULT' => '/company/personal/video/#USER_ID#/',
-			'NAME' => GetMessage('CMDESKTOP_PARAMS_PATH_TO_VIDEO_CALL'),
-			'PARENT' => 'ADDITIONAL_SETTINGS',
-		);
-	}
 
 	$arComponentParameters["PARAMETERS"]["NAME_TEMPLATE"] = array(
 		'TYPE' => 'LIST',

@@ -8,8 +8,9 @@ return [
 	'css' => 'dist/icon.bundle.css',
 	'js' => 'dist/icon.bundle.js',
 	'rel' => [
+		'landing.env',
+		'landing.node.img',
 		'main.core',
-		'landing.node',
 	],
 	'skip_core' => false,
 ];

@@ -13,9 +13,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Role_Query query()
- * @method static EO_Role_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Role_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Role_Result getById($id)
- * @method static EO_Role_Result getList(array $parameters = array())
+ * @method static EO_Role_Result getList(array $parameters = [])
  * @method static EO_Role_Entity getEntity()
  * @method static \Bitrix\Landing\Internals\EO_Role createObject($setDefaultValues = true)
  * @method static \Bitrix\Landing\Internals\EO_Role_Collection createCollection()
@@ -42,7 +42,8 @@ class RoleTable extends Entity\DataManager
 		return array(
 			'ID' => new Entity\IntegerField('ID', array(
 				'title' => 'ID',
-				'primary' => true
+				'primary' => true,
+				'autocomplete' => true,
 			)),
 			'TITLE' => new Entity\StringField('TITLE', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_ROLE_TITLE')
@@ -91,6 +92,42 @@ class RoleTable extends Entity\DataManager
 	}
 
 	/**
+	 * After add handler.
+	 * @param Entity\Event $event Event instance.
+	 * @return Entity\EventResult
+	 */
+	public static function onAfterAdd(Entity\Event $event)
+	{
+		\Bitrix\Landing\Role::clearCache();
+
+		return new Entity\EventResult();
+	}
+
+	/**
+	 * After update handler.
+	 * @param Entity\Event $event Event instance.
+	 * @return Entity\EventResult
+	 */
+	public static function onAfterUpdate(Entity\Event $event)
+	{
+		$fields = (array)$event->getParameter('fields');
+
+		// only a written type moves a role between types, so the ids of a type survive the common
+		// case: saving the roles rewrites their access codes one by one, and every row of the loop
+		// would otherwise cost the readers after it a new read of the whole list
+		if (array_key_exists('TYPE', $fields))
+		{
+			\Bitrix\Landing\Role::clearCache();
+		}
+		else
+		{
+			\Bitrix\Landing\Role::clearRolesCache();
+		}
+
+		return new Entity\EventResult();
+	}
+
+	/**
 	 * After delete handler.
 	 * @param Entity\Event $event Event instance.
 	 * @return Entity\EventResult
@@ -99,6 +136,9 @@ class RoleTable extends Entity\DataManager
 	{
 		$result = new Entity\EventResult();
 		$primary = $event->getParameter('primary');
+
+		// the caches of the role list must not outlive the row that was just removed
+		\Bitrix\Landing\Role::clearCache();
 
 		// delete all inner landings
 		if ($primary)

@@ -6,13 +6,15 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Iblock;
 
-IncludeModuleLangFile(__FILE__);
-
 class CAllIBlock
 {
-	public $LAST_ERROR = "";
-	protected static $disabledCacheTag = array();
-	protected static $enableClearTagCache = 0;
+	protected const TABLE_PREFIX_SINGLE_PROPERTY_VALUES = 'b_iblock_element_prop_s';
+	protected const TABLE_PREFIX_MULTIPLE_PROPERTY_VALUES = 'b_iblock_element_prop_m';
+	protected const TABLE_COMMON_PROPERTY_VALUES = 'b_iblock_element_property';
+
+	public string $LAST_ERROR = '';
+	protected static array $disabledCacheTag = [];
+	protected static int $enableClearTagCache = 0;
 
 	protected static ?bool $catalogIncluded = null;
 	protected static ?bool $workflowIncluded = null;
@@ -269,7 +271,7 @@ class CAllIBlock
 			}
 			else
 			{
-				$componentName = GetMessage("IBLOCK_PANEL_UNKNOWN_COMPONENT");
+				$componentName = Loc::getMessage("IBLOCK_PANEL_UNKNOWN_COMPONENT");
 			}
 
 			$arPanelButton = array(
@@ -297,8 +299,8 @@ class CAllIBlock
 			{
 				$arSubMenu = array(
 					"SRC" => "/bitrix/images/iblock/icons/iblock.gif",
-					"ALT" => GetMessage("IBLOCK_PANEL_CONTROL_PANEL_ALT"),
-					"TEXT" => GetMessage("IBLOCK_PANEL_CONTROL_PANEL"),
+					"ALT" => Loc::getMessage("IBLOCK_PANEL_CONTROL_PANEL_ALT"),
+					"TEXT" => Loc::getMessage("IBLOCK_PANEL_CONTROL_PANEL"),
 					"MENU" => array(),
 					"MODE" => $mode,
 				);
@@ -534,8 +536,8 @@ class CAllIBlock
 			{
 				$url = "/bitrix/admin/iblock_history_list.php?type=".$arIBlock["IBLOCK_TYPE_ID"]."&lang=".LANGUAGE_ID."&IBLOCK_ID=".$IBLOCK_ID."&ELEMENT_ID=".$ELEMENT_ID."&filter_section=".$SECTION_ID."&return_url=".UrlEncode($return_url["history_element"]);
 				$arButton = array(
-					"TEXT" => GetMessage("IBLOCK_PANEL_HISTORY_BUTTON"),
-					"TITLE" => GetMessage("IBLOCK_PANEL_HISTORY_BUTTON"),
+					"TEXT" => Loc::getMessage("IBLOCK_PANEL_HISTORY_BUTTON"),
+					"TITLE" => Loc::getMessage("IBLOCK_PANEL_HISTORY_BUTTON"),
 					"ACTION" => "javascript:jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 					"ONCLICK" => "jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 					"ID" => "bx-context-toolbar-history-element"
@@ -613,9 +615,9 @@ class CAllIBlock
 			$arButton = array(
 				"TEXT" => $arLabels["ELEMENT_DELETE_TEXT"],
 				"TITLE" => $arLabels["ELEMENT_DELETE_TITLE"],
-				"ACTION"=>"javascript:if(confirm('".GetMessageJS("IBLOCK_PANEL_ELEMENT_DEL_CONF")."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
+				"ACTION"=>"javascript:if(confirm('".CUtil::JSEscape(Loc::getMessage("IBLOCK_PANEL_ELEMENT_DEL_CONF"))."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 				"ACTION_URL" => $url,
-				"ONCLICK"=>"if(confirm('".GetMessageJS("IBLOCK_PANEL_ELEMENT_DEL_CONF")."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
+				"ONCLICK"=>"if(confirm('".CUtil::JSEscape(Loc::getMessage("IBLOCK_PANEL_ELEMENT_DEL_CONF"))."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 				"ICON" => "bx-context-toolbar-delete-icon",
 				"ID" => "bx-context-toolbar-delete-element"
 			);
@@ -721,9 +723,9 @@ class CAllIBlock
 					$arButton = array(
 						"TEXT" => $arLabels["SECTION_DELETE_TEXT"],
 						"TITLE" => $arLabels["SECTION_DELETE_TITLE"],
-						"ACTION" => "javascript:if(confirm('".GetMessageJS("IBLOCK_PANEL_SECTION_DEL_CONF")."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
+						"ACTION" => "javascript:if(confirm('".CUtil::JSEscape(Loc::getMessage("IBLOCK_PANEL_SECTION_DEL_CONF"))."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 						"ACTION_URL" => $url,
-						"ONCLICK" => "if(confirm('".GetMessageJS("IBLOCK_PANEL_SECTION_DEL_CONF")."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
+						"ONCLICK" => "if(confirm('".CUtil::JSEscape(Loc::getMessage("IBLOCK_PANEL_SECTION_DEL_CONF"))."'))jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 						"ICON" => "bx-context-toolbar-delete-icon",
 						"ID" => "bx-context-toolbar-delete-section"
 					);
@@ -778,8 +780,8 @@ class CAllIBlock
 			{
 				$url = "/bitrix/admin/iblock_edit.php?type=".$arIBlock["IBLOCK_TYPE_ID"]."&lang=".LANGUAGE_ID."&ID=".$IBLOCK_ID."&return_url=".UrlEncode($return_url["edit_iblock"]);
 				$arButton = array(
-					"TEXT" => GetMessage("IBLOCK_PANEL_EDIT_IBLOCK_BUTTON", array("#IBLOCK_NAME#"=>$arIBlock["NAME"])),
-					"TITLE" => GetMessage("IBLOCK_PANEL_EDIT_IBLOCK_BUTTON", array("#IBLOCK_NAME#"=>$arIBlock["NAME"])),
+					"TEXT" => Loc::getMessage("IBLOCK_PANEL_EDIT_IBLOCK_BUTTON", array("#IBLOCK_NAME#"=>$arIBlock["NAME"])),
+					"TITLE" => Loc::getMessage("IBLOCK_PANEL_EDIT_IBLOCK_BUTTON", array("#IBLOCK_NAME#"=>$arIBlock["NAME"])),
 					"ACTION" => "javascript:jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
 					"ACTION_URL" => $url,
 					"ONCLICK" => "jsUtils.Redirect([], '".CUtil::JSEscape($url)."')",
@@ -932,6 +934,7 @@ class CAllIBlock
 			$CACHE_MANAGER->Clean($cache_id, "b_iblock");
 		}
 		Iblock\IblockTable::cleanCache();
+		Iblock\IblockSiteTable::cleanCache();
 	}
 
 	///////////////////////////////////////////////////////////////////
@@ -952,6 +955,7 @@ class CAllIBlock
 		//Default No
 		$arFields["BIZPROC"] = isset($arFields["BIZPROC"]) && $arFields["BIZPROC"] === "Y"? "Y": "N";
 		$arFields["INDEX_SECTION"] = isset($arFields["INDEX_SECTION"]) && $arFields["INDEX_SECTION"] === "Y"? "Y": "N";
+		$arFields["FULLTEXT_INDEX"] = isset($arFields["FULLTEXT_INDEX"]) && $arFields["FULLTEXT_INDEX"] === "Y" ? "Y" : "N";
 
 		if(!isset($arFields["SECTION_CHOOSER"]))
 			$arFields["SECTION_CHOOSER"] = "L";
@@ -1085,26 +1089,26 @@ class CAllIBlock
 			{
 				$DB->Query("
 					DELETE FROM b_iblock_site WHERE IBLOCK_ID = ".$ID."
-				", false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+				");
 
 				$DB->Query("
 					INSERT INTO b_iblock_site(IBLOCK_ID, SITE_ID)
 					SELECT ".$ID.", LID
 					FROM b_lang
 					WHERE LID IN ('".implode("', '", $arLID)."')
-				", false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+				");
 			}
 
 			if($arFields["VERSION"] == 2)
 			{
-				if($this->_Add($ID))
+				if ($this->_Add($ID))
 				{
 					$Result = $ID;
 					$arFields["ID"] = &$ID;
 				}
 				else
 				{
-					$this->LAST_ERROR = GetMessage("IBLOCK_TABLE_CREATION_ERROR");
+					$this->LAST_ERROR = Loc::getMessage("IBLOCK_TABLE_CREATION_ERROR");
 					$Result = false;
 					$arFields["RESULT_MESSAGE"] = &$this->LAST_ERROR;
 				}
@@ -1113,6 +1117,11 @@ class CAllIBlock
 			{
 				$Result = $ID;
 				$arFields["ID"] = &$ID;
+			}
+
+			if ($arFields["FULLTEXT_INDEX"] === "Y")
+			{
+				Iblock\FullIndex\FullText::createTable($ID);
 			}
 
 			CDiskQuota::recalculateDb();
@@ -1139,6 +1148,10 @@ class CAllIBlock
 		/** @global CDatabase $DB */
 		global $DB;
 		$ID = (int)$ID;
+		if ($ID <= 0)
+		{
+			return false;
+		}
 		$SAVED_PICTURE = null;
 
 		if(is_set($arFields, "EXTERNAL_ID"))
@@ -1197,7 +1210,8 @@ class CAllIBlock
 		if(is_set($arFields, "PROPERTY_INDEX") && $arFields["PROPERTY_INDEX"]!="I" && $arFields["PROPERTY_INDEX"]!="Y")
 			$arFields["SECTION_PROPERTY"] = "N";
 
-		$RIGHTS_MODE = CIBlock::GetArrayByID($ID, "RIGHTS_MODE");
+		$iblockDataBeforeUpdate = CIBlock::GetArrayByID($ID);
+		$RIGHTS_MODE = $iblockDataBeforeUpdate["RIGHTS_MODE"];
 
 		if(!$this->CheckFields($arFields, $ID))
 		{
@@ -1303,14 +1317,31 @@ class CAllIBlock
 			if(!empty($arLID))
 			{
 				$strSql = "DELETE FROM b_iblock_site WHERE IBLOCK_ID=".$ID;
-				$DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+				$DB->Query($strSql);
 
 				$strSql =
 					"INSERT INTO b_iblock_site(IBLOCK_ID, SITE_ID) ".
 					"SELECT ".$ID.", LID ".
 					"FROM b_lang ".
 					"WHERE LID IN (".$str_LID.") ";
-				$DB->Query($strSql, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+				$DB->Query($strSql);
+			}
+
+			if (
+				isset($arFields["FULLTEXT_INDEX"])
+				&& $arFields["FULLTEXT_INDEX"] === "Y"
+				&& $iblockDataBeforeUpdate["FULLTEXT_INDEX"] === "N"
+			)
+			{
+				Iblock\FullIndex\FullText::createTable($ID);
+			}
+			if (
+				isset($arFields["FULLTEXT_INDEX"])
+				&& $arFields["FULLTEXT_INDEX"] === "N"
+				&& $iblockDataBeforeUpdate["FULLTEXT_INDEX"] === "Y"
+			)
+			{
+				Iblock\FullIndex\FullText::drop($ID);
 			}
 
 			if(CModule::IncludeModule("search"))
@@ -1344,7 +1375,6 @@ class CAllIBlock
 	///////////////////////////////////////////////////////////////////
 	public static function Delete($ID)
 	{
-		$err_mess = "FILE: ".__FILE__."<br>LINE: ";
 		/** @global CDatabase $DB */
 		global $DB;
 		/** @global CMain $APPLICATION */
@@ -1363,7 +1393,7 @@ class CAllIBlock
 		{
 			if(ExecuteModuleEventEx($arEvent, array($ID)) === false)
 			{
-				$err = GetMessage("MAIN_BEFORE_DEL_ERR").' '.$arEvent['TO_NAME'];
+				$err = Loc::getMessage("MAIN_BEFORE_DEL_ERR").' '.$arEvent['TO_NAME'];
 				$ex = $APPLICATION->GetException();
 				if(is_object($ex))
 					$err .= ': '.$ex->GetString();
@@ -1420,29 +1450,36 @@ class CAllIBlock
 
 		CIBlockSectionPropertyLink::DeleteByIBlock($ID);
 
-		$DB->Query("delete from b_iblock_offers_tmp where PRODUCT_IBLOCK_ID=".$ID, false, $err_mess.__LINE__);
-		$DB->Query("delete from b_iblock_offers_tmp where OFFERS_IBLOCK_ID=".$ID, false, $err_mess.__LINE__);
+		$DB->Query("delete from b_iblock_offers_tmp where PRODUCT_IBLOCK_ID=".$ID);
+		$DB->Query("delete from b_iblock_offers_tmp where OFFERS_IBLOCK_ID=".$ID);
 
-		if(!$DB->Query("DELETE FROM b_iblock_messages WHERE IBLOCK_ID = ".$ID, false, $err_mess.__LINE__))
+		if(!$DB->Query("DELETE FROM b_iblock_messages WHERE IBLOCK_ID = ".$ID))
 			return false;
 
-		if(!$DB->Query("DELETE FROM b_iblock_fields WHERE IBLOCK_ID = ".$ID, false, $err_mess.__LINE__))
+		if(!$DB->Query("DELETE FROM b_iblock_fields WHERE IBLOCK_ID = ".$ID))
 			return false;
 
 		$USER_FIELD_MANAGER->OnEntityDelete("IBLOCK_".$ID."_SECTION");
 
-		if(!$DB->Query("DELETE FROM b_iblock_group WHERE IBLOCK_ID=".$ID, false, $err_mess.__LINE__))
+		if(!$DB->Query("DELETE FROM b_iblock_group WHERE IBLOCK_ID=".$ID))
 			return false;
-		if(!$DB->Query("DELETE FROM b_iblock_rss WHERE IBLOCK_ID=".$ID, false, $err_mess.__LINE__))
+		if(!$DB->Query("DELETE FROM b_iblock_rss WHERE IBLOCK_ID=".$ID))
 			return false;
-		if(!$DB->Query("DELETE FROM b_iblock_site WHERE IBLOCK_ID=".$ID, false, $err_mess.__LINE__))
+		if(!$DB->Query("DELETE FROM b_iblock_site WHERE IBLOCK_ID=".$ID))
 			return false;
-		if(!$DB->Query("DELETE FROM b_iblock WHERE ID=".$ID, false, $err_mess.__LINE__))
+		if(!$DB->Query("DELETE FROM b_iblock WHERE ID=".$ID))
 			return false;
 
-		$DB->DDL("DROP TABLE b_iblock_element_prop_s".$ID, true, $err_mess.__LINE__);
-		$DB->DDL("DROP TABLE b_iblock_element_prop_m".$ID, true, $err_mess.__LINE__);
-		$DB->DDL("DROP SEQUENCE sq_b_iblock_element_prop_m".$ID, true, $err_mess.__LINE__);
+		Iblock\FullIndex\FullText::drop($ID);
+
+		if ($DB->TableExists('b_iblock_element_prop_s' . $ID))
+		{
+			$DB->DDL('DROP TABLE b_iblock_element_prop_s' . $ID, true);
+		}
+		if ($DB->TableExists('b_iblock_element_prop_m' . $ID))
+		{
+			$DB->DDL('DROP TABLE b_iblock_element_prop_m' . $ID, true);
+		}
 
 		CIBlock::CleanCache($ID);
 
@@ -1465,15 +1502,24 @@ class CAllIBlock
 		global $APPLICATION;
 		$this->LAST_ERROR = "";
 
+		if ($ID !== false)
+		{
+			$ID = (int)$ID;
+			if ($ID <= 0)
+			{
+				return false;
+			}
+		}
+
 		$NAME = $arFields["NAME"] ?? "";
 		if(
 			($ID===false || array_key_exists("NAME", $arFields))
 			&& (string)$NAME === ''
 		)
-			$this->LAST_ERROR .= GetMessage("IBLOCK_BAD_NAME")."<br>";
+			$this->LAST_ERROR .= Loc::getMessage("IBLOCK_BAD_NAME")."<br>";
 
 		if($ID===false && !is_set($arFields, "IBLOCK_TYPE_ID"))
-			$this->LAST_ERROR .= GetMessage("IBLOCK_BAD_BLOCK_TYPE")."<br>";
+			$this->LAST_ERROR .= Loc::getMessage("IBLOCK_BAD_BLOCK_TYPE")."<br>";
 
 		if($ID===false)
 		{
@@ -1485,19 +1531,23 @@ class CAllIBlock
 		{
 			//For existing one read old values
 			$arIBlock = CIBlock::GetArrayByID($ID);
+			if (!is_array($arIBlock))
+			{
+				$this->LAST_ERROR .= Loc::getMessage('IBLOCK_ERR_IBLOCK_IS_ABSENT') . '<br>';
+			}
 			$WORKFLOW = array_key_exists("WORKFLOW", $arFields)? $arFields["WORKFLOW"]: $arIBlock["WORKFLOW"];
 			$BIZPROC  = array_key_exists("BIZPROC",  $arFields)? $arFields["BIZPROC"]:  $arIBlock["BIZPROC"];
 			if($BIZPROC != "Y") $BIZPROC = "N";//This is cache compatibility issue
 		}
 
 		if($WORKFLOW == "Y" && $BIZPROC == "Y")
-			$this->LAST_ERROR .= GetMessage("IBLOCK_BAD_WORKFLOW_AND_BIZPROC")."<br>";
+			$this->LAST_ERROR .= Loc::getMessage("IBLOCK_BAD_WORKFLOW_AND_BIZPROC")."<br>";
 
 		if(is_set($arFields, "IBLOCK_TYPE_ID"))
 		{
 			$r = CIBlockType::GetByID($arFields["IBLOCK_TYPE_ID"]);
 			if(!$r->Fetch())
-				$this->LAST_ERROR .= GetMessage("IBLOCK_BAD_BLOCK_TYPE_ID")."<br>";
+				$this->LAST_ERROR .= Loc::getMessage("IBLOCK_BAD_BLOCK_TYPE_ID")."<br>";
 		}
 
 		if(
@@ -1531,7 +1581,7 @@ class CAllIBlock
 			)
 		)
 		{
-			$this->LAST_ERROR .= GetMessage("IBLOCK_BAD_SITE_ID_NA")."<br>";
+			$this->LAST_ERROR .= Loc::getMessage("IBLOCK_BAD_SITE_ID_NA")."<br>";
 		}
 		elseif(is_set($arFields, "LID"))
 		{
@@ -1542,7 +1592,7 @@ class CAllIBlock
 			{
 				$r = CSite::GetByID($v);
 				if(!$r->Fetch())
-					$this->LAST_ERROR .= "'".$v."' - ".GetMessage("IBLOCK_BAD_SITE_ID")."<br>";
+					$this->LAST_ERROR .= "'".$v."' - ".Loc::getMessage("IBLOCK_BAD_SITE_ID")."<br>";
 			}
 		}
 
@@ -1588,6 +1638,21 @@ class CAllIBlock
 				}
 			}
 		}
+
+		if (
+			isset($arFields["FULLTEXT_INDEX"])
+			&& $arFields["FULLTEXT_INDEX"] !== "Y"
+			&& $arFields["FULLTEXT_INDEX"] !== "N"
+		)
+		{
+			$this->LAST_ERROR .= Loc::getMessage("IBLOCK_BAD_FULLTEXT_INDEX") . '<br>';
+		}
+
+		unset($arFields['TIMESTAMP_X']);
+		$connection = Main\Application::getConnection();
+		$helper = $connection->getSqlHelper();
+		$arFields['~TIMESTAMP_X'] = $helper->getCurrentDateTimeFunction();
+		unset($helper, $connection);
 
 		$APPLICATION->ResetException();
 		if($ID===false)
@@ -1663,7 +1728,7 @@ class CAllIBlock
 			SELECT GROUP_ID, PERMISSION
 			FROM b_iblock_group
 			WHERE IBLOCK_ID = ".$IBLOCK_ID."
-		", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		");
 		while($ar = $rs->Fetch())
 		{
 			$group_id = (int)$ar["GROUP_ID"];
@@ -1684,7 +1749,7 @@ class CAllIBlock
 				DELETE FROM b_iblock_group
 				WHERE IBLOCK_ID = ".$IBLOCK_ID."
 				AND GROUP_ID in (".implode(", ", $arToDelete).")
-			", false, "File: ".__FILE__."<br>Line: ".__LINE__); //And this should be deleted
+			"); //And this should be deleted
 		}
 
 		if(!empty($arToInsert))
@@ -1769,16 +1834,16 @@ class CAllIBlock
 		global $DB;
 		$ID = intval($ID);
 		$arMessages = array(
-			"ELEMENT_NAME" => GetMessage("IBLOCK_MESS_ELEMENT_NAME"),
+			"ELEMENT_NAME" => Loc::getMessage("IBLOCK_MESS_ELEMENT_NAME"),
 			"ELEMENTS_NAME" => "",
-			"ELEMENT_ADD" => GetMessage("IBLOCK_MESS_ELEMENT_ADD"),
-			"ELEMENT_EDIT" => GetMessage("IBLOCK_MESS_ELEMENT_EDIT"),
-			"ELEMENT_DELETE" => GetMessage("IBLOCK_MESS_ELEMENT_DELETE"),
-			"SECTION_NAME" => GetMessage("IBLOCK_MESS_SECTION_NAME"),
+			"ELEMENT_ADD" => Loc::getMessage("IBLOCK_MESS_ELEMENT_ADD"),
+			"ELEMENT_EDIT" => Loc::getMessage("IBLOCK_MESS_ELEMENT_EDIT"),
+			"ELEMENT_DELETE" => Loc::getMessage("IBLOCK_MESS_ELEMENT_DELETE"),
+			"SECTION_NAME" => Loc::getMessage("IBLOCK_MESS_SECTION_NAME"),
 			"SECTIONS_NAME" => "",
-			"SECTION_ADD" => GetMessage("IBLOCK_MESS_SECTION_ADD"),
-			"SECTION_EDIT" => GetMessage("IBLOCK_MESS_SECTION_EDIT"),
-			"SECTION_DELETE" => GetMessage("IBLOCK_MESS_SECTION_DELETE"),
+			"SECTION_ADD" => Loc::getMessage("IBLOCK_MESS_SECTION_ADD"),
+			"SECTION_EDIT" => Loc::getMessage("IBLOCK_MESS_SECTION_EDIT"),
+			"SECTION_DELETE" => Loc::getMessage("IBLOCK_MESS_SECTION_DELETE"),
 		);
 		$res = $DB->Query("
 			SELECT
@@ -1814,9 +1879,9 @@ class CAllIBlock
 			}
 		}
 		if($arMessages["ELEMENTS_NAME"] == '')
-			$arMessages["ELEMENTS_NAME"] = GetMessage("IBLOCK_MESS_ELEMENTS_NAME");
+			$arMessages["ELEMENTS_NAME"] = Loc::getMessage("IBLOCK_MESS_ELEMENTS_NAME");
 		if($arMessages["SECTIONS_NAME"] == '')
-			$arMessages["SECTIONS_NAME"] = GetMessage("IBLOCK_MESS_SECTIONS_NAME");
+			$arMessages["SECTIONS_NAME"] = Loc::getMessage("IBLOCK_MESS_SECTIONS_NAME");
 		return $arMessages;
 	}
 
@@ -1847,133 +1912,133 @@ REQ
 
 			$res = [
 				'IBLOCK_SECTION' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_SECTIONS'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_SECTIONS'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['IBLOCK_SECTION']),
 					'VISIBLE' => 'Y',
 				],
 				'ACTIVE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_ACTIVE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_ACTIVE'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['ACTIVE'],
 					'VISIBLE' => 'Y',
 				],
 				'ACTIVE_FROM' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_ACTIVE_PERIOD_FROM'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_ACTIVE_PERIOD_FROM'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['ACTIVE_FROM'],
 					'VISIBLE' => 'Y',
 				],
 				'ACTIVE_TO' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_ACTIVE_PERIOD_TO'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_ACTIVE_PERIOD_TO'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['ACTIVE_TO'],
 					'VISIBLE' => 'Y',
 				],
 				'SORT' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_SORT'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_SORT'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['SORT'],
 					'VISIBLE' => 'Y',
 				],
 				'NAME' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_NAME'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_NAME'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['NAME'],
 					'VISIBLE' => 'Y',
 				],
 				'PREVIEW_PICTURE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_PREVIEW_PICTURE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_PREVIEW_PICTURE'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['PREVIEW_PICTURE']),
 					'VISIBLE' => 'Y',
 				],
 				'PREVIEW_TEXT_TYPE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_PREVIEW_TEXT_TYPE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_PREVIEW_TEXT_TYPE'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['PREVIEW_TEXT_TYPE'],
 					'VISIBLE' => 'Y',
 				],
 				'PREVIEW_TEXT' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_PREVIEW_TEXT'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_PREVIEW_TEXT'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['PREVIEW_TEXT'],
 					'VISIBLE' => 'Y',
 				],
 				'DETAIL_PICTURE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_DETAIL_PICTURE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_DETAIL_PICTURE'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['DETAIL_PICTURE']),
 					'VISIBLE' => 'Y',
 				],
 				'DETAIL_TEXT_TYPE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_DETAIL_TEXT_TYPE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_DETAIL_TEXT_TYPE'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['DETAIL_TEXT_TYPE'],
 					'VISIBLE' => 'Y',
 				],
 				'DETAIL_TEXT' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_DETAIL_TEXT'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_DETAIL_TEXT'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['DETAIL_TEXT'],
 					'VISIBLE' => 'Y',
 				],
 				'XML_ID' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_XML_ID'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_XML_ID'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['XML_ID'],
 					'VISIBLE' => 'Y',
 				],
 				'CODE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_CODE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_CODE'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['CODE']),
 					'VISIBLE' => 'Y',
 				],
 				'TAGS' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_TAGS'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_TAGS'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['TAGS'],
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_NAME' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_NAME'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_NAME'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['SECTION_NAME'],
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_PICTURE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_PREVIEW_PICTURE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_PREVIEW_PICTURE'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['SECTION_PICTURE']),
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_DESCRIPTION_TYPE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_SECTION_DESCRIPTION_TYPE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_SECTION_DESCRIPTION_TYPE'),
 					'IS_REQUIRED' => 'Y',
 					'DEFAULT_VALUE' => $defaultValues['SECTION_DESCRIPTION_TYPE'],
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_DESCRIPTION' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_SECTION_DESCRIPTION'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_SECTION_DESCRIPTION'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['SECTION_DESCRIPTION'],
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_DETAIL_PICTURE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_DETAIL_PICTURE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_DETAIL_PICTURE'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['SECTION_DETAIL_PICTURE']),
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_XML_ID' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_XML_ID'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_XML_ID'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => $defaultValues['SECTION_XML_ID'],
 					'VISIBLE' => 'Y',
 				],
 				'SECTION_CODE' => [
-					'NAME' => GetMessage('IBLOCK_FIELD_CODE'),
+					'NAME' => Loc::getMessage('IBLOCK_FIELD_CODE'),
 					'IS_REQUIRED' => false,
 					'DEFAULT_VALUE' => serialize($defaultValues['SECTION_CODE']),
 					'VISIBLE' => 'Y',
@@ -2244,7 +2309,8 @@ REQ
 					"IS_REQUIRED" => $IS_REQUIRED,
 					"DEFAULT_VALUE" => $DEFAULT_VALUE,
 				];
-				$DB->Add("b_iblock_fields", $arAdd, array("DEFAULT_VALUE"));
+				$arInsert = $DB->PrepareInsert("b_iblock_fields", $arAdd);
+				$DB->Query("INSERT INTO b_iblock_fields (".$arInsert[0].") VALUES (".$arInsert[1].")");
 			}
 
 			CIBlock::CleanCache($ID);
@@ -2431,7 +2497,7 @@ REQ
 			$arIBlocks[] = $a["IBLOCK_ID"];
 		if(count($arIBlocks) > 0)
 		{
-			$APPLICATION->ThrowException(GetMessage("IBLOCK_SITE_LINKS_EXISTS", array("#ID_LIST#" => implode(", ", $arIBlocks))));
+			$APPLICATION->ThrowException(Loc::getMessage("IBLOCK_SITE_LINKS_EXISTS", array("#ID_LIST#" => implode(", ", $arIBlocks))));
 			return false;
 		}
 		else
@@ -2453,43 +2519,45 @@ REQ
 		return $DB->Query("DELETE FROM b_iblock_group WHERE GROUP_ID=".intval($group_id), true);
 	}
 
-	public static function MkOperationFilter($key)
+	public static function MkOperationFilter($key): array
 	{
-		static $operations = array(
-			"!><" => "NB", //not between
-			"!="  => "NI", //not Identical
-			"!%"  => "NS", //not substring
-			"><"  => "B",  //between
-			">="  => "GE", //greater or equal
-			"<="  => "LE", //less or equal
-			"="   => "I", //Identical
-			"%"   => "S", //substring
-			"?"   => "?", //logical
-			">"   => "G", //greater
-			"<"   => "L", //less
-			"!"   => "N", // not field LIKE val
-			"*"   => "FT", // partial full text match
-			"*="  => "FTI", // identical full text match
-			"*%"  => "FTL", // partial full text match based on LIKE
-		);
+		static $operations = [
+			'!><' => 'NB', //not between
+			'!='  => 'NI', //not Identical
+			'!%'  => 'NS', //not substring
+			'><'  => 'B',  //between
+			'>='  => 'GE', //greater or equal
+			'<='  => 'LE', //less or equal
+			'='   => 'I', //Identical
+			'%'   => 'S', //substring
+			'?'   => '?', //logical
+			'>'   => 'G', //greater
+			'<'   => 'L', //less
+			'!'   => 'N', // not field LIKE val
+			'*'   => 'FT', // partial full text match
+			'*='  => 'FTI', // identical full text match
+			'*%'  => 'FTL', // partial full text match based on LIKE
+		];
 
 		$key = (string)$key;
-		$result = array(
-			"FIELD" => $key,
-			"OPERATION" => "E",
-			"PREFIX" => ""
-		);
-		if ($key == '')
+		$result = [
+			'FIELD' => $key,
+			'OPERATION' => 'E',
+			'PREFIX' => '',
+		];
+		if ($key === '')
+		{
 			return $result; // zero key
+		}
 
 		for ($i = 3; $i > 0; $i--)
 		{
 			$op = mb_substr($key, 0, $i);
 			if ($op && isset($operations[$op]))
 			{
-				$result["FIELD"] = mb_substr($key, $i);
-				$result["OPERATION"] = $operations[$op];
-				$result["PREFIX"] = $op;
+				$result['FIELD'] = mb_substr($key, $i);
+				$result['OPERATION'] = $operations[$op];
+				$result['PREFIX'] = $op;
 				break;
 			}
 		}
@@ -2674,26 +2742,50 @@ REQ
 						if(is_array($val))
 						{
 							if(count($val)==2)
-								$res[] = ($cOperationType=='NB'?' '.$fname.' IS NULL OR NOT ':'').'('.$fname.' '.$strOperation[0].' \''.DoubleVal($val[0]).'\' '.$strOperation[1].' \''.DoubleVal($val[1]).'\')';
+							{
+								$res[] =
+									($cOperationType == 'NB' ? ' ' . $fname . ' IS NULL OR NOT ' : '')
+									. '(' . $fname . ' ' . $strOperation[0]
+									. ' ' . self::getNumberValueForSql($val[0])
+									. ' ' . $strOperation[1]
+									. ' ' . self::getNumberValueForSql($val[1])
+									. ')'
+								;
+							}
 							else
-								$res[] = ($cOperationType=='NB'?' '.$fname.' IS NULL OR NOT ':'').'('.$fname.' = \''.DoubleVal(array_pop($val[0])).'\')';
+							{
+								$res[] =
+									($cOperationType == 'NB' ? ' ' . $fname . ' IS NULL OR NOT ' : '')
+									. '(' . $fname . ' = ' . self::getNumberValueForSql(array_pop($val[0])) . ')'
+								;
+							}
 						}
 						else
 						{
-							$res[] = ($cOperationType=='NB'?' '.$fname.' IS NULL OR NOT ':'').'('.$fname.' = \''.DoubleVal($val).'\')';
+							$res[] =
+								($cOperationType=='NB' ? ' ' . $fname . ' IS NULL OR NOT ' : '')
+								. '(' . $fname . ' = ' . self::getNumberValueForSql($val) . ')'
+							;
 						}
 					}
 					elseif($bNegative)
 					{
-						$res[] = " ".$fname." IS NULL OR NOT (".$fname." ".$strOperation." '".DoubleVal($val)."')";
+						$parsedValue = self::getNumberValueForSql($val);
+						$res[] = " ".$fname." IS NULL OR NOT (".$fname." ".$strOperation." ".$parsedValue.")";
 						if($strOperation == '=')
-							$arIn[] = DoubleVal($val);
+						{
+							$arIn[] = $parsedValue;
+						}
+						unset($parsedValue);
 					}
 					else
 					{
-						$res[] = "(".$fname." ".$strOperation." '".DoubleVal($val)."')";
+						$parsedValue = self::getNumberValueForSql($val);
+						$res[] = "(".$fname." ".$strOperation." ".$parsedValue.")";
 						if($strOperation == '=')
-							$arIn[] = DoubleVal($val);
+						{
+							$arIn[] = $parsedValue;
+						}
 					}
 					break;
 				case "number_above":
@@ -2765,9 +2857,9 @@ REQ
 		)
 		{
 			if($bNegative)
-				$res = array($fname." IS NULL OR NOT (".$fname." IN ('".implode("', '", $arIn)."'))");
+				$res = array($fname." IS NULL OR NOT (".$fname." IN (".implode(", ", $arIn)."))");
 			else
-				$res = array($fname." IN ('".implode("', '", $arIn)."')");
+				$res = array($fname." IN (".implode(", ", $arIn).")");
 		}
 
 		foreach($res as $i=>$val)
@@ -2784,6 +2876,23 @@ REQ
 			$bFullJoin = false;
 
 		return $strResult;
+	}
+
+	/**
+	 * Returns sql-safe value for numbers (include infinity and NaN).
+	 *
+	 * @param mixed $value
+	 * @return string|float
+	 */
+	private static function getNumberValueForSql(mixed $value): string|float
+	{
+		$value = (float)$value;
+		if (is_nan($value) || is_infinite($value))
+		{
+			return "'" . $value . "'";
+		}
+
+		return $value;
 	}
 
 	public static function isCorrectFullFormatDate($value): bool
@@ -3495,12 +3604,12 @@ REQ
 			return $arFile;
 
 		if(array_key_exists("error", $arFile) && $arFile["error"] !== 0)
-			return GetMessage("IBLOCK_BAD_FILE_ERROR");
+			return Loc::getMessage("IBLOCK_BAD_FILE_ERROR");
 
 		$file = $arFile["tmp_name"];
 
 		if(!file_exists($file) && !is_file($file))
-			return GetMessage("IBLOCK_BAD_FILE_NOT_FOUND");
+			return Loc::getMessage("IBLOCK_BAD_FILE_NOT_FOUND");
 
 		$width = (int)$arResize["WIDTH"];
 		$height = (int)$arResize["HEIGHT"];
@@ -3512,7 +3621,7 @@ REQ
 		$imageInfo = $image->getInfo(false);
 		if (empty($imageInfo))
 		{
-			return GetMessage("IBLOCK_BAD_FILE_NOT_PICTURE");
+			return Loc::getMessage("IBLOCK_BAD_FILE_NOT_PICTURE");
 		}
 		$orig = [
 			0 => $imageInfo->getWidth(),
@@ -3553,7 +3662,7 @@ REQ
 				if(copy($file, $new_file))
 					$file = $new_file;
 				else
-					return GetMessage("IBLOCK_BAD_FILE_NOT_FOUND");
+					return Loc::getMessage("IBLOCK_BAD_FILE_NOT_FOUND");
 			}
 
 			if($width <= 0)
@@ -3615,7 +3724,7 @@ REQ
 			}
 			else
 			{
-				return GetMessage("IBLOCK_ERR_BAD_FILE_UNSUPPORTED");
+				return Loc::getMessage("IBLOCK_ERR_BAD_FILE_UNSUPPORTED");
 			}
 
 			$image_p = imagecreatetruecolor($width, $height);
@@ -4083,16 +4192,12 @@ REQ
 			$url = str_replace(".php", "/", $url);
 		}
 
-		$url = str_replace("&replace_script_name=1", "", $url);
-
-		return $url;
+		return str_replace("&replace_script_name=1", "", $url);
 	}
 
 	/**
 	 * @param int $IBLOCK_ID
 	 * @return string
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
 	 */
 	public static function GetAdminListMode($IBLOCK_ID): string
 	{
@@ -4107,11 +4212,11 @@ REQ
 		}
 		else
 		{
-			return (
-				(string)Main\Config\Option::get('iblock', 'combined_list_mode') == 'Y'
-				? Iblock\IblockTable::LIST_MODE_COMBINED
-				: Iblock\IblockTable::LIST_MODE_SEPARATE
-			);
+			return
+				Main\Config\Option::get('iblock', 'combined_list_mode') === 'Y'
+					? Iblock\IblockTable::LIST_MODE_COMBINED
+					: Iblock\IblockTable::LIST_MODE_SEPARATE
+			;
 		}
 	}
 
@@ -4140,30 +4245,110 @@ REQ
 	public static function GetAuditTypes()
 	{
 		return array(
-			"IBLOCK_SECTION_ADD" => "[IBLOCK_SECTION_ADD] ".GetMessage("IBLOCK_SECTION_ADD"),
-			"IBLOCK_SECTION_EDIT" => "[IBLOCK_SECTION_EDIT] ".GetMessage("IBLOCK_SECTION_EDIT"),
-			"IBLOCK_SECTION_DELETE" => "[IBLOCK_SECTION_DELETE] ".GetMessage("IBLOCK_SECTION_DELETE"),
-			"IBLOCK_ELEMENT_ADD" => "[IBLOCK_ELEMENT_ADD] ".GetMessage("IBLOCK_ELEMENT_ADD"),
-			"IBLOCK_ELEMENT_EDIT" => "[IBLOCK_ELEMENT_EDIT] ".GetMessage("IBLOCK_ELEMENT_EDIT"),
-			"IBLOCK_ELEMENT_DELETE" => "[IBLOCK_ELEMENT_DELETE] ".GetMessage("IBLOCK_ELEMENT_DELETE"),
-			"IBLOCK_ADD" => "[IBLOCK_ADD] ".GetMessage("IBLOCK_ADD"),
-			"IBLOCK_EDIT" => "[IBLOCK_EDIT] ".GetMessage("IBLOCK_EDIT"),
-			"IBLOCK_DELETE" => "[IBLOCK_DELETE] ".GetMessage("IBLOCK_DELETE"),
+			"IBLOCK_SECTION_ADD" => "[IBLOCK_SECTION_ADD] ".Loc::getMessage("IBLOCK_SECTION_ADD"),
+			"IBLOCK_SECTION_EDIT" => "[IBLOCK_SECTION_EDIT] ".Loc::getMessage("IBLOCK_SECTION_EDIT"),
+			"IBLOCK_SECTION_DELETE" => "[IBLOCK_SECTION_DELETE] ".Loc::getMessage("IBLOCK_SECTION_DELETE"),
+			"IBLOCK_ELEMENT_ADD" => "[IBLOCK_ELEMENT_ADD] ".Loc::getMessage("IBLOCK_ELEMENT_ADD"),
+			"IBLOCK_ELEMENT_EDIT" => "[IBLOCK_ELEMENT_EDIT] ".Loc::getMessage("IBLOCK_ELEMENT_EDIT"),
+			"IBLOCK_ELEMENT_DELETE" => "[IBLOCK_ELEMENT_DELETE] ".Loc::getMessage("IBLOCK_ELEMENT_DELETE"),
+			"IBLOCK_ADD" => "[IBLOCK_ADD] ".Loc::getMessage("IBLOCK_ADD"),
+			"IBLOCK_EDIT" => "[IBLOCK_EDIT] ".Loc::getMessage("IBLOCK_EDIT"),
+			"IBLOCK_DELETE" => "[IBLOCK_DELETE] ".Loc::getMessage("IBLOCK_DELETE"),
 		);
 	}
 
 	public static function roundDB($value)
 	{
-		$len = 18;
-		$dec = 4;
-		$eps = 1.00 / pow(10, $len + 4);
-		$rounded = round(doubleval($value) + $eps, $len);
-		if (is_nan($rounded) || is_infinite($rounded))
-			$rounded = 0;
+		$commonLength = 18;
+		$decimals = 4;
+		$wholePartLength = 14;
+		$emptyFraction = '.0000'; // $decimals
 
-		$result = sprintf("%01.".$dec."f", $rounded);
-		if (mb_strlen($result) > ($len - $dec))
-			$result = trim(mb_substr($result, 0, $len - $dec), ".");
+		$borderInt = 100000000000000; // 10 ^ $wholePartLength
+
+		if (is_int($value))
+		{
+			$sign = '';
+			if ($value < 0)
+			{
+				$sign = '-';
+				$value = -$value;
+			}
+			if ($value >= $borderInt)
+			{
+				$value = intdiv($value, $borderInt);
+			}
+
+			return $sign . $value . $emptyFraction;
+		}
+		elseif (is_string($value))
+		{
+			$value = trim($value);
+			if ($value === '')
+			{
+				return '0';
+			}
+
+			$parsedValue = [];
+			if (preg_match('/^([+-]?)([0-9]*)(\.[0-9]*)?$/', $value, $parsedValue))
+			{
+				$sign = $parsedValue[1] === '-' ? '-' : '';
+				$wholePart = $parsedValue[2] === '' ? '0' : $parsedValue[2];
+				if (strlen($wholePart) > $wholePartLength)
+				{
+					return $sign . substr($wholePart, 0, $wholePartLength) . $emptyFraction;
+				}
+
+				$result = $sign . $wholePart;
+				$fraction = $parsedValue[3] ?? $emptyFraction;
+				if ($fraction === '' || $fraction === '.' || $fraction === $emptyFraction)
+				{
+					$result .= $emptyFraction;
+				}
+				else
+				{
+					$len = strlen($fraction) - 1;
+					if ($len > $decimals)
+					{
+						$result .= substr($fraction, 0, $decimals + 1);
+					}
+					else
+					{
+						$result .= $fraction;
+						if ($len !== $decimals)
+						{
+							$result .=  str_repeat('0', $decimals - $len);
+						}
+					}
+				}
+
+				return $result;
+			}
+		}
+
+		//$eps = 1.00 / pow(10, $commonLength + 4);
+		$eps = 1.0E-22; // 1/(10 ^ ($commonLength + $decimals))
+		$rounded = round((float)$value + $eps, $commonLength);
+		if (is_nan($rounded) || is_infinite($rounded))
+		{
+			return '0' . $emptyFraction;
+		}
+
+		$sign = $rounded < 0 ? 1 : 0;
+		$result = sprintf('%01.' . $decimals . 'f', $rounded);
+		$decimalPos = strpos($result, '.');
+		$limit = $wholePartLength + $sign;
+		if ($decimalPos === false)
+		{
+			if (strlen($result) > $limit)
+			{
+				$result = substr($result, 0, $limit) . $emptyFraction;
+			}
+		}
+		elseif ($decimalPos > $limit)
+		{
+			$result = substr($result, 0, $limit) . $emptyFraction;
+		}
 
 		return $result;
 	}
@@ -4272,7 +4457,7 @@ REQ
 	{
 		$result = false;
 
-		if (is_set($options["allow_file_id"]) && $options["allow_file_id"] === true)
+		if (isset($options["allow_file_id"]) && $options["allow_file_id"] === true)
 		{
 			$result = CFile::MakeFileArray($file_id);
 		}
@@ -4356,7 +4541,7 @@ REQ
 			{
 				$result = $file_array;
 				$result["tmp_name"] = $absPath;
-				$result["error"] = intval($result["error"]);
+				$result['error'] = (int)($result['error'] ?? 0);
 				if (!is_null($description))
 					$result["description"] = $description;
 			}
@@ -4372,7 +4557,7 @@ REQ
 			{
 				$result = $file_array;
 				$result["tmp_name"] = $absPath;
-				$result["error"] = intval($result["error"]);
+				$result['error'] = (int)($result['error'] ?? 0);
 				if (!is_null($description))
 					$result["description"] = $description;
 			}
@@ -4757,5 +4942,25 @@ REQ
 			'TRANS_EAT' => $settings['TRANS_EAT'] === 'N'? 'N': 'Y',
 			'USE_GOOGLE' => $settings['USE_GOOGLE'] === 'Y'? 'Y': 'N',
 		];
+	}
+
+	public static function getSinglePropertyValuesTableName(int $iblockId): string
+	{
+		return self::TABLE_PREFIX_SINGLE_PROPERTY_VALUES . $iblockId;
+	}
+
+	public static function getMultiplePropertyValuesTableName(int $iblockId): string
+	{
+		return self::TABLE_PREFIX_MULTIPLE_PROPERTY_VALUES . $iblockId;
+	}
+
+	public static function getCommonPropertyValuesTableName(): string
+	{
+		return self::TABLE_COMMON_PROPERTY_VALUES;
+	}
+
+	public function getLastError(): string
+	{
+		return $this->LAST_ERROR;
 	}
 }

@@ -96,17 +96,17 @@ class Property
 			BX.ready(function() {
 				BX.FilterCrmEntitySelector.messages =
 				{
-					'contact': '<?=GetMessageJS('FIP_CRM_FF_CONTACT')?>',
-					'company': '<?=GetMessageJS('FIP_CRM_FF_COMPANY')?>',
-					'quote': '<?=GetMessageJS('FIP_CRM_FF_QUOTE')?>',
-					'lead': '<?=GetMessageJS('FIP_CRM_FF_LEAD')?>',
-					'deal': '<?=GetMessageJS('FIP_CRM_FF_DEAL')?>',
-					'selectButton': '<?=GetMessageJS('CRM_ENTITY_SEL_BTN')?>',
-					'noresult': '<?=GetMessageJS('CRM_SEL_SEARCH_NO_RESULT')?>',
-					'search': '<?=GetMessageJS('CRM_ENTITY_SEL_SEARCH')?>',
-					'last': '<?=GetMessageJS('CRM_ENTITY_SEL_LAST')?>'
+					'contact': '<?= GetMessageJS('FIP_CRM_FF_CONTACT') ?>',
+					'company': '<?= GetMessageJS('FIP_CRM_FF_COMPANY') ?>',
+					'quote': '<?= GetMessageJS('FIP_CRM_FF_QUOTE_MSGVER_1') ?>',
+					'lead': '<?= GetMessageJS('FIP_CRM_FF_LEAD') ?>',
+					'deal': '<?= GetMessageJS('FIP_CRM_FF_DEAL') ?>',
+					'selectButton': '<?= GetMessageJS('CRM_ENTITY_SEL_BTN') ?>',
+					'noresult': '<?= GetMessageJS('CRM_SEL_SEARCH_NO_RESULT') ?>',
+					'search': '<?= GetMessageJS('CRM_ENTITY_SEL_SEARCH') ?>',
+					'last': '<?= GetMessageJS('CRM_ENTITY_SEL_LAST') ?>'
 				};
-				<?
+				<?php
 					$listAvailableEntity = array('DEAL', 'CONTACT', 'COMPANY', 'LEAD');
 					foreach($listProperty as $property)
 					{
@@ -123,20 +123,20 @@ class Property
 						$title = '';
 						?>
 							BX.FilterHandlerECrm.create(
-								'<?=\CUtil::JSEscape($filterId.'_'.$fieldId)?>',
+								'<?= \CUtil::JSEscape($filterId.'_'.$fieldId) ?>',
 								{
-									fieldId: '<?=\CUtil::JSEscape($fieldId)?>',
-									entityTypeNames: <?=Json::encode($entityTypeNames)?>,
-									isMultiple: <?=$isMultiple ? 'true' : 'false'?>,
-									title: '<?=\CUtil::JSEscape($title)?>'
+									fieldId: '<?= \CUtil::JSEscape($fieldId) ?>',
+									entityTypeNames: <?= Json::encode($entityTypeNames) ?>,
+									isMultiple: <?= $isMultiple ? 'true' : 'false' ?>,
+									title: '<?= \CUtil::JSEscape($title) ?>'
 								}
 							);
-						<?
+						<?php
 					}
 				?>
 			});
 			</script>
-			<?
+			<?php
 			$html .= ob_get_contents();
 			ob_end_clean();
 		endif;
@@ -162,10 +162,7 @@ class Property
 				{
 					try
 					{
-						global $APPLICATION;
-						$convertValue = $APPLICATION->ConvertCharset(
-							$filterData[$property['FIELD_ID']], 'UTF-8', LANG_CHARSET);
-						$currentValues = Json::decode($convertValue);
+						$currentValues = Json::decode($filterData[$property['FIELD_ID']]);
 					}
 					catch(SystemException $e)
 					{
@@ -199,16 +196,16 @@ class Property
 				<script>
 					BX.ready(function(){
 						BX.FilterHandlerE.create(
-							'<?=\CUtil::JSEscape($filterId.'_'.$property['FIELD_ID'])?>',
+							'<?= \CUtil::JSEscape($filterId.'_'.$property['FIELD_ID']) ?>',
 							{
-								fieldId: '<?=\CUtil::JSEscape($property['FIELD_ID'])?>',
-								controlId: '<?=\CUtil::JSEscape($filterId.'_'.$property['FIELD_ID'])?>',
+								fieldId: '<?= \CUtil::JSEscape($property['FIELD_ID']) ?>',
+								controlId: '<?= \CUtil::JSEscape($filterId.'_'.$property['FIELD_ID']) ?>',
 								multiple: 'Y'
 							}
 						);
 					});
 				</script>
-				<?
+				<?php
 				$html .= ob_get_contents();
 				ob_end_clean();
 			}
@@ -244,15 +241,16 @@ class Property
 				<script>
 				BX.ready(function(){
 					BX.FilterHandlerEmployee.create(
-						'<?=\CUtil::JSEscape($filterId.'_'.$property['FIELD_ID'])?>',
+						'<?= \CUtil::JSEscape($filterId.'_'.$property['FIELD_ID']) ?>',
 						{
-							fieldId: '<?=\CUtil::JSEscape($property['FIELD_ID'])?>',
-							controlId: '<?=\CUtil::JSEscape($filterId.'_'.$property['FIELD_ID'])?>'
+							fieldId: '<?= \CUtil::JSEscape($property['FIELD_ID']) ?>',
+							controlId: '<?= \CUtil::JSEscape($filterId.'_'.$property['FIELD_ID']) ?>'
 						}
 					);
 				});
 				</script>
-			<? endforeach;
+			<?php
+			endforeach;
 			$html .= ob_get_contents();
 			ob_end_clean();
 		}
@@ -608,7 +606,7 @@ class Property
 		}
 		})();
 		</script>
-		<?
+		<?php
 		$script = ob_get_contents();
 		ob_end_clean();
 		return  $script;
@@ -855,7 +853,7 @@ class Property
 			}
 		})();
 		</script>
-		<?
+		<?php
 		$script = ob_get_contents();
 		ob_end_clean();
 		return  $script;
@@ -1169,7 +1167,7 @@ class Property
 				}
 			})();
 		</script>
-		<?
+		<?php
 		$script = ob_get_contents();
 		ob_end_clean();
 		return  $script;
@@ -1190,7 +1188,6 @@ class Property
 			{
 				$values = array();
 				global $APPLICATION;
-				$currentValue = $APPLICATION->ConvertCharset($currentValue, 'UTF-8', LANG_CHARSET);
 				$currentValues = Json::decode($currentValue);
 				if(is_array($currentValues))
 				{

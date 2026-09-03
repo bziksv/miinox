@@ -25,12 +25,12 @@
 					}.bind(this),
 					onClose: BX.proxy(this.hide, this),
 					onCloseComplete: BX.proxy(this.destroy, this)
-				}
+				},
+				printable: true
 			});
 
 			this.calendar.disableKeyHandler();
 
-			BX.bind(document, "click", BX.proxy(this.calendar.util.applyHacksForPopupzIndex, this.calendar.util));
 			this.opened = true;
 		},
 
@@ -53,7 +53,6 @@
 		{
 			if (event && event.getSliderPage && event.getSliderPage().getUrl() === this.sliderId)
 			{
-				BX.unbind(document, "click", BX.proxy(this.calendar.util.applyHacksForPopupzIndex, this.calendar.util));
 				BX.removeCustomEvent("SidePanel.Slider:onCloseComplete", BX.proxy(this.destroy, this));
 				BX.onCustomEvent('OnCalendarPlannerDoUninstall', [{plannerId: this.plannerId}]);
 				BX.SidePanel.Instance.destroy(this.sliderId);
@@ -200,6 +199,7 @@
 		{
 			this.plannerId = this.id + '_view_slider_planner';
 			this.DOM.plannerWrap = BX(this.id + '_view_planner_wrap');
+
 			setTimeout(BX.delegate(function()
 			{
 				if (this.DOM.plannerWrap)

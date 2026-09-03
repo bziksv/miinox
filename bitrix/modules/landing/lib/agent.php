@@ -1,7 +1,11 @@
 <?php
+
 namespace Bitrix\Landing;
 
 use Bitrix\Landing\Internals\FileTable;
+use Bitrix\Landing\Internals\FolderTable;
+use Bitrix\Landing\Internals\HistoryTable;
+use Bitrix\Main\Application;
 use Bitrix\Main\File\Internal\FileDuplicateTable;
 use Bitrix\Main\Loader;
 use Bitrix\Landing\Subtype;
@@ -10,6 +14,9 @@ use Bitrix\Crm\WebForm;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\HttpClient;
 
+/**
+ * Service class for agent functions
+ */
 class Agent
 {
 	/**
@@ -32,25 +39,13 @@ class Agent
 			return;
 		}
 
-		$funcName = __CLASS__ . '::' . $funcName . '(';
-		foreach ($params as $value)
-		{
-			if (is_int($value))
-			{
-				$funcName .= $value . ',';
-			}
-			else if (is_string($value))
-			{
-				$funcName .= '\'' . $value . '\'' . ',';
-			}
-		}
-		$funcName = trim($funcName, ',');
-		$funcName .= ');';
+		$funcName = self::createFunctionName($funcName, $params);
+
 		$res = \CAgent::getList(
 			[],
 			[
 				'MODULE_ID' => 'landing',
-				'NAME' => $funcName
+				'NAME' => $funcName,
 			]
 		);
 		if (!$res->fetch())
@@ -73,6 +68,50 @@ class Agent
 	}
 
 	/**
+	 * Tech method for delete existing unique agent.
+	 */
+	public static function deleteUniqueAgent(string $funcName, array $params = []): void
+	{
+		if (!method_exists(__CLASS__, $funcName))
+		{
+			return;
+		}
+
+		$funcName = self::createFunctionName($funcName, $params);
+		$res = \CAgent::getList(
+			[],
+			[
+				'MODULE_ID' => 'landing',
+				'NAME' => $funcName,
+			]
+		);
+		if ($agent = $res->fetch())
+		{
+			\CAgent::Delete((int)$agent['ID']);
+		}
+	}
+
+	private static function createFunctionName(string $funcName, array $params = []): string
+	{
+		$funcName = __CLASS__ . '::' . $funcName . '(';
+		foreach ($params as $value)
+		{
+			if (is_int($value))
+			{
+				$funcName .= $value . ',';
+			}
+			elseif (is_string($value))
+			{
+				$funcName .= '\'' . $value . '\'' . ',';
+			}
+		}
+		$funcName = trim($funcName, ',');
+		$funcName .= ');';
+
+		return $funcName;
+	}
+
+	/**
 	 * Agent to remove one not resolved domain. Removes agent if such domains not exists.
 	 * @return string
 	 */
@@ -80,73 +119,82 @@ class Agent
 	{
 		$maxFailCount = 7;
 
+		$customDomainExist = false;
+
+		// the agent may run inside a user request, so the global rights check of the caller must survive the call
+		$globalRightsWereOn = Rights::isGlobalOn();
+
 		Rights::setGlobalOff();
 
-		// only custom domain
-		$filterDomains = array_map(function($domain)
+		try
 		{
-			return '%.' . $domain;
-		}, Domain::B24_DOMAINS);
-		$filterDomains[] = '%' . Manager::getHttpHost();
+			// only custom domain
+			$filterDomains = array_map(function ($domain) {
+				return '%.' . $domain;
+			}, Domain::B24_DOMAINS);
+			$filterDomains[] = '%' . Manager::getHttpHost();
 
-		$customDomainExist = false;
-		$resDomain = Domain::getList([
-			'select' => [
-				'ID', 'DOMAIN', 'FAIL_COUNT'
-			],
-			'filter' => [
-				'!DOMAIN' => $filterDomains
-			],
-			'limit' => 5,
-			'order' => [
-				'DATE_MODIFY' => 'asc'
-			]
-		]);
-		while ($domain = $resDomain->fetch())
-		{
-			$customDomainExist = true;
-			if (Domain\Register::isDomainActive($domain['DOMAIN']))
+			$resDomain = Domain::getList([
+				'select' => [
+					'ID', 'DOMAIN', 'FAIL_COUNT',
+				],
+				'filter' => [
+					'!DOMAIN' => $filterDomains,
+				],
+				'limit' => 5,
+				'order' => [
+					'DATE_MODIFY' => 'asc',
+				],
+			]);
+			while ($domain = $resDomain->fetch())
 			{
-				Domain::update($domain['ID'], [
-					'FAIL_COUNT' => null
-				])->isSuccess();
-			}
-			else
-			{
-				// remove domain
-				if ($domain['FAIL_COUNT'] >= $maxFailCount - 1)
+				$customDomainExist = true;
+				if (Domain\Register::isDomainActive($domain['DOMAIN']))
 				{
-					// wee need site for randomize domain
-					$resSite = Site::getList([
-						'select' => [
-							'ID', 'DOMAIN_ID', 'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
-						],
-						'filter' => [
-							'DOMAIN_ID' => $domain['ID']
-						]
-					]);
-					if ($rowSite = $resSite->fetch())
-					{
-						Debug::log('removeBadDomain-randomizeDomain', var_export($rowSite, true));
-						Site::randomizeDomain($rowSite['ID']);
-					}
-					// site not exist, delete domain
-					/*else
-					{
-						Debug::log('removeBadDomain-Domain::delete', var_export($rowSite, true));
-						Domain::delete($domain['ID'])->isSuccess();
-					}*/
+					Domain::update($domain['ID'], [
+						'FAIL_COUNT' => null,
+					])->isSuccess();
 				}
 				else
 				{
-					Domain::update($domain['ID'], [
-						'FAIL_COUNT' => intval($domain['FAIL_COUNT']) + 1
-					])->isSuccess();
+					// remove domain
+					if ($domain['FAIL_COUNT'] >= $maxFailCount - 1)
+					{
+						// wee need site for randomize domain
+						$resSite = Site::getList([
+							'select' => [
+								'ID', 'DOMAIN_ID', 'DOMAIN_NAME' => 'DOMAIN.DOMAIN',
+							],
+							'filter' => [
+								'DOMAIN_ID' => $domain['ID'],
+							],
+						]);
+						if ($rowSite = $resSite->fetch())
+						{
+							Debug::log('removeBadDomain-randomizeDomain', var_export($rowSite, true));
+							Site::randomizeDomain($rowSite['ID']);
+						}
+					}
+					else
+					{
+						Domain::update($domain['ID'], [
+							'FAIL_COUNT' => intval($domain['FAIL_COUNT']) + 1,
+						])->isSuccess();
+					}
 				}
 			}
 		}
-
-		Rights::setGlobalOn();
+		finally
+		{
+			if ($globalRightsWereOn)
+			{
+				Rights::setGlobalOn();
+			}
+			else
+			{
+				Rights::setGlobalOff();
+			}
+		}
 
 		return $customDomainExist ? __CLASS__ . '::' . __FUNCTION__ . '();' : '';
 	}
@@ -159,9 +207,20 @@ class Agent
 	 */
 	public static function clearRecycleScope(string $scope, ?int $days = null): string
 	{
+		// the agent may run inside a user request, so the scope of the caller must survive the call
+		// SCOPE_CODE_DEFAULT restores the state of no scope set, it has no scope class of its own
+		$previousScope = Site\Type::getCurrentScopeId() ?? Site\Type::SCOPE_CODE_DEFAULT;
+
 		Site\Type::setScope($scope);
 
-		self::clearRecycle($days);
+		try
+		{
+			self::clearRecycle($days);
+		}
+		finally
+		{
+			Site\Type::setScope($previousScope);
+		}
 
 		return __CLASS__ . '::' . __FUNCTION__ . '(\'' . $scope . '\');';
 	}
@@ -176,18 +235,28 @@ class Agent
 		$folders = [];
 		$res = Folder::getList([
 			'select' => [
-				'ID'
+				'ID',
 			],
 			'filter' => [
-				'PARENT_ID' => $folderId
-			]
+				'PARENT_ID' => $folderId,
+			],
 		]);
 		while ($row = $res->fetch())
 		{
 			$folders[] = $row['ID'];
 			$folders = array_merge($folders, self::getSubFolders($row['ID']));
 		}
+
 		return $folders;
+	}
+
+	/**
+	 * Checks that folder storage exists in the current DB schema.
+	 * @return bool
+	 */
+	protected static function isFolderStorageAvailable(): bool
+	{
+		return Application::getConnection()->isTableExists(FolderTable::getTableName());
 	}
 
 	/**
@@ -197,98 +266,121 @@ class Agent
 	 */
 	public static function clearRecycle(?int $days = null): string
 	{
+		$agentName = __CLASS__ . '::' . __FUNCTION__ . '();';
+
+		// portal with an incomplete schema keeps the agent registered until the table is restored
+		if (!static::isFolderStorageAvailable())
+		{
+			return $agentName;
+		}
+
+		// the agent may run inside a user request, so the global rights check of the caller must survive the call
+		$globalRightsWereOn = Rights::isGlobalOn();
+
 		Rights::setGlobalOff();
 
-		$days = !is_null($days)
+		try
+		{
+			$days = !is_null($days)
 				? $days
-				: (int) Manager::getOption('deleted_lifetime_days');
+				: (int)Manager::getOption('deleted_lifetime_days');
 
-		$date = new \Bitrix\Main\Type\DateTime;
-		$date->add('-' . $days . ' days');
+			$date = new DateTime;
+			$date->add('-' . $days . ' days');
 
-		// check folders to delete
-		$foldersToDelete = [-1];
-		$res = Folder::getList([
-			'select' => [
-				'ID'
-			],
-			'filter' => [
-				'=DELETED' => 'Y',
-				'<DATE_MODIFY' => $date
-			]
-		]);
-		while ($row = $res->fetch())
-		{
-			$foldersToDelete[] = $row['ID'];
-			$foldersToDelete = array_merge($foldersToDelete, self::getSubFolders($row['ID']));
-		}
-
-		// first delete landings
-		$res = Landing::getList([
-			'select' => [
-				'ID', 'FOLDER_ID'
-			],
-			'filter' => [
-				[
-					'LOGIC' => 'OR',
-					[
-						'=DELETED' => 'Y',
-						'<DATE_MODIFY' => $date
-					],
-					[
-						'=SITE.DELETED' => 'Y',
-						'<SITE.DATE_MODIFY' => $date
-					],
-					[
-						'FOLDER_ID' => $foldersToDelete
-					]
+			// check folders to delete
+			$foldersToDelete = [-1];
+			$res = Folder::getList([
+				'select' => [
+					'ID',
 				],
-				'=DELETED' => ['Y', 'N'],
-				'=SITE.DELETED' => ['Y', 'N'],
-				'CHECK_PERMISSIONS' => 'N'
-			],
-			'order' => [
-				'DATE_MODIFY' => 'desc'
-			]
-		]);
-		while ($row = $res->fetch())
-		{
-			Lock::lockDeleteLanding($row['ID'], false);
-			Landing::delete($row['ID'], true)->isSuccess();
-		}
-
-		// delete folders
-		foreach (array_unique($foldersToDelete) as $folderId)
-		{
-			if ($folderId > 0)
+				'filter' => [
+					'=DELETED' => 'Y',
+					'<DATE_MODIFY' => $date,
+				],
+			]);
+			while ($row = $res->fetch())
 			{
-				Folder::delete($folderId)->isSuccess();
+				$foldersToDelete[] = $row['ID'];
+				$foldersToDelete = array_merge($foldersToDelete, self::getSubFolders($row['ID']));
+			}
+
+			// first delete landings
+			$res = Landing::getList([
+				'select' => [
+					'ID', 'FOLDER_ID',
+				],
+				'filter' => [
+					[
+						'LOGIC' => 'OR',
+						[
+							'=DELETED' => 'Y',
+							'<DATE_MODIFY' => $date,
+						],
+						[
+							'=SITE.DELETED' => 'Y',
+							'<SITE.DATE_MODIFY' => $date,
+						],
+						[
+							'FOLDER_ID' => $foldersToDelete,
+						],
+					],
+					'=DELETED' => ['Y', 'N'],
+					'=SITE.DELETED' => ['Y', 'N'],
+					'CHECK_PERMISSIONS' => 'N',
+				],
+				'order' => [
+					'DATE_MODIFY' => 'desc',
+				],
+			]);
+			while ($row = $res->fetch())
+			{
+				Lock::lockDeleteLanding($row['ID'], false);
+				Landing::delete($row['ID'], true)->isSuccess();
+			}
+
+			// delete folders
+			foreach (array_unique($foldersToDelete) as $folderId)
+			{
+				if ($folderId > 0)
+				{
+					Folder::delete($folderId)->isSuccess();
+				}
+			}
+
+			// then delete sites
+			$res = Site::getList([
+				'select' => [
+					'ID',
+				],
+				'filter' => [
+					'=DELETED' => 'Y',
+					'<DATE_MODIFY' => $date,
+					'CHECK_PERMISSIONS' => 'N',
+				],
+				'order' => [
+					'DATE_MODIFY' => 'desc',
+				],
+			]);
+			while ($row = $res->fetch())
+			{
+				Lock::lockDeleteSite($row['ID'], false);
+				Site::delete($row['ID'])->isSuccess();
+			}
+		}
+		finally
+		{
+			if ($globalRightsWereOn)
+			{
+				Rights::setGlobalOn();
+			}
+			else
+			{
+				Rights::setGlobalOff();
 			}
 		}
 
-		// then delete sites
-		$res = Site::getList([
-			'select' => [
-				'ID'
-			],
-			'filter' => [
-				'=DELETED' => 'Y',
-				'<DATE_MODIFY' => $date,
-				'CHECK_PERMISSIONS' => 'N'
-			],
-			'order' => [
-				'DATE_MODIFY' => 'desc'
-			]
-		]);
-		while ($row = $res->fetch())
-		{
-			Lock::lockDeleteSite($row['ID'], false);
-			Site::delete($row['ID'])->isSuccess();
-		}
-
-		Rights::setGlobalOn();
-
-		return __CLASS__ . '::' . __FUNCTION__ . '();';
+		return $agentName;
 	}
 
 	/**
@@ -303,6 +395,53 @@ class Agent
 		File::deleteFinal($count);
 
 		return __CLASS__ . '::' . __FUNCTION__ . '(' . $count . ');';
+	}
+
+	/**
+	 * Clear old history records
+	 * @param int|null $days After this time items will be deleted.
+	 * @return string
+	 */
+	public static function clearHistory(?int $days = null): string
+	{
+		$newAgentName = __CLASS__ . '::' . __FUNCTION__ . '(' . ($days ?? '') . ');';
+
+		// the agent may run inside a user request, so the global rights check of the caller must survive the call
+		$globalRightsWereOn = Rights::isGlobalOn();
+
+		Rights::setGlobalOff();
+
+		try
+		{
+			$days = $days ?: (int)Manager::getOption('history_lifetime_days');
+			$date = new DateTime();
+			$date->add('-' . $days . ' days');
+
+			$rows = HistoryTable::query()
+				->setSelect(['ENTITY_ID', 'ENTITY_TYPE'])
+				->setDistinct(true)
+				->where('DATE_CREATE', '<', $date)
+				->fetchAll()
+			;
+			foreach ($rows as $row)
+			{
+				$history = new History($row['ENTITY_ID'], $row['ENTITY_TYPE']);
+				$history->clearOld($days);
+			}
+		}
+		finally
+		{
+			if ($globalRightsWereOn)
+			{
+				Rights::setGlobalOn();
+			}
+			else
+			{
+				Rights::setGlobalOff();
+			}
+		}
+
+		return $newAgentName;
 	}
 
 	/**
@@ -347,18 +486,18 @@ class Agent
 
 		$res = Internals\FileTable::getList([
 			'select' => [
-				'ID', 'FILE_ID'
+				'ID', 'FILE_ID',
 			],
 			'filter' => [
 				'>FILE_ID' => 0,
 				'=TEMP' => 'Y',
-				'<FILE.TIMESTAMP_X' => $dateTime->add('-60 minute')
-			]
+				'<FILE.TIMESTAMP_X' => $dateTime->add('-60 minute'),
+			],
 		]);
 		while ($row = $res->fetch())
 		{
 			Internals\FileTable::update($row['ID'], [
-				'FILE_ID' => -1 * $row['FILE_ID']
+				'FILE_ID' => -1 * $row['FILE_ID'],
 			]);
 		}
 
@@ -507,5 +646,21 @@ class Agent
 		{
 			Manager::clearCacheForSite($landing->getSiteId());
 		}
+	}
+
+	/**
+	 * Run copilot site generation
+	 * @param int $generationId
+	 * @return string
+	 */
+	public static function executeGeneration(int $generationId): string
+	{
+		$generation = new Copilot\Generation();
+		if ($generation->initById($generationId))
+		{
+			$generation->execute();
+		}
+
+		return '';
 	}
 }

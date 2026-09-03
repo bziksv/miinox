@@ -1,4 +1,5 @@
-import { Dom } from 'main.core';
+import { Dom, Tag, Event, Text, Type, Uri } from 'main.core';
+import { Loc } from '../controls/controls.loc';
 
 import { Devices, DeviceItem } from './device.data';
 import DeviceUI from './device.ui';
@@ -11,10 +12,13 @@ type Options = {
 
 export class Device
 {
+	#options;
 	#frameUrl: string;
 	#editorFrameWrapper: HTMLElement;
 	#previewElement: HTMLDivElement;
+	#previewFrame: ?HTMLIFrameElement;
 	#previewWindow;// window object of iframe
+	#previewLoader: HTMLDivElement;
 	#currentDevice: ?DeviceItem = null;
 	#editorEnabled: boolean = false;
 	#pendingReload: boolean = false;
@@ -35,8 +39,14 @@ export class Device
 		'Landing\\Block::removeCard',
 		'Landing\\Block::updateNodes',
 		'Landing\\Block::updateStyles',
-		'Landing\\Block::saveForm',// fake-action
+		'Landing\\Block::saveForm', // fake-action
 	];
+	target: HTMLElement;
+
+	// PROTO-01 (owner): device-preview postMessage protocol. Envelope {action, payload}.
+	static #ACTION_SET_TOUCH = 'landing.device-preview:setTouch';
+	static #ACTION_SCROLL_TO_PERCENT = 'landing.device-preview:scrollToPercent';
+	static #ACTION_READY = 'landing.device-preview:ready';
 
 	/**
 	 * Device constructor.
@@ -45,8 +55,10 @@ export class Device
 	 */
 	constructor(options: Options)
 	{
+		this.target = options.target || document.body;
 		this.#frameUrl = options.frameUrl;
 		this.#editorFrameWrapper = options.editorFrameWrapper;
+		this.#options = options;
 		this.#registerListeners(options);
 		this.#buildPreview(options);
 
@@ -70,6 +82,15 @@ export class Device
 		// listen messages from editor frame
 		window.addEventListener('message', event => {
 			const data = event.data || {};
+
+			// PROTO-01: the sandboxed preview reports it is ready — resend the current state.
+			// Accept ready only from the preview window; the editor channel uses event.source too.
+			if (event.source === this.#previewWindow && data.action === Device.#ACTION_READY)
+			{
+				this.#sendPreviewState();
+
+				return;
+			}
 
 			if (data.action === 'editorenable')
 			{
@@ -121,6 +142,12 @@ export class Device
 					blockId = payload.data?.updateNodes?.data?.block;
 				}
 
+				blockId = Text.toInteger(blockId);
+				if (blockId <= 0)
+				{
+					blockId = null;
+				}
+
 				this.#reloadPreviewWindow(blockId);
 			}
 		}
@@ -132,13 +159,45 @@ export class Device
 	 */
 	#reloadPreviewWindow(blockId: ?number)
 	{
-		if (this.#previewWindow)
+		if (this.#previewFrame)
 		{
-			const blockIdPrefix = 'editor';
-			const timestamp = Date.now();
+			const uri = new Uri(this.#frameUrl);
+			uri.setQueryParam('ts', Date.now());
 
-			this.#previewWindow.location.href = this.#frameUrl + '?ts=' + timestamp + '&scrollTo=' + blockIdPrefix + blockId;
+			if (Type.isNil(blockId))
+			{
+				uri.removeQueryParam('scrollTo');
+			}
+			else
+			{
+				uri.setQueryParam('scrollTo', `editor${blockId}`);
+			}
+
+			this.#previewFrame.src = uri.toString();
 		}
+	}
+
+	#getDocumentMetrics(doc: ?Document): ?{ scrollHeight: number, scrollTop: number }
+	{
+		const body = doc?.body;
+		const documentElement = doc?.documentElement;
+
+		if (!body || !documentElement)
+		{
+			return null;
+		}
+
+		return {
+			scrollHeight: Math.max(
+				body.scrollHeight,
+				documentElement.scrollHeight,
+				body.offsetHeight,
+				documentElement.offsetHeight,
+				body.clientHeight,
+				documentElement.clientHeight,
+			),
+			scrollTop: documentElement.scrollTop || body.scrollTop,
+		};
 	}
 
 	/**
@@ -148,18 +207,32 @@ export class Device
 	 */
 	#scrollDevice(topInPercent: number)
 	{
+		// The sandboxed preview owns its height and converts the percent to pixels itself.
+		this.#postToPreview(Device.#ACTION_SCROLL_TO_PERCENT, { percent: topInPercent });
+	}
+
+	/**
+	 * Sends a PROTO-01 command to the sandboxed preview window.
+	 *
+	 * @param {string} action Namespaced action name.
+	 * @param {Object} payload Command payload.
+	 */
+	#postToPreview(action: string, payload: Object)
+	{
 		if (this.#previewWindow)
 		{
-			const document = this.#previewWindow.document;
-
-			const scrollHeight = Math.max(
-				document.body.scrollHeight, document.documentElement.scrollHeight,
-				document.body.offsetHeight, document.documentElement.offsetHeight,
-				document.body.clientHeight, document.documentElement.clientHeight
-			);
-
-			this.#previewWindow.scroll(0, scrollHeight * topInPercent / 100);
+			// targetOrigin '*': the preview is opaque-origin and commands carry no privileged data.
+			this.#previewWindow.postMessage({ action, payload }, '*');
 		}
+	}
+
+	/**
+	 * Pushes the current touch and scroll state to the preview (e.g. after it reports ready).
+	 */
+	#sendPreviewState()
+	{
+		this.#postToPreview(Device.#ACTION_SET_TOUCH, { touch: true });
+		this.#adjustPreviewScroll();
 	}
 
 	/**
@@ -185,6 +258,41 @@ export class Device
 		return Devices.devices[deviceCode];
 	}
 
+	#getPreviewNode(): HTMLDivElement
+	{
+		if (!this.#previewLoader)
+		{
+			Loc.loadMessages(this.#options.messages);
+
+			this.#previewLoader = Tag.render`
+				<div class="landing-device-loader">
+					<div class="landing-device-loader-icon"></div>
+					<div class="landing-device-loader-text">${Loc.getMessage('LANDING_TPL_PREVIEW_LOADING')}</div>
+				</div>
+			`;
+		}
+
+		return this.#previewLoader;
+	}
+
+	#setPreview(target: HTMLElement)
+	{
+		if (!target)
+		{
+			return;
+		}
+
+		Dom.append(this.#getPreviewNode(), target)
+	}
+
+	#removePreview()
+	{
+		Dom.addClass(this.#getPreviewNode(), '--hide');
+		Event.bind(this.#getPreviewNode(), 'transitionend', () => {
+			Dom.remove(this.#getPreviewNode());
+		});
+	}
+
 	/**
 	 * Sets new device.
 	 *
@@ -203,7 +311,7 @@ export class Device
 		if (this.#currentDevice)
 		{
 			Dom.removeClass(this.#previewElement, this.#currentDevice.className);
-			this.#previewElement.style.removeProperty(`top`);
+			this.#previewElement.style.removeProperty('top');
 		}
 
 		this.#currentDevice = newDevice;
@@ -212,13 +320,16 @@ export class Device
 		const frame = this.#previewElement.querySelector('[data-role="landing-device-preview-iframe"]');
 		const frameWrapper = this.#previewElement.querySelector('[data-role="landing-device-preview"]');
 
+		frame.onload = () => this.#removePreview();
+
 		// scale for device
 		if (frame
 			&& frameWrapper
 			&& this.#currentDevice.width
 			&& this.#currentDevice.height)
 		{
-			const scale = window.innerHeight / (this.#currentDevice.height + 300);
+			const maxDeviceHeight = this.#maxDeviceHeight(this.#currentDevice.type);
+			const scale = window.innerHeight / (maxDeviceHeight + 300);
 			const padding = parseInt(window.getComputedStyle(frameWrapper).padding);
 
 			let param1 = this.#currentDevice.width;
@@ -230,14 +341,27 @@ export class Device
 				param2 = this.#currentDevice.width;
 			}
 
-			frame.style.setProperty(`width`, `${param1}px`);
-			frame.style.setProperty(`height`, `${param2}px`);
-			frameWrapper.style.setProperty(`transform`, `scale(${scale})`);
-			this.#previewElement.style.setProperty(`width`, `${(param1 + (padding * 2)) * scale}px`);
-			this.#previewElement.style.setProperty(`height`, `${(param2 + (padding * 2)) * scale}px`);
+			frame.style.setProperty('width', `${param1}px`);
+			frame.style.setProperty('height', `${param2}px`);
+			frameWrapper.style.setProperty('transform', `scale(${scale})`);
+			this.#previewElement.style.setProperty('width', `${(param1 + (padding * 2)) * scale}px`);
+			this.#previewElement.style.setProperty('height', `${(param2 + (padding * 2)) * scale}px`);
 		}
 
 		Dom.addClass(this.#previewElement, this.#currentDevice.className);
+	}
+
+	#maxDeviceHeight(type: 'mobile' | 'tablet'): number
+	{
+		let maxHeight = 0;
+		Object.values(Devices.devices).forEach((device) => {
+			if (device.type === type && device.height)
+			{
+				maxHeight = Math.max(maxHeight, device.height);
+			}
+		});
+
+		return maxHeight;
 	}
 
 	/**
@@ -245,15 +369,14 @@ export class Device
 	 */
 	#adjustPreviewScroll()
 	{
-		const documentEditorFrame = this.#editorFrameWrapper.querySelector('iframe').contentWindow.document;
-		const scrollHeight = Math.max(
-			documentEditorFrame.body.scrollHeight, documentEditorFrame.documentElement.scrollHeight,
-			documentEditorFrame.body.offsetHeight, documentEditorFrame.documentElement.offsetHeight,
-			documentEditorFrame.body.clientHeight, documentEditorFrame.documentElement.clientHeight
-		);
-		const scrollTop = documentEditorFrame.documentElement.scrollTop || documentEditorFrame.body.scrollTop;
+		const editorFrame = this.#editorFrameWrapper?.querySelector('iframe');
+		const metrics = this.#getDocumentMetrics(editorFrame?.contentWindow?.document);
+		if (!metrics || metrics.scrollHeight <= 0)
+		{
+			return;
+		}
 
-		this.#scrollDevice(scrollTop / scrollHeight * 100);
+		this.#scrollDevice(metrics.scrollTop / metrics.scrollHeight * 100);
 	}
 
 	/**
@@ -271,19 +394,34 @@ export class Device
 				messages: options.messages,
 			});
 			Dom.hide(this.#previewElement);
-			document.body.appendChild(this.#previewElement);
+			this.target.appendChild(this.#previewElement);
 
-			//#170065
-			//this.#previewElement.querySelector('iframe').contentWindow.addEventListener('load', () => {
+			const editorFrame = this.#editorFrameWrapper?.querySelector('iframe');
+			if (editorFrame)
+			{
+				Event.bind(editorFrame, 'load', () => {
+					this.#adjustPreviewScroll();
+				});
+			}
+
+			const previewFrame = this.#previewElement.querySelector('iframe');
+			if (previewFrame)
+			{
+				this.#previewFrame = previewFrame;
+				Event.bind(previewFrame, 'load', () => {
+					this.#previewWindow = previewFrame.contentWindow;
+					// Under sandbox the preview document is opaque-origin: drive touch and scroll
+					// through PROTO-01 instead of reading contentWindow.document directly.
+					this.#sendPreviewState();
+				});
+
 				if (!this.#previewWindow)
 				{
-					this.#previewWindow = this.#previewElement.querySelector('iframe').contentWindow;
-					const previewDocument = this.#previewElement.querySelector('iframe').contentWindow.document
-					Dom.removeClass(previewDocument.querySelector('html'), 'bx-no-touch');
-					Dom.addClass(previewDocument.querySelector('html'), 'bx-touch');
+					this.#previewWindow = previewFrame.contentWindow;
 				}
-				this.#adjustPreviewScroll();
-			//});
+			}
+
+			this.#adjustPreviewScroll();
 		}
 	}
 
@@ -295,7 +433,7 @@ export class Device
 		DeviceUI.openDeviceMenu(
 			this.#previewElement.querySelector('[data-role="device-name"]'),
 			Object.values(Devices.devices),
-			this.#setDevice.bind(this)
+			this.#setDevice.bind(this),
 		);
 	}
 
@@ -305,6 +443,7 @@ export class Device
 	#showPreview()
 	{
 		Dom.show(this.#previewElement);
+		this.#setPreview(this.#previewElement);
 	}
 
 	/**

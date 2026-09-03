@@ -1,4 +1,4 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
 if (!$this->__component->__parent || empty($this->__component->__parent->__name)):
 	$GLOBALS['APPLICATION']->SetAdditionalCSS('/bitrix/components/bitrix/forum/templates/.default/style.css');
 	$GLOBALS['APPLICATION']->SetAdditionalCSS('/bitrix/components/bitrix/forum/templates/.default/themes/blue/style.css');
@@ -15,12 +15,13 @@ $arParams["SHOW_RSS"] = ($arParams["SHOW_RSS"] == "Y" && !empty($arResult["FORUM
 if ($arParams["SHOW_RSS"] == "Y"):
 	$APPLICATION->AddHeadString('<link rel="alternate" type="application/rss+xml" href="'.$arResult["URL"]["RSS_DEFAULT"].'" />');
 endif;
-$arResult["USER"]["HIDDEN_GROUPS"] = explode("/", $_COOKIE[COption::GetOptionString("main", "cookie_name", "BITRIX_SM")."_FORUM_GROUP"]);
+$cookieKey = COption::GetOptionString("main", "cookie_name", "BITRIX_SM") . "_FORUM_GROUP";
+$arResult["USER"]["HIDDEN_GROUPS"] = explode("/", ($_COOKIE[$cookieKey] ?? ''));
 $arParams["TMPLT_SHOW_ADDITIONAL_MARKER"] = trim($arParams["TMPLT_SHOW_ADDITIONAL_MARKER"]);
 /********************************************************************
 				/Input params
 ********************************************************************/
-if (!empty($arResult["NAV_STRING"]) && $arResult["NAV_RESULT"]->NavPageCount > 1):
+if (!empty($arResult["NAV_STRING"]) && $arResult["NAV_RESULT_PAGE_COUNT"] > 1):
 ?>
 <div class="forum-navigation-box forum-navigation-top">
 	<div class="forum-page-navigation">
@@ -51,10 +52,10 @@ endif;
 <div class="forum-block-container">
 	<div class="forum-block-outer">
 		<div class="forum-block-inner">
-			<table cellspacing="0" class="forum-table forum-forum-list<?=(!empty($arResult["NAV_STRING"]) && $arResult["NAV_RESULT"]->NavPageCount > 1 ? 
+			<table cellspacing="0" class="forum-table forum-forum-list<?=(!empty($arResult["NAV_STRING"]) && $arResult["NAV_RESULT_PAGE_COUNT"] > 1 ?
 				"forum-forum-list-part" : "")?>">
 <?
-if (!empty($arResult["FORUMS"]["FORUMS"]) || ($arResult["GROUP"]["ID"] > 0 && !empty($arResult["FORUMS"]["GROUPS"][$arResult["GROUP"]["ID"]]["FORUMS"]))):
+if (!empty($arResult["FORUMS"]["FORUMS"]) || (isset($arResult["GROUP"]["ID"]) && $arResult["GROUP"]["ID"] > 0 && !empty($arResult["FORUMS"]["GROUPS"][$arResult["GROUP"]["ID"]]["FORUMS"]))):
 ?>
 			<thead>
 				<tr>
@@ -71,13 +72,13 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 	function __PrintForumGroupsAndForums($arRes, $arResult, $arParams, $depth = -1)
 	{
 		static $bInsertSeparator = false;
-		
+
 		$arGroup = $arRes;
 		if (!is_array($arRes))
 			return false;
-		
 
-		if (intval($arGroup["ID"]) > 0 && $arGroup["ID"] != $arResult["GROUP"]["ID"])
+
+		if (!empty($arGroup["ID"]) && (empty($arResult["GROUP"]["ID"]) || $arGroup["ID"] != $arResult["GROUP"]["ID"]))
 		{
 			if ($bInsertSeparator):
 ?>
@@ -108,9 +109,10 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 ?>
 			<tbody>
 <?
+			$count = count($arGroup["FORUMS"]);
 			foreach ($arGroup["FORUMS"] as $res)
 			{
-				
+
 				if ($arParams["WORD_WRAP_CUT"] > 0):
 					$res["TITLE"] = (mb_strlen($res["~TITLE"]) > $arParams["WORD_WRAP_CUT"] ?
 						htmlspecialcharsbx(mb_substr($res["~TITLE"], 0, $arParams["WORD_WRAP_CUT"]))."..." : $res["TITLE"]);
@@ -119,7 +121,7 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 				endif;
 ?>
 			<tr class="<?=($iCountRows == 1 ? "forum-row-first " : "")?><?
-				?><?=($iCountRows == count($arGroup["FORUMS"]) ? "forum-row-last " : "")
+				?><?=($iCountRows == $count ? "forum-row-last " : "")
 				?><?=($iCountRows%2 == 1 ? "forum-row-odd " : "forum-row-even ")?><?=($res["ACTIVE"] != "Y" ? " forum-row-inactive" : "")?>" <?
 				if ($res["ACTIVE"] != "Y"):
 					?> title="<?=GetMessage("F_NOT_ACTIVE_FORUM")?>" <?
@@ -195,7 +197,7 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 			</tbody>
 <?
 		}
-		
+
 		$iCountRows = 0;
 		if (array_key_exists("GROUPS", $arRes)):
 			if ($depth >= 1)
@@ -203,12 +205,13 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 ?>
 			<tbody>
 <?
+				$count = count($arRes["GROUPS"]);
 				foreach ($arRes["GROUPS"] as $key => $res)
 				{
 					$iCountRows++;
-					
+
 ?>				<tr class="<?=($iCountRows == 1 ? "forum-row-first " : "")?><?
-					?><?=($iCountRows == $iCountRows ? "forum-row-last " : "")
+					?><?=($iCountRows == $count ? "forum-row-last " : "")
 						?><?=($iCountRows%2 == 1 ? "forum-row-odd " : "forum-row-even ")?>" >
 						<td class="forum-column-icon">
 						<div class="forum-icon-container">
@@ -227,7 +230,7 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 				}
 ?>
 						</div>
-					
+
 					</td>
 					<td class="forum-column-title">
 						<div class="forum-item-info">
@@ -235,7 +238,7 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 							?><noindex><a rel="nofollow" href="<?=$arResult["URL"]["GROUP_".$res["ID"]]?>"><?
 								?><?=$res["~NAME"];?></a></noindex></span></div>
 							<span class="forum-item-desc"><?
-				
+
 				if (array_key_exists("FORUMS", $res)):
 					?><?=GetMessage("F_SUBFORUMS")?> <?
 					$bFirst = true;
@@ -257,9 +260,9 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 						$bFirst = false;
 					endforeach;
 				endif;
-					
+
 							?></span>
-							
+
 <?
 				if ($res["MODERATE"]["TOPICS"] > 0 || $res["MODERATE"]["POSTS"] > 0):
 ?>
@@ -304,7 +307,7 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 			</tbody>
 <?
 			}
-			else 
+			else
 			{
 				$depth++;
 				foreach ($arRes["GROUPS"] as $key => $val)
@@ -316,7 +319,7 @@ if (!function_exists("__PrintForumGroupsAndForums"))
 	}
 }
 if (!empty($arResult["FORUMS"])):
-	if ($arResult["GROUP"]["ID"] > 0):
+	if (isset($arResult["GROUP"]["ID"])):
 		__PrintForumGroupsAndForums($arResult["FORUMS"]["GROUPS"][$arResult["GROUP"]["ID"]], $arResult, $arParams, 0);
 	else:
 		__PrintForumGroupsAndForums($arResult["FORUMS"], $arResult, $arParams, 0);
@@ -344,7 +347,7 @@ endif;
 								?><a rel="nofollow" href="<?=$arResult["URL"]["RSS_DEFAULT"]?>" onclick="window.location='<?=addslashes(htmlspecialcharsbx($arResult["URL"]["~RSS"]))?>'; return false;"><?
 									?><?=GetMessage("F_SUBSCRIBE_TO_NEW_TOPICS")?><?
 									?></a></noindex></span>
-<?		
+<?
 		endif;
 		if ($USER->IsAuthorized()):
 ?>
@@ -353,13 +356,13 @@ endif;
 									?>href="<?=$APPLICATION->GetCurPageParam("ACTION=SET_BE_READ", array("ACTION", "sessid"))?>" <?
 									?>onclick="return this.href+=('&sessid='+BX.bitrix_sessid());";><?
 									?><?=GetMessage("F_SET_FORUMS_READ")?></a></noindex></span>
-<?		
+<?
 		elseif ($arParams["SHOW_RSS"] != "Y"):
 ?>
 							&nbsp;
-<?		
+<?
 		endif;
-		
+
 ?>
 						</div>
 					</td>
@@ -371,7 +374,7 @@ endif;
 </div>
 <?
 
-if (!empty($arResult["NAV_STRING"]) && $arResult["NAV_RESULT"]->NavPageCount > 1):
+if (!empty($arResult["NAV_STRING"]) && $arResult["NAV_RESULT_PAGE_COUNT"] > 1):
 ?>
 <div class="forum-navigation-box forum-navigation-bottom">
 	<div class="forum-page-navigation">

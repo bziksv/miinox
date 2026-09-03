@@ -23,15 +23,12 @@ $MESS["MAIN_DEFAULT_LANGUAGE_CODE"] = "ru";
 $MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_DATE"] = "DD.MM.YYYY";
 $MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_DATETIME"] = "DD.MM.YYYY HH:MI:SS";
 $MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_NAME"] = "#NAME# #LAST_NAME#";
-$MESS["MAIN_DEFAULT_LANGUAGE_FORMAT_CHARSET"] = "windows-1251";
 $MESS["MAIN_DEFAULT_SITE_FORMAT_DATE"] = "DD.MM.YYYY";
 $MESS["MAIN_DEFAULT_SITE_FORMAT_DATETIME"] = "DD.MM.YYYY HH:MI:SS";
 $MESS["MAIN_DEFAULT_SITE_FORMAT_NAME"] = "#NAME# #LAST_NAME#";
-$MESS["MAIN_DEFAULT_SITE_FORMAT_CHARSET"] = "windows-1251";
 $MESS["MAIN_SMILE_DEF_SET_NAME"] = "Основной набор";
 $MESS["MAIN_MODULE_NAME"] = "Главный модуль";
 $MESS["MAIN_MODULE_DESC"] = "Ядро системы";
-$MESS["MAIN_INSTALL_DB_ERROR"] = "Не могу соединиться с базой данных. Проверьте правильность введенных параметров";
 $MESS["MAIN_NEW_USER_TYPE_NAME"] = "Зарегистрировался новый пользователь";
 $MESS["MAIN_NEW_USER_TYPE_DESC"] = "
 
@@ -208,7 +205,7 @@ $MESS["MAIN_USER_PASS_CHANGED_EVENT_NAME"] = "#SITE_NAME#: Подтвержде�
 $MESS["MAIN_DESKTOP_CREATEDBY_KEY"] = "Создатель сайта";
 $MESS["MAIN_DESKTOP_CREATEDBY_VALUE"] = "Группа компаний &laquo;1С-Битрикс&raquo;.";
 $MESS["MAIN_DESKTOP_URL_KEY"] = "Адрес сайта";
-$MESS["MAIN_DESKTOP_URL_VALUE"] = "<a href=\"http://www.1c-bitrix.ru\">www.1c-bitrix.ru</a>";
+$MESS["MAIN_DESKTOP_URL_VALUE"] = "<a href=\"https://www.1c-bitrix.ru\">www.1c-bitrix.ru</a>";
 $MESS["MAIN_DESKTOP_PRODUCTION_KEY"] = "Сайт сдан";
 $MESS["MAIN_DESKTOP_PRODUCTION_VALUE"] = "12 декабря 2010 г.";
 $MESS["MAIN_DESKTOP_RESPONSIBLE_KEY"] = "Ответственное лицо";
@@ -318,13 +315,14 @@ $MESS['MAIN_INSTALL_EVENT_TYPE_NEW_DEVICE_LOGIN_DESC'] = '#USER_ID# - ID пол�
 #DEVICE# - Устройство
 #BROWSER# - Браузер
 #PLATFORM# - Платформа
+#DEVICE_INFO# - Устройство, браузер, платформа 
 #USER_AGENT# - User agent
 #IP# - IP-адрес
 #DATE# - Дата
 #COUNTRY# - Страна
 #REGION# - Регион
 #CITY# - Город
-#LOCATION# - Объединенные город, регион, страна
+#LOCATION# - Город, регион, страна
 ';
 $MESS['MAIN_INSTALL_EVENT_MESSAGE_NEW_DEVICE_LOGIN'] = 'Здравствуйте, #NAME#,
 

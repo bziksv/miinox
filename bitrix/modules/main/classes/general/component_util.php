@@ -38,25 +38,26 @@ class CComponentUtil
 	{
 		unset($arData["NEW_COMPONENT_TEMPLATE"]);
 
-		if ($arData["SEF_MODE"] == "Y")
+		if (isset($arData["SEF_MODE"]) && $arData["SEF_MODE"] == "Y")
 		{
 			unset($arData["VARIABLE_ALIASES"]);
 			unset($arData["SEF_URL_TEMPLATES"]);
 
 			foreach ($arData as $dataKey => $dataValue)
 			{
-				if (mb_substr($dataKey, 0, mb_strlen("SEF_URL_TEMPLATES_")) == "SEF_URL_TEMPLATES_")
+				if (str_starts_with($dataKey, "SEF_URL_TEMPLATES_"))
 				{
-					$arData["SEF_URL_TEMPLATES"][mb_substr($dataKey, mb_strlen("SEF_URL_TEMPLATES_"))] = $dataValue;
+					$len = strlen("SEF_URL_TEMPLATES_");
+					$arData["SEF_URL_TEMPLATES"][substr($dataKey, $len)] = $dataValue;
 					unset($arData[$dataKey]);
 
 					if (preg_match_all("'(\\?|&)(.+?)=#([^#]+?)#'is", $dataValue, $arMatches, PREG_SET_ORDER))
 					{
 						foreach ($arMatches as $arMatch)
-							$arData["VARIABLE_ALIASES"][mb_substr($dataKey, mb_strlen("SEF_URL_TEMPLATES_"))][$arMatch[3]] = $arMatch[2];
+							$arData["VARIABLE_ALIASES"][substr($dataKey, $len)][$arMatch[3]] = $arMatch[2];
 					}
 				}
-				elseif (mb_substr($dataKey, 0, mb_strlen("VARIABLE_ALIASES_")) == "VARIABLE_ALIASES_")
+				elseif (str_starts_with($dataKey, "VARIABLE_ALIASES_"))
 				{
 					unset($arData[$dataKey]);
 				}
@@ -69,13 +70,13 @@ class CComponentUtil
 
 			foreach ($arData as $dataKey => $dataValue)
 			{
-				if (mb_substr($dataKey, 0, mb_strlen("SEF_URL_TEMPLATES_")) == "SEF_URL_TEMPLATES_")
+				if (str_starts_with($dataKey, "SEF_URL_TEMPLATES_"))
 				{
 					unset($arData[$dataKey]);
 				}
-				elseif (mb_substr($dataKey, 0, mb_strlen("VARIABLE_ALIASES_")) == "VARIABLE_ALIASES_")
+				elseif (str_starts_with($dataKey, "VARIABLE_ALIASES_"))
 				{
-					$arData["VARIABLE_ALIASES"][mb_substr($dataKey, mb_strlen("VARIABLE_ALIASES_"))] = $dataValue;
+					$arData["VARIABLE_ALIASES"][substr($dataKey, strlen("VARIABLE_ALIASES_"))] = $dataValue;
 					unset($arData[$dataKey]);
 				}
 			}
@@ -355,7 +356,10 @@ class CComponentUtil
 	{
 		$arTree = CComponentUtil::__GetComponentsTree($filterNamespace, $arNameFilter, $arFilter);
 
-		CComponentUtil::__SortComponentsTree($arTree["#"]);
+		if (isset($arTree["#"]))
+		{
+			CComponentUtil::__SortComponentsTree($arTree["#"]);
+		}
 
 		return $arTree;
 	}
@@ -480,7 +484,7 @@ class CComponentUtil
 
 		if ($templateProperties && is_array($templateProperties))
 		{
-			if(is_array($arComponentParameters["PARAMETERS"]))
+			if(isset($arComponentParameters["PARAMETERS"]) && is_array($arComponentParameters["PARAMETERS"]))
 				$arComponentParameters["PARAMETERS"] = array_merge ($arComponentParameters["PARAMETERS"], $templateProperties);
 			else
 				$arComponentParameters["PARAMETERS"] = $templateProperties;
@@ -644,7 +648,7 @@ class CComponentUtil
 							"TYPE" => "STRING",
 							"MULTIPLE" => "N",
 							"DEFAULT" => $arTemplateValue["DEFAULT"],
-							"HIDDEN" => $arTemplateValue["HIDDEN"],
+							"HIDDEN" => $arTemplateValue["HIDDEN"] ?? '',
 							"COLS" => 50,
 							"VARIABLES" => array(),
 						);
@@ -653,7 +657,7 @@ class CComponentUtil
 						{
 							foreach ($arTemplateValue["VARIABLES"] as $variable)
 							{
-								if ($arVariableAliasesSettings[$variable]["TEMPLATE"])
+								if (!empty($arVariableAliasesSettings[$variable]["TEMPLATE"]))
 								{
 									$arComponentParameters["PARAMETERS"]["SEF_URL_TEMPLATES_".$templateKey]["TYPE"] = "TEMPLATES";
 									$arComponentParameters["PARAMETERS"]["SEF_URL_TEMPLATES_".$templateKey]["VALUES"][$variable] = array(
@@ -661,7 +665,7 @@ class CComponentUtil
 										"TEMPLATE" => $arVariableAliasesSettings[$variable]["TEMPLATE"],
 									);
 								}
-								$arComponentParameters["PARAMETERS"]["SEF_URL_TEMPLATES_".$templateKey]["VARIABLES"]["#".$variable."#"] = $arVariableAliasesSettings[$variable]["NAME"];
+								$arComponentParameters["PARAMETERS"]["SEF_URL_TEMPLATES_".$templateKey]["VARIABLES"]["#".$variable."#"] = $arVariableAliasesSettings[$variable]["NAME"] ?? '';
 							}
 						}
 					}
@@ -789,45 +793,144 @@ class CComponentUtil
 					"ADDITIONAL_VALUES" => "N"
 				);
 			}
-			elseif ($arParamKeys[$i] == "USER_CONSENT")
+			elseif ($arParamKeys[$i] == 'USER_CONSENT')
 			{
-				$arComponentParameters["GROUPS"]["USER_CONSENT"] = array(
-					"NAME" => GetMessage("COMP_GROUP_USER_CONSENT"),
-					"SORT" => 350
-				);
+				$arComponentParameters['GROUPS']['USER_CONSENT'] = [
+					'NAME' => GetMessage('COMP_GROUP_USER_CONSENT'),
+					'SORT' => 350,
+				];
 
-				$arComponentParameters["PARAMETERS"]["USER_CONSENT"] = array(
-					"PARENT" => "USER_CONSENT",
-					"NAME" => GetMessage("COMP_PROP_USER_CONSENT_USE"),
-					"TYPE" => "CHECKBOX",
-					"DEFAULT" => "N",
-					"ADDITIONAL_VALUES" => "N"
-				);
+				$arComponentParameters['PARAMETERS']['USER_CONSENT'] = [
+					'PARENT' => 'USER_CONSENT',
+					'NAME' => GetMessage('COMP_PROP_USER_CONSENT_USE'),
+					'TYPE' => 'CHECKBOX',
+					'DEFAULT' => 'N',
+					'ADDITIONAL_VALUES' => 'N',
+				];
 
-				$arComponentParameters["PARAMETERS"]["USER_CONSENT_ID"] = array(
-					"PARENT" => "USER_CONSENT",
-					"NAME" => GetMessage("COMP_PROP_USER_CONSENT_ID"),
-					"TYPE" => "LIST",
-					"VALUES" => array(GetMessage("COMP_PROP_USER_CONSENT_ID_DEF")) + \Bitrix\Main\UserConsent\Agreement::getActiveList(),
-					"MULTIPLE" => "N",
-					"DEFAULT" => "",
-				);
+				$isMultiple = isset($arComponentParameters['PARAMETERS']['USER_CONSENT_IDS']);
+				if ($isMultiple)
+				{
+					$agreements = \Bitrix\Main\UserConsent\Agreement::getActiveList();
+					if (is_array($arCurrentValues) && array_key_exists('USER_CONSENT_IDS', $arCurrentValues))
+					{
+						$userConsentIds =
+							is_array($arCurrentValues['USER_CONSENT_IDS'])
+								? $arCurrentValues['USER_CONSENT_IDS']
+								: [$arCurrentValues['USER_CONSENT_IDS']]
+						;
+					}
+					else
+					{
+						$userConsentIds = null;
+					}
+					$defaultUserConsentId = null;
+					$defaultUserConsentChecked = null;
 
-				$arComponentParameters["PARAMETERS"]["USER_CONSENT_IS_CHECKED"] = array(
-					"PARENT" => "USER_CONSENT",
-					"NAME" => GetMessage("COMP_PROP_USER_CONSENT_IS_CHECKED"),
-					"TYPE" => "CHECKBOX",
-					"DEFAULT" => "Y",
-					"ADDITIONAL_VALUES" => "N"
-				);
+					if (!$userConsentIds)
+					{
+						if (
+							isset($arCurrentValues['USER_CONSENT_ID'])
+							&& !isset($arCurrentValues['USER_CONSENT_IS_CHECKED_' . $arCurrentValues['USER_CONSENT_ID']])
+						)
+						{
+							$defaultUserConsentId =
+								$agreements[(int)$arCurrentValues['USER_CONSENT_ID']]
+									? (int)$arCurrentValues['USER_CONSENT_ID']
+									: null
+							;
+							$userConsentIds = [$arCurrentValues['USER_CONSENT_ID']];
+							if (isset($arCurrentValues['USER_CONSENT_IS_CHECKED']))
+							{
+								$defaultUserConsentChecked =
+									$arCurrentValues['USER_CONSENT_IS_CHECKED'] === 'Y'
+										? 'Y'
+										: 'N'
+								;
+							}
+						}
+						else
+						{
+							$userConsentIds = [];
+						}
+					}
+					$arComponentParameters['PARAMETERS']['USER_CONSENT_IDS'] = [
+						'PARENT' => 'USER_CONSENT',
+						'NAME' => GetMessage('COMP_PROP_USER_CONSENT_IDS'),
+						'TYPE' => 'LIST',
+						'VALUES' => $agreements,
+						'MULTIPLE' => 'Y',
+						'DEFAULT' => $defaultUserConsentId ? [$defaultUserConsentId] : '',
+						'REFRESH' => 'Y',
+					];
+					foreach ($userConsentIds as $userConsentId)
+					{
+						if (!is_scalar($userConsentId))
+						{
+							continue;
+						}
 
-				$arComponentParameters["PARAMETERS"]["USER_CONSENT_IS_LOADED"] = array(
-					"PARENT" => "USER_CONSENT",
-					"NAME" => GetMessage("COMP_PROP_USER_CONSENT_IS_LOADED"),
-					"TYPE" => "CHECKBOX",
-					"DEFAULT" => "N",
-					"ADDITIONAL_VALUES" => "N"
-				);
+						$userConsentId = (int)$userConsentId;
+						if ($userConsentId <= 0)
+						{
+							continue;
+						}
+
+						if (!isset($agreements[$userConsentId]))
+						{
+							continue;
+						}
+
+						$arComponentParameters['PARAMETERS']['USER_CONSENT_IS_CHECKED_' . $userConsentId] = [
+							'PARENT' => 'USER_CONSENT',
+							'NAME' => GetMessage(
+								'COMP_PROP_USER_CONSENT_IS_CHECKED_WITH_NAME',
+								['#NAME#' => $agreements[$userConsentId]],
+							),
+							'TYPE' => 'CHECKBOX',
+							'DEFAULT' => $defaultUserConsentId === $userConsentId ? $defaultUserConsentChecked : 'N',
+							'ADDITIONAL_VALUES' => 'N',
+						];
+
+						$arComponentParameters['PARAMETERS']['USER_CONSENT_REQUIRED_' . $userConsentId] = [
+							'PARENT' => 'USER_CONSENT',
+							'NAME' => GetMessage(
+								'COMP_PROP_USER_CONSENT_REQUIRED_WITH_NAME',
+								['#NAME#' => $agreements[$userConsentId]],
+							),
+							'TYPE' => 'CHECKBOX',
+							'DEFAULT' => 'Y',
+							'ADDITIONAL_VALUES' => 'N',
+						];
+					}
+				}
+				else
+				{
+					$arComponentParameters['PARAMETERS']['USER_CONSENT_ID'] = [
+						'PARENT' => 'USER_CONSENT',
+						'NAME' => GetMessage('COMP_PROP_USER_CONSENT_ID'),
+						'TYPE' => 'LIST',
+						'VALUES' => [GetMessage('COMP_PROP_USER_CONSENT_ID_DEF')] + \Bitrix\Main\UserConsent\Agreement::getActiveList(),
+						'MULTIPLE' => 'N',
+						'DEFAULT' => '',
+					];
+
+					$arComponentParameters['PARAMETERS']['USER_CONSENT_IS_CHECKED'] = [
+						'PARENT' => 'USER_CONSENT',
+						'NAME' => GetMessage('COMP_PROP_USER_CONSENT_IS_CHECKED'),
+						'TYPE' => 'CHECKBOX',
+						'DEFAULT' => 'Y',
+						'ADDITIONAL_VALUES' => 'N'
+					];
+				}
+
+				$arComponentParameters['PARAMETERS']['USER_CONSENT_IS_LOADED'] = [
+					'PARENT' => 'USER_CONSENT',
+					'NAME' => GetMessage('COMP_PROP_USER_CONSENT_IS_LOADED'),
+					'TYPE' => 'CHECKBOX',
+					'DEFAULT' => 'N',
+					'ADDITIONAL_VALUES' => 'N'
+				];
 			}
 			else
 			{
@@ -891,7 +994,7 @@ class CComponentUtil
 
 		if(
 			(CPageOption::GetOptionString("main","tips_creation","no")=="allowed")
-			&& (strpos($componentPath, "/forum") !== false)
+			&& (str_contains($componentPath, "/forum"))
 		)
 		{
 			//Create directories
@@ -919,7 +1022,7 @@ class CComponentUtil
 				fclose($handle);
 				$lang_file_modified = false;
 				//Bug fix
-				if(strpos($lang_contents, "\$MESS['") !== false)
+				if(str_contains($lang_contents, "\$MESS['"))
 				{
 					$lang_contents = str_replace("\$MESS['", "\$MESS ['", $lang_contents);
 					$lang_file_modified = true;
@@ -927,7 +1030,7 @@ class CComponentUtil
 				//Check out parameters
 				foreach($arComponentParameters["PARAMETERS"] as $strName=>$arParameter)
 				{
-					if(strpos($lang_contents, "\$MESS ['${strName}_TIP'] = ") === false)
+					if(!str_contains($lang_contents, "\$MESS ['${strName}_TIP'] = "))
 					{
 						$lang_contents = str_replace("?>", "\$MESS ['${strName}_TIP'] = \"".str_replace("\$", "\\\$", str_replace('"','\\"',$arParameter["NAME"]))."\";\n?>", $lang_contents);
 						$lang_file_modified = true;

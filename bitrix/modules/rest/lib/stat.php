@@ -49,9 +49,9 @@ use Bitrix\Main;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Stat_Query query()
- * @method static EO_Stat_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Stat_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Stat_Result getById($id)
- * @method static EO_Stat_Result getList(array $parameters = array())
+ * @method static EO_Stat_Result getList(array $parameters = [])
  * @method static EO_Stat_Entity getEntity()
  * @method static \Bitrix\Rest\EO_Stat createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_Stat_Collection createCollection()
@@ -218,7 +218,7 @@ class StatTable extends Main\Entity\DataManager
 
 	public static function log(\CRestServer $server)
 	{
-		if(Main\ModuleManager::isModuleInstalled('oauth'))
+		if(\Bitrix\Rest\Integration\OAuthModule::isSupported())
 		{
 			return;
 		}
@@ -295,7 +295,7 @@ class StatTable extends Main\Entity\DataManager
 
 	public static function finalize()
 	{
-		if(Main\ModuleManager::isModuleInstalled('oauth'))
+		if(\Bitrix\Rest\Integration\OAuthModule::isSupported())
 		{
 			return;
 		}
@@ -321,17 +321,17 @@ class StatTable extends Main\Entity\DataManager
 							continue;
 						}
 
-						$insertFields = array(
+						$insertFields = [
 							'STAT_DATE' => $curDateSql,
 							'APP_ID' => $appInfo['ID'],
 							'METHOD_ID' => $methodId,
 							'HOUR_'.$hour => $count,
-							'PASSWORD_ID' => 0
-						);
+							'PASSWORD_ID' => 0,
+						];
 
-						$updateFields = array(
-							'HOUR_'.$hour => new Main\DB\SqlExpression('?#+?i', 'HOUR_'.$hour, $count)
-						);
+						$updateFields = [
+							'HOUR_'.$hour => new Main\DB\SqlExpression('?#.?# + ?i', static::getTableName(), 'HOUR_' . $hour, $count)
+						];
 
 						$queries = $helper->prepareMerge(
 							static::getTableName(),
@@ -362,19 +362,19 @@ class StatTable extends Main\Entity\DataManager
 						continue;
 					}
 
-					$insertFields = array(
+					$insertFields = [
 						'STAT_DATE' => $curDateSql,
 						'PASSWORD_ID' => $passwordID,
 						'METHOD_ID' => $methodId,
 						'HOUR_' . $hour => $count,
 						'APP_ID' => 0
-					);
+					];
 
-					$updateFields = array(
-						'HOUR_'.$hour => new Main\DB\SqlExpression('?#+?i', 'HOUR_'.$hour, $count)
-					);
+					$updateFields = [
+						'HOUR_'.$hour => new Main\DB\SqlExpression('?#.?# + ?i', static::getTableName(), 'HOUR_'.$hour, $count)
+					];
 
-					$queries = $helper->prepareMerge(
+                    $queries = $helper->prepareMerge(
 						static::getTableName(),
 						array('DATE', 'APP_ID', 'METHOD_ID'),
 						$insertFields,

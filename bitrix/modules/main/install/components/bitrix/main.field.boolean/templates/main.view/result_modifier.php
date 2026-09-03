@@ -1,18 +1,22 @@
 <?php
 
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main\Page\Asset;
-use Bitrix\Main\UserField\Types\BooleanType;
 use Bitrix\Main\Text\HtmlFilter;
+use Bitrix\Main\UserField\Types\BooleanType;
 
 /**
  * @var $component BooleanUfComponent
+ * @var array $arResult
  */
 
 $label = BooleanType::getLabels($arResult['userField']);
 
-$value = (int)$arResult['userField']['VALUE'];
+$value = (int)($arResult['userField']['VALUE'] ?? 0);
 $valueTitle = HtmlFilter::encode($value ? $label[1] : $label[0]);
 
 $arResult['value'] = $value;

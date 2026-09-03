@@ -1,7 +1,7 @@
-import { ajax } from "main.core";
-import { Alert, AlertColor } from "ui.alerts";
-import { GridController } from "./grid-controller";
-import { SettingsForm } from "./settings-form";
+import { ajax } from 'main.core';
+import { Alert, AlertColor } from 'ui.alerts';
+import { GridController } from './grid-controller';
+import { SettingsForm } from './settings-form';
 
 export class PropertyDirectorySettings
 {
@@ -86,8 +86,8 @@ export class PropertyDirectorySettings
 	{
 		const result = new FormData();
 
-		result.append('fields[DIRECTORY_NAME]', this.settingsForm.app._instance.data.directoryName || '');
-		result.append('fields[DIRECTORY_TABLE_NAME]', this.settingsForm.app._instance.data.directoryValue || '');
+		result.append('fields[DIRECTORY_NAME]', this.settingsForm.getDirectoryName());
+		result.append('fields[DIRECTORY_TABLE_NAME]', this.settingsForm.getDirectoryValue());
 
 		let newRowsCount = 0;
 		this.gridController.getGridBodyRows().forEach((row) => {

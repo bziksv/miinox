@@ -1,7 +1,9 @@
 <?php
+
 namespace Bitrix\Highloadblock;
 
 use Bitrix\Main\Entity;
+use Bitrix\Main\ORM;
 
 /**
  * Class HighloadBlockRightsTable
@@ -10,22 +12,22 @@ use Bitrix\Main\Entity;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_HighloadBlockRights_Query query()
- * @method static EO_HighloadBlockRights_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_HighloadBlockRights_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_HighloadBlockRights_Result getById($id)
- * @method static EO_HighloadBlockRights_Result getList(array $parameters = array())
+ * @method static EO_HighloadBlockRights_Result getList(array $parameters = [])
  * @method static EO_HighloadBlockRights_Entity getEntity()
  * @method static \Bitrix\Highloadblock\EO_HighloadBlockRights createObject($setDefaultValues = true)
  * @method static \Bitrix\Highloadblock\EO_HighloadBlockRights_Collection createCollection()
  * @method static \Bitrix\Highloadblock\EO_HighloadBlockRights wakeUpObject($row)
  * @method static \Bitrix\Highloadblock\EO_HighloadBlockRights_Collection wakeUpCollection($rows)
  */
-class HighloadBlockRightsTable extends Entity\DataManager
+class HighloadBlockRightsTable extends ORM\Data\DataManager
 {
 	/**
 	 * Returns DB table name for entity.
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_hlblock_entity_rights';
 	}
@@ -34,11 +36,12 @@ class HighloadBlockRightsTable extends Entity\DataManager
 	 * Returns entity map definition.
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
 		return array(
 			'ID' => new Entity\IntegerField('ID', array(
-				'primary' => true
+				'primary' => true,
+				'autocomplete' => true,
 			)),
 			'HL_ID' => new Entity\IntegerField('HL_ID', array(
 				'required' => true,
@@ -84,6 +87,8 @@ class HighloadBlockRightsTable extends Entity\DataManager
 	{
 		$operations = array();
 		$uid = $GLOBALS['USER']->getId();//@fixme
+		$acc = new \CAccess;
+		$acc->UpdateCodes();
 
 		$res = \Bitrix\HighloadBlock\HighloadBlockRightsTable::getList(array(
 				'select' => array(

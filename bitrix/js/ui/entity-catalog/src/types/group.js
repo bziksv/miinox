@@ -1,4 +1,4 @@
-import {ItemData} from './item';
+import { type ItemData} from './item';
 
 export type GroupData = {
 	id: GroupId,
@@ -12,6 +12,7 @@ export type GroupData = {
 	selected?: boolean,
 	disabled?: boolean,
 	compare?: (ItemData, ItemData) => number,
+	isHeaderGroup?: boolean,
 }
 
 export type GroupId = number | string;

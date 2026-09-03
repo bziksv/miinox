@@ -1,57 +1,43 @@
-import {Type} from 'main.core';
-import {PanelLink} from 'landing.ui.panel.link';
+import { Base } from 'landing.node.base';
+import { Dom, Event } from 'main.core';
 
-export class Link extends Node
+const trim = BX.Landing.Utils.trim;
+const isPlainObject = BX.Landing.Utils.isPlainObject;
+const isString = BX.Landing.Utils.isString;
+const textToPlaceholders = BX.Landing.Utils.textToPlaceholders;
+const create = BX.Landing.Utils.create;
+const escapeText = BX.Landing.Utils.escapeText;
+const decodeDataValue = BX.Landing.Utils.decodeDataValue;
+
+export class Link extends Base
 {
 	constructor(options)
 	{
-		super();
+		super(options);
 
-		this.trim = BX.Landing.Utils.trim;
-		this.isPlainObject = BX.Landing.Utils.isPlainObject;
-		this.isString = BX.Landing.Utils.isString;
-		this.textToPlaceholders = BX.Landing.Utils.textToPlaceholders;
-		this.create = BX.Landing.Utils.create;
-		this.escapeText = BX.Landing.Utils.escapeText;
-		this.decodeDataValue = BX.Landing.Utils.decodeDataValue;
-
-		BX.Landing.Block.Node.apply(this, arguments);
-		this.type = "link";
+		this.type = 'link';
 
 		if (!this.isGrouped())
 		{
-			this.node.addEventListener("click", this.onClick.bind(this));
+			Event.bind(this.node, 'click', this.onClick.bind(this));
 		}
 
 		if (this.isAllowInlineEdit())
 		{
-			this.node.setAttribute("title", BX.Landing.Loc.getMessage("LANDING_TITLE_OF_LINK_NODE"));
+			Dom.attr(this.node, 'title', BX.Landing.Loc.getMessage('LANDING_TITLE_OF_LINK_NODE'));
 		}
+
+		this.onChange = BX.Runtime.debounce(this.onChange, 500);
+		this.onContentUpdate = BX.Runtime.debounce(this.onContentUpdate, 500);
 	}
 
 	onContentUpdate()
 	{
-		var blockId = this.getBlock().id;
-
-		clearTimeout(this.contentEditTimeout);
-		this.contentEditTimeout = setTimeout(function() {
-			BX.Landing.History.getInstance().push(
-				new BX.Landing.History.Entry({
-					block: blockId,
-					selector: this.selector,
-					command: "editLink",
-					undo: this.startValue,
-					redo: this.getValue()
-				})
-			);
-
-			this.startValue = null;
-		}.bind(this), 400);
-
+		BX.Landing.History.getInstance().push();
 		this.getField().setValue(this.getValue());
 	}
 
-	isMenuMode()
+	isMenuMode(): boolean
 	{
 		return this.manifest.menuMode === true;
 	}
@@ -60,7 +46,7 @@ export class Link extends Node
 	 * Handles click event
 	 * @param {MouseEvent} event
 	 */
-	onClick()
+	onClick(event)
 	{
 		event.preventDefault();
 
@@ -71,24 +57,140 @@ export class Link extends Node
 
 		if (this.isAllowInlineEdit())
 		{
-			BX.Landing.UI.Button.ColorAction.hideAll();
-
 			if (!BX.Landing.UI.Panel.StylePanel.getInstance().isShown())
 			{
-				const link = new PanelLink;
-				link.getInstance().show(this);
-				BX.Landing.UI.Panel.Link.getInstance().show(this);
+				if (!BX.Landing.Env.getInstance().isBlockControlsEnabled())
+				{
+					const options = {
+						href: this.getValue().href,
+						onSave: (url) => this.setValue(this.getSimpleLinkValue(url)),
+						onRemove: () => this.setValue(this.getSimpleLinkValue('#')),
+					};
+
+					// AI select button appears only when the copilot element
+					// picker is available and enabled: without the handler the
+					// panel keeps no trace of it. The click only toggles the AI
+					// selection of this node and never writes the href.
+					const picker = getElementPicker();
+					if (picker)
+					{
+						options.onAiSelect = () => picker.toggleSelection(this);
+					}
+
+					BX.Landing.UI.Panel.SimpleLinkPanel.getInstance().show(this.node, options);
+				}
+				else
+				{
+					BX.Landing.UI.Panel.Link.getInstance().show(this);
+				}
 			}
 		}
 	}
 
 	/**
-	 * Checks that button is prevented
+	 * Detects whether the given href points outside of the current site and thus
+	 * must be opened in a new tab. Internal targets (block/page anchors, hash
+	 * anchors, relative paths) stay in the same tab.
+	 * @param {string} href
 	 * @return {boolean}
 	 */
-	isPrevented()
+	isExternalHref(href): boolean
 	{
-		return this.getValue().target === "_popup";
+		const value = String(href || '').trim();
+
+		if (value === '')
+		{
+			return false;
+		}
+
+		if (/^(#|block:|page:)/i.test(value)) // internal anchors / block / page links
+		{
+			return false;
+		}
+
+		if (/^(\.?\/)/.test(value)) // relative paths: /… ./…
+		{
+			return false;
+		}
+
+		if (/^(https?:)?\/\//i.test(value)) // http(s):// or protocol-relative //
+		{
+			return true;
+		}
+
+		if (/^(mailto:|tel:|ftp:|callto:)/i.test(value))
+		{
+			return true;
+		}
+
+		if (/^[a-z][a-z0-9+.-]*:/i.test(value)) // any other explicit protocol
+		{
+			return true;
+		}
+
+		return true; // bare domain / anything else — treat as external
+	}
+
+	/**
+	 * Rejects hrefs whose scheme can execute code in the editor (DOM-XSS):
+	 * javascript:, data:, vbscript:, file:. Everything else is safe — http(s),
+	 * mailto:, tel:, #anchors, relative paths, schemeless values. The href is
+	 * lowercased, stripped of leading/trailing whitespace and control chars
+	 * (defeats `java\tscript:` obfuscation) before matching the scheme.
+	 * @param {string} href
+	 * @return {boolean}
+	 */
+	isSafeHref(href): boolean
+	{
+		// eslint-disable-next-line no-control-regex
+		const value = String(href || '').trim().replace(/[\x00-\x20]/g, '');
+		const scheme = (value.match(/^([a-z][a-z0-9+.-]*):/i) || [, ''])[1].toLowerCase();
+
+		return ['javascript', 'data', 'vbscript', 'file'].indexOf(scheme) === -1;
+	}
+
+	/**
+	 * Builds node value for the simple link panel (AI sites). External links are
+	 * opened in a new tab with rel="noopener noreferrer"; internal links stay in
+	 * the same tab and must not carry the rel attribute (it is dropped if a
+	 * previous _blank save had set it). An unsafe scheme (see isSafeHref) is
+	 * treated as link removal: href '#', same tab, rel dropped.
+	 * @param {string} href
+	 * @return {{text: string, href: string|*, target: string|*}}
+	 */
+	getSimpleLinkValue(href)
+	{
+		// decodeDataValue (applied on write in setAttrValue) can reveal an unsafe
+		// scheme hidden behind html-entities, so both the raw input and the
+		// decoded value are checked before the href is written.
+		if (!this.isSafeHref(href) || !this.isSafeHref(decodeDataValue(href)))
+		{
+			href = '#';
+		}
+
+		const value = this.getValue();
+		const external = this.isExternalHref(href);
+
+		value.href = href;
+		value.target = external ? '_blank' : '_self';
+
+		const attrs = { ...(value.attrs || {}) };
+		delete attrs.rel;
+
+		if (external)
+		{
+			attrs.rel = 'noopener noreferrer';
+		}
+		else
+		{
+			// setAttrValue skips keys absent from attrs, so a bare delete would
+			// leave a stale rel in the DOM; rel: null makes Dom.attr remove it.
+			attrs.rel = null;
+		}
+
+		value.attrs = attrs;
+
+		return value;
 	}
 
 	/**
@@ -105,47 +207,28 @@ export class Link extends Node
 
 		if (!this.containsImage() && this.isAllowInlineEdit())
 		{
-			var field = this.getField(true).hrefInput;
+			const field = this.getField(true).hrefInput;
 
-			if (this.isString(data.text) && data.text.includes("{{name}}"))
+			if (isString(data.text) && data.text.includes('{{name}}'))
 			{
 				field.getPlaceholderData(data.href)
-					.then(function(placeholdersData) {
+					.then((placeholdersData) => {
 						this.node.innerHTML = data.text.replace(
-							new RegExp("{{name}}"),
-							"<span data-placeholder=\"name\">"+placeholdersData.name+"</span>"
+							/{{name}}/,
+							`<span data-placeholder="name">${placeholdersData.name}</span>`,
 						);
-					}.bind(this));
+					})
+					.catch(() => {});
 			}
-			else
+			else if (!this.getField().containsHtml() && !this.manifest.skipContent)
 			{
-				if (!this.getField().containsHtml() && !this.manifest.skipContent)
-				{
-					this.node.innerHTML = this.escapeText(data.text);
-				}
+				this.node.innerHTML = escapeText(data.text);
 			}
 		}
 
-		this.node.setAttribute("href", this.decodeDataValue(data.href));
-		this.node.setAttribute("target", this.escapeText(data.target));
+		this.setAttrValue(data);
 
-		if ("attrs" in data)
-		{
-			for (var attr in data.attrs)
-			{
-				if (data.attrs.hasOwnProperty(attr))
-				{
-					this.node.setAttribute(attr, data.attrs[attr]);
-				}
-			}
-		}
-		else
-		{
-			this.node.removeAttribute("data-url");
-			this.node.removeAttribute("data-embed");
-		}
-
-		this.onChange();
+		this.onChange(preventHistory);
 
 		if (!preventHistory)
 		{
@@ -153,48 +236,74 @@ export class Link extends Node
 		}
 	}
 
+	setAttrValue(data)
+	{
+		Dom.attr(this.node, 'href', decodeDataValue(data.href));
+		Dom.attr(this.node, 'target', escapeText(data.target));
+
+		if ('attrs' in data)
+		{
+			Object.keys(data.attrs).forEach((attr) => {
+				if (Object.prototype.hasOwnProperty.call(data.attrs, attr))
+				{
+					Dom.attr(this.node, attr, data.attrs[attr]);
+				}
+			});
+		}
+		else
+		{
+			Dom.attr(this.node, 'data-url', null);
+			Dom.attr(this.node, 'data-embed', null);
+		}
+	}
+
 	/**
 	 * Checks that this node contains image node
 	 * @return {boolean}
 	 */
-	containsImage()
+	containsImage(): boolean
 	{
-		return !!this.node.firstElementChild && this.node.firstElementChild.tagName === "IMG";
+		return Boolean(this.node.firstElementChild) && this.node.firstElementChild.tagName === 'IMG';
 	}
 
 	/**
 	 * Gets node value
 	 * @return {{text: string, href: string|*, target: string|*}}
 	 */
-	getValue()
+	getValue(): {text: string, href: string | *, target: string | *}
 	{
-		var value = {
-			text: this.textToPlaceholders(this.trim(this.node.innerHTML)),
-			href: this.trim(this.node.getAttribute("href")),
-			target: this.trim(this.node.getAttribute("target") || "_self")
+		const value = {
+			text: textToPlaceholders(trim(this.node.innerHTML)),
+			href: trim(this.node.getAttribute('href')),
+			target: trim(this.node.getAttribute('target') || '_self'),
 		};
 
-		if (this.node.getAttribute("data-url"))
+		if (this.node.getAttribute('data-url'))
 		{
 			value.attrs = {
-				"data-url": this.trim(this.node.getAttribute("data-url"))
+				'data-url': trim(this.node.getAttribute('data-url')),
 			};
 		}
 
-		if (this.node.getAttribute("data-dynamic"))
+		if (this.node.getAttribute('data-dynamic'))
 		{
-			if (!this.isPlainObject(value.attrs))
+			if (!isPlainObject(value.attrs))
 			{
 				value.attrs = {};
 			}
 
-			value.attrs["data-dynamic"] = this.node.getAttribute("data-dynamic");
+			value.attrs['data-dynamic'] = this.node.getAttribute('data-dynamic');
 		}
 
 		if (this.manifest.skipContent)
 		{
-			value['skipContent'] = true;
+			value.skipContent = true;
 			delete value.text;
+		}
+
+		if (value.href && value.href.startsWith('selectActions:'))
+		{
+			value.href = '#';
 		}
 
 		return value;
@@ -202,21 +311,21 @@ export class Link extends Node
 
 	/**
 	 * Gets field
-	 * @param {boolean} [preventAdjustValue = false]
+	 * @param {boolean} preventAdjustValue
 	 * @return {BX.Landing.UI.Field.BaseField}
 	 */
-	getField(preventAdjustValue)
+	getField(preventAdjustValue): BX.Landing.UI.Field.BaseField
 	{
-		var value = this.getValue();
-		value.text = this.textToPlaceholders(this.create("div", {html: value.text}).innerHTML);
+		const value = this.getValue();
+		value.text = textToPlaceholders(create('div', { html: value.text }).innerHTML);
 
 		if (!this.field)
 		{
-			var allowedTypes = [
+			const allowedTypes = [
 				BX.Landing.UI.Field.LinkUrl.TYPE_BLOCK,
 				BX.Landing.UI.Field.LinkUrl.TYPE_PAGE,
 				BX.Landing.UI.Field.LinkUrl.TYPE_CRM_FORM,
-				BX.Landing.UI.Field.LinkUrl.TYPE_CRM_PHONE
+				BX.Landing.UI.Field.LinkUrl.TYPE_CRM_PHONE,
 			];
 
 			if (BX.Landing.Main.getInstance().options.params.type === BX.Landing.Main.TYPE_STORE)
@@ -236,26 +345,37 @@ export class Link extends Node
 				content: value,
 				options: {
 					siteId: BX.Landing.Main.getInstance().options.site_id,
-					landingId: BX.Landing.Main.getInstance().id
+					landingId: BX.Landing.Main.getInstance().id,
 				},
-				allowedTypes: allowedTypes
+				allowedTypes,
 			});
 		}
-		else
+		else if (!preventAdjustValue)
 		{
-			if (!preventAdjustValue)
-			{
-				this.field.setValue(value);
-				this.field.content = value;
-				this.field.hrefInput.content = value.href;
-				this.field.hrefInput.makeDisplayedHrefValue();
-				this.field.hrefInput.setHrefTypeSwitcherValue(
-					this.field.hrefInput.getHrefStringType()
-				);
-				this.field.hrefInput.removeHrefTypeFromHrefString();
-			}
+			this.field.setValue(value);
+			this.field.content = value;
+			this.field.hrefInput.content = value.href;
+			this.field.hrefInput.makeDisplayedHrefValue();
+			this.field.hrefInput.setHrefTypeSwitcherValue(
+				this.field.hrefInput.getHrefStringType(),
+			);
+			this.field.hrefInput.removeHrefTypeFromHrefString();
 		}
 
 		return this.field;
 	}
+}
+
+BX.Landing.Node.Link = Link;
+
+/**
+ * Resolves the active copilot element picker. Returns null when the extension
+ * is not loaded or its option is disabled, so AI controls are not rendered.
+ * @return {?BX.Landing.Copilot.ElementPicker}
+ */
+function getElementPicker()
+{
+	const picker = BX.Landing.Copilot && BX.Landing.Copilot.ElementPicker;
+
+	return (picker && picker.isEnabled()) ? picker.getInstance() : null;
 }

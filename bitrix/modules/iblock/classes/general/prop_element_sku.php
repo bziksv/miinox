@@ -1,34 +1,39 @@
 <?php
 
+use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Iblock;
 
-Loc::loadMessages(__FILE__);
-
 class CIBlockPropertySKU extends CIBlockPropertyElementAutoComplete
 {
-	public const USER_TYPE = 'SKU';
+	/** @deprecated */
+	public const USER_TYPE = Iblock\PropertyTable::USER_TYPE_SKU;
 
 	public static function GetUserTypeDescription()
 	{
-		return array(
-			"PROPERTY_TYPE" => Iblock\PropertyTable::TYPE_ELEMENT,
-			"USER_TYPE" => self::USER_TYPE,
-			"DESCRIPTION" => Loc::getMessage('BT_UT_SKU_DESCRIPTION'),
-			"GetPropertyFieldHtml" => array(__CLASS__, "GetPropertyFieldHtml"),
-			"GetPropertyFieldHtmlMulty" => array(__CLASS__, "GetPropertyFieldHtml"),
-			"GetPublicViewHTML" => array(__CLASS__, "GetPublicViewHTML"),
-			"GetPublicEditHTML" => array(__CLASS__, "GetPublicEditHTML"),
-			"GetAdminListViewHTML" => array(__CLASS__,"getAdminListViewHTMLExtended"),
-			"GetAdminFilterHTML" => array(__CLASS__,'GetAdminFilterHTML'),
-			"GetSettingsHTML" => array(__CLASS__,'GetSettingsHTML'),
-			"PrepareSettings" => array(__CLASS__,'PrepareSettings'),
-			"AddFilterFields" => array(__CLASS__,'AddFilterFields'),
-			"GetUIFilterProperty" => array(__CLASS__, 'GetUIFilterProperty'),
-			'GetUIEntityEditorProperty' => array(__CLASS__, 'GetUIEntityEditorProperty'),
-			'GetUIEntityEditorPropertyEditHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyEditHtml'),
-			'GetUIEntityEditorPropertyViewHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyViewHtml'),
-		);
+		if (!Loader::includeModule('catalog'))
+		{
+			return [];
+		}
+
+		return [
+			'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_ELEMENT,
+			'USER_TYPE' => Iblock\PropertyTable::USER_TYPE_SKU,
+			'DESCRIPTION' => Loc::getMessage('BT_UT_SKU_DESCRIPTION'),
+			'GetPropertyFieldHtml' => [__CLASS__, 'GetPropertyFieldHtml'],
+			'GetPropertyFieldHtmlMulty' => [__CLASS__, 'GetPropertyFieldHtml'],
+			'GetPublicViewHTML' => [__CLASS__, 'GetPublicViewHTML'],
+			'GetPublicEditHTML' => [__CLASS__, 'GetPublicEditHTML'],
+			'GetAdminListViewHTML' => [__CLASS__,'getAdminListViewHTMLExtended'],
+			'GetAdminFilterHTML' => [__CLASS__,'GetAdminFilterHTML'],
+			'GetSettingsHTML' => [__CLASS__,'GetSettingsHTML'],
+			'PrepareSettings' => [__CLASS__,'PrepareSettings'],
+			'AddFilterFields' => [__CLASS__,'AddFilterFields'],
+			'GetUIFilterProperty' => [__CLASS__, 'GetUIFilterProperty'],
+			'GetUIEntityEditorProperty' => [__CLASS__, 'GetUIEntityEditorProperty'],
+			'GetUIEntityEditorPropertyEditHtml' => [__CLASS__, 'GetUIEntityEditorPropertyEditHtml'],
+			'GetUIEntityEditorPropertyViewHtml' => [__CLASS__, 'GetUIEntityEditorPropertyViewHtml'],
+		];
 	}
 
 	public static function PrepareSettings($arFields)
@@ -102,6 +107,36 @@ class CIBlockPropertySKU extends CIBlockPropertyElementAutoComplete
 			return '';
 		}
 
+		$viewMode = '';
+		$resultKey = '';
+		if (!empty($strHTMLControlName['MODE']))
+		{
+			switch ($strHTMLControlName['MODE'])
+			{
+				case 'CSV_EXPORT':
+					$viewMode = 'CSV_EXPORT';
+					$resultKey = 'ID';
+					break;
+				case 'EXTERNAL_ID':
+					$viewMode = 'EXTERNAL_ID';
+					$resultKey = 'XML_ID';
+					break;
+				case 'SIMPLE_TEXT':
+					$viewMode = 'SIMPLE_TEXT';
+					$resultKey = 'NAME';
+					break;
+				case 'ELEMENT_TEMPLATE':
+					$viewMode = 'ELEMENT_TEMPLATE';
+					$resultKey = 'NAME';
+					break;
+			}
+		}
+
+		if ($viewMode !== '' && $resultKey !== '')
+		{
+			return $element[$resultKey];
+		}
+
 		return htmlspecialcharsbx($element['NAME']) . ' [' . $elementId . ']';
 	}
 
@@ -140,15 +175,21 @@ class CIBlockPropertySKU extends CIBlockPropertyElementAutoComplete
 			return null;
 		}
 
-		$element = CIBlockElement::GetList(
+		$iterator = CIBlockElement::GetList(
 			[],
 			[
 				'ID' => $elementId,
 			],
 			false,
 			false,
-			['ID', 'IBLOCK_ID', 'NAME']
-		)->Fetch();
+			[
+				'ID',
+				'IBLOCK_ID',
+				'NAME',
+				'XML_ID',
+			]
+		);
+		$element = $iterator->Fetch();
 
 		if ($element)
 		{
@@ -160,4 +201,4 @@ class CIBlockPropertySKU extends CIBlockPropertyElementAutoComplete
 }
 
 /** @deprecated */
-define('BT_UT_SKU_CODE', CIBlockPropertySKU::USER_TYPE);
+const BT_UT_SKU_CODE = Iblock\PropertyTable::USER_TYPE_SKU;

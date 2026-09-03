@@ -1,4 +1,7 @@
-<?
+<?php
+
+use Bitrix\Main\Web\Json;
+
 abstract class CRsaProvider
 {
 	//$_M, $_E - public components
@@ -45,23 +48,18 @@ class CRsaSecurity
 	protected $provider = false;
 	protected $lib = '';
 
-	public function __construct($lib=false)
+	public function __construct()
 	{
-		if(extension_loaded('openssl') && ($lib == false || $lib == 'openssl'))
+		if (extension_loaded('openssl'))
 		{
 			$this->provider = new CRsaOpensslProvider();
 			$this->lib = 'openssl';
-		}
-		elseif(extension_loaded('bcmath') && ($lib == false || $lib == 'bcmath'))
-		{
-			$this->provider = new CRsaBcmathProvider();
-			$this->lib = 'bcmath';
 		}
 	}
 
 	public static function Possible()
 	{
-		return (extension_loaded('openssl') || extension_loaded('bcmath'));
+		return extension_loaded('openssl');
 	}
 
 	public function SetKeys($arKeys)
@@ -123,8 +121,8 @@ class CRsaSecurity
 		$GLOBALS["APPLICATION"]->AddHeadScript("/bitrix/js/main/rsasecurity.js");
 
 		echo '
-<script type="text/javascript">
-top.BX.defer(top.rsasec_form_bind)('.CUtil::PhpToJSObject($arData).');
+<script>
+top.BX.defer(top.rsasec_form_bind)('.Json::encode($arData).');
 </script>
 ';
 	}
@@ -134,7 +132,7 @@ top.BX.defer(top.rsasec_form_bind)('.CUtil::PhpToJSObject($arData).');
 		if(!$this->provider)
 			return self::ERROR_NO_LIBRARY; //no crypto library found
 
-		$data = $_REQUEST['__RSA_DATA'];
+		$data = $_REQUEST['__RSA_DATA'] ?? '';
 
 		unset($_POST['__RSA_DATA']);
 		unset($_REQUEST['__RSA_DATA']);
@@ -153,7 +151,7 @@ top.BX.defer(top.rsasec_form_bind)('.CUtil::PhpToJSObject($arData).');
 		$data1 = mb_substr($data, 0, -47);
 		$sha1 = mb_substr($data, -40);
 
-		if($sha1 <> sha1($data1))
+		if($sha1 !== sha1($data1))
 	  		return self::ERROR_INTEGRITY; //integrity check error
 
 		parse_str($data, $accepted_params);
@@ -165,7 +163,6 @@ top.BX.defer(top.rsasec_form_bind)('.CUtil::PhpToJSObject($arData).');
 		if($accepted_params['__RSA_RAND'] <> $session['__STORED_RSA_RAND'])
 			return self::ERROR_SESS_CHECK; //session control value does not match
 
-		CUtil::decodeURIComponent($accepted_params);
 		foreach($arParams as $k)
 		{
 			if(isset($accepted_params[$k]))

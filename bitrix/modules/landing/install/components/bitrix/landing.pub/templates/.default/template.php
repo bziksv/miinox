@@ -20,12 +20,25 @@ use \Bitrix\Main\UI\Extension;
 Loc::loadMessages(__FILE__);
 
 $this->setFrameMode(true);
-$landing = $arResult['LANDING'];/** @var \Bitrix\Landing\Landing $landing */
-$b24Installed = \Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24');
-$formEditor = $arResult['SPECIAL_TYPE'] == \Bitrix\Landing\Site\Type::PSEUDO_SCOPE_CODE_FORMS;
-$masterFrame = $component->request('master') == 'Y' && Rights::hasAccessForSite(
-	$landing->getSiteId(), Rights::ACCESS_TYPES['edit']
-);
+
+if (isset($arResult['LANDING']))
+{
+	$landing = $arResult['LANDING'];/** @var \Bitrix\Landing\Landing $landing */
+	$b24Installed = \Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24');
+	$formEditor = $arResult['SPECIAL_TYPE'] == \Bitrix\Landing\Site\Type::PSEUDO_SCOPE_CODE_FORMS;
+	$masterFrame = $component->request('master') == 'Y' && Rights::hasAccessForSite(
+		$landing->getSiteId(), Rights::ACCESS_TYPES['edit']
+	);
+}
+
+// Tool availability (by intranet settings) - only kb
+if ($arParams['TYPE'] === 'KNOWLEDGE' || $arParams['TYPE'] === 'GROUP')
+{
+	if (!$component->isToolAvailable())
+	{
+		echo $component->getToolUnavailableInfoScript();
+	}
+}
 
 Manager::setPageTitle(
 	Loc::getMessage('LANDING_TPL_TITLE')
@@ -56,7 +69,6 @@ if ($b24Installed)
 	$extensions[] = 'landing.metrika';
 }
 $extensions[] = 'sidepanel';
-$extensions[] = 'ui.hint';
 
 Extension::load($extensions);
 
@@ -136,7 +148,8 @@ if ($arParams['SHOW_EDIT_PANEL'] === 'Y')
 			</div>
 			<div class="landing-pub-top-panel-right">
 				<div class="landing-pub-top-panel-unique-view">
-					<div class="ui-btn ui-btn-xs ui-btn-icon-eye-opened ui-btn-link ui-btn-light">
+					<div class="ui-icon-set --person"></div>
+					<div>
 						<?= View::getNumberUniqueViews($landing->getId())?>
 					</div>
 					<div class="landing-pub-top-panel-unique-view-popup hide">
@@ -144,6 +157,12 @@ if ($arParams['SHOW_EDIT_PANEL'] === 'Y')
 							<?= $component->getMessageType('LANDING_TPL_VIEWS')?>
 						</div>
 						<div class="landing-pub-top-panel-unique-view-popup-item-container"></div>
+					</div>
+				</div>
+				<div class="landing-pub-top-panel-total-view">
+					<div class="ui-icon-set --opened-eye"></div>
+					<div>
+						<?= View::getNumberTotalViews($landing->getId())?>
 					</div>
 				</div>
 				<?php if($arResult['CAN_EDIT'] === 'Y'): ?>
@@ -247,6 +266,34 @@ $publicModeInit = '
 $assets->addString(
 	"<script>{$publicModeInit}</script>",
 );
+
+// Device-preview postMessage responder (MARKER-01 present): connected ONLY for the editor
+// device preview, never for a normal public render. Implements the preview (consumer) side
+// of PROTO-01. The responder is a framework-independent vanilla asset (registered in
+// landing/include.php as landing_device_preview_responder, no main.core dependency) because
+// it runs inside the sandboxed opaque-origin preview frame. The per-request parent origin it
+// validates commands against cannot be embedded in that cacheable asset, so it is handed over
+// here via a global.
+$devicePreviewParentOrigin = $arResult['DEVICE_PREVIEW_PARENT_ORIGIN'] ?? '';
+if ($devicePreviewParentOrigin !== '')
+{
+	// The storage shim that makes the opaque origin survivable is injected by the component
+	// itself (LandingPubComponent::injectDevicePreviewShim): it has to sit at the very top of
+	// <head>, which this template can no longer reach.
+	$expectedOriginJs = json_encode(
+		$devicePreviewParentOrigin,
+		JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP
+	);
+	$assets->addString(
+		'<script data-role="landing-device-preview-responder-origin">'
+		. 'window.landingDevicePreviewExpectedOrigin=' . $expectedOriginJs . ';'
+		. '</script>'
+	);
+	$assets->addAsset(
+		'landing_device_preview_responder',
+		Assets\Location::LOCATION_AFTER_TEMPLATE
+	);
+}
 $assets->addAsset(
 	Config::get('js_core_public'),
 	Assets\Location::LOCATION_KERNEL
@@ -283,7 +330,6 @@ $assets->addAsset('landing_critical_grid', Assets\Location::LOCATION_BEFORE_ALL)
 <script>
 	BX.ready(function() {
 		void new BX.Landing.Pub.PageTransition();
-		BX.UI.Hint.init(BX('bitrix-footer-terms'));
 	});
 </script>
 
@@ -294,6 +340,14 @@ if (!$masterFrame && !$formEditor && isset($hooksSite['COPYRIGHT']))
 	$lang = $landing->getMeta()['SITE_LANG'];
 	$hooksSite['COPYRIGHT']->setLang($lang);
 	$hooksSite['COPYRIGHT']->setSiteId($landing->getSiteId());
-	Manager::setPageView('BeforeBodyClose', $hooksSite['COPYRIGHT']->view());
+	$copyrightFooter = $hooksSite['COPYRIGHT']->view();
+	if ($copyrightFooter !== '')
+	{
+		$assets->addAsset(
+			$templateFolder . '/copyright.css',
+			Assets\Location::LOCATION_AFTER_TEMPLATE
+		);
+		Manager::setPageView('BeforeBodyClose', $copyrightFooter);
+	}
 }
 ?>

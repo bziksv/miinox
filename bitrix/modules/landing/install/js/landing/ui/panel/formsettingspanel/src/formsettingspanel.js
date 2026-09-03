@@ -21,6 +21,7 @@ import 'ui.hint';
 
 import 'ui.fonts.opensans';
 import './css/style.css';
+import {History} from 'landing.history';
 
 type CrmField = {
 	type: 'list' | 'string' | 'checkbox' | 'date' | 'text' | 'typed_string' | 'file',
@@ -250,7 +251,7 @@ export class FormSettingsPanel extends BasePresetPanel
 	// eslint-disable-next-line class-methods-use-this
 	isCrmFormPage(): boolean
 	{
-		return Env.getInstance().getOptions().specialType === 'crm_forms';
+		return Env.getInstance().getSpecialType() === 'crm_forms';
 	}
 
 	getFormDesignButton()
@@ -618,6 +619,8 @@ export class FormSettingsPanel extends BasePresetPanel
 
 		const editorWindow = PageObject.getEditorWindow();
 		Dom.addClass(editorWindow.document.body, 'landing-ui-hide-action-panels-form');
+		const rootWindow = PageObject.getRootWindow();
+		Dom.addClass(rootWindow.document.body, 'landing-ui-hide-action-panels-form');
 
 		void StylePanel.getInstance().hide();
 
@@ -857,6 +860,7 @@ export class FormSettingsPanel extends BasePresetPanel
 						Reflect.has(value, 'embedding')
 						|| Reflect.has(value, 'callback')
 						|| Reflect.has(value, 'whatsapp')
+						|| Reflect.has(value, 'bookingResourceAutoSelection')
 						|| (
 							Reflect.has(value, 'name')
 							&& Reflect.has(value, 'data')
@@ -877,22 +881,72 @@ export class FormSettingsPanel extends BasePresetPanel
 						return mergedOptions;
 					}
 
-					if (Reflect.has(value, 'recaptcha'))
+					if (Reflect.has(value, 'captcha'))
 					{
-						const {key, secret} = value.recaptcha;
-						delete value.recaptcha.key;
-						delete value.recaptcha.secret;
+						const recaptcha = {};
 						const captcha = {};
+						const yandexCaptcha = {};
 
-						if (!Type.isNil(key))
+						if (value.captcha?.recaptcha)
 						{
-							captcha.key = key;
+							const { key, secret, use } = value.captcha.recaptcha;
+							// eslint-disable-next-line no-param-reassign
+							delete value.captcha.recaptcha.key;
+							// eslint-disable-next-line no-param-reassign
+							delete value.captcha.recaptcha.secret;
+
+							if (!Type.isNil(key))
+							{
+								recaptcha.key = key;
+							}
+
+							if (!Type.isNil(secret))
+							{
+								recaptcha.secret = secret;
+							}
+
+							if (!Type.isNil(use))
+							{
+								recaptcha.use = use;
+							}
 						}
 
-						if (!Type.isNil(secret))
+						if (value.captcha?.yandexCaptcha)
 						{
-							captcha.secret = secret;
+							const { key, secret, use } = value.captcha.yandexCaptcha;
+							// eslint-disable-next-line no-param-reassign
+							delete value.captcha.yandexCaptcha.key;
+							// eslint-disable-next-line no-param-reassign
+							delete value.captcha.yandexCaptcha.secret;
+
+							if (!Type.isNil(key))
+							{
+								yandexCaptcha.key = key;
+							}
+
+							if (!Type.isNil(secret))
+							{
+								yandexCaptcha.secret = secret;
+							}
+
+							if (!Type.isNil(use))
+							{
+								yandexCaptcha.use = use;
+							}
 						}
+
+						if (value.captcha)
+						{
+							const { service } = value.captcha;
+
+							if (!Type.isNil(service))
+							{
+								captcha.service = service;
+							}
+						}
+
+						captcha.recaptcha = { ...formOptions.captcha.recaptcha, ...recaptcha };
+						captcha.yandexCaptcha = { ...formOptions.captcha.yandexCaptcha, ...yandexCaptcha };
 
 						return {
 							...formOptions,
@@ -1042,6 +1096,7 @@ export class FormSettingsPanel extends BasePresetPanel
 			const rootWindow = PageObject.getRootWindow();
 			return new rootWindow.BX.UI.Dialogs.MessageBox({
 				buttons: MessageBoxButtons.OK_CANCEL,
+				useAirDesign: true,
 			});
 		});
 	}
@@ -1321,6 +1376,8 @@ export class FormSettingsPanel extends BasePresetPanel
 				onOk,
 				Loc.getMessage('LANDING_SYNCHRONIZATION_POPUP_OK_BUTTON_LABEL'),
 				onCancel,
+				null,
+				true,
 			);
 		});
 	}
@@ -1331,7 +1388,11 @@ export class FormSettingsPanel extends BasePresetPanel
 			return `${acc}\n\n${item}`;
 		}, '');
 
-		window.top.BX.UI.Dialogs.MessageBox.alert(message);
+		window.top.BX.UI.Dialogs.MessageBox.show({
+			message,
+			buttons: MessageBoxButtons.OK,
+			useAirDesign: true,
+		});
 	}
 
 	getErrorAlert(): MessageBox
@@ -1339,8 +1400,9 @@ export class FormSettingsPanel extends BasePresetPanel
 		return this.cache.remember('errorAlert', () => {
 			const rootWindow = PageObject.getRootWindow();
 			return new rootWindow.BX.UI.Dialogs.MessageBox({
-				title: Loc.getMessage('LANDING_FORM_SAVE_ERROR_ALERT_TITLE'),
 				buttons: MessageBoxButtons.OK,
+				okCaption: Loc.getMessage('LANDING_FORM_SAVE_CAPTCHA_ALERT_OK_TEXT'),
+				useAirDesign: true,
 				popupOptions: {
 					maxHeight: 310,
 				},
@@ -1356,12 +1418,27 @@ export class FormSettingsPanel extends BasePresetPanel
 
 		if (
 			Type.isPlainObject(dictionary.permissions)
+			&& Type.isPlainObject(dictionary.permissions.tariff)
+			&& dictionary.permissions.tariff.restricted === true
+		)
+		{
+			const rootWindow = PageObject.getRootWindow();
+			rootWindow.BX.UI.InfoHelper.show('limit_crm_webform_edit');
+			return;
+		}
+
+		if (
+			Type.isPlainObject(dictionary.permissions)
 			&& Type.isPlainObject(dictionary.permissions.form)
 			&& dictionary.permissions.form.edit === false
 		)
 		{
 			const rootWindow = PageObject.getRootWindow();
-			rootWindow.BX.UI.Dialogs.MessageBox.alert(Loc.getMessage('LANDING_FORM_SAVE_PERMISSION_DENIED'));
+			rootWindow.BX.UI.Dialogs.MessageBox.show({
+				message: Loc.getMessage('LANDING_FORM_SAVE_PERMISSION_DENIED'),
+				buttons: MessageBoxButtons.OK,
+				useAirDesign: true,
+			});
 			return;
 		}
 
@@ -1408,30 +1485,6 @@ export class FormSettingsPanel extends BasePresetPanel
 
 						return currentOptions;
 					})();
-
-					if (
-						options.data.recaptcha.use
-						&& (
-							!this.getFormDictionary().captcha.hasKeys
-							&& !options.captcha.hasDefaults
-						)
-					)
-					{
-						options.data.recaptcha.use = false;
-
-						const rootWindow = PageObject.getRootWindow();
-						const alert: MessageBox = new rootWindow.BX.UI.Dialogs.MessageBox({
-							title: Loc.getMessage('LANDING_FORM_SAVE_CAPTCHA_ALERT_TITLE'),
-							message: Loc.getMessage('LANDING_FORM_SAVE_CAPTCHA_ALERT_TEXT_2'),
-							buttons: MessageBoxButtons.OK,
-							onOk: () => {
-								alert.close();
-								Dom.removeClass(this.getSaveButton().layout, 'ui-btn-wait');
-							},
-						});
-
-						alert.show();
-					}
 
 					void FormClient.getInstance()
 						.saveOptions(options)
@@ -1502,10 +1555,12 @@ export class FormSettingsPanel extends BasePresetPanel
 							else
 							{
 								const rootWindow = PageObject.getRootWindow();
-								rootWindow.BX.UI.Dialogs.MessageBox.alert(
-									Loc.getMessage('LANDING_FORM_SAVE_UNKNOWN_ERROR_ALERT_TEXT'),
-									Loc.getMessage('LANDING_FORM_SAVE_ERROR_ALERT_TITLE'),
-								);
+								rootWindow.BX.UI.Dialogs.MessageBox.show({
+									message: Loc.getMessage('LANDING_FORM_SAVE_UNKNOWN_ERROR_ALERT_TEXT'),
+									title: Loc.getMessage('LANDING_FORM_SAVE_ERROR_ALERT_TITLE'),
+									buttons: MessageBoxButtons.OK,
+									useAirDesign: true,
+								});
 							}
 
 							Dom.removeClass(this.getSaveButton().layout, 'ui-btn-wait');
@@ -1574,7 +1629,10 @@ export class FormSettingsPanel extends BasePresetPanel
 					siteId: this.getCurrentBlock().siteId,
 				},
 				{code: this.getCurrentBlock().manifest.code},
-			);
+			)
+			.then(result => {
+				return History.getInstance().push();
+			});
 	}
 
 	onCancelClick()
@@ -1592,6 +1650,8 @@ export class FormSettingsPanel extends BasePresetPanel
 	{
 		const editorWindow = PageObject.getEditorWindow();
 		Dom.removeClass(editorWindow.document.body, 'landing-ui-hide-action-panels-form');
+		const rootWindow = PageObject.getRootWindow();
+		Dom.removeClass(rootWindow.document.body, 'landing-ui-hide-action-panels-form');
 		this.enableHistory();
 		return super.hide();
 	}

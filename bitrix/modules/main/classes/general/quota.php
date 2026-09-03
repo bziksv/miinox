@@ -1,14 +1,5 @@
 <?php
 
-/*
-##############################################
-# Bitrix Site Manager                        #
-# Copyright (c) 2002-2022 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
-*/
-
 IncludeModuleLangFile(__FILE__);
 
 class CDiskQuota

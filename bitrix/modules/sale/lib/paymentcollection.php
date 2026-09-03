@@ -1,4 +1,5 @@
 <?php
+
 namespace Bitrix\Sale;
 
 use Bitrix\Main;
@@ -31,7 +32,7 @@ class PaymentCollection extends Internals\EntityCollection
 	 * @param Service|null $service
 	 * @return Payment
 	 */
-	public function createItem(Service $service = null)
+	public function createItem(?Service $service = null)
 	{
 		/** @var Payment $paymentClassName */
 		$paymentClassName = static::getItemCollectionClassName();
@@ -270,8 +271,6 @@ class PaymentCollection extends Internals\EntityCollection
 	/**
 	 * @param Order $order
 	 * @return PaymentCollection
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
 	 */
 	public static function load(Order $order)
 	{
@@ -289,7 +288,7 @@ class PaymentCollection extends Internals\EntityCollection
 			foreach ($paymentList as $payment)
 			{
 				$payment->setCollection($paymentCollection);
-				$paymentCollection->addItem($payment);
+				$paymentCollection->bindItem($payment);
 			}
 		}
 
@@ -410,7 +409,7 @@ class PaymentCollection extends Internals\EntityCollection
 		/** @var Payment $payment */
 		foreach ($this->collection as $payment)
 		{
-			$isNew = (bool)($payment->getId() <= 0);
+			$isNew = $payment->getId() <= 0;
 			$isChanged = $payment->isChanged();
 
 			if ($order->getId() > 0 && $isChanged)
@@ -451,7 +450,7 @@ class PaymentCollection extends Internals\EntityCollection
 							$logFields,
 							$orderHistory::SALE_ORDER_HISTORY_LOG_LEVEL_1
 						);
-						
+
 						$orderHistory::addAction(
 							'PAYMENT',
 							$order->getId(),
@@ -509,11 +508,11 @@ class PaymentCollection extends Internals\EntityCollection
 
 				/** @var EntityMarker $entityMarker */
 				$entityMarker = $registry->getEntityMarkerClassName();
-				$entityMarker::deleteByFilter(array(
-					 '=ORDER_ID' => $order->getId(),
-					 '=ENTITY_TYPE' => $entityMarker::ENTITY_TYPE_PAYMENT,
-					 '=ENTITY_ID' => $k,
-				));
+				$entityMarker::deleteByFilter([
+					'=ORDER_ID' => $order->getId(),
+					'=ENTITY_TYPE' => $entityMarker::ENTITY_TYPE_PAYMENT,
+					'=ENTITY_ID' => $k,
+				]);
 			}
 
 		}
@@ -614,7 +613,7 @@ class PaymentCollection extends Internals\EntityCollection
 			if (!$r->isSuccess())
 			{
 				$result->addErrors($r->getErrors());
-				
+
 				/** @var Order $order */
 				if (!$order = $this->getOrder())
 				{
@@ -630,6 +629,19 @@ class PaymentCollection extends Internals\EntityCollection
 			}
 		}
 		return $result;
+	}
+
+	public function getBasketItemQuantity(BasketItem $basketItem) : float
+	{
+		$quantity = 0;
+
+		/** @var Payment $payment */
+		foreach ($this->collection as $payment)
+		{
+			$quantity += $payment->getBasketItemQuantity($basketItem);
+		}
+
+		return $quantity;
 	}
 
 	/**
@@ -685,7 +697,7 @@ class PaymentCollection extends Internals\EntityCollection
 	 */
 	protected function deleteInternal($primary)
 	{
-		return Internals\PaymentTable::delete($primary);
+		return Internals\PaymentTable::deleteWithItems($primary);
 	}
 
 	/**

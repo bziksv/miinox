@@ -1,10 +1,4 @@
 <?php
-/**
- * Bitrix Framework
- * @package    bitrix
- * @subpackage highloadblock
- * @copyright  2001-2014 1C-Bitrix
- */
 
 namespace Bitrix\Highloadblock;
 
@@ -12,6 +6,9 @@ use Bitrix\Main,
 	Bitrix\Main\Application,
 	Bitrix\Main\DB\MssqlConnection,
 	Bitrix\Main\Entity;
+use Bitrix\Main\DB\SqlQueryException;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM;
 
 Main\Localization\Loc::loadLanguageFile(__FILE__);
 
@@ -24,25 +21,27 @@ Main\Localization\Loc::loadLanguageFile(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_HighloadBlock_Query query()
- * @method static EO_HighloadBlock_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_HighloadBlock_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_HighloadBlock_Result getById($id)
- * @method static EO_HighloadBlock_Result getList(array $parameters = array())
+ * @method static EO_HighloadBlock_Result getList(array $parameters = [])
  * @method static EO_HighloadBlock_Entity getEntity()
  * @method static \Bitrix\Highloadblock\HighloadBlock createObject($setDefaultValues = true)
  * @method static \Bitrix\Highloadblock\EO_HighloadBlock_Collection createCollection()
  * @method static \Bitrix\Highloadblock\HighloadBlock wakeUpObject($row)
  * @method static \Bitrix\Highloadblock\EO_HighloadBlock_Collection wakeUpCollection($rows)
  */
-class HighloadBlockTable extends Entity\DataManager
+class HighloadBlockTable extends Orm\Data\DataManager
 {
 	private const ENTITY_ID_PREFIX = 'HLBLOCK_';
 
 	private const ENTITY_ID_MASK = '/^HLBLOCK_(\d+)$/';
 
+	private const NAME_COLLECTION = 'collection';
+
 	/**
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_hlblock_entity';
 	}
@@ -52,51 +51,48 @@ class HighloadBlockTable extends Entity\DataManager
 		return HighloadBlock::class;
 	}
 
-	public static function getMap()
+	public static function getMap(): array
 	{
 		IncludeModuleLangFile(__FILE__);
 
 		$sqlHelper = Application::getConnection()->getSqlHelper();
 
-		/** @noinspection PhpMethodParametersCountMismatchInspection */
-		$fieldsMap = array(
-			'ID' => array(
+		return [
+			'ID' => [
 				'data_type' => 'integer',
 				'primary' => true,
-				'autocomplete' => true
-			),
-			'NAME' => array(
+				'autocomplete' => true,
+			],
+			'NAME' => [
 				'data_type' => 'string',
 				'required' => true,
-				'validation' => array(__CLASS__, 'validateName')
-			),
-			'TABLE_NAME' => array(
+				'validation' => [__CLASS__, 'validateName'],
+			],
+			'TABLE_NAME' => [
 				'data_type' => 'string',
 				'required' => true,
-				'validation' => array(__CLASS__, 'validateTableName')
-			),
-			'FIELDS_COUNT' => array(
+				'validation' => [__CLASS__, 'validateTableName'],
+			],
+			'FIELDS_COUNT' => [
 				'data_type' => 'integer',
-				'expression' => array(
+				'expression' => [
 					'(SELECT COUNT(ID) FROM b_user_field WHERE b_user_field.ENTITY_ID = '.
 						$sqlHelper->getConcatFunction("'".self::ENTITY_ID_PREFIX."'", $sqlHelper->castToChar('%s')).')',
 					'ID'
-				)
-			),
+				],
+			],
 			'LANG' => new Entity\ReferenceField(
 				'LANG',
 				'Bitrix\Highloadblock\HighloadBlockLangTable',
-				array('=this.ID' => 'ref.ID', 'ref.LID' => new Main\DB\SqlExpression('?', LANGUAGE_ID))
+				['=this.ID' => 'ref.ID', 'ref.LID' => new Main\DB\SqlExpression('?', LANGUAGE_ID)],
 			),
-		);
-
-		return $fieldsMap;
+		];
 	}
 
 	/**
 	 * @param array $data
 	 *
-	 * @return Entity\AddResult
+	 * @return Orm\Data\AddResult
 	 * @throws \Bitrix\Main\SystemException
 	 */
 	public static function add(array $data)
@@ -110,47 +106,38 @@ class HighloadBlockTable extends Entity\DataManager
 
 		// create table in db
 		$connection = Application::getConnection();
-		$dbtype = $connection->getType();
 		$sqlHelper = $connection->getSqlHelper();
 
-		if ($dbtype == 'mysql')
-		{
-			$connection->query('
-				CREATE TABLE '.$sqlHelper->quote($data['TABLE_NAME']).' (ID int(11) unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY (ID))
-			');
-		}
-		elseif ($dbtype == 'mssql')
-		{
-			$connection->query('
-				CREATE TABLE '.$sqlHelper->quote($data['TABLE_NAME']).' (ID int NOT NULL IDENTITY (1, 1),
-				CONSTRAINT '.$data['TABLE_NAME'].'_ibpk_1 PRIMARY KEY (ID))
-			');
-		}
-		elseif ($dbtype == 'oracle')
-		{
-			$connection->query('
-				CREATE TABLE '.$sqlHelper->quote($data['TABLE_NAME']).' (ID number(11) NOT NULL, PRIMARY KEY (ID))
-			');
+		$fields = [
+			'ID' => (new Main\ORM\Fields\IntegerField('ID'))
+				->configureSize(8)
+				->configureNullable(false)
+				->configurePrimary(true)
+				->configureAutocomplete(true)
+			,
+		];
 
-			$connection->query('
-				CREATE SEQUENCE sq_'.$data['TABLE_NAME'].'
-			');
-
-			$connection->query('
-				CREATE OR REPLACE TRIGGER '.$data['TABLE_NAME'].'_insert
-					BEFORE INSERT
-					ON '.$sqlHelper->quote($data['TABLE_NAME']).'
-					FOR EACH ROW
-						BEGIN
-						IF :NEW.ID IS NULL THEN
-							SELECT sq_'.$data['TABLE_NAME'].'.NEXTVAL INTO :NEW.ID FROM dual;
-						END IF;
-					END;
-			');
-		}
-		else
+		try
 		{
-			throw new Main\SystemException('Unknown DB type');
+			$connection->createTable(
+				$data['TABLE_NAME'],
+				$fields,
+				['ID'],
+				['ID']
+			);
+		}
+		catch (SqlQueryException $e)
+		{
+			$rowId = (int)$result->getId();
+			$connection->queryExecute('delete from ' . $sqlHelper->quote(self::getTableName()) . ' where ID = ' . $rowId);
+			$result->addError(new Main\Error(
+				Loc::getMessage(
+					'HIGHLOADBLOCK_HIGHLOAD_BLOCK_ENTITY_TABLE_CREATE_ERROR',
+					[
+						'#ERROR#' => $e->getMessage(),
+					]
+				)
+			));
 		}
 
 		return $result;
@@ -160,7 +147,7 @@ class HighloadBlockTable extends Entity\DataManager
 	 * @param mixed $primary
 	 * @param array $data
 	 *
-	 * @return Entity\UpdateResult
+	 * @return ORM\Data\UpdateResult
 	 */
 	public static function update($primary, array $data)
 	{
@@ -232,7 +219,7 @@ class HighloadBlockTable extends Entity\DataManager
 		}
 
 		// get file fields
-		$file_fields = array();
+		$fileFieldList = array();
 		/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
 		$fields = $USER_FIELD_MANAGER->getUserFields(static::compileEntityId($hlblock['ID']));
 
@@ -240,26 +227,26 @@ class HighloadBlockTable extends Entity\DataManager
 		{
 			if ($field['USER_TYPE']['BASE_TYPE'] === 'file')
 			{
-				$file_fields[] = $name;
+				$fileFieldList[] = $name;
 			}
 		}
 
 		// delete files
-		if (!empty($file_fields))
+		if (!empty($fileFieldList))
 		{
 			$oldEntity = static::compileEntity($hlblock);
 
 			$query = new Entity\Query($oldEntity);
 
 			// select file ids
-			$query->setSelect($file_fields);
+			$query->setSelect($fileFieldList);
 
 			// if they are not empty
 			$filter = array('LOGIC' => 'OR');
 
-			foreach ($file_fields as $file_field)
+			foreach ($fileFieldList as $fileField)
 			{
-				$filter['!'.$file_field] = false;
+				$filter['!'.$fileField] = false;
 			}
 
 			$query->setFilter($filter);
@@ -269,20 +256,20 @@ class HighloadBlockTable extends Entity\DataManager
 
 			while ($row = $iterator->fetch())
 			{
-				foreach ($file_fields as $file_field)
+				foreach ($fileFieldList as $fileField)
 				{
-					if (!empty($row[$file_field]))
+					if (!empty($row[$fileField]))
 					{
-						if (is_array($row[$file_field]))
+						if (is_array($row[$fileField]))
 						{
-							foreach ($row[$file_field] as $value)
+							foreach ($row[$fileField] as $value)
 							{
 								\CFile::delete($value);
 							}
 						}
 						else
 						{
-							\CFile::delete($row[$file_field]);
+							\CFile::delete($row[$fileField]);
 						}
 					}
 				}
@@ -325,7 +312,10 @@ class HighloadBlockTable extends Entity\DataManager
 		));
 		while ($row = $res->fetch())
 		{
-			HighloadBlockLangTable::delete($row['ID']);
+			HighloadBlockLangTable::delete([
+				'ID' => $row['ID'],
+				'LID' => $row['LID'],
+			]);
 		}
 
 		// clear rights
@@ -354,12 +344,25 @@ class HighloadBlockTable extends Entity\DataManager
 			if (is_int($hlblock) || is_numeric(mb_substr($hlblock, 0, 1)))
 			{
 				// we have an id
-				$hlblock = HighloadBlockTable::getById($hlblock)->fetch();
+				$hlblock = HighloadBlockTable::getByPrimary(
+					$hlblock,
+					[
+						'cache' => [
+							'ttl' => 86400,
+						],
+					]
+				)->fetch();
 			}
 			elseif (is_string($hlblock) && $hlblock !== '')
 			{
 				// we have a name
-				$hlblock = HighloadBlockTable::query()->addSelect('*')->where('NAME', $hlblock)->exec()->fetch();
+				$hlblock = HighloadBlockTable::query()
+					->addSelect('*')
+					->setCacheTtl(86400)
+					->where('NAME', $hlblock)
+					->exec()
+					->fetch()
+				;
 			}
 			else
 			{
@@ -381,11 +384,12 @@ class HighloadBlockTable extends Entity\DataManager
 
 	/**
 	 * @param array|int|string $hlblock Could be a block, ID or NAME of block.
+	 * @param bool $force Force recompile if entity already exists.
 	 *
-	 * @return Entity\Base
+	 * @return Main\ORM\Entity
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function compileEntity($hlblock)
+	public static function compileEntity($hlblock, bool $force = false)
 	{
 		global $USER_FIELD_MANAGER;
 
@@ -394,10 +398,15 @@ class HighloadBlockTable extends Entity\DataManager
 		if (empty($hlblock))
 		{
 			throw new Main\SystemException(sprintf(
-				'Invalid highloadblock description `%s`.', mydump($rawBlock)
+				"Invalid highloadblock description '%s'.", mydump($rawBlock)
 			));
 		}
 		unset($rawBlock);
+
+		if (class_exists($hlblock['NAME'] . 'Table') && !$force)
+		{
+			return Main\ORM\Entity::getInstance($hlblock['NAME']);
+		}
 
 		// generate entity & data manager
 		$fieldsMap = array();
@@ -410,25 +419,25 @@ class HighloadBlockTable extends Entity\DataManager
 		);
 
 		// build datamanager class
-		$entity_name = $hlblock['NAME'];
-		$entity_data_class = $hlblock['NAME'].'Table';
+		$entityName = $hlblock['NAME'];
+		$entityDataClass = $hlblock['NAME'].'Table';
 
-		if (class_exists($entity_data_class))
+		if (class_exists($entityDataClass))
 		{
 			// rebuild if it's already exists
-			Entity\Base::destroy($entity_data_class);
+			Main\ORM\Entity::destroy($entityDataClass);
 		}
 		else
 		{
-			$entity_table_name = $hlblock['TABLE_NAME'];
+			$entityTableName = $hlblock['TABLE_NAME'];
 
 			// make with an empty map
 			$eval = '
-				class '.$entity_data_class.' extends '.__NAMESPACE__.'\DataManager
+				class '.$entityDataClass.' extends '.__NAMESPACE__.'\DataManager
 				{
 					public static function getTableName()
 					{
-						return '.var_export($entity_table_name, true).';
+						return '.var_export($entityTableName, true).';
 					}
 
 					public static function getMap()
@@ -447,8 +456,8 @@ class HighloadBlockTable extends Entity\DataManager
 		}
 
 		// then configure and attach fields
-		/** @var \Bitrix\Main\Entity\DataManager $entity_data_class */
-		$entity = $entity_data_class::getEntity();
+		/** @var \Bitrix\Main\Entity\DataManager $entityDataClass */
+		$entity = $entityDataClass::getEntity();
 
 		/** @noinspection PhpMethodOrClassCallIsNotCaseSensitiveInspection */
 		$uFields = $USER_FIELD_MANAGER->getUserFields(static::compileEntityId($hlblock['ID']));
@@ -475,7 +484,7 @@ class HighloadBlockTable extends Entity\DataManager
 			}
 		}
 
-		return Entity\Base::getInstance($entity_name);
+		return Main\ORM\Entity::getInstance($entityName);
 	}
 
 	/**
@@ -523,20 +532,20 @@ class HighloadBlockTable extends Entity\DataManager
 			$field['USER_TYPE'] = $USER_FIELD_MANAGER->getUserType($field['USER_TYPE_ID']);
 
 			// get entity info
-			$hlblock_id = $matches[1];
-			$hlblock = HighloadBlockTable::getById($hlblock_id)->fetch();
+			$hlblockId = $matches[1];
+			$hlblock = HighloadBlockTable::getById($hlblockId)->fetch();
 
 			if (empty($hlblock))
 			{
 				$APPLICATION->throwException(sprintf(
-					'Entity "'.static::compileEntityId('%s').'" wasn\'t found.', $hlblock_id
+					'Entity "'.static::compileEntityId('%s').'" wasn\'t found.', $hlblockId
 				));
 
 				return false;
 			}
 
 			// get usertype info
-			$sql_column_type = $USER_FIELD_MANAGER->getUtsDBColumnType($field);
+			$sqlColumnType = $USER_FIELD_MANAGER->getUtsDBColumnType($field);
 
 			// create field in db
 			$connection = Application::getConnection();
@@ -544,13 +553,13 @@ class HighloadBlockTable extends Entity\DataManager
 
 			$connection->query(sprintf(
 				'ALTER TABLE %s ADD %s %s',
-				$sqlHelper->quote($hlblock['TABLE_NAME']), $sqlHelper->quote($field['FIELD_NAME']), $sql_column_type
+				$sqlHelper->quote($hlblock['TABLE_NAME']), $sqlHelper->quote($field['FIELD_NAME']), $sqlColumnType
 			));
 
 			if ($field['MULTIPLE'] == 'Y')
 			{
 				// create table for this relation
-				$hlentity = static::compileEntity($hlblock);
+				$hlentity = static::compileEntity($hlblock, true);
 				$utmEntity = Entity\Base::getInstance(HighloadBlockTable::getUtmEntityClassName($hlentity, $field));
 
 				$utmEntity->createDbTable();
@@ -584,8 +593,8 @@ class HighloadBlockTable extends Entity\DataManager
 		if (preg_match(self::ENTITY_ID_MASK, $field['ENTITY_ID'], $matches))
 		{
 			// get entity info
-			$hlblock_id = $matches[1];
-			$hlblock = HighloadBlockTable::getById($hlblock_id)->fetch();
+			$hlblockId = $matches[1];
+			$hlblock = HighloadBlockTable::getById($hlblockId)->fetch();
 
 			if (empty($hlblock))
 			{
@@ -812,5 +821,49 @@ class HighloadBlockTable extends Entity\DataManager
 		}
 
 		return true;
+	}
+
+	/**
+	 * Cleans the tablet cache after data modifications.
+	 * Additionally, cleans cache of the Directory type property.
+	 *
+	 * @return void
+	 */
+	public static function cleanCache(): void
+	{
+		parent::cleanCache();
+		\CIBlockPropertyDirectory::cleanCache();
+	}
+
+	public static function onBeforeAdd(ORM\Event $event): ORM\EventResult
+	{
+		return self::checkNameFieldValueToReserved($event);
+	}
+
+	public static function onBeforeUpdate(ORM\Event $event): ORM\EventResult
+	{
+		return self::checkNameFieldValueToReserved($event);
+	}
+
+	private static function checkNameFieldValueToReserved(ORM\Event $event): ORM\EventResult
+	{
+		$result = new ORM\EventResult;
+		$data = $event->getParameter('fields');
+
+		$name = $data['NAME'] ?? null;
+		if (is_string($name) && mb_strtolower($name) === self::NAME_COLLECTION)
+		{
+			$result->addError(new ORM\EntityError(
+				Loc::getMessage(
+					'HIGHLOADBLOCK_HIGHLOAD_BLOCK_ENTITY_NAME_FIELD_VALUE_IS_COLLECTION',
+					[
+						'#VALUE#' => $name,
+					]
+				),
+				'TABLE_NAME'
+			));
+		}
+
+		return $result;
 	}
 }

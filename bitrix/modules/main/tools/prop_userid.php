@@ -1,4 +1,8 @@
 <?php
+
+use Bitrix\Iblock\PropertyTable;
+use Bitrix\Main\Web\Json;
+
 IncludeModuleLangFile(__FILE__);
 
 class CIBlockPropertyUserID
@@ -9,7 +13,7 @@ class CIBlockPropertyUserID
 	public static function GetUserTypeDescription()
 	{
 		return [
-			"PROPERTY_TYPE" => "S",
+			"PROPERTY_TYPE" => PropertyTable::TYPE_NUMBER,
 			"USER_TYPE" => self::USER_TYPE,
 			"DESCRIPTION" => GetMessage("IBLOCK_PROP_USERID_DESC"),
 			"GetAdminListViewHTML" => [__CLASS__, "getAdminListViewHTMLExtended"],
@@ -124,11 +128,11 @@ class CIBlockPropertyUserID
 							v.readOnly = false;
 							document.getElementById('FindUser<?=$name_x?>').disabled = false;
 						}">
-					<option value="none"<?if($select=="none")echo " selected"?>><?=GetMessage("IBLOCK_PROP_USERID_NONE")?></option>
-					<option value="CU"<?if($select=="CU")echo " selected"?>><?=GetMessage("IBLOCK_PROP_USERID_CURR")?></option>
-					<option value="SU"<?if($select=="SU")echo " selected"?>><?=GetMessage("IBLOCK_PROP_USERID_OTHR")?></option>
+					<option value="none"<?php if($select=="none")echo " selected"?>><?=GetMessage("IBLOCK_PROP_USERID_NONE")?></option>
+					<option value="CU"<?php if($select=="CU")echo " selected"?>><?=GetMessage("IBLOCK_PROP_USERID_CURR")?></option>
+					<option value="SU"<?php if($select=="SU")echo " selected"?>><?=GetMessage("IBLOCK_PROP_USERID_OTHR")?></option>
 				</select>&nbsp;
-				<?echo FindUserIDNew(
+				<?= FindUserIDNew(
 					htmlspecialcharsbx($strHTMLControlName["VALUE"]),
 					$value["VALUE"],
 					$res,
@@ -305,7 +309,7 @@ class CIBlockPropertyUserID
 				}
 			}
 		}
-		$selectedItems = CUtil::PhpToJSObject($dialogItems);
+		$selectedItems = Json::encode($dialogItems);
 
 		return <<<HTML
 			<div id="{$containerId}" name="{$containerId}"></div>
@@ -530,7 +534,6 @@ function Ch".$tag_name_x."()
 	setTimeout(function(){Ch".$tag_name_x."()},1000);
 }
 Ch".$tag_name_x."();
-//-->
 </script>
 ";
 	}

@@ -19,6 +19,15 @@ return array(
 		),
 	),
 	'nodes' => array(
+		'.landing-block-node-bgimg' => array(
+			'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_NODES_LANDINGBLOCKNODEBGIMG'),
+			'type' => 'img',
+			'editInStyle' => true,
+			'allowInlineEdit' => false,
+			'dimensions' => array('width' => 1920, 'height' => 1080),
+			'create2xByDefault' => false,
+			'isWrapper' => true,
+		),
 		'.landing-block-node-card-photo' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_NODES_LANDINGBLOCKNODECARDPHOTO'),
 			'type' => 'img',
@@ -37,19 +46,18 @@ return array(
 			'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_NODES_LANDINGBLOCKNODECARDNAME'),
 			'type' => 'link',
 		),
-		'.landing-block-node-bgimg' => array(
-			'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_NODES_LANDINGBLOCKNODEBGIMG'),
-			'type' => 'img',
-			'editInStyle' => true,
-			'allowInlineEdit' => false,
-			'dimensions' => array('width' => 1920, 'height' => 1080),
-			'create2xByDefault' => false,
-			'isWrapper' => true,
-		),
 	),
 	'style' => array(
 		'block' => array(
-			'type' => ['background', 'block-default-background-overlay'],
+			'type' => [
+				'display',
+				'background',
+				'padding-top',
+				'padding-bottom',
+				'padding-left',
+				'padding-right',
+				'margin-top',
+			],
 			'additional' => [
 				'name' => Loc::getMessage('LANDING_BLOCK_43_5_COVER_WITH_FEEDBACK_NODES_SLIDER'),
 				'attrsType' => ['autoplay', 'autoplay-speed', 'animation', 'pause-hover', 'slides-show', 'dots'],
@@ -67,10 +75,6 @@ return array(
 			'.landing-block-node-card-name' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_NODES_LANDINGBLOCKNODECARDNAME'),
 				'type' => array('typo-link', 'color-hover'),
-			),
-			'.landing-block-node-bgimg' => array(
-				'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_NODES_LANDINGBLOCKNODEBGIMG'),
-				'type' => ['background', 'background-attachment'],
 			),
 			'.landing-block-node-card-container' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_43.5.COVER_WITH_FEEDBACK_CARDS_LANDINGBLOCKNODECARD'),

@@ -1,64 +1,129 @@
-<?
+<?php
 namespace Bitrix\UI;
 
+use Bitrix\ImBot\Bot\Network;
+use Bitrix\ImBot\Bot\Support24;
+use Bitrix\ImBot\Bot\SupportBox;
 use Bitrix\Main\Config\Option;
+use Bitrix\Main\Engine\CurrentUser;
 use Bitrix\Main\Loader;
-use Bitrix\Main\Text\Encoding;
+use Bitrix\Main\Event;
 use Bitrix\Main\ModuleManager;
 use Bitrix\ImBot\Bot\Partner24;
 use Bitrix\Bitrix24;
+use Bitrix\Main\Web\Uri;
 
 /**
  * Class InfoHelper
  * @package Bitrix\UI
+ * @deprecated use Bitrix\UI\FeaturePromoter\Slider
  */
 class InfoHelper
 {
-	public static function getInitParams()
+	public static function getInitParams(?string $currentUrl = null)
 	{
 		return [
-			'frameUrlTemplate' => self::getUrl(),
+			'frameUrlTemplate' => self::getUrl('/widget2/show/code/', $currentUrl),
 			'trialableFeatureList' => self::getTrialableFeatureList(),
 			'demoStatus' => self::getDemoStatus(),
 			'availableDomainList' => Util::listDomain(),
 		];
 	}
 
-	public static function getUrl(string $url = "/widget2/show/code/")
+	public static function getUrl(string $url = "/widget2/show/code/", ?string $currentUrl = null, bool $byLang = false)
 	{
-		global $USER;
+		$notifyUrl = Util::getHelpdeskUrl($byLang) . $url;
+		$parameters = self::getParameters($currentUrl);
 
-		$isBitrix24Cloud = Loader::includeModule("bitrix24");
-		$notifyUrl = Util::getHelpdeskUrl().$url;
+		return (string)(new Uri($notifyUrl))->addParams($parameters);
+	}
+
+	public static function getParameters(?string $currentUrl = null): array
+	{
+		global $APPLICATION;
+
+		$currentUser = CurrentUser::get();
+		$isBitrix24Cloud = Loader::includeModule('bitrix24');
+		$application = \Bitrix\Main\HttpApplication::getInstance();
 		$host = self::getHostName();
-
+		$userId = $currentUser->getId();
 		$parameters = [
-			"is_admin" => Loader::includeModule("bitrix24") && \CBitrix24::isPortalAdmin($USER->getId()) || !$isBitrix24Cloud && $USER->isAdmin() ? 1 : 0,
-			"tariff" => Option::get("main", "~controller_group_name", ""),
-			"is_cloud" => $isBitrix24Cloud ? "1" : "0",
-			"host"  => $host,
-			"languageId" => LANGUAGE_ID,
-			"user_name" => Encoding::convertEncoding($USER->getFirstName(), SITE_CHARSET, 'utf-8'),
-			"user_last_name" => Encoding::convertEncoding($USER->getLastName(), SITE_CHARSET, 'utf-8'),
+			'url' => $currentUrl ?? 'https://' . $_SERVER['HTTP_HOST'] . $APPLICATION->GetCurPageParam(),
+			'is_admin' => ($isBitrix24Cloud && \CBitrix24::isPortalAdmin($userId))
+			|| (!$isBitrix24Cloud && $currentUser->isAdmin()) ? 1 : 0,
+			'is_integrator' => (int)($isBitrix24Cloud && \CBitrix24::isIntegrator($userId)),
+			'tariff' => Option::get('main', '~controller_group_name', ''),
+			'is_cloud' => $isBitrix24Cloud ? '1' : '0',
+			'portal_date_register' => $isBitrix24Cloud ? Option::get('main', '~controller_date_create', '') : '',
+			'host' => $host,
+			'languageId' => LANGUAGE_ID,
+			'user_id' => $userId,
+			'user_email' => $currentUser->getEmail(),
+			'user_name' => $currentUser->getFirstName(),
+			'user_last_name' => $currentUser->getLastName(),
 		];
-		if(Loader::includeModule('imbot'))
+
+		if (Loader::includeModule('intranet'))
+		{
+			$parameters['user_date_register'] = \Bitrix\Intranet\CurrentUser::get()->getDateRegister()?->getTimestamp();
+
+			if (method_exists(\Bitrix\Intranet\User::class, 'getUserRole'))
+			{
+				$parameters['user_type'] = (new \Bitrix\Intranet\User())->getUserRole()->value;
+			}
+		}
+
+		if (Loader::includeModule('imbot'))
 		{
 			$parameters['support_partner_code'] = Partner24::getBotCode();
-			$partnerName = Encoding::convertEncoding(Partner24::getPartnerName(), SITE_CHARSET, 'utf-8');
+			$partnerName = Partner24::getPartnerName();
 			$parameters['support_partner_name'] = $partnerName;
+			$supportBotId = 0;
+
+			if (
+				class_exists('\\Bitrix\\ImBot\\Bot\\Support24')
+				&& (Support24::getSupportLevel() === Network::SUPPORT_LEVEL_PAID)
+				&& Support24::isEnabled()
+			)
+			{
+				$supportBotId = (int)Support24::getBotId();
+			}
+			elseif (
+				method_exists('\\Bitrix\\ImBot\\Bot\\SupportBox', 'isEnabled')
+				&& SupportBox::isEnabled()
+			)
+			{
+				$supportBotId = SupportBox::getBotId();
+			}
+
+			$parameters['support_bot'] = $supportBotId;
 		}
 
 		if (!$isBitrix24Cloud)
 		{
-			$parameters["head"] = md5("BITRIX".LICENSE_KEY."LICENCE");
-			$parameters["key"] = md5($host.$USER->getId().$parameters["head"]);
+			$parameters['head'] = md5("BITRIX" . $application->getLicense()->getKey() . 'LICENCE');
+			$parameters['key'] = md5($host . $userId . $parameters['head']);
 		}
 		else
 		{
-			$parameters["key"] = \CBitrix24::requestSign($host.$USER->getId());
+			$parameters['key'] = \CBitrix24::requestSign($host . $userId);
 		}
 
-		return \CHTTP::urlAddParams($notifyUrl, $parameters, array("encode" => true));
+		$method = "\\" . __METHOD__;
+
+		$event =  (new Event('ui', $method, $parameters));
+		$event->send();
+		foreach ($event->getResults() as $eventResult)
+		{
+			if (($eventParameters = $eventResult->getParameters()) && is_array($eventParameters))
+			{
+				$parameters = array_merge($parameters, $eventParameters);
+			}
+		}
+
+		$parameters['isNewHelpdesk'] = Option::get('intranet', 'isNewHelpdesk', 'N') === 'Y' ? 1 : 0;
+
+		return $parameters;
 	}
 
 	private static function getTrialableFeatureList(): array

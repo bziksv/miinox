@@ -13,7 +13,7 @@ if(!Loader::includeModule("sender"))
 
 if (!Security\User::current()->canView())
 {
-	/** @var \CAllMain $APPLICATION */
+	/** @var CMain $APPLICATION */
 	$APPLICATION->AuthForm(Security\AccessChecker::getError()->getMessage());
 }
 
@@ -39,7 +39,7 @@ $senderAdminPaths = [
 ];
 
 ?>
-<script type="text/javascript">
+<script>
 	if (BX('adm-workarea'))
 	{
 		BX.removeClass(BX('adm-workarea'), 'adm-workarea');

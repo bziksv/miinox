@@ -6,22 +6,21 @@ use Bitrix\Catalog;
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Config\State;
-use Bitrix\Catalog\v2\Barcode\Barcode;
 use Bitrix\Catalog\v2\Property\Property;
 use Bitrix\Currency\CurrencyManager;
+use Bitrix\Currency\Integration\IblockMoneyProperty;
 use Bitrix\Iblock\ElementTable;
 use Bitrix\Iblock\PropertyTable;
 use Bitrix\Main\Engine\Response\AjaxJson;
 use Bitrix\Main\Grid\Editor\Types;
+use Bitrix\Main\Grid\Options;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Text\HtmlFilter;
-use Bitrix\Currency\Integration\IblockMoneyProperty;
-use CIBlockPropertyXmlID;
 
 class GridVariationForm extends VariationForm
 {
-	/** @var \Bitrix\Catalog\v2\Sku\BaseSku */
+	/** @var Catalog\v2\Sku\BaseSku */
 	protected $entity;
 
 	protected static ?array $usedHeaders = null;
@@ -48,6 +47,11 @@ class GridVariationForm extends VariationForm
 
 	public function isReadOnly(): bool
 	{
+		if (State::isExternalCatalog())
+		{
+			return true;
+		}
+
 		return !$this->isAllowedEditFields();
 	}
 
@@ -87,7 +91,7 @@ class GridVariationForm extends VariationForm
 				static::formatFieldName('MEASURE_RATIO'),
 			],
 			'TITLE' => Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_SETTINGS_TITLE_MEASURE_RATIO'),
-			'DESCRIPTION' => Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_SETTINGS_DESC_MEASURE_RATIO'),
+			'DESCRIPTION' => Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_SETTINGS_DESC_MEASURE_RATIO_MSGVER_1'),
 		];
 
 		return $result;
@@ -99,7 +103,7 @@ class GridVariationForm extends VariationForm
 
 		if (!empty($headers))
 		{
-			$options = new \Bitrix\Main\Grid\Options($this->getVariationGridId());
+			$options = new Options($this->getVariationGridId());
 			$allUsedColumns = $options->getUsedColumns();
 
 			if (empty($allUsedColumns))
@@ -336,7 +340,6 @@ class GridVariationForm extends VariationForm
 					}
 					break;
 				case 'boolean':
-					$code = '';
 					if (
 						$description['id'] === static::formatFieldName('ACTIVE')
 						|| $description['id'] === static::formatFieldName('AVAILABLE')
@@ -433,7 +436,7 @@ class GridVariationForm extends VariationForm
 					$this->isAllowedEditFields()
 						? [
 							'TYPE' => Types::TEXT,
-							'PLACEHOLDER' => Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_NEW_VARIATION_PLACEHOLDER'),
+							'PLACEHOLDER' => Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_NEW_VARIATION_PLACEHOLDER_MSGVER_1'),
 						]
 						: false
 				,
@@ -442,11 +445,21 @@ class GridVariationForm extends VariationForm
 			],
 		];
 
+		$productFields = [
+			'ACTIVE',
+			'QUANTITY_COMMON',
+			'MEASURE',
+			'MEASURE_RATIO',
+		];
+		if (State::isUsedInventoryManagement())
+		{
+			$productFields[] = 'BARCODE';
+		}
 		$headers = array_merge(
 			$headers,
 			$this->getIblockPropertiesHeaders(),
 			$this->getProductFieldHeaders(
-				['ACTIVE', 'BARCODE', 'QUANTITY_COMMON', 'MEASURE', 'MEASURE_RATIO'],
+				$productFields,
 				$defaultWidth
 			),
 			$this->getPurchasingPriceHeaders($defaultWidth),
@@ -516,7 +529,11 @@ class GridVariationForm extends VariationForm
 		$immutableFields = ['TIMESTAMP_X', 'MODIFIED_BY', 'DATE_CREATE', 'CREATED_USER_NAME', 'AVAILABLE'];
 		$immutableFields = array_fill_keys($immutableFields, true);
 
-		$defaultFields = ['QUANTITY', 'MEASURE', 'NAME', 'BARCODE'];
+		$defaultFields = ['QUANTITY', 'MEASURE', 'NAME'];
+		if (State::isUsedInventoryManagement())
+		{
+			$defaultFields[] = 'BARCODE';
+		}
 		$defaultFields = array_fill_keys($defaultFields, true);
 
 		$sortableFields = [
@@ -730,7 +747,7 @@ class GridVariationForm extends VariationForm
 				&& $property['settings']['USER_TYPE'] === 'directory'
 			;
 
-			$sortField = "PROPERTY_{$property['propertyCode']}";
+			$sortField = 'PROPERTY_' . $property['propertyId'];
 			if (
 				$property['multiple']
 				|| $property['propertyCode'] === 'CML2_LINK'
@@ -754,7 +771,12 @@ class GridVariationForm extends VariationForm
 			];
 			if (!empty($property['isEnabledOfferTree']))
 			{
-				$header['hint'] = Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_OFFER_TREE_HINT');
+				$header['hint'] = Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_OFFER_TREE_HINT_MSGVER_1');
+			}
+			if ($property['propertyCode'] === self::MORE_PHOTO)
+			{
+				$header['hint'] = Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_MORE_PHOTO_SIZE');
+				$header['hintHtml'] = true;
 			}
 
 			if (
@@ -763,7 +785,7 @@ class GridVariationForm extends VariationForm
 				&& $property['propertyCode'] !== 'MORE_PHOTO'
 			)
 			{
-				$header['hint'] = Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_FILE_MULTIPLE_HINT');
+				$header['hint'] = Loc::getMessage('CATALOG_PRODUCT_CARD_VARIATION_GRID_FILE_MULTIPLE_HINT_MSGVER_1');
 			}
 
 			$headers[] = $header;
@@ -862,7 +884,7 @@ class GridVariationForm extends VariationForm
 	{
 		if (!self::$usedHeaders)
 		{
-			$options = new \Bitrix\Main\Grid\Options($this->getVariationGridId());
+			$options = new Options($this->getVariationGridId());
 			self::$usedHeaders = $options->getUsedColumns();
 
 			if (!self::$usedHeaders)
@@ -891,7 +913,7 @@ class GridVariationForm extends VariationForm
 		return parent::getValues($allowDefaultValues, $filteredDescriptions);
 	}
 
-	public function getValues(bool $allowDefaultValues = true, array $descriptions = null): array
+	public function getValues(bool $allowDefaultValues = true, ?array $descriptions = null): array
 	{
 		$values = $this->getShowedValues($allowDefaultValues);
 
@@ -1021,12 +1043,16 @@ class GridVariationForm extends VariationForm
 					$result['BARCODES'][] = $value;
 				}
 			}
+			elseif (isset($description['entity']) && $description['entity'] === 'measure_ratio')
+			{
+				$result['MEASURE_RATIO'] = $value;
+			}
 		}
 
 		return $result;
 	}
 
-	protected function getAdditionalValues(array $values, array $descriptions = null): array
+	protected function getAdditionalValues(array $values, ?array $descriptions = null): array
 	{
 		$additionalValues = parent::getAdditionalValues($values, $descriptions);
 
@@ -1078,29 +1104,17 @@ class GridVariationForm extends VariationForm
 			}
 		}
 
-		switch ($fileCount)
+		$multipleClass = match ($fileCount)
 		{
-			case 3:
-				$multipleClass = ' ui-image-input-img-block-multiple';
-				break;
-
-			case 2:
-				$multipleClass = ' ui-image-input-img-block-double';
-				break;
-
-			case 0:
-				$multipleClass = ' ui-image-input-img-block-empty';
-				break;
-
-			case 1:
-			default:
-				$multipleClass = '';
-				break;
-		}
+			3 => ' ui-image-input-img-block-multiple',
+			2 => ' ui-image-input-img-block-double',
+			0 => ' ui-image-input-img-block-empty',
+			default => '',
+		};
 
 		if ($imageSrc)
 		{
-			$imageSrc = " src=\"{$imageSrc}\"";
+			$imageSrc = ' src="' . $imageSrc . '"';
 		}
 
 		return <<<HTML
@@ -1159,8 +1173,8 @@ HTML;
 				->getPriceCollection()
 				->findByGroupId($field['priceTypeId'])
 			;
-			$price = $priceItem ? $priceItem->getPrice() : null;
-			$currency = $priceItem ? $priceItem->getCurrency() : null;
+			$price = $priceItem?->getPrice();
+			$currency = $priceItem?->getCurrency();
 		}
 
 		$currency = $currency ?? CurrencyManager::getBaseCurrency();
@@ -1204,6 +1218,11 @@ HTML;
 
 	protected function getBarcodeDescription(): array
 	{
+		if (!State::isUsedInventoryManagement())
+		{
+			return [];
+		}
+
 		$headerName = static::getHeaderName('BARCODE');
 
 		return [

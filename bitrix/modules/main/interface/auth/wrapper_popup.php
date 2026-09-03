@@ -1,4 +1,14 @@
-<?
+<?php
+
+/**
+ * Bitrix vars
+ * @global CMain $APPLICATION
+ * @var array $arAuthResult From CMain::AuthForm()
+ * @var string $last_login wrapper.php
+ */
+
+use Bitrix\Main\Web\Json;
+
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
 switch($_REQUEST['bxsender']):
@@ -10,8 +20,8 @@ switch($_REQUEST['bxsender']):
 	case 'core_window_cdialog':
 	case 'core_window_cadmindialog':
 ?>
-<script type="text/javascript" bxrunfirst="true">top.BX.WindowManager.Get().Authorize(<?=CUtil::PhpToJsObject($arAuthResult)?>)</script>
-<?
+<script bxrunfirst="true">top.BX.WindowManager.Get().Authorize(<?= Json::encode($arAuthResult) ?>)</script>
+	<?php
 	break;
 
 /**********************************************************/
@@ -20,10 +30,10 @@ switch($_REQUEST['bxsender']):
 
 	case 'admin_wizard_dialog':
 ?>
-<script type="text/javascript" bxrunfirst="true">
+<script bxrunfirst="true">
 	(new top.BX.CAuthDialog({
 		content_url: "/bitrix/admin/wizard_install.php",
-		auth_result: <?=CUtil::PhpToJsObject($arAuthResult)?>,
+		auth_result: <?= Json::encode($arAuthResult) ?>,
 		callback: function() {
 			var frameWindow = top.WizardWindow.currentFrame.contentWindow;
 			var reloadForm = frameWindow.document.forms["wizard_reload_form"];
@@ -37,7 +47,7 @@ switch($_REQUEST['bxsender']):
 	<input type="submit" name="reload_submit" value="Y" style="display: none;">
 	<?=CAdminUtil::dumpVars($_POST, array("USER_LOGIN", "USER_PASSWORD", "sessid"));?>
 </form>
-<?
+		<?php
 	break;
 
 /**********************************************************/
@@ -46,10 +56,10 @@ switch($_REQUEST['bxsender']):
 
 	case 'fileman_html_editor':
 ?>
-<script type="text/javascript" bxrunfirst="true">
-	top.BX.onCustomEvent(top, 'OnHtmlEditorRequestAuthFailure', ['<?= CUtil::JSEscape($_REQUEST['bxeditor'])?>', <?=CUtil::PhpToJsObject($arAuthResult)?>]);
+<script bxrunfirst="true">
+	top.BX.onCustomEvent(top, 'OnHtmlEditorRequestAuthFailure', ['<?= CUtil::JSEscape($_REQUEST['bxeditor'])?>', <?= Json::encode($arAuthResult) ?>]);
 </script>
-<?
+		<?php
 	break;
 
 /***************************************************************************************************/
@@ -66,24 +76,25 @@ switch($_REQUEST['bxsender']):
 <form name="form_auth" method="post" action="" novalidate>
 	<input type="hidden" name="AUTH_FORM" value="Y">
 	<input type="hidden" name="TYPE" value="AUTH">
+	<?= bitrix_sessid_post(); ?>
 
 	<div class="bx-core-popup-auth-field">
 		<div class="bx-core-popup-auth-field-caption"><?=GetMessage("AUTH_LOGIN")?></div>
-		<div class="bx-core-popup-auth-field"><input type="text" name="USER_LOGIN" value="<?echo htmlspecialcharsbx($last_login)?>"></div>
+		<div class="bx-core-popup-auth-field"><input type="text" name="USER_LOGIN" value="<?= htmlspecialcharsbx($last_login)?>"></div>
 	</div>
 	<div class="bx-core-popup-auth-field">
 		<div class="bx-core-popup-auth-field-caption"><?=GetMessage("AUTH_PASSWORD")?></div>
 		<div class="bx-core-popup-auth-field"><input type="password" name="USER_PASSWORD"></div>
 	</div>
 
-<?
+	<?php
 		if($store_password=="Y"):
 ?>
 	<div class="bx-core-popup-auth-field">
 		<input type="checkbox" class="adm-designed-checkbox" id="USER_REMEMBER" name="USER_REMEMBER" value="Y">
 		<label for="USER_REMEMBER" class="adm-designed-checkbox-label"></label><label for="USER_REMEMBER">&nbsp;<?=GetMessage("AUTH_REMEMBER_ME")?></label>
 	</div>
-<?
+		<?php
 		endif;
 
 		$CAPTCHA_CODE = '';
@@ -98,22 +109,22 @@ switch($_REQUEST['bxsender']):
 		</div>
 		<div class="bx-core-popup-auth-field"><input type="text" name="captcha_word"></div>
 	</div>
-<?
+		<?php
 		endif; // $bNeedCaptcha
 ?>
 </form>
-<?
+		<?php
 		$form = ob_get_contents();
 		ob_end_clean();
 ?>
-<script type="text/javascript">
+<script>
 var authWnd = top.BX.WindowManager.Get();
 authWnd.SetTitle('<?=GetMessageJS('AUTH_TITLE')?>');
 authWnd.SetContent('<?=CUtil::JSEscape($form)?>');
-authWnd.SetError(<?=CUtil::PhpToJsObject($arAuthResult)?>);
+authWnd.SetError(<?= Json::encode($arAuthResult) ?>);
 authWnd.adjustSizeEx();
 </script>
-<?
+		<?php
 		if(!CMain::IsHTTPS() && COption::GetOptionString('main', 'use_encrypted_auth', 'N') == 'Y')
 		{
 			$sec = new CRsaSecurity();
@@ -126,4 +137,3 @@ authWnd.adjustSizeEx();
 
 	break;
 endswitch;
-?>

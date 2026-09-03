@@ -1,5 +1,10 @@
-<?
+<?php
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+
+/**
+ * @var array $arCurrentValues
+ */
+
 $arParameters = Array(
 		"PARAMETERS"=> Array(
 			"CACHE_TIME" => array(
@@ -33,7 +38,8 @@ $arParameters = Array(
 	);
 
 if (
-	is_array($arCurrentValues) 
+	is_array($arCurrentValues)
+	&& !empty($arCurrentValues["PREDEFINED_RSS"])
 	&& trim($arCurrentValues["PREDEFINED_RSS"]) != ""
 )
 {

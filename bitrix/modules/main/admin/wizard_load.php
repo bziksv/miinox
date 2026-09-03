@@ -1,13 +1,17 @@
-<?
+<?php
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/wizard_load.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/wizard.php");
 
-if(!$USER->CanDoOperation('edit_php') && !$USER->CanDoOperation('view_other_settings'))
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+/**
+ * @global CUser $USER
+ * @global CMain $APPLICATION
+ */
 
 $isAdmin = $USER->CanDoOperation('edit_php');
+
+if(!$isAdmin && !$USER->CanDoOperation('view_other_settings'))
+	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
 IncludeModuleLangFile(__FILE__);
 
@@ -30,13 +34,13 @@ do
 
 	$wizardPath = $_SERVER["DOCUMENT_ROOT"].CWizardUtil::GetRepositoryPath();
 
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/tar_gz.php");
 	$oArchiver = new CArchiver($_FILES["wizardFile"]["tmp_name"]);
+	$oArchiver->SetOptions(['CHECK_PERMISSIONS' => false]);
 
 	if (!$oArchiver->extractFiles($wizardPath))
 	{
 		$strError .= GetMessage("MAIN_WIZARD_IMPORT_ERROR");
-		$arErrors = &$oArchiver->GetErrors();
+		$arErrors = $oArchiver->GetErrors();
 		if(!empty($arErrors))
 		{
 			$strError .= ":<br>";
@@ -50,7 +54,8 @@ do
 	}
 	
 	$strOK .= GetMessage("MAIN_WIZARD_LOAD_OK");
-} while (false);
+}
+while (false);
 
 $aTabs = Array(Array("DIV" => "edit1", "TAB" => GetMessage("MAIN_WIZARD_LOAD_TITLE"), "TITLE" => GetMessage("MAIN_WIZARD_LOAD_TITLE")));
 $tabControl = new CAdminTabControl("tabControl", $aTabs);
@@ -58,8 +63,8 @@ $tabControl = new CAdminTabControl("tabControl", $aTabs);
 $APPLICATION->SetTitle(GetMessage("MAIN_WIZARD_LOAD_TITLE"));
 require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/prolog_admin_after.php");
 
-echo CAdminMessage::ShowMessage($strError);
-echo CAdminMessage::ShowNote($strOK);
+CAdminMessage::ShowMessage($strError);
+CAdminMessage::ShowNote($strOK);
 
 $arMenu = array(
 	array(
@@ -77,24 +82,25 @@ $context->Show();
 <form method="post" action="<?=$APPLICATION->GetCurPage()?>?" enctype="multipart/form-data">
 <?=bitrix_sessid_post()?>
 <input type="hidden" name="lang" value="<?=LANGUAGE_ID?>">
-<?
+<?php
 $tabControl->Begin();
 
 $tabControl->BeginNextTab();
 ?>
 	<tr class="adm-detail-required-field">
-		<td width="40%"><?echo GetMessage("MAIN_WIZARD_LOAD_FILE")?>:</td>
+		<td width="40%"><?= GetMessage("MAIN_WIZARD_LOAD_FILE")?>:</td>
 		<td width="60%"><input type="file" size="35" name="wizardFile"></td>
 	</tr>
 
-<?
+<?php
 $tabControl->Buttons();
 ?>
 	<input type="hidden" name="action" value="import">
-	<input <?if(!$isAdmin) echo "disabled" ?> type="submit" name="import" value="<?echo GetMessage("MAIN_WIZARD_LOAD_SUBMIT")?>" class="adm-btn-save">
-<?
+	<input <?php if(!$isAdmin) echo "disabled" ?> type="submit" name="import" value="<?= GetMessage("MAIN_WIZARD_LOAD_SUBMIT")?>" class="adm-btn-save">
+<?php
 $tabControl->End();
 ?>
 </form>
 
-<?require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin.php");?>
+<?php
+require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin.php");

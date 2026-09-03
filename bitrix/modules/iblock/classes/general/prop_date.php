@@ -6,29 +6,31 @@ use Bitrix\Iblock;
 
 class CIBlockPropertyDate extends CIBlockPropertyDateTime
 {
-	public const USER_TYPE = 'Date';
+	/** @deprecated */
+	public const USER_TYPE = Iblock\PropertyTable::USER_TYPE_DATE;
 
 	private const INTERNAL_FORMAT = 'YYYY-MM-DD';
 
 	public static function GetUserTypeDescription()
 	{
 		return [
-			"PROPERTY_TYPE" => Iblock\PropertyTable::TYPE_STRING,
-			"USER_TYPE" => self::USER_TYPE,
-			"DESCRIPTION" => Loc::getMessage("IBLOCK_PROP_DATE_DESC"),
+			'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_STRING,
+			'USER_TYPE' => Iblock\PropertyTable::USER_TYPE_DATE,
+			'DESCRIPTION' => Loc::getMessage('IBLOCK_PROP_DATE_DESC'),
 			//optional handlers
-			"GetPublicViewHTML" => [__CLASS__, "GetPublicViewHTML"],
-			"GetPublicEditHTML" => [__CLASS__, "GetPublicEditHTML"],
-			"GetAdminListViewHTML" => [__CLASS__, "GetAdminListViewHTML"],
-			"GetPropertyFieldHtml" => [__CLASS__, "GetPropertyFieldHtml"],
-			"CheckFields" => [__CLASS__, "CheckFields"],
-			"ConvertToDB" => [__CLASS__, "ConvertToDB"],
-			"ConvertFromDB" => [__CLASS__, "ConvertFromDB"],
-			"GetSettingsHTML" => [__CLASS__, "GetSettingsHTML"],
-			"GetAdminFilterHTML" => [__CLASS__, "GetAdminFilterHTML"],
-			"GetPublicFilterHTML" => [__CLASS__, "GetPublicFilterHTML"],
-			"AddFilterFields" => [__CLASS__, "AddFilterFields"],
-			"GetUIFilterProperty" => [__CLASS__, "GetUIFilterProperty"],
+			'GetPublicViewHTML' => [__CLASS__, 'GetPublicViewHTML'],
+			'GetPublicEditHTML' => [__CLASS__, 'GetPublicEditHTML'],
+			'GetPublicEditHTMLMulty' => [__CLASS__, 'GetPublicEditHTMLMulty'],
+			'GetAdminListViewHTML' => [__CLASS__, 'GetAdminListViewHTML'],
+			'GetPropertyFieldHtml' => [__CLASS__, 'GetPropertyFieldHtml'],
+			'CheckFields' => [__CLASS__, 'CheckFields'],
+			'ConvertToDB' => [__CLASS__, 'ConvertToDB'],
+			'ConvertFromDB' => [__CLASS__, 'ConvertFromDB'],
+			'GetSettingsHTML' => [__CLASS__, 'GetSettingsHTML'],
+			'GetAdminFilterHTML' => [__CLASS__, 'GetAdminFilterHTML'],
+			'GetPublicFilterHTML' => [__CLASS__, 'GetPublicFilterHTML'],
+			'AddFilterFields' => [__CLASS__, 'AddFilterFields'],
+			'GetUIFilterProperty' => [__CLASS__, 'GetUIFilterProperty'],
 			'GetUIEntityEditorProperty' => [__CLASS__, 'GetUIEntityEditorProperty'],
 			//"GetORMFields" => array(__CLASS__, "GetORMFields"),
 		];
@@ -89,35 +91,60 @@ class CIBlockPropertyDate extends CIBlockPropertyDateTime
 
 	public static function GetPublicEditHTML($arProperty, $value, $strHTMLControlName)
 	{
-		/** @var CMain $APPLICATION*/
+		/** @var CMain $APPLICATION */
 		global $APPLICATION;
 
-		$s = '<input type="text" name="'.htmlspecialcharsbx($strHTMLControlName["VALUE"]).'" size="25" value="'.htmlspecialcharsbx($value["VALUE"]).'" />';
 		ob_start();
 		$APPLICATION->IncludeComponent(
-			'bitrix:main.calendar',
-			'',
-			array(
-				'FORM_NAME' => $strHTMLControlName["FORM_NAME"],
-				'INPUT_NAME' => $strHTMLControlName["VALUE"],
-				'INPUT_VALUE' => $value["VALUE"],
-				'SHOW_TIME' => "N",
-			),
+			'bitrix:iblock.property.field.public.edit',
+			'date',
+			[
+				'NAME' => $strHTMLControlName['VALUE'],
+				'VALUE' => static::prepareMultiValue($value),
+				'PROPERTY' => $arProperty,
+				'SHOW_TIME' => 'N',
+			],
 			null,
-			array('HIDE_ICONS' => 'Y')
+			[
+				'HIDE_ICONS' => 'Y',
+			]
 		);
-		$s .= ob_get_contents();
+		$result = ob_get_contents();
 		ob_end_clean();
-		return  $s;
+
+		return $result;
+	}
+
+	public static function GetPublicEditHTMLMulty($arProperty, $value, $strHTMLControlName): string
+	{
+		/** @var CMain $APPLICATION */
+		global $APPLICATION;
+
+		ob_start();
+		$APPLICATION->IncludeComponent(
+			'bitrix:iblock.property.field.public.edit',
+			'date',
+			[
+				'NAME' => $strHTMLControlName['VALUE'],
+				'VALUE' => static::prepareMultiValue($value),
+				'PROPERTY' => $arProperty,
+				'SHOW_TIME' => 'N',
+			],
+			null,
+			[
+				'HIDE_ICONS' => 'Y',
+			]
+		);
+		$result = ob_get_contents();
+		ob_end_clean();
+
+		return $result;
+
 	}
 
 	public static function GetPropertyFieldHtml($arProperty, $value, $strHTMLControlName)
 	{
-		return  CAdminCalendar::CalendarDate($strHTMLControlName["VALUE"], $value["VALUE"], 20, false).
-		($arProperty["WITH_DESCRIPTION"]=="Y" && '' != trim($strHTMLControlName["DESCRIPTION"]) ?
-			'&nbsp;<input type="text" size="20" name="'.$strHTMLControlName["DESCRIPTION"].'" value="'.htmlspecialcharsbx($value["DESCRIPTION"]).'">'
-			:''
-		);
+		return static::getPropertyFormField($arProperty, $value, $strHTMLControlName, false);
 	}
 
 	/**
@@ -129,7 +156,7 @@ class CIBlockPropertyDate extends CIBlockPropertyDateTime
 	public static function GetUIFilterProperty($property, $control, &$fields)
 	{
 		parent::GetUIFilterProperty($property, $control, $fields);
-		unset($fields["time"]);
+		unset($fields['time'], $fields['data']);
 	}
 
 	/**

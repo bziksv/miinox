@@ -2,6 +2,7 @@
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)die();
 
 use Bitrix\Main;
+use Bitrix\Main\Localization\LanguageTable;
 use Bitrix\UI;
 use Bitrix\Ui\EntityForm\Scope;
 
@@ -85,6 +86,7 @@ class UIFormComponent extends \CBitrixComponent
 			'SKIP_TEMPLATE' => false,
 			'ENABLE_MODE_TOGGLE' => true,
 			'ENABLE_CONFIG_CONTROL' => true,
+			'ENABLE_SHOW_ALWAYS_FEAUTURE' => true,
 			'ENABLE_VISIBILITY_POLICY' => true,
 			'ENABLE_TOOL_PANEL' => true,
 			'IS_TOOL_PANEL_ALWAYS_VISIBLE' => false,
@@ -109,6 +111,8 @@ class UIFormComponent extends \CBitrixComponent
 			'ENABLE_USER_FIELD_CREATION' => false,
 			'ENABLE_USER_FIELD_MANDATORY_CONTROL' => true,
 			'ENABLE_PAGE_TITLE_CONTROLS' => false,
+			'ENABLE_PAGE_TITLE_CONTROLS_VIA_TOOLBAR' => false,
+			'ENABLE_PAGE_TITLE_EDIT' => false,
 			'USER_FIELD_ENTITY_ID' => '',
 			'USER_FIELD_PREFIX' => '',
 			'USER_FIELD_CREATE_PAGE_URL' => '',
@@ -133,6 +137,7 @@ class UIFormComponent extends \CBitrixComponent
 			'SCOPE' => null,
 			'SCOPE_PREFIX' => '',
 			'DISABLED_HTML_CONTROLS' => [],
+			'ANALYTICS_CONFIG' => [],
 		];
 	}
 
@@ -367,7 +372,7 @@ class UIFormComponent extends \CBitrixComponent
 		return $result;
 	}
 
-	private function getFilteredConfig(array $configItems, array $defaultConfigMap, ?string $parent = null)
+	protected function getFilteredConfig(array $configItems, array $defaultConfigMap, ?string $parent = null)
 	{
 		$result = [];
 
@@ -409,6 +414,7 @@ class UIFormComponent extends \CBitrixComponent
 		$availableFields = [];
 		$requiredFields = [];
 		$hasEmptyRequiredFields = false;
+		$hasBBCodeFields = false;
 		$htmlFieldNames = [];
 		$bbFieldNames = [];
 		foreach($entityFields as $field)
@@ -427,6 +433,11 @@ class UIFormComponent extends \CBitrixComponent
 			if ($fieldType === 'bb')
 			{
 				$bbFieldNames[] = $name;
+			}
+
+			if ($fieldType === 'bbcode')
+			{
+				$hasBBCodeFields = true;
 			}
 
 			$availableFields[$name] = $field;
@@ -463,6 +474,7 @@ class UIFormComponent extends \CBitrixComponent
 			'available' => $availableFields,
 			'required' => $requiredFields,
 			'hasEmptyRequiredFields' => $hasEmptyRequiredFields,
+			'hasBBCodeFields' => $hasBBCodeFields,
 			'html' => $htmlFieldNames,
 			'bb' => $bbFieldNames,
 		];
@@ -669,6 +681,8 @@ class UIFormComponent extends \CBitrixComponent
 
 		$config = $this->initializeConfigWithColumns($config);
 
+		$this->arResult['ENTITY_AVAILABLE_FIELDS_INFO'] = $fieldsInfo['available'];
+
 		$scheme = $this->processScheme($config, $defaultConfig, $configScope, $fieldsInfo);
 
 		$this->arResult['ENTITY_CONFIG_SCOPE'] = $configScope;
@@ -678,21 +692,20 @@ class UIFormComponent extends \CBitrixComponent
 		$this->arResult['ENTITY_AVAILABLE_FIELDS'] = array_values($fieldsInfo['available']);
 		$this->arResult['ENTITY_HTML_FIELD_NAMES'] = $fieldsInfo['html'];
 		$this->arResult['ENTITY_BB_FIELD_NAMES'] = $fieldsInfo['bb'];
+		$this->arResult['HAS_BBCODE_FIELDS'] = $fieldsInfo['hasBBCodeFields'] ?? false;
 		$this->arResult['DISABLED_HTML_CONTROLS'] = $this->arParams['DISABLED_HTML_CONTROLS'] ?? [];
+		$this->arResult['CHTML_EDITOR_PARAMS'] = $this->arParams['CHTML_EDITOR_PARAMS'] ?? [];
 	}
 
 	protected function loadLanguages(): array
 	{
-		$languages = [];
-
-		$dbResultLangs = \CLanguage::GetList();
-
-		while($lang = $dbResultLangs->Fetch())
-		{
-			$languages[] = ['LID' => $lang['LID'], 'NAME' => $lang['NAME']];
-		}
-
-		return $languages;
+		return LanguageTable::query()
+			->setSelect(['LID', 'NAME'])
+			->setOrder(['SORT' => 'ASC'])
+			->setCacheTtl(3600)
+			->exec()
+			->fetchAll()
+		;
 	}
 
 	protected function initialize()
@@ -708,19 +721,23 @@ class UIFormComponent extends \CBitrixComponent
 
 		$this->prepareConfig();
 
-		if(isset($this->arParams['~ENABLE_CONFIGURATION_UPDATE']))
+		if (isset($this->arParams['~ENABLE_CONFIGURATION_UPDATE']))
 		{
 			$this->arResult['CAN_UPDATE_PERSONAL_CONFIGURATION'] = $this->arParams['~ENABLE_CONFIGURATION_UPDATE'];
 			$this->arResult['CAN_UPDATE_COMMON_CONFIGURATION'] = $this->arParams['~ENABLE_CONFIGURATION_UPDATE'];
 		}
 		else
 		{
-			$this->arResult['CAN_UPDATE_PERSONAL_CONFIGURATION'] = !isset($this->arParams['~ENABLE_PERSONAL_CONFIGURATION_UPDATE'])
+			$this->arResult['CAN_UPDATE_PERSONAL_CONFIGURATION'] =
+				!isset($this->arParams['~ENABLE_PERSONAL_CONFIGURATION_UPDATE'])
 				|| $this->arParams['~ENABLE_PERSONAL_CONFIGURATION_UPDATE'];
 
-			$this->arResult['CAN_UPDATE_COMMON_CONFIGURATION'] = isset($this->arParams['~ENABLE_COMMON_CONFIGURATION_UPDATE'])
+			$this->arResult['CAN_UPDATE_COMMON_CONFIGURATION'] =
+				isset($this->arParams['~ENABLE_COMMON_CONFIGURATION_UPDATE'])
 				&& $this->arParams['~ENABLE_COMMON_CONFIGURATION_UPDATE'];
 		}
+
+		$this->arResult['ENTITY_CONFIG_SIGNED_PARAMS'] = $this->getSignedConfigParameters();
 
 		$this->arResult['CONTEXT']['EDITOR_CONFIG_ID'] = $this->configID;
 
@@ -728,10 +745,24 @@ class UIFormComponent extends \CBitrixComponent
 
 		$this->arResult['ENTITY_CONFIG_OPTIONS'] = $this->getEntityConfigOptions();
 
-		$this->arResult['EDITOR_OPTIONS'] = array('show_always' => 'Y');
-	}
+		$this->arResult['EDITOR_OPTIONS'] = ['show_always' => 'Y'];
 
-	protected function getEntityConfigOptions(): array
+		if ($this->arResult['ENABLE_PAGE_TITLE_CONTROLS'] && $this->arResult['ENABLE_PAGE_TITLE_CONTROLS_VIA_TOOLBAR'])
+		{
+			UI\Toolbar\Facade\Toolbar::enableMultiLineTitle();
+
+			UI\Toolbar\Facade\Toolbar::setCopyLinkButton([
+				'title' => $this->arResult['MESSAGES']['COPY_PAGE_URL'] ?? null,
+				'successfulCopyMessage' => $this->arResult['MESSAGES']['PAGE_URL_COPIED'] ?? null,
+			]);
+			if ($this->arResult['ENABLE_PAGE_TITLE_EDIT'])
+			{
+				UI\Toolbar\Facade\Toolbar::addEditableTitle();
+			}
+		}
+}
+
+protected function getEntityConfigOptions(): array
 	{
 		$optionId = $this->arParams['~OPTION_PREFIX'] ?? $this->configID;
 		$optionId = \Bitrix\UI\Form\EntityEditorConfiguration::prepareOptionsName(
@@ -803,5 +834,14 @@ class UIFormComponent extends \CBitrixComponent
 		}
 
 		return $columns;
+	}
+
+	protected function getSignedConfigParameters(): string
+	{
+		return  (new \Bitrix\UI\Form\EntityEditorConfigSigner($this->configID))->sign([
+			'CAN_UPDATE_COMMON_CONFIGURATION' => $this->arResult['CAN_UPDATE_COMMON_CONFIGURATION'],
+			'CAN_UPDATE_PERSONAL_CONFIGURATION' => $this->arResult['CAN_UPDATE_PERSONAL_CONFIGURATION'],
+			'MODULE_ID' => $this->arParams['MODULE_ID'] ?? '',
+		]);
 	}
 }

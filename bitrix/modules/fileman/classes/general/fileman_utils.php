@@ -12,7 +12,7 @@ class CFilemanUtils
 		if ($Params['initSearch'])
 			$arLangArray[] = 'search';
 
-		if ($Params['initServerAccess'])
+		if ($Params['initServerAccess'] ?? false)
 			$arLangArray[] = 'server_access';
 
 		if ($Params['initCopy'])
@@ -40,12 +40,12 @@ class CFilemanUtils
 		{
 			$arArcTypes[]	=	array(
 					"id"	=>	$key,
-					"text"	=> 	ToUpper($key)
+					"text"	=> 	mb_strtoupper($key)
 				);
 		}
 
 		?>
-		<script type="text/javascript" src="/bitrix/js/fileman/fileman_utils.js?v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/fileman/fileman_utils.js')?>"></script>
+		<script src="/bitrix/js/fileman/fileman_utils.js?v=<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/fileman/fileman_utils.js')?>"></script>
 
 		<script>
 		<?CFilemanUtils::AppendLangMessages($arLangArray);?>
@@ -155,8 +155,8 @@ class CFilemanUtils
 				path: BX('quick_path').value,
 				arFiles: arFiles,
 				bCopy: !!bCopy,
-				bSearch: <?= ($_GET['search'] == "Y" ? 'true' : 'false')?>,
-				ssess: "<?= CFilemanSearch::SecureSearchSess($_GET['ssess'])?>"
+				bSearch: <?= (($_GET['search'] ?? null) == "Y" ? 'true' : 'false')?>,
+				ssess: "<?= CFilemanSearch::SecureSearchSess(($_GET['ssess'] ?? null))?>"
 			});
 		};
 		<?endif;?>
@@ -213,8 +213,8 @@ class CFilemanUtils
 				path: BX('quick_path').value,
 				arFiles: arFiles,
 				bPack: !!bPack,
-				bSearch: <?= ($_GET['search'] == "Y" ? 'true' : 'false')?>,
-				ssess: "<?= CFilemanSearch::SecureSearchSess($_GET['ssess'])?>"
+				bSearch: <?= (($_GET['search'] ?? null) == "Y" ? 'true' : 'false')?>,
+				ssess: "<?= CFilemanSearch::SecureSearchSess(($_GET['ssess'] ?? null))?>"
 			});
 		};
 		<?endif;?>
@@ -649,7 +649,7 @@ CAdminFileDialog::ShowScript(Array
 );
 ?>
 		</div>
-		<script type="text/javascript">
+		<script>
 			function MakeArchivePathFromFolderPath(filename, path, site)
 			{
 				var
@@ -702,7 +702,6 @@ CAdminFileDialog::ShowScript(Array
 
 		$io = CBXVirtualIo::GetInstance();
 
-		CUtil::JSPostUnescape();
 		switch($action)
 		{
 			case "count":
@@ -726,7 +725,7 @@ CAdminFileDialog::ShowScript(Array
 					"entire" => $_POST['entire'],
 					"bCaseSens" => $_POST['case_sens'],
 					"bDirsToo" => $_POST['dirs_too'],
-					"ssess" => $_POST['ssess'],
+					"ssess" => ($_POST['ssess'] ?? null),
 					"bInResult" => $_POST['in_result'],
 					"site" => CFileMan::__CheckSite($_GET['fu_site'])
 					//"site" => $site
@@ -764,14 +763,14 @@ CAdminFileDialog::ShowScript(Array
 					"caseOption" => $_POST['case_option'],
 					"arFiles" => $_POST['files'],
 					"copyTo" => $_POST['copy_to'],
-					"createCopyTo" => $_POST['create_copy_to'] == "Y",
+					"createCopyTo" => ($_POST['create_copy_to'] ?? null) == "Y",
 
 					"userCaseAnswer" => isset($_POST['uc_answer']) ? $_POST['uc_answer'] : false,
 					"userCaseToAll" => isset($_POST['uc_to_all']) ? $_POST['uc_to_all'] : false,
 					"userCaseLastPath" => isset($_POST['uc_last_path']) ? $_POST['uc_last_path'] : false,
 
-					"bSearch" => $_POST['search'] == "Y",
-					"ssess" => $_POST['ssess'],
+					"bSearch" => ($_POST['search'] ?? null) == "Y",
+					"ssess" => ($_POST['ssess'] ?? null),
 					"siteTo" => CFileMan::__CheckSite($_GET['fu_site'])
 				));
 
@@ -833,7 +832,7 @@ CAdminFileDialog::ShowScript(Array
 				{
 					if  (empty($startFile))
 					{
-						if ($_POST["bPackReplace"] != "replace")
+						if (($_POST["bPackReplace"] ?? null) != "replace")
 						{
 							?>
 							<script>
@@ -1048,6 +1047,16 @@ CAdminFileDialog::ShowScript(Array
 //
 class CFilemanSearch
 {
+	private $maxFileOpenSize;
+	private $maxResultCount;
+	private $startTime;
+	private $Params;
+	private $Result;
+	private $docRoot;
+	private $bSkip;
+	private $sSess;
+	private bool $bReplace;
+
 	public function Init($Params)
 	{
 		$this->maxFileOpenSize = 1024 * COption::GetOptionString("fileman", "search_max_open_file_size", 1024);
@@ -1274,7 +1283,7 @@ class CFilemanSearch
 				if ($isPHP && !$USER->CanDoOperation('edit_php'))
 					return; // User can't write PHP files
 
-				$pattern = '/'.preg_quote($this->Params['phrase'], '/').'/'.$I_PCRE_MODIFIER.BX_UTF_PCRE_MODIFIER;
+				$pattern = '/'.preg_quote($this->Params['phrase'], '/').'/u'.$I_PCRE_MODIFIER;
 
 				$res = array();
 				preg_match_all($pattern, $origFileContent, $res);
@@ -1288,7 +1297,7 @@ class CFilemanSearch
 				if ($isPHP && !($USER->CanDoOperation('edit_php') || $USER->CanDoFileOperation('fm_lpa', $arPath)))
 					return; // User can't read PHP files
 
-				$pattern = '/'.preg_quote($this->Params['phrase'], '/').'/'.$I_PCRE_MODIFIER.BX_UTF_PCRE_MODIFIER;
+				$pattern = '/'.preg_quote($this->Params['phrase'], '/').'/u'.$I_PCRE_MODIFIER;
 
 				// Only for LPA. All php fragments will be cutted off
 				if ($USER->CanDoFileOperation('fm_lpa', $arPath) && !$USER->CanDoOperation('edit_php'))
@@ -1349,14 +1358,6 @@ class CFilemanSearch
 	{
 		global $DB;
 
-		// TODO: check $searchRes initialization
-		$arFields = array(
-			'SESS_ID' => $searchSess,
-			'F_PATH' => $searchRes[$i]['path'],
-			'B_DIR' => $searchRes[$i]['b_dir'],
-			'F_TIME' => $searchRes[$i]['time'],
-			'F_SIZE' => $searchRes[$i]['size']
-		);
 		$q = "SELECT * FROM b_file_search WHERE SESS_ID='".$DB->ForSql($searchSess)."'";
 
 		$strOrderBy = '';
@@ -1406,9 +1407,9 @@ class CFilemanSearch
 			$arFields = array(
 				'SESS_ID' => $searchSess,
 				'F_PATH' => $searchRes[$i]['path'],
-				'B_DIR' => $searchRes[$i]['b_dir'],
-				'F_TIME' => $searchRes[$i]['time'],
-				'F_SIZE' => $searchRes[$i]['size']
+				'B_DIR' => $searchRes[$i]['b_dir'] ?? null,
+				'F_TIME' => $searchRes[$i]['time'] ?? null,
+				'F_SIZE' => $searchRes[$i]['size'] ?? null,
 			);
 
 			unset($arFields['NEW']);
@@ -1432,12 +1433,12 @@ class CFilemanSearch
 				$DB->PrepareUpdate("b_file_search", array('F_PATH' => $pathTo)).
 			" WHERE SESS_ID='".$DB->ForSql($searchSess)."' AND F_PATH='".$DB->ForSql($pathFrom)."'";
 
-		return $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		return $DB->Query($strSql);
 	}
 
 	public static function SecureSearchSess($ssess = '')
 	{
-		return preg_replace("/[^a-z0-9]/i", "", $ssess);
+		return preg_replace("/[^a-z0-9]/i", "", $ssess ?? '');
 	}
 
 	public static function GetSearchSess()
@@ -1485,6 +1486,11 @@ class CFilemanUtilDir
 	var $err = array();
 	var $cntDir = 0;
 	var $cntFile = 0;
+	private $obj;
+	private $site;
+	private $docRoot;
+	private $checkSubdirs;
+	private $callBack;
 
 	public function __construct($dir, $Params)
 	{
@@ -1683,6 +1689,7 @@ class CFilemanCopy
 
 		$io = CBXVirtualIo::GetInstance();
 
+		$log = $log ?? null;
 		if (count($arWarnings) == 0)
 		{
 			$pathTo = trim($Params['copyTo'], " /");
@@ -1993,12 +2000,12 @@ function InitTranslitInputs(params)
 InitTranslitInputs({
 	fromInput: BX('<?= CUtil::JSEscape($Params['fromInputId'])?>'),
 	toInput: BX('<?= CUtil::JSEscape($Params['toInputId'])?>'),
-	pLinked: BX('<?= CUtil::JSEscape($Params['linkedId'])?>'),
+	pLinked: BX('<?= CUtil::JSEscape($Params['linkedId'] ?? null)?>'),
 	bLinkInputs: true,
 	bLinked: <?= $Params['linked'] ? 'true' : 'false'?>,
 	linkedTitle : '<?= CUtil::JSEscape($Params['linkedTitle'])?>',
 	unlinkedTitle: '<?= CUtil::JSEscape($Params['unlinkedTitle'])?>',
-	ext: '<?= CUtil::JSEscape($Params['ext'])?>',
+	ext: '<?= CUtil::JSEscape($Params['ext'] ?? null)?>',
 	max_len : 100,
 	change_case : 'L',
 	replace_space : '-',

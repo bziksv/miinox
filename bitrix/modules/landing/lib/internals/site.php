@@ -21,9 +21,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Site_Query query()
- * @method static EO_Site_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Site_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Site_Result getById($id)
- * @method static EO_Site_Result getList(array $parameters = array())
+ * @method static EO_Site_Result getList(array $parameters = [])
  * @method static EO_Site_Entity getEntity()
  * @method static \Bitrix\Landing\Internals\EO_Site createObject($setDefaultValues = true)
  * @method static \Bitrix\Landing\Internals\EO_Site_Collection createCollection()
@@ -93,12 +93,14 @@ class SiteTable extends Entity\DataManager
 				'default_value' => 'Y'
 			)),
 			'DELETED' => new Entity\StringField('DELETED', array(
-				'title' => Loc::getMessage('LANDING_TABLE_FIELD_LANDING_DELETED'),
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_SITE_DELETED'),
 				'default_value' => 'N'
 			)),
 			'TITLE' => new Entity\StringField('TITLE', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_SITE_TITLE'),
-				'required' => true
+				'required' => true,
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
 			)),
 			'XML_ID' => new Entity\StringField('XML_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_XML_ID')
@@ -329,11 +331,10 @@ class SiteTable extends Entity\DataManager
 		//$tasks = Rights::getAccessTasksReferences();
 		//$readCode = Rights::ACCESS_TYPES['denied'];
 		$extendedRights = Rights::isExtendedMode();
-		static $expectedRoles = null;
-		if ($expectedRoles === null)
-		{
-			$expectedRoles = Role::getExpectedRoleIds();
-		}
+		// no local cache of the ids: the scope is switched per command inside a single process
+		// (REST / AJAX batch), and a method-static copy would survive the switch and join the next
+		// section against the role ids of the previous one. Role keeps its own cache per type.
+		$expectedRoles = Role::getExpectedRoleIds();
 
 		// create runtime fields
 		$runtimeParams = [];
@@ -468,7 +469,7 @@ class SiteTable extends Entity\DataManager
 			// user try to restore site, check the limits
 			if ($primary && $fields['DELETED'] == 'N')
 			{
-				$fields['TYPE'] = self::getValueByCode(
+				$typeForCheck = self::getValueByCode(
 					$primary['ID'],
 					$fields,
 					'TYPE'
@@ -476,7 +477,7 @@ class SiteTable extends Entity\DataManager
 				$check = Manager::checkFeature(
 					Manager::FEATURE_CREATE_SITE,
 					[
-						'type' => $fields['TYPE'],
+						'type' => $typeForCheck,
 						'filter' => ['!ID' => $primary['ID']]
 					]
 				);
@@ -535,7 +536,7 @@ class SiteTable extends Entity\DataManager
 		}
 
 		// check rights
-		if ($primary['ID'] && Rights::isOn())
+		if (isset($primary['ID']) && Rights::isOn())
 		{
 			$rights = Rights::getOperationsForSite(
 				$primary['ID']
@@ -745,6 +746,17 @@ class SiteTable extends Entity\DataManager
 					new Entity\EntityError(
 						Loc::getMessage('LANDING_TABLE_ERROR_SITE_SLASH_IS_NOT_ALLOWED'),
 						'SLASH_IS_NOT_ALLOWED'
+					)
+				));
+				return $result;
+			}
+			if (!\Bitrix\Landing\Security\SyspageUrl::isSafeCode((string)$fields['CODE']))
+			{
+				$result->unsetFields($unsetFields);
+				$result->setErrors(array(
+					new Entity\EntityError(
+						'Site address contains forbidden characters.',
+						'WRONG_CODE_CHARS'
 					)
 				));
 				return $result;
@@ -1017,23 +1029,31 @@ class SiteTable extends Entity\DataManager
 									{
 										$row = self::getList(array(
 											'select' => array(
-												'TYPE'
+												'TYPE', 'CODE'
 											),
 											'filter' => array(
 												'ID' => $primary['ID']
 											)
 									 	))->fetch();
+
+										$type = 'site';
 										if ($row['TYPE'] == 'STORE')// fix for controller
 										{
-											$row['TYPE'] = 'shop';
+											$type = 'shop';
 										}
+										$isFormSpecialType = Site\Type::getSiteSpecialType($row['CODE']) === Site\Type::PSEUDO_SCOPE_CODE_FORMS;
+										if ($isFormSpecialType)
+										{
+											$type = 'form';
+										}
+
 										if ($domainName)
 										{
 											$siteController::addDomain(
 												$domainName,
 												$publicUrl,
 												'N',
-												$row['TYPE'],
+												$type,
 												self::prepareLangForController(Manager::getZone())
 											);
 										}
@@ -1041,7 +1061,7 @@ class SiteTable extends Entity\DataManager
 										{
 											$domainName = $siteController::addRandomDomain(
 												$publicUrl,
-												$row['TYPE'],
+												$type,
 												self::prepareLangForController(Manager::getZone())
 											);
 										}
@@ -1135,6 +1155,7 @@ class SiteTable extends Entity\DataManager
 		$res = self::getList([
 			'select' => [
 				'ID',
+				'CODE',
 				'TYPE',
 				'LANG',
 				'DOMAIN_ID',
@@ -1148,6 +1169,7 @@ class SiteTable extends Entity\DataManager
 		{
 			$domains[] = [
 				'ID' => $row['ID'],
+				'CODE' => $row['CODE'],
 				'TYPE' => $row['TYPE'],
 				'LANG' => $row['LANG'],
 				'DOMAIN_ID' => $row['DOMAIN_ID'],
@@ -1177,11 +1199,20 @@ class SiteTable extends Entity\DataManager
 				for ($i = 0; $i <= 1; $i++)
 				{
 					$siteController::deleteDomain($domains[$i]['DOMAIN_NAME']);
+					$type = $domains[$i]['TYPE'];
+					if ($domains[$i]['TYPE'] === 'STORE')
+					{
+						$type = 'shop';
+					}
+					if (Site\Type::getSiteSpecialType($domains[$i]['CODE']) === Site\Type::PSEUDO_SCOPE_CODE_FORMS)
+					{
+						$type = 'form';
+					}
 					$siteController::addDomain(
 						$domains[$i]['DOMAIN_NAME'],
 						Manager::getPublicationPath($domains[$i == 0 ? 1 : 0]['ID']),
 						'Y',
-						($domains[$i]['TYPE'] == 'STORE') ? 'shop' : $domains[$i]['TYPE'],
+						$type,
 						self::prepareLangForController($domains[$i]['LANG'] ?? Manager::getZone())
 					);
 				}
@@ -1202,6 +1233,7 @@ class SiteTable extends Entity\DataManager
 		$res = self::getList([
 			'select' => [
 				'ID',
+				'CODE',
 				'TYPE',
 				'DOMAIN_ID',
 				'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
@@ -1216,10 +1248,20 @@ class SiteTable extends Entity\DataManager
 			$publicUrl = Manager::getPublicationPath($row['ID']);
 			try
 			{
+				$isFormSpecialType = Site\Type::getSiteSpecialType($row['CODE']) === Site\Type::PSEUDO_SCOPE_CODE_FORMS;
 				$siteController::deleteDomain($row['DOMAIN_NAME']);
+				$type = $row['TYPE'];
+				if ($row['TYPE'] === 'STORE')
+				{
+					$type = 'shop';
+				}
+				if ($isFormSpecialType)
+				{
+					$type = 'form';
+				}
 				$domainName = $siteController::addRandomDomain(
 					$publicUrl,
-					($row['TYPE'] == 'STORE') ? 'shop' : $row['TYPE'],
+					$type,
 					self::prepareLangForController(Manager::getZone())
 				);
 				if ($domainName)

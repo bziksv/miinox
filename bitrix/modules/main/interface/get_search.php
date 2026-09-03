@@ -1,4 +1,4 @@
-<?
+<?php
 define("NO_KEEP_STATISTIC", true);
 define("NO_AGENT_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
@@ -6,21 +6,20 @@ define("BX_SEARCH_ADMIN", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 
-$start = getmicrotime();
+/**
+ * @global CAdminPage $adminPage
+ * @global CAdminMenu $adminMenu
+ */
 
-$query = ltrim($_POST["q"]);
+$start = microtime(true);
+
+$query = ltrim($_POST["q"] ?? '');
 if(
 	!empty($query)
 	&& $_REQUEST["ajax_call"] === "y"
 	&& CModule::IncludeModule("search")
 ):
 
-CUtil::decodeURIComponent($query);
-
-/**
- * @var CAdminPage $adminPage
- * @var CAdminMenu $adminMenu
- */
 $adminPage->Init();
 $adminMenu->Init($adminPage->aModules);
 
@@ -38,18 +37,18 @@ $arStemFunc = stemming_init(LANGUAGE_ID);
 
 $arPhrase = stemming_split($query, LANGUAGE_ID);
 
-$preg_template = "/(^|[^".$arStemFunc["pcre_letters"]."])(".str_replace("/", "\\/", implode("|", array_map('preg_quote', array_keys($arPhrase)))).")/i".BX_UTF_PCRE_MODIFIER;
+$preg_template = "/(^|[^".$arStemFunc["pcre_letters"]."])(".str_replace("/", "\\/", implode("|", array_map('preg_quote', array_keys($arPhrase)))).")/iu";
 $bFound  = false;
 
 function GetStrings(&$item, $key, $p)
 {
-	global $arStemFunc, $arPhrase, $preg_template, $arResult, $bFound;
+	global $arPhrase, $preg_template, $arResult, $bFound;
 
 	$category = $p[0];
 	$icon = $p[1];
 	$arRes = null;
 
-	if($item["url"] <> '')
+	if(!empty($item["url"]))
 	{
 		$searchstring = '';
 		if($item["text"])
@@ -57,37 +56,24 @@ function GetStrings(&$item, $key, $p)
 			if(preg_match_all($preg_template, mb_strtoupper($item["text"]), $arMatches, PREG_OFFSET_CAPTURE))
 			{
 				$c = count($arMatches[2]);
-				if(defined("BX_UTF"))
+				for($j = $c-1; $j >= 0; $j--)
 				{
-					for($j = $c-1; $j >= 0; $j--)
-					{
-						$prefix = mb_substr($item["text"], 0, $arMatches[2][$j][1], 'latin1');
-						$instr  = mb_substr($item["text"], $arMatches[2][$j][1], mb_strlen($arMatches[2][$j][0], 'latin1'), 'latin1');
-						$suffix = mb_substr($item["text"], $arMatches[2][$j][1] + mb_strlen($arMatches[2][$j][0], 'latin1'), mb_strlen($item["text"], 'latin1'), 'latin1');
-						$item["text"] = $prefix."<b>".$instr."</b>".$suffix;
-					}
-				}
-				else
-				{
-					for($j = $c-1; $j >= 0; $j--)
-					{
-						$prefix = mb_substr($item["text"], 0, $arMatches[2][$j][1]);
-						$instr = mb_substr($item["text"], $arMatches[2][$j][1], mb_strlen($arMatches[2][$j][0]));
-						$suffix = mb_substr($item["text"], $arMatches[2][$j][1] + mb_strlen($arMatches[2][$j][0]));
-						$item["text"] = $prefix."<b>".$instr."</b>".$suffix;
-					}
+					$prefix = substr($item["text"], 0, $arMatches[2][$j][1]);
+					$instr  = substr($item["text"], $arMatches[2][$j][1], strlen($arMatches[2][$j][0]));
+					$suffix = substr($item["text"], (int)$arMatches[2][$j][1] + strlen($arMatches[2][$j][0]), strlen($item["text"]));
+					$item["text"] = $prefix."<b>".$instr."</b>".$suffix;
 				}
 			}
 			$searchstring .= $item["text"];
 		}
 
-		if($item["title"])
+		if(!empty($item["title"]))
 			$searchstring .= " ".$item["title"];
 
-		if($item["keywords"])
+		if(!empty($item["keywords"]))
 			$searchstring .= " ".$item["keywords"];
 
-		if($item["icon"]=='')
+		if(empty($item["icon"]))
 			$item["icon"] = $icon;
 
 		if(preg_match_all($preg_template, mb_strtoupper($searchstring), $arMatches, PREG_OFFSET_CAPTURE))
@@ -97,28 +83,28 @@ function GetStrings(&$item, $key, $p)
 				$ar[] = trim($m[0], " ,;>");
 			if(count(array_unique($ar)) == count($arPhrase))
 			{
-				$arRes = array("NAME"=>$item["text"], "URL"=>$item["url"], "TITLE"=>$item["title"], "ICON"=>$item['icon']);
+				$arRes = array("NAME"=>$item["text"], "URL"=>$item["url"], "TITLE"=>$item["title"] ?? '', "ICON"=>$item['icon'] ?? '');
 			}
 		}
 	}
 
 	if(is_array($arRes))
 	{
-		if($item['category'] == '')
+		if(empty($item['category']))
 			$item['category'] = $category;
 
-		if(!is_array($arResult["CATEGORIES"][$item['category']]))
+		if(!is_array($arResult["CATEGORIES"][$item['category']] ?? null))
 		{
 			$arResult["CATEGORIES"][$item['category']] = Array('TITLE'=>'', 'ITEMS'=>Array());
-			if($item['category_name']!='')
+			if(!empty($item['category_name']))
 				$arResult["CATEGORIES"][$item['category']]['TITLE'] = $item['category_name'];
 		}
 		$arResult["CATEGORIES"][$item['category']]["ITEMS"][] = $arRes;
 		$bFound = true;
 	}
 
-	if(is_array($item["items"]))
-		array_walk($item['items'], 'GetStrings', array($category, $item["icon"]));
+	if(isset($item["items"]) && is_array($item["items"]))
+		array_walk($item['items'], 'GetStrings', array($category, $item["icon"] ?? ''));
 }
 
 foreach($adminMenu->aGlobalMenu as $menu_id => $menu)
@@ -129,32 +115,31 @@ if($bFound)
 {
 ?>
 	<table class="adm-search-result">
-		<?foreach($arResult["CATEGORIES"] as $category_id => $arCategory):
+		<?php foreach($arResult["CATEGORIES"] as $category_id => $arCategory):
 			if(empty($arCategory["ITEMS"]))
 				continue;
 			?>
-			<?foreach($arCategory["ITEMS"] as $i => $arItem):
+			<?php foreach($arCategory["ITEMS"] as $i => $arItem):
 				if($i>9)
 					break;
 				?>
 			<tr onclick="window.location='<?=CUtil::JSEscape($arItem["URL"]);?>';">
-				<?if($i == 0):?>
+				<?php if($i == 0):?>
 					<th>&nbsp;<?=$arCategory["TITLE"]?></th>
-				<?else:?>
+				<?php else:?>
 					<th>&nbsp;</th>
-				<?endif?>
-				<td class="adm-search-item" <?if($arItem["TITLE"]!='' && $arItem["TITLE"]!=$arItem["NAME"]):?>title="<?=$arItem["TITLE"]?>"<?endif?>>
-					<a href="<?=$arItem["URL"]?>"><?if($arItem["ICON"]!=''):?><span class="adm-submenu-item-link-icon <?=$arItem["ICON"]?>"></span><?endif?><span class="adm-submenu-item-name-link-text"><?=$arItem["NAME"]?></span></a>
+				<?php endif?>
+				<td class="adm-search-item" <?php if($arItem["TITLE"]!='' && $arItem["TITLE"]!=$arItem["NAME"]):?>title="<?=$arItem["TITLE"]?>"<?php endif?>>
+					<a href="<?=$arItem["URL"]?>"><?php if($arItem["ICON"]!=''):?><span class="adm-submenu-item-link-icon <?=$arItem["ICON"]?>"></span><?php endif?><span class="adm-submenu-item-name-link-text"><?=$arItem["NAME"]?></span></a>
 				</td>
 			</tr>
-			<?endforeach;?>
-		<?endforeach;?>
+			<?php endforeach;?>
+		<?php endforeach;?>
 	</table>
-<?
+	<?php
 }
 
 
 endif;
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
-?>

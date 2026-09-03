@@ -434,7 +434,7 @@ class Export extends Main\Engine\Controller
 			$this->filePath = $this->generateTempDirPath(). $this->fileName;
 			$this->processedItems = 0;
 			$this->totalItems = 0;
-			$this->pageSize = self::ROWS_PER_PAGE;
+			$this->pageSize = $this->getRowsPerPage();
 			$this->saveProgressParameters();
 		}
 
@@ -921,18 +921,22 @@ class Export extends Main\Engine\Controller
 	{
 		$message = '';
 		$avgStepDuration = $predictedStepCount = $predictedTimeDuration = 0;
-		$avgRowsPerStep = self::ROWS_PER_PAGE;
+		$avgRowsPerStep = $this->getRowsPerPage();
 		if ($this->stepCount > 0 && $this->timeStart > 0)
 		{
-			$avgStepDuration = round((time() - $this->timeStart) / $this->stepCount);
+			$avgStepDuration = ceil((time() - $this->timeStart) / $this->stepCount);
 			if ($this->processedItems > 0)
 			{
-				$avgRowsPerStep = round($this->processedItems / $this->stepCount);
+				$avgRowsPerStep = ceil($this->processedItems / $this->stepCount);
+			}
+			if ($avgRowsPerStep < 1)
+			{
+				$avgRowsPerStep = 1;
 			}
 		}
 		if ($this->totalItems > 0)
 		{
-			$predictedStepCount = round(($this->totalItems - $this->processedItems) / $avgRowsPerStep);
+			$predictedStepCount = ceil(($this->totalItems - $this->processedItems) / $avgRowsPerStep);
 			if ($this->useCloud === true)
 			{
 				$predictedStepCount *= 2;
@@ -957,7 +961,7 @@ class Export extends Main\Engine\Controller
 			}
 			else
 			{
-				$predictedTimeDurationMinutes = round($predictedTimeDuration / 60);
+				$predictedTimeDurationMinutes = ceil($predictedTimeDuration / 60);
 				$message =
 					Loc::getMessage('MAIN_EXPORT_EXPECTED_DURATION').' '.
 					Loc::getMessage('MAIN_EXPORT_EXPECTED_DURATION_MINUTES', array(
@@ -1324,13 +1328,11 @@ class Export extends Main\Engine\Controller
 		if(is_resource($file))
 		{
 			// add UTF-8 BOM marker
-			if (\Bitrix\Main\Application::isUtfMode() || defined('BX_UTF'))
+			if($precedeUtf8Bom === true && (filesize($this->filePath) === 0))
 			{
-				if($precedeUtf8Bom === true && (filesize($this->filePath) === 0))
-				{
-					fwrite($file, chr(239).chr(187).chr(191));
-				}
+				fwrite($file, chr(239).chr(187).chr(191));
 			}
+
 			fwrite($file, $data);
 			fclose($file);
 			unset($file);
@@ -1375,7 +1377,7 @@ class Export extends Main\Engine\Controller
 	 * @param int $timeLimit Time limit.
 	 * @return void
 	 */
-	protected function startTimer($timeLimit = 25)
+	protected function startTimer($timeLimit = 25): void
 	{
 		$this->timeLimit = $timeLimit;
 
@@ -1395,7 +1397,7 @@ class Export extends Main\Engine\Controller
 	 *
 	 * @return boolean
 	 */
-	protected function hasTimeLimitReached()
+	protected function hasTimeLimitReached(): bool
 	{
 		if ($this->timeLimit > 0)
 		{
@@ -1412,5 +1414,14 @@ class Export extends Main\Engine\Controller
 		}
 
 		return false;
+	}
+
+	/**
+	 * Returns amount result rows per page.
+	 * @return int
+	 */
+	protected function getRowsPerPage(): int
+	{
+		return static::ROWS_PER_PAGE;
 	}
 }

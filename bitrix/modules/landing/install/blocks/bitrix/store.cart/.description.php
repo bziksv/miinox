@@ -8,9 +8,9 @@ use \Bitrix\Main\Localization\Loc;
 
 $return = array(
 	'block' => array(
-		'name' => Loc::getMessage('LANDING_BLOCK_STORE.CART_NAME'),
+		'name' => Loc::getMessage('LANDING_BLOCK_STORE.SHOP_CART_NAME'),
 		'section' => array('store'),
-		'type' => 'null',
+		'system' => true,
 		'html' => false,
 		'namespace' => 'bitrix'
 	),

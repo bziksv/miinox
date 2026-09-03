@@ -120,9 +120,9 @@ class TransportBase implements Transport\iBase
 	{
 		$config = $message->getConfiguration();
 		$authorId = $config->get('LETTER_CREATED_BY_ID');
-		$text = $message->replaceFields($config->get('COMMENT'));
-		$crmEntityId = $message->getRecipientCode();
 		$crmEntityTypeId = Service::getTypeIdByRecipientType($message->getRecipientType());
+		$crmEntityId = $message->getRecipientCode();
+		$text = $message->replaceFields($config->get('COMMENT'), '#', $crmEntityTypeId);
 
 		if (!$this->responsibleQueue || $this->responsibleQueue->getId() <> $message->getId())
 		{
@@ -146,7 +146,7 @@ class TransportBase implements Transport\iBase
 			}
 		}
 
-		$entityFields['TITLE'] = $message->replaceFields($config->get('TITLE'));
+		$entityFields['TITLE'] = $message->replaceFields($config->get('TITLE'), '#', $crmEntityTypeId);
 		$assignedId = $this->getAssignedWithCrmData((int)$crmEntityTypeId, (int)$crmEntityId);
 		$isAssignedById = ($config->get('LINK_WITH_RESPONSIBLE') === 'Y') && $assignedId;
 		$entityFields['ASSIGNED_BY_ID'] = $isAssignedById ? $assignedId : $this->responsibleQueue->next();
@@ -162,6 +162,8 @@ class TransportBase implements Transport\iBase
 			$facility->setRegisterMode(EntityManageFacility::REGISTER_MODE_ALWAYS_ADD);
 		}
 
+		$crmRegisterOptions = ['CURRENT_USER' => $authorId];
+
 		switch ($message->getCode())
 		{
 			case MessageBase::CODE_RC_LEAD:
@@ -169,7 +171,7 @@ class TransportBase implements Transport\iBase
 				{
 					$entityFields['SOURCE_ID'] = 'RC_GENERATOR';
 				}
-				$facility->registerLead($entityFields);
+				$facility->registerLead($entityFields, true, $crmRegisterOptions);
 				break;
 
 			case MessageBase::CODE_RC_DEAL:
@@ -197,7 +199,7 @@ class TransportBase implements Transport\iBase
 				}
 
 
-				$registeredId = $facility->registerDeal($entityFields);
+				$registeredId = $facility->registerDeal($entityFields, true, $crmRegisterOptions);
 
 				if($registeredId && $config->get('FROM_PREVIOUS') === 'Y')
 				{
@@ -486,6 +488,12 @@ class TransportBase implements Transport\iBase
 	private function getAssignedWithCrmData(int $typeId, int $entityId): ?int
 	{
 		$factory = Container::getInstance()->getFactory($typeId);
+
+		if (!$factory)
+		{
+			return null;
+		}
+
 		$entity = $factory->getItem($entityId);
 		if ($entity)
 		{

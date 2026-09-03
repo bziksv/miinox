@@ -1,10 +1,12 @@
-<?
-##############################################
-# Bitrix Site Manager Forum					 #
-# Copyright (c) 2002-2010 Bitrix			 #
-# http://www.bitrixsoft.com					 #
-# mailto:admin@bitrixsoft.com				 #
-##############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage vote
+ * @copyright 2001-2025 Bitrix
+ */
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/vote/prolog.php");
 
@@ -133,7 +135,10 @@ if ($lAdmin->EditAction() && $VOTE_RIGHT>="W" && check_bitrix_sessid())
 			$lAdmin->AddUpdateError(GetMessage("SAVE_ERROR").$ID.": ".GetMessage("VOTE_SAVE_ERROR"), $ID);
 			$DB->Rollback();
 		}
-		$DB->Commit();
+		else
+		{
+			$DB->Commit();
+		}
 	}
 }
 // Groups action
@@ -316,7 +321,7 @@ if ($vote["COUNTER"] > 0)
 ?>
 <a name="tb"></a>
 
-<?echo ShowError($strError);?>
+<? ShowError($strError);?>
 <form name="form1" method="GET" action="<?=$APPLICATION->GetCurPage()?>?">
 <?
 $oFilter = new CAdminFilter(

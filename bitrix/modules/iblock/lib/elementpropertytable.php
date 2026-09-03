@@ -1,10 +1,4 @@
 <?php
-/**
- * Bitrix Framework
- * @package    bitrix
- * @subpackage iblock
- * @copyright  2001-2018 Bitrix
- */
 
 namespace Bitrix\Iblock;
 
@@ -24,9 +18,9 @@ use Bitrix\Main\ORM\Query\Join;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_ElementProperty_Query query()
- * @method static EO_ElementProperty_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_ElementProperty_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_ElementProperty_Result getById($id)
- * @method static EO_ElementProperty_Result getList(array $parameters = array())
+ * @method static EO_ElementProperty_Result getList(array $parameters = [])
  * @method static EO_ElementProperty_Entity getEntity()
  * @method static \Bitrix\Iblock\EO_ElementProperty createObject($setDefaultValues = true)
  * @method static \Bitrix\Iblock\EO_ElementProperty_Collection createCollection()

@@ -8,6 +8,8 @@ use Bitrix\Main\Localization\Loc;
 
 /**
  * Wipe empty parent folders.
+ *
+ * @internal
  */
 class WipeEmpty
 	extends Translate\Controller\Editor\Operation
@@ -32,7 +34,7 @@ class WipeEmpty
 	 * @param Main\Engine\Controller $controller Parent controller object.
 	 * @param array $config Additional configuration.
 	 */
-	public function __construct($name, Main\Engine\Controller $controller, $config = array())
+	public function __construct($name, Main\Engine\Controller $controller, array $config = [])
 	{
 		$this->keepField(['pathList', 'seekOffset']);
 
@@ -59,14 +61,14 @@ class WipeEmpty
 			{
 				$this->addError(new Main\Error(Loc::getMessage('TR_CLEAN_EMPTY_PATH_LIST')));
 
-				return array(
+				return [
 					'STATUS' => Translate\Controller\STATUS_COMPLETED,
-				);
+				];
 			}
 
 			foreach ($pathList as $testPath)
 			{
-				if (\mb_substr($testPath, -4) === '.php')
+				if (Translate\IO\Path::isPhpFile($testPath))
 				{
 					if (Translate\IO\Path::isLangDir($testPath))
 					{
@@ -74,7 +76,7 @@ class WipeEmpty
 					}
 					else
 					{
-						$this->addError(new Main\Error(Loc::getMessage('TR_CLEAN_FILE_NOT_LANG', array('#FILE#' => $testPath))));
+						$this->addError(new Main\Error(Loc::getMessage('TR_CLEAN_FILE_NOT_LANG', ['#FILE#' => $testPath])));
 					}
 				}
 				else
@@ -86,17 +88,17 @@ class WipeEmpty
 					else
 					{
 						// load lang folders
-						$pathFilter = array();
-						$pathFilter[] = array(
+						$pathFilter = [];
+						$pathFilter[] = [
 							'LOGIC' => 'OR',
 							'=PATH' => \rtrim($testPath, '/'),
 							'=%PATH' => \rtrim($testPath, '/'). '/%'
-						);
-						$pathLangRes = Index\Internals\PathLangTable::getList(array(
+						];
+						$pathLangRes = Index\Internals\PathLangTable::getList([
 							'filter' => $pathFilter,
-							'order' => array('ID' => 'ASC'),
+							'order' => ['ID' => 'ASC'],
 							'select' => ['PATH'],
-						));
+						]);
 						while ($pathLang = $pathLangRes->fetch())
 						{
 							$this->pathList[] = $pathLang['PATH'];
@@ -110,11 +112,11 @@ class WipeEmpty
 
 			if ($this->totalItems == 0)
 			{
-				return array(
+				return [
 					'STATUS' => Translate\Controller\STATUS_COMPLETED,
 					'PROCESSED_ITEMS' => 0,
 					'TOTAL_ITEMS' => 0,
-				);
+				];
 			}
 
 			$this->saveProgressParameters();
@@ -129,7 +131,7 @@ class WipeEmpty
 	 *
 	 * @return array
 	 */
-	private function runWiping()
+	private function runWiping(): array
 	{
 		$processedItemCount = 0;
 		for ($pos = ((int)$this->seekOffset > 0 ? (int)$this->seekOffset : 0), $total = count($this->pathList); $pos < $total; $pos ++)
@@ -139,7 +141,7 @@ class WipeEmpty
 			$isOk = true;
 
 			// file
-			if (\mb_substr($testPath, -4) === '.php')
+			if (Translate\IO\Path::isPhpFile($testPath))
 			{
 				$testPath = Translate\IO\Path::replaceLangId($testPath, '#LANG_ID#');
 
@@ -191,7 +193,7 @@ class WipeEmpty
 
 			if ($isOk)
 			{
-				Translate\Index\Internals\PathIndexTable::purge(new Translate\Filter(['path' => $testPath]), false);
+				Translate\Index\Internals\PathIndexTable::purge(new Translate\Filter(['path' => $testPath, 'recursively' => true]));
 			}
 
 
@@ -222,12 +224,11 @@ class WipeEmpty
 			$this->clearProgressParameters();
 		}
 
-		return array(
+		return [
 			'PROCESSED_ITEMS' => $this->processedItems,
 			'TOTAL_ITEMS' => $this->totalItems,
-		);
+		];
 	}
-
 
 	/**
 	 * Performs wiping empty lang folders.
@@ -236,7 +237,7 @@ class WipeEmpty
 	 *
 	 * @return bool
 	 */
-	private function removeEmptyParents($langFullPath)
+	private function removeEmptyParents($langFullPath): bool
 	{
 		try
 		{

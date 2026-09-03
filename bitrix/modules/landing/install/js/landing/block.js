@@ -108,7 +108,6 @@
 	 */
 	var ACCESS_X = "X";
 
-
 	function getTypeSettings(prop)
 	{
 		let lp = BX.Landing.Main.getInstance();
@@ -126,9 +125,11 @@
 
 			type.attrKey = prop;
 
-			if (prop === "background")
+			if (prop === 'background')
 			{
-				type.items = type.items.concat(lp.options.style[namespace]["style"]["background-overlay"].items);
+				const backgroundOverlayItems = lp.options.style[namespace]['style']['background-overlay']
+					.items.filter((obj) => obj.name !== 'g-bg--after');
+				type.items = [...type.items, ...backgroundOverlayItems];
 			}
 
 			return type;
@@ -274,7 +275,7 @@
 	 *
 	 * @property {BX.Landing.UI.Collection.PanelCollection.<BX.Landing.UI.Panel.BasePanel>} panels - Panels collection
 	 * @property {BX.Landing.Collection.CardCollection.<BX.Landing.Block.Card>} cards - Cards collection
-	 * @property {BX.Landing.Collection.NodeCollection.<BX.Landing.Block.Node>} nodes - Nodes collection
+	 * @property {BX.Landing.Collection.NodeCollection.<BX.Landing.Node>} nodes - Nodes collection
 	 * @property {blockManifest} manifest
 	 *
 	 * @constructor
@@ -288,6 +289,12 @@
 		this.lid = data(element.parentElement, "data-landing");
 		this.id = isNumber(parseInt(options.id)) ? parseInt(options.id) : 0;
 		this.selector = join("#block", (isNumber(options.id) ? options.id : 0), " > :first-child");
+		// Live selector of the block content root that stays valid when action panels are moved
+		// ahead of the content in the DOM (WCAG 2.4.3 focus order). Persistence keys keep using this.selector.
+		// The invariant: this.selector ("> :first-child") is the persistence and history key and the selector
+		// of the published page, where there are no panels at all; this.contentSelector is the only correct
+		// way to find the block content in the live DOM of the editor.
+		this.contentSelector = join("#block", (isNumber(options.id) ? options.id : 0), " > :not([class*='landing-ui-panel-'])");
 		this.repoId = isNumber(options.repoId) ? options.repoId : null;
 		this.active = isBoolean(options.active) ? options.active : true;
 		this.allowedByTariff = isBoolean(options.allowedByTariff) ? options.allowedByTariff : true;
@@ -295,6 +302,11 @@
 		this.manifest.nodes = isPlainObject(options.manifest.nodes) ? options.manifest.nodes : {};
 		this.manifest.cards = isPlainObject(options.manifest.cards) ? options.manifest.cards : {};
 		this.manifest.attrs = isPlainObject(options.manifest.attrs) ? options.manifest.attrs : {};
+		this.manifest.style = isPlainObject(options.manifest.style) ? options.manifest.style : {};
+		if (isPlainObject(options.manifest.style))
+		{
+			this.styleNodes = isPlainObject(options.manifest.style.nodes) ? options.manifest.style.nodes : {};
+		}
 		this.onStyleInputWithDebounce = debounce(this.onStyleInput, 300, this);
 		this.changeTimeout = null;
 		this.php = options.php;
@@ -345,24 +357,43 @@
 		this.adjustContextSensitivityStyles();
 
 		var envOptions = BX.Landing.Env.getInstance().getOptions();
-		var specialType = envOptions.specialType;
-		if (this.isDefaultCrmFormBlock())
+		if (this.isDefaultCrmFormBlock() || this.isCrmFormBlock())
 		{
-			var showOptions = {
-				formId: envOptions.formEditorData.formOptions.id,
-				formOptions: this.getCrmFormOptions(),
-				block: this,
-				showWithOptions: true,
-			};
-			var uri = new BX.Uri(window.top.location.toString());
-			if (BX.Text.toBoolean(uri.getQueryParam('formCreated')))
+			const uri = new BX.Uri(window.top.location.toString());
+			if (BX.Text.toBoolean(uri.getQueryParam('replacedLanding')))
 			{
-				showOptions.state = 'presets';
-			}
+				uri.removeQueryParam('replacedLanding');
+				top.window.history.replaceState({}, document.title, uri.toString());
 
-			void BX.Landing.UI.Panel.FormSettingsPanel
-				.getInstance()
-				.show(showOptions);
+				this.onStyleShow();
+				setTimeout(() => {
+					const y = this.node.offsetTop;
+					BX.Landing.PageObject.getEditorWindow().scrollTo(0, y);
+				}, 300);
+			}
+			else
+			{
+				const showOptions = {
+					formId: envOptions.formEditorData.formOptions.id,
+					formOptions: this.getCrmFormOptions(),
+					block: this,
+					showWithOptions: true,
+				};
+
+				if (BX.Text.toBoolean(uri.getQueryParam('formCreated')))
+				{
+					showOptions.state = 'presets';
+				}
+
+				const formSettingsPanelInstance = BX.Landing.UI.Panel.FormSettingsPanel.getInstance();
+				if (
+					formSettingsPanelInstance
+					&& element.ownerDocument === BX.Landing.PageObject.getEditorWindow().document
+				)
+				{
+					formSettingsPanelInstance.show(showOptions);
+				}
+			}
 		}
 
 		BX.Landing.PageObject.getBlocks().push(this);
@@ -374,8 +405,9 @@
 		if (this.requiredUserActionIsShown)
 		{
 			eventData.requiredUserActionIsShown = true;
-			eventData.layout = this.node.firstElementChild;
-			eventData.button = this.node.firstElementChild.querySelector(".ui-btn");
+			var userActionLayout = this.node.querySelector(".landing-block-user-action");
+			eventData.layout = userActionLayout;
+			eventData.button = userActionLayout ? userActionLayout.querySelector(".ui-btn") : null;
 		}
 
 		fireCustomEvent(window, "BX.Landing.Block:init", [this.createEvent({data: eventData})]);
@@ -389,9 +421,7 @@
 		bind(top, "storage", this.onStorage);
 	};
 
-
 	BX.Landing.Block.storage = new BX.Landing.Collection.BlockCollection();
-
 
 	BX.Landing.Block.prototype = {
 		/**
@@ -559,11 +589,13 @@
 		createEvent: function(options)
 		{
 			return new BlockEvent({
+				blockId: this.id,
 				block: this.node,
 				node: !!options && !!options.node ? options.node : null,
+				content: this.content,
 				card: !!options && !!options.card ? options.card : null,
 				data: (!!options && options.data) || {},
-				onForceInit: this.forceInit.bind(this)
+				onForceInit: this.forceInit.bind(this),
 			});
 		},
 
@@ -678,6 +710,11 @@
 		 */
 		initPanels: function()
 		{
+			if (!this.isBlockControlsEnabled())
+			{
+				return;
+			}
+
 			// Make "add block after this block" button
 			if (!this.panels.get("create_action"))
 			{
@@ -687,10 +724,10 @@
 				);
 
 				createPanel.addButton(
-					new PlusButton("insert_after", {
-						text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
-						onClick: throttle(this.addBlockAfterThis, 600, this)
-					})
+					new PlusButton('insert_after', {
+						text: BX.Landing.Loc.getMessage('ACTION_BUTTON_CREATE'),
+						onClick: throttle(this.addBlockAfterThis, 600, this),
+					}),
 				);
 
 				createPanel.show();
@@ -699,19 +736,19 @@
 				if (this.isCrmFormPage())
 				{
 					var createBeforePanel = new BaseButtonPanel(
-						"create_before_action",
-						"landing-ui-panel-create-before-action"
+						'create_before_action',
+						'landing-ui-panel-create-before-action'
 					);
 
 					createBeforePanel.addButton(
-						new PlusButton("insert_before", {
-							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
-							onClick: throttle(this.addBlockBeforeThis, 600, this)
-						})
+						new PlusButton('insert_before', {
+							text: BX.Landing.Loc.getMessage('ACTION_BUTTON_CREATE'),
+							onClick: throttle(this.addBlockBeforeThis, 600, this),
+						}),
 					);
 
 					createBeforePanel.show();
-					this.addPanel(createBeforePanel);
+					this.addPanel(createBeforePanel, this.getActionPanelTarget());
 				}
 
 				createPanel.buttons[0].on("mouseover", this.onCreateButtonMouseover.bind(this));
@@ -822,10 +859,11 @@
 				sidebarActionsPanel.addButton(
 					new ActionButton("showSidebarActions", {
 						onClick: this.onShowSidebarActionsClick.bind(this),
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_ADDITIONAL_ACTIONS"),
 					})
 				);
 
-				this.addPanel(sidebarActionsPanel);
+				this.addPanel(sidebarActionsPanel, this.getActionPanelTarget());
 				sidebarActionsPanel.show();
 			}
 		},
@@ -879,6 +917,8 @@
 								return new BX.Main.MenuItem({
 									id: "content",
 									text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CONTENT"),
+									disabled: !this.isEditBlockAllowed(),
+									disabledHint: this.getDisableEditBlockHint(),
 									onclick: function() {
 										this.onShowContentPanel();
 										this.sidebarActionsMenu.close();
@@ -901,7 +941,11 @@
 							}
 						}.bind(this))(),
 						(function() {
-							if (isPlainObject(this.manifest.style) && this.isAllowedByTariff())
+							if (
+								isPlainObject(this.manifest.style)
+								&& this.isAllowedByTariff()
+								&& !this.isVibe()
+							)
 							{
 								return new BX.Main.MenuItem({
 									id: "designblock",
@@ -988,18 +1032,18 @@
 						}.bind(this))(),
 
 						new BX.Main.MenuItem({
-							id: "down",
-							text: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN"),
-							onclick: function() {
-								this.moveDown();
-								this.sidebarActionsMenu.close();
-							}.bind(this)
-						}),
-						new BX.Main.MenuItem({
 							id: "up",
 							text: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP"),
 							onclick: function() {
 								this.moveUp();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							id: "down",
+							text: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN"),
+							onclick: function() {
+								this.moveDown();
 								this.sidebarActionsMenu.close();
 							}.bind(this)
 						}),
@@ -1046,18 +1090,28 @@
 						new BX.Main.MenuItem({
 							delimiter: true,
 						}),
-						new BX.Main.MenuItem({
-							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
-							onclick: this.showFeedbackForm.bind(this)
-						}),
-						new BX.Main.MenuItem({
-							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"),
-							className: !this.isSaveBlockInLibraryAllowed() ? "landing-ui-disabled" : "",
-							onclick: function() {
-								this.saveBlock();
-								this.sidebarActionsMenu.close();
-							}.bind(this)
-						}),
+						(() => {
+							if (this.isShowFeedbackButton() === true)
+							{
+								return new BX.Main.MenuItem({
+									text: BX.Landing.Loc.getMessage('LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON'),
+									onclick: this.showFeedbackForm.bind(this),
+								});
+							}
+						})(),
+						(() => {
+							if (!this.isVibe())
+							{
+								return new BX.Main.MenuItem({
+									text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"),
+									className: !this.isSaveBlockInLibraryAllowed() ? "landing-ui-disabled" : "",
+									onclick: function() {
+										this.saveBlock();
+										this.sidebarActionsMenu.close();
+									}.bind(this)
+								})
+							}
+						})(),
 						new BX.Main.MenuItem({
 							delimiter: true,
 						}),
@@ -1085,12 +1139,23 @@
 		 */
 		lazyInitPanels: function()
 		{
+			if (!this.isBlockControlsEnabled())
+			{
+				return;
+			}
+
 			if (this.isInSidebar())
 			{
 				this.initSidebarActionPanel();
 			}
 
 			var allPlacements = BX.Landing.Main.getInstance().options.placements.blocks;
+
+			// Accessible names for block action groups, contextualized with block name when available
+			var blockName = (this.manifest.block && this.manifest.block.name) ? this.manifest.block.name : "";
+			var blockNameSuffix = blockName ? " «" + blockName + "»" : "";
+			var contentActionsLabel = BX.Landing.Loc.getMessage("LANDING_CONTENT_ACTIONS_PANEL_LABEL") + blockNameSuffix;
+			var blockActionsLabel = BX.Landing.Loc.getMessage("LANDING_BLOCK_ACTIONS_PANEL_LABEL") + blockNameSuffix;
 
 			// Make content actions panel
 			if (
@@ -1112,6 +1177,7 @@
 						html: "<span class='fas fa-caret-right'></span>",
 						onClick: this.onCollapseActionPanel.bind(this),
 						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE")},
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE"),
 						separate: true,
 					})
 				);
@@ -1120,16 +1186,18 @@
 				{
 					if (isPlainObject(this.manifest.style))
 					{
-						contentPanel.addButton(
-							new ActionButton("designblock", {
-								text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
-								onClick: this.onDesignerBlockClick.bind(this),
-								disabled: !this.isDesignBlockAllowed(),
-								attrs: { title: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK") },
-								separate: true,
-							})
-						);
-
+						if (!this.isVibe())
+						{
+							contentPanel.addButton(
+								new ActionButton("designblock", {
+									text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
+									onClick: this.onDesignerBlockClick.bind(this),
+									disabled: !this.isDesignBlockAllowed(),
+									attrs: {title: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK")},
+									separate: true,
+								}),
+							);
+						}
 						contentPanel.addButton(
 							new ActionButton("style", {
 								text: BX.Landing.Loc.getMessage("ACTION_BUTTON_STYLE"),
@@ -1147,6 +1215,8 @@
 							new ActionButton("content", {
 								text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CONTENT"),
 								onClick: this.onShowContentPanel.bind(this),
+								disabled: !this.isEditBlockAllowed(),
+								disabledHint: this.getDisableEditBlockHint(),
 								attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_EDIT")},
 								separate: true,
 							})
@@ -1224,6 +1294,7 @@
 						html: "&nbsp;",
 						separate: true,
 						onClick: this.onStyleShow.bind(this),
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_BLOCK_DISPLAY_SETTINGS"),
 					});
 
 					bind(blockDisplay.layout, "mouseenter", this.onBlockDisplayMouseenter.bind(this));
@@ -1234,8 +1305,11 @@
 					);
 				}
 
+				contentPanel.layout.setAttribute("role", "group");
+				contentPanel.layout.setAttribute("aria-label", contentActionsLabel);
+
 				contentPanel.show();
-				this.addPanel(contentPanel);
+				this.addPanel(contentPanel, this.getActionPanelTarget());
 			}
 
 
@@ -1255,6 +1329,7 @@
 						html: "!",
 						className: "landing-ui-block-restricted-button",
 						onClick: this.onRestrictedButtonClick.bind(this),
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_RESTRICTED"),
 						separate: true
 					});
 
@@ -1268,7 +1343,8 @@
 					new ActionButton("down", {
 						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_DOWN"),
 						onClick: this.moveDown.bind(this),
-						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN")},
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN")
 					})
 				);
 
@@ -1276,7 +1352,8 @@
 					new ActionButton("up", {
 						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_UP"),
 						onClick: this.moveUp.bind(this),
-						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP")},
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP")
 					})
 				);
 
@@ -1284,7 +1361,8 @@
 					new ActionButton("actions", {
 						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS"),
 						onClick: this.showBlockActionsMenu.bind(this),
-						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_ADDITIONAL_ACTIONS")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_ADDITIONAL_ACTIONS")},
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_ADDITIONAL_ACTIONS")
 					})
 				);
 
@@ -1293,7 +1371,8 @@
 						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_REMOVE"),
 						disabled: !this.isRemoveBlockAllowed(),
 						onClick: this.deleteBlock.bind(this),
-						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE")},
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE")
 					})
 				);
 
@@ -1302,12 +1381,16 @@
 						html: "<span class='fas fa-caret-right'></span>",
 						onClick: this.onCollapseActionPanel.bind(this),
 						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE")},
+						ariaLabel: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE"),
 						separate: true
 					})
 				);
 
+				blockPanel.layout.setAttribute("role", "group");
+				blockPanel.layout.setAttribute("aria-label", blockActionsLabel);
+
 				blockPanel.show();
-				this.addPanel(blockPanel);
+				this.addPanel(blockPanel, this.getActionPanelTarget());
 			}
 
 			this.adjustPanelsPosition();
@@ -1402,6 +1485,11 @@
 
 		onDesignerBlockClick: function()
 		{
+			BX.UI.Analytics.sendData({
+				tool: BX.Landing.Main.getAnalyticsCategoryByType(),
+				category: 'superblock',
+				event: 'open',
+			});
 			// get actual block content before designer edit
 			var oldContent = null;
 			BX.Landing.Backend.getInstance()
@@ -1446,20 +1534,25 @@
 									var newContent = response.content;
 									if (oldContent !== newContent)
 									{
+										BX.UI.Analytics.sendData({
+											tool: BX.Landing.Main.getAnalyticsCategoryByType(),
+											category: 'superblock',
+											event: 'save',
+										});
+
 										BX.Landing.History.getInstance().push();
 										this.reload().then(function()
 										{
 											fireCustomEvent("BX.Landing.Block:onDesignerBlockSave", [this.id]);
 										}.bind(this));
-										// analytic label on close
-										var metrika = new BX.Landing.Metrika(true);
-										metrika.sendLabel(
-											null,
-											"designerBlock",
-											"close" +
-											"&designed=" + (this.designed ? "Y" : "N") +
-											"&code=" + this.manifest.code
-										);
+									}
+									else
+									{
+										BX.UI.Analytics.sendData({
+											tool: BX.Landing.Main.getAnalyticsCategoryByType(),
+											category: 'superblock',
+											event: 'close',
+										});
 									}
 								}.bind(this));
 						}.bind(this)
@@ -1485,7 +1578,53 @@
 
 		isEditBlockAllowed: function()
 		{
-			return this.access >= ACCESS_W;
+			let allowedButton = this.access >= ACCESS_W;
+			this.disableEditBlockHintType = '';
+
+			const landing = BX.Landing.Main.getInstance();
+			const type = landing.options.params.type;
+			if (
+				type === 'VIBE'
+				&& Object.keys(this.manifest.nodes).length === 0
+				&& Object.keys(this.manifest.attrs).length === 0
+			)
+			{
+				this.disableEditBlockHintType = 'empty';
+
+				return false;
+			}
+
+			if (this.manifest.block.disableEditButton === true)
+			{
+				this.disableEditBlockHintType = 'demo_data_option';
+
+				return false;
+			}
+
+			return allowedButton;
+		},
+
+		getDisableEditBlockHint: function()
+		{
+			let hint = null;
+			let type = 'BLOCK';
+			if (this.isVibe())
+			{
+				type = 'WIDGET';
+			}
+
+			if (this.disableEditBlockHintType === 'empty')
+			{
+				const emptyPhraseCode = 'LANDING_TITLE_' + type + '_EDIT_BUTTON_DISABLE_HINT_EMPTY';
+				hint = BX.Landing.Loc.getMessage(emptyPhraseCode);
+			}
+			if (this.disableEditBlockHintType === 'demo_data_option')
+			{
+				const demoDataOptionPhraseCode = 'LANDING_TITLE_' + type + '_EDIT_BUTTON_DISABLE_HINT_DEMO_DATA';
+				hint = BX.Landing.Loc.getMessage(demoDataOptionPhraseCode);
+			}
+
+			return hint;
 		},
 
 		isRemoveBlockAllowed: function()
@@ -1516,10 +1655,14 @@
 		onRestrictedButtonMouseenter: function(event)
 		{
 			clearTimeout(this.displayBlockTimer);
-			this.displayBlockTimer = setTimeout(function(target) {
-				BX.Landing.UI.Tool.Suggest.getInstance().show(target, {
-					description: BX.Landing.Loc.getMessage("LANDING_BLOCK_RESTRICTED_TEXT")
-				});
+			this.displayBlockTimer = setTimeout(function (target)
+			{
+				BX.Landing.UI.Tool.Suggest.getInstance().show(
+					target,
+					{
+						description: this.getRestrictedMessageText(),
+					}
+				);
 			}.bind(this), 200, event.currentTarget);
 		},
 
@@ -1732,21 +1875,36 @@
 								this.blockActionsMenu.close();
 							}.bind(this)
 						}),
-						new BX.Main.MenuItem({
-							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
-							onclick: this.showFeedbackForm.bind(this)
-						}),
-						new BX.Main.MenuItem({
-							delimiter: true,
-						}),
-						new BX.Main.MenuItem({
-							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"),
-							className: !this.isSaveBlockInLibraryAllowed() ? "landing-ui-disabled" : "",
-							onclick: function() {
-								this.saveBlock();
-								this.blockActionsMenu.close();
-							}.bind(this)
-						}),
+						(() => {
+							if (this.isShowFeedbackButton() === true)
+							{
+								return new BX.Main.MenuItem({
+									text: BX.Landing.Loc.getMessage('LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON'),
+									onclick: this.showFeedbackForm.bind(this),
+								});
+							}
+						})(),
+						(() => {
+							if (!this.isVibe())
+							{
+								return new BX.Main.MenuItem({
+									delimiter: true,
+								});
+							}
+						})(),
+						(() => {
+							if (!this.isVibe())
+							{
+								return new BX.Main.MenuItem({
+									text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON_MSGVER_1"),
+									className: !this.isSaveBlockInLibraryAllowed() ? "landing-ui-disabled" : "",
+									onclick: function() {
+										this.saveBlock();
+										this.blockActionsMenu.close();
+									}.bind(this)
+								});
+							}
+						})(),
 					]
 				});
 			}
@@ -1831,6 +1989,19 @@
 			}
 		},
 
+
+		/**
+		 * Returns the insertion anchor that keeps block action panels ahead of the block content
+		 * in the DOM, so the Tab order matches their visual position on top of the block (WCAG 2.4.3).
+		 * Falls back to appending when the block has no content root.
+		 * @return {?HTMLElement}
+		 */
+		getActionPanelTarget: function()
+		{
+			return (BX.Type.isDomNode(this.content) && this.content.parentElement === this.node)
+				? this.content
+				: undefined;
+		},
 
 		/**
 		 * Adds panel into this block
@@ -1964,9 +2135,27 @@
 			return {};
 		},
 
+		/**
+		 * Check is are crm form
+		 * @return {boolean}
+		 */
 		isCrmFormPage: function()
 		{
-			return BX.Landing.Env.getInstance().getOptions().specialType === 'crm_forms';
+			return BX.Landing.Env.getInstance().getSpecialType() === 'crm_forms';
+		},
+
+		isBlockControlsEnabled: function()
+		{
+			return BX.Landing.Env.getInstance().isBlockControlsEnabled();
+		},
+
+		/**
+		 * Check is page are vibe page
+		 * @return {boolean}
+		 */
+		isVibe: function()
+		{
+			return BX.Landing.Env.getInstance().getType() === 'VIBE';
 		},
 
 		isCrmFormBlock: function()
@@ -2145,7 +2334,7 @@
 				{
 					var currentLabel;
 
-					if (labelNode instanceof BX.Landing.Block.Node.Text)
+					if (labelNode instanceof BX.Landing.Node.Text)
 					{
 						currentLabel = create("span", {
 							props: {className: "landing-card-title-text"},
@@ -2160,7 +2349,7 @@
 						return;
 					}
 
-					if (labelNode instanceof BX.Landing.Block.Node.Link)
+					if (labelNode instanceof BX.Landing.Node.Link)
 					{
 						currentLabel = create("span", {
 							props: {className: "landing-card-title-link"},
@@ -2175,7 +2364,7 @@
 						return;
 					}
 
-					if (labelNode instanceof BX.Landing.Block.Node.Icon)
+					if (labelNode instanceof BX.Landing.Node.Icon)
 					{
 						currentLabel = create("span", {
 							props: {className: "landing-card-title-icon"},
@@ -2190,7 +2379,7 @@
 						return;
 					}
 
-					if (labelNode instanceof BX.Landing.Block.Node.Img)
+					if (labelNode instanceof BX.Landing.Node.Img)
 					{
 						currentLabel = create("span", {
 							props: {className: "landing-card-title-img"},
@@ -2661,7 +2850,7 @@
 						onChange: this.onNodeChange.bind(this),
 						onChangeOptions: this.onNodeOptionsChange.bind(this),
 						onAttributeChange: this.onAttributeChange.bind(this),
-						onDesignShow: this.showStylePanel.bind(this),
+						onDesignShow: this.onStyleShow.bind(this),
 						uploadParams: {
 							action: "Block::uploadFile",
 							block: this.id
@@ -2830,24 +3019,44 @@
 			this.initEntities();
 			this.initCardsLabels();
 
-			var forms = this.getEditForms({
+			var editFormsOptions = {
 				nodes: nodes,
 				formName: formName,
 				nodesOnly: nodesOnly,
 				showAll: showAll,
 				hideCheckbox: hideCheckbox
-			});
+			};
 
-			forms.forEach(function(form) {
-				contentPanel.appendForm(form);
-			});
+			var appendFormsAndShow = function(forms) {
+				forms.forEach(function(form) {
+					contentPanel.appendForm(form);
+				});
 
-			this.tmpContent.innerHTML = "";
-			contentPanel.show();
+				this.tmpContent.innerHTML = "";
+				contentPanel.show();
+				BX.Event.bind(contentPanel.layout, 'click', this.onContentPanelClick.bind(this));
 
-			setTimeout(function() {
-				this.lastBlockState = this.fetchRequestData(contentPanel, true);
-			}.bind(this), 300);
+				setTimeout(function() {
+					this.lastBlockState = this.fetchRequestData(contentPanel, true);
+				}.bind(this), 300);
+			}.bind(this);
+
+			if (this.menu.length > 0)
+			{
+				BX.Landing.Menu.Menu.prefetchLandings()
+					.then(function() {
+						appendFormsAndShow(this.getEditForms(editFormsOptions));
+					}.bind(this));
+			}
+			else
+			{
+				appendFormsAndShow(this.getEditForms(editFormsOptions));
+			}
+		},
+
+		onContentPanelClick: function(event)
+		{
+			BX.Event.EventEmitter.emit('BX.Landing.UI.Panel.ContentEdit:onClick', { event });
 		},
 
 		createHistoryEntry: function(newState)
@@ -2969,43 +3178,117 @@
 		{
 			return create("div", {
 				props: {className: "ui-alert ui-alert-warning"},
-				html: BX.Landing.Loc.getMessage("LANDING_BLOCK_RESTRICTED_TEXT"),
+				html: this.getRestrictedMessageText(),
 				attrs: {style: "margin-bottom: 20px"}
-			})
+			});
 		},
 
+		getRestrictedMessageText: function()
+		{
+			if (this.isVibe())
+			{
+				return BX.Landing.Loc.getMessage("LANDING_BLOCK_RESTRICTED_TEXT_MAINPAGE");
+			}
+
+			return BX.Landing.Loc.getMessage("LANDING_BLOCK_RESTRICTED_TEXT2");
+		},
 
 		/**
 		 * Handles event on style panel show
 		 */
-		onStyleShow: function()
+		onStyleShow: function(selector = null)
 		{
+			this.sendDesignSliderAnalytics('site_editor');
 			BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
-
-			if (this.isCrmFormPage() && this.isCrmFormBlock())
-			{
-				var formSelector = Object.entries(this.manifest.style.nodes).reduce(function(acc, item) {
-					if (item[1].type === 'crm-form')
+			BX.Landing.PageObject.getInstance().design()
+				.then((stylePanel) => {
+					if (isPlainObject(this.styleNodes))
 					{
-						return item[0];
+						if (stylePanel.isShown() && this.id === stylePanel.blockId)
+						{
+							stylePanel.forms.forEach((form) => {
+								if (form.selector === this.selector)
+								{
+									stylePanel.scrollElement = form;
+									form.collapsed = false;
+									BX.Dom.removeClass(form.layout, 'landing-ui-form-style--collapsed');
+									setTimeout(() => {
+										stylePanel.scrollElement.layout.scrollIntoView({
+											behavior: 'smooth',
+											block: 'start',
+											inline: 'nearest',
+										});
+									}, 100);
+								}
+								else
+								{
+									form.collapsed = true;
+									BX.Dom.addClass(form.layout, 'landing-ui-form-style--collapsed');
+								}
+							});
+						}
+						else
+						{
+							stylePanel.clear();
+							const sortedStyleNodes = this.getSortedStyleNodes(this.styleNodes);
+							stylePanel.prepareFooter(this.isExistMultiSelectionNode(sortedStyleNodes));
+							if (selector === null || typeof selector !== 'string')
+							{
+								this.showStylePanel(this.selector, stylePanel.blockId);
+								sortedStyleNodes.forEach((key) => {
+									let currentTarget = null;
+									this.styles.forEach((styles) => {
+										if (styles.selector === key)
+										{
+											currentTarget = styles.currentTarget;
+										}
+									});
+									this.showStylePanel(key, stylePanel.blockId, currentTarget, true);
+								});
+							}
+							else
+							{
+								this.showStylePanel(this.selector, stylePanel.blockId, null, true);
+								sortedStyleNodes.forEach((key) => {
+									let currentTarget = null;
+									this.styles.forEach((styles) => {
+										if (styles.selector === key)
+										{
+											currentTarget = styles.currentTarget;
+										}
+									});
+									this.showStylePanel(key, stylePanel.blockId, currentTarget, true);
+								});
+								setTimeout(() => {
+									stylePanel.forms.forEach((form) => {
+										if (form.selector === selector)
+										{
+											stylePanel.scrollElement = form;
+											form.collapsed = false;
+											BX.Dom.removeClass(form.layout, 'landing-ui-form-style--collapsed');
+											setTimeout(() => {
+												stylePanel.scrollElement.layout.scrollIntoView({
+													behavior: 'smooth',
+													block: 'start',
+													inline: 'nearest',
+												});
+											}, 500);
+										}
+										else
+										{
+											form.collapsed = true;
+											BX.Dom.addClass(form.layout, 'landing-ui-form-style--collapsed');
+										}
+									});
+								}, 1000);
+							}
+						}
 					}
-
-					return acc;
-				}, null);
-
-				if (formSelector)
-				{
-					this.showStylePanel(formSelector);
-				}
-				else
-				{
-					this.showStylePanel(this.selector);
-				}
-			}
-			else
-			{
-				this.showStylePanel(this.selector);
-			}
+					else
+					{
+						this.showStylePanel(this.selector, stylePanel.blockId);
+					}
+				});
 		},
 
 
@@ -3059,9 +3342,11 @@
 		 * 		[title]
 		 * 	}} settings
 		 * @param {boolean} [isBlock = false]
+		 * @param {HTMLElement} currentTarget
+		 * @param {boolean} collapsed
 		 * @returns {?BX.Landing.UI.Form.StyleForm}
 		 */
-		createStyleForm: function(selector, settings, isBlock)
+		createStyleForm: function(selector, settings, isBlock, currentTarget, collapsed = false)
 		{
 			var form = this.forms.get(selector);
 
@@ -3077,11 +3362,27 @@
 			{
 				var styleFactory = new StyleFactory({frame: window, postfix: this.getPostfix()});
 
+				// The form resolves its selector by itself, but for the block level this.selector
+				// resolves an action panel, so the content node is passed explicitly. The first
+				// non-panel child and not all of them: the fields of the form style exactly that node
+				// (resolveSingleNode in style_factory.js), so the highlight of the section has to
+				// outline exactly what a click on a setting changes.
+				var contentNode = isBlock
+					? window.document.querySelector(this.contentSelector)
+					: null;
+
 				form = new StyleForm({
 					id: selector,
 					title: name,
-					selector: selector,
-					iframe: window
+					selector,
+					// An empty array is truthy and would suppress the own fallback of the form,
+					// so the form gets a node only when there is something to highlight. The own
+					// fallback of the form resolves this.selector, which at the block level is the
+					// action panel again, so a block without content highlights its own node instead.
+					node: contentNode ? [contentNode] : (isBlock ? [this.node] : null),
+					iframe: window,
+					collapsed: collapsed,
+					currentTarget: currentTarget,
 				});
 
 				type = this.expandTypeGroups(type).reduce(function(acc, item) {
@@ -3104,6 +3405,12 @@
 						block: this,
 						styleNode: styleNode,
 						selector: !isBlock ? this.makeRelativeSelector(selector) : selector,
+						// Selector for resolving live nodes in the editor. Block level styles must not use
+						// this.selector here: its ":first-child" now resolves an action panel, not the content.
+						elementsSelector: !isBlock ? this.makeRelativeSelector(selector) : this.contentSelector,
+						// The form of the block itself, not of a style node. It addresses the single
+						// content root of the block and its fields are the only ones with stable test ids.
+						blockLevel: isBlock,
 						property: typeSettings.property,
 						multiple: typeSettings.multiple === true,
 						style: type,
@@ -3116,13 +3423,13 @@
 						items: typeSettings.items,
 						help: typeSettings.help,
 						onChange: onChange.bind(this),
-						onReset: onReset.bind(this)
+						onReset: onReset.bind(this),
 					});
 
 					// when field changed
 					function onChange(value, items, postfix, affect) {
 						// false handler by some fields events
-						if (value instanceof  BX.Event.BaseEvent)
+						if (value instanceof BX.Event.BaseEvent)
 						{
 							return;
 						}
@@ -3280,7 +3587,7 @@
 				id: this.selector,
 				iframe: window,
 				selector: this.selector,
-				relativeSelector: this.selector,
+				relativeSelector: this.contentSelector,
 				onClick: this.onStyleClick.bind(this, this.selector)
 			});
 
@@ -3305,15 +3612,143 @@
 
 		onStyleClick: function(selector)
 		{
-			this.showStylePanel(selector);
-			var form = this.forms.get(selector);
-
-			if (form)
-			{
-				BX.Landing.PageObject.getInstance().design().then(function(panel) {
-					BX.Landing.UI.Panel.Content.scrollTo(panel.content, null);
+			BX.Landing.PageObject.getInstance().design()
+				.then((stylePanel) => {
+					const options = this.getStyleOptions(selector);
+					this.styles.forEach((styles) => {
+						if (styles.selector.split('@')[0] === selector)
+						{
+							stylePanel.forms.forEach((form) => {
+								if (
+									form.selector === selector
+									&& form.currentTarget !== styles.currentTarget
+								)
+								{
+									const isBlock = this.isBlockSelector(selector);
+									const newForm = this.createStyleForm(selector, options, isBlock, styles.currentTarget, true);
+									this.replaceStyleForm(newForm, stylePanel);
+								}
+							});
+						}
+					});
+					if (this.id === stylePanel.blockId)
+					{
+						let currentForm = null;
+						stylePanel.forms.forEach((form) => {
+							if (
+								form.selector === selector
+								|| (options.type === 'crm-form' && form.specialType === 'crm_forms')
+							)
+							{
+								currentForm = form;
+							}
+						});
+						if (currentForm !== null)
+						{
+							stylePanel.scrollElement = currentForm;
+							currentForm.collapsed = false;
+							BX.Dom.removeClass(currentForm.layout, 'landing-ui-form-style--collapsed');
+							setTimeout(() => {
+								stylePanel.scrollElement.layout.scrollIntoView({
+									behavior: 'smooth',
+									block: 'start',
+									inline: 'nearest',
+								});
+							}, 100);
+						}
+					}
+					else
+					{
+						stylePanel.clear();
+						if (selector === this.selector)
+						{
+							this.showStylePanel(this.selector, stylePanel.blockId);
+						}
+						else
+						{
+							this.showStylePanel(this.selector, stylePanel.blockId, null, true);
+						}
+						const sortedStyleNodes = this.getSortedStyleNodes(this.styleNodes);
+						stylePanel.prepareFooter(this.isExistMultiSelectionNode(sortedStyleNodes));
+						sortedStyleNodes.forEach((key) => {
+							let currentTarget = null;
+							this.styles.forEach((styles) => {
+								if (styles.selector === key)
+								{
+									currentTarget = styles.currentTarget;
+								}
+							});
+							const collapsed = key !== selector;
+							this.showStylePanel(key, stylePanel.blockId, currentTarget, collapsed);
+						});
+						if (this.id !== stylePanel.blockId)
+						{
+							const intervalId = setInterval(() => {
+								if (!this.stylePanel.content.hidden && this.scrollElement)
+								{
+									this.scrollElement.layout.scrollIntoView({
+										behavior: 'smooth',
+										block: 'start',
+										inline: 'nearest',
+									});
+									clearInterval(intervalId);
+								}
+							}, 100);
+						}
+					}
 				});
+		},
+
+		replaceStyleForm: function(newForm, stylePanel)
+		{
+			let oldForm = null;
+			stylePanel.forms.forEach((form) => {
+				if (newForm.selector === form.id)
+				{
+					oldForm = form;
+				}
+			});
+			if (oldForm)
+			{
+				stylePanel.replaceForm(newForm, oldForm);
 			}
+		},
+
+		/**
+		 * Sorting nodes as they are found in the DOM
+		 * @param nodes
+		 * @return {object}
+		 */
+		getSortedStyleNodes: function(nodes) {
+			const contentHtml = this.content.innerHTML;
+			const indexMap = {};
+			const negativeIndexMap = {};
+			Object.keys(nodes).forEach(key => {
+				const index = contentHtml.indexOf(key.substring(1));
+				if (index !== -1)
+				{
+					indexMap[key] = index;
+				}
+				else
+				{
+					negativeIndexMap[key] = index;
+				}
+			});
+			let sortedNodes = Object.keys(indexMap).sort((a, b) => indexMap[a] - indexMap[b]);
+			const negativeNodes = Object.values(Object.keys(negativeIndexMap));
+			for (let i = 0; i < negativeNodes.length; i++) {
+				sortedNodes.push(negativeNodes[i]);
+			}
+			return sortedNodes;
+		},
+
+		/**
+		 * Check if exist multi selection node
+		 * @param nodes
+		 * @return {boolean}
+		 */
+		isExistMultiSelectionNode: function(nodes) {
+			return nodes.some(node => this.content.querySelectorAll(node).length > 1);
 		},
 
 
@@ -3324,7 +3759,7 @@
 		 */
 		makeRelativeSelector: function(selector)
 		{
-			return join(this.selector, " ", selector);
+			return join(this.contentSelector, " ", selector);
 		},
 
 
@@ -3337,7 +3772,7 @@
 		{
 			selector = selector || this.selector;
 			selector = trim(selector);
-			var find = selector === this.selector ? " > :first-child" : this.selector;
+			var find = selector === this.selector ? " > :first-child" : this.contentSelector;
 			return trim(selector.replace(find, "").replace("!", ""));
 		},
 
@@ -3389,7 +3824,7 @@
 		/**
 		 * Shows style editor panel
 		 */
-		showStylePanel: function(selector)
+		showStylePanel: function(selector, blockId, currentTarget = null, collapsed = false)
 		{
 			var FormSettingsPanel = BX.Reflection.getClass('BX.Landing.UI.Panel.FormSettingsPanel');
 			var formMode = (
@@ -3399,11 +3834,11 @@
 			);
 			var isBlock = this.isBlockSelector(selector);
 			var options = this.getStyleOptions(selector);
-			this.isMultiselection = this.content.querySelectorAll(selector).length > 1;
 
 			BX.Landing.PageObject.getInstance().design()
 				.then(function(stylePanel) {
 					stylePanel.clearContent();
+					stylePanel.blockId = this.id;
 
 					if (options.type === 'crm-form')
 					{
@@ -3428,7 +3863,7 @@
 								]);
 							}.bind(this))
 							.catch(function(error) {
-								console.log(error);
+								console.error(error);
 							});
 					}
 
@@ -3439,14 +3874,22 @@
 						});
 				}.bind(this))
 				.then(function(result) {
+					if (!result)
+					{
+						return;
+					}
 					var stylePanel = result[0];
+					this.stylePanel = stylePanel;
 					var formStyleAdapter = result[1];
-
-					stylePanel.prepareFooter(this.isMultiselection);
 
 					if (formStyleAdapter)
 					{
-						stylePanel.appendForm(formStyleAdapter.getStyleForm());
+						const form = formStyleAdapter.getStyleForm(collapsed);
+						stylePanel.appendForm(form);
+						if (collapsed === false)
+						{
+							this.scrollElement = form;
+						}
 						return;
 					}
 
@@ -3454,9 +3897,12 @@
 					{
 						if (options.type.length)
 						{
-							stylePanel.appendForm(
-								this.createStyleForm(selector, options, isBlock)
-							);
+							const form = this.createStyleForm(selector, options, isBlock, currentTarget, collapsed);
+							stylePanel.appendForm(form);
+							if (collapsed === false)
+							{
+								this.scrollElement = form;
+							}
 						}
 					}
 
@@ -3469,7 +3915,8 @@
 								selector: selector,
 								group: options.additional,
 								attrsType: options.additional.attrsType,
-								onChange: this.onAttributeChange.bind(this)
+								onChange: this.onAttributeChange.bind(this),
+								name: options.additional.name,
 							})
 						);
 						return;
@@ -3483,7 +3930,8 @@
 									form: StyleForm,
 									selector: selector,
 									group: group,
-									onChange: this.onAttributeChange.bind(this)
+									onChange: this.onAttributeChange.bind(this),
+									name: options.additional[0].name,
 								})
 							);
 						}, this);
@@ -3552,7 +4000,7 @@
 		 */
 		createAdditionalForm: function(options)
 		{
-			var form = new options.form({title: options.group.name, type: "attrs"});
+			var form = new options.form({ title: options.name, type: 'attrs', collapsed: true });
 
 			var attrsSet = [];
 			if (!BX.Type.isUndefined(options.group.attrs))
@@ -3604,6 +4052,7 @@
 				var eventData = event.data;
 				this.prepareAttributeValue(eventData, form);
 			});
+
 			return form;
 		},
 
@@ -3688,7 +4137,11 @@
 
 			if (fieldOptions.value === null || fieldOptions.value === undefined)
 			{
-				fieldOptions.value = "";
+				fieldOptions.value = '';
+				if (fieldOptions['default_value'] !== null)
+				{
+					fieldOptions.value = fieldOptions['default_value'];
+				}
 			}
 
 			if (element)
@@ -4048,20 +4501,24 @@
 				return acc;
 			}, null);
 
-			if (formSelector)
-			{
-				this.showStylePanel(formSelector);
-			}
-			else
-			{
-				this.showStylePanel(this.selector);
-			}
+			BX.Landing.PageObject.getInstance().design()
+				.then((stylePanel) => {
+					this.sendDesignSliderAnalytics('form_editor');
+					if (formSelector)
+					{
+						this.showStylePanel(formSelector, stylePanel.blockId);
+					}
+					else
+					{
+						this.showStylePanel(this.selector, stylePanel.blockId);
+					}
+				});
 		},
 
 
 		/**
 		 * Handles node content change event
-		 * @param {BX.Landing.Block.Node} node
+		 * @param {BX.Landing.Node} node
 		 * @param {?boolean} [preventHistory = false]
 		 */
 		onNodeChange: function(node, preventHistory)
@@ -4643,6 +5100,9 @@
 				{
 					return BX.Landing.Backend.getInstance()
 						.batch("Landing\\Block::updateNodes", batch, updateNodeParams)
+						.then(() => {
+							BX.Landing.History.getInstance().push();
+						})
 						.then(function() {
 							return Promise.resolve(data);
 						});
@@ -5038,7 +5498,8 @@
 				id: "attr",
 				type: "attrs",
 				title: BX.Landing.Loc.getMessage("BLOCK_SETTINGS"),
-				description: this.manifest.block.attrsFormDescription
+				description: this.manifest.block.attrsFormDescription,
+				descriptionHintStyle: this.manifest.block.attrsFormDescriptionHintStyle,
 			});
 
 			fields.forEach(function(field) {
@@ -5077,7 +5538,7 @@
 									form: BaseForm,
 									selector: selector,
 									group: options,
-									onChange: (function() {})
+									onChange: (function() {}),
 								})
 							);
 						}
@@ -5382,10 +5843,16 @@
 				}
 
 				// Block settings
-				var blockSettingsForm = this.getBlockSettingsForm();
-				if (blockSettingsForm.fields.length > 0)
+				const notAllowedTypes = ['VIBE'];
+				const landing = BX.Landing.Main.getInstance();
+				const type = landing.options.params.type;
+				if (!notAllowedTypes.includes(type))
 				{
-					forms.push(blockSettingsForm);
+					const blockSettingsForm = this.getBlockSettingsForm();
+					if (blockSettingsForm.fields.length > 0)
+					{
+						forms.push(blockSettingsForm);
+					}
 				}
 			}
 
@@ -5783,6 +6250,34 @@
 				!!this.dynamicParams
 				&& code in this.dynamicParams
 			);
-		}
+		},
+
+		isShowFeedbackButton: function()
+		{
+			if (
+				BX.Type.isArray(this.manifest.block.type)
+				&& this.manifest.block.type.length === 1
+				&& this.manifest.block.type.includes('mainpage')
+			)
+			{
+				return false;
+			}
+
+			return true;
+		},
+
+		/**
+		 * Sends analytics event for design slider opening with custom c_section
+		 * @param {string} cSection - The section name for analytics (e.g., 'site_editor', 'forms_editor')
+		 */
+		sendDesignSliderAnalytics: function(cSection)
+		{
+			BX.UI.Analytics.sendData({
+				tool: BX.Landing.Main.getAnalyticsCategoryByType(),
+				category: 'design_slider',
+				event: 'open',
+				c_section: cSection,
+			});
+		},
 	};
 })();

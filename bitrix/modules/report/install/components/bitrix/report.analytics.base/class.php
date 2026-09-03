@@ -11,6 +11,11 @@ class ReportAnalyticsBase extends CBitrixComponent
 
 	public function executeComponent()
 	{
+		if (\Bitrix\Report\VisualConstructor\Helper\Db::isPgSqlDb())
+		{
+			LocalRedirect('/');
+		}
+
 		if (!\Bitrix\Main\Loader::includeModule('report'))
 		{
 			$this->showError(Loc::getMessage('RAB_MODULE_NOT_FOUND'));
@@ -101,13 +106,14 @@ class ReportAnalyticsBase extends CBitrixComponent
 				'NAME' => $board->getTitle(),
 				'ATTRIBUTES' => [
 					'href' => "?analyticBoardKey=" . $board->getBoardKey(),
-					'title' => $board->getTitle(),
+					'title' => htmlspecialcharsbx($board->getTitle()),
 					'DATA' => [
 						'role' => 'report-analytics-menu-item',
 						'report-board-key' => $board->getBoardKey(),
 						'is-external' => $board->isExternal() ? 'Y' : 'N',
 						'external-url' => $board->getExternalUrl(),
-						'is-slider-support' => $board->isSliderSupport() ? 'Y' : 'N'
+						'is-slider-support' => $board->isSliderSupport() ? 'Y' : 'N',
+						'slider-loader' => $board->getSliderLoader() ?? 'report:analytics',
 					]
 				]
 			];

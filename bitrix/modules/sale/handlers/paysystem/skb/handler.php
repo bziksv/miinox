@@ -26,6 +26,8 @@ class SkbHandler
 	private const MODE_DELOBANK = 'delobank';
 	private const MODE_GAZENERGOBANK = 'gazenergobank';
 
+	private const TAG_BITRIX_24 = 'Bitrix24';
+
 	private const RESPONSE_CODE_SUCCESS = [
 		'0',
 		'RQ00000'
@@ -43,7 +45,7 @@ class SkbHandler
 	 * @param Request|null $request
 	 * @return PaySystem\ServiceResult
 	 */
-	public function initiatePay(Payment $payment, Request $request = null): PaySystem\ServiceResult
+	public function initiatePay(Payment $payment, ?Request $request = null): PaySystem\ServiceResult
 	{
 		$result = new PaySystem\ServiceResult();
 
@@ -57,8 +59,8 @@ class SkbHandler
 		$result->setPsData($createPaymentResult->getPsData());
 		$paymentData = $createPaymentResult->getData();
 
-		$params['CURRENCY'] = $payment->getField('CURRENCY');
-		$params['SUM'] = PriceMaths::roundPrecision($payment->getSum());
+		$params['CURRENCY'] = $payment->getCurrency();
+		$params['SUM'] = PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency());
 		$params['URL'] = $paymentData['payload'];
 		$params['QR_CODE_IMAGE'] = $paymentData['qrImage'];
 		$this->setExtraParams($params);
@@ -146,7 +148,7 @@ class SkbHandler
 			'agentId' => $this->getAgentId(),
 			'merchantId' => $this->getBusinessValue($payment, 'SKB_MERCHANT_ID'),
 			'paymentId' => (string)$payment->getId(),
-			'amount' => (string)($payment->getSum() * 100),
+			'amount' => (string)(PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getField('CURRENCY'), 2) * 100),
 			'currency' => $payment->getField('CURRENCY'),
 			'paymentPurpose' => $this->getAdditionalInfo($payment),
 			'templateVersion' => '01',
@@ -424,7 +426,7 @@ class SkbHandler
 		$params = [
 			'messageId' => self::getMessageId(),
 			'trxId' => $skbPayment['trxId'],
-			'amount' => (string)($refundableSum * 100),
+			'amount' => (string)(PriceMaths::roundByFormatCurrency($refundableSum, $payment->getCurrency(), 2) * 100),
 		];
 
 		$sendResult = $this->send($payment, 'checkRefundTransfer', $params);
@@ -537,7 +539,7 @@ class SkbHandler
 			return $result;
 		}
 
-		PaySystem\Logger::addDebugInfo(__CLASS__ . ': response data: ' . Main\Text\Encoding::convertEncoding($response, "UTF-8", LANG_CHARSET));
+		PaySystem\Logger::addDebugInfo(__CLASS__ . ': response data: ' . $response);
 
 		$httpStatus = $httpClient->getStatus();
 		if ($httpStatus === self::HTTP_CODE_OK)
@@ -594,7 +596,7 @@ class SkbHandler
 	 * @param Payment|null $payment
 	 * @return bool
 	 */
-	protected function isTestMode(Payment $payment = null): bool
+	protected function isTestMode(?Payment $payment = null): bool
 	{
 		return $this->getBusinessValue($payment, 'SKB_TEST_MODE') === 'Y';
 	}
@@ -685,6 +687,7 @@ class SkbHandler
 		return [
 			'Authorization' => 'Basic ' . $this->getBasicAuthString($payment),
 			'Content-Type' => 'application/json',
+			'User-Agent' => self::TAG_BITRIX_24,
 		];
 	}
 
@@ -721,11 +724,7 @@ class SkbHandler
 	 */
 	public static function getHandlerModeList(): array
 	{
-		return [
-			self::MODE_SKB => Loc::getMessage('SALE_HPS_SKB_MODE_SKB'),
-			self::MODE_DELOBANK => Loc::getMessage('SALE_HPS_SKB_MODE_DELOBANK'),
-			self::MODE_GAZENERGOBANK => Loc::getMessage('SALE_HPS_SKB_MODE_GAZENERGOBANK'),
-		];
+		return PaySystem\Manager::getHandlerDescription('Skb')['HANDLER_MODE_LIST'];
 	}
 
 	/**

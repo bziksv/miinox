@@ -1,4 +1,4 @@
-<?
+<?php
 define("STOP_STATISTICS", true);
 define("BX_SECURITY_SHOW_MESSAGE", true);
 
@@ -26,8 +26,6 @@ if(!Loader::includeModule('iblock'))
 	echo Loc::getMessage("BT_COMP_MLI_AJAX_ERR_MODULE_ABSENT");
 	die();
 }
-
-CUtil::JSPostUnescape();
 
 $iblockId = (isset($_REQUEST['IBLOCK_ID']) && is_string($_REQUEST['IBLOCK_ID']) ? (int)$_REQUEST['IBLOCK_ID'] : 0);
 $withoutIblock = (isset($_REQUEST['WITHOUT_IBLOCK']) && $_REQUEST['WITHOUT_IBLOCK'] == 'Y');

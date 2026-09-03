@@ -2,11 +2,9 @@
 
 namespace Bitrix\MessageService\Providers\Edna\WhatsApp;
 
-use Bitrix\Main\Application;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Text\Encoding;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\Json;
 use Bitrix\MessageService\DTO\Request;
@@ -64,7 +62,7 @@ class ExternalSender extends \Bitrix\MessageService\Providers\Edna\ExternalSende
 
 		if (isset($requestParams) && $queryMethod === HttpClient::HTTP_POST)
 		{
-			$requestParams = Json::encode($this->convertRequestParams($requestParams));
+			$requestParams = Json::encode($requestParams, JSON_UNESCAPED_UNICODE);
 		}
 
 		if (isset($requestParams) && $queryMethod === HttpClient::HTTP_GET)
@@ -102,6 +100,11 @@ class ExternalSender extends \Bitrix\MessageService\Providers\Edna\ExternalSende
 		if (!$this->checkResponse($response))
 		{
 			$errorMessage = '';
+
+			if (isset($response['title']))
+			{
+				$errorMessage = $response['title'];
+			}
 
 			if (isset($response['code']))
 			{
@@ -142,17 +145,12 @@ class ExternalSender extends \Bitrix\MessageService\Providers\Edna\ExternalSende
 			return (isset($response['code']) && $response['code'] === 'ok')	|| !isset($response['code']);
 		}
 
-		return (isset($response['status']) && (int)$response['status'] === 200) || !isset($response['status']);
-	}
-
-	protected function convertRequestParams(array $requestParams): array
-	{
-		if (!Application::isUtfMode())
+		if (isset($response['title']) && $response['title'] === 'system-error')
 		{
-			$requestParams = Encoding::convertEncoding($requestParams, SITE_CHARSET, 'UTF-8');
+			return false;
 		}
 
-		return $requestParams;
+		return (isset($response['status']) && (int)$response['status'] === 200) || !isset($response['status']);
 	}
 
 	/**

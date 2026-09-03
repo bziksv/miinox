@@ -1,8 +1,11 @@
 <?php
+
 namespace Bitrix\Iblock\Copy\Stepper;
 
-use Bitrix\Main\Application;
 use Bitrix\Main\Loader;
+use Bitrix\Main\Type\Dictionary;
+use Bitrix\Iblock\ElementTable;
+use Bitrix\Iblock\PropertyTable;
 
 class Iblock extends Entity
 {
@@ -34,27 +37,64 @@ class Iblock extends Entity
 			if (empty($queueOption))
 			{
 				$this->deleteQueueOption();
+
 				return !$this->isQueueEmpty();
 			}
+			$queueOption["errorOffset"] = (int)($queueOption["errorOffset"] ?? 0);
 
-			$iblockId = ($queueOption["iblockId"] ?: 0);
-			$copiedIblockId = ($queueOption["copiedIblockId"] ?: 0);
-			$errorOffset = ($queueOption["errorOffset"] ?: 0);
+			$iblockId = (int)($queueOption["iblockId"] ?? 0);
+			$copiedIblockId = (int)($queueOption["copiedIblockId"] ?? 0);
+			$errorOffset = $queueOption["errorOffset"];
+			$queueOption["errorOffset"] ??= 0;
 
 			$limit = 5;
 			$offset = $this->getOffset($copiedIblockId) + $errorOffset;
 
-			$enumRatio = ($queueOption["enumRatio"] ?: []);
-			$sectionsRatio = ($queueOption["sectionsRatio"] ?: []);
-			$mapIdsCopiedElements = ($queueOption["mapIdsCopiedElements"] ?: []);
+			$enumRatio = ($queueOption["enumRatio"] ?? []);
+			if (!is_array($enumRatio))
+			{
+				$enumRatio = [];
+			}
+			$sectionsRatio = ($queueOption["sectionsRatio"] ?? []);
+			if (!is_array($sectionsRatio))
+			{
+				$sectionsRatio = [];
+			}
+			$mapIdsCopiedElements = ($queueOption["mapIdsCopiedElements"] ?? []);
+			if (!is_array($mapIdsCopiedElements))
+			{
+				$mapIdsCopiedElements = [];
+			}
+			$fieldRatio = ($queueOption['fieldRatio'] ?? []);
+			if (!is_array($fieldRatio))
+			{
+				$fieldRatio = [];
+			}
 
 			if ($iblockId)
 			{
 				list($elementIds, $selectedRowsCount) = $this->getElementIds($iblockId, $limit, $offset);
 
 				$elementCopier = $this->getElementCopier();
-				$containerCollection = $this->getContainerCollection(
-					$elementIds, $sectionsRatio, $enumRatio, $copiedIblockId);
+
+				if (empty($fieldRatio))
+				{
+					$fieldRatio = $this->compileFieldRatio($iblockId, $copiedIblockId);
+					if (!empty($fieldRatio))
+					{
+						$queueOption['fieldRatio'] = $fieldRatio;
+					}
+				}
+
+				$dictionary = new Dictionary([
+					'targetIblockId' => $copiedIblockId,
+					'enumRatio' => $enumRatio,
+					'sectionsRatio' => $sectionsRatio,
+					'fieldRatio' => $fieldRatio,
+				]);
+
+				$containerCollection = $this->fillContainerCollection($elementIds, $dictionary);
+
 				$result = $elementCopier->copy($containerCollection);
 				if (!$result->isSuccess())
 				{
@@ -69,17 +109,20 @@ class Iblock extends Entity
 				{
 					$this->deleteQueueOption();
 					$this->onAfterCopy($queueOption);
+
 					return !$this->isQueueEmpty();
 				}
 				else
 				{
 					$option["steps"] = $offset;
+
 					return true;
 				}
 			}
 			else
 			{
 				$this->deleteQueueOption();
+
 				return !$this->isQueueEmpty();
 			}
 		}
@@ -87,6 +130,7 @@ class Iblock extends Entity
 		{
 			$this->writeToLog($exception);
 			$this->deleteQueueOption();
+
 			return false;
 		}
 	}
@@ -95,34 +139,88 @@ class Iblock extends Entity
 	{
 		$elementIds = [];
 
-		$connection = Application::getInstance()->getConnection();
-		$sqlHelper = $connection->getSqlHelper();
-
-		$queryObject = $connection->query("SELECT ID FROM `b_iblock_element` WHERE `IBLOCK_ID` = '".
-			$sqlHelper->forSql($iblockId)."' ORDER BY ID ASC LIMIT ".$limit." OFFSET ".$offset);
-		$selectedRowsCount = $queryObject->getSelectedRowsCount();
-		while ($element = $queryObject->fetch())
+		$iterator = ElementTable::getList([
+			'select' => [
+				'ID',
+			],
+			'filter' => [
+				'=IBLOCK_ID' => $iblockId,
+			],
+			'order' => [
+				'ID' => 'ASC',
+			],
+			'limit' => $limit,
+			'offset' => $offset,
+		]);
+		while ($row = $iterator->fetch())
 		{
-			$elementIds[] = $element["ID"];
+			$elementIds[] = $row['ID'];
 		}
+		unset($row, $iterator);
 
-		return [$elementIds, $selectedRowsCount];
+		return [$elementIds, count($elementIds)];
 	}
 
 	private function getOffset(int $copiedIblockId): int
 	{
-		$elementIds = [];
+		return ElementTable::getCount([
+			'=IBLOCK_ID' => $copiedIblockId,
+		]);
+	}
 
-		$connection = Application::getInstance()->getConnection();
-		$sqlHelper = $connection->getSqlHelper();
+	private function compileFieldRatio(int $iblockId, int $copiedIblockId): array
+	{
+		$result = [];
 
-		$queryObject = $connection->query("SELECT ID FROM `b_iblock_element` WHERE `IBLOCK_ID` = '".
-			$sqlHelper->forSql($copiedIblockId)."' ORDER BY ID");
-		while ($element = $queryObject->fetch())
+		$source = $this->getPropertyList($iblockId);
+		$destination = $this->getPropertyList($copiedIblockId);
+
+		foreach ($source as $hash => $sourceId)
 		{
-			$elementIds[] = $element["ID"];
+			if (isset($destination[$hash]))
+			{
+				$result[$sourceId] = $destination[$hash];
+			}
 		}
 
-		return count($elementIds);
+		return $result;
+	}
+
+	private function getPropertyHash(array $property): string
+	{
+		$property['USER_TYPE'] = (string)$property['USER_TYPE'];
+
+		return
+			$property['NAME'] . '|'
+			. $property['PROPERTY_TYPE'] . '|' . $property['USER_TYPE'] . '|'
+			. $property['MULTIPLE']
+		;
+	}
+
+	private function getPropertyList(int $iblockId): array
+	{
+		$result = [];
+		$iterator = PropertyTable::getList([
+			'select' => [
+				'ID',
+				'NAME',
+				'PROPERTY_TYPE',
+				'MULTIPLE',
+				'USER_TYPE',
+			],
+			'filter' => [
+				'=IBLOCK_ID' => $iblockId,
+			],
+			'order' => [
+				'ID' => 'ASC',
+			]
+		]);
+		while ($row = $iterator->fetch())
+		{
+			$result[$this->getPropertyHash($row)] = (int)$row['ID'];
+		}
+		unset($iterator);
+
+		return $result;
 	}
 }

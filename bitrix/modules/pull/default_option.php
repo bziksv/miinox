@@ -1,4 +1,15 @@
 <?php
+
+$region = \Bitrix\Main\Application::getInstance()->getLicense()->getRegion();
+if (in_array($region, ['ru', 'by', 'kz', 'uz']))
+{
+	$pushServiceUrl = 'https://cloud-messaging.bitrix24.tech/send/';
+}
+else
+{
+	$pushServiceUrl = 'https://cloud-messaging.bitrix24.com/send/';
+}
+
 $temporary = array(
 	'path_to_listener' => "http://#DOMAIN#/bitrix/sub/",
 	'path_to_listener_secure' => "https://#DOMAIN#/bitrix/sub/",
@@ -18,7 +29,7 @@ $temporary = array(
 	'nginx_headers' => 'Y',
 	'push' => 'N',
 	'push_message_per_hit' => 100,
-	'push_service_url' => "https://cloud-messaging.bitrix24.com/send/",
+	'push_service_url' => $pushServiceUrl,
 	'websocket' => 'Y',
 	'signature_key' => '',
 	'signature_algo' => 'sha1',
@@ -28,7 +39,8 @@ $temporary = array(
 	'limit_max_messages_per_request' => 100,
 	'limit_max_channels_per_request' => 100,
 	'config_timestamp' => 0,
-	'server_mode' => 'personal'
+	'server_mode' => 'personal',
+	'config_ttl' => 0, // in seconds
 );
 
 if (file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/php_interface/pull.php"))
@@ -41,4 +53,4 @@ if (file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/php_interface/pull.php"))
 }
 $pull_default_option = $temporary;
 unset($temporary);
-?>
+

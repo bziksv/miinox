@@ -4,11 +4,11 @@ namespace Bitrix\Location\Repository\Location\Strategy;
 
 use Bitrix\Location\Entity\Location;
 use Bitrix\Location\Entity\Generic\Collection;
-use Bitrix\Location\Entity\Location\Parents;
+use Bitrix\Location\Repository\Location\Capability\IFindByCoords;
+use Bitrix\Location\Repository\Location\Capability\IFindByCoordsList;
 use Bitrix\Location\Repository\Location\Capability\IFindByExternalId;
 use Bitrix\Location\Repository\Location\Capability\IFindById;
 use Bitrix\Location\Repository\Location\Capability\IFindByText;
-use Bitrix\Location\Repository\Location\Capability\IFindParents;
 use Bitrix\Location\Repository\Location\Capability\ISupportAutocomplete;
 use Bitrix\Location\Repository\Location\IScope;
 use Bitrix\Location\Repository\Location\IRepository;
@@ -19,34 +19,106 @@ use Bitrix\Location\Repository\Location\IDatabase;
  * Class DefaultStrategy
  * @package Bitrix\Location\FindStrategy
  */
-class Find	extends Base
+class Find extends Base
 {
-	/** @inheritDoc */
 	public function findById(int $id, string $languageId, int $searchScope)
 	{
 		return $this->find(IFindById::class, 'findById', [$id, $languageId], $searchScope);
 	}
 
-	/** @inheritDoc */
 	public function findByExternalId(string $externalId, string $sourceCode, string $languageId, int $searchScope)
 	{
-		return $this->find(IFindByExternalId::class, 'findByExternalId', [$externalId, $sourceCode, $languageId], $searchScope);
+		return $this->find(
+			IFindByExternalId::class,
+			'findByExternalId',
+			[
+				$externalId,
+				$sourceCode,
+				$languageId,
+			],
+			$searchScope
+		);
 	}
 
-	/** @inheritDoc */
+	public function findByCoords(
+		float $lat,
+		float $lng,
+		int $zoom,
+		string $languageId,
+		int $searchScope
+	)
+	{
+		return $this->find(
+			IFindByCoords::class,
+			'findByCoords',
+			[
+				$lat,
+				$lng,
+				$zoom,
+				$languageId,
+			],
+			$searchScope
+		);
+	}
+
+	public function findByCoordsList(
+		array $coordsList,
+		int $zoom,
+		string $languageId,
+		int $searchScope
+	): array
+	{
+		if (!$coordsList)
+		{
+			return [];
+		}
+
+		foreach ($this->locationRepositories as $repository)
+		{
+			if ($repository instanceof IScope)
+			{
+				if (!$repository->isScopeSatisfy($searchScope))
+				{
+					continue;
+				}
+			}
+
+			if ($repository instanceof IFindByCoordsList)
+			{
+				return $repository->findByCoordsList($coordsList, $zoom, $languageId);
+			}
+		}
+
+		return [];
+	}
+
 	public function findByText(string $text, string $languageId, int $searchScope)
 	{
-		return $this->find(IFindByText::class, 'findByText', [$text, $languageId], $searchScope) ?? new Location\Collection();
+		$result = $this->find(
+			IFindByText::class,
+			'findByText',
+			[
+				$text,
+				$languageId,
+			],
+			$searchScope
+		);
+
+		return $result ?? new Location\Collection();
 	}
 	
 	public function autocomplete(array $params, int $searchScope)
 	{
-		return $this->find(ISupportAutocomplete::class, 'autocomplete', [$params], $searchScope) ?? [];
-	}
+		$result = $this->find(
+			ISupportAutocomplete::class,
+			'autocomplete',
+			[
+				$params,
+			],
+			$searchScope
+		);
 
-	public function findParents(Location $location, string $languageId, int $searchScope)
-	{
-		return $this->find(IFindParents::class, 'findParents', [$location, $languageId], $searchScope) ?? new Parents();
+		return $result ?? [];
 	}
 
 	/** @inheritDoc */
@@ -54,12 +126,12 @@ class Find	extends Base
 	{
 		$idx = 0;
 
-		foreach($locationRepositories as $repository)
+		foreach ($locationRepositories as $repository)
 		{
-			if($repository instanceof IFindById
+			if (
+				$repository instanceof IFindById
 				|| $repository instanceof IFindByExternalId
 				|| $repository instanceof IFindByText
-				|| $repository instanceof IFindParents
 			)
 			{
 				$key = (string)$this->getRepoPriority($repository) . (string)($idx++);
@@ -68,6 +140,7 @@ class Find	extends Base
 		}
 
 		ksort($this->locationRepositories);
+
 		return $this;
 	}
 
@@ -80,25 +153,23 @@ class Find	extends Base
 	 */
 	protected function find(string $interface, string $method, array $params, int $searchScope)
 	{
-		$result = null;
-
-		foreach($this->locationRepositories as $repository)
+		foreach ($this->locationRepositories as $repository)
 		{
-			if($repository instanceof IScope)
+			if ($repository instanceof IScope)
 			{
-				if(!$repository->isScopeSatisfy($searchScope))
+				if (!$repository->isScopeSatisfy($searchScope))
 				{
 					continue;
 				}
 			}
 
-			if($repository instanceof $interface)
+			if ($repository instanceof $interface)
 			{
 				$result = call_user_func_array([$repository, $method], $params);
 
-				if($result)
+				if ($result)
 				{
-					if(!($result instanceof Location\Collection) || $result->count() > 0)
+					if (!($result instanceof Location\Collection) || $result->count() > 0)
 					{
 						return $result;
 					}
@@ -109,28 +180,17 @@ class Find	extends Base
 		return null;
 	}
 
-	/**
-	 * @param IRepository $repository
-	 * @return string
-	 */
-	protected function getRepoPriority(IRepository $repository)
+	protected function getRepoPriority(IRepository $repository): string
 	{
-		if($repository instanceof ICache)
+		if ($repository instanceof ICache)
 		{
-			$result = self::REPO_PRIORITY_A;
+			return self::REPO_PRIORITY_A;
 		}
-		elseif($repository instanceof IDatabase)
+		elseif ($repository instanceof IDatabase)
 		{
-			$result = self::REPO_PRIORITY_B;
-		}
-		else
-		{
-			$result = self::REPO_PRIORITY_C;
+			return self::REPO_PRIORITY_B;
 		}
 
-		return $result;
+		return self::REPO_PRIORITY_C;
 	}
-
-
-
 }

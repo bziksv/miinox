@@ -1,19 +1,11 @@
-<?php
-
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
-{
-	die();
-}
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
 
 use Bitrix\Forum;
 use Bitrix\Main;
 
-global $USER;
 global $APPLICATION;
-
 /**
  * @var ForumCommentsComponent $this
- * @var $USER CUser
  * @var $DB CDataBase
  * @var $arParams array
  * @var $arResult array
@@ -24,8 +16,9 @@ global $APPLICATION;
 				Input params
 ********************************************************************/
 /***************** BASE ********************************************/
-
-$arParams["FORUM_ID"] = intval($arParams["FORUM_ID"]);
+/** @var ?\CUser $user */
+$user = $arParams['USER'] ?? null;
+$arParams["FORUM_ID"] = (int)($arParams["FORUM_ID"]);
 $arParams["~URL_TEMPLATES_PROFILE_VIEW"] = str_replace(
 	["#USER_ID#", "#author_id#", "#AUTHOR_ID#", "#UID#", "#ID#"],
 	"#user_id#",
@@ -34,10 +27,10 @@ $arParams["URL_TEMPLATES_PROFILE_VIEW"] = htmlspecialcharsbx($arParams["~URL_TEM
 /***************** ADDITIONAL **************************************/
 $arParams["EDITOR_CODE_DEFAULT"] = ($arParams["EDITOR_CODE_DEFAULT"] ?? "N");
 $arParams["SHOW_MINIMIZED"] = ($arParams["SHOW_MINIMIZED"] ?? "N");
-$arParams["IMAGE_SIZE"] = (!empty($arParams["IMAGE_SIZE"]) ? (int) $arParams["IMAGE_SIZE"] : 600);
-$arParams["IMAGE_HTML_SIZE"] = !empty($arParams["IMAGE_HTML_SIZE"]) ? (int) $arParams["IMAGE_HTML_SIZE"] : 0;
+$arParams["IMAGE_SIZE"] = !empty($arParams["IMAGE_SIZE"]) ? (int)$arParams["IMAGE_SIZE"] : 600;
+$arParams["IMAGE_HTML_SIZE"] = !empty($arParams["IMAGE_HTML_SIZE"]) ? (int)$arParams["IMAGE_HTML_SIZE"] : 0;
 $arParams["IMAGE_HTML_SIZE"] = max($arParams["IMAGE_SIZE"], $arParams["IMAGE_HTML_SIZE"], 0);
-$arParams["MESSAGES_PER_PAGE"] = intval($arParams["MESSAGES_PER_PAGE"] ?? COption::GetOptionString("forum", "MESSAGES_PER_PAGE", "10"));
+$arParams["MESSAGES_PER_PAGE"] = (int)($arParams["MESSAGES_PER_PAGE"] ?? COption::GetOptionString("forum", "MESSAGES_PER_PAGE", "10"));
 $arParams["DATE_TIME_FORMAT"] = trim(empty($arParams["DATE_TIME_FORMAT"]) ? $DB->DateFormatToPHP(CSite::GetDateFormat("FULL")) : $arParams["DATE_TIME_FORMAT"]);
 $arParams["NAME_TEMPLATE"] = empty($arParams["NAME_TEMPLATE"]) ? "" : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $arParams["NAME_TEMPLATE"]);
 $arParams["PREORDER"] = $arParams["PREORDER"] ?? "N";
@@ -45,20 +38,20 @@ $arParams["SET_LAST_VISIT"] = $arParams["SET_LAST_VISIT"] ?? "N";
 $arParams["SHOW_RATING"] = $arParams["SHOW_RATING"] ?? "N";
 $arParams["PAGE_NAVIGATION_TEMPLATE"] = $arParams["PAGE_NAVIGATION_TEMPLATE"] ?? "modern";
 $arParams["ALLOW"] = [
-	"ALLOW_HTML" => 'Y',
-	"ALLOW_ANCHOR" => 'N',
-	"ALLOW_BIU" => "N",
-	"ALLOW_IMG" => "N",
-	"ALLOW_VIDEO" => "N",
-	"ALLOW_LIST" => "N",
-	"ALLOW_QUOTE" => "N",
-	"ALLOW_CODE" => "N",
-	"ALLOW_FONT" => "N",
-	"ALLOW_SMILES" => "N",
+	"ALLOW_HTML" => "N",
+	"ALLOW_ANCHOR" => "Y",
+	"ALLOW_BIU" => "Y",
+	"ALLOW_IMG" => "Y",
+	"ALLOW_VIDEO" => "Y",
+	"ALLOW_LIST" => "Y",
+	"ALLOW_QUOTE" => "Y",
+	"ALLOW_CODE" => "Y",
+	"ALLOW_FONT" => "Y",
+	"ALLOW_SMILES" => "Y",
 	"ALLOW_NL2BR" => "N",
-	"ALLOW_TABLE" => "N",
-	"ALLOW_MENTION" => "    N",
-	"ALLOW_ALIGN" => "N",
+	"ALLOW_TABLE" => "Y",
+	"ALLOW_MENTION" => "Y",
+	"ALLOW_ALIGN" => "Y",
 ];
 /***************** URL *********************************************/
 
@@ -67,10 +60,22 @@ foreach(["MINIMIZED_EXPAND_TEXT" => GetMessage("F_EXPAND_TEXT"),
 		"MESSAGE_TITLE" => GetMessage("F_MESSAGE_TEXT")] as $paramName => $paramValue)
 	$arParams[$paramName] = ($arParams[$paramName]) ?? $paramValue;
 /***************** STANDART ****************************************/
-if ($arParams["CACHE_TYPE"] == "Y" || ($arParams["CACHE_TYPE"] == "A" && COption::GetOptionString("main", "component_cache_on", "Y") == "Y"))
-	$arParams["CACHE_TIME"] = intval($arParams["CACHE_TIME"]);
-else
+if (!isset($arParams["CACHE_TIME"]))
+{
 	$arParams["CACHE_TIME"] = 0;
+}
+elseif (
+	$arParams["CACHE_TYPE"] === "Y"
+	|| ($arParams["CACHE_TYPE"] === "A" && COption::GetOptionString("main", "component_cache_on", "Y") === "Y")
+)
+{
+	$arParams["CACHE_TIME"] = intval($arParams["CACHE_TIME"]);
+}
+else
+{
+	$arParams["CACHE_TIME"] = 0;
+}
+
 /********************************************************************
 				/Input params
 ********************************************************************/
@@ -80,10 +85,10 @@ else
 $arResult["FORUM"] = $this->feed->getForum();
 foreach ($arParams["ALLOW"] as $sName => $default)
 {
-	$arParams["ALLOW"][$sName] = $arParams[$sName] ?? $arResult["FORUM"][$sName];
+	$arParams["ALLOW"][$sName] = $arParams[$sName] ?? $arResult["FORUM"][$sName] ?? $default;
 }
-$arParams["ALLOW"]["ALLOW_UPLOAD"] = $arResult["FORUM"]["ALLOW_UPLOAD"] ?? '';
-$arParams["ALLOW"]["ALLOW_UPLOAD_EXT"] = trim($arResult["FORUM"]["ALLOW_UPLOAD_EXT"]);
+$arParams["ALLOW"]["ALLOW_UPLOAD"] = isset($arResult["FORUM"]["ALLOW_UPLOAD"]) ? $arResult["FORUM"]["ALLOW_UPLOAD"] : '';
+$arParams["ALLOW"]["ALLOW_UPLOAD_EXT"] = isset($arResult["FORUM"]["ALLOW_UPLOAD_EXT"]) ? trim($arResult["FORUM"]["ALLOW_UPLOAD_EXT"]) : '';
 if (in_array($arParams["ALLOW_UPLOAD"], array("A", "Y", "F", "N", "I")))
 {
 	$arParams["ALLOW"]["ALLOW_UPLOAD"] = ($arParams["ALLOW_UPLOAD"] == "I" ? "Y" : $arParams["ALLOW_UPLOAD"]);
@@ -112,18 +117,18 @@ $arResult["USER"] = array(
 		"EDIT" => $this->feed->canEdit() ? "Y" : "N",
 		"ADD_MESSAGE" => ($this->feed->canAdd() ? "Y" : "N")
 ));
-if ($USER->IsAuthorized())
+if ($user?->IsAuthorized())
 {
-	$arResult["USER"]["ID"] = $USER->getID();
-	$tmpName = empty($arParams["NAME_TEMPLATE"]) ? $USER->getFormattedName(false) : CUser::FormatName($arParams["NAME_TEMPLATE"], array(
-		"NAME"			=>	$USER->GetFirstName(),
-		"LAST_NAME"		=>	$USER->GetLastName(),
-		"SECOND_NAME"	=>	$USER->GetSecondName(),
-		"LOGIN"			=>	$USER->GetLogin()
+	$arResult["USER"]["ID"] = $user?->getID();
+	$tmpName = empty($arParams["NAME_TEMPLATE"]) ? $user?->getFormattedName(false) : CUser::FormatName($arParams["NAME_TEMPLATE"], array(
+		"NAME"			=>	$user?->GetFirstName(),
+		"LAST_NAME"		=>	$user?->GetLastName(),
+		"SECOND_NAME"	=>	$user?->GetSecondName(),
+		"LOGIN"			=>	$user?->GetLogin()
 	));
 
-	$arResult["USER"]["SHOWED_NAME"] = trim($this->feed->getUser()->getParam("SHOW_NAME") == "Y" ? $tmpName : $USER->getLogin());
-	$arResult["USER"]["SHOWED_NAME"] = trim(!empty($arResult["USER"]["SHOWED_NAME"]) ? $arResult["USER"]["SHOWED_NAME"] : $USER->getLogin());
+	$arResult["USER"]["SHOWED_NAME"] = trim($this->feed->getUser()->getParam("SHOW_NAME") == "Y" ? $tmpName : $user?->getLogin());
+	$arResult["USER"]["SHOWED_NAME"] = trim(!empty($arResult["USER"]["SHOWED_NAME"]) ? $arResult["USER"]["SHOWED_NAME"] : $user?->getLogin());
 }
 
 $arResult["DO_NOT_CACHE"] = true;
@@ -162,6 +167,29 @@ $arResult["PANELS"] = array(
 	"EDIT" => $arResult["USER"]["RIGHTS"]["EDIT"],
 	"DELETE" => $arResult["USER"]["RIGHTS"]["EDIT"]
 );
+
+if (isset($arParams['PUBLIC_MODE']) && $arParams['PUBLIC_MODE'])
+{
+	$arResult['EDIT_RIGHT'] = 'N';
+}
+else
+{
+	if (isset($arResult['PANELS']['EDIT']) && $arResult['PANELS']['EDIT'] === 'N')
+	{
+		if ($arParams['ALLOW_EDIT_OWN_MESSAGE'] === 'ALL')
+		{
+			$arResult['EDIT_RIGHT'] = 'OWN';
+		}
+		else
+		{
+			$arResult['EDIT_RIGHT'] = $arParams['ALLOW_EDIT_OWN_MESSAGE'] === 'LAST' ? 'OWNLAST' : 'N';
+		}
+	}
+	else
+	{
+		$arResult['EDIT_RIGHT'] = 'Y';
+	}
+}
 
 /************** Show post form **********************************/
 $arResult["SHOW_POST_FORM"] = array_key_exists("SHOW_POST_FORM", $arParams) && $arParams["SHOW_POST_FORM"] === "N" ?
@@ -215,7 +243,7 @@ if ($arResult["SHOW_POST_FORM"] == "Y")
 	$arResult["CAPTCHA_CODE"] = "";
 	if (is_object($this->captcha))
 	{
-		$this->captcha->SetCodeCrypt(COption::GetOptionString("main", "captcha_password", ""));
+		$this->captcha->SetCodeCrypt();
 		$arResult["CAPTCHA_CODE"] = htmlspecialcharsbx($this->captcha->getCodeCrypt());
 	}
 }
@@ -224,7 +252,7 @@ if ($arResult["SHOW_POST_FORM"] == "Y")
 ********************************************************************/
 $firstMID = 0;
 $navParams = \CDBResult::GetNavParams($arParams["MESSAGES_PER_PAGE"]);
-$hideServiceComments = !($arParams["COMPONENT_AJAX"] == "Y" && $arResult["RESULT"] > 0)
+$hideServiceComments = !($arParams["COMPONENT_AJAX"] == "Y" && !empty($arResult["RESULT"]))
 	&& Main\Config\Option::get("forum", "LivefeedConvertServiceMessageStepper") !== "inProgress";
 
 if ($arResult["FORUM_TOPIC_ID"] > 0)
@@ -299,12 +327,12 @@ if ($arResult["DO_NOT_CACHE"] || $this->StartResultCache($arParams["CACHE_TIME"]
 		}
 		if ($arResult["USER"]["RIGHTS"]["MODERATE"] !== "Y")
 		{
-			if ($USER->GetId() > 0)
+			if ($user?->GetId() > 0)
 			{
 				$filter[] = [
 					"LOGIC" => "OR",
 					"=APPROVED" => "Y",
-					"AUTHOR_ID" => $USER->GetId()
+					"AUTHOR_ID" => $user?->GetId()
 				];
 			}
 			else
@@ -449,7 +477,7 @@ if ($arResult["DO_NOT_CACHE"] || $this->StartResultCache($arParams["CACHE_TIME"]
 		];
 		//endregion
 
-		$dbMessageIterator = new CDBResult(Forum\MessageTable::getList($getListParams)->fetchAll());
+		$dbMessageIterator = new _CMessageDBResult(Forum\MessageTable::getList($getListParams)->fetchAll());
 
 		$dbMessageIterator->NavRecordCount = $totalCount;
 		$dbMessageIterator->NavStart(
@@ -473,6 +501,7 @@ if ($arResult["DO_NOT_CACHE"] || $this->StartResultCache($arParams["CACHE_TIME"]
 		$url = (new Main\Web\Uri($arParams["URL"]))
 			->deleteParams(["MID", "ID", "sessid", "AJAX_POST", "ENTITY_XML_ID", "ENTITY_TYPE", "ENTITY_ID", "REVIEW_ACTION", "MODE", "FILTER", "result", "ACTION"]);
 		$messages = [];
+		$mobileProvider = new Forum\Provider\Mobile();
 		while ($res = $dbMessageIterator->GetNext())
 		{
 			/************** Message info ***************************************/
@@ -512,7 +541,7 @@ if ($arResult["DO_NOT_CACHE"] || $this->StartResultCache($arParams["CACHE_TIME"]
 				"~POST_MESSAGE" => $res["~POST_MESSAGE"],
 				"~POST_MESSAGE_TEXT" => (COption::GetOptionString("forum", "FILTER", "Y")=="Y" ? $res["~POST_MESSAGE_FILTER"] : $res["~POST_MESSAGE"]),
 				// links
-				"PANELS" => $arResult["PANELS"],
+				"PANELS" => $arResult["PANELS"] ?? null,
 				"URL" => [
 					"LINK" => $url->getPathQuery(),
 					"MODERATE" => $url->addParams(array("ACTION" => ($res["APPROVED"]=="Y" ? "HIDE" : "SHOW")))->getPathQuery(),
@@ -522,15 +551,26 @@ if ($arResult["DO_NOT_CACHE"] || $this->StartResultCache($arParams["CACHE_TIME"]
 				"~SERVICE_TYPE" => ($hideServiceComments ? $res["~SERVICE_TYPE"] : 0),
 				"SERVICE_TYPE" => $res["SERVICE_TYPE"],
 			];
+			// mobile hints
+			if (
+				isset($res['SOURCE_ID'])
+				&&
+				$res['SOURCE_ID'] === Forum\MessageTable::SOURCE_ID_MOBILE
+				&&
+				$mobileProvider->isMobileAppInstalled() === false
+			)
+			{
+				$message['SHOW_MOBILE_HINTS'] = 'Y';
+			}
 
 			if (!empty($res["PANELS"]["EDIT"]) && $res["PANELS"]["EDIT"] == "Y" || (
 					$arParams["ALLOW_EDIT_OWN_MESSAGE"] === "LAST" &&
 					$res["ID"] == $arResult["TOPIC"]["ABS_LAST_MESSAGE_ID"] &&
 					$res["AUTHOR_ID"] > 0 &&
-					$res["AUTHOR_ID"] == $USER->GetId()) ||
+					$res["AUTHOR_ID"] == $user?->getId()) ||
 				($arParams["ALLOW_EDIT_OWN_MESSAGE"] === "ALL" &&
 					$res["AUTHOR_ID"] > 0 &&
-					$res["AUTHOR_ID"] == $USER->GetId())
+					$res["AUTHOR_ID"] == $user?->getId())
 			)
 			{
 				$message["PANELS"]["EDIT"] = "Y";
@@ -598,7 +638,7 @@ if ($arResult["DO_NOT_CACHE"] || $this->StartResultCache($arParams["CACHE_TIME"]
 							]
 						);
 						$message["AUX"] = $serviceProvider->getType();
-						$message['AUX_LIVE_PARAMS'] = (is_array($arParams['~AUX_LIVE_PARAMS']) ? $arParams['~AUX_LIVE_PARAMS'] : []);
+						$message['AUX_LIVE_PARAMS'] = $message['AUX_LIVE_PARAMS'] ?? [];
 						$message["CAN_DELETE"] = ($serviceProvider->canDelete() ? "Y" : "N");
 					}
 				}

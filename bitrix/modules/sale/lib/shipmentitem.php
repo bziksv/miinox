@@ -28,7 +28,7 @@ class ShipmentItem
 	 */
 	public static function getAvailableFields()
 	{
-		return ["QUANTITY", "RESERVED_QUANTITY", "XML_ID"];
+		return ['QUANTITY', 'RESERVED_QUANTITY', 'XML_ID'];
 	}
 
 	/**
@@ -49,7 +49,7 @@ class ShipmentItem
 	 * @param BasketItem $basketItem
 	 * @return ShipmentItem
 	 */
-	public static function create(ShipmentItemCollection $collection, BasketItem $basketItem = null)
+	public static function create(ShipmentItemCollection $collection, ?BasketItem $basketItem = null)
 	{
 		$fields = [
 			'XML_ID' => static::generateXmlId(),
@@ -219,7 +219,10 @@ class ShipmentItem
 
 		$order = $shipment->getCollection()->getOrder();
 
-		if ($shipment->isShipped())
+		if (
+			$shipment->isShipped()
+			&& $name !== 'XML_ID'
+		)
 		{
 			return $result->addError(
 				new ResultError(

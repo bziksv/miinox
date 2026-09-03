@@ -8,6 +8,8 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
 /** @var array $arResult */
 /** @var \CMain $APPLICATION */
 
+use Bitrix\Landing\Integration\AiAssistant\Service\AiSiteChatAvailabilityService;
+use Bitrix\Landing\Metrika;
 use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
 
@@ -18,15 +20,45 @@ $request = $context->getRequest();
 // some pages we should open only in slider
 if ($request->get('IFRAME') !== 'Y' && $context->getServer()->getRequestMethod() === 'GET')
 {
-	if (!in_array($this->getPageName(), ['template', 'sites', 'site_show', 'landing_view', 'roles', 'role_edit', 'notes']))
+	$templatesShowedOnFullPage = [
+		'template',
+		'sites',
+		'site_show',
+		'landing_view',
+		'roles',
+		'role_edit',
+		'notes',
+		'ai',
+		'vibe_new',
+		'vibe_edit',
+	];
+	if (!in_array($this->getPageName(), $templatesShowedOnFullPage, true))
 	{
-		$session->set('LANDING_OPEN_SIDE_PANEL', Application::getInstance()->getContext()->getRequest()->getRequestUri());
-		//when opening link to create page in existing site
-		if ($arResult['VARS']['site_show'] > 0 && $arResult['VARS']['landing_edit'] === '0' && $this->getPageName() === 'landing_edit')
+		$session->set(
+			'LANDING_OPEN_SIDE_PANEL',
+			Application::getInstance()->getContext()->getRequest()->getRequestUri()
+		);
+
+		$url = $arParams['PAGE_URL_SITES'] ?? '/';
+		$sid = (int)($arResult['VARS']['site_show'] ?? 0);
+		$lid = (int)($arResult['VARS']['landing_edit'] ?? 0);
+		if ($sid > 0)
 		{
-			localRedirect('/sites/site/' . $arResult['VARS']['site_show'] . '/');
+			if (
+				$lid > 0
+				&& isset ($arParams['PAGE_URL_LANDING_VIEW'])
+			)
+			{
+				$url = $arParams['PAGE_URL_LANDING_VIEW'];
+			}
+			elseif (isset ($arParams['PAGE_URL_SITE_SHOW']))
+			{
+				$url = $arParams['PAGE_URL_SITE_SHOW'];
+			}
 		}
-		localRedirect($arParams['PAGE_URL_SITES']);
+
+		$redirect = str_replace(['#site_show#', '#landing_edit#'], [$sid, $lid], $url);
+		localRedirect($redirect);
 	}
 }
 if ($session->has('LANDING_OPEN_SIDE_PANEL'))
@@ -35,10 +67,14 @@ if ($session->has('LANDING_OPEN_SIDE_PANEL'))
 	<script>
 		BX.ready(function()
 		{
-			BX.SidePanel.Instance.open('<?= \CUtil::JSEscape($session['LANDING_OPEN_SIDE_PANEL'])?>', {allowChangeHistory: false});
+			<?php if (preg_match('/width=([\d]+)/', $session['LANDING_OPEN_SIDE_PANEL'], $matches)):?>
+				BX.SidePanel.Instance.open('<?= \CUtil::JSEscape($session['LANDING_OPEN_SIDE_PANEL'])?>', {allowChangeHistory: false, width: <?= $matches[0]?>});
+			<?php else:?>
+				BX.SidePanel.Instance.open('<?= \CUtil::JSEscape($session['LANDING_OPEN_SIDE_PANEL'])?>', {allowChangeHistory: false});
+			<?php endif?>
 		});
 	</script>
-	<?
+	<?php
 	$session->remove('LANDING_OPEN_SIDE_PANEL');
 }
 
@@ -52,17 +88,22 @@ if (in_array($this->getPageName(), ['site_domain', 'site_domain_switch', 'site_c
 Loc::loadMessages(__DIR__ . '/template.php');
 
 \Bitrix\Main\UI\Extension::load(['ajax', 'landing_master', 'bitrix24.phoneverify']);
-$disableFrame = $this->getPageName() == 'landing_view';
+
+$arResult['AI_SITE_CHAT_AVAILABLE'] = true;
+if ($arParams['TYPE'] === 'PAGE')
+{
+	$arResult['AI_SITE_CHAT_AVAILABLE'] = (new AiSiteChatAvailabilityService())->isSitesAiChatAvailable(1);
+}
 
 ob_start();
 ?>
-<script type="text/javascript">
+<script>
 	BX.message({
 		LANDING_TPL_JS_PAY_TARIFF_TITLE: '<?= \CUtil::jsEscape(Loc::getMessage('LANDING_TPL_JS_PAY_TARIFF_TITLE'));?>',
 		LANDING_TPL_JS_PAY_TARIFF: '<?= \CUtil::jsEscape(Loc::getMessage('LANDING_TPL_JS_PAY_TARIFF'));?>'
 	});
 </script>
-<?
+<?php
 \Bitrix\Main\Page\Asset::getInstance()->addString(ob_get_contents());
 ob_end_clean();
 
@@ -86,6 +127,10 @@ if ($arParams['SEF_MODE'] != 'Y')
 }
 
 // iframe header
+$disableFrame = in_array($this->getPageName(), [
+	'landing_view',
+	'vibe_edit',
+]);
 if ($request->get('IFRAME') == 'Y' && !$disableFrame)
 {
 	\Bitrix\Landing\Manager::getApplication()->restartBuffer();
@@ -99,10 +144,10 @@ elseif ($request->get('IFRAME') == 'N')
 		'IFRAME'
 	));
 	?>
-	<script type="text/javascript">
+	<script>
 		window.top.location.href = "<?= \CUtil::JSEscape($redirect->getUri());?>";
 	</script>
-	<?
+	<?php
 	include 'slider_footer.php';
 	\CMain::finalActions();
 	die();
@@ -134,17 +179,29 @@ elseif (in_array($this->getPageName(), ['template', 'site_show']))
 		return $component;
 	};
 
+	$metrika = new Metrika\Metrika(
+		Metrika\Categories::getBySiteType($arParams['TYPE']),
+		Metrika\Events::openMarket,
+		Metrika\Tools::getBySiteType($arParams['TYPE']),
+	);
 	if (
-		$this->getPageName() == 'site_show'
-		&& $arResult['ACCESS_PAGE_NEW'] == 'Y'
+		$this->getPageName() === 'site_show'
+		&& $arResult['ACCESS_PAGE_NEW'] === 'Y'
 	)
 	{
 		$link = $getComponent()->getUrlAdd(false);
+		$metrika
+			->setSection(Metrika\Sections::page)
+			->setSubSection('from_page_list')
+		;
+		$link = $metrika->parametrizeUri($link);
 		$title = Loc::getMessage('LANDING_TPL_ADD_PAGE');
 	}
-	else if ($arResult['ACCESS_SITE_NEW'] == 'Y')
+	else if ($arResult['ACCESS_SITE_NEW'] === 'Y')
 	{
 		$link = $getComponent()->getUrlAdd(true);
+		$metrika->setSection(Metrika\Sections::site);
+		$link = $metrika->parametrizeUri($link);
 		$title = Loc::getMessage('LANDING_TPL_ADD_SITE_2');
 	}
 
@@ -193,36 +250,12 @@ elseif (in_array($this->getPageName(), ['template', 'site_show']))
 		];
 	}
 
-	if (\Bitrix\Landing\Manager::isAdmin() && \Bitrix\Landing\Connector\Ai::isAnyAvailable())
-	{
-		$settingsLink[] = [
-			'TITLE' => Loc::getMessage('LANDING_TPL_MENU_AI'),
-			'LINK' => $arParams['PAGE_URL_AI_SETTINGS'],
-		];
-		?>
-		<script>
-			BX.ready(function()
-			{
-				if (typeof BX.SidePanel !== 'undefined')
-				{
-					BX.SidePanel.Instance.bindAnchors({
-						rules: [{
-							condition: ['<?= CUtil::jsEscape($arParams['PAGE_URL_AI_SETTINGS'])?>'],
-							options: { allowChangeHistory: false, width: 600, }
-						}]
-					});
-				}
-			});
-		</script>
-		<?php
-	}
-
 	if (
-		($arResult['VARS']['site_show'] ?? 0) <= 0 &&
-		(LANGUAGE_ID === 'ru' || LANGUAGE_ID === 'ua') &&
-		($arParams['TYPE'] == 'PAGE' || $arParams['TYPE'] == 'STORE') &&
-		!\Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24') &&
-		\Bitrix\Main\ModuleManager::isModuleInstalled('sale')
+		($arResult['VARS']['site_show'] ?? 0) <= 0
+		&& (LANGUAGE_ID === 'ru' || LANGUAGE_ID === 'ua')
+		&& ($arParams['TYPE'] === 'PAGE' || $arParams['TYPE'] === 'STORE')
+		&& !\Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24')
+		&& \Bitrix\Main\ModuleManager::isModuleInstalled('sale')
 	)
 	{
 		$settingsLink[] = [
@@ -255,6 +288,32 @@ elseif (in_array($this->getPageName(), ['template', 'site_show']))
 		];
 	}
 
+	$buttons = [];
+	if ($link && $title)
+	{
+		$button = [
+			'LINK' => $link,
+			'TITLE' => $title,
+		];
+		if (
+			$arParams['TYPE'] === 'STORE'
+			&& $arResult['ACCESS_SITE_NEW'] == 'Y'
+			&& \Bitrix\Main\Loader::includeModule('catalog')
+			&& \Bitrix\Catalog\Config\State::isExternalCatalog()
+		)
+		{
+			$button['DISABLED'] = true;
+		}
+		$buttons = [
+			$button
+		];
+	}
+	$sef = [];
+	foreach ($arParams['SEF_URL_TEMPLATES'] as $code => $url)
+	{
+		$sef[$code] = $arParams['SEF_FOLDER'] . $url;
+	}
+
 	$APPLICATION->IncludeComponent(
 		'bitrix:landing.filter',
 		'.default',
@@ -263,14 +322,9 @@ elseif (in_array($this->getPageName(), ['template', 'site_show']))
 							? 'LANDING'
 							: 'SITE',
 			'SETTING_LINK' => $settingsLink,
-			'BUTTONS' => ($link && $title)
-							? array(
-								array(
-									'LINK' => $link,
-									'TITLE' => $title
-								)
-							)
-							: array(),
+			'SEF' => $sef,
+			'BUTTONS' => $buttons,
+			'AI_SITE_CHAT_AVAILABLE' => $arResult['AI_SITE_CHAT_AVAILABLE'],
 			'TYPE' => $arParams['TYPE'],
 			'DRAFT_MODE' => $arParams['DRAFT_MODE'],
 			'FOLDER_ID' => $folderId,
@@ -291,7 +345,7 @@ if (
 )
 {
 	?>
-	<script type="text/javascript">
+	<script>
 		BX.ready(function()
 		{
 			if (typeof landingAgreementPopup !== 'undefined')
@@ -300,7 +354,7 @@ if (
 			}
 		});
 	</script>
-	<?
+	<?php
 }
 
 // backward compatibility

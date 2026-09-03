@@ -1,4 +1,4 @@
-<?
+<?php
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 {
 	die();
@@ -120,7 +120,7 @@ if (!function_exists('GetTreeRecursive'))
 						{
 							$FILE_ACCESS = (preg_match("'^(([A-Za-z]+://)|mailto:|javascript:)'i", $full_path)) ? "R" : $APPLICATION->GetFileAccessPermission($full_path);
 
-							if ($FILE_ACCESS!="D" && $aMenu[3]["SEPARATOR"]!="Y")
+							if ($FILE_ACCESS!="D" && (!isset($aMenu[3]["SEPARATOR"]) || $aMenu[3]["SEPARATOR"]!="Y"))
 							{
 								$is_dir = ($search_child && is_dir($_SERVER["DOCUMENT_ROOT"].$search_path)) ? "Y" : "N";
 								if ($is_dir=="Y")
@@ -141,7 +141,7 @@ if (!function_exists('GetTreeRecursive'))
 								if($ar["LEVEL"] > $max_depth)
 									continue;
 
-								$ar["ID"] = md5($full_path.$ar["COUNTER"]);
+								$ar["ID"] = md5($full_path);
 								$ar["IS_DIR"] = is_dir($_SERVER["DOCUMENT_ROOT"].$full_path) ? "Y" : "N";
 								$ar["NAME"] = $aMenu[0];
 								$ar["PATH"] = $PARENT_PATH;
@@ -155,8 +155,7 @@ if (!function_exists('GetTreeRecursive'))
 									{
 										$arDirProperties = array();
 										include($_SERVER["DOCUMENT_ROOT"].$full_path.".section.php");
-										if($arDirProperties["description"] <> '')
-											$ar["DESCRIPTION"] = $arDirProperties["description"];
+										$ar["DESCRIPTION"] = $arDirProperties["description"] ?? '';
 									}
 								}
 

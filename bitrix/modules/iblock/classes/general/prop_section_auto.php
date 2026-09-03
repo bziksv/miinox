@@ -1,33 +1,36 @@
-<?
-use Bitrix\Main\Localization\Loc,
-	Bitrix\Iblock;
+<?php
 
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Iblock;
+use Bitrix\Iblock\Integration\UI\EntitySelector\IblockPropertySectionProvider;
 
 class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoComplete
 {
-	const USER_TYPE = 'SectionAuto';
+	/** @deprecated */
+	public const USER_TYPE = Iblock\PropertyTable::USER_TYPE_SECTION_AUTOCOMPLETE;
 
 	public static function GetUserTypeDescription()
 	{
-		return array(
-			"PROPERTY_TYPE" => Iblock\PropertyTable::TYPE_SECTION,
-			"USER_TYPE" => self::USER_TYPE,
-			"DESCRIPTION" => Loc::getMessage('BT_UT_SAUTOCOMPLETE_DESCR'),
-			"GetPropertyFieldHtml" => array(__CLASS__, "GetPropertyFieldHtml"),
-			"GetPropertyFieldHtmlMulty" => array(__CLASS__,'GetPropertyFieldHtmlMulty'),
-			"GetAdminListViewHTML" => array(__CLASS__,"GetAdminListViewHTML"),
-			"GetPublicViewHTML" => array(__CLASS__, "GetPublicViewHTML"),
-			"GetPublicEditHTML" => array(__CLASS__, "GetPublicEditHTML"),
-			"GetAdminFilterHTML" => array(__CLASS__,'GetAdminFilterHTML'),
-			"GetSettingsHTML" => array(__CLASS__,'GetSettingsHTML'),
-			"PrepareSettings" => array(__CLASS__,'PrepareSettings'),
-			"AddFilterFields" => array(__CLASS__,'AddFilterFields'),
-			"GetPublicFilterHTML" => array(__CLASS__,'GetPublicFilterHTML'),
-			'GetUIEntityEditorProperty' => array(__CLASS__, 'GetUIEntityEditorProperty'),
-			'GetUIEntityEditorPropertyEditHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyEditHtml'),
-			'GetUIEntityEditorPropertyViewHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyViewHtml'),
-		);
+		return [
+			'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_SECTION,
+			'USER_TYPE' => Iblock\PropertyTable::USER_TYPE_SECTION_AUTOCOMPLETE,
+			'DESCRIPTION' => Loc::getMessage('BT_UT_SAUTOCOMPLETE_DESCR'),
+			'GetPropertyFieldHtml' => [__CLASS__, 'GetPropertyFieldHtml'],
+			'GetPropertyFieldHtmlMulty' => [__CLASS__,'GetPropertyFieldHtmlMulty'],
+			'GetAdminListViewHTML' => [__CLASS__,'GetAdminListViewHTML'],
+			'GetPublicViewHTML' => [__CLASS__, 'GetPublicViewHTML'],
+			'GetPublicEditHTML' => [__CLASS__, 'GetPublicEditHTML'],
+			'GetPublicEditHTMLMulty' => [__CLASS__, 'GetPublicEditHTML'],
+			'GetAdminFilterHTML' => [__CLASS__,'GetAdminFilterHTML'],
+			'GetSettingsHTML' => [__CLASS__,'GetSettingsHTML'],
+			'PrepareSettings' => [__CLASS__,'PrepareSettings'],
+			'AddFilterFields' => [__CLASS__,'AddFilterFields'],
+			'GetPublicFilterHTML' => [__CLASS__,'GetPublicFilterHTML'],
+			'GetUIFilterProperty' => [__CLASS__, 'GetUIFilterProperty'],
+			'GetUIEntityEditorProperty' => [__CLASS__, 'GetUIEntityEditorProperty'],
+			'GetUIEntityEditorPropertyEditHtml' => [__CLASS__, 'GetUIEntityEditorPropertyEditHtml'],
+			'GetUIEntityEditorPropertyViewHtml' => [__CLASS__, 'GetUIEntityEditorPropertyViewHtml'],
+		];
 	}
 
 	public static function GetValueForAutoComplete($arProperty,$arValue,$arBanSym="",$arRepSym="")
@@ -38,15 +41,27 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		{
 			$strResult = htmlspecialcharsbx(str_replace($arBanSym,$arRepSym,$mxResult['~NAME'])).' ['.$mxResult['ID'].']';
 		}
+
 		return $strResult;
 	}
 
 	public static function GetValueForAutoCompleteMulti($arProperty,$arValues,$arBanSym="",$arRepSym="")
 	{
-		$arResult = false;
+		$arResult = [];
 
 		if (is_array($arValues))
 		{
+			if (array_key_exists('VALUE', $arValues))
+			{
+				if (is_array($arValues['VALUE']))
+				{
+					$arValues = $arValues['VALUE'];
+				}
+				else
+				{
+					$arValues = [$arValues['VALUE']];
+				}
+			}
 			foreach ($arValues as $intPropertyValueID => $arOneValue)
 			{
 				if (!is_array($arOneValue))
@@ -63,7 +78,8 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 				}
 			}
 		}
-		return $arResult;
+
+		return !empty($arResult) ? $arResult : false;
 	}
 
 	public static function GetPublicFilterHTML($arProperty, $strHTMLControlName)
@@ -108,7 +124,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		else
 		{
 			ob_start();
-			?><?
+			?><input type="hidden" name="<?=$strHTMLControlName["VALUE"]?>" value="" /><?
 			$control_id = $APPLICATION->IncludeComponent(
 				"bitrix:main.lookup.input",
 				"iblockedit",
@@ -186,6 +202,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			$strResult = ob_get_contents();
 			ob_end_clean();
 		}
+
 		return $strResult;
 	}
 
@@ -246,7 +263,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			$strResultValue = (is_array($mxResultValue) ? htmlspecialcharsback(implode("\n",$mxResultValue)) : '');
 
 			ob_start();
-			?><?
+			?><input type="hidden" name="<?=$strHTMLControlName["VALUE"]?>" value="" /><?
 			$control_id = $APPLICATION->IncludeComponent(
 				"bitrix:main.lookup.input",
 				"iblockedit",
@@ -322,6 +339,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			$strResult = ob_get_contents();
 			ob_end_clean();
 		}
+
 		return $strResult;
 	}
 
@@ -340,6 +358,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 					)
 				).'" title="'.Loc::getMessage("BT_UT_SAUTOCOMPLETE_MESS_ELEMENT_EDIT").'">'.$mxResult['ID'].'</a>]';
 		}
+
 		return $strResult;
 	}
 
@@ -348,8 +367,8 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		static $cache = array();
 
 		$strResult = '';
-		$arValue['VALUE'] = intval($arValue['VALUE']);
-		if (0 < $arValue['VALUE'])
+		$arValue['VALUE'] = (int)($arValue['VALUE'] ?? 0);
+		if ($arValue['VALUE'] > 0)
 		{
 			if (!isset($cache[$arValue['VALUE']]))
 			{
@@ -388,6 +407,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 				}
 			}
 		}
+
 		return $strResult;
 	}
 
@@ -446,7 +466,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 				'FILTER' => 'Y',
 				'TYPE' => 'SECTION'
 			),
-			(isset($control['PARENT_COMPONENT']) ? $control['PARENT_COMPONENT'] : null),
+			($control['PARENT_COMPONENT'] ?? null),
 			array('HIDE_ICONS' => 'Y')
 		);
 
@@ -472,21 +492,21 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		$arViewsList = static::GetPropertyViewsList(false);
 		$strView = (isset($arFields['USER_TYPE_SETTINGS']['VIEW']) && in_array($arFields['USER_TYPE_SETTINGS']['VIEW'],$arViewsList) ? $arFields['USER_TYPE_SETTINGS']['VIEW'] : current($arViewsList));
 
-		$strShowAdd = (isset($arFields['USER_TYPE_SETTINGS']['SHOW_ADD']) ? $arFields['USER_TYPE_SETTINGS']['SHOW_ADD'] : '');
+		$strShowAdd = ($arFields['USER_TYPE_SETTINGS']['SHOW_ADD'] ?? '');
 		$strShowAdd = ('Y' == $strShowAdd ? 'Y' : 'N');
-		if ((int)$arFields['LINK_IBLOCK_ID'] <= 0)
+		if ((int)($arFields['LINK_IBLOCK_ID'] ?? 0) <= 0)
 			$strShowAdd = 'N';
 
-		$intMaxWidth = intval(isset($arFields['USER_TYPE_SETTINGS']['MAX_WIDTH']) ? $arFields['USER_TYPE_SETTINGS']['MAX_WIDTH'] : 0);
+		$intMaxWidth = intval($arFields['USER_TYPE_SETTINGS']['MAX_WIDTH'] ?? 0);
 		if (0 >= $intMaxWidth) $intMaxWidth = 0;
 
-		$intMinHeight = intval(isset($arFields['USER_TYPE_SETTINGS']['MIN_HEIGHT']) ? $arFields['USER_TYPE_SETTINGS']['MIN_HEIGHT'] : 0);
+		$intMinHeight = intval($arFields['USER_TYPE_SETTINGS']['MIN_HEIGHT'] ?? 0);
 		if (0 >= $intMinHeight) $intMinHeight = 24;
 
-		$intMaxHeight = intval(isset($arFields['USER_TYPE_SETTINGS']['MAX_HEIGHT']) ? $arFields['USER_TYPE_SETTINGS']['MAX_HEIGHT'] : 0);
+		$intMaxHeight = intval($arFields['USER_TYPE_SETTINGS']['MAX_HEIGHT'] ?? 0);
 		if (0 >= $intMaxHeight) $intMaxHeight = 1000;
 
-		$strBannedSymbols = trim(isset($arFields['USER_TYPE_SETTINGS']['BAN_SYM']) ? $arFields['USER_TYPE_SETTINGS']['BAN_SYM'] : ',;');
+		$strBannedSymbols = trim((string)($arFields['USER_TYPE_SETTINGS']['BAN_SYM'] ?? ',;'));
 		$strBannedSymbols = str_replace(' ','',$strBannedSymbols);
 		if (false === mb_strpos($strBannedSymbols, ','))
 			$strBannedSymbols .= ',';
@@ -494,7 +514,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			$strBannedSymbols .= ';';
 
 		$strOtherReplaceSymbol = '';
-		$strReplaceSymbol = (isset($arFields['USER_TYPE_SETTINGS']['REP_SYM']) ? $arFields['USER_TYPE_SETTINGS']['REP_SYM'] : ' ');
+		$strReplaceSymbol = ($arFields['USER_TYPE_SETTINGS']['REP_SYM'] ?? ' ');
 		if (BT_UT_AUTOCOMPLETE_REP_SYM_OTHER == $strReplaceSymbol)
 		{
 			$strOtherReplaceSymbol = (isset($arFields['USER_TYPE_SETTINGS']['OTHER_REP_SYM'])? mb_substr($arFields['USER_TYPE_SETTINGS']['OTHER_REP_SYM'], 0, 1) : '');
@@ -512,10 +532,10 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			$strOtherReplaceSymbol = '';
 		}
 
-		$strIBlockMess = (isset($arFields['USER_TYPE_SETTINGS']['IBLOCK_MESS']) ? $arFields['USER_TYPE_SETTINGS']['IBLOCK_MESS'] : '');
+		$strIBlockMess = ($arFields['USER_TYPE_SETTINGS']['IBLOCK_MESS'] ?? '');
 		if ('Y' != $strIBlockMess) $strIBlockMess = 'N';
 
-		return array(
+		return [
 			'VIEW' => $strView,
 			'SHOW_ADD' => $strShowAdd,
 			'MAX_WIDTH' => $intMaxWidth,
@@ -525,15 +545,15 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			'REP_SYM' => $strReplaceSymbol,
 			'OTHER_REP_SYM' => $strOtherReplaceSymbol,
 			'IBLOCK_MESS' => $strIBlockMess,
-		);
+		];
 	}
 
 	public static function GetSettingsHTML($arFields,$strHTMLControlName, &$arPropertyFields)
 	{
-		$arPropertyFields = array(
-			"HIDE" => array("ROW_COUNT", "COL_COUNT","MULTIPLE_CNT"),
+		$arPropertyFields = [
+			"HIDE" => ["ROW_COUNT", "COL_COUNT","MULTIPLE_CNT"],
 			'USER_TYPE_SETTINGS_TITLE' => Loc::getMessage('BT_UT_SAUTOCOMPLETE_SETTING_TITLE'),
-		);
+		];
 
 		$arSettings = static::PrepareSettings($arFields);
 
@@ -581,7 +601,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		$fixIBlock = $arProperty["LINK_IBLOCK_ID"] > 0;
 		$windowTableId = 'iblockprop-'.Iblock\PropertyTable::TYPE_SECTION.'-'.$arProperty['ID'].'-'.$arProperty['LINK_IBLOCK_ID'];
 
-		$isMainUiFilter = ($strHTMLControlName["FORM_NAME"] == "main-ui-filter");
+		$isMainUiFilter = ($strHTMLControlName["FORM_NAME"] ?? '') === 'main-ui-filter';
 		$inputName = $strHTMLControlName['VALUE'].'[]';
 		if ($isMainUiFilter)
 		{
@@ -633,7 +653,7 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 			title="<? echo Loc::getMessage('BT_UT_SAUTOCOMPLETE_MESS_SEARCH_ELEMENT_MULTI_DESCR'); ?>"
 			onclick="jsUtils.OpenWindow('/bitrix/admin/iblock_section_search.php?lang=<? echo LANGUAGE_ID; ?>&IBLOCK_ID=<? echo $arProperty["LINK_IBLOCK_ID"]; ?>&m=Y&n=&k=&lookup=<? echo 'jsMLI_'.$control_id; ?><?=($fixIBlock ? '&iblockfix=y' : '').'&tableId='.$windowTableId; ?>', 900, 700);"
 		>
-		<script type="text/javascript">
+		<script>
 			var arClearHiddenFields = arClearHiddenFields;
 			if (!!arClearHiddenFields)
 			{
@@ -692,48 +712,49 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		}
 	}
 
-	protected static function GetLinkElement($sectionID,$iblockID)
+	protected static function GetLinkElement($elementId, $iblockId)
 	{
-		static $cache = array();
+		static $cache = [];
 
-		$iblockID = intval($iblockID);
-		if (0 >= $iblockID)
-			$iblockID = 0;
-		$sectionID = intval($sectionID);
-		if (0 >= $sectionID)
+		$iblockId = (int)$iblockId;
+		if ($iblockId <= 0)
+			$iblockId = 0;
+		$elementId = (int)$elementId;
+		if ($elementId <= 0)
 			return false;
-		if (!isset($cache[$sectionID]))
+		if (!isset($cache[$elementId]))
 		{
-			$arFilter = array();
-			if (0 < $iblockID)
-				$arFilter['IBLOCK_ID'] = $iblockID;
-			$arFilter['ID'] = $sectionID;
-			$sectionRes = CIBlockSection::GetList(array(),$arFilter,false,array('IBLOCK_ID','ID','NAME'));
+			$arFilter = [];
+			if (0 < $iblockId)
+				$arFilter['IBLOCK_ID'] = $iblockId;
+			$arFilter['ID'] = $elementId;
+			$sectionRes = CIBlockSection::GetList([], $arFilter, false, ['IBLOCK_ID','ID','NAME']);
 			if ($section = $sectionRes->GetNext(true,true))
 			{
-				$result = array(
+				$result = [
 					'ID' => $section['ID'],
 					'NAME' => $section['NAME'],
 					'~NAME' => $section['~NAME'],
 					'IBLOCK_ID' => $section['IBLOCK_ID'],
-				);
-				$cache[$sectionID] = $result;
+				];
+				$cache[$elementId] = $result;
 			}
 			else
 			{
-				$cache[$sectionID] = false;
+				$cache[$elementId] = false;
 			}
 		}
-		return $cache[$sectionID];
+
+		return $cache[$elementId];
 	}
 
 	protected static function GetPropertyValue($arProperty,$arValue)
 	{
 		$mxResult = false;
 
-		if (0 < intval($arValue['VALUE']))
+		if ((int)($arValue['VALUE'] ?? 0) > 0)
 		{
-			$mxResult = static::GetLinkElement($arValue['VALUE'],$arProperty['LINK_IBLOCK_ID']);
+			$mxResult = static::GetLinkElement((int)$arValue['VALUE'], (int)$arProperty['LINK_IBLOCK_ID']);
 			if (is_array($mxResult))
 			{
 				$mxResult['PROPERTY_ID'] = $arProperty['ID'];
@@ -818,7 +839,96 @@ class CIBlockPropertySectionAutoComplete extends CIBlockPropertyElementAutoCompl
 		//TODO: need use \CAdminPage::getSelfFolderUrl, but in general it is impossible now
 		return (defined('SELF_FOLDER_URL') ? SELF_FOLDER_URL : '/bitrix/admin/').'iblock_section_search.php';
 	}
+
+	/**
+	 * @param array $property
+	 * @param array $strHTMLControlName
+	 * @param array &$fields
+	 * @return void
+	 */
+	public static function GetUIFilterProperty($property, $strHTMLControlName, &$fields)
+	{
+		unset($fields['value'], $fields['filterable']);
+		$fields['type'] = 'entity_selector';
+		$fields['params'] = [
+			'multiple' => 'Y',
+			'dialogOptions' => [
+				'entities' => [
+					[
+						'id' => IblockPropertySectionProvider::ENTITY_ID,
+						'dynamicLoad' => true,
+						'dynamicSearch' => true,
+						'options' => [
+							'iblockId' => (int)($property['LINK_IBLOCK_ID'] ?? 0),
+						],
+					],
+				],
+				'searchOptions' => [
+					'allowCreateItem' => false,
+				],
+			],
+		];
+	}
+
+	public static function GetUIEntityEditorPropertyEditHtml(array $params = []) : string
+	{
+		$property = [
+			'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_SECTION,
+			'USER_TYPE' => Iblock\PropertyTable::USER_TYPE_SECTION_AUTOCOMPLETE,
+			'LINK_IBLOCK_ID' => (int)($params['SETTINGS']['LINK_IBLOCK_ID'] ?? 0),
+			'MULTIPLE' => ($params['SETTINGS']['MULTIPLE'] ?? 'N') === 'Y' ? 'Y' : 'N',
+		];
+
+		$config = [
+			'FIELD_NAME' => $params['FIELD_NAME'],
+			'CHANGE_EVENTS' => [
+				'onChangeIblockElement',
+			],
+			'ENTITY_ID' => 'iblock-property-section',
+		];
+
+		return Iblock\UI\Input\Section::renderSelector(
+			$property,
+			$params['VALUE'] ?? null,
+			$config
+		);
+	}
+
+	public static function GetUIEntityEditorPropertyViewHtml(array $params = []): string
+	{
+		$result = '';
+
+		if (empty($params['VALUE']))
+		{
+			return '';
+		}
+
+		if (!is_array($params['VALUE']))
+		{
+			$params['VALUE'] = [$params['VALUE']];
+		}
+
+		$filter = [
+			'CHECK_PERMISSIONS' => 'Y',
+			'MIN_PERMISSION' => 'R',
+			'ID' => $params['VALUE'],
+		];
+		$elementsResult = CIBlockSection::GetList(
+			[],
+			$filter,
+			false,
+			['ID', 'IBLOCK_ID', 'NAME']
+		);
+
+		while ($element = $elementsResult->Fetch())
+		{
+			$result .= htmlspecialcharsbx($element['NAME']) . '<br>';
+		}
+		unset($elementsResult);
+
+		return $result;
+	}
 }
 
 /** @deprecated */
-define ('BT_UT_SECTION_AUTOCOMPLETE_CODE', CIBlockPropertySectionAutoComplete::USER_TYPE);
+const BT_UT_SECTION_AUTOCOMPLETE_CODE = Iblock\PropertyTable::USER_TYPE_SECTION_AUTOCOMPLETE;

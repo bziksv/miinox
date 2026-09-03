@@ -4,7 +4,6 @@ namespace Bitrix\Sender\Posting;
 
 use Bitrix\Main\DB\Result;
 use Bitrix\Main\Entity;
-use Bitrix\Main\Text\Encoding;
 use Bitrix\Sender\Connector;
 use Bitrix\Sender\Connector\IncrementallyConnector;
 use Bitrix\Sender\Entity\Segment;
@@ -17,6 +16,7 @@ use Bitrix\Sender\Internals\Model\GroupStateTable;
 use Bitrix\Sender\Internals\Model\GroupThreadTable;
 use Bitrix\Sender\Internals\Model\LetterSegmentTable;
 use Bitrix\Sender\Internals\Model\LetterTable;
+use Bitrix\Sender\Internals\SqlBatch;
 use Bitrix\Sender\Recipient\Type;
 use Bitrix\Sender\Runtime\SegmentDataBuilderJob;
 use Bitrix\Sender\SegmentDataTable;
@@ -38,6 +38,8 @@ class SegmentDataBuilder
 	 * @var string
 	 */
 	private $filterId;
+
+	private ?int $groupStateId;
 
 	private $endpoint;
 
@@ -63,11 +65,45 @@ class SegmentDataBuilder
 	 * @param string $filterId
 	 * @param array $endpoint
 	 */
-	public function __construct(int $groupId, string $filterId, array $endpoint = [])
+	public function __construct(
+		int $groupId,
+		string $filterId,
+		array $endpoint = [],
+		?int $groupStateId = null
+	)
 	{
 		$this->groupId = $groupId;
 		$this->filterId = $filterId;
 		$this->endpoint = $endpoint;
+		$this->groupStateId = $groupStateId;
+	}
+
+	private static function checkBlockers()
+	{
+		$query = "
+SELECT b.ID, b.GROUP_ID
+FROM b_sender_group_state b
+INNER JOIN (
+    SELECT GROUP_ID, FILTER_ID
+    FROM b_sender_group_state
+    GROUP BY GROUP_ID, FILTER_ID
+    HAVING COUNT(*) > 1
+) d ON b.GROUP_ID = d.GROUP_ID AND b.FILTER_ID = d.FILTER_ID;
+";
+
+		$dbResult = \Bitrix\Main\Application::getConnection()->query($query);
+		$groups = [];
+		while ($row = $dbResult->fetch()) {
+			$groupId = $row['GROUP_ID'];
+			if (in_array($groupId, $groups))
+			{
+				continue;
+			}
+			$id = $row['ID'];
+			GroupStateTable::delete($id);
+			$groups[] = $groupId;
+			Runtime\SegmentDataClearJob::addEventAgent($groupId);
+		}
 	}
 
 	/**
@@ -80,15 +116,19 @@ class SegmentDataBuilder
 	{
 		$groupState = GroupStateTable::getList(
 			[
-				'filter' => [
-					'=FILTER_ID' => $this->filterId,
-					'=GROUP_ID'  => $this->groupId,
-				]
+				'filter' => $this->groupStateId
+					? [
+						'=ID' => $this->groupStateId
+					]
+					: [
+						'=FILTER_ID' => $this->filterId,
+						'=GROUP_ID'  => $this->groupId,
+					]
 			]
 		)->fetch();
 
 
-		return $groupState ? $groupState : $this->createGroupState();
+		return $groupState ?: $this->createGroupState();
 	}
 	/**
 	 * @return array|bool|false
@@ -133,7 +173,7 @@ class SegmentDataBuilder
 		$dataToSet = [
 			'FILTER_ID' => $this->filterId,
 			'GROUP_ID' => $this->groupId,
-			'ENDPOINT' => json_encode(Encoding::convertEncoding($this->endpoint, SITE_CHARSET, 'utf-8')),
+			'ENDPOINT' => json_encode($this->endpoint),
 			'OFFSET' => 0,
 			'STATE' => GroupStateTable::STATES['CREATED'],
 			'NEW_CREATED' => true,
@@ -282,19 +322,28 @@ class SegmentDataBuilder
 					'WAITING_RECIPIENT' => 'N'
 				]);
 
+				$notifyTitleCallback = fn (?string $languageId = null) => Loc::getMessage(
+					'SENDER_SEGMENT_BUILDER_GROUP_PREPARED_TITLE',
+					language: $languageId,
+				);
+
+				$notifyMessageCallback = fn (?string $languageId = null) => Loc::getMessage(
+					'SENDER_SEGMENT_BUILDER_GROUP_PREPARED',
+					[
+						"#SEGMENT_ID#" => $groupId,
+						"#SEGMENT_NAME#" => htmlspecialcharsbx($group['NAME']),
+					],
+					$languageId,
+				);
+
 				$messageFields = [
 					"NOTIFY_TYPE" => IM_NOTIFY_SYSTEM,
 					"NOTIFY_MODULE" => "sender",
 					"NOTIFY_EVENT" => "group_prepared",
 					"TO_USER_ID" => $mailing['USER_ID'],
 					"NOTIFY_TAG" => "SENDER|GROUP_PREPARED|" . $groupId . "|" . $mailing['USER_ID'],
-					"NOTIFY_MESSAGE" => Loc::getMessage(
-						"SENDER_SEGMENT_BUILDER_GROUP_PREPARED",
-						[
-							"#SEGMENT_ID#" => $groupId,
-							"#SEGMENT_NAME#" => htmlspecialcharsbx($group['NAME'])
-						]
-					)
+					"NOTIFY_TITLE" => $notifyTitleCallback,
+					"NOTIFY_MESSAGE" => $notifyMessageCallback,
 				];
 
 				\CIMNotify::Add($messageFields);
@@ -358,7 +407,7 @@ class SegmentDataBuilder
 			];
 
 			GroupStateTable::deleteList($filter);
-			SegmentDataTable::deleteList($filter);
+			Runtime\SegmentDataClearJob::addEventAgent($groupId);
 		}
 	}
 
@@ -449,9 +498,14 @@ class SegmentDataBuilder
 			return true;
 		}
 
+		if ($this->isBuildingCompleted())
+		{
+			return true;
+		}
+
 		$connector = Connector\Manager::getConnector($this->endpoint);
 		$connector->setDataTypeId(null);
-
+		$connector->setCheckAccessRights(false);
 		$connector->setFieldValues($this->endpoint['FIELDS']);
 
 		$lastId = $connector->getEntityLimitInfo()['lastId'];
@@ -770,7 +824,8 @@ class SegmentDataBuilder
 		$segmentBuilder = new SegmentDataBuilder(
 			(int)$groupState['GROUP_ID'],
 			$groupState['FILTER_ID'],
-			json_decode($groupState['ENDPOINT'], true)
+			json_decode($groupState['ENDPOINT'], true),
+			$groupState['ID']
 		);
 
 		if (!$segmentBuilder->buildData($perPage))
@@ -859,6 +914,7 @@ class SegmentDataBuilder
 			$this->filterId = $endpoint['FILTER_ID'] ?? 'sender_crm_client_--filter--crmclient--';
 			if ($connector instanceof Contact)
 			{
+				$connector->setCheckAccessRights(false);
 				$connector->setFieldValues($endpoint['FIELDS']);
 			}
 			$counters[] = self::CONNECTOR_ENTITY[$connector->getCode()] ?
@@ -1029,6 +1085,7 @@ class SegmentDataBuilder
 
 	public static function checkNotCompleted(): string
 	{
+		self::checkBlockers();
 		$groupStateList = GroupStateTable::getList([
 			'select' => [
 				'GROUP_ID',
@@ -1169,17 +1226,19 @@ class SegmentDataBuilder
 		}
 
 		GroupCounterTable::deleteByGroupId($this->groupId);
+		$insertRows = [];
 		foreach ($rowsDataCounter as $groupId => $dataCounter)
 		{
 			foreach ($dataCounter as $typeId => $count)
 			{
-				GroupCounterTable::add(array(
+				$insertRows[] = [
 					'GROUP_ID' => $groupId,
 					'TYPE_ID' => $typeId,
 					'CNT' => $count,
-				));
+				];
 			}
 		}
+		SqlBatch::insert(GroupCounterTable::getTableName(), $insertRows);
 		Locker::unlock(self::SEGMENT_LOCK_KEY, $this->groupId);
 
 		$groupState = $this->getCurrentGroupState();

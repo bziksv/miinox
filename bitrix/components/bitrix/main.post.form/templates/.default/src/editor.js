@@ -1,4 +1,4 @@
-import {Type, Dom, Runtime} from 'main.core';
+import {Type, Dom, Runtime, Loc} from 'main.core';
 import {EventEmitter, BaseEvent} from 'main.core.events';
 import getKnownParser from './parsers/index';
 import {bindAutoSave, bindHTML, bindToolbar,
@@ -247,89 +247,61 @@ export default class Editor
 			EventEmitter.emit(this.getEventObject(), 'OnVideoHasCaught', new BaseEvent({data: file}));
 		});
 		// DnD
-		(() => {
-			const placeHolder = BX('micro' + (this.name||this.id));
-			let active = false;
-			let timeoutId = 0;
-			const activate = (e: MouseEvent) => {
-				e.preventDefault();
-				e.stopPropagation();
-				if (timeoutId > 0)
-				{
-					clearTimeout(timeoutId);
-					timeoutId = 0;
-				}
-				if (active === true)
-				{
-					return;
-				}
-				let isFileTransfer = (e && e['dataTransfer']
-					&& e['dataTransfer']['types']
-					&& e['dataTransfer']['types'].indexOf('Files') >= 0
-				);
-				if (isFileTransfer)
-				{
-					active = true;
-					this.getContainer().classList.add('feed-add-post-dnd-over');
-					if (placeHolder)
-					{
-						placeHolder.classList.add('feed-add-post-micro-dnd-ready');
-					}
-				}
-				return true;
-			};
-			const disActivate = (e) => {
-				e.preventDefault();
-				e.stopPropagation();
 
-				if (timeoutId > 0)
-				{
-					clearTimeout(timeoutId);
-				}
-
-				timeoutId = setTimeout(() => {
-					active = false;
-					this.getContainer().classList.remove('feed-add-post-dnd-over');
-					if (placeHolder)
-					{
-						placeHolder.classList.remove('feed-add-post-micro-dnd-ready');
-					}
-				}, 100);
-				return false;
-			};
-			const catchFiles = (e) => {
-				disActivate(e);
-				if (e
-					&& e['dataTransfer']
-					&& e['dataTransfer']['types']
-					&& e['dataTransfer']['types'].indexOf('Files') >= 0
-					&& e['dataTransfer']['files']
-					&& e['dataTransfer']['files'].length > 0
-				)
-				{
-					EventEmitter.emit(this.getEventObject(), 'OnShowLHE', new BaseEvent({compatData: ['justShow', {onShowControllers: 'show'}]}));
-					EventEmitter.emit(this.getEventObject(), 'onFilesHaveCaught', new BaseEvent({data: e['dataTransfer']['files']}));
-				}
-				return false;
-			};
-
-			this.getContainer().addEventListener('dragover', activate);
-			this.getContainer().addEventListener('dragenter', activate);
-			this.getContainer().addEventListener('dragleave', disActivate);
-			this.getContainer().addEventListener('dragexit', disActivate);
-			this.getContainer().addEventListener('drop', catchFiles);
-			this.getContainer().setAttribute('dropzone', 'copy f:*\/*');
-			if (!document.body.hasAttribute('dropzone'))
-			{
-				document.body.setAttribute('dropzone', 'copy f:*/*');
-				document.body.addEventListener('dragover', function(e){
+		if (this.editorParams.isDnDEnabled)
+		{
+			(() => {
+				const placeHolder = BX('micro' + (this.name||this.id));
+				let active = false;
+				let timeoutId = 0;
+				const activate = (e: MouseEvent) => {
 					e.preventDefault();
 					e.stopPropagation();
+					if (timeoutId > 0)
+					{
+						clearTimeout(timeoutId);
+						timeoutId = 0;
+					}
+					if (active === true)
+					{
+						return;
+					}
+					let isFileTransfer = (e && e['dataTransfer']
+						&& e['dataTransfer']['types']
+						&& e['dataTransfer']['types'].indexOf('Files') >= 0
+					);
+					if (isFileTransfer)
+					{
+						active = true;
+						this.getContainer().classList.add('feed-add-post-dnd-over');
+						if (placeHolder)
+						{
+							placeHolder.classList.add('feed-add-post-micro-dnd-ready');
+						}
+					}
 					return true;
-				});
-				document.body.addEventListener('drop', function(e) {
+				};
+				const disActivate = (e) => {
 					e.preventDefault();
 					e.stopPropagation();
+
+					if (timeoutId > 0)
+					{
+						clearTimeout(timeoutId);
+					}
+
+					timeoutId = setTimeout(() => {
+						active = false;
+						this.getContainer().classList.remove('feed-add-post-dnd-over');
+						if (placeHolder)
+						{
+							placeHolder.classList.remove('feed-add-post-micro-dnd-ready');
+						}
+					}, 100);
+					return false;
+				};
+				const catchFiles = (e) => {
+					disActivate(e);
 					if (e
 						&& e['dataTransfer']
 						&& e['dataTransfer']['types']
@@ -338,38 +310,72 @@ export default class Editor
 						&& e['dataTransfer']['files'].length > 0
 					)
 					{
-						let lhe;
-						let iteratorBuffer;
-						const iterator = this.constructor.#shownForms.keys();
-						while (
-							(iteratorBuffer = iterator.next())
-							&& iteratorBuffer.done !== true
-							&& iteratorBuffer.value
-						)
-						{
-							lhe = iteratorBuffer.value;
-						}
-						if (lhe)
-						{
-							EventEmitter.emit(lhe.getEventObject(), 'OnShowLHE', new BaseEvent({compatData: ['justShow', {onShowControllers: 'show'}]}));
-							EventEmitter.emit(lhe.getEventObject(), 'onFilesHaveCaught', new BaseEvent({data: e['dataTransfer']['files']}));
-						}
+						EventEmitter.emit(this.getEventObject(), 'OnShowLHE', new BaseEvent({compatData: ['justShow', {onShowControllers: 'show'}]}));
+						EventEmitter.emit(this.getEventObject(), 'onFilesHaveCaught', new BaseEvent({data: e['dataTransfer']['files']}));
+						EventEmitter.emit(this.getEventObject(), 'onFilesHaveDropped', { event: e });
 					}
 					return false;
-				}.bind(this));
-			}
-			if (placeHolder)
-			{
-				placeHolder.addEventListener('dragenter', (e) => {
-					activate(e);
-					EventEmitter.emit(this.getEventObject(), 'OnShowLHE', new BaseEvent({compatData: ['justShow', {onShowControllers: 'show'}]}));
-				});
-			}
+				};
 
-			EventEmitter.subscribe(this.getEditor(), 'OnIframeDrop', ({data: [e]}) => catchFiles(e));
-			EventEmitter.subscribe(this.getEditor(), 'OnIframeDragOver', ({data: [e]}) => activate(e));
-			EventEmitter.subscribe(this.getEditor(), 'OnIframeDragLeave', ({data: [e]}) => disActivate(e));
-		})();
+				this.getContainer().addEventListener('dragover', activate);
+				this.getContainer().addEventListener('dragenter', activate);
+				this.getContainer().addEventListener('dragleave', disActivate);
+				this.getContainer().addEventListener('dragexit', disActivate);
+				this.getContainer().addEventListener('drop', catchFiles);
+				this.getContainer().setAttribute('dropzone', 'copy f:*\/*');
+				if (!document.body.hasAttribute('dropzone'))
+				{
+					document.body.setAttribute('dropzone', 'copy f:*/*');
+					document.body.addEventListener('dragover', function(e){
+						e.preventDefault();
+						e.stopPropagation();
+						return true;
+					});
+					document.body.addEventListener('drop', function(e) {
+						e.preventDefault();
+						e.stopPropagation();
+						if (e
+							&& e['dataTransfer']
+							&& e['dataTransfer']['types']
+							&& e['dataTransfer']['types'].indexOf('Files') >= 0
+							&& e['dataTransfer']['files']
+							&& e['dataTransfer']['files'].length > 0
+						)
+						{
+							let lhe;
+							let iteratorBuffer;
+							const iterator = this.constructor.#shownForms.keys();
+							while (
+								(iteratorBuffer = iterator.next())
+								&& iteratorBuffer.done !== true
+								&& iteratorBuffer.value
+								)
+							{
+								lhe = iteratorBuffer.value;
+							}
+							if (lhe)
+							{
+								EventEmitter.emit(lhe.getEventObject(), 'OnShowLHE', new BaseEvent({compatData: ['justShow', {onShowControllers: 'show'}]}));
+								EventEmitter.emit(lhe.getEventObject(), 'onFilesHaveCaught', new BaseEvent({ data: e['dataTransfer']['files']}));
+								EventEmitter.emit(lhe.getEventObject(), 'onFilesHaveDropped', { event: e });
+							}
+						}
+						return false;
+					}.bind(this));
+				}
+				if (placeHolder)
+				{
+					placeHolder.addEventListener('dragenter', (e) => {
+						activate(e);
+						EventEmitter.emit(this.getEventObject(), 'OnShowLHE', new BaseEvent({compatData: ['justShow', {onShowControllers: 'show'}]}));
+					});
+				}
+
+				EventEmitter.subscribe(this.getEditor(), 'OnIframeDrop', ({data: [e]}) => catchFiles(e));
+				EventEmitter.subscribe(this.getEditor(), 'OnIframeDragOver', ({data: [e]}) => activate(e));
+				EventEmitter.subscribe(this.getEditor(), 'OnIframeDragLeave', ({data: [e]}) => disActivate(e));
+			})();
+		}
 		//endregion
 
 		EventEmitter.subscribe(htmlEditor, 'OnInsertContent', ({data: [text, html]}) => {
@@ -485,10 +491,14 @@ export default class Editor
 			if (!this['addParserAfterDebounced'])
 			{
 				this.addParserAfterDebounced = Runtime.debounce(() => {
-					this.getEditor().SetContent(
-						this.getEditor().GetContent().replace(/&#91;/ig, "[").replace(/&#93;/ig, "]"),
-						true
-					);
+					const content = this.getEditor().GetContent();
+					if (/&#9[13];/gi.test(content))
+					{
+						this.getEditor().SetContent(
+							content.replace(/&#91;/ig, "[").replace(/&#93;/ig, "]"),
+							true,
+						);
+					}
 				}, 100);
 			}
 			this.addParserAfterDebounced();
@@ -501,7 +511,8 @@ export default class Editor
 			const editorMode = this.getEditor().GetViewMode();
 			if (editorMode === 'wysiwyg')
 			{
-				this.getEditor().InsertHtml(html||text );
+				const range = this.getEditor().selection.GetRange();
+				this.getEditor().InsertHtml(html || text, range);
 				setTimeout(this.getEditor().AutoResizeSceleton.bind(this.getEditor()), 500);
 				setTimeout(this.getEditor().AutoResizeSceleton.bind(this.getEditor()), 1000);
 			}
@@ -540,18 +551,18 @@ export default class Editor
 			})
 		}
 
-		EventEmitter.emit(this.getEventObject(), 'onShowControllers', showControllers);
-		EventEmitter.emit(this.getEventObject(),  'onReinitializeBefore', [text, data]);
+		EventEmitter.emitAsync(this.getEventObject(), 'onReinitializeBeforeAsync', [text, data]).then(() => {
+			EventEmitter.emit(this.getEventObject(), 'onShowControllers', showControllers);
+			EventEmitter.emit(this.getEventObject(),  'onReinitializeBefore', [text, data]);
+			this.getEditor().CheckAndReInit(Type.isString(text) ? text : '');
+			BX.onCustomEvent(this.getEditor(), 'onReinitialize', [this, text, data]);
 
-		this.getEditor().CheckAndReInit(Type.isString(text) ? text : '');
-
-		BX.onCustomEvent(this.getEditor(), 'onReinitialize', [this, text, data]);
-
-		if (this.editorParams['height'])
-		{
-			this.oEditor.SetConfigHeight(this.editorParams['height']);
-			this.oEditor.ResizeSceleton();
-		}
+			if (this.editorParams['height'])
+			{
+				this.oEditor.SetConfigHeight(this.editorParams['height']);
+				this.oEditor.ResizeSceleton();
+			}
+		});
 	}
 
 	OnShowLHE({data, compatData})
@@ -746,6 +757,26 @@ export default class Editor
 	controllerInit(status)
 	{
 		EventEmitter.emit(this.getEventObject(), 'onShowControllers', status === 'hide' ? 'hide' : 'show');
+	}
+
+	showCopilot(): void
+	{
+		this.getEditor().SetView('wysiwyg');
+		this.getEditor().ShowCopilotAtTheBottom();
+	}
+
+	isTextCopilotEnabledBySettings()
+	{
+		const isEnabled = this.getEditor().config.isCopilotTextEnabledBySettings;
+
+		return Type.isNil(isEnabled) || isEnabled;
+	}
+
+	isImageCopilotEnabledBySettings()
+	{
+		const isEnabled = this.getEditor().config.isCopilotImageEnabledBySettings;
+
+		return Type.isNil(isEnabled) || isEnabled;
 	}
 
 	get controllers()

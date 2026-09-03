@@ -1,4 +1,4 @@
-import {INIT, RESOLVED} from './constants';
+import {RESOLVED} from './constants';
 import type {History} from '../history';
 
 /**
@@ -8,8 +8,8 @@ import type {History} from '../history';
  */
 export default function clear(history: History): Promise<History>
 {
-	history.stack = [];
- 	history.step = -1;
+	history.stack = null;
 	history.commandState = RESOLVED;
+
 	return Promise.resolve(history);
 }

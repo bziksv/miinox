@@ -11,11 +11,15 @@ namespace Bitrix\Rest\APAuth;
 use Bitrix\Main\Authentication\ApplicationManager;
 use Bitrix\Main\Authentication\ApplicationPasswordTable;
 use Bitrix\Main\Context;
+use Bitrix\Main\DI\ServiceLocator;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\UserTable;
 use Bitrix\Rest\Engine\Access;
 use Bitrix\Rest\Engine\Access\HoldEntity;
+use Bitrix\Rest\Internal\Entity\SystemUser\ResourceType;
+use Bitrix\Rest\Internal\Repository\SystemUser\SystemUserRepository;
+use Throwable;
 
 class Auth
 {
@@ -34,151 +38,186 @@ class Auth
 		$auth = array();
 		foreach(static::$authQueryParams as $key)
 		{
-			if(array_key_exists($key, $query))
+			if (array_key_exists($key, $query))
 			{
 				$auth[$key] = $query[$key];
 			}
+			else
+			{
+				return null;
+			}
 		}
 
-		if(count($auth) === count(static::$authQueryParams))
+		if (!defined('REST_APAUTH_ALLOW_HTTP') && !Context::getCurrent()->getRequest()->isHttps())
 		{
+			$res = array('error' => 'INVALID_REQUEST', 'error_description' => 'Https required.');
+			return false;
+		}
 
-			if(!defined('REST_APAUTH_ALLOW_HTTP') && !Context::getCurrent()->getRequest()->isHttps())
+		$tokenInfo = static::check($auth, $scope);
+
+		if (is_array($tokenInfo))
+		{
+			$error = array_key_exists('error', $tokenInfo);
+
+			if (!$error && HoldEntity::is(HoldEntity::TYPE_WEBHOOK, $auth[static::$authQueryParams['PASSWORD']]))
 			{
-				$res = array('error' => 'INVALID_REQUEST', 'error_description' => 'Https required.');
-				return false;
+				$tokenInfo = [
+					'error' => 'OVERLOAD_LIMIT',
+					'error_description' => 'REST API is blocked due to overload.'
+				];
+				$error = true;
 			}
 
-			$tokenInfo = static::check($auth, $scope);
-
-			if(is_array($tokenInfo))
+			if (!$error)
 			{
-				$error = array_key_exists('error', $tokenInfo);
+				$passwordId = (int)$tokenInfo['password_id'];
 
-				if (!$error && HoldEntity::is(HoldEntity::TYPE_WEBHOOK, $auth[static::$authQueryParams['PASSWORD']]))
+				try
 				{
-					$tokenInfo = [
-						'error' => 'OVERLOAD_LIMIT',
-						'error_description' => 'REST API is blocked due to overload.'
-					];
-					$error = true;
+					Access::ensureIsAvailableAPAuthByPasswordId($passwordId);
+					$accessException = null;
+				}
+				catch(Throwable $e)
+				{
+					$accessException = $e;
 				}
 
 				if (
-					!$error
-					&& (
-						!Access::isAvailable()
-						|| (
-							Access::needCheckCount()
-							&& !Access::isAvailableCount(Access::ENTITY_TYPE_WEBHOOK, $tokenInfo['password_id'])
-						)
+					$accessException !== null
+					|| (
+						Access::needCheckCount()
+						&& !Access::isAvailableCount(Access::ENTITY_TYPE_WEBHOOK, $passwordId)
 					)
 				)
 				{
 					$tokenInfo = [
 						'error' => 'ACCESS_DENIED',
-						'error_description' => 'REST is available only on commercial plans.'
+						'error_description' => 'REST is available only by subscription.',
 					];
+					if ($accessException instanceof Throwable)
+					{
+						$tokenInfo['exception'] = $accessException;
+					}
+
 					$error = true;
 				}
-
-				if(!$error && $tokenInfo['user_id'] > 0)
-				{
-					$tokenInfo['scope'] = implode(',', static::getPasswordScope($tokenInfo['password_id']));
-
-					global $USER;
-					if ($USER instanceof \CUser && $USER->isAuthorized())
-					{
-						if ((int)$USER->GetID() !== (int)$tokenInfo['user_id'])
-						{
-							$tokenInfo = [
-								'error' => 'authorization_error',
-								'error_description' => Loc::getMessage('REST_AP_AUTH_ERROR_LOGOUT_BEFORE'),
-							];
-							$error = true;
-						}
-					}
-					elseif (!\CRestUtil::makeAuth($tokenInfo))
-					{
-						$tokenInfo = array('error' => 'authorization_error', 'error_description' => 'Unable to authorize user');
-						$error = true;
-					}
-					else
-					{
-						PasswordTable::update($tokenInfo['password_id'], array(
-							'DATE_LOGIN' => new DateTime(),
-							'LAST_IP' => Context::getCurrent()->getRequest()->getRemoteAddress(),
-						));
-
-						unset($tokenInfo['application_id']);
-					}
-				}
-
-				$res = $tokenInfo;
-
-				$res['parameters_clear'] = static::$authQueryParams;
-				$res['auth_type'] = static::AUTH_TYPE;
-
-				return !$error;
 			}
 
-			return false;
+			if (!$error && $tokenInfo['user_id'] > 0)
+			{
+				$tokenInfo['scope'] = implode(',', static::getPasswordScope($tokenInfo['password_id']));
+
+				global $USER;
+				if ($USER instanceof \CUser && $USER->isAuthorized())
+				{
+					if ((int)$USER->GetID() !== (int)$tokenInfo['user_id'])
+					{
+						$tokenInfo = [
+							'error' => 'authorization_error',
+							'error_description' => Loc::getMessage('REST_AP_AUTH_ERROR_LOGOUT_BEFORE'),
+						];
+						$error = true;
+					}
+				}
+				elseif (!\CRestUtil::makeAuth($tokenInfo, self::AUTH_TYPE, $tokenInfo['password_id'] ?? 0))
+				{
+					$tokenInfo = array('error' => 'authorization_error', 'error_description' => 'Unable to authorize user');
+					$error = true;
+				}
+				else
+				{
+					PasswordTable::update($tokenInfo['password_id'], array(
+						'DATE_LOGIN' => new DateTime(),
+						'LAST_IP' => Context::getCurrent()->getRequest()->getRemoteAddress(),
+					));
+
+				unset($tokenInfo['application_id']);
+				}
+			}
+
+			$res = $tokenInfo;
+
+			$res['parameters_clear'] = static::$authQueryParams;
+			$res['auth_type'] = static::AUTH_TYPE;
+
+			return !$error;
 		}
 
-		return null;
+		return false;
 	}
 
 	protected static function check($auth, $scope)
 	{
-		$result = array('error' => 'INVALID_CREDENTIALS', 'error_description' => 'Invalid request credentials');
+		$result = [
+			'error' => 'INVALID_CREDENTIALS',
+			'error_description' => 'Invalid request credentials',
+		];
+
+		if (empty($auth[static::$authQueryParams['UID']]))
+		{
+			return $result;
+		}
 
 		$uid = $auth[static::$authQueryParams['UID']];
-
-		if(strval(intval($uid)) === $uid)
+		if (strval(intval($uid)) === $uid)
 		{
-			$userInfo = array('ID' => intval($uid));
+			$userInfo = ['ID' => intval($uid)];
 		}
 		else
 		{
-			$dbRes = UserTable::getList(array(
-				'filter' => array(
+			$userInfo = UserTable::getList([
+				'filter' => [
 					'=LOGIN' => $uid,
 					'=ACTIVE' => 'Y',
-				),
-				'select' => array('ID'),
-			));
-			$userInfo = $dbRes->fetch();
+				],
+				'select' => ['ID'],
+			])->fetch();
 		}
 
-		if($userInfo)
+		if (!empty($userInfo))
 		{
-			$dbRes = PasswordTable::getList(array(
-				'filter' => array(
+			$passwordInfo = PasswordTable::getList([
+				'filter' => [
 					'=USER_ID' => $userInfo['ID'],
 					'=PASSWORD' => $auth[static::$authQueryParams['PASSWORD']],
 					'=ACTIVE' => PasswordTable::ACTIVE,
-				),
-				'select' => array('ID')
-			));
-			$passwordInfo = $dbRes->fetch();
-
-			if(!$passwordInfo)
+				],
+				'select' => ['ID'],
+				'cache' => ['ttl' => 86400],
+			])->fetch();
+			if (!$passwordInfo)
 			{
 				$passwordInfo = static::checkOldPassword($userInfo['ID'], $auth[static::$authQueryParams['PASSWORD']]);
 			}
 
-			if($passwordInfo)
+			if (!$passwordInfo)
 			{
-				if(static::checkPermission($passwordInfo["ID"], $scope) === true)
+				/** @var SystemUserRepository $systemUserRepository */
+				$systemUserRepository = ServiceLocator::getInstance()->get(SystemUserRepository::class);
+				$replaceUser = $systemUserRepository->getByResourceIdAndResourceType((int)$userInfo['ID'], ResourceType::WEBHOOK);
+				if ($replaceUser !== null)
 				{
-					$result = array(
-						'user_id' => $userInfo["ID"],
-						'password_id' => $passwordInfo["ID"],
-					);
+					$auth[static::$authQueryParams['UID']] = (string)$replaceUser->getUserId();
+					return self::check($auth, $scope);
+				}
+			}
+
+			if ($passwordInfo)
+			{
+				if (static::checkPermission($passwordInfo['ID'], $scope) === true)
+				{
+					$result = [
+						'user_id' => $userInfo['ID'],
+						'password_id' => $passwordInfo['ID'],
+					];
 				}
 				else
 				{
-					$result = array('error' => 'insufficient_scope', 'error_description' => 'The request requires higher privileges than provided by the webhook token');
+					$result = [
+						'error' => 'insufficient_scope',
+						'error_description' => 'The request requires higher privileges than provided by the webhook token'
+					];
 				}
 			}
 		}
@@ -254,19 +293,18 @@ class Auth
 		return in_array($scope, $scopeList);
 	}
 
-	protected static function getPasswordScope($passwordId)
+	protected static function getPasswordScope($passwordId): array
 	{
-		if(!array_key_exists($passwordId, static::$scopeCache))
+		if (!array_key_exists($passwordId, static::$scopeCache))
 		{
-			static::$scopeCache[$passwordId] = array();
+			static::$scopeCache[$passwordId] = [];
 
-			$dbRes = PermissionTable::getList(array(
-				'filter' => array(
-					'=PASSWORD_ID' => $passwordId,
-				),
-				'select' => array('PERM')
-			));
-			while($perm = $dbRes->fetch())
+			$dbRes = PermissionTable::query()
+				->setSelect(['PERM'])
+				->where('PASSWORD_ID', $passwordId)
+				->setCacheTtl(86400)
+				->exec();
+			while ($perm = $dbRes->fetch())
 			{
 				static::$scopeCache[$passwordId][] = $perm['PERM'];
 			}

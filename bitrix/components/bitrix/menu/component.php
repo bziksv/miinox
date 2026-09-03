@@ -1,4 +1,4 @@
-<?
+<?php
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
 /**
@@ -6,6 +6,7 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 *
 * @var array $arResult
 * @var array $arParams
+* @var string $componentPath
 * @var CMain $APPLICATION
 * @var CUser $USER
 * @var CBitrixMenuComponent $this
@@ -95,11 +96,6 @@ if($this->startResultCache(false, false, (($arParams["MENU_CACHE_USE_USERS"] ?? 
 			$arResult["menuDir"] = $menu->MenuDir;
 			$arResult["menuType"] = $menu->type;
 		}
-		else
-		{
-			$arResult["initMenuDir"] = $menu->MenuDir;
-			$arResult["initMenuType"] = $menu->type;
-		}
 	}
 	else
 	{
@@ -144,7 +140,12 @@ if($arParams["CACHE_SELECTED_ITEMS"] == false)
 //Icons
 //***************
 
-if($USER->IsAuthorized())
+$arParams["ADD_ADMIN_PANEL_BUTTONS"] = (
+	!isset($arParams["ADD_ADMIN_PANEL_BUTTONS"])
+	|| $arParams["ADD_ADMIN_PANEL_BUTTONS"] !== 'N'
+);
+
+if($USER->IsAuthorized() && $arParams["ADD_ADMIN_PANEL_BUTTONS"])
 {
 	$menuExists = ($menuDir <> '');
 	$bFileman = $USER->CanDoOperation('fileman_add_element_to_menu') && $USER->CanDoOperation('fileman_edit_menu_elements');

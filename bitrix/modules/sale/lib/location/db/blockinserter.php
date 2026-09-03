@@ -221,12 +221,6 @@ class BlockInserter
 
 		$nextBuffer = (empty($this->buffer) ? $this->insertHead : $this->buffer.Helper::getBatchInsertSeparator()).$sql;
 
-		// here check length
-		if(defined(SITE_CHARSET) && SITE_CHARSET == 'UTF-8')
-			$len = mb_strlen($nextBuffer);
-		else
-			$len = mb_strlen($nextBuffer);
-
 		if(($this->mtu - (mb_strlen($nextBuffer) + 100)) < self::RED_LINE)
 		{
 			$this->flush(); // flushing the previous buffer (now $this->buffer == '')
@@ -247,6 +241,11 @@ class BlockInserter
 			call_user_func($this->callbacks['ON_BEFORE_FLUSH']);
 
 		$this->buffer .= ' '.$this->insertTail;
+
+		if ($this->dbType === 'pgsql' && $this->autoIncFld)
+		{
+			$this->buffer .= '; ALTER SEQUENCE ' . $this->tableName . '_' . $this->autoIncFld . '_seq RESTART WITH ' . $this->index + 1 . ';';
+		}
 
 		$restrDropped = $this->dropAutoIncrementRestrictions();
 

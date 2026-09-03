@@ -20,8 +20,15 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 	const HANDLER_MODE_ACTIVE = 'ACTIVE';
 	const HANDLER_MODE_TEST = 'TEST';
 
+	const CODE_VAT_5 = 'vat5';
+	const CODE_VAT_7 = 'vat7';
+	const CODE_VAT_22 = 'vat22';
+
+	const CODE_CALC_VAT_5 = 'vat105';
+	const CODE_CALC_VAT_7 = 'vat107';
 	const CODE_CALC_VAT_10 = 'vat110';
 	const CODE_CALC_VAT_20 = 'vat120';
+	const CODE_CALC_VAT_22 = 'vat122';
 
 	/**
 	 * @param Check $check
@@ -40,6 +47,8 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 			$serviceEmail = static::getDefaultServiceEmail();
 		}
 
+		$currency = $data['currency'] ?? '';
+
 		$result = [
 			'timestamp' => $dateTime->format('d.m.Y H:i:s'),
 			'external_id' => static::buildUuid(static::UUID_TYPE_CHECK, $data['unique_id']),
@@ -54,15 +63,16 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 					'inn' => $this->getValueFromSettings('SERVICE', 'INN'),
 					'payment_address' => $this->getValueFromSettings('SERVICE', 'P_ADDRESS'),
 				],
+				'internet' => $this->getField('USE_OFFLINE') === 'N',
 				'payments' => [],
 				'items' => [],
-				'total' => (float)$data['total_sum']
+				'total' => $this->roundMoney((float)$data['total_sum'], $currency)
 			]
 		];
 
 		$email = $data['client_email'] ?? '';
 
-		$phone = \NormalizePhone($data['client_phone']);
+		$phone = \NormalizePhone($data['client_phone'] ?? null);
 		if (is_string($phone))
 		{
 			if ($phone[0] !== '7')
@@ -108,15 +118,40 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 			{
 				$result['receipt']['payments'][] = [
 					'type' => $paymentTypeMap[$payment['type']],
-					'sum' => (float)$payment['sum']
+					'sum' => $this->roundMoney((float)$payment['sum'], $currency)
 				];
 			}
 		}
 
+		$items = [];
 		foreach ($data['items'] as $item)
 		{
-			$result['receipt']['items'][] = $this->buildPosition($data, $item);
+			array_push($items, ...$this->splitItemForPriceQuantityApi($item));
 		}
+
+		$receiptItems = [];
+		foreach ($items as $item)
+		{
+			$position = $this->buildPosition($data, $item);
+			$position['raw_sum'] = (float)$item['price'] * (float)$item['quantity'];
+			$receiptItems[] = $position;
+		}
+
+		$receiptItems = static::adjustItemsSumToTotal(
+			$receiptItems,
+			'sum',
+			$this->roundMoney((float)$data['total_sum'], $currency),
+			$currency,
+			'raw_sum'
+		);
+
+		foreach ($receiptItems as &$receiptItem)
+		{
+			unset($receiptItem['raw_sum']);
+		}
+		unset($receiptItem);
+
+		$result['receipt']['items'] = $receiptItems;
 
 		return $result;
 	}
@@ -163,7 +198,9 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 	 */
 	protected function buildPositionPrice(array $item)
 	{
-		return (float)$item['price'];
+		$currency = $item['currency'] ?? '';
+
+		return $this->roundMoney((float)$item['price'], $currency);
 	}
 
 	/**
@@ -172,7 +209,9 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 	 */
 	protected function buildPositionSum(array $item)
 	{
-		return (float)$item['sum'];
+		$currency = $item['currency'] ?? '';
+
+		return $this->roundMoney((float)$item['sum'], $currency);
 	}
 
 	/**
@@ -297,6 +336,8 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 			]
 		];
 
+		$corrCurrency = $data['currency'] ?? '';
+
 		if (isset($data['payments']))
 		{
 			$paymentTypeMap = $this->getPaymentTypeMap();
@@ -304,7 +345,7 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 			{
 				$result['correction']['payments'][] = [
 					'type' => $paymentTypeMap[$payment['type']],
-					'sum' => (float)$payment['sum']
+					'sum' => $this->roundMoney((float)$payment['sum'], $corrCurrency)
 				];
 			}
 		}
@@ -321,7 +362,7 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 
 				$result['correction']['vats'][] = [
 					'type' => $vat,
-					'sum' => (float)$item['sum']
+					'sum' => $this->roundMoney((float)$item['sum'], $corrCurrency)
 				];
 			}
 		}
@@ -343,26 +384,31 @@ class CashboxAtolFarmV4 extends CashboxAtolFarm implements ICorrection
 	 */
 	private function mapVatValue($checkType, $vat)
 	{
-		$map = [
-			self::CODE_VAT_10 => [
-				PrepaymentCheck::getType() => self::CODE_CALC_VAT_10,
-				PrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_10,
-				PrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_10,
-				FullPrepaymentCheck::getType() => self::CODE_CALC_VAT_10,
-				FullPrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_10,
-				FullPrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_10
-			],
-			self::CODE_VAT_20 => [
-				PrepaymentCheck::getType() => self::CODE_CALC_VAT_20,
-				PrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_20,
-				PrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_20,
-				FullPrepaymentCheck::getType() => self::CODE_CALC_VAT_20,
-				FullPrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_20,
-				FullPrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_20,
-			],
-		];
+		$mapper = new Tools\Vat2PrepaymentCheckMapper(
+			$this->getVatToCalcVatMap()
+		);
+
+		$map = $mapper->getMap();
 
 		return $map[$vat][$checkType] ?? $vat;
+	}
+
+	protected static function getDefaultVatList(): array
+	{
+		$vatList = parent::getDefaultVatList();
+
+		return $vatList + [5 => self::CODE_VAT_5, 7 => self::CODE_VAT_7, 22 => self::CODE_VAT_22];
+	}
+
+	protected function getVatToCalcVatMap() : array
+	{
+		return [
+			self::CODE_VAT_5 => self::CODE_CALC_VAT_5,
+			self::CODE_VAT_7 => self::CODE_CALC_VAT_7,
+			self::CODE_VAT_10 => self::CODE_CALC_VAT_10,
+			self::CODE_VAT_20 => self::CODE_CALC_VAT_20,
+			self::CODE_VAT_22 => self::CODE_CALC_VAT_22,
+		];
 	}
 
 	/**

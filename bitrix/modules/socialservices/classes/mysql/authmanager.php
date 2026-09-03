@@ -23,7 +23,7 @@ class CSocServAuthDB extends CSocServAuth
 			"INSERT INTO b_socialservices_user (".$arInsert[0].") ".
 				"VALUES(".$arInsert[1].")";
 
-		$res = $DB->Query($strSql, true, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query($strSql, true);
 		if(!$res)
 		{
 			$_SESSION["LAST_ERROR"] = GetMessage("SC_ADD_ERROR");
@@ -85,7 +85,7 @@ class CSocServAuthDB extends CSocServAuth
 			if ($arSqls["GROUPBY"] <> '')
 				$strSql .= "GROUP BY ".$arSqls["GROUPBY"]." ";
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -113,7 +113,7 @@ class CSocServAuthDB extends CSocServAuth
 			if ($arSqls["GROUPBY"] <> '')
 				$strSql_tmp .= "GROUP BY ".$arSqls["GROUPBY"]." ";
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if ($arSqls["GROUPBY"] == '')
 			{
@@ -136,7 +136,7 @@ class CSocServAuthDB extends CSocServAuth
 				$strSql = $DB->TopSql($strSql, $arNavStartParams["nTopCount"]);
 			}
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 		}
 
 		if (static::hasEncryptedFields($arSelectFields))
@@ -171,10 +171,11 @@ class CSocServMessage extends CSocServAllMessage
 {
 	public static function CleanUp()
 	{
-		global $DB;
+		$connection = \Bitrix\Main\Application::getConnection();
+		$helper = $connection->getSqlHelper();
 
-		$strSql = "DELETE FROM b_socialservices_message WHERE INSERT_DATE < DATE_ADD(now(), INTERVAL -4 DAY)";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$sql = 'DELETE FROM b_socialservices_message WHERE INSERT_DATE < ' . $helper->addDaysToDateTime(-4);
+		$connection->query($sql);
 
 		return "CSocServMessage::CleanUp();";
 	}
@@ -190,7 +191,7 @@ class CSocServMessage extends CSocServAllMessage
 			"INSERT INTO b_socialservices_message (".$arInsert[0].") ".
 				"VALUES(".$arInsert[1].")";
 
-		$res=$DB->Query($strSql, true, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res=$DB->Query($strSql, true);
 		if(!$res)
 		{
 			return false;
@@ -232,7 +233,7 @@ class CSocServMessage extends CSocServAllMessage
 			if ($arSqls["GROUPBY"] <> '')
 				$strSql .= "GROUP BY ".$arSqls["GROUPBY"]." ";
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -260,7 +261,7 @@ class CSocServMessage extends CSocServAllMessage
 			if ($arSqls["GROUPBY"] <> '')
 				$strSql_tmp .= "GROUP BY ".$arSqls["GROUPBY"]." ";
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if ($arSqls["GROUPBY"] == '')
 			{
@@ -283,7 +284,7 @@ class CSocServMessage extends CSocServAllMessage
 				$strSql = $DB->TopSql($strSql, $arNavStartParams["nTopCount"]);
 			}
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 		}
 
 		return $dbRes;

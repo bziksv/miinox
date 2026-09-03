@@ -39,6 +39,64 @@ if (Loader::includeModule('rest'))
 			"",
 		];
 	}
+
+	$ext = 'com';
+	if (in_array(LANGUAGE_ID, ['ru', 'by', 'kz']))
+	{
+		$ext = 'ru';
+	}
+
+	$langMarket = Loc::getMessage('REST_MENU_DEVOPS_DOCUMENTATION_MARKET');
+	if (\Bitrix\Rest\Integration\Market\Label::isRenamedMarket())
+	{
+		$langMarket = Loc::getMessage('REST_MENU_DEVOPS_DOCUMENTATION_MARKET_MSGVER_1');
+	}
+
+	$subMenu = [
+		[
+			'TEXT' => Loc::getMessage("REST_MENU_DEVOPS_QUICK_START"),
+			'URL' => "https://apidocs.bitrix24.$ext/",
+			'ON_CLICK' => 'window.open("' . CUtil::JSescape("https://apidocs.bitrix24.$ext/") . '", "_blank"); return false;',
+			'ID' => "menu_documentation_start"
+		],
+		[
+			'TEXT' => Loc::getMessage("REST_MENU_DEVOPS_PRIVATE_CASE"),
+			'URL' => "https://apidocs.bitrix24.$ext/tutorials/index.html",
+			'ON_CLICK' => 'window.open("' . CUtil::JSescape("https://apidocs.bitrix24.$ext/tutorials/index.html") . '", "_blank"); return false;',
+			'ID' =>  "menu_documentation_private_case"
+		],
+		[
+			'TEXT' => Loc::getMessage("REST_MENU_DEVOPS_DOCUMENTATION_INTEGRATION"),
+			'URL' => "https://apidocs.bitrix24.$ext/local-integrations/index.html",
+			'ON_CLICK' => 'window.open("' . CUtil::JSescape("https://apidocs.bitrix24.$ext/local-integrations/index.html") . '", "_blank"); return false;',
+			'ID' => "menu_documentation_integration"
+		],
+		[
+			'TEXT' => $langMarket,
+			'URL' => "https://apidocs.bitrix24.$ext/market/index.html",
+			'ON_CLICK' => 'window.open("' . CUtil::JSescape("https://apidocs.bitrix24.$ext/market/index.html") . '", "_blank"); return false;',
+			'ID' => "menu_documentation_market"
+		],
+		[
+			'TEXT' => Loc::getMessage("REST_MENU_DEVOPS_DOCUMENTATION_MAIN"),
+			'URL' => "https://apidocs.bitrix24.$ext/api-reference/index.html",
+			'ON_CLICK' => 'window.open("' . CUtil::JSescape("https://apidocs.bitrix24.$ext/api-reference/index.html") . '", "_blank"); return false;',
+			'ID' => "menu_documentation_main"
+		]
+	];
+
+	$documentation = [
+		Loc::getMessage("REST_MENU_DEVOPS_DOCUMENTATION"),
+		"",
+		[],
+		[
+			"menu_item_id" => "menu_documentation",
+			"sub_menu" => $subMenu
+		],
+		"",
+	];
+
+	$arMenu[] = $documentation;
 }
 
 $aMenuLinks = array_merge($arMenu, $aMenuLinks);

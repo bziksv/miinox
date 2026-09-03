@@ -7,6 +7,7 @@
 	{
 		this.container = options.container;
 		this.items = [];
+		this.autoHideSubMenu = options.autoHideSubMenu;
 
 		// this.init();
 	};
@@ -30,10 +31,25 @@
 				item.container = items[i];
 				item.link = item.container.querySelector('.ui-sidepanel-menu-link');
 				item.operativeItem = item.link.getAttribute("bx-operative") === "Y";
+				item.disableExpandByLink = item.link.getAttribute('bx-disable-expand-by-link') === 'Y';
 
 				this.items.push(item);
 
-				if (item.container.classList.contains('ui-sidepanel-menu-active'))
+				if (item.container.classList.contains('ui-sidepanel-menu-submenuOpen'))
+				{
+					item.submenuOpen = true;
+				}
+
+				if (item.container.classList.contains('ui-sidepanel-menu-canBeActive-Y'))
+				{
+					item.canBeActiveItem = 'Y';
+				}
+				else if (item.container.classList.contains('ui-sidepanel-menu-canBeActive-N'))
+				{
+					item.canBeActiveItem = 'N';
+				}
+
+				if (item.container.classList.contains('ui-sidepanel-menu-active') && item.canBeActiveItem !== 'N')
 				{
 					item.activeItem = true;
 				}
@@ -80,6 +96,17 @@
 			{
 				this.items[i].resetSubItems();
 			}
+		},
+
+		hideSubMenu: function()
+		{
+			for(var i = 0; i < this.items.length; i++)
+			{
+				if (this.items[i].submenuOpen)
+				{
+					this.items[i].hideSubmenu();
+				}
+			}
 		}
 	};
 
@@ -91,14 +118,16 @@
 		this.link = options.link;
 		this.button = null;
 		this.activeItem = options.activeItem ? options.activeItem : null;
+		this.canBeActiveItem = options.canBeActiveItem ? options.canBeActiveItem : null;
 		this.noticeItem = options.noticeItem ? options.noticeItem : null;
 		this.operativeItem = options.operativeItem ? options.operativeItem : null;
 		this.submenu = null;
 		this.subItems = [];
-		this.submenuOpen = false;
+		this.submenuOpen = options.submenuOpen ? options.submenuOpen : false;
 		this.newBadge = null;
 		this.counter = null;
 		this.addItem = null;
+		this.disableExpandByLink = options.disableExpandByLink ? options.disableExpandByLink : null;
 
 		this.init();
 		itemsMap.set(this.container, this);
@@ -146,7 +175,15 @@
 
 				this.subItems.push(subItem);
 
-				if (subItem.container.classList.contains('ui-sidepanel-submenu-active'))
+				if (subItem.container.classList.contains('ui-sidepanel-menu-canBeActive-Y'))
+				{
+					subItem.canBeActiveSubItem = 'Y';
+				}
+				else if (subItem.container.classList.contains('ui-sidepanel-menu-canBeActive-N'))
+				{
+					subItem.canBeActiveSubItem = 'N';
+				}
+				if (subItem.container.classList.contains('ui-sidepanel-submenu-active') && subItem.canBeActiveSubItem !== 'N')
 				{
 					subItem.activeSubItem = true;
 					submenuVisibilityStateVisible = true;
@@ -173,7 +210,7 @@
 
 			if (this.isSubmenuExist() && (
 				this.activeItem === true && this.operativeItem === true ||
-				submenuVisibilityStateVisible === true
+				submenuVisibilityStateVisible === true || this.submenuOpen
 			))
 			{
 				this.showSubmenu();
@@ -202,6 +239,7 @@
 		{
 			this.activeItem = null;
 			this.container.classList.remove('ui-sidepanel-menu-active');
+			this.setDefaultToggleButtonName();
 		},
 
 		addNoticeIcon: function()
@@ -257,39 +295,49 @@
 
 		addEvents: function()
 		{
-			this.link.addEventListener('click', this.setActiveHandler.bind(this))
-		},
-
-		setActiveHandler: function(e)
-		{
-			this.menu.resetItems();
-			this.activate();
-
-			if (this.link.getAttribute('bx-operative') !== 'Y')
+			if (this.canBeActiveItem !== 'N')
 			{
-				this.link.classList.add('ui-sidepanel-menu-disable-active-state');
+				this.link.addEventListener('click', this.setActiveHandler.bind(this));
+			}
+
+			if (this.button && this.disableExpandByLink)
+			{
+				this.button.addEventListener('click', this.showSubmenuHandler.bind(this));
 			}
 			else
 			{
-				this.link.classList.remove('ui-sidepanel-menu-disable-active-state');
+				this.link.addEventListener('click', this.showSubmenuHandler.bind(this));
 			}
+		},
 
+		showSubmenuHandler: function(e)
+		{
 			if (this.isSubmenuExist())
 			{
 				if (!this.submenuOpen)
 				{
+					if (this.menu.autoHideSubMenu)
+					{
+						this.menu.hideSubMenu();
+					}
+					if (this.canBeActiveItem === 'Y')
+					{
+						this.menu.resetItems();
+						this.activate();
+					}
+
 					this.showSubmenu();
 					this.setNewToggleButtonName();
-					this.menu.resetSubItems();
-					e && e.preventDefault();
 				}
 				else
 				{
 					this.hideSubmenu();
 					this.setDefaultToggleButtonName();
-					this.menu.resetSubItems();
-					e && e.preventDefault();
 				}
+
+				this.menu.resetSubItems();
+				e && e.preventDefault();
+				e && e.stopPropagation();
 			}
 			else
 			{
@@ -299,6 +347,24 @@
 				}
 				this.menu.resetSubItems();
 			}
+		},
+
+		setActiveHandler: function(e)
+		{
+			if (this.link.getAttribute('bx-operative') !== 'Y')
+			{
+				return;
+			}
+			if (this.menu.autoHideSubMenu)
+			{
+				this.menu.hideSubMenu();
+			}
+			if (this.canBeActiveItem !== 'N')
+			{
+				this.menu.resetItems();
+				this.activate();
+			}
+			this.link.classList.remove('ui-sidepanel-menu-disable-active-state');
 		},
 
 		isSubmenuExist: function()
@@ -322,12 +388,18 @@
 
 		setNewToggleButtonName: function()
 		{
-			this.buttonContainer.innerHTML = BX.message("UI_SIDEPANEL_MENU_BUTTON_CLOSE");
+			if (this.buttonContainer)
+			{
+				this.buttonContainer.innerHTML = BX.Loc.getMessage('UI_SIDEPANEL_MENU_BUTTON_CLOSE');
+			}
 		},
 
 		setDefaultToggleButtonName: function()
 		{
-			this.buttonContainer.innerHTML = BX.message("UI_SIDEPANEL_MENU_BUTTON_OPEN");
+			if (this.buttonContainer)
+			{
+				this.buttonContainer.innerHTML = BX.Loc.getMessage('UI_SIDEPANEL_MENU_BUTTON_OPEN');
+			}
 		},
 
 		getNewItemBadge: function()
@@ -384,6 +456,7 @@
 	{
 		this.container = options.container;
 		this.id = options.id;
+		this.canBeActiveSubItem = options.canBeActiveSubItem ? options.canBeActiveSubItem : null;
 		this.activeSubItem = options.activeSubItem ? options.activeSubItem : null;
 		// this.activeSubItem = null;
 		this.subMenu = null;
@@ -412,21 +485,23 @@
 		addEvents: function()
 		{
 			this.container.addEventListener('click', function() {
-
-				if (this.activeSubItem)
+				if (this.canBeActiveSubItem === 'N' || this.activeSubItem)
 				{
 					return;
 				}
+				const link = this.container.querySelector('.ui-sidepanel-submenu-link');
 
-				if (!this.activeSubItem && !this.activeItem)
+				if (link.getAttribute('bx-operative') !== 'N')
 				{
-					this.subMenu.menu.resetItems();
+					if (!this.activeSubItem && !this.activeItem)
+					{
+						this.subMenu.menu.resetItems();
+					}
+
+					this.subMenu.menu.resetSubItems();
+					this.subMenu.resetSubItems();
+					this.activate();
 				}
-
-				this.subMenu.menu.resetSubItems();
-				this.subMenu.resetSubItems();
-				this.activate();
-
 			}.bind(this))
 		},
 

@@ -20,9 +20,15 @@ if (!$arResult['hasAccessToCatalog'])
 }
 
 $component = $this->getComponent();
+
+$randString = $this->randString();
+if ($component->isAjaxRequest())
+{
+	$randString .= time();
+}
 ?>
 
-<span class="fields enumeration field-wrap">
+<span class="fields enumeration field-wrap" data-has-input="no">
 	<?php
 	$multipleClass = (
 		$arResult['userField']['MULTIPLE'] === 'Y' ? '-multiselect' : '-select'
@@ -68,15 +74,49 @@ $component = $this->getComponent();
 		</span>
 		<?php
 	}
+	elseif($arResult['userField']['SETTINGS']['DISPLAY'] === ElementType::DISPLAY_DIALOG)
+	{
+		$containerName = $arResult['userField']['FIELD_NAME'] . '-' . $randString;
+		?>
+		<input type="hidden" value="" id="<?= $arResult['userField']['FIELD_NAME'] ?>_default">
+		<div id="<?= $containerName ?>"></div>
+		<?php
+		$params = \Bitrix\Main\Web\Json::encode([
+			'fieldName' => $arResult['userField']['FIELD_NAME'],
+			'iblockId' => (int)$arResult['userField']['SETTINGS']['IBLOCK_ID'],
+			'value' => $arResult['value'],
+			'isMultiple' => $arResult['userField']['MULTIPLE'] === 'Y',
+			'type' => ElementType::USER_TYPE_ID,
+			'activeFilter' => ($arResult['userField']['SETTINGS']['ACTIVE_FILTER'] ?? 'N') === 'Y',
+		]);
+
+		$script = <<<EOT
+		<script>
+			BX.ready(() => {
+				const elementSelector = new BX.Iblock.UserFieldSelector('{$params}');
+				elementSelector.renderTo(document.getElementById('{$containerName}'));
+				
+				BX.Event.EventEmitter.subscribe(elementSelector, 'change', () => {
+					BX.fireEvent(BX('{$arResult['userField']['FIELD_NAME']}_default'), 'change');
+				});
+			});
+		</script>
+EOT;
+		print $script;
+	}
 	elseif($arResult['userField']['SETTINGS']['DISPLAY'] === ElementType::DISPLAY_UI)
 	{
-		?>
+		$inputId = $arResult['userField']['FIELD_NAME'] . '_default_' . $randString;
+		$controlNodeId = $arResult['controlNodeId'] . '_' . $randString;
+		$controlNodeIdJs = $arResult['controlNodeIdJs'] . '_' . $randString;
 
+		$arResult['spanAttrList']['id'] = $arResult['spanAttrList']['id'] . '_' . $randString;
+
+		?>
 		<input
 			type="hidden"
-			name="<?= $arResult['userField']['FIELD_NAME'] ?>"
 			value=""
-			id="<?= $arResult['userField']['FIELD_NAME'] ?>_default"
+			id="<?= $inputId ?>"
 		>
 
 		<span
@@ -97,14 +137,18 @@ $component = $this->getComponent();
 			?>
 		</span>
 
-		<span id="<?= $arResult['controlNodeId'] ?>"></span>
+		<span id="<?= $controlNodeId ?>"></span>
 
 		<?php
+		$fieldNameJs = $arResult['fieldNameJs'] . '_' . $randString;
+		$htmlFieldNameJs = $arResult['htmlFieldNameJs'] . '_' . $randString;
+		$valueContainerIdJs = $arResult['valueContainerIdJs'] . '_' . $randString;
+
 		$script = <<<EOT
 		<script>
-		function changeHandler_{$arResult['fieldNameJs']}(controlObject, value)
+		function changeHandler_{$fieldNameJs}(controlObject, value)
 		{
-			if(controlObject.params.fieldName === '{$arResult['fieldNameJs']}' && !!BX('{$arResult['valueContainerIdJs']}'))
+			if (controlObject.params.fieldName === '{$arResult['fieldNameJs']}' && !!BX('{$valueContainerIdJs}'))
 			{
 				var currentValue = JSON.parse(controlObject.node.getAttribute('data-value'));
 
@@ -133,8 +177,8 @@ $component = $this->getComponent();
 					s += '<input type="hidden" name="{$arResult['htmlFieldNameJs']}" value="" />';
 				}
 
-				BX('{$arResult['valueContainerIdJs']}').innerHTML = s;
-				BX.fireEvent(BX('{$arResult['fieldNameJs']}_default'), 'change');
+				BX('{$valueContainerIdJs}').innerHTML = s;
+				BX.fireEvent(BX('{$inputId}'), 'change');
 			}
 		}
 
@@ -142,28 +186,29 @@ $component = $this->getComponent();
 
 			var params = {$arResult['params']};
 
-			BX('{$arResult['controlNodeIdJs']}').appendChild(BX.decl({
+			BX('{$controlNodeIdJs}').appendChild(BX.decl({
 				block: '{$arResult['block']}',
-				name: '{$arResult['fieldNameJs']}',
+				name: '{$fieldNameJs}',
 				items: {$arResult['items']},
 				value: {$arResult['currentValue']},
-				params: params,
-				valueDelete: false
+				params,
+				valueDelete: false,
 			}));
 
 			BX.addCustomEvent(
 				window,
 				'UI::Select::change',
-				changeHandler_{$arResult['fieldNameJs']}
+				changeHandler_{$fieldNameJs},
 			);
 
-			BX.bind(BX('{$arResult['controlNodeIdJs']}'), 'click', BX.defer(function(){
-				changeHandler_{$arResult['fieldNameJs']}(
-					{
-						params: params,
-						node: BX('{$arResult['controlNodeIdJs']}').firstChild
-					});
+			BX.bind(BX('{$controlNodeIdJs}'), 'click', BX.defer(function(){
+				changeHandler_{$fieldNameJs}({
+					params,
+					node: BX('{$controlNodeIdJs}').firstChild,
+				});
 			}));
+			
+			BX.fireEvent(BX('{$controlNodeId}'), 'click');
 		});
 	</script>
 EOT;

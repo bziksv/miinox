@@ -54,7 +54,7 @@ abstract class Job
 			return;
 		}
 
-		$agent = new \CAllAgent();
+		$agent = new \CAgent();
 		$agent->AddAgent(
 			$agentName,
 			"sender",
@@ -73,10 +73,10 @@ abstract class Job
 			return;
 		}
 
-		$agent = new \CAllAgent();
+		$agent = new \CAgent();
 		$list = $agent->getList(
 			["ID" => "DESC"],
-			["MODULE_ID" => "sender", "NAME" => $agentName]
+			["MODULE_ID" => "sender", "=NAME" => $agentName]
 		);
 		while ($row = $list->fetch())
 		{
@@ -91,7 +91,7 @@ abstract class Job
 			return false;
 		}
 
-		$agent = new \CAllAgent();
+		$agent = new \CAgent();
 		return (bool)$agent->getList(
 			["ID" => "DESC"],
 			["MODULE_ID" => "sender", "NAME" => $agentName]

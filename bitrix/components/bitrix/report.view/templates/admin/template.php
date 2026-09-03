@@ -122,7 +122,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 	$name = isset($chFilter['name']) ? $chFilter['name'] : ($field ? $field->GetName() : '');
 	$info[] = array(
 		'TITLE' => $chFilter['title'],
-		'COMPARE' => ToLower(GetMessage('REPORT_FILTER_COMPARE_VAR_'.$chFilter['compare'])),
+		'COMPARE' => mb_strtolower(GetMessage('REPORT_FILTER_COMPARE_VAR_'.$chFilter['compare'])),
 		'NAME' =>$chFilter['formName'],
 		'ID' => $chFilter['formId'],
 		'VALUE' => $chFilter['value'],
@@ -221,7 +221,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 											<option value="true"><?=GetMessage('REPORT_BOOLEAN_VALUE_TRUE')?></option>
 											<option value="false"><?=GetMessage('REPORT_BOOLEAN_VALUE_FALSE')?></option>
 										</select>
-										<script type="text/javascript">
+										<script>
 											function RTFilter_chooseBooleanCatch(value)
 											{
 												setSelectValue(RTFilter_chooseBoolean_LAST_CALLER, value);
@@ -298,7 +298,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 										</div>
 										<!-- days field -->
 										<div style="display: none;" class="adm-input-wrap filter-day-interval">
-											<span class="<?php if ($arResult["FILTER"]["F_DATE_TYPE"] == "days"): ?>filter-day-interval-selected<?php endif; ?>">
+											<span class="<?php if (($arResult["FILTER"]["F_DATE_TYPE"] ?? '') === "days"): ?>filter-day-interval-selected<?php endif; ?>">
 												<input type="text" class="filter-date-days" value="<?=$arResult['form_date']['days']?>"
 													name="F_DATE_DAYS"/>
 											</span>
@@ -309,7 +309,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 							</td>
 							<td class="adm-filter-item-right"></td>
 						</tr>
-						<script type="text/javascript">
+						<script>
 							function OnReportIntervalChange(select)
 							{
 								var filterSelectContainer = BX.findParent(select);
@@ -355,7 +355,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 												?>
 												<? foreach($arCurrencies as $k => $v): ?>
 												<option <?php
-													if ($v['selected'] === true) echo 'selected="1"';
+													if (($v['selected'] ?? false) === true) echo 'selected="1"';
 													?> value="<?=htmlspecialcharsbx($k)?>"><?=htmlspecialcharsbx($k.' ('.$v['name'].')')?></option>
 												<? endforeach; ?>
 											</select>
@@ -400,7 +400,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 
 						<?php /*    Product custom "types of prices" filter    */    ?>
 						<? if (call_user_func(array($arResult['helperClassName'], 'getOwnerId')) === 'sale_SaleProduct'
-							&& $arResult['settings']['helper_spec']['ucspt'] === true): ?>
+							&& ($arResult['settings']['helper_spec']['ucspt'] ?? false) === true): ?>
 						<tr>
 							<td class="adm-filter-item-left"><?=GetMessage('SALE_REPORT_PRICE_TYPES').':'?></td>
 							<td class="adm-filter-item-center">
@@ -441,7 +441,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 	</tr>
 	</tbody>
 </table>
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		BX.bind(BX('report-reset-filter-button'), 'click', function(){
 			BX.submit(BX('report-reset-filter'));
@@ -474,7 +474,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 
 
 <!-- insert changeable filters -->
-<script type="text/javascript">
+<script>
 
 	function replaceInAttributesAndTextElements(el, info) {
 		var i, attr, bMultipleSelect;
@@ -713,7 +713,7 @@ function groupingReportResultHtml(&$arParams, &$arResult, $level = 0, $arRowSet 
 		}
 
 		// chart columns
-		if ($arParams['USE_CHART'] && $arResult['settings']['chart']['display'])
+		if ($arParams['USE_CHART'] && ($arResult['settings']['chart']['display'] ?? false))
 		{
 			$chartSettings = $arResult['settings']['chart'];
 			if (isset($chartSettings['x_column']) && is_array($chartSettings['y_columns']))
@@ -927,7 +927,7 @@ function groupingReportResultHtml(&$arParams, &$arResult, $level = 0, $arRowSet 
 								}
 
 								// cell align
-								$colAlign = $arViewColumns[$arColumns[$k]]['align'];
+								$colAlign = ($arViewColumns[$arColumns[$k]]['align'] ?? '');
 								if ($colAlign === null)
 								{
 									if (CReport::isColumnPercentable($arViewColumns[$arColumns[$k]], $arResult['helperClassName']))
@@ -1004,8 +1004,8 @@ function groupingReportResultHtml(&$arParams, &$arResult, $level = 0, $arRowSet 
 				{
 					foreach ($arColumns as $columnIndex => $viewColumnIndex)
 					{
-						if ($arViewColumns[$viewColumnIndex]['aggr'] === 'AVG'
-							|| $arViewColumns[$viewColumnIndex]['grouping_aggr'] === 'AVG'
+						if (($arViewColumns[$viewColumnIndex]['aggr'] ?? '') === 'AVG'
+							|| ($arViewColumns[$viewColumnIndex]['grouping_aggr'] ?? '') === 'AVG'
 						)
 						{
 							$total[$columnIndex] = $total[$columnIndex] / $nSubRows;
@@ -1118,7 +1118,7 @@ function groupingReportResultHtml(&$arParams, &$arResult, $level = 0, $arRowSet 
 						}
 
 						// cell align
-						$colAlign = $arViewColumns[$arColumns[$k]]['align'];
+						$colAlign = ($arViewColumns[$arColumns[$k]]['align'] ?? '');
 						if ($colAlign === null)
 						{
 							if (CReport::isColumnPercentable($arViewColumns[$arColumns[$k]], $arResult['helperClassName']))
@@ -1266,11 +1266,11 @@ unset($arGroupingResult['html']);
 			$td_class = '';
 		}
 
-		if ($col['align'] === 'right')
+		if (($col['align'] ?? '') === 'right')
 		{
 			$td_class .= ' align-right';
 		}
-		else if ($col['align'] === 'left')
+		else if (($col['align'] ?? '') === 'left')
 		{
 			$td_class .= ' align-left';
 		}
@@ -1312,7 +1312,7 @@ unset($arGroupingResult['html']);
 		{
 			$finalValue = join(' / ', $finalValue);
 		}
-		if ($arResult['settings']['red_neg_vals'] === true)
+		if (($arResult['settings']['red_neg_vals'] ?? false) === true)
 		{
 			if (is_numeric($finalValue) && $finalValue < 0) $td_class .= ' report-red-neg-val';
 		}
@@ -1372,11 +1372,11 @@ unset($arGroupingResult['html']);
 			$td_class = '';
 		}
 
-		if ($col['align'] === 'right')
+		if (($col['align'] ?? '') === 'right')
 		{
 			$td_class .= ' align-right';
 		}
-		else if ($col['align'] === 'left')
+		else if (($col['align'] ?? '') === 'left')
 		{
 			$td_class .= ' align-left';
 		}
@@ -1395,7 +1395,7 @@ unset($arGroupingResult['html']);
 		if (array_key_exists('TOTAL_'.$col['resultName'], $arResult['total']))
 		{
 			$finalValue = $arResult['total']['TOTAL_'.$col['resultName']];
-			if ($arResult['settings']['red_neg_vals'] === true)
+			if (($arResult['settings']['red_neg_vals'] ?? false) === true)
 			{
 				if (is_numeric($finalValue) && $finalValue < 0) $td_class .= ' report-red-neg-val';
 			}
@@ -1409,7 +1409,7 @@ unset($arGroupingResult['html']);
 
 
 </table>
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		var rows = BX.findChildren(BX('report-result-table'), {tag:'td', 'className':'adm-list-table-header'}, true);
 		for (i in rows)
@@ -1451,7 +1451,7 @@ unset($arGroupingResult['html']);
 </script>
 <?php endif; ?>	
 
-<?php if ($arParams['USE_CHART'] && $arResult['settings']['chart']['display']): ?>
+<?php if ($arParams['USE_CHART'] && ($arResult['settings']['chart']['display'] ?? false)): ?>
 <style type="text/css">
 	#report-chart-legend-row-example {display: none;}
 	.report-chart-legend-container {margin-top: 20px;}
@@ -1671,7 +1671,7 @@ unset($arGroupingResult['html']);
 <div id="report-chart-legend-row-example">
 	<div class="report-chart-legend-stick"></div><span class="report-chart-legend-label"></span>
 </div>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		var chartData = <?=CUtil::PhpToJSObject($chartData, true)?>;
 		if (!chartData || !chartData['columnsNames'] || !chartData['requestData']) return;

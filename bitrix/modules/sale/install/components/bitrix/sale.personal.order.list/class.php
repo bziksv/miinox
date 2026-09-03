@@ -676,9 +676,18 @@ class CBitrixPersonalOrderListComponent extends CBitrixComponent
 			$oldOrder = $orderClassName::load($id);
 
 			$oldBasket = $oldOrder->getBasket();
-			$refreshStrategy = Sale\Basket\RefreshFactory::create(Sale\Basket\RefreshFactory::TYPE_FULL);
-			$oldBasket->refresh($refreshStrategy);
-			$oldBasketItems = $oldBasket->getOrderableItems();
+			$oldBasketProviderData = Sale\Provider::getProductData($oldBasket);
+			$oldBasketItems = $oldBasket->getBasketItems();
+
+			foreach ($oldBasketItems as $index => $oldBasketItem)
+			{
+				$basketId = $oldBasketItem->getId();
+				if (($oldBasketProviderData[$basketId]['CAN_BUY'] ?? 'N') !== 'Y')
+				{
+					unset($oldBasketItems[$index]);
+				}
+			}
+			unset($oldBasketItem);
 
 			/** @var Sale\BasketItem $oldBasketItem*/
 			foreach ($oldBasketItems as $oldBasketItem)
@@ -1046,6 +1055,7 @@ class CBitrixPersonalOrderListComponent extends CBitrixComponent
 
 		while ($arOrder = $this->dbQueryResult['ORDERS']->GetNext())
 		{
+			$arOrder['ID'] = (int)$arOrder['ID'];
 			$arOrder['LOCK_CHANGE_PAYSYSTEM'] = 'N';
 			if (
 				is_array($this->arParams['RESTRICT_CHANGE_PAYSYSTEM'])
@@ -1057,6 +1067,11 @@ class CBitrixPersonalOrderListComponent extends CBitrixComponent
 
 			$listOrders[$arOrder["ID"]] = $arOrder;
 			$orderIdList[] = $arOrder["ID"];
+		}
+
+		if (empty($orderIdList))
+		{
+			return;
 		}
 
 		$basketClassName = $this->registry->getBasketClassName();
@@ -1084,6 +1099,7 @@ class CBitrixPersonalOrderListComponent extends CBitrixComponent
 		/** @var Main\DB\Result $listShipments */
 		$listShipments = $shipmentClassName::getList(array(
 			'select' => array(
+				'ID',
 				'STATUS_ID',
 				'DELIVERY_NAME',
 				'SYSTEM',
@@ -1138,19 +1154,21 @@ class CBitrixPersonalOrderListComponent extends CBitrixComponent
 			$paymentIdList[] = $payment['ID'];
 		}
 
-		$checkList = CheckManager::collectInfo(
-			array(
-				"PAYMENT_ID" => $paymentIdList,
-				"ENTITY_REGISTRY_TYPE" => Sale\Registry::REGISTRY_TYPE_ORDER
-			)
-		);
-
-		if (!empty($checkList))
+		if (!empty($paymentIdList))
 		{
-			foreach ($checkList as $check)
+			$checkList = CheckManager::collectInfo([
+				'@PAYMENT_ID' => $paymentIdList,
+				'=ENTITY_REGISTRY_TYPE' => Sale\Registry::REGISTRY_TYPE_ORDER,
+			]);
+
+			if (!empty($checkList))
 			{
-				$paymentList[$check['PAYMENT_ID']]['CHECK_DATA'][] = $check;
+				foreach ($checkList as $check)
+				{
+					$paymentList[$check['PAYMENT_ID']]['CHECK_DATA'][] = $check;
+				}
 			}
+			unset($checkList);
 		}
 
 		foreach ($paymentList as $payment)

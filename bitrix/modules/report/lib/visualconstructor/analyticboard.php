@@ -3,7 +3,6 @@ namespace Bitrix\Report\VisualConstructor;
 
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\SystemException;
-use Bitrix\Main\UI\Extension;
 use Bitrix\Report\VisualConstructor\Helper\Filter;
 
 /**
@@ -29,6 +28,7 @@ class AnalyticBoard
 	private $isSliderSupport = true;
 	private $options;
 	private $setOptionsCallback;
+	private ?string $sliderLoader = null;
 
 	public function __construct(string $boardId = '', array $options = [])
 	{
@@ -47,7 +47,6 @@ class AnalyticBoard
 				]
 			);
 			$this->addButton($configurationButton);
-			//$this->addButton(new BoardButton(' '));
 		}
 	}
 
@@ -224,8 +223,8 @@ class AnalyticBoard
 			'PRESETS' => [
 				'BOARD_KEY' => $this->getBoardKey(),
 				'sender_page' => $this->getTitle()
-			]
-
+			],
+			'air' => true,
 		]);
 		$this->addButton($feedbackButton);
 	}
@@ -347,6 +346,16 @@ class AnalyticBoard
 	public function setSliderSupport(bool $isSliderSupport): void
 	{
 		$this->isSliderSupport = $isSliderSupport;
+	}
+
+	public function getSliderLoader(): ?string
+	{
+		return $this->sliderLoader;
+	}
+
+	public function setSliderLoader(string $sliderLoader): void
+	{
+		$this->sliderLoader = $sliderLoader;
 	}
 
 	public function getDisplayComponentName()

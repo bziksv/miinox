@@ -1,4 +1,5 @@
 import { Dom } from 'main.core';
+import { Env } from 'landing.env';
 
 import { Main } from './main';
 
@@ -42,7 +43,7 @@ export class ExternalControls
 
 	constructor()
 	{
-		if (Main.isExternalControlsEnabled())
+		if (Main.isExternalControlsEnabled() && Env.getInstance().isBlockControlsEnabled())
 		{
 			this.#registerListeners();
 		}
@@ -98,7 +99,7 @@ export class ExternalControls
 			}
 		});
 
-		// checking inline editor — enabled or disabled
+		// checking inline editor â€” enabled or disabled
 		BX.addCustomEvent('BX.Landing.Editor:enable', () =>
 		{
 			this.#disableControls = true;

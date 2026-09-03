@@ -14,6 +14,7 @@ use Bitrix\Main\Grid;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\LoaderException;
 use Bitrix\Main\Web\Json;
+use Bitrix\Rest\Internal\Integration\UI\CopilotService;
 use Bitrix\Rest\Preset\Data\Placement;
 use Bitrix\Rest\Preset\Data\Webhook;
 use Bitrix\Rest\Preset\IntegrationTable;
@@ -45,6 +46,9 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 	{
 		$langScope = Application::getDocumentRoot() . BX_ROOT . '/modules/rest/scope.php';
 		Loc::loadMessages($langScope);
+		$this->arResult['COPILOT_REPLACEMENTS'] = [
+			'#COPILOT_NAME#' => CopilotService::getName(),
+		];
 		$this->arParams['FILTER_NAME'] = $this->arParams['FILTER_NAME'] ?? 'filterIntegrationListGrid';
 		$this->arParams['GRID_ID'] = $this->arParams['GRID_ID'] ?? 'gridIntegrationListGrid';
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] === 'Y' : true;
@@ -234,9 +238,13 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 		$eventList = array_column(Webhook::getList(), 'name', 'id');
 		$widgetList = array_column(Placement::getList(), 'name', 'id');
 
+		$availabilityTool = \Bitrix\Rest\Infrastructure\IntegrationAvailabilityTool::createByDefault();
+		$mapper = new Bitrix\Rest\Model\Mapper\Integration();
 		$items = [];
+
 		while ($item = $res->Fetch())
 		{
+			$integrationEntity = $mapper->mapArrayToEntity($item);
 			$item['TITLE'] = htmlspecialcharsbx($item['TITLE']);
 			$item['USER_DATA_NAME'] = htmlspecialcharsbx(
 				implode(
@@ -255,9 +263,19 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 					{
 						$result = Loc::getMessage('REST_SCOPE_LOG_MSGVER_1');
 					}
+					elseif (mb_strtoupper($value) === 'AI_ADMIN')
+					{
+						$result = Loc::getMessage(
+							'REST_SCOPE_AI_ADMIN_MSGVER_1',
+							$this->arResult['COPILOT_REPLACEMENTS']
+						);
+					}
 					else
 					{
-						$result = Loc::getMessage('REST_SCOPE_' . mb_strtoupper($value));
+						$result = Loc::getMessage(
+							'REST_SCOPE_' . mb_strtoupper($value),
+							$this->arResult['COPILOT_REPLACEMENTS']
+						);
 					}
 
 					if (empty($result))
@@ -303,10 +321,20 @@ class RestIntegrationGridComponent extends CBitrixComponent implements Controlle
 			);
 
 			$actions = [];
+			$isAvailable = $availabilityTool->isAvailable($integrationEntity);
+			if ($isAvailable)
+			{
+				$click = "BX.SidePanel.Instance.open('" . $item['URL'] . "', " . $paramsSidePanel . ");";
+			}
+			else
+			{
+				$click = 'top.BX.UI.InfoHelper.show("limit_subscription_market_access_buy_marketplus");';
+			}
 			$actions[] = [
 				'TEXT' => Loc::getMessage('REST_INTEGRATION_GRID_ACTION_EDIT'),
-				'ONCLICK' => "BX.SidePanel.Instance.open('" . $item['URL'] . "', " . $paramsSidePanel . ");",
+				'ONCLICK' => $click,
 				'DEFAULT' => true,
+				'ICONCLASS' => !$isAvailable ? 'main-dropdown-item-locked' : null,
 			];
 			if ($isAdmin && $item['APP_ID'] > 0)
 			{

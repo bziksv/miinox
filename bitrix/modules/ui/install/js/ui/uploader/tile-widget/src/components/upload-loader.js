@@ -1,9 +1,11 @@
 import { ProgressRound } from 'ui.progressround';
 
+import type { BitrixVueComponentProps } from 'ui.vue3';
+
 /**
  * @memberof BX.UI.Uploader
  */
-export const UploadLoader = {
+export const UploadLoader: BitrixVueComponentProps = {
 	props: {
 		progress: {
 			type: Number,
@@ -65,5 +67,5 @@ export const UploadLoader = {
 			this.loader.update(this.progress);
 		},
 	},
-	template: `<span ref="container"></span>`
+	template: '<span ref="container"></span>',
 };

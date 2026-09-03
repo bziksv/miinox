@@ -17,9 +17,9 @@ create table if not exists b_catalog_price
 	PRODUCT_ID int not null,
 	EXTRA_ID int null,
 	CATALOG_GROUP_ID int not null,
-	PRICE decimal(18,2) not null,
+	PRICE decimal(26,8) not null,
 	CURRENCY char(3) not null,
-	TIMESTAMP_X timestamp not null default NOW() on update NOW(),
+	TIMESTAMP_X datetime not null,
 	QUANTITY_FROM int null,
 	QUANTITY_TO int null,
 	TMP_ID varchar(40) null,
@@ -36,7 +36,7 @@ create table if not exists b_catalog_product
 	QUANTITY double not null,
 	QUANTITY_TRACE char(1) not null default 'N',
 	WEIGHT double not null default '0',
-	TIMESTAMP_X timestamp not null default NOW() on update NOW(),
+	TIMESTAMP_X datetime not null,
 	PRICE_TYPE char(1) not null default 'S',
 	RECUR_SCHEME_LENGTH int null,
 	RECUR_SCHEME_TYPE char(1) not null default 'D',
@@ -48,7 +48,7 @@ create table if not exists b_catalog_product
 	CAN_BUY_ZERO char(1) not null default 'N',
 	NEGATIVE_AMOUNT_TRACE char(1) not null default 'D',
 	TMP_ID varchar(40) null,
-	PURCHASING_PRICE decimal(18,2) null,
+	PURCHASING_PRICE decimal(26,8) null,
 	PURCHASING_CURRENCY char(3) null,
 	BARCODE_MULTI char(1) not null default 'N',
 	QUANTITY_RESERVED double null default '0',
@@ -162,12 +162,12 @@ create table if not exists b_catalog_discount
 	COUNT_USES int not null default '0',
 	COUPON varchar(20) null,
 	SORT int not null default '100',
-	MAX_DISCOUNT decimal(18,4) null,
+	MAX_DISCOUNT decimal(26,8) null,
 	VALUE_TYPE char(1) not null default 'P',
-	VALUE decimal(18,4) not null default '0.0',
+	VALUE decimal(26,8) not null default '0.0',
 	CURRENCY char(3) not null,
-	MIN_ORDER_SUM decimal(18,4) null default '0.0',
-	TIMESTAMP_X timestamp not null default NOW() on update NOW(),
+	MIN_ORDER_SUM decimal(26,8) null default '0.0',
+	TIMESTAMP_X datetime not null,
 	COUNT_PERIOD char(1) not null default 'U',
 	COUNT_SIZE int not null default '0',
 	COUNT_TYPE char(1) not null default 'Y',
@@ -296,7 +296,7 @@ create table if not exists b_catalog_discount_coupon
 create table if not exists b_catalog_vat
 (
 	ID int(11) NOT NULL auto_increment,
-	TIMESTAMP_X timestamp not null default NOW() on update NOW(),
+	TIMESTAMP_X datetime not null,
 	ACTIVE char(1) NOT NULL default 'Y',
 	C_SORT int(18) NOT NULL default 100,
 	NAME varchar(50) NOT NULL default '',
@@ -311,9 +311,9 @@ create table if not exists b_catalog_disc_save_range
 (
 	ID int NOT NULL auto_increment,
 	DISCOUNT_ID int not null,
-	RANGE_FROM double not null,
+	RANGE_FROM decimal(26,8) not null,
 	TYPE char(1) default 'P' not null,
-	VALUE double not null,
+	VALUE decimal(26,8) not null,
 	primary key (ID),
 	index IX_CAT_DSR_DISCOUNT2(DISCOUNT_ID, RANGE_FROM)
 );
@@ -351,7 +351,7 @@ create table if not exists b_catalog_store
 	GPS_S VARCHAR(15) NULL DEFAULT 0,
 	IMAGE_ID VARCHAR(45) NULL,
 	LOCATION_ID INT NULL,
-	DATE_MODIFY TIMESTAMP DEFAULT NOW() on update NOW(),
+	DATE_MODIFY datetime default current_timestamp,
 	DATE_CREATE DATETIME NULL,
 	USER_ID INT NULL,
 	MODIFIED_BY INT NULL,
@@ -392,7 +392,8 @@ create table if not exists b_catalog_store_barcode
 	CREATED_BY INT NULL,
 	MODIFIED_BY INT NULL,
 	PRIMARY KEY (ID),
-	UNIQUE INDEX IX_B_CATALOG_STORE_BARCODE1(BARCODE)
+	UNIQUE INDEX IX_B_CATALOG_STORE_BARCODE1(BARCODE),
+	INDEX IX_B_CATALOG_STORE_BARCODE2(PRODUCT_ID)
 );
 
 create table if not exists b_catalog_contractor
@@ -411,7 +412,7 @@ create table if not exists b_catalog_contractor
 	INN VARCHAR(145) NULL,
 	KPP VARCHAR(145) NULL,
 	ADDRESS VARCHAR(255) NULL,
-	DATE_MODIFY TIMESTAMP DEFAULT NOW() on update NOW(),
+	DATE_MODIFY datetime default current_timestamp,
 	DATE_CREATE DATETIME NULL,
 	CREATED_BY INT NULL,
 	MODIFIED_BY INT NULL,
@@ -441,7 +442,8 @@ create table if not exists b_catalog_store_docs
 	ITEMS_RECEIVED_DATE DATETIME NULL,
 	DOC_NUMBER VARCHAR(64) NULL,
 	WAS_CANCELLED CHAR(1) DEFAULT 'N',
-	PRIMARY KEY (ID)
+	PRIMARY KEY (ID),
+	INDEX IX_B_CATALOG_STORE_DOCS_MOBILE(DOC_TYPE, DATE_MODIFY)
 );
 
 create table if not exists b_catalog_store_document_file
@@ -461,12 +463,16 @@ create table if not exists b_catalog_docs_element
 	STORE_TO INT NULL,
 	ELEMENT_ID INT NULL,
 	AMOUNT DOUBLE NULL,
-	PURCHASING_PRICE DOUBLE NULL,
-    BASE_PRICE DECIMAL(18,2) NULL,
-	BASE_PRICE_EXTRA DECIMAL(18,2) NULL,
+	PURCHASING_PRICE DECIMAL(26,8) NULL,
+	BASE_PRICE DECIMAL(26,8) NULL,
+	BASE_PRICE_EXTRA DECIMAL(26,8) NULL,
 	BASE_PRICE_EXTRA_RATE INT NULL,
+	COMMENT TEXT DEFAULT NULL,
 	PRIMARY KEY (ID),
-	INDEX IX_B_CATALOG_DOCS_ELEMENT1 (DOC_ID ASC)
+	INDEX IX_B_CATALOG_DOCS_ELEMENT1 (DOC_ID ASC),
+	INDEX IX_B_CATALOG_DOCS_ELEMENT2 (ELEMENT_ID),
+	INDEX IX_B_CATALOG_DOCS_ELEMENT3 (STORE_FROM),
+	INDEX IX_B_CATALOG_DOCS_ELEMENT4 (STORE_TO)
 );
 
 create table if not exists b_catalog_docs_barcode
@@ -543,7 +549,8 @@ create table if not exists b_catalog_viewed_product
 	INDEX IX_CAT_V_PR_PRODUCT_VISIT(ELEMENT_ID, DATE_VISIT)
 );
 
-create table if not exists b_catalog_subscribe (
+create table if not exists b_catalog_subscribe
+(
 	ID int unsigned not null auto_increment,
 	DATE_FROM datetime not null,
 	DATE_TO datetime null,
@@ -560,7 +567,8 @@ create table if not exists b_catalog_subscribe (
 	INDEX IX_CAT_SUB_ITEM_ID (ITEM_ID)
 );
 
-create table if not exists b_catalog_subscribe_access (
+create table if not exists b_catalog_subscribe_access
+(
 	ID int unsigned not null auto_increment,
 	DATE_FROM datetime not null,
 	USER_CONTACT varchar(255) not null,
@@ -573,9 +581,9 @@ create table if not exists b_catalog_rounding
 (
 	ID int not null auto_increment,
 	CATALOG_GROUP_ID int not null,
-	PRICE decimal(18, 4) not null,
+	PRICE decimal(26, 8) not null,
 	ROUND_TYPE int not null,
-	ROUND_PRECISION decimal(18, 4) not null,
+	ROUND_PRECISION decimal(26, 8) not null,
 	CREATED_BY int(18) null,
 	DATE_CREATE datetime null,
 	MODIFIED_BY int(18) null,
@@ -594,24 +602,6 @@ create table if not exists b_catalog_product_compilation
 	QUEUE_ID int null,
 	primary key (ID),
 	index IX_CAT_COMPILATION_DEAL_ID(DEAL_ID)
-);
-
-create table if not exists b_catalog_exported_product
-(
-	ID int not null auto_increment,
-	PRODUCT_ID int not null,
-	SERVICE_ID varchar(100) not null,
-	TIMESTAMP_X timestamp not null default NOW() on update NOW(),
-	ERROR text null,
-	primary key (ID),
-	index IX_CAT_PR_EXP_PRID_SVID(PRODUCT_ID, SERVICE_ID)
-);
-
-create table if not exists b_catalog_exported_product_queue
-(
-	QUEUE_ID int not null,
-	PRODUCT_IDS text not null,
-	primary key (QUEUE_ID)
 );
 
 CREATE TABLE IF NOT EXISTS b_catalog_role
@@ -640,4 +630,65 @@ CREATE TABLE IF NOT EXISTS b_catalog_permission
 	PRIMARY KEY (ID),
 	INDEX ROLE_ID (ROLE_ID),
 	INDEX PERMISSION_ID (PERMISSION_ID)
+);
+
+create table if not exists b_catalog_store_batch
+(
+	ID INT NOT NULL AUTO_INCREMENT,
+	ELEMENT_ID INT NOT NULL,
+	STORE_ID INT NOT NULL,
+	AVAILABLE_AMOUNT DOUBLE NULL,
+	PURCHASING_PRICE DECIMAL(26,8) NULL,
+	PURCHASING_CURRENCY CHAR(3) NULL,
+	PRIMARY KEY (ID),
+	INDEX IX_B_ELEMENT_ID (ELEMENT_ID),
+	INDEX IX_B_STORE_ID (STORE_ID)
+);
+
+create table if not exists b_catalog_store_batch_docs_element
+(
+	ID INT NOT NULL AUTO_INCREMENT,
+	DOCUMENT_ELEMENT_ID INT NULL,
+	SHIPMENT_ITEM_STORE_ID INT NULL,
+	AMOUNT DOUBLE NOT NULL,
+	PRODUCT_BATCH_ID INT NOT NULL,
+	BATCH_PRICE DECIMAL(26,8) NULL,
+	BATCH_CURRENCY CHAR(3) NULL,
+	PRIMARY KEY (ID),
+	INDEX IX_B_SHIPMENT_ITEM_STORE_ID (SHIPMENT_ITEM_STORE_ID),
+	INDEX IX_B_DOCUMENT_ELEMENT_ID (DOCUMENT_ELEMENT_ID),
+	INDEX IX_B_PRODUCT_BATCH_ID (PRODUCT_BATCH_ID)
+);
+
+CREATE TABLE IF NOT EXISTS b_catalog_agent_contract
+(
+	ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	TITLE VARCHAR(255) NOT NULL,
+	CONTRACTOR_ID INT UNSIGNED,
+	DATE_MODIFY DATETIME NULL,
+	DATE_CREATE DATETIME NULL,
+	MODIFIED_BY INT NULL,
+	CREATED_BY INT NULL,
+	PRIMARY KEY (ID),
+	INDEX CONTRACTOR_ID (CONTRACTOR_ID)
+);
+
+CREATE TABLE IF NOT EXISTS b_catalog_agent_product
+(
+	ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	CONTRACT_ID INT UNSIGNED NOT NULL,
+	PRODUCT_ID INT UNSIGNED NOT NULL,
+	PRODUCT_TYPE VARCHAR(8) NOT NULL,
+	PRIMARY KEY (ID),
+	INDEX CONTRACT_ID (CONTRACT_ID),
+	INDEX PRODUCT_ID (PRODUCT_ID)
+);
+
+create table if not exists b_catalog_agent_contract_file
+(
+	ID INT NOT NULL AUTO_INCREMENT,
+	CONTRACT_ID INT NOT NULL,
+	FILE_ID INT NOT NULL,
+	PRIMARY KEY (ID),
+	INDEX CONTRACT_ID(CONTRACT_ID)
 );

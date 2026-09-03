@@ -2,7 +2,6 @@ import 'ui.design-tokens';
 import 'ui.fonts.opensans';
 
 import {Type, Dom, Tag, Event} from 'main.core';
-import {Main} from 'landing.main';
 import {BasePanel} from 'landing.ui.panel.base';
 import getDeltaFromEvent from './internal/get-delta-from-event';
 import calculateDurationTransition from './internal/calculate-duration-transition';
@@ -10,6 +9,10 @@ import scrollTo from './internal/scroll-to';
 
 import './css/style.css';
 import 'landing.utils';
+import type {BaseCard} from 'landing.ui.card.basecard';
+
+// Longest panel enter animation (400ms) plus slack. Only matters when `animationend` is late.
+const SHOW_ANIMATION_TIMEOUT = 600;
 
 /**
  * @memberOf BX.Landing.UI.Panel
@@ -82,6 +85,9 @@ export class Content extends BasePanel
 
 	adjustActionsPanels: boolean = true;
 
+	// Real modal slide-out panel: opt in to dialog a11y (role/aria-modal/focus-trap).
+	isDialog: boolean = true;
+
 	/**
 	 * If panel must hide by press Esc
 	 * @type {boolean}
@@ -118,6 +124,7 @@ export class Content extends BasePanel
 		{
 			this.closeByEsc = data.closeByEsc;
 		}
+		this.disableScroll = Type.isBoolean(data.disableScroll) ? data.disableScroll : false;
 
 		this.forms = new BX.Landing.UI.Collection.FormCollection();
 		this.buttons = new BX.Landing.UI.Collection.ButtonCollection();
@@ -295,20 +302,105 @@ export class Content extends BasePanel
 		return this.adjustActionsPanels;
 	}
 
+	// Outside isolation would make the editor top panel and the view inert while the panel is open.
+	getFocusTrapOptions(): Object
+	{
+		return {isolateOutside: false};
+	}
+
+	/**
+	 * A dialog is named by its title and takes its role from the base panel; its focus trap comes
+	 * later, see activateFocusTrapWhenShown. A non-modal panel has neither, and the focus it moves
+	 * into itself on open would land on an anonymous generic container. `region` turns the
+	 * container into a named landmark — and it is the role that makes an accessible name
+	 * legitimate in the first place: naming a generic element is prohibited.
+	 */
+	activateContentA11y()
+	{
+		this.setAriaLabelledBy(this.title);
+
+		if (!this.isDialog)
+		{
+			// Only a named landmark is worth having: an unnamed `region` is announced as one more
+			// region among the others, and a panel without a title (a preset panel of an heir that
+			// never set one) would produce exactly that.
+			if (this.layout.hasAttribute('aria-labelledby'))
+			{
+				this.layout.setAttribute('role', 'region');
+			}
+
+			return;
+		}
+
+		this.activateDialogA11y();
+	}
+
+	deactivateContentA11y()
+	{
+		if (!this.isDialog)
+		{
+			// A hidden layout stays in the document, and a landmark of a closed panel is noise.
+			this.layout.removeAttribute('role');
+			this.layout.removeAttribute('aria-labelledby');
+
+			return;
+		}
+
+		this.deactivateDialogA11y();
+	}
+
+	/**
+	 * The trap is what moves the focus into the panel, so it waits for the entrance animation:
+	 * while the layout is transparent nothing inside it counts as focusable and the focus would
+	 * land on the bare container. The wait is capped instead of being trusted — `animationend`
+	 * can be late, interrupted by a panel-to-panel transition or never fire at all in a
+	 * background tab, and a dialog that never traps the focus is the worse outcome.
+	 * @param {Promise} showing
+	 * @return {Promise}
+	 */
+	activateFocusTrapWhenShown(showing: Promise<any>): Promise<any>
+	{
+		let waiting = null;
+		const shown = new Promise((resolve) => {
+			waiting = setTimeout(resolve, SHOW_ANIMATION_TIMEOUT);
+		});
+
+		return Promise.race([showing, shown]).then(() => {
+			clearTimeout(waiting);
+			this.activateFocusTrap();
+		});
+	}
+
 	// eslint-disable-next-line no-unused-vars
 	show(options?: any): Promise<any>
 	{
 		if (!this.isShown())
 		{
+			this.prepareFocusReturn();
+
 			if (this.shouldAdjustActionsPanels())
 			{
 				Dom.addClass(document.body, 'landing-ui-hide-action-panels');
 			}
-			Dom.addClass(document.body, "landing-ui-action-panels-disable-scrollbar");
-
+			if (this.disableScroll)
+			{
+				Dom.addClass(document.body, "landing-ui-action-panels-disable-scrollbar");
+			}
+			Event.bind(this.layout, 'click', this.onContentClick.bind(this));
+			Event.bind(this.content, 'scroll', this.onContentScroll.bind(this));
 			void BX.Landing.Utils.Show(this.overlay);
 
-			return BX.Landing.Utils.Show(this.layout).then(() => {
+			const showPromise = BX.Landing.Utils.Show(this.layout);
+
+			// Role and name go up front, decoupled from the entrance animation.
+			// BX.Landing.Utils.Show resolves only on animationend, which can be delayed,
+			// interrupted (panel-to-panel transitions) or never fire (background tab) —
+			// leaving the panel unnamed and roleless.
+			// The title is populated by subclasses before show() is called.
+			this.activateContentA11y();
+			void this.activateFocusTrapWhenShown(showPromise);
+
+			return showPromise.then(() => {
 				this.state = 'shown';
 			});
 		}
@@ -316,21 +408,43 @@ export class Content extends BasePanel
 		return Promise.resolve(true);
 	}
 
+	onContentClick(event)
+	{
+		this.emit('onClick', { event });
+	}
+
+	onContentScroll(event)
+	{
+		this.emit('onScroll');
+	}
+
 	hide(): Promise<any>
 	{
+		this.emit('onHide');
 		if (this.isShown())
 		{
+			this.deactivateContentA11y();
+
 			if (this.shouldAdjustActionsPanels())
 			{
 				Dom.removeClass(document.body, 'landing-ui-hide-action-panels');
 			}
-			Dom.removeClass(document.body, "landing-ui-action-panels-disable-scrollbar");
+			if (this.disableScroll)
+			{
+				Dom.removeClass(document.body, "landing-ui-action-panels-disable-scrollbar");
+			}
 
 			void BX.Landing.Utils.Hide(this.overlay);
 
-			return BX.Landing.Utils.Hide(this.layout).then(() => {
+			// `Utils.Hide` hides only an element carrying the mark of a finished enter animation
+			// and leaves the rest on screen, so the leave is real only when the mark is there.
+			const isLeaving = BX.Landing.Utils.isShown(this.layout);
+
+			const hiding = BX.Landing.Utils.Hide(this.layout).then(() => {
 				this.state = 'hidden';
 			});
+
+			return this.restoreFocusAfterHide(hiding, isLeaving);
 		}
 
 		return Promise.resolve(true);
@@ -342,7 +456,15 @@ export class Content extends BasePanel
 		Dom.append(form.getNode(), this.content);
 	}
 
-	appendCard(card)
+	replaceForm(newForm, oldForm)
+	{
+		this.forms.add(newForm);
+		Dom.insertAfter(newForm.getNode(), oldForm.getNode());
+		this.forms.remove(oldForm);
+		Dom.remove(oldForm.getNode());
+	}
+
+	appendCard(card: BaseCard)
 	{
 		if (this.data.scrollAnimation)
 		{
@@ -351,6 +473,7 @@ export class Content extends BasePanel
 		}
 
 		Dom.append(card.layout, this.content);
+		card.onAppend();
 	}
 
 	clear()

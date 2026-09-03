@@ -13,12 +13,15 @@ type PageOption = {
 
 export class LandingSettings
 {
+	static PAGE_LINK_SELECTOR = 'a[data-page], a[data-placement]';
+
 	siteId: number;
 	landingId: number;
 	pages: {
 		[code: string]: PageOption
 	};
 	currentPage: PageOption;
+	menu: HTMLDivElement;
 	container: HTMLDivElement;
 	links: [HTMLAnchorElement];
 	saveButton: HTMLButtonElement;
@@ -37,14 +40,20 @@ export class LandingSettings
 		menuId: string,
 		containerId: string,
 		saveButtonId: string,
+		cancelButtonId: string,
+		type: string,
+		tool: string,
 	})
 	{
 		this.siteId = options.siteId;
 		this.landingId = options.landingId;
+		this.type = options.type;
+		this.tool = options.tool;
 
 		// pages
 		this.pages = options.pages;
 		this.container = document.getElementById(options.containerId);
+		this.menu = document.getElementById(options.menuId);
 
 		for (let page in this.pages)
 		{
@@ -58,16 +67,10 @@ export class LandingSettings
 		this.loader = new Loader({target: this.loaderContainer});
 
 		// links
-		this.links = document.getElementById(options.menuId).querySelectorAll('li a');
+		this.links = [].slice.call(this.menu.querySelectorAll(LandingSettings.PAGE_LINK_SELECTOR));
 		let currentLink = this.links[0];
-		this.links.forEach(link =>
-		{
-			Event.bind(link, 'click', (event) =>
-			{
-				event.preventDefault();
-				event.stopPropagation();
-				this.onLinkClick(link)
-			});
+		this.links.forEach(link => {
+			this.bindMenuLink(link);
 
 			if (
 				link.dataset.page
@@ -80,13 +83,18 @@ export class LandingSettings
 		});
 		if (currentLink)
 		{
-			this.onLinkClick(currentLink);
+			this.onMenuLinkClick(currentLink, false);
 		}
 
 		// save
 		this.saveButton = document.getElementById(options.saveButtonId);
+		this.cancelButton = document.getElementById(options.cancelButtonId);
 		this.onSave = this.onSave.bind(this);
+		this.onCancel = this.onCancel.bind(this);
 		Event.bind(this.saveButton, 'click', this.onSave);
+		BX.Event.EventEmitter.subscribe('SidePanel.Slider:onClose', () => {
+			this.onCancel();
+		});
 	}
 
 	showLoader()
@@ -101,11 +109,49 @@ export class LandingSettings
 		Dom.hide(this.loaderContainer);
 	}
 
-	onLinkClick(link: HTMLAnchorElement)
+	bindMenuLink(link: HTMLAnchorElement)
 	{
+		Event.bind(link, 'click', event => {
+			event.preventDefault();
+			event.stopPropagation();
+			this.onMenuLinkClick(link)
+		});
+	}
+
+	bindPageLink(pageLink: HTMLAnchorElement)
+	{
+		if (pageLink.dataset.page)
+		{
+			const currentMenuLink = this.links.find(menuLink => menuLink.dataset.page === pageLink.dataset.page);
+			if (currentMenuLink)
+			{
+				Event.bind(pageLink, 'click', event => {
+					event.preventDefault();
+					event.stopPropagation();
+					currentMenuLink.click();
+				});
+			}
+		}
+	}
+
+	onMenuLinkClick(link: HTMLAnchorElement, isUserCLick: boolean = true)
+	{
+		this.currentLink = link;
+
 		if (link.dataset.page)
 		{
 			this.onPageChange(link.dataset.page);
+
+			if (isUserCLick)
+			{
+				BX.UI.Analytics.sendData({
+					tool: this.tool,
+					category: 'settings',
+					event: 'click_on_section',
+					p1: this.getTypePageForMetrika(link.dataset.page),
+					p3: `siteID_${this.siteId}`,
+				});
+			}
 		}
 		else if (link.dataset.placement)
 		{
@@ -154,6 +200,12 @@ export class LandingSettings
 						pageToLoad.form = form;
 					}
 
+					const pageLinks = pageToLoad.container.querySelectorAll(LandingSettings.PAGE_LINK_SELECTOR);
+					if (pageLinks.length > 0)
+					{
+						pageLinks.forEach(link => this.bindPageLink(link));
+					}
+
 					if (this.currentPage)
 					{
 						this.currentPage.container.hidden = true;
@@ -176,7 +228,15 @@ export class LandingSettings
 
 	onSave()
 	{
-		this.showLoader()
+		BX.UI.Analytics.sendData({
+			tool: this.tool,
+			category: 'settings',
+			event: 'save',
+			p1: this.getTypePageForMetrika(this.currentLink.dataset.page),
+			p3: `siteID_${this.siteId}`,
+		});
+
+		this.showLoader();
 
 		const submits = [];
 		for (let page in this.pages)
@@ -207,13 +267,62 @@ export class LandingSettings
 					top.window['landingSettingsSaved'] = true;
 					top.BX.onCustomEvent('BX.Landing.Filter:apply');
 					this.hideLoader();
-					top.window.location.reload();
-					BX.SidePanel.Instance.close();
+					Dom.removeClass(this.saveButton, 'ui-btn-wait');
+
+					const previous = BX.SidePanel.Instance.getPreviousSlider();
+					if (previous)
+					{
+						previous.reload();
+						BX.SidePanel.Instance.close();
+					}
+					else
+					{
+						top.window.location.reload();
+						BX.SidePanel.Instance.close();
+					}
 				}
 			})
-			.catch(err =>
-			{
+			.catch(err => {
 				console.error(err);
 			});
+	}
+
+	onCancel()
+	{
+		BX.UI.Analytics.sendData({
+			tool: this.tool,
+			category: 'settings',
+			event: 'close',
+			p1: this.getTypePageForMetrika(this.currentLink.dataset.page),
+			p3: `siteID_${this.siteId}`,
+		});
+	}
+
+	getTypePageForMetrika(typePage: string): string
+	{
+		let type = '';
+		switch (typePage)
+		{
+			case 'SITE_EDIT':
+				type = 'site_settings';
+				break;
+			case 'SITE_DESIGN':
+				type = 'site_design';
+				break;
+			case 'LANDING_EDIT':
+				type = 'page_settings';
+				break;
+			case 'LANDING_DESIGN':
+				type = 'page_design';
+				break;
+			case 'CATALOG_EDIT':
+				type = 'catalog_settings';
+				break;
+			default:
+				type = typePage;
+				break;
+		}
+
+		return type;
 	}
 }

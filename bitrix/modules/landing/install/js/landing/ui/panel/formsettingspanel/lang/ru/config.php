@@ -30,17 +30,27 @@ $MESS['LANDING_HEADER_AND_BUTTONS_HEADERS_FORM_HIDE_SEPARATOR_FIELD_TITLE'] = '�
 $MESS['LANDING_HEADER_AND_BUTTONS_BUTTONS_FORM_TITLE'] = 'Кнопки';
 $MESS['LANDING_HEADER_AND_BUTTONS_BUTTONS_FORM_SEND_BUTTON_TITLE'] = 'Текст кнопки «Отправить»';
 
-$MESS['LANDING_HEADER_AND_BUTTONS_SHOW_SIGN'] = 'Показывать подпись';
-$MESS['LANDING_HEADER_AND_BUTTONS_BUTTONS_SIGN'] = 'Заряжено';
-$MESS['LANDING_HEADER_AND_BUTTONS_BUTTONS_SIGN_BY'] = 'Битрикс';
+$MESS['LANDING_HEADER_AND_BUTTONS_BUTTONS_SIGN_B_24'] = "
+	Показывать подпись
+	<span class='landing-ui-sign-container'>
+		<span class='landing-ui-sign'>Заряжено</span>
+		<span class='landing-ui-sign-in'>Битрикс</span>
+		<span class='landing-ui-sign-24'>24</span>
+	</span>"
+;
 
 $MESS['LANDING_HEADER_AND_BUTTONS_VARIABLE_NAME'] = 'Имя';
 $MESS['LANDING_HEADER_AND_BUTTONS_VARIABLE_LAST_NAME'] = 'Фамилия';
 $MESS['LANDING_HEADER_AND_BUTTONS_VARIABLE_DATE'] = 'Дата и время';
 
 $MESS['LANDING_SPAM_PROTECTION_TITLE'] = 'Защита от спама';
+$MESS['LANDING_SPAM_PROTECTION_SERVICE_TITLE'] = 'Сервис капчи';
+$MESS['LANDING_SPAM_PROTECTION_SERVICE_OPTION_YANDEX'] = 'Yandex SmartCaptcha';
+$MESS['LANDING_SPAM_PROTECTION_SERVICE_OPTION_GOOGLE'] = 'Google reCAPTCHA v2';
 $MESS['LANDING_SPAM_PROTECTION_TABS_TITLE'] = 'Выберите вариант использования модуля reCAPTCHA v2';
+$MESS['LANDING_SPAM_PROTECTION_TABS_TITLE_YANDEX'] = 'Выберите вариант использования Yandex SmartCaptcha';
 $MESS['LANDING_SPAM_PROTECTION_MESSAGE_WARNING_RECAPTCHA'] = 'Google reCAPTCHA является сервисом Google LLC.<br> Подключая reCAPTCHA, вы принимаете, что её использование повлечет сбор и передачу данных в Google LLC в соответствии с <a href="#URL_POLICIES_TERMS#" target="_blank">Условиями использования</a> и <a href="#URL_POLICIES_PRIVACY#" target="_blank">политикой конфиденциальности</a> Google LLC.';
+$MESS['LANDING_SPAM_PROTECTION_MESSAGE_WARNING_FOREIGN'] = 'Это внешний сервис, некоторые данные вашего пользователя могут передаваться на серверы правообладателя сервиса, расположенные за пределами вашей страны';
 $MESS['LANDING_SPAM_PROTECTION_KEYS_FORM_TITLE'] = 'Введите ключи reCAPTCHA v2';
 $MESS['LANDING_SPAM_PROTECTION_RECAPTCHA_KEY_FIELD_TITLE'] = 'Ключ';
 $MESS['LANDING_SPAM_PROTECTION_RECAPTCHA_SECRET_KEY_FIELD_TITLE'] = 'Секретный ключ';
@@ -88,7 +98,8 @@ $MESS['LANDING_FORM_ACTIONS_TYPE_DROPDOWN_TITLE'] = 'Выбрана возмож
 $MESS['LANDING_FORM_ACTIONS_SUCCESS_FIELD_TITLE'] = 'При успешной отправке';
 $MESS['LANDING_FORM_ACTIONS_FAILURE_FIELD_TITLE'] = 'При неуспешной отправке';
 $MESS['LANDING_FORM_ACTIONS_REFILL_CAPTION_FIELD_TITLE'] = 'Текст на кнопке обратного заполнения';
-$MESS['LANDING_FORM_ACTIONS_REFILL_CAPTION'] = 'Заполнить еще раз';
+$MESS['LANDING_FORM_ACTIONS_REFILL_CAPTION'] = 'Заполнить ещё раз';
+$MESS['LANDING_FORM_ACTIONS_LINK_WARNING_MESSAGE'] = 'Ссылка должна начинаться с https://';
 
 $MESS['LANDING_FORM_ACTIONS_CHECKBOX_TITLE'] = 'Показывать кнопку «Заполнить ещё раз»';
 
@@ -158,14 +169,14 @@ $MESS['LANDING_FORM_EMBED_SHOW_POPUP'] = 'Во всплывающем окне';
 $MESS['LANDING_FORM_EMBED_SHOW_SLIDER'] = 'В слайдере';
 
 $MESS['LANDING_IDENTIFY_HEADER'] = 'Узнать клиента';
-$MESS['LANDING_IDENTIFY_MESSAGE_HEADER'] = 'Функция “Узнать клиента” включена!';
+$MESS['LANDING_IDENTIFY_MESSAGE_HEADER'] = 'Функция «Узнать клиента» включена!';
 $MESS['LANDING_IDENTIFY_MESSAGE_DESCRIPTION'] = 'Клиенты заполняют формы быстро, продажи растут!<br>Если клиент заполнял форму на вашем сайте, информация о нём уже есть в вашей CRM. Почему бы её не использовать? Теперь ваши формы будут узнавать клиента и подставлять данные в нужные поля. Клиенту больше не нужно повторно вводить информацию, например, имя, телефон, e-mail. Без сомнений, лёгкость заполнения форм будет увеличивать ваши продажи. ';
 
 $MESS['LANDING_FORM_SETTINGS_CRM_TITLE'] = 'Сущности CRM';
 $MESS['LANDING_FORM_SETTINGS_CRM_TYPE_1'] = 'Лид';
 $MESS['LANDING_FORM_SETTINGS_CRM_TYPE_2'] = 'Клиент';
 $MESS['LANDING_FORM_SETTINGS_CRM_TYPE_3'] = 'Сделка +&nbsp;клиент';
-$MESS['LANDING_FORM_SETTINGS_CRM_TYPE_4'] = 'Предложение +&nbsp;клиент';
+$MESS['LANDING_FORM_SETTINGS_CRM_TYPE_4_MSGVER_1'] = 'Предложение +&nbsp;клиент';
 $MESS['LANDING_FORM_SETTINGS_CRM_TYPE_5'] = 'Смарт-процесс';
 $MESS['LANDING_FORM_SETTINGS_CRM_TYPE_310'] = 'Счёт';
 $MESS['LANDING_FORM_SETTINGS_CRM_SMART_ENTITY_LIST'] = 'Смарт-процесс';
@@ -221,7 +232,17 @@ $MESS['LANDING_FORM_CALLBACK_WARNING_TEXT'] = 'Для использования
 
 $MESS['LANDING_FORM_EMBED_SHOW_SETTINGS_DESCRIPTION'] = 'Обратите внимание! Настройки применятся только после сохранения';
 $MESS['LANDING_FORM_ACTIONS_DELAY_TITLE'] = 'Пауза перед редиректом';
-$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM'] = 'сек.';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_0'] = '0 секунд';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_1'] = '1 секунда';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_2'] = '2 секунды';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_3'] = '3 секунды';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_4'] = '4 секунды';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_5'] = '5 секунд';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_6'] = '6 секунд';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_7'] = '7 секунд';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_8'] = '8 секунд';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_9'] = '9 секунд';
+$MESS['LANDING_FORM_ACTIONS_DELAY_ITEM_10'] = '10 секунд';
 
 $MESS['LANDING_SYNCHRONIZATION_POPUP_TITLE'] = 'Создание недостающих полей';
 $MESS['LANDING_SYNCHRONIZATION_POPUP_DESCRIPTION'] = 'В карточке {entityName} не хватает полей, в которые CRM-форма будет передавать данные.';
@@ -234,7 +255,7 @@ $MESS['LANDING_SYNCHRONIZATION_POPUP_OK_BUTTON_LABEL'] = 'Продолжить';
 $MESS['LANDING_CRM_ACCESS_ERROR_MESSAGE'] = 'Недостаточно прав на редактирование CRM-формы. Отправьте запрос на доступ администратору портала.';
 $MESS['LANDING_CRM_FORM_USER'] = 'Ответственный';
 $MESS['LANDING_CRM_FORM_LANGUAGE'] = 'Язык';
-$MESS['LANDING_CRM_FORM_ID'] = 'Идентификатор формы';
+$MESS['LANDING_CRM_FORM_ID_MSGVER_1'] = 'Идентификатор формы:';
 
 $MESS['LANDING_CRM_FORM_INTEGRATION_SEO_NOT_INSTALLED_HEADER'] = 'Модуль SEO не установлен';
 $MESS['LANDING_CRM_FORM_INTEGRATION_SEO_NOT_INSTALLED_FB_TEXT'] = 'Для корректной интеграции с «Facebook Lead Ads» необходимо установить модуль SEO';
@@ -263,8 +284,9 @@ $MESS['LANDING_FORM_WHATSAPP_WARNING_TEXT'] = 'Для использования
 $MESS['LANDING_FORM_SAVE_ERROR_ALERT_TITLE'] = 'Ошибка';
 $MESS['LANDING_FORM_SAVE_UNKNOWN_ERROR_ALERT_TEXT'] = 'При сохранении настроек произошла ошибка';
 $MESS['LANDING_FORM_EDITOR_SAVE_BUTTON_STATE_SAVED'] = 'Сохранено';
-$MESS['LANDING_FORM_SAVE_CAPTCHA_ALERT_TITLE'] = 'Внимание';
-$MESS['LANDING_FORM_SAVE_CAPTCHA_ALERT_TEXT_2'] = 'Защита от спама была отключена, т. к. не указаны ключи reCAPTCHA v2';
+$MESS['LANDING_FORM_SAVE_CAPTCHA_ALERT_TEXT_2_MSGVER_1'] = 'Защита от спама отключена. Чтобы включить её, укажите ключи reCAPTCHA v2';
+$MESS['LANDING_FORM_SAVE_CAPTCHA_ALERT_OK_TEXT'] = 'Понятно';
+$MESS['LANDING_FORM_SAVE_YANDEX_CAPTCHA_ALERT_TEXT_2'] = 'Защита от спама отключена. Чтобы включить её, укажите ключи Yandex SmartCaptcha';
 $MESS['LANDING_FORM_SAVE_PERMISSION_DENIED'] = 'Недостаточно прав для сохранения настроек формы. Обратитесь к администратору портала.';
 $MESS['LANDING_ACTIONS_MESSAGE_HEADER_type1'] = 'Сообщение';
 $MESS['LANDING_ACTIONS_MESSAGE_DESCRIPTION_type1'] = 'Поблагодарите клиента за то, что он заполнил форму, или расскажите ему о правилах обработки заказа';
@@ -278,5 +300,5 @@ $MESS['LANDING_FORM_EXPERT_MODE_SWITCHER_LABEL'] = 'Экспертный реж�
 $MESS['LANDING_FORM_HISTORY_DISABLED_HINT'] = 'Кнопки доступны при редактировании дизайна страницы с формой';
 
 $MESS["LANDING_FORM_EDITOR_PHONE_VERIFY_CUSTOM_SLIDER_TITLE"] = "Изменение формы";
-$MESS["LANDING_FORM_EDITOR_PHONE_VERIFY_CUSTOM_TITLE"] = "Получите проверочный код в CMC";
+$MESS["LANDING_FORM_EDITOR_PHONE_VERIFY_CUSTOM_TITLE"] = "Получите проверочный код в СМС";
 $MESS["LANDING_FORM_EDITOR_PHONE_VERIFY_CUSTOM_DESCRIPTION"] = "В целях безопасности для изменения формы вам необходимо указать проверочный код из СМС. Это выполняется однократно для каждой формы.";

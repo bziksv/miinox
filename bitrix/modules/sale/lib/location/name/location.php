@@ -21,9 +21,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Location_Query query()
- * @method static EO_Location_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Location_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Location_Result getById($id)
- * @method static EO_Location_Result getList(array $parameters = array())
+ * @method static EO_Location_Result getList(array $parameters = [])
  * @method static EO_Location_Entity getEntity()
  * @method static \Bitrix\Sale\Location\Name\EO_Location createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Location\Name\EO_Location_Collection createCollection()
@@ -46,7 +46,7 @@ class LocationTable extends NameEntity
 	{
 		if($data['NAME'] <> '')
 		{
-			$data['NAME_UPPER'] = ToUpper($data['NAME']); // bitrix to upper
+			$data['NAME_UPPER'] = mb_strtoupper($data['NAME']); // bitrix to upper
 
 			if(!isset($data['NAME_NORM']) && isset($data['LANGUAGE_ID']))
 			{
@@ -61,7 +61,7 @@ class LocationTable extends NameEntity
 	{
 		if($data['NAME'] <> '')
 		{
-			$data['NAME_UPPER'] = ToUpper($data['NAME']); // bitrix to upper
+			$data['NAME_UPPER'] = mb_strtoupper($data['NAME']); // bitrix to upper
 
 			if(!isset($data['NAME_NORM']) && isset($data['LANGUAGE_ID']))
 			{

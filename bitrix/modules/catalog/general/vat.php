@@ -7,14 +7,6 @@ use Bitrix\Catalog;
 class CAllCatalogVat
 {
 	/**
-	 * @deprecated deprecated since catalog 12.5.6
-	 */
-	public static function err_mess(): string
-	{
-		return "<br>Module: catalog<br>Class: CCatalogVat<br>File: ".__FILE__;
-	}
-
-	/**
 	 * @deprecated
 	 *
 	 * @param $ACTION
@@ -258,19 +250,19 @@ class CAllCatalogVat
 		return $success;
 	}
 
-	private static function normalizeFields(array &$fields)
+	private static function normalizeFields(array &$fields): void
 	{
 		if (!isset($fields['SORT']))
 		{
 			if (isset($fields['C_SORT']))
 			{
 				$fields['SORT'] = $fields['C_SORT'];
-				unset($fields['C_SORT']);
 			}
 		}
+		unset($fields['C_SORT']);
 	}
 
-	private static function convertErrors(ORM\Data\Result $result)
+	private static function convertErrors(ORM\Data\Result $result): void
 	{
 		global $APPLICATION;
 

@@ -9,19 +9,19 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Config\Option;
 use Bitrix\Sale\Internals\StatusTable;
 use Bitrix\Sale;
-use \Bitrix\Sale\Exchange\Integration\Admin;
+use Bitrix\Sale\Exchange\Integration\Admin;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 Loader::includeModule('sale');
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 
-\Bitrix\Main\UI\Extension::load('sale.admin_order_list');
+Main\UI\Extension::load('sale.admin_order_list');
 
 // include functions
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/general/admin_tool.php");
 
 $saleModulePermissions = $APPLICATION->GetGroupRight("sale");
-$isCanUsePersonalization = \Bitrix\Sale\Configuration::isCanUsePersonalization();
+$isCanUsePersonalization = Sale\Configuration::isCanUsePersonalization() && Main\Analytics\Catalog::isOn();
 
 if($saleModulePermissions == "D")
 	$APPLICATION->AuthForm(Loc::getMessage("ACCESS_DENIED"));
@@ -33,7 +33,7 @@ $LOCAL_STATUS_CACHE = array();
 
 Loc::loadMessages(__FILE__);
 
-$request = \Bitrix\Main\Context::getCurrent()->getRequest();
+$request = Main\Context::getCurrent()->getRequest();
 $link = Admin\Link::getInstance();
 $publicMode = $adminPage->publicMode;
 $arUserGroups = $USER->GetUserGroupArray();
@@ -122,7 +122,7 @@ $arFilterFields = array(
 
 $arOrderProps = array();
 $arOrderPropsCode = array();
-$dbProps = \Bitrix\Sale\Internals\OrderPropsTable::getList(
+$dbProps = Sale\Internals\OrderPropsTable::getList(
 	array(
 		'filter' => array(
 			'=ACTIVE' => 'Y'
@@ -348,8 +348,8 @@ if (!empty($filter_group_id) && is_array($filter_group_id))
 		$runtimeFields['REQUIRED_UG_PRESENTED'] = [
 			'data_type' => 'boolean',
 			'expression' => [
-				'case when exists (select USER_ID from b_user_group where USER_ID = %s and GROUP_ID in '
-					. $whereExpression . ') then 1 else 0 end'
+				'CASE WHEN EXISTS (SELECT USER_ID FROM b_user_group WHERE USER_ID = %s AND GROUP_ID IN '
+					. $whereExpression . ') THEN 1 ELSE 0 END'
 				,
 				'USER_ID',
 			],
@@ -521,14 +521,16 @@ if(!empty($filter_delivery_service) && is_array($filter_delivery_service))
 		$whereExpression .= "DELIVERY_ID = ".intval($filterDeliveryServiceId);
 	}
 
-	if(strval($whereExpression) != "")
+	if ($whereExpression !== "")
 	{
 		$whereExpression .= ")";
 
+		$connection = Main\Application::getInstance()->getConnection();
+		$helper = $connection->getSqlHelper();
 		$runtimeFields["REQUIRED_DLV_PRESENTED"] = array(
 			'data_type' => 'boolean',
 			'expression' => array(
-				'CASE WHEN EXISTS (SELECT ID FROM b_sale_order_delivery WHERE ORDER_ID = %s AND `SYSTEM`="N" AND '.$whereExpression.') THEN 1 ELSE 0 END',
+				'CASE WHEN EXISTS (SELECT ID FROM b_sale_order_delivery WHERE ORDER_ID = %s AND ' . $helper->quote('SYSTEM') . '=\'N\' AND '.$whereExpression.') THEN 1 ELSE 0 END',
 				'ID'
 			)
 		);
@@ -906,9 +908,9 @@ $arID = array();
 if(($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "P")
 {
 	$arAffectedOrders = array();
-	$forAll =($_REQUEST['action_target'] == 'selected');
+	$forAll = Main\Application::getInstance()->getContext()->getRequest()->get('action_target') === 'selected';
 
-	if($forAll)
+	if ($forAll)
 	{
 		$filter = $arFilterTmp;
 		$arID = array();
@@ -3711,7 +3713,7 @@ if (!$publicMode && \Bitrix\Sale\Update\CrmEntityCreatorStepper::isNeedStub())
 else
 {
 	?>
-	<script type="text/javascript">
+	<script>
 		function fToggleSetItems(setParentId)
 		{
 			var elements = document.getElementsByClassName('set_item_' + setParentId);
@@ -3897,7 +3899,7 @@ else
 		<tr>
 			<td><?echo Loc::getMessage("SALE_F_ID");?>:</td>
 			<td>
-				<script type="text/javascript">
+				<script>
 					function filter_id_from_Change()
 					{
 						if(document.find_form.filter_id_to.value.length<=0)
@@ -4207,7 +4209,7 @@ else
 		<tr>
 			<td><?echo Loc::getMessage("SO_PRODUCT_ID")?></td>
 			<td>
-				<script type="text/javascript">
+				<script>
 					function FillProductFields(arParams)
 					{
 						if(arParams["id"])
@@ -4270,7 +4272,7 @@ else
 				<IFRAME name="hiddenframe_affiliate" id="id_hiddenframe_affiliate" src="" width="0" height="0" style="width:0px; height:0px; border: 0px"></IFRAME>
 				<input type="button" class="button" name="FindAffiliate" OnClick="window.open('/bitrix/admin/sale_affiliate_search.php?func_name=SetAffiliateID', '', 'scrollbars=yes,resizable=yes,width=800,height=500,top='+Math.floor((screen.height - 500)/2-14)+',left='+Math.floor((screen.width - 400)/2-5));" value="...">
 				<span id="div_affiliate_name"></span>
-				<script type="text/javascript">
+				<script>
 					function SetAffiliateID(id)
 					{
 						document.find_form.filter_affiliate_id.value = id;
@@ -4473,7 +4475,7 @@ else
 	if($link->getType() == Admin\ModeType::APP_LAYOUT_TYPE)
 	{
 		?>
-		<script type="text/javascript">
+		<script>
 			BX.ready(
 				function()
 				{
@@ -4507,7 +4509,7 @@ else
 	else
 	{
 		?>
-		<script type="text/javascript">
+		<script>
 
 			function sendDeliveryRequestsForCurrentOrders(selectedOnly)
 			{

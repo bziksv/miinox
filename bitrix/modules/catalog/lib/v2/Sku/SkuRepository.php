@@ -118,7 +118,7 @@ class SkuRepository extends BaseIblockElementRepository implements SkuRepository
 	{
 		$filter = parent::getAdditionalProductFilter();
 
-		$filter['@TYPE'] = [
+		$filter['=TYPE'] = [
 			ProductTable::TYPE_PRODUCT,
 			ProductTable::TYPE_OFFER,
 			ProductTable::TYPE_FREE_OFFER,
@@ -216,7 +216,7 @@ class SkuRepository extends BaseIblockElementRepository implements SkuRepository
 		elseif (!$product->isNew())
 		{
 			$params['filter']['PROPERTY_' . $this->iblockInfo->getSkuPropertyId()] = $product->getId();
-			$params['order']['ID'] = 'DESC';
+			$params['order']['ID'] ??= 'DESC';
 
 			foreach ($this->getList($params) as $item)
 			{
@@ -259,14 +259,10 @@ class SkuRepository extends BaseIblockElementRepository implements SkuRepository
 
 				foreach ($propertySettings as $setting)
 				{
-					if (isset($propertyElementMap[$skuId][$setting['ID']]))
-					{
-						$propertyItem = $propertyElementMap[$skuId][$setting['ID']];
-					}
-					else
-					{
-						$propertyItem = $this->propertyRepository->createEntity([], $setting);
-					}
+					$propertyItem =
+						$propertyElementMap[$skuId][$setting['ID']]
+						?? $this->propertyRepository->createEntity([], $setting)
+					;
 
 					if ($propertyItem)
 					{
@@ -311,7 +307,7 @@ class SkuRepository extends BaseIblockElementRepository implements SkuRepository
 		return $propertyElementMap;
 	}
 
-	protected function createEntity(array $fields = [], PropertyCollection $propertyCollection = null): BaseIblockElementEntity
+	protected function createEntity(array $fields = [], ?PropertyCollection $propertyCollection = null): BaseIblockElementEntity
 	{
 		$entity = parent::createEntity($fields);
 
@@ -325,12 +321,26 @@ class SkuRepository extends BaseIblockElementRepository implements SkuRepository
 
 	public function setDetailUrlTemplate(?string $template): BaseIblockElementRepository
 	{
-		if ($this->productRepository->getDetailUrlTemplate() === null)
+		if (isset($this->productRepository))
 		{
-			$this->productRepository->setDetailUrlTemplate($template);
+			if ($this->productRepository->getDetailUrlTemplate() === null)
+			{
+				$this->productRepository->setDetailUrlTemplate($template);
+				$this->productRepository->setAutoloadDetailUrl($template !== null);
+			}
 		}
 
 		return parent::setDetailUrlTemplate($template);
+	}
+
+	public function setAutoloadDetailUrl(bool $state): BaseIblockElementRepository
+	{
+		if (isset($this->productRepository))
+		{
+			$this->productRepository->setAutoloadDetailUrl($state);
+		}
+
+		return parent::setAutoloadDetailUrl($state);
 	}
 
 	public function getCountByProductId(int $productId): int

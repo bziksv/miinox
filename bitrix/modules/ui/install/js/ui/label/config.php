@@ -5,10 +5,13 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 }
 
 return [
-	'css' => 'src/ui.label.css',
+	'css' => 'dist/label.bundle.css',
 	'js' => 'dist/label.bundle.js',
 	'rel' => [
 		'main.core',
+		'main.loader',
+		'ui.icon-set.api.core',
+		'ui.icon-set.main',
 		'ui.fonts.opensans',
 		'ui.design-tokens',
 	],

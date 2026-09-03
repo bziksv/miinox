@@ -4,6 +4,8 @@ use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Grid\Options as GridOptions;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Fields\ExpressionField;
+use Bitrix\Main\UI\Extension;
 use Bitrix\Main\UI\Filter\Options as FilterOptions;
 use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\ContactTable;
@@ -125,7 +127,6 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 		/* Set title */
 		if ($this->arParams['SET_TITLE'])
 		{
-			/**@var CAllMain*/
 			$GLOBALS['APPLICATION']->SetTitle(
 				$this->arParams['CONTACT_ID']
 					?
@@ -188,14 +189,30 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 
 		// get rows
 		$statusList = PostingRecipientTable::getStatusList();
-		$list = PostingRecipientTable::getList([
-			'select' => $this->getDataSelectedFields(),
-			'filter' => $this->getDataFilter(),
-			'offset' => $nav->getOffset(),
-			'limit' => $nav->getLimit(),
-			'count_total' => true,
-			'order' => $this->getGridOrder()
-		]);
+		$ids =
+			PostingRecipientTable::query()
+				->setSelect(['ID'])
+				->setFilter($this->getDataFilter())
+				->setOffset($nav->getOffset())
+				->setLimit($nav->getLimit())
+				->setOrder($this->getGridOrder())
+				->fetchAll()
+		;
+
+		$ids = array_column($ids, 'ID');
+
+		$list = !empty($ids)
+			? PostingRecipientTable::query()
+				->setSelect($this->getDataSelectedFields())
+				->whereIn('ID', $ids)
+				->setOrder($this->getGridOrder())
+				->fetchAll()
+			: []
+		;
+
+		/**
+		 * @var \Bitrix\Sender\EO_PostingRecipient $itemObject
+		 */
 		foreach ($list as $item)
 		{
 			foreach (['IS_READ', 'IS_CLICK', 'IS_UNSUB'] as $key)
@@ -240,11 +257,20 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 
 			$this->arResult['ROWS'][] = $item;
 		}
+		$count =
+			PostingRecipientTable::query()
+				->setSelect(['CNT'])
+				->registerRuntimeField('', new ExpressionField('CNT', 'COUNT(*)'))
+				->setFilter($this->getDataFilter())
+				->setOrder(['CNT' => 'DESC'])
+				->exec()
+				->fetch()['CNT']
+		;
 
-		$this->arResult['TOTAL_ROWS_COUNT'] = $list->getCount();
+		$this->arResult['TOTAL_ROWS_COUNT'] = $count ?? 0;
 
 		// set rec count to nav
-		$nav->setRecordCount($list->getCount());
+		$nav->setRecordCount($this->arResult['TOTAL_ROWS_COUNT']);
 		$this->arResult['NAV_OBJECT'] = $nav;
 
 		return true;
@@ -272,20 +298,20 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 		$filter = [];
 		if ($searchString)
 		{
-			$filter['NAME'] = '%' . $searchString . '%';
+			$filter['CONTACT.NAME'] = '%' . $searchString . '%';
 
 		}
 		if (isset($requestFilter['NAME']) && $requestFilter['NAME'])
 		{
-			$filter['NAME'] = '%' . $requestFilter['NAME'] . '%';
+			$filter['CONTACT.NAME'] = '%' . $requestFilter['NAME'] . '%';
 		}
 		if (isset($requestFilter['CODE']) && $requestFilter['CODE'])
 		{
-			$filter['CODE'] = '%' . $requestFilter['CODE'] . '%';
+			$filter['CONTACT.CODE'] = '%' . $requestFilter['CODE'] . '%';
 		}
 		if (isset($requestFilter['TYPE_ID']) && $requestFilter['TYPE_ID'])
 		{
-			$filter['=TYPE_ID'] = $requestFilter['TYPE_ID'];
+			$filter['=CONTACT.TYPE_ID'] = $requestFilter['TYPE_ID'];
 		}
 		if (isset($requestFilter['STATUS']) && $requestFilter['STATUS'])
 		{
@@ -293,13 +319,13 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 			{
 				$filter['!==DATE_SENT'] = null;
 				$filter['=STATUS'] = PostingRecipientTable::SEND_RESULT_NONE ;
-				$filter['=CONSENT_STATUS'] = ContactTable::CONSENT_STATUS_ACCEPT;
+				$filter['=CONTACT.CONSENT_STATUS'] = ContactTable::CONSENT_STATUS_ACCEPT;
 			}
 			elseif($requestFilter['STATUS'] === 'REJECT')
 			{
 				$filter['!==DATE_SENT'] = null;
 				$filter['=STATUS'] = PostingRecipientTable::SEND_RESULT_NONE;
-				$filter['=CONSENT_STATUS'] = ContactTable::CONSENT_STATUS_DENY;
+				$filter['=CONTACT.CONSENT_STATUS'] = ContactTable::CONSENT_STATUS_DENY;
 			}
 			else
 			{
@@ -388,7 +414,7 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 			$list[] = [
 				"id" => "LETTER_TITLE",
 				"name" => Loc::getMessage('SENDER_LETTER_RCP_UI_COLUMN_LETTER_TITLE'),
-				"sort" => "LETTER_TITLE",
+				"sort" => "POSTING.LETTER.TITLE",
 				"default" => true
 			];
 		}
@@ -397,13 +423,13 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 			$list[] = [
 				"id" => "CODE",
 				"name" => Loc::getMessage('SENDER_LETTER_RCP_UI_COLUMN_CODE'),
-				"sort" => "CODE",
+				"sort" => "CONTACT.CODE",
 				"default" => true
 			];
 			$list[] = [
 				"id" => "NAME",
 				"name" => Loc::getMessage('SENDER_LETTER_RCP_UI_COLUMN_NAME'),
-				"sort" => "NAME",
+				"sort" => "CONTACT.NAME",
 				"default" => true
 			];
 		}
@@ -612,6 +638,8 @@ class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSend
 
 	protected function printErrors()
 	{
+		// temporary include main popup extension on show error
+		Extension::load(["main.popup"]);
 		foreach ($this->errors as $error)
 		{
 			ShowError($error);

@@ -1,4 +1,7 @@
-<?
+<?php
+
+use Bitrix\Main\Web\Json;
+
 /**
  * @var CBitrixComponentTemplate $this
  * @var $arParams
@@ -46,7 +49,7 @@ $frame = $this->createFrame()->begin(false);
 				tagId: BX('<?=($arParams['TAG_ID'] ?? '')?>'),
 				openDialogWhenInit: openDialogWhenInit,
 				bindNode: BX('<?=($arParams['BIND_ID'] ?? '')?>'),
-				options: <?=\CUtil::phpToJSObject($arParams["OPTIONS"])?>,
+				options: <?= Json::encode($arParams["OPTIONS"])?>,
 				callback : {
 					select: <?=(!empty($arParams["CALLBACK"]["select"]) ? $arParams["CALLBACK"]["select"] : 'null')?>,
 					unSelect: <?=(!empty($arParams["CALLBACK"]["unSelect"]) ? $arParams["CALLBACK"]["unSelect"] : 'null')?>,
@@ -58,36 +61,36 @@ $frame = $this->createFrame()->begin(false);
 					closeEmailAdd: <?=(!empty($arParams["CALLBACK"]["closeEmailAdd"]) ? $arParams["CALLBACK"]["closeEmailAdd"] : 'null')?>
 				},
 				items : {
-					selected: <?=\CUtil::phpToJSObject($arParams['ITEMS_SELECTED'])?>,
-					hidden: <?=\CUtil::phpToJSObject($arParams['ITEMS_HIDDEN'])?>
+					selected: <?= Json::encode($arParams['ITEMS_SELECTED']) ?>,
+					hidden: <?= Json::encode($arParams['ITEMS_HIDDEN']) ?>
 				},
 				entities: {
-					users: <?=\CUtil::phpToJSObject($arResult['ENTITIES']['USERS'])?>,
-					groups: <?=\CUtil::phpToJSObject($arResult['ENTITIES']['GROUPS'])?>,
-					sonetgroups: <?=\CUtil::phpToJSObject($arResult['ENTITIES']['SONETGROUPS'])?>,
-					department: <?=\CUtil::phpToJSObject($arResult['ENTITIES']['DEPARTMENTS'])?>
+					users: <?= Json::encode($arResult['ENTITIES']['USERS']) ?>,
+					groups: <?= Json::encode($arResult['ENTITIES']['GROUPS']) ?>,
+					sonetgroups: <?= Json::encode($arResult['ENTITIES']['SONETGROUPS']) ?>,
+					department: <?= Json::encode($arResult['ENTITIES']['DEPARTMENTS']) ?>
 				}
 			});
 		};
 
-		<?
+		<?php
 		if (!empty($arParams["OPTIONS"]["eventInit"]))
 		{
 			?>
 			BX.addCustomEvent(window, "<?=$arParams["OPTIONS"]["eventInit"]?>", f);
-			<?
+		<?php
 		}
 		else
 		{
 			?>
 			f();
-			<?
+		<?php
 		}
 		?>
 
 	});
 </script>
 
-<?
+<?php
 $frame->end();
 ?>

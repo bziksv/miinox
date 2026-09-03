@@ -27,7 +27,7 @@
 			options
 		);
 		BX.Landing.Component.View.instance.setNewOptions(options);
-		BX.Landing.Component.View.instance.init();
+		BX.Landing.Component.View.instance.init(options);
 
 		return BX.Landing.Component.View.instance;
 	};
@@ -42,7 +42,7 @@
 
 		editorWindow.addEventListener('load', function() {
 			BX.Landing.UI.Panel.StylePanel.getInstance();
-			rootWindow.BX.Landing.UI.Panel.Top.instance = null;
+			rootWindow.BX.Landing.UI.Panel.Top.resetInstance();
 			BX.Landing.UI.Panel.Top.getInstance();
 
 			editorWindow.BX.onCustomEvent('Landing.Editor:load')
@@ -60,7 +60,8 @@
 			this.type = options.type || '';
 			this.title = options.title || '';
 			this.url = options.url || '';
-			this.formEditor = options.specialType === 'crm_forms';
+			this.isMainpage = options.type === 'VIBE';
+			this.isFormEditor = options.specialType === 'crm_forms';
 			this.topInit = options.topInit || false;
 			this.active = options.active || false;
 			this.draftMode = options.draftMode || false;
@@ -92,8 +93,9 @@
 		/**
 		 * Some init preparing.
 		 */
-		init: function()
+		init: function(options)
 		{
+			this.patchSidePanelBindAnchors();
 			var viewInstance = BX.Landing.Component.View.getInstance();
 
 			// for open app pages in slider
@@ -175,17 +177,65 @@
 
 				editorWindow.addEventListener('load', function() {
 					BX.Landing.UI.Panel.StylePanel.getInstance();
-					rootWindow.BX.Landing.UI.Panel.Top.instance = null;
+					rootWindow.BX.Landing.UI.Panel.Top.resetInstance()
 					BX.Landing.UI.Panel.Top.getInstance();
 				});
 			}
 			// build top panel
 			if (this.topInit)
 			{
-				this.buildTop();
+				this.buildTop(options);
 				this.initSliders();
 				this.loadEditor();
 				this.hideEditorsPanelHandlers();
+			}
+		},
+
+		patchSidePanelBindAnchors: function()
+		{
+			try
+			{
+				const topWindow = (window.top && window.top !== window) ? window.top : window;
+				if (
+					!topWindow
+					|| !topWindow.BX
+					|| !topWindow.BX.SidePanel
+					|| !topWindow.BX.SidePanel.Instance
+				)
+				{
+					return;
+				}
+
+				const manager = topWindow.BX.SidePanel.Instance;
+				if (manager.__landingBindAnchorsPatched)
+				{
+					return;
+				}
+
+				const orig = manager.bindAnchors.bind(manager);
+				manager.bindAnchors = function(params)
+				{
+					let preparedParams = params;
+					if (
+						params
+						&& params.rules
+						&& topWindow.BX.Runtime
+						&& typeof topWindow.BX.Runtime.clone === 'function'
+					)
+					{
+						preparedParams = topWindow.BX.Runtime.clone(params);
+					}
+					else if (params && params.rules && typeof topWindow.BX.clone === 'function')
+					{
+						preparedParams = topWindow.BX.clone(params);
+					}
+
+					return orig(preparedParams);
+				};
+				manager.__landingBindAnchorsPatched = true;
+			}
+			catch (error)
+			{
 			}
 		},
 
@@ -241,6 +291,16 @@
 				]
 			});
 			BX.SidePanel.Instance.bindAnchors(sliderFullOptions);
+
+			const topPanelLogoLink = document.querySelector('.landing-ui-panel-top-logo-link');
+			if (topPanelLogoLink && BX.Dom.hasClass(topPanelLogoLink, '--mainpage-link'))
+			{
+				BX.Event.bind(topPanelLogoLink, 'click', () => {
+					event.preventDefault();
+					event.stopPropagation();
+					BX.SidePanel.Instance.close();
+				});
+			}
 		},
 
 		/**
@@ -315,9 +375,9 @@
 						.then(function(iframe) {
 							if (iframe.contentWindow.BX)
 							{
-								if (iframe.contentWindow.BX.Landing.Block.Node.Text.currentNode)
+								if (iframe.contentWindow.BX.Landing.Node.Text.currentNode)
 								{
-									iframe.contentWindow.BX.Landing.Block.Node.Text.currentNode.disableEdit();
+									iframe.contentWindow.BX.Landing.Node.Text.currentNode.disableEdit();
 								}
 
 								if (iframe.contentWindow.BX.Landing.UI.Field.BaseField.currentField)
@@ -384,7 +444,7 @@
 		 */
 		buildTop: function(options)
 		{
-			options = options || {};
+			this.options = options;
 			this.urls = this.urls || {};
 
 			// direct id for some urls
@@ -397,11 +457,12 @@
 				}
 			}
 
-			if (BX('landing-popup-publication-btn'))
+			const publicationBtn = BX('landing-popup-publication-btn');
+			if (publicationBtn && publicationBtn.classList.contains('landing-ui-panel-top-pub-btn-enable'))
 			{
 				var oPopupPublication = null;
 				var oPopupError = null;
-				BX('landing-popup-publication-btn').addEventListener(
+				publicationBtn.addEventListener(
 					'click',
 					function()
 					{
@@ -517,23 +578,36 @@
 																	},
 																	dataType: 'json',
 																	onsuccess: data => {
-																		BX.removeClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-error");
+																		const publicationButton = BX('landing-popup-publication-btn');
+																		const publicationIcon = publicationButton ? publicationButton.querySelector('.ui-icon-set') : null;
+
+																		BX.removeClass(publicationButton, "landing-ui-panel-top-pub-btn-error");
 																		if (this.checked)
 																		{
-																			BX.addClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-auto");
-																			BX.addClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-loader");
+																			BX.addClass(publicationButton, "landing-ui-panel-top-pub-btn-auto");
+																			BX.addClass(publicationButton, "landing-ui-panel-top-pub-btn-loader");
+																			if (publicationIcon)
+																			{
+																				BX.removeClass(publicationIcon, "--o-cloud");
+																				BX.addClass(publicationIcon, "--s-cloud");
+																			}
 																			BX.addClass(document.body.querySelector(".landing-popup-publication-content-autopub-icon"), "landing-ui-panel-top-pub-btn-auto");
 																			BX.Landing.Backend.getInstance()
 																				.action('Landing::publication', {
 																					lid: landingId
 																				})
 																				.then(() => {
-																					BX.removeClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-loader");
+																					BX.removeClass(publicationButton, "landing-ui-panel-top-pub-btn-loader");
 																				})
 																		}
 																		else
 																		{
-																			BX.removeClass(BX('landing-popup-publication-btn'), "landing-ui-panel-top-pub-btn-auto");
+																			BX.removeClass(publicationButton, "landing-ui-panel-top-pub-btn-auto");
+																			if (publicationIcon)
+																			{
+																				BX.removeClass(publicationIcon, "--s-cloud");
+																				BX.addClass(publicationIcon, "--o-cloud");
+																			}
 																			BX.removeClass(document.body.querySelector(".landing-popup-publication-content-autopub-icon"), "landing-ui-panel-top-pub-btn-auto");
 																		}
 																	}
@@ -546,11 +620,9 @@
 														children: [
 															BX.create('span', {
 																props: { className: 'landing-popup-publication-content-autopub-switcher-on' },
-																text: BX.message('LANDING_PUBLICATION_AUTO_TOGGLE_ON')
 															}),
 															BX.create('span', {
 																props: { className: 'landing-popup-publication-content-autopub-switcher-off' },
-																text: BX.message('LANDING_PUBLICATION_AUTO_TOGGLE_OFF')
 															}),
 														]
 													}),
@@ -751,7 +823,7 @@
 															BX.create('a', {
 																props: { className: 'landing-popup-preview-link-target' },
 																text: (function() {
-																	if (this.formEditor)
+																	if (this.isFormEditor)
 																	{
 																		return fullUrl;
 																	}
@@ -764,33 +836,35 @@
 																	target: '_blank',
 																	href: fullUrl
 																}
-															})
+															}),
+															BX.create('input', {
+																props: {
+																	className: 'landing-popup-preview-link-target-value-hd',
+																	type: 'text',
+																}
+															}),
 														],
 													}),
+
 													BX.create('div', {
 														children: [
-															BX.create('a', {
+															BX.create('div', {
 																props: { className: 'landing-popup-preview-link-target-copy' },
 																text: BX.message('LANDING_PREVIEW_MOBILE_COPY_LINK'),
-																attrs: {
-																	href: "#"
-																},
 																events: {
 																	click: function()
 																	{
-																		var range = document.createRange();
-																		range.selectNode(document.body.querySelector(".landing-popup-preview-link-target"));
-																		window.getSelection().addRange(range);
-																		try {
+																		let href = null;
+																		const linkElement = document.body.querySelector('.landing-popup-preview-link-target');
+																		const linkElementValue = document.body.querySelector('.landing-popup-preview-link-target-value-hd');
+																		if (linkElement)
+																		{
+																			href = linkElement.getAttribute('href');
+																			linkElementValue.value = href;
+																			linkElementValue.select();
 																			document.execCommand('copy');
 																			BX.UI.Notification.Center.notify({
 																				content: BX.message('LANDING_SITE_TILE_POPUP_COPY_LINK_COMPLETE'),
-																				autoHideDelay: 2000,
-																			});
-																			window.getSelection().removeAllRanges();
-																		} catch(err) {
-																			BX.UI.Notification.Center.notify({
-																				content: 'Oops, unable to copy',
 																				autoHideDelay: 2000,
 																			});
 																		}
@@ -861,6 +935,13 @@
 				events: {
 					click: function()
 					{
+						BX.UI.Analytics.sendData({
+							tool: BX.Landing.Main.getAnalyticsCategoryByType(),
+							category: 'settings',
+							event: 'open',
+							c_section: 'site_editor',
+							p3: `siteID_${this.options.siteId}`,
+						});
 						this.onSettingsClick();
 					}.bind(this)
 				}
@@ -1045,7 +1126,7 @@
 																		else
 																		{
 																			BX.SidePanel.Instance.open(
-																				BX.message['LANDING_PAR_PAGE_URL_SITE_EDIT'] + '#b24widget',
+																				BX.message['PAGE_URL_LANDING_SETTINGS'] + '#b24widget',
 																				{ allowChangeHistory: false, cacheable: false }
 																			);
 																		}
@@ -1073,11 +1154,11 @@
 																children: [
 																	BX.create('div', {
 																		props: { className: 'landing-ui-panel-top-menu-link-help' },
-																		text: BX.message('LANDING_TPL_FEATURES_HELP_TITLE')
+																		text: BX.message('LANDING_TPL_FEATURES_HELP_TITLE_MSGVER_1')
 																	}),
 																	BX.create('a', {
 																		props: { className: 'landing-popup-features-content-block-link' },
-																		text: BX.message('LANDING_TPL_FEATURES_HELP_PROMO_LINK'),
+																		text: BX.message('LANDING_TPL_FEATURES_HELP_PROMO_LINK_MSGVER_1'),
 																		attrs: {
 																			href: '#'
 																		}
@@ -1088,7 +1169,14 @@
 														events: {
 															click: function()
 															{
-																BX.fireEvent(BX(featuresButton.getAttribute('data-feedback')), 'click');
+																BX.UI.Feedback.Form.open({
+																	id: 'form-editor-feedback-form',
+																	portalUri: options.feedback.portalUri,
+																	forms: options.feedback.forms,
+																	presets: {
+																		source: 'landing',
+																	},
+																});
 															}
 														}
 													}),
@@ -1168,6 +1256,8 @@
 				this.formSharePopup = new BX.Landing.Form.SharePopup({
 					bindElement: event.currentTarget,
 					phoneVerified: phoneVerified,
+					portalUri: this.options.feedback.portalUri,
+					forms: this.options.feedback.forms,
 				});
 			}
 
@@ -1255,6 +1345,12 @@
 					}
 				}
 			}
+			else if (errorCode === 'SHOP_1C')
+			{
+				return function() {
+					window.open(BX.message('LANDING_PUBLICATION_SHOP_ERROR_1C_BUTTON_LINK'), '_blank');
+				};
+			}
 
 			return null;
 		},
@@ -1281,6 +1377,10 @@
 			)
 			{
 				return BX.message('LANDING_PUBLICATION_BUY_RENEW');
+			}
+			else if (errorCode === 'SHOP_1C')
+			{
+				return BX.message('LANDING_PUBLICATION_SHOP_ERROR_1C_BUTTON');
 			}
 		},
 
@@ -1340,11 +1440,21 @@
 		onSettingsClick: function()
 		{
 			if (
-				typeof landingParams['PAGE_URL_LANDING_SETTINGS'] !== 'undefined' &&
-				typeof BX.SidePanel !== 'undefined'
+				typeof landingParams['PAGE_URL_LANDING_SETTINGS'] !== 'undefined'
+				&& typeof BX.SidePanel !== 'undefined'
 			)
 			{
-				BX.SidePanel.Instance.open(landingParams['PAGE_URL_LANDING_SETTINGS']);
+				BX.SidePanel.Instance.open(landingParams['PAGE_URL_LANDING_SETTINGS'], {
+					allowChangeHistory: false,
+					events: {
+						onCloseComplete: ()=> {
+							if (top.window['landingSettingsSaved'] === true)
+							{
+								top.window['landingSettingsSaved'] = false;
+							}
+						},
+					},
+				});
 			}
 		},
 	};
@@ -1608,7 +1718,70 @@
 				});
 			}
 		});
-	}
+	};
+
+	BX.Landing.Component.View.MainpagePublication = function(options)
+	{
+		this.buttonPublic = options.buttonPublic;
+		this.buttonUnpublic = options.buttonUnpublic;
+		if (this.buttonPublic && this.buttonUnpublic)
+		{
+			BX.bind(this.buttonPublic, 'click', this.public.bind(this));
+			BX.bind(this.buttonUnpublic, 'click', this.unpublic.bind(this));
+		}
+		this.vibeModuleId = options.vibeModuleId;
+		this.vibeEmbedId = options.vibeEmbedId;
+	};
+
+	BX.Landing.Component.View.MainpagePublication.prototype = {
+		public: function ()
+		{
+			BX.addClass(this.buttonPublic, 'ui-btn-wait');
+
+			BX.ajax.runAction('landing.vibe.publish', {
+				data: {
+					moduleId: this.vibeModuleId,
+					embedId: this.vibeEmbedId,
+				},
+			})
+			.then(() => {
+				BX.removeClass(this.buttonPublic, 'ui-btn-wait');
+				BX.hide(this.buttonPublic);
+				BX.show(this.buttonUnpublic);
+			});
+
+			// todo: change to landing metrika (need?)
+			BX.UI.Analytics.sendData({
+				tool: 'vibe',
+				category: 'vibe',
+				event: 'publish_page',
+				c_sub_section: 'from_editor',
+				status: 'success',
+			});
+		},
+
+		unpublic: function ()
+		{
+			BX.addClass(this.buttonUnpublic, 'ui-btn-wait');
+			BX.ajax.runAction('landing.vibe.withdraw', {
+				data: {
+					moduleId: this.vibeModuleId,
+					embedId: this.vibeEmbedId,
+				},
+			})
+				.then(() => {
+					BX.removeClass(this.buttonUnpublic, 'ui-btn-wait');
+					BX.hide(this.buttonUnpublic);
+					BX.show(this.buttonPublic);
+				});
+			BX.UI.Analytics.sendData({
+				tool: 'vibe',
+				category: 'vibe',
+				event: 'unpublish_page',
+				c_sub_section: 'from_editor',
+			});
+		},
+	};
 })();
 
 var landingAlertMessage = function landingAlertMessage(errorText, payment, errorCode)

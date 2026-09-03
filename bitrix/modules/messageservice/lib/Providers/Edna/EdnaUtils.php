@@ -6,17 +6,20 @@ use Bitrix\Main\Result;
 use Bitrix\MessageService\Providers;
 use Bitrix\MessageService\Providers\Constants\InternalOption;
 use Bitrix\MessageService\Providers\Edna\Constants;
+use Bitrix\MessageService\Internal\Entity\ChannelTable;
 
 abstract class EdnaUtils implements EdnaRu
 {
+	protected string $providerId;
 	protected Providers\ExternalSender $externalSender;
 	protected Providers\OptionManager $optionManager;
 
 	abstract public function getMessageTemplates(string $subject = ''): Result;
 	abstract protected function initializeDefaultExternalSender(): Providers\ExternalSender;
 
-	public function __construct(Providers\OptionManager $optionManager)
+	public function __construct(string $providerId, Providers\OptionManager $optionManager)
 	{
+		$this->providerId = $providerId;
 		$this->optionManager = $optionManager;
 		$this->externalSender = $this->initializeDefaultExternalSender();
 	}
@@ -177,15 +180,18 @@ abstract class EdnaUtils implements EdnaRu
 		$result = new Result();
 		foreach ($apiData as $cascade)
 		{
-			if ($cascade['status'] !== 'ACTIVE' || $cascade['stagesCount'] > 1)
+			if (is_array($cascade))
 			{
-				continue;
-			}
-			if ($subjectComparator($cascade['stages'][0]['subject'], $subject))
-			{
-				$result->setData(['cascadeId' => $cascade['id']]);
+				if ($cascade['status'] !== 'ACTIVE' || $cascade['stagesCount'] > 1)
+				{
+					continue;
+				}
+				if ($subjectComparator($cascade['stages'][0]['subject'], $subject))
+				{
+					$result->setData(['cascadeId' => $cascade['id']]);
 
-				return $result;
+					return $result;
+				}
 			}
 		}
 
@@ -201,5 +207,104 @@ abstract class EdnaUtils implements EdnaRu
 		return $this->externalSender->callExternalMethod(Constants\Method::GET_CHANNELS);
 	}
 
+	/**
+	 * Loads channels from provider.
+	 *
+	 * @param string $channelType
+	 * @return array
+	 */
+	public function updateSavedChannelList(string $channelType): array
+	{
+		$fromList = [];
+		$activeChannelListResult = $this->getActiveChannelList($channelType);
+		if ($activeChannelListResult->isSuccess())
+		{
+			$registeredSubjectIdList = $this->optionManager->getOption(Providers\Constants\InternalOption::SENDER_ID, []);
+			$channels = [];
+			foreach ($activeChannelListResult->getData() as $channel)
+			{
+				if (in_array((int)$channel['subjectId'], $registeredSubjectIdList, true))
+				{
+					$fromList[] = [
+						'id' => $channel['subjectId'],
+						'name' => $channel['name'],
+						'channelPhone' => $channel['channelAttribute'] ?? '',
+					];
+					$channels[] = [
+						'SENDER_ID' => $this->providerId,
+						'EXTERNAL_ID' => $channel['subjectId'],
+						'TYPE' => $channelType,
+						'NAME' => $channel['name'] ?? '',
+						'ADDITIONAL_PARAMS' => [
+							'channelAttribute' => $channel['channelAttribute'] ?? ''
+						],
+					];
+				}
+			}
 
+			if (count($channels) > 0)
+			{
+				ChannelTable::reloadChannels($this->providerId, $channelType, $channels);
+			}
+			else
+			{
+				ChannelTable::deleteByFilter([
+					'=SENDER_ID' => $this->providerId,
+					'=TYPE' => $channelType,
+				]);
+			}
+		}
+
+		return $fromList;
+	}
+
+	public function sendTemplate(string $name, string $text, array $examples = [], ?string $langCode = null): Result
+	{
+		return (new Result())->addError(new Error('This provider does not support template creation'));
+	}
+
+	protected function validateLanguage(string $langCode): bool
+	{
+		$langs = [
+			'af', 'sq', 'ar', 'az', 'bn',
+			'bg', 'ca','zh_CN', 'zh_HK', 'zh_TW',
+			'hr', 'cs', 'da', 'nl', 'en',
+			'en_GB', 'en_US', 'et', 'fil', 'fi',
+			'fr', 'ka', 'de', 'el', 'gu',
+			'ha', 'he', 'hi', 'hu', 'id',
+			'ga', 'it', 'ja', 'kn', 'kk',
+			'rw_RW', 'ko', 'ky_KG', 'lo', 'lv',
+			'lt', 'mk', 'ms', 'ml', 'mr',
+			'nb', 'fa', 'pl', 'pt_BR', 'pt_PT',
+			'pa', 'ro', 'ru', 'sr', 'sk',
+			'sl', 'es', 'es_AR', 'es_ES', 'es_MX',
+			'sw', 'sv', 'ta', 'te', 'th',
+			'tr', 'uk', 'ur', 'uz', 'vi', 'zu',
+		];
+
+		if (in_array($langCode, $langs, true))
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	protected function validateTemplateName(string $name): Result
+	{
+		$result = new Result();
+
+		if (!preg_match('/^[0-9a-z_]{1,60}$/i', $name))
+		{
+			return $result->addError(new Error('The template name can only contain Latin letters, numbers and underscore (_). The maximum number of characters is 60'));
+		}
+
+		return $result;
+	}
+
+	public function clearCache(string $key): void
+	{
+		$cacheManager = new Providers\CacheManager($this->providerId);
+		$cacheManager->deleteValue($key);
+	}
 }

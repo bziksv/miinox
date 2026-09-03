@@ -5,7 +5,6 @@ import PushNotification from '../notification/push-notification';
 
 import type { ProviderOptions } from './provider-options';
 
-
 export default class DesktopProvider extends BaseProvider
 {
 	constructor(options: ?ProviderOptions = {})

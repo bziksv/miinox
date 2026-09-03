@@ -23,46 +23,63 @@
 			// endregion
 
 			// region PSEUDO LINKS
-			const pseudoLinks = [].slice.call(document.querySelectorAll("[data-pseudo-url*=\"{\"]"));
-			if (pseudoLinks.length)
+			const pseudoLinks = [].slice.call(document.querySelectorAll('[data-pseudo-url*="{"]'));
+			if (pseudoLinks.length > 0)
 			{
-				pseudoLinks.forEach(link => {
-					const linkOptions = BX.Landing.Utils.data(link, "data-pseudo-url");
+				pseudoLinks.forEach((link) => {
+					const linkOptions = BX.Landing.Utils.data(link, 'data-pseudo-url');
 					if (
 						linkOptions.href
 						&& linkOptions.enabled
 						&& linkOptions.href.indexOf('/bitrix/services/main/ajax.php?action=landing.api.diskFile.download') !== 0
 					)
 					{
-						if (linkOptions.target === "_self" || linkOptions.target === "_blank")
+						if (linkOptions.target === '_self' || linkOptions.target === '_blank')
 						{
-							link.addEventListener("click", event => {
+							link.addEventListener('click', (event) => {
 								event.preventDefault();
-								let url;
-								try {
-									url = new URL(linkOptions.href);
-								} catch (e) {
-									url = null;
-								}
-								if (
-									url
-									&& url.hostname === window.location.host
-									&& url.pathname !== window.location.pathname
-									&& url.searchParams.get('IFRAME') !== "Y"
-								)
+								let url = null;
+								try
 								{
-									BX.addClass(document.body, "landing-page-transition");
-									linkOptions.href = url.href;
-									setTimeout(() => {
+									// the base is what makes a stored relative value (#anchor, /path)
+									// parseable: without it the constructor throws and the handler
+									// silently drops the click. Same base isBlockLink uses. An
+									// absolute url ignores the base, so an executable scheme still
+									// lands in openPseudoLinks and is rejected there
+									url = new URL(linkOptions.href, document.location);
+								}
+								catch (error)
+								{
+									console.error(error);
+								}
+								if (url)
+								{
+									const isSameHost = url.hostname === window.location.hostname;
+									const isIframe = url.searchParams.get('IFRAME') === 'Y';
+
+									if (isSameHost && !isIframe)
+									{
+										const isDifferentPath = url.pathname !== window.location.pathname;
+										if (isDifferentPath)
+										{
+											BX.addClass(document.body, 'landing-page-transition');
+											linkOptions.href = url.href;
+											setTimeout(() => {
+												openPseudoLinks(linkOptions, event);
+											}, 400);
+											setTimeout(() => {
+												BX.removeClass(document.body, 'landing-page-transition');
+											}, 3000);
+										}
+										else if (isBlockLink(linkOptions.href))
+										{
+											onBlockLinkClick(event);
+										}
+									}
+									else
+									{
 										openPseudoLinks(linkOptions, event);
-									}, 400);
-									setTimeout(() => {
-										BX.removeClass(document.body, "landing-page-transition");
-									}, 3000);
-								}
-								else
-								{
-									openPseudoLinks(linkOptions, event);
+									}
 								}
 							});
 						}
@@ -185,17 +202,69 @@
 			 */
 			function isBlockLink(url)
 			{
-				if (url !== null)
+				if (url !== null && (url === '#' || url.startsWith('#/')))
 				{
-					if (url === '#' || url.startsWith('#/'))
-					{
-						return false;
-					}
+					return false;
 				}
-				const urlObj = new URL(url, document.location);
-				return urlObj.hash !== ''
-					&& urlObj.pathname === document.location.pathname
-					&& urlObj.hostname === document.location.hostname;
+
+				if (isValidURL(url))
+				{
+					const urlObj = new URL(url, document.location);
+
+					return urlObj.hash !== ''
+						&& urlObj.pathname === document.location.pathname
+						&& urlObj.hostname === document.location.hostname;
+				}
+
+				if (url !== null && url.startsWith('#') && isValidAnchor(url))
+				{
+					return true;
+				}
+
+				return false;
+			}
+
+			function isValidURL(url)
+			{
+				try
+				{
+					new URL(url);
+
+					return true;
+				}
+				catch
+				{
+					return false;
+				}
+			}
+
+			/**
+			 * Rejects hrefs whose scheme can execute code (DOM-XSS): javascript:,
+			 * data:, vbscript:, file:. Everything else is safe - http(s), mailto:,
+			 * tel:, #anchors, relative paths, schemeless values. Whitespace and
+			 * control chars are stripped before the scheme is matched, otherwise
+			 * `java\tscript:` slips through (the url parser drops the tab itself).
+			 * Duplicated on purpose across separate landing build contexts -
+			 * keep the copies in sync.
+			 * @param {string} href
+			 * @returns {boolean}
+			 */
+			function isSafeHref(href)
+			{
+				const value = String(href || '').trim().replace(/[\x00-\x20]/g, '');
+
+				// file: is kept in its marker form: on mobile hits Block does not
+				// resolve the disk download link and the app resolves the marker
+				// itself. Mirror of Sanitizer::MARKER_ONLY_URL_SCHEMES
+				if (/^file:#diskFile\d+$/i.test(value))
+				{
+					return true;
+				}
+
+				const match = value.match(/^([a-z][a-z0-9+.-]*):/i);
+				const scheme = match ? match[1].toLowerCase() : '';
+
+				return ['javascript', 'data', 'vbscript', 'file'].indexOf(scheme) === -1;
 			}
 
 			// height of float header
@@ -244,6 +313,10 @@
 					else if (link.hasAttribute('data-pseudo-url'))
 					{
 						const linkOptions = BX.Landing.Utils.data(link, "data-pseudo-url");
+						if (isValidAnchor(linkOptions.href))
+						{
+							linkOptions.href = window.location.origin + window.location.pathname + linkOptions.href;
+						}
 						const urlObj = new URL(linkOptions.href);
 						targetSelector = urlObj.hash;
 						urlForHistory = urlObj.href;
@@ -271,6 +344,16 @@
 				{
 					return;
 				}
+
+				// values stored before the server-side sanitizer may carry an
+				// executable scheme, so it is filtered here, on output as well
+				if (!isSafeHref(linkOptions.href))
+				{
+					openResolvedHelpUrl(linkOptions.href);
+
+					return;
+				}
+
 				// mobile device
 				if (typeof BXMobileApp !== "undefined")
 				{
@@ -297,11 +380,75 @@
 							linkOptions.href += (linkOptions.href.indexOf('?') === -1) ? '?' : '&';
 							linkOptions.href += linkOptions.query;
 						}
-						top.open(linkOptions.href, linkOptions.target);
+
+						if (isValidURL(linkOptions.href))
+						{
+							top.open(linkOptions.href, linkOptions.target);
+						}
+
+						if (isValidAnchor(linkOptions.href))
+						{
+							onBlockLinkClick(event);
+						}
 					}
 				}
 			}
+
+			/**
+			 * Landing::parseLocalUrl rewrites the help:#helpdesk=N and
+			 * help:#slider=X markers into javascript: urls, so a legitimate help
+			 * pseudo-link arrives here with an unsafe scheme. Both payloads are
+			 * matched as a whole and the api is called directly, which keeps
+			 * javascript: out of every navigation sink. Anything else is dropped.
+			 * @param {string} href
+			 * @returns {void}
+			 */
+			function openResolvedHelpUrl(href)
+			{
+				const value = String(href).trim();
+
+				const helpdesk = value.match(/^javascript:BX\.Helper\.show\('redirect=detail&code=(\d+)'\)$/);
+				if (helpdesk)
+				{
+					if (BX.Helper)
+					{
+						BX.Helper.show('redirect=detail&code=' + helpdesk[1]);
+					}
+
+					return;
+				}
+
+				const slider = value.match(/^javascript:BX\.UI\.InfoHelper\.show\('(\w+)'\)$/);
+				if (slider && BX.UI && BX.UI.InfoHelper)
+				{
+					BX.UI.InfoHelper.show(slider[1]);
+				}
+			}
 			// endregion
+
+			function isValidAnchor(anchor)
+			{
+				if (anchor.charAt(0) !== '#' || anchor.length === 1)
+				{
+					return false;
+				}
+				const regex = /^[\w-]+$/;
+
+				return regex.test(anchor.slice(1));
+			}
 		}
+
+		document.addEventListener('DOMContentLoaded', () => {
+			const elements = document.querySelectorAll('[style]');
+			for (const element of elements)
+			{
+				let styleValue = element.getAttribute('style');
+				if (styleValue)
+				{
+					styleValue = styleValue.replaceAll(/--[\w-]*: ;/gi, '');
+					element.setAttribute('style', styleValue);
+				}
+			}
+		});
 	});
 })();

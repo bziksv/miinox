@@ -19,9 +19,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Payment_Query query()
- * @method static EO_Payment_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Payment_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Payment_Result getById($id)
- * @method static EO_Payment_Result getList(array $parameters = array())
+ * @method static EO_Payment_Result getList(array $parameters = [])
  * @method static EO_Payment_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_Payment createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_Payment_Collection createCollection()
@@ -461,5 +461,26 @@ class PaymentTable extends Main\Entity\DataManager
 		return array(
 			new Main\Entity\Validator\Length(null, 64),
 		);
+	}
+
+	public static function deleteWithItems(int $id) : Main\Entity\DeleteResult
+	{
+		if ($id <= 0)
+		{
+			throw new Main\ArgumentNullException("id");
+		}
+
+		$itemsList = PayableItemTable::getList(
+			[
+				"filter" => ["=PAYMENT_ID" => $id],
+				"select" => ["ID"]
+			]
+		);
+		while ($item = $itemsList->fetch())
+		{
+			PayableItemTable::delete($item["ID"]);
+		}
+
+		return static::delete($id);
 	}
 }

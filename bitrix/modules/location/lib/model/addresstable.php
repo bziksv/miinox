@@ -5,6 +5,8 @@ namespace Bitrix\Location\Model;
 use Bitrix\Main;
 use Bitrix\Main\ORM\Fields;
 use Bitrix\Main\ORM\Query\Join;
+use Bitrix\Main\ORM\Event;
+use Bitrix\Main\ORM\EventResult;
 
 /**
  * Class AddressTable
@@ -15,9 +17,9 @@ use Bitrix\Main\ORM\Query\Join;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Address_Query query()
- * @method static EO_Address_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Address_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Address_Result getById($id)
- * @method static EO_Address_Result getList(array $parameters = array())
+ * @method static EO_Address_Result getList(array $parameters = [])
  * @method static EO_Address_Entity getEntity()
  * @method static \Bitrix\Location\Model\EO_Address createObject($setDefaultValues = true)
  * @method static \Bitrix\Location\Model\EO_Address_Collection createCollection()
@@ -68,5 +70,13 @@ class AddressTable extends Main\ORM\Data\DataManager
 				Join::on('this.LOCATION_ID', 'ref.ID')))
 				->configureJoinType('left')
 		);
+	}
+
+	public static function onBeforeAdd(Event $event): EventResult
+	{
+		$result = new EventResult();
+		$result->unsetField('ID');
+
+		return $result;
 	}
 }

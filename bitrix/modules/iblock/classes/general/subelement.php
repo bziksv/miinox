@@ -50,6 +50,7 @@ class CAdminSubSorting extends CAdminSorting
 
 class CAdminSubList extends CAdminList
 {
+	public const MODE_CONFIG = 'subsettings';
 /*
  *	list_url - string with params or array:
  *		LINK
@@ -138,6 +139,39 @@ class CAdminSubList extends CAdminList
 		$this->SetBaseFieldNames();
 		if (!empty($arHideHeaders) && is_array($arHideHeaders))
 			$this->arHideHeaders = $arHideHeaders;
+	}
+
+	//TODO: remove after parent update wiil be stable
+	protected function initMode(): void
+	{
+		$this->mode = self::MODE_PAGE;
+		$mode = $this->request->get(self::MODE_FIELD_NAME);
+		if (
+			is_string($mode)
+			&& (in_array(
+				$mode,
+				$this->getModeList(),
+				true
+			))
+		)
+		{
+			$this->mode = $mode;
+		}
+	}
+
+	protected function getModeList(): array
+	{
+		return [
+			parent::MODE_LIST,
+			parent::MODE_ACTION,
+			parent::MODE_EXPORT,
+			self::MODE_CONFIG,
+		];
+	}
+
+	public function isConfigMode(): bool
+	{
+		return $this->getCurrentMode() === self::MODE_CONFIG;
 	}
 
 	function GetListUrl($boolFull = false)
@@ -280,9 +314,7 @@ class CAdminSubList extends CAdminList
 		}
 		unset($userColumns);
 
-		$aAllCols = null;
-		if (isset($_REQUEST["mode"]) && $_REQUEST["mode"] == "subsettings")
-			$aAllCols = $this->aHeaders;
+		$aAllCols = ($this->isConfigMode() ? $this->aHeaders : null);
 
 		if(!$bEmptyCols)
 		{
@@ -299,8 +331,10 @@ class CAdminSubList extends CAdminList
 		}
 		unset($userVisibleColumns, $hiddenColumns);
 
-		if (isset($_REQUEST["mode"]) && $_REQUEST["mode"] == "subsettings")
+		if ($this->isConfigMode())
+		{
 			$this->ShowSettings($aAllCols, $aCols, $aOptions);
+		}
 	}
 
 	public function AddVisibleHeaderColumn($id)
@@ -315,7 +349,7 @@ class CAdminSubList extends CAdminList
 
 		if (isset($config['settings']))
 		{
-			$this->__AddListUrlParams('mode','subsettings');
+			$this->__AddListUrlParams(parent::MODE_FIELD_NAME,self::MODE_CONFIG);
 			$result[] = [
 				"TEXT" => GetMessage("admin_lib_context_sett"),
 				"TITLE" => GetMessage("admin_lib_context_sett_title"),
@@ -326,7 +360,7 @@ class CAdminSubList extends CAdminList
 		}
 		if (isset($config['excel']))
 		{
-			$this->__AddListUrlParams('mode','excel');
+			$this->__AddListUrlParams(parent::MODE_FIELD_NAME,parent::MODE_EXPORT);
 			$result[] = [
 				"TEXT" => "Excel",
 				"TITLE" => GetMessage("admin_lib_excel"),
@@ -453,7 +487,7 @@ class CAdminSubList extends CAdminList
 
 		if ($this->bPublicMode && $boolCloseMessage)
 		{
-			echo '<script type="text/javascript">top.BX.WindowManager.Get().hideNotify();</script>';
+			echo '<script>top.BX.WindowManager.Get().hideNotify();</script>';
 		}
 
 		echo $this->sPrologContent;
@@ -714,7 +748,7 @@ echo '<table class="adm-list-table" id="'.$this->table_id.'">
 		}
 		$aUserOpt['context_ctrl'] = (string)($aUserOpt['context_ctrl'] ?? 'N');
 		echo '
-<script type="text/javascript">
+<script>
 var '.$this->table_id.'= new BX.adminSubList("'.$tbl.'", {context_ctrl: '.($aUserOpt["context_ctrl"] === "Y"? "true":"false").'}, "'.$this->GetListUrl(true).'");
 function ReloadSubList()
 {
@@ -751,7 +785,7 @@ function ReloadOffers()
 			{
 				echo '<html><head></head><body>
 <div id="'.$this->table_id.'_result_frame_div">'.$string.'</div>
-<script type="text/javascript">
+<script>
 ';
 				if($this->bEditMode || count($this->arUpdateErrorIDs)>0)
 					echo $this->table_id.'._DeActivateMainForm();';
@@ -765,7 +799,7 @@ function ReloadOffers()
 			else
 			{
 				if($this->onLoadScript)
-					echo '<script type="text/javascript">'.$this->onLoadScript.'</script>';
+					echo '<script>'.$this->onLoadScript.'</script>';
 				echo $string;
 			}
 			define("ADMIN_AJAX_MODE", true);
@@ -1227,13 +1261,10 @@ class CAdminSubListRow extends CAdminListRow
 			}
 			else
 			{
-				$val = '';
-				if (isset($this->arRes[$id]))
+				$val = $this->arRes[$id] ?? '';
+				if (is_string($val))
 				{
-					if(is_string($this->arRes[$id]))
-						$val = trim($this->arRes[$id]);
-					else
-						$val = $this->arRes[$id];
+					$val = trim($val);
 				}
 
 				if(isset($field["view"]))
@@ -1247,10 +1278,18 @@ class CAdminSubListRow extends CAdminListRow
 								$val = htmlspecialcharsex(GetMessage("admin_lib_list_no"));
 							break;
 						case "select":
-							if($field["edit"]["values"][$val])
+							if (isset($field["edit"]["values"][$val]))
+							{
 								$val = htmlspecialcharsex($field["edit"]["values"][$val]);
+							}
+							elseif (isset($field["view"]["values"][$val]))
+							{
+								$val = htmlspecialcharsex($field["view"]["values"][$val]);
+							}
 							else
+							{
 								$val = htmlspecialcharsex($val);
+							}
 							break;
 						case "file":
 							if ($val > 0)
@@ -1300,7 +1339,7 @@ class CAdminSubListRow extends CAdminListRow
 			{
 				if ($strFieldType == '')
 					$strFieldType = 'HIDDEN';
-				$this->arFieldNames[$strFieldName] = ToUpper($strFieldType);
+				$this->arFieldNames[$strFieldName] = mb_strtoupper($strFieldType);
 			}
 		}
 	}
@@ -1742,7 +1781,7 @@ class CAdminSubForm extends CAdminForm
 
 <input type="hidden" id="'.$this->name.'_active_tab" name="'.$this->name.'_active_tab" value="'.htmlspecialcharsbx($this->selectedTab).'">
 
-<script type="text/javascript">';
+<script>';
 		$s = "";
 		foreach($this->tabs as $tab)
 		{
@@ -1791,15 +1830,15 @@ echo '
 		if ($this->bPublicModeBuffer)
 		{
 			echo '</div>';
-			echo '<script type="text/javascript">BX.ready(function() {'.$this->publicObject.'.SwapContent(\''.$this->publicModeBuffer_id.'\');});</script>';
+			echo '<script>BX.ready(function() {'.$this->publicObject.'.SwapContent(\''.$this->publicModeBuffer_id.'\');});</script>';
 		}
 	}
 
-	public static function closeSubForm($reload = true, $closeWait = true)
+	public static function closeSubForm($reload = true, $closeWait = true): void
 	{
 		$reload = ($reload !== false);
 		$closeWait = ($closeWait !== false);
-		$result = '<script type="text/javascript">';
+		$result = '<script>';
 		$result .= '
 			var currentWindow = top.window;
 			if (top.BX.SidePanel && top.BX.SidePanel.Instance && top.BX.SidePanel.Instance.getTopSlider())
@@ -1813,8 +1852,8 @@ echo '
 		if ($reload)
 			$result .= ' if (!!currentWindow.ReloadSubList) { currentWindow.ReloadSubList(); }';
 		$result .= '</script>';
-		echo $result;
-		die();
+
+		CMain::FinalActions($result);
 	}
 }
 
@@ -1903,10 +1942,13 @@ class CAdminSubResult extends CAdminResult
 				return '';
 		}
 
-		/** @noinspection PhpUnusedLocalVariableInspection */
 		$sUrlPath = $this->list_url;
-		/** @noinspection PhpUnusedLocalVariableInspection */
-		$strNavQueryString = htmlspecialcharsbx($this->list_url_params);
+		$strNavQueryString = $this->list_url_params;
+		if (strncmp($strNavQueryString, '&', 1) !== 0)
+		{
+			$strNavQueryString = '&' . $strNavQueryString;
+		}
+		$strNavQueryString = htmlspecialcharsbx($strNavQueryString);
 
 		if($template_path!==false && !file_exists($template_path) && file_exists($_SERVER["DOCUMENT_ROOT"].$template_path))
 			$template_path = $_SERVER["DOCUMENT_ROOT"].$template_path;
@@ -1981,7 +2023,7 @@ class CAdminSubMessage extends CAdminMessage
 	{
 		if (defined('BX_PUBLIC_MODE') && BX_PUBLIC_MODE == 1)
 		{
-			return '<script type="text/javascript">top.BX.WindowManager.Get().ShowError(\''.CUtil::JSEscape(str_replace(array('<br>', '<br />', '<BR>', '<BR />'), "\r\n", htmlspecialcharsback($this->message['DETAILS']? $this->message['DETAILS'] : $this->message['MESSAGE']))).'\');</script>';
+			return '<script>top.BX.WindowManager.Get().ShowError(\''.CUtil::JSEscape(str_replace(array('<br>', '<br />', '<BR>', '<BR />'), "\r\n", htmlspecialcharsback($this->message['DETAILS']? $this->message['DETAILS'] : $this->message['MESSAGE']))).'\');</script>';
 		}
 		else
 		{

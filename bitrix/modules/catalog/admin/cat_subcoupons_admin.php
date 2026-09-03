@@ -7,13 +7,12 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
 IncludeModuleLangFile(__FILE__);
 
-CUtil::JSPostUnescape();
 /*
  * this page only for actions and get info
  *
  */
-define('B_ADMIN_SUBCOUPONS',1);
-define('B_ADMIN_SUBCOUPONS_LIST',true);
+const B_ADMIN_SUBCOUPONS = 1;
+const B_ADMIN_SUBCOUPONS_LIST = true;
 
 global $APPLICATION;
 global $USER;
@@ -47,4 +46,3 @@ $strSubElementAjaxPath = '/bitrix/admin/cat_subcoupons_admin.php?lang='.LANGUAGE
 require($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/catalog/admin/templates/discount_coupon_list.php');
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_popup_admin.php");
-?>

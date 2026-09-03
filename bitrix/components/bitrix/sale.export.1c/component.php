@@ -392,7 +392,7 @@ else
 				if($fp = fopen($ABS_FILE_NAME, "ab"))
 				{
 					$result = fwrite($fp, $DATA);
-					if($result === (function_exists("mb_strlen")? mb_strlen($DATA, 'latin1') : mb_strlen($DATA)))
+					if($result === strlen($DATA))
 					{
 						if($_SESSION["BX_CML2_EXPORT"]["zip"])
 							$_SESSION["BX_CML2_EXPORT"]["zip"] = $ABS_FILE_NAME;
@@ -494,7 +494,7 @@ else
 				if($fp = fopen($ABS_FILE_NAME, "ab"))
 				{
 					$result = fwrite($fp, $DATA);
-					if($result === (function_exists("mb_strlen")? mb_strlen($DATA, 'latin1') : mb_strlen($DATA)))
+					if($result === strlen($DATA))
 					{
 						if($_SESSION["BX_CML2_EXPORT"]["zip"])
 							$_SESSION["BX_CML2_EXPORT"]["zip"] = $ABS_FILE_NAME;
@@ -609,13 +609,13 @@ else
 			//endregion
 			//region schema Package.CRM or Package.Sale
             /*
-             * åñëè óñòíàâëèâåòñÿ äèñòð Á24, òî îáìåí èäåò ñ÷åòàìè
-             * åñëè óñòíàâëèâåòñÿ äèñòð ÁÓÑ, òî îáìåí èäåò çàêàçàìè
-             * åñëè íà ÁÓÑ ââîäèòüñÿ êëþ÷ ðåäàêöèè Á24+ÁÓÑ, òî âûïîëíÿåòñÿ îáìåí çàêàçìè (ò.ê. ìîäóëü CRM íå óñòàíîâëåí)
-             * åñëè íà Á24 ââîäèòüñÿ êëþ÷ ðåäàêöèè Á24+ÁÓÑ, òî âûïîëíÿåòñÿ îáìåí ñ÷åòàìè (ò.ê. ìîäóëü CRM óñòàíîâëåí)
-             * åñëè íà ÁÓÑ çàïóñêàåòñÿ ìàñòåð +Á24, àíàëèçèðåì îïöèþ IS_SALE_CRM_SITE_MASTER_FINISH è ïðîäîëæàåì èïîðòèðîâàòü çàêàçû
-             * åñëè íà Á24 çàïóñêàåòñÿ ìàñòåð +ÁÓÑ, àíàëèçèðåì îïöèþ IS_SALE_BSM_SITE_MASTER_FINISH è ïðîäîëæàåì èïîðòèðîâàòü ñ÷åòà,
-             *     à äëÿ èìïîðòà çàêàçîâ èñïîëüçóåì îòäåëüíûé ìîäóëü íà rest
+             * ÐµÑÐ»Ð¸ ÑƒÑÑ‚Ð½Ð°Ð²Ð»Ð¸Ð²ÐµÑ‚ÑÑ Ð´Ð¸ÑÑ‚Ñ€ Ð‘24, Ñ‚Ð¾ Ð¾Ð±Ð¼ÐµÐ½ Ð¸Ð´ÐµÑ‚ ÑÑ‡ÐµÑ‚Ð°Ð¼Ð¸
+             * ÐµÑÐ»Ð¸ ÑƒÑÑ‚Ð½Ð°Ð²Ð»Ð¸Ð²ÐµÑ‚ÑÑ Ð´Ð¸ÑÑ‚Ñ€ Ð‘Ð£Ð¡, Ñ‚Ð¾ Ð¾Ð±Ð¼ÐµÐ½ Ð¸Ð´ÐµÑ‚ Ð·Ð°ÐºÐ°Ð·Ð°Ð¼Ð¸
+             * ÐµÑÐ»Ð¸ Ð½Ð° Ð‘Ð£Ð¡ Ð²Ð²Ð¾Ð´Ð¸Ñ‚ÑŒÑÑ ÐºÐ»ÑŽÑ‡ Ñ€ÐµÐ´Ð°ÐºÑ†Ð¸Ð¸ Ð‘24+Ð‘Ð£Ð¡, Ñ‚Ð¾ Ð²Ñ‹Ð¿Ð¾Ð»Ð½ÑÐµÑ‚ÑÑ Ð¾Ð±Ð¼ÐµÐ½ Ð·Ð°ÐºÐ°Ð·Ð¼Ð¸ (Ñ‚.Ðº. Ð¼Ð¾Ð´ÑƒÐ»ÑŒ CRM Ð½Ðµ ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½)
+             * ÐµÑÐ»Ð¸ Ð½Ð° Ð‘24 Ð²Ð²Ð¾Ð´Ð¸Ñ‚ÑŒÑÑ ÐºÐ»ÑŽÑ‡ Ñ€ÐµÐ´Ð°ÐºÑ†Ð¸Ð¸ Ð‘24+Ð‘Ð£Ð¡, Ñ‚Ð¾ Ð²Ñ‹Ð¿Ð¾Ð»Ð½ÑÐµÑ‚ÑÑ Ð¾Ð±Ð¼ÐµÐ½ ÑÑ‡ÐµÑ‚Ð°Ð¼Ð¸ (Ñ‚.Ðº. Ð¼Ð¾Ð´ÑƒÐ»ÑŒ CRM ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½)
+             * ÐµÑÐ»Ð¸ Ð½Ð° Ð‘Ð£Ð¡ Ð·Ð°Ð¿ÑƒÑÐºÐ°ÐµÑ‚ÑÑ Ð¼Ð°ÑÑ‚ÐµÑ€ +Ð‘24, Ð°Ð½Ð°Ð»Ð¸Ð·Ð¸Ñ€ÐµÐ¼ Ð¾Ð¿Ñ†Ð¸ÑŽ IS_SALE_CRM_SITE_MASTER_FINISH Ð¸ Ð¿Ñ€Ð¾Ð´Ð¾Ð»Ð¶Ð°ÐµÐ¼ Ð¸Ð¿Ð¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ Ð·Ð°ÐºÐ°Ð·Ñ‹
+             * ÐµÑÐ»Ð¸ Ð½Ð° Ð‘24 Ð·Ð°Ð¿ÑƒÑÐºÐ°ÐµÑ‚ÑÑ Ð¼Ð°ÑÑ‚ÐµÑ€ +Ð‘Ð£Ð¡, Ð°Ð½Ð°Ð»Ð¸Ð·Ð¸Ñ€ÐµÐ¼ Ð¾Ð¿Ñ†Ð¸ÑŽ IS_SALE_BSM_SITE_MASTER_FINISH Ð¸ Ð¿Ñ€Ð¾Ð´Ð¾Ð»Ð¶Ð°ÐµÐ¼ Ð¸Ð¿Ð¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ ÑÑ‡ÐµÑ‚Ð°,
+             *     Ð° Ð´Ð»Ñ Ð¸Ð¼Ð¿Ð¾Ñ€Ñ‚Ð° Ð·Ð°ÐºÐ°Ð·Ð¾Ð² Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÐ¼ Ð¾Ñ‚Ð´ÐµÐ»ÑŒÐ½Ñ‹Ð¹ Ð¼Ð¾Ð´ÑƒÐ»ÑŒ Ð½Ð° rest
              * */
 			//B24 -> +BUS.wizard
             if(\Bitrix\Sale\Exchange\ManagerExport::isB24SaleMode())
@@ -679,6 +679,7 @@ else
 			else
 			{
 				$_SESSION["BX_CML2_EXPORT"]["last_xml_entry"] = "";
+				$loader->clearSessionData();
 				echo "success";
 			}
 			if($loader->strError <> '')
@@ -774,8 +775,8 @@ if(!$bDesignMode)
 {
 	if (!$bCrmMode)
 	{
-		if(toUpper(LANG_CHARSET) != "WINDOWS-1251")
-			$contents = $APPLICATION->ConvertCharset($contents, LANG_CHARSET, "windows-1251");
+		if(mb_strtoupper(LANG_CHARSET) != "WINDOWS-1251")
+			$contents = \Bitrix\Main\Text\Encoding::convertEncoding($contents, LANG_CHARSET, "windows-1251");
 	}
 
 	if ($gzCompressionSupported)
@@ -783,11 +784,11 @@ if(!$bDesignMode)
 		$contents = gzcompress($contents);
 
 		header("Content-Type: application/octet-stream");
-		header("Content-Length: ".(function_exists("mb_strlen")? mb_strlen($contents, 'latin1') : mb_strlen($contents)));
+		header("Content-Length: " . strlen($contents));
 	}
 	else
 	{
-		$str = (function_exists("mb_strlen")? mb_strlen($contents, 'latin1') : mb_strlen($contents));
+		$str = strlen($contents);
 		if(in_array($_GET["mode"], array("query", "info")) || in_array($_POST["mode"], array("query", "info")))
 		{
 			header("Content-Type: application/xml; charset=windows-1251");

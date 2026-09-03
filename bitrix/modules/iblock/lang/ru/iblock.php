@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["IBLOCK_BAD_BLOCK_TYPE_ID"] = "Неверный тип блока.";
 $MESS["IBLOCK_BAD_BLOCK_ID"] = "Неверный код информационного блока.";
 $MESS["IBLOCK_BAD_IBLOCK"] = "Информационный блок не найден или доступ к нему запрещен.";
@@ -65,7 +65,7 @@ $MESS["IBLOCK_PROP_HTML_DESC"] = "HTML/текст";
 $MESS["IBLOCK_PROP_XMLID_DESC"] = "Привязка к элементам по XML_ID";
 $MESS["IBLOCK_PROP_SEQUENCE_DESC"] = "Счетчик";
 $MESS["IBLOCK_XML2_FILE_ERROR"] = "Ошибка открытия файла.";
-$MESS["IBLOCK_XML2_TABLE_CREATE_ERROR"] = "Ошибка создания временных таблиц для импорта.";
+$MESS["IBLOCK_XML2_TABLE_PREPARE_ERROR"] = "Ошибка подготовки временных таблиц для импорта.";
 $MESS["IBLOCK_XML2_INDEX_ERROR"] = "Произошла ошибка создания индекса.";
 $MESS["IBLOCK_XML2_METADATA_ERROR"] = "Ошибка импорта метаданных каталога.";
 $MESS["IBLOCK_CHOOSE_IBLOCK_TYPE"] = "(выберите тип)";
@@ -84,4 +84,3 @@ $MESS["IBLOCK_SORT_FIELD_DEPTH_LEVEL"] = "уровень вложенности 
 $MESS["IBLOCK_FIELD_SUBSCRIPTIONS"] = "Количество подписок";
 $MESS["IBLOCK_FIELD_API_CODE_FORMAT_ERROR"] = "Символьный код API может состоять максимум из 50 латинских букв и цифр и должен начинаться с буквы";
 $MESS["IBLOCK_FIELD_API_CODE_UNIQUE_ERROR"] = "Символьный код API должен быть уникальным, инфоблок с таким кодом уже есть";
-?>

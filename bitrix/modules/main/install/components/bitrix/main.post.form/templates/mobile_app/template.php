@@ -1,14 +1,21 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+use Bitrix\Main\Web\Json;
+
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+
+/**
+ * @global CMain $APPLICATION
+ * @var array $arParams
+ * @var string $templateFolder
+ */
 
 Bitrix\Main\UI\Extension::load('mobile.utils');
 
 //\Bitrix\Main\Page\Asset::getInstance()->addJs($templateFolder."/script.js");
 //$arParams["FORM_ID"] =
 //$arParams["NAME_TEMPLATE"]
-/**
- * @var array $arParams
- * @var CMain $APPLICATION
- */
+
 foreach ($arParams["UPLOADS"] as $v)
 {
 	if (
@@ -39,7 +46,7 @@ foreach ($arParams["UPLOADS"] as $v)
 		MPFSelectFromTheGallery : '<?=GetMessageJS("MPF_PHOTO_GALLERY")?>',
 		MPFButtonSend : '<?=GetMessageJS("MPF_SEND")?>',
 		MPFButtonCancel : '<?=GetMessageJs("MPF_CANCEL")?>',
-		MPFPostFormDisk: '<?=GetMessageJS("MOBILE_LOG_POST_FORM_DISK")?>',
+		MPFPostFormDisk: '<?=GetMessageJS("MOBILE_LOG_POST_FORM_DISK_MSGVER_1")?>',
 		MPFPostFormDiskTitle: '<?=GetMessageJS("MOBILE_LOG_POST_FORM_DISK_TITLE")?>',
 		MPFPostFormPhotoGallery : '<?=GetMessageJS("MOBILE_LOG_POST_FORM_PHOTO_GALLERY")?>',
 		MPFPostFormPhotoCamera : '<?=GetMessageJS("MOBILE_LOG_POST_FORM_PHOTO_CAMERA")?>',
@@ -47,17 +54,20 @@ foreach ($arParams["UPLOADS"] as $v)
 	});
 	BX.ready(function() {
 		var f = function() {
-			BX.MPF.createInstance(<?=CUtil::PhpToJSObject(array(
-				"formId" => $arParams["FORM_ID"],
-				"text" => array_change_key_case($arParams["TEXT"], CASE_LOWER),
-				"CID" => $arParams["UPLOADS_CID"],
-				"forumContext" => (!empty($arParams["FORUM_CONTEXT"]) ? $arParams["FORUM_CONTEXT"] : '')
-			))?>);
+			BX.MPF.createInstance(<?= Json::encode(array(
+				'formId' => $arParams["FORM_ID"],
+				'text' => array_change_key_case($arParams["TEXT"], CASE_LOWER),
+				'CID' => $arParams["UPLOADS_CID"],
+				'forumContext' => (!empty($arParams["FORUM_CONTEXT"]) ? $arParams["FORUM_CONTEXT"] : ''),
+				'analyticsData' => $arParams["ATTRIBUTES"]["ANALYTICS_DATA"] ?? null,
+			)) ?>);
 			BX.removeCustomEvent(window, "main.post.form/mobile", f);
 		};
 		BX.addCustomEvent(window, "main.post.form/mobile", f);
 		if (BX["MPF"])
+		{
 			f();
+		}
 		else
 			BX.loadScript('<?=\CUtil::GetAdditionalFileURL($templateFolder.'/script.js', true)?>');
 	});

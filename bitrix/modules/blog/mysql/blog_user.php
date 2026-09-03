@@ -1,4 +1,4 @@
-<?
+<?php
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/general/blog_user.php");
 
 class CBlogUser extends CAllBlogUser
@@ -7,7 +7,9 @@ class CBlogUser extends CAllBlogUser
 	public static function Add($arFields)
 	{
 		global $DB;
-		if($arFields["PATH"] <> '')
+
+		$path = '';
+		if (($arFields["PATH"] ?? '') <> '')
 		{
 			$path = $arFields["PATH"];
 			unset($arFields["PATH"]);
@@ -56,7 +58,7 @@ class CBlogUser extends CAllBlogUser
 			$strSql =
 				"INSERT INTO b_blog_user(".$arInsert[0].") ".
 				"VALUES(".$arInsert[1].")";
-			$DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 
 			$ID = intval($DB->LastID());
 		}
@@ -124,8 +126,9 @@ class CBlogUser extends CAllBlogUser
 		global $DB;
 
 		$ID = intval($ID);
-		
-		if($arFields["PATH"] <> '')
+
+		$path = '';
+		if (($arFields["PATH"] ?? '') <> '')
 		{
 			$path = $arFields["PATH"];
 			unset($arFields["PATH"]);
@@ -173,7 +176,7 @@ class CBlogUser extends CAllBlogUser
 				"UPDATE b_blog_user SET ".
 				"	".$strUpdate." ".
 				"WHERE ID = ".$ID." ";
-			$DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 
 			unset($GLOBALS["BLOG_USER"]["BLOG_USER_CACHE_".$ID]);
 			unset($GLOBALS["BLOG_USER"]["BLOG_USER1_CACHE_".$arUser["USER_ID"]]);
@@ -291,7 +294,7 @@ class CBlogUser extends CAllBlogUser
 
 			//echo "!1!=".htmlspecialcharsbx($strSql)."<br>";
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -322,7 +325,7 @@ class CBlogUser extends CAllBlogUser
 
 			//echo "!2.1!=".htmlspecialcharsbx($strSql_tmp)."<br>";
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if ($arSqls["GROUPBY"] == '')
 			{
@@ -347,7 +350,7 @@ class CBlogUser extends CAllBlogUser
 
 			//echo "!3!=".htmlspecialcharsbx($strSql)."<br>";
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 		}
 
 		return $dbRes;
@@ -425,7 +428,7 @@ class CBlogUser extends CAllBlogUser
 		"ORDER BY BP.DATE_PUBLISH DESC ".
 		"LIMIT ".$limit." ";
 
-		$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$dbResult = $DB->Query($strSql);
 
 		return $dbResult;
 	}

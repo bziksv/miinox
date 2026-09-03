@@ -64,7 +64,7 @@ class Designer
 				$result = new \Bitrix\Main\Entity\EventResult;
 				$options = $event->getParameter('options');
 				$options['design_block'] = $flag;
-				$options['design_block_allowed'] = Restriction\Manager::isAllowed('limit_crm_free_superblock1');
+				$options['design_block_allowed'] = Restriction\Manager::isAllowed('limit_crm_superblock');
 				$result->modifyFields([
 					'options' => $options
 				]);
@@ -84,6 +84,7 @@ class Designer
 
 		foreach (Hook::getForSite($this->block->getSiteId()) as $hook)
 		{
+			$hook = $this->prepareHook($hook);
 			if ($hook->enabled())
 			{
 				$hooksExec[$hook->getCode()] = $hook;
@@ -92,6 +93,7 @@ class Designer
 
 		foreach (Hook::getForLanding($this->block->getLandingId()) as $hook)
 		{
+			$hook = $this->prepareHook($hook);
 			if ($hook->enabled())
 			{
 				$hooksExec[$hook->getCode()] = $hook;
@@ -105,6 +107,20 @@ class Designer
 				$hook->exec();
 			}
 		}
+	}
+
+	private function prepareHook(\Bitrix\Landing\Hook\Page $hook): \Bitrix\Landing\Hook\Page
+	{
+		if (method_exists($hook, 'setSiteId'))
+		{
+			$hook->setSiteId($this->block->getSiteId());
+		}
+		if (method_exists($hook, 'setLandingId'))
+		{
+			$hook->setLandingId($this->block->getLandingId());
+		}
+
+		return $hook;
 	}
 
 	/**
@@ -131,6 +147,21 @@ class Designer
 		}
 
 		return $repo;
+	}
+
+	/**
+	 * Adjusts styles for manifest (for specific selectors adds new features).
+	 * @param string $selector Selector code.
+	 * @param array $item Manifest item's style section.
+	 * @return void
+	 */
+	private static function adjustStylesType(string $selector, array &$item): void
+	{
+		if ($selector === 'landing-block-node-title')
+		{
+			$item['type'] = (array)$item['type'];
+			$item['type'][] = 'heading';
+		}
 	}
 
 	/**
@@ -173,10 +204,11 @@ class Designer
 						}
 						if (!isset($selectorName[$selector]))
 						{
-							$nodeTitle = (isset($item['type']) && is_string($item['type']))
-								? $item['type']
-								: $selector;
-							$selectorName[$selector] = Loc::getMessage('LANDING_DESIGNER_NODE_' . mb_strtoupper($nodeTitle));
+							$selectorName[$selector] = Loc::getMessage('LANDING_DESIGN_NODE_' . mb_strtoupper($selector));
+						}
+						if ($category === 'style')
+						{
+							self::adjustStylesType($selector, $item);
 						}
 						$item['name'] = $selectorName[$selector];
 						$references[$selector][$category] = $item;

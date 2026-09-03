@@ -143,9 +143,10 @@ switch ($by)
 		break;
 }
 
-if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
+$arID = $lAdmin->GroupAction();
+if (!$bReadOnly  && !empty($arID) && is_array($arID))
 {
-	if ($_REQUEST['action_target']=='selected')
+	if ($lAdmin->IsGroupActionToAll())
 	{
 		$arID = [];
 		$dbResultList = CCatalogVat::GetListEx(
@@ -163,6 +164,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 		unset($dbResultList);
 	}
 
+	$action = $lAdmin->GetAction();
 	foreach ($arID as $ID)
 	{
 		if ($ID == '')
@@ -170,7 +172,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 			continue;
 		}
 
-		switch ($_REQUEST['action'])
+		switch ($action)
 		{
 			case "delete":
 				$DB->StartTransaction();
@@ -195,7 +197,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 			case "activate":
 			case "deactivate":
 				$arFields = [
-					"ACTIVE" => (($_REQUEST['action'] == "activate") ? "Y" : "N")
+					"ACTIVE" => ($action === "activate" ? "Y" : "N")
 				];
 				if (!CCatalogVat::Update($ID, $arFields))
 				{
@@ -270,9 +272,10 @@ $arSelectFields[] = 'EXCLUDE_VAT';
 $arSelectFields[] = 'ACTIVE';
 $arSelectFields = array_values(array_unique($arSelectFields));
 
-$arNavParams = (isset($_REQUEST["mode"]) && 'excel' == $_REQUEST["mode"]
-	? false
-	: ["nPageSize" => CAdminUiResult::GetNavSize($sTableID)]
+$arNavParams = (
+	$lAdmin->isExportMode()
+		? false
+		: ["nPageSize" => CAdminUiResult::GetNavSize($sTableID)]
 );
 
 $dbResultList = CCatalogVat::GetListEx(
@@ -408,7 +411,19 @@ $APPLICATION->SetTitle(Loc::getMessage("CVAT_PAGE_TITLE"));
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 
-$lAdmin->DisplayFilter($filterFields);
-$lAdmin->DisplayList();
+$filterParams = [
+	'CONFIG' => [
+		'popupWidth' => 800,
+	],
+	'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+	'ENABLE_FIELDS_SEARCH' => 'Y',
+];
+$lAdmin->DisplayFilter($filterFields, $filterParams);
+
+$listParams = [
+	'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+	'ENABLE_FIELDS_SEARCH' => 'Y',
+];
+$lAdmin->DisplayList($listParams);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

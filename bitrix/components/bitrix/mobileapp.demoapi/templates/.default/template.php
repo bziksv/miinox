@@ -10,15 +10,11 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 /**
  * @var $this CBitrixComponentTemplate
  * @var $arResult array
- * @var $APPLICATION CAllMain
+ * @var $APPLICATION CMain
  */
 $APPLICATION->AddHeadScript($this->GetFolder() . "/fastclick.js");
 $APPLICATION->SetAdditionalCSS("/bitrix/css/main/font-awesome.css");
 $messages = Loc::loadLanguageFile(Path::normalize(__FILE__));
-if (toUpper(SITE_CHARSET) != "UTF8")
-{
-	$messages = \Bitrix\Main\Text\Encoding::convertEncodingArray($messages, SITE_CHARSET, "UTF8");
-}
 ?>
 
 <script>

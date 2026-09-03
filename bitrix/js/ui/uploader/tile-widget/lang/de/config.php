@@ -1,6 +1,22 @@
 <?php
+$MESS["TILE_UPLOADER_CANCEL_UPLOAD_LABEL"] = "Datei-Upload abbrechen";
 $MESS["TILE_UPLOADER_DROP_FILES_HERE"] = "Verschieben Sie Ihre Dateien hierher";
+$MESS["TILE_UPLOADER_DROP_KEYBOARD_HINT"] = "Drücken Sie Enter oder die Leertaste, um die Dateiauswahl zu öffnen";
+$MESS["TILE_UPLOADER_ERROR_ANNOUNCE"] = "Dateien konnten nicht hochgeladen werden";
 $MESS["TILE_UPLOADER_ERROR_STATUS"] = "Fehler";
+$MESS["TILE_UPLOADER_FILE_ADDED_ANNOUNCE"] = "Datei hinzugefügt: #FILENAME#";
+$MESS["TILE_UPLOADER_FILE_ERROR_ANNOUNCE"] = "Datei #FILENAME# konnte nicht hochgeladen werden";
+$MESS["TILE_UPLOADER_FILE_INSERTED_STATUS"] = "Datei in den Text eingefügt";
+$MESS["TILE_UPLOADER_FILE_LIST_LABEL"] = "Angehängte Dateien";
+$MESS["TILE_UPLOADER_FILE_REMOVED_ANNOUNCE"] = "Datei entfernt: #FILENAME#";
+$MESS["TILE_UPLOADER_FILE_SIZE"] = "Dateigröße: #filesize#";
+$MESS["TILE_UPLOADER_INSERT_INTO_THE_TEXT"] = "Zum Text hinzufügen";
+$MESS["TILE_UPLOADER_ITEM_MENU_LABEL"] = "Dateiaktionen";
 $MESS["TILE_UPLOADER_MENU_DOWNLOAD"] = "Herunterladen";
 $MESS["TILE_UPLOADER_MENU_REMOVE"] = "Löschen";
+$MESS["TILE_UPLOADER_MORE_BUTTON_CAPTION"] = "Noch #COUNT#";
+$MESS["TILE_UPLOADER_OPEN_FILE_LABEL"] = "Datei #FILENAME# öffnen";
+$MESS["TILE_UPLOADER_REMOVE_FILE_LABEL"] = "Datei entfernen";
+$MESS["TILE_UPLOADER_SETTINGS_LABEL"] = "Einstellungen für Datei-Uploads";
+$MESS["TILE_UPLOADER_UPLOAD_PROGRESS_LABEL"] = "Datei wird hochgeladen";
 $MESS["TILE_UPLOADER_WAITING_STATUS"] = "Warten";

@@ -1,9 +1,12 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
+
 /**
  * @var array $arResult
  * @var array $arParams
  * @var CMain $APPLICATION
- */
+ * @var ?\CUser $user */
+$user = $arParams['USER'] ?? null;
+
 foreach (GetModuleEvents('forum', 'OnCommentFormDisplay', true) as $arEvent)
 {
 	$arExt = ExecuteModuleEventEx($arEvent);
@@ -15,7 +18,7 @@ foreach (GetModuleEvents('forum', 'OnCommentFormDisplay', true) as $arEvent)
 }
 ob_start();
 /* GUEST PANEL */
-if (!$GLOBALS["USER"]->IsAuthorized())
+if ($user?->IsAuthorized() !== true)
 {
 	?>
 	<div class="comments-reply-fields">
@@ -83,6 +86,7 @@ if(!empty($arResult["Smiles"]))
 		<input type="hidden" name="ENTITY_ID" value="<?=$arParams["ENTITY_ID"]?>" />
 		<input type="hidden" name="REVIEW_USE_SMILES" value="Y"  />
 		<input type="hidden" name="comment_review" value="Y"  />
+		<input type="hidden" name="SOURCE_ID" value="MOBILE"  />
 	</form>
 <?
 $APPLICATION->IncludeComponent("bitrix:main.post.form",
@@ -125,7 +129,10 @@ $APPLICATION->IncludeComponent("bitrix:main.post.form",
 		"SMILES" => array("VALUE" => $arSmiles),
 		"HTML_BEFORE_TEXTAREA" => $APPLICATION->GetViewContent(implode('_', array($arParams["tplID"], 'EDIT', 'BEFORE'))).$html_before_textarea,
 		"HTML_AFTER_TEXTAREA" => $APPLICATION->GetViewContent(implode('_', array($arParams["tplID"], 'EDIT', 'AFTER'))).$html_after_textarea,
-		"FORUM_CONTEXT" => (!empty($arParams["POST_CONTENT_TYPE_ID"]) ? $arParams["POST_CONTENT_TYPE_ID"] : '')
+		"FORUM_CONTEXT" => (!empty($arParams["POST_CONTENT_TYPE_ID"]) ? $arParams["POST_CONTENT_TYPE_ID"] : ''),
+		"ATTRIBUTES" =>  [
+			...(!empty($arParams["ATTRIBUTES"]) && is_array($arParams["ATTRIBUTES"]) ? $arParams["ATTRIBUTES"] : []),
+		],
 	),
 	false,
 	array("HIDE_ICONS" => "Y")

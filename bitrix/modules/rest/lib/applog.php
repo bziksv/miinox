@@ -2,6 +2,7 @@
 namespace Bitrix\Rest;
 
 use Bitrix\Main;
+use \CUser;
 
 /**
  * Class AppLogTable
@@ -22,9 +23,9 @@ use Bitrix\Main;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_AppLog_Query query()
- * @method static EO_AppLog_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_AppLog_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_AppLog_Result getById($id)
- * @method static EO_AppLog_Result getList(array $parameters = array())
+ * @method static EO_AppLog_Result getList(array $parameters = [])
  * @method static EO_AppLog_Entity getEntity()
  * @method static \Bitrix\Rest\EO_AppLog createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_AppLog_Collection createCollection()
@@ -91,19 +92,17 @@ class AppLogTable extends Main\Entity\DataManager
 	{
 		global $USER;
 
-		$fields = array(
+		$fields = [
 			'APP_ID' => $appId,
 			'ACTION_TYPE' => $action,
-			'USER_ID' => $USER->getId(),
-		);
+			'USER_ID' => 0,
+			'USER_ADMIN' => static::USER_NOT_ADMIN,
+		];
 
-		if($USER->IsAuthorized())
+		if (isset($USER) && ($USER instanceof CUser) && $USER->IsAuthorized())
 		{
+			$fields['USER_ID'] = $USER->GetID();
 			$fields['USER_ADMIN'] = \CRestUtil::isAdmin() ? static::USER_ADMIN : static::USER_NOT_ADMIN;
-		}
-		else
-		{
-			$fields['USER_ADMIN'] = static::USER_NOT_ADMIN;
 		}
 
 		return static::add($fields);

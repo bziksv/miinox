@@ -1,4 +1,5 @@
-<?
+<?php
+
 class CPackageWelcome extends CWizardStep
 {
 	var $package;
@@ -27,7 +28,6 @@ class CPackageWelcome extends CWizardStep
 			$this->content = GetMessage("MAIN_WIZARD_WELCOME_TEXT");
 	}
 }
-
 
 class CPackageLicense extends CWizardStep
 {
@@ -692,7 +692,7 @@ class CPackageSelectStructure extends CWizardStep
 			</table>
 			</div>
 
-			<script type="text/javascript">
+			<script>
 
 				function WizSaveSiteTree()
 				{
@@ -1328,9 +1328,5 @@ class CPackageError extends CWizardStep
 
 	function ShowStep()
 	{
-
-
 	}
 }
-
-?>

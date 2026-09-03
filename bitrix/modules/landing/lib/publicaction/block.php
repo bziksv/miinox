@@ -1,16 +1,19 @@
 <?php
 namespace Bitrix\Landing\PublicAction;
 
+use Bitrix\Landing\Block\BlockRepo;
 use Bitrix\Landing\History;
-use \Bitrix\Landing\Manager;
-use \Bitrix\Landing\File;
-use \Bitrix\Landing\Landing;
-use \Bitrix\Landing\Hook;
-use \Bitrix\Landing\Assets;
-use \Bitrix\Landing\Restriction;
-use \Bitrix\Landing\Block as BlockCore;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Landing\PublicActionResult;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\File;
+use Bitrix\Landing\Landing;
+use Bitrix\Landing\Hook;
+use Bitrix\Landing\Assets;
+use Bitrix\Landing\Restriction;
+use Bitrix\Landing\Block as BlockCore;
+use Bitrix\Landing\Metrika;
+use Bitrix\Landing\Sanitizer;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Landing\PublicActionResult;
 
 Loc::loadMessages(__FILE__);
 
@@ -49,16 +52,14 @@ class Block
 					$position = -1;
 				}
 				if (
-					mb_strtolower($action) == 'clonecard' &&
 					isset($params['content'])
+					&& mb_strtolower($action) === 'clonecard'
 				)
 				{
 					$res = $blocks[$block]->$action(
 						$selector,
 						$position,
-						Manager::sanitize(
-							$params['content'], $bad
-						)
+						(new Sanitizer())->sanitizeText($params['content'])
 					);
 				}
 				else
@@ -169,12 +170,26 @@ class Block
 			if (isset($blocks[$block]))
 			{
 				$currBlock = $blocks[$block];
+				$changeDetector = new Metrika\BlockContentChangeDetector();
+				$manifest = $currBlock->getManifest();
+				$contentBefore = self::takeBlockContentSnapshot($changeDetector, $currBlock, null, $manifest);
 				$currBlock->updateCards((array)$data);
 				$result->setResult($currBlock->save());
 				$result->setError($currBlock->getError());
 				if ($currBlock->getError()->isEmpty())
 				{
 					$landing->touch();
+					if ($contentBefore !== null)
+					{
+						self::sendBlockEditAnalytics(
+							$changeDetector,
+							$currBlock,
+							$contentBefore,
+							null,
+							$manifest,
+							$landing->getSiteTypeCode()
+						);
+					}
 				}
 			}
 			else
@@ -199,7 +214,7 @@ class Block
 	 * @param bool $preventHistory True if no need save history
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function changeNodeName($lid, $block, array $data, bool $preventHistory = false)
+	public static function changeNodeName($lid, $block, array $data, bool $preventHistory = false): PublicActionResult
 	{
 		$error = new \Bitrix\Landing\Error;
 		$result = new PublicActionResult();
@@ -312,6 +327,7 @@ class Block
 			}
 		}
 		$result->setError($landing->getError());
+		$result->setError($error);
 
 		return $result;
 	}
@@ -325,20 +341,20 @@ class Block
 	 * @param bool $preventHistory True if no need save history
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function updateNodes($lid, $block, array $data, array $additional = array(), bool $preventHistory = false)
+	public static function updateNodes(int $lid, int $block, array $data, array $additional = array(), bool $preventHistory = false)
 	{
 		$error = new \Bitrix\Landing\Error;
 		$result = new PublicActionResult();
 
-		$attributes = array();
-		$components = array();
-		$content = array();
-		$data = (array) $data;
+		$attributes = [];
+		$components = [];
+		$content = [];
 		$dynamicParamsExists = false;
-		$block = intval($block);
 
 		Landing::setEditMode();
 		$preventHistory ? History::deactivate() : History::activate();
+
+		$additional['sanitize'] = true;
 
 		// save dynamic cards settings
 		if (isset($data['dynamicState']) || isset($data['dynamicBlock']))//@tmp refactor
@@ -453,6 +469,20 @@ class Block
 				$blocks = $landing->getBlocks();
 				if (isset($blocks[$block]))
 				{
+					$changeDetector = new Metrika\BlockContentChangeDetector();
+					$editedSelectors = array_merge(
+						array_keys($content),
+						array_keys($attributes),
+						array_keys($components)
+					);
+					// manifest is parsed once for the whole save - it is the same for every step below
+					$manifest = $blocks[$block]->getManifest();
+					$contentBefore = self::takeBlockContentSnapshot(
+						$changeDetector,
+						$blocks[$block],
+						$editedSelectors,
+						$manifest
+					);
 					if (!empty($content))
 					{
 						$blocks[$block]->updateNodes($content, $additional);
@@ -466,7 +496,6 @@ class Block
 						// fix for security waf
 						if (!$blocks[$block]->getRepoId())
 						{
-							$manifest = $blocks[$block]->getManifest();
 							foreach ($components as $selector => &$attrs)
 							{
 								if (
@@ -481,11 +510,6 @@ class Block
 										foreach ($attrs as $attCode => &$attValue)
 										{
 											$attValue = $rawAttrs[$attCode];
-											$attValue = \Bitrix\Main\Text\Encoding::convertEncoding(
-												$attValue,
-												'utf-8',
-												SITE_CHARSET
-											);
 										}
 									}
 									unset($attValue);
@@ -507,6 +531,17 @@ class Block
 					if ($blocks[$block]->getError()->isEmpty())
 					{
 						$landing->touch();
+						if ($contentBefore !== null)
+						{
+							self::sendBlockEditAnalytics(
+								$changeDetector,
+								$blocks[$block],
+								$contentBefore,
+								$editedSelectors,
+								$manifest,
+								$landing->getSiteTypeCode()
+							);
+						}
 					}
 				}
 				else
@@ -530,6 +565,81 @@ class Block
 		$result->setError($error);
 
 		return $result;
+	}
+
+	/**
+	 * Reads the content of the block for the analytics before the save changes it.
+	 * @param Metrika\BlockContentChangeDetector $changeDetector Detector holding the rules of the comparison.
+	 * @param BlockCore $block Block with the DOM already loaded for the save.
+	 * @param array|null $selectors Selectors touched by the save, null means all of them.
+	 * @param array $manifest Manifest of the saved block, read once for the whole save.
+	 * @return array|null Snapshot of the content, null when it cannot be read.
+	 */
+	private static function takeBlockContentSnapshot(
+		Metrika\BlockContentChangeDetector $changeDetector,
+		BlockCore $block,
+		?array $selectors,
+		array $manifest
+	): ?array
+	{
+		try
+		{
+			return $changeDetector->takeSnapshot($block, $selectors, $manifest);
+		}
+		catch (\Throwable)
+		{
+			// analytics must never break the save of the user; a content that was not read is not an
+			// empty one - comparing with it would report every selector of the block as changed,
+			// so the caller drops the event instead of comparing
+			return null;
+		}
+	}
+
+	/**
+	 * Sends one analytic event per kind of content the save has changed by hand.
+	 * Applying of generated HTML (updateContent) is not a manual edit and is never marked here.
+	 * Is called only when the snapshot before the save has really been read.
+	 * @param Metrika\BlockContentChangeDetector $changeDetector Detector holding the rules of the comparison.
+	 * @param BlockCore $block Saved block.
+	 * @param array $contentBefore Snapshot taken before the save.
+	 * @param array|null $selectors Selectors touched by the save, null means all of them.
+	 * @param array $manifest Manifest of the saved block, read once for the whole save.
+	 * @param string $siteType Type of the site of the edited landing, taken from the instance of the
+	 * landing itself: the static Landing::getSiteType() is overwritten by any landing loaded later,
+	 * including the ones loaded by handlers of the save events of other modules.
+	 * @return void
+	 */
+	private static function sendBlockEditAnalytics(
+		Metrika\BlockContentChangeDetector $changeDetector,
+		BlockCore $block,
+		array $contentBefore,
+		?array $selectors,
+		array $manifest,
+		string $siteType
+	): void
+	{
+		try
+		{
+			$changedKinds = $changeDetector->detect(
+				$contentBefore,
+				$changeDetector->takeSnapshot($block, $selectors, $manifest),
+				$manifest
+			);
+			if (!$changedKinds)
+			{
+				return;
+			}
+
+			$sender = new Metrika\BlockEditMetrikaSender();
+			foreach ($changedKinds as $changedKind)
+			{
+				$sender->sendManualEdit($siteType, $changedKind);
+			}
+		}
+		catch (\Throwable)
+		{
+			// analytics must never break the save that has already succeeded
+		}
 	}
 
 	/**
@@ -681,6 +791,7 @@ class Block
 			}
 		}
 		$result->setError($landing->getError());
+		$result->setError($error);
 
 		return $result;
 	}
@@ -703,7 +814,7 @@ class Block
 
 		if (Utils::isTrue($designed))
 		{
-			if (!Restriction\Manager::isAllowed('limit_crm_free_superblock1'))
+			if (!Restriction\Manager::isAllowed('limit_crm_superblock'))
 			{
 				return $result;
 			}
@@ -725,7 +836,7 @@ class Block
 			if (isset($blocks[$block]))
 			{
 				// remove extra files
-				$newContent = Manager::sanitize($content, $bad);
+				$newContent = (new Sanitizer())->sanitizeText($content);
 				$filesBeforeSave = File::getFilesFromBlockContent(
 					$block,
 					$blocks[$block]->getContent()
@@ -786,6 +897,7 @@ class Block
 			}
 		}
 		$result->setError($landing->getError());
+		$result->setError($error);
 
 		return $result;
 	}
@@ -795,9 +907,10 @@ class Block
 	 * @param int $block Block id.
 	 * @return PublicActionResult
 	 */
-	public static function publication(int $block): PublicActionResult
+	public static function publication($block): PublicActionResult
 	{
 		$result = new PublicActionResult();
+		$block = intval($block);
 
 		$lid = BlockCore::getLandingIdByBlockId($block);
 		if ($lid)
@@ -805,7 +918,11 @@ class Block
 			$landing = Landing::createInstance($lid);
 			if ($landing->exist())
 			{
-				$result->setResult($landing->publication($block));
+				$metrikaParams = new Metrika\FieldsDto(
+					subSection: 'from_editor',
+					element: 'auto',
+				);
+				$result->setResult($landing->publication($block, $metrikaParams));
 			}
 			$result->setError($landing->getError());
 		}
@@ -839,7 +956,7 @@ class Block
 		$data = array();
 		foreach ($lids as $lid)
 		{
-			$lid = intval($lid);
+			$lid = (int)$lid;
 			$landing = Landing::createInstance($lid, array(
 				'deleted' => isset($params['deleted']) && $params['deleted']
 			));
@@ -1015,13 +1132,11 @@ class Block
 	/**
 	 * Get blocks from repository.
 	 * @param string $section Section code.
-	 * @param bool $withManifest Get repo with manifest.
-	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function getRepository($section = null, $withManifest = false)
+	public static function getRepository($section = null)
 	{
 		$result = new PublicActionResult();
-		$repo = \Bitrix\Landing\Block::getRepository($withManifest);
+		$repo = (new BlockRepo())->getRepository();
 
 		if ($section === null)
 		{

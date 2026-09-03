@@ -7,6 +7,8 @@ use Bitrix\Main\Localization\Loc;
 
 /**
  * Harvester of phrases the list of files and folders.
+ *
+ * @internal
  */
 class ExportPath
 	extends ExportAction
@@ -16,16 +18,17 @@ class ExportPath
 	use Translate\Controller\ProcessParams;
 
 	/** @var string[] */
-	private $pathList;
+	private array $pathList = [];
 
 	/** @var string[] */
-	private $codeList;
+	private array $codeList = [];
 
-	/** @var int */
-	private $seekOffset;
+	private int $seekOffset = 0;
 
-	/** @var int */
-	private $seekPathLangId;
+	private int $seekPathLangId = 0;
+
+	private string $seekLangFilePath = '';
+	private string $seekPhraseCode = '';
 
 
 	/**
@@ -35,9 +38,9 @@ class ExportPath
 	 * @param Main\Engine\Controller $controller Parent controller object.
 	 * @param array $config Additional configuration.
 	 */
-	public function __construct($name, Main\Engine\Controller $controller, $config = array())
+	public function __construct($name, Main\Engine\Controller $controller, array $config = [])
 	{
-		$this->keepField(['pathList', 'codeList', 'seekOffset', 'seekPathLangId']);
+		$this->keepField(['pathList', 'codeList', 'seekOffset', 'seekPathLangId', 'seekPhraseCode', 'seekLangFilePath']);
 
 		Loc::loadLanguageFile(__DIR__ . '/exportaction.php');
 
@@ -53,7 +56,7 @@ class ExportPath
 	 *
 	 * @return array
 	 */
-	public function run($path = '', $runBefore = false)
+	public function run(string $path = '', bool $runBefore = false): array
 	{
 		if ($runBefore)
 		{
@@ -71,14 +74,14 @@ class ExportPath
 			{
 				$this->addError(new Main\Error(Loc::getMessage('TR_EXPORT_EMPTY_PATH_LIST')));
 
-				return array(
+				return [
 					'STATUS' => Translate\Controller\STATUS_COMPLETED,
-				);
+				];
 			}
 
 			foreach ($pathList as $testPath)
 			{
-				if (\mb_substr($testPath, -4) === '.php')
+				if (Translate\IO\Path::isPhpFile($testPath))
 				{
 					if (Translate\IO\Path::isLangDir($testPath))
 					{
@@ -106,16 +109,25 @@ class ExportPath
 			if ($this->totalItems > 0)
 			{
 				$this->exportFileName = $this->generateExportFileName($path, $this->languages);
-				$this->createExportTempFile($this->exportFileName);
+				$csvFile = $this->createExportTempFile($this->exportFileName);
+				$this->exportFilePath = $csvFile->getPhysicalPath();
+				$this->exportFileSize = $csvFile->getSize();
+			}
+			if ($this->appendSamples)
+			{
+				$this->samplesFileName = $this->generateExportFileName($path.'-samples', $this->languages);
+				$sampleFile = $this->createExportTempFile($this->samplesFileName);
+				$this->samplesFilePath = $sampleFile->getPhysicalPath();
+				$this->samplesFileSize = $sampleFile->getSize();
 			}
 
 			$this->saveProgressParameters();
 
-			return array(
+			return [
 				'STATUS' => ($this->totalItems > 0 ? Translate\Controller\STATUS_PROGRESS : Translate\Controller\STATUS_COMPLETED),
 				'PROCESSED_ITEMS' => 0,
 				'TOTAL_ITEMS' => $this->totalItems,
-			);
+			];
 		}
 
 		return $this->performStep('runExporting');
@@ -127,11 +139,18 @@ class ExportPath
 	 *
 	 * @return array
 	 */
-	private function runExporting()
+	private function runExporting(): array
 	{
 		$csvFile = new Translate\IO\CsvFile($this->exportFilePath);
 		$this->configureExportCsvFile($csvFile);
 		$csvFile->openWrite( Main\IO\FileStreamOpenMode::APPEND);
+
+		if ($this->appendSamples)
+		{
+			$samplesFile = new Translate\IO\CsvFile($this->samplesFilePath);
+			$this->configureExportCsvFile($samplesFile);
+			$samplesFile->openWrite( Main\IO\FileStreamOpenMode::APPEND);
+		}
 
 		$processedItemCount = 0;
 
@@ -151,14 +170,27 @@ class ExportPath
 			}
 		}
 
-		for ($pos = ((int)$this->seekOffset > 0 ? (int)$this->seekOffset : 0), $total = \count($this->pathList); $pos < $total; $pos ++)
+		$currentLangId = Loc::getCurrentLang();
+
+		for ($pos = ($this->seekOffset > 0 ? $this->seekOffset : 0), $total = \count($this->pathList); $pos < $total; $pos ++)
 		{
 			$exportingPath = $this->pathList[$pos];
 
 			// file
-			if (\mb_substr($exportingPath, -4) === '.php')
+			if (Translate\IO\Path::isPhpFile($exportingPath))
 			{
 				$langFilePath = Translate\IO\Path::replaceLangId($exportingPath, '#LANG_ID#');
+				if (!empty($this->seekLangFilePath))
+				{
+					if ($langFilePath == $this->seekLangFilePath)
+					{
+						$this->seekLangFilePath = '';
+					}
+					else
+					{
+						continue;
+					}
+				}
 
 				$fullPaths = [];
 				foreach ($this->languages as $langId)
@@ -174,11 +206,61 @@ class ExportPath
 					$fullPaths[$langId] = $langFullPath;
 				}
 
-				$rows = $this->mergeLangFiles($langFilePath, $fullPaths, $this->collectUntranslated, $fileCodeList[$langFilePath]);
-				foreach ($rows as $row)
+				$rows = $this->mergeLangFiles($langFilePath, $fullPaths, $this->collectUntranslated, $fileCodeList[$langFilePath] ?? []);
+				foreach ($rows as $code => $row)
 				{
+					if (!empty($this->seekPhraseCode))
+					{
+						if ($code == $this->seekPhraseCode)
+						{
+							$this->seekPhraseCode = '';
+						}
+						continue;
+					}
+
 					$csvFile->put(\array_values($row));
+
+					if (
+						$this->appendSamples
+						&& !empty($row[$currentLangId])
+						&& mb_strlen($row[$currentLangId]) < $this->maxSampleSourceLength
+					)
+					{
+						$samples = $this->findSamples(
+							$row[$currentLangId],
+							$currentLangId,
+							$langFilePath,
+							$this->samplesCount,
+							$this->samplesRestriction
+						);
+						foreach ($samples as $sample)
+						{
+							$samplesFile->put(\array_values($sample));
+							$this->exportedSamplesCount ++;
+						}
+					}
+
 					$this->exportedPhraseCount ++;
+
+					if ($this->instanceTimer()->hasTimeLimitReached())
+					{
+						$this->seekPhraseCode = $code;
+						break;
+					}
+					else
+					{
+						$this->seekPhraseCode = '';
+					}
+				}
+
+				if ($this->instanceTimer()->hasTimeLimitReached())
+				{
+					$this->seekLangFilePath = $langFilePath;
+					break;
+				}
+				else
+				{
+					$this->seekLangFilePath = '';
 				}
 			}
 
@@ -204,19 +286,19 @@ class ExportPath
 
 
 				// now let's find lang files
-				$pathFilter = array(
+				$pathFilter = [
 					'=%PATH' => $lookForLangPath.'%'
-				);
-				if (!empty($this->seekPathLangId) && (int)$this->seekPathLangId > 0)
+				];
+				if ($this->seekPathLangId > 0)
 				{
-					$pathFilter['>ID'] = (int)$this->seekPathLangId;
+					$pathFilter['>=ID'] = $this->seekPathLangId;
 				}
 
-				$cachePathLangRes = Translate\Index\Internals\PathLangTable::getList(array(
+				$cachePathLangRes = Translate\Index\Internals\PathLangTable::getList([
 					'filter' => $pathFilter,
-					'order' => array('ID' => 'ASC'),
+					'order' => ['ID' => 'ASC'],
 					'select' => ['ID', 'PATH'],
-				));
+				]);
 				while ($pathLang = $cachePathLangRes->fetch())
 				{
 					$lookThroughPath = $pathLang['PATH']. '/#LANG_ID#';
@@ -228,11 +310,73 @@ class ExportPath
 					{
 						foreach ($filePaths as $langFilePath => $fullPaths)
 						{
-							$rows = $this->mergeLangFiles($langFilePath, $fullPaths, $this->collectUntranslated, $fileCodeList[$langFilePath]);
-							foreach ($rows as $row)
+							if (!empty($this->seekLangFilePath))
 							{
+								if ($langFilePath == $this->seekLangFilePath)
+								{
+									$this->seekLangFilePath = '';
+								}
+								else
+								{
+									continue;
+								}
+							}
+
+							$rows = $this->mergeLangFiles($langFilePath, $fullPaths, $this->collectUntranslated, $fileCodeList[$langFilePath] ?? []);
+							foreach ($rows as $code => $row)
+							{
+								if (!empty($this->seekPhraseCode))
+								{
+									if ($code == $this->seekPhraseCode)
+									{
+										$this->seekPhraseCode = '';
+									}
+									continue;
+								}
+
 								$csvFile->put(\array_values($row));
+
+								if (
+									$this->appendSamples
+									&& !empty($row[$currentLangId])
+									&& mb_strlen($row[$currentLangId]) < $this->maxSampleSourceLength
+								)
+								{
+									$samples = $this->findSamples(
+										$row[$currentLangId],
+										$currentLangId,
+										$langFilePath,
+										$this->samplesCount,
+										$this->samplesRestriction
+									);
+									foreach ($samples as $sample)
+									{
+										$samplesFile->put(\array_values($sample));
+										$this->exportedSamplesCount ++;
+									}
+								}
+
 								$this->exportedPhraseCount ++;
+
+								if ($this->instanceTimer()->hasTimeLimitReached())
+								{
+									$this->seekPhraseCode = $code;
+									break;
+								}
+								else
+								{
+									$this->seekPhraseCode = '';
+								}
+							}
+
+							if ($this->instanceTimer()->hasTimeLimitReached())
+							{
+								$this->seekLangFilePath = $langFilePath;
+								break;
+							}
+							else
+							{
+								$this->seekLangFilePath = '';
 							}
 						}
 					}
@@ -242,9 +386,11 @@ class ExportPath
 						$this->seekPathLangId = (int)$pathLang['ID'];
 						break 2;
 					}
+					else
+					{
+						$this->seekPathLangId = 0;
+					}
 				}
-
-				$this->seekPathLangId = null;
 			}
 
 			$processedItemCount ++;
@@ -255,7 +401,7 @@ class ExportPath
 			}
 			else
 			{
-				$this->seekOffset = null;
+				$this->seekOffset = 0;
 				$this->declareAccomplishment();
 				$this->clearProgressParameters();
 			}
@@ -267,7 +413,13 @@ class ExportPath
 		}
 
 		$this->exportFileSize = $csvFile->getSize();
+
 		$csvFile->close();
+		if ($this->appendSamples)
+		{
+			$this->samplesFileSize = $samplesFile->getSize();
+			$samplesFile->close();
+		}
 
 		$this->processedItems += $processedItemCount;
 
@@ -277,11 +429,12 @@ class ExportPath
 			$this->clearProgressParameters();
 		}
 
-		$result = array(
+		$result = [
 			'PROCESSED_ITEMS' => $this->processedItems,
 			'TOTAL_ITEMS' => $this->totalItems,
 			'TOTAL_PHRASES' => $this->exportedPhraseCount,
-		);
+			'TOTAL_SAMPLES' => $this->exportedSamplesCount,
+		];
 
 		if ($csvFile->hasErrors())
 		{

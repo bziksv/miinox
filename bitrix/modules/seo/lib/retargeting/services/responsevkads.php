@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Retargeting\Services;
 
@@ -15,12 +15,6 @@ class ResponseVkads extends Response
 
 	public function parse($data)
 	{
-		// Need for preserve double UTF-conversion, because VK return JSON answer in result
-		if (is_string($data))
-		{
-			$data = Encoding::convertEncoding($data, SITE_CHARSET, 'UTF-8');
-		}
-
 		$parsed = is_array($data) ? $data : Json::decode($data);
 		if ($parsed['error'])
 		{
@@ -28,7 +22,7 @@ class ResponseVkads extends Response
 			if ((string)$parsed['error']['error_code'] === '100')
 			{
 				$errorMessage = Loc::getMessage(
-					'SEO_RETARGETING_SERVICE_RESPONSE_VKONTAKTE_ERROR_100',
+					'SEO_RETARGETING_SERVICE_RESPONSE_VKADS_ERROR_100',
 					[
 						'%code%' => htmlspecialcharsbx($parsed['error']['error_code']),
 						'%msg%' => htmlspecialcharsbx($parsed['error']['error_msg']),
@@ -36,7 +30,7 @@ class ResponseVkads extends Response
 				);
 			}
 
-			$errorMessage = Loc::getMessage('SEO_RETARGETING_SERVICE_RESPONSE_VKONTAKTE_ERROR')
+			$errorMessage = Loc::getMessage('SEO_RETARGETING_SERVICE_RESPONSE_VKADS_ERROR')
 				. ': '
 				. $errorMessage;
 			$this->addError(new Error($errorMessage, $parsed['error']['error_code']));

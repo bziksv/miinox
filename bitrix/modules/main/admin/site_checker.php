@@ -1,9 +1,10 @@
-<?
+<?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2025 Bitrix
  */
 
 /**
@@ -15,48 +16,61 @@
 
 @ini_set("track_errors", "1");
 @ini_set('display_errors', 1);
-error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED);
+error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 $message = null;
 
 define('DEBUG_FLAG', str_replace('\\','/',$_SERVER['DOCUMENT_ROOT'] . '/bitrix/site_checker_debug'));
 require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/classes/general/site_checker.php');
 
 // NO AUTH TESTS
-if (isset($_REQUEST['unique_id']) && $_REQUEST['unique_id'])
+if (!empty($_REQUEST['unique_id']) && is_string($_REQUEST['unique_id']))
 {
-	if (!file_exists(DEBUG_FLAG) && $_REQUEST['unique_id'] != checker_get_unique_id())
+	if (!file_exists(DEBUG_FLAG) && !hash_equals(checker_get_unique_id(), $_REQUEST['unique_id']))
+	{
 		die('Permission denied: UNIQUE ID ERROR');
+	}
 
 	$testType = $_GET['test_type'] ?? '';
 	switch ($testType)
 	{
 		case 'socket_test':
 			echo "SUCCESS";
-		break;
+			break;
+
 		case 'webdav_test':
 			if ($_SERVER['REQUEST_METHOD'] == $_GET['method'])
+			{
 				echo "SUCCESS";
+			}
 			else
+			{
 				echo 'Incorrect $_SERVER[REQUEST_METHOD]: '.$_SERVER['REQUEST_METHOD'].', expected: '.preg_replace('#[^A-Z]#', '', $_GET['method']);
-		break;
+			}
+			break;
+
 		case 'compression':
 			echo str_repeat('SUCCESS', 8*1024);
-		break;
+			break;
+
 		case 'perf':
 			define("NOT_CHECK_PERMISSIONS", true);
 			define("LDAP_NO_PORT_REDIRECTION", true);
 			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
 			foreach(GetModuleEvents("main", "OnEpilog", true) as $arEvent)
+			{
 				ExecuteModuleEventEx($arEvent);
+			}
 
 			$APPLICATION->EndBufferContentMan();
 
 			echo round(microtime(true) - START_EXEC_TIME, 4);
-		break;
+			break;
+
 		case 'fast_download':
 			header('X-Accel-Redirect: /bitrix/tmp/success.txt');
-		break;
+			break;
+
 		case 'dbconn_test':
 			ob_start();
 			define('NOT_CHECK_PERMISSIONS', true);
@@ -68,42 +82,43 @@ if (isset($_REQUEST['unique_id']) && $_REQUEST['unique_id'])
 				ob_end_clean();
 			}
 			ob_end_clean();
-			if (function_exists('mb_internal_encoding'))
-				mb_internal_encoding('ISO-8859-1');
-			echo $buff === '' ? 'SUCCESS' : 'Length: '.mb_strlen($buff).' ('.$buff . ')';
-		break;
+
+			echo $buff === '' ? 'SUCCESS' : 'Length: '.strlen($buff).' ('.$buff . ')';
+			break;
+
 		case 'pcre_recursion_test':
 			$a = str_repeat('a',4096);
 			if (preg_match('/(a)+/',$a)) // Segmentation fault (core dumped)
+			{
 				echo 'SUCCESS';
+			}
 			else
+			{
 				echo 'CLEAN';
-		break;
-		case 'method_exists':
-			$arRes= Array
-			(
-				"CLASS" => "",
-				"CALC_METHOD" => ""
-			);
-			method_exists($arRes['CLASS'], $arRes['CALC_METHOD']);
-			echo 'SUCCESS';
-		break;
-		case 'upload_test':
-			if (function_exists('mb_internal_encoding'))
-				mb_internal_encoding('ISO-8859-1');
+			}
+			break;
 
+		case 'upload_test':
 			$dir = $_SERVER['DOCUMENT_ROOT'].'/bitrix/tmp';
 			if (!file_exists($dir))
+			{
 				mkdir($dir);
+			}
 
 			$binaryData = '';
-			for($i=40;$i<240;$i++)
+			for ($i=40; $i<240; $i++)
+			{
 				$binaryData .= chr($i);
+			}
 			if (isset($_REQUEST['big']) && $_REQUEST['big'])
+			{
 				$binaryData = str_repeat($binaryData, 21000);
+			}
 
 			if (isset($_REQUEST['raw']) && $_REQUEST['raw'])
+			{
 				$binaryData_received = file_get_contents('php://input');
+			}
 			elseif (move_uploaded_file($tmp_name = $_FILES['test_file']['tmp_name'], $image = $dir.'/site_checker.bin'))
 			{
 				$binaryData_received = file_get_contents($image);
@@ -112,83 +127,98 @@ if (isset($_REQUEST['unique_id']) && $_REQUEST['unique_id'])
 			else
 			{
 				echo 'move_uploaded_file('.$tmp_name.','.$image.')=false'."\n";
-				echo '$_FILES='."\n";
-				print_r($_FILES);
 				die();
 			}
 
 			if ($binaryData === $binaryData_received)
+			{
 				echo "SUCCESS";
+			}
 			else
-				echo 'strlen($binaryData)='.mb_strlen($binaryData).', strlen($binaryData_received)='.mb_strlen($binaryData_received);
-		break;
+			{
+				echo 'strlen($binaryData)='.strlen($binaryData).', strlen($binaryData_received)='.strlen($binaryData_received);
+			}
+			break;
+
 		case 'post_test':
 			$ok = true;
-			for ($i=0;$i<201;$i++)
-				$ok = $ok && ($_POST['i'.$i] == md5($i));
+			for ($i=0; $i<201; $i++)
+			{
+				$ok = $ok && ($_POST['i'.$i] === md5($i));
+			}
 
 			echo $ok ? 'SUCCESS' : 'FAIL';
 			break;
+
 		case 'memory_test':
 			@ini_set("memory_limit", "512M");
 			$max = intval($_GET['max']);
 			if ($max)
 			{
 				for($i=1;$i<=$max;$i++)
+				{
 					$a[] = str_repeat(chr($i),1024*1024); // 1 Mb
+				}
 
 				echo "SUCCESS";
 			}
-		break;
+			break;
+
 		case 'auth_test':
 			$remote_user = ($_SERVER["REMOTE_USER"] ?? '') ?: ($_SERVER["REDIRECT_REMOTE_USER"] ?? '');
 			$strTmp = base64_decode(mb_substr($remote_user, 6));
 			if ($strTmp)
+			{
 				list($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']) = explode(':', $strTmp);
+			}
 			if ($_SERVER['PHP_AUTH_USER']=='test_user' && $_SERVER['PHP_AUTH_PW']=='test_password')
+			{
 				echo('SUCCESS');
-		break;
+			}
+			break;
+
 		case 'session_test':
 			session_start();
 			echo $_SESSION['CHECKER_CHECK_SESSION'] ?? '';
 			$_SESSION['CHECKER_CHECK_SESSION'] = 'SUCCESS';
-		break;
+			break;
+
 		case 'redirect_test':
 			foreach(array('SERVER_PORT','HTTPS','FCGI_ROLE','SERVER_PROTOCOL','SERVER_PORT','HTTP_HOST') as $key)
-				$GLOBALS['_SERVER'][$key] = $GLOBALS['_REQUEST'][$key];
-			function IsHTTPS()
 			{
-				return ($_SERVER["SERVER_PORT"]==443 || mb_strtolower($_SERVER["HTTPS"]) == "on");
+				$GLOBALS['_SERVER'][$key] = $GLOBALS['_REQUEST'][$key];
 			}
 
-			function SetStatus($status)
+			if (isset($_REQUEST['done']))
+			{
+				echo 'SUCCESS';
+			}
+			else
 			{
 				$bCgi = (mb_stristr(php_sapi_name(), "cgi") !== false);
 				$bFastCgi = ($bCgi && (array_key_exists('FCGI_ROLE', $_SERVER) || array_key_exists('FCGI_ROLE', $_ENV)));
 				if($bCgi && !$bFastCgi)
-					header("Status: ".$status);
+				{
+					header("Status: 302 Found");
+				}
 				else
-					header($_SERVER["SERVER_PROTOCOL"]." ".$status);
-			}
+				{
+					header($_SERVER["SERVER_PROTOCOL"] . " 302 Found");
+				}
 
-			if (isset($_REQUEST['done']))
-				echo 'SUCCESS';
-			else
-			{
-				SetStatus("302 Found");
-				$protocol = (IsHTTPS() ? "https" : "http");
+				$protocol = (($_SERVER["SERVER_PORT"]==443 || mb_strtolower($_SERVER["HTTPS"]) == "on") ? "https" : "http");
 				$host = $_SERVER['HTTP_HOST'];
-				if($_SERVER['SERVER_PORT'] <> 80 && $_SERVER['SERVER_PORT'] <> 443 && $_SERVER['SERVER_PORT'] > 0 && strpos($_SERVER['HTTP_HOST'], ":") === false)
+				if($_SERVER['SERVER_PORT'] <> 80 && $_SERVER['SERVER_PORT'] <> 443 && $_SERVER['SERVER_PORT'] > 0 && !str_contains($_SERVER['HTTP_HOST'], ":"))
+				{
 					$host .= ":".$_SERVER['SERVER_PORT'];
+				}
 				$url = "?redirect_test=Y&done=Y&unique_id=".checker_get_unique_id();
 				header("Request-URI: ".$protocol."://".$host.$url);
 				header("Content-Location: ".$protocol."://".$host.$url);
 				header("Location: ".$protocol."://".$host.$url);
 				exit;
 			}
-		break;
-		default:
-		break;
+			break;
 	}
 
 	if (isset($_GET['fix_mode']) && ($fix_mode = intval($_GET['fix_mode'])))
@@ -199,10 +229,15 @@ if (isset($_REQUEST['unique_id']) && $_REQUEST['unique_id'])
 			header('Content-type: text/plain; charset='.LANG_CHARSET);
 		}
 		define('LANGUAGE_ID', preg_match('#[a-z]{2}#',$_REQUEST['lang'] ?? '',$regs) ? $regs[0] : 'en');
-		if (file_exists($file = $_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/lang/'.LANGUAGE_ID.'/admin/site_checker.php'))
+		$file = $_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/lang/'.LANGUAGE_ID.'/admin/site_checker.php';
+		if (file_exists($file))
+		{
 			include_once($file);
+		}
 		else
+		{
 			include_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/lang/en/admin/site_checker.php');
+		}
 
 		InitPureDB();
 
@@ -210,7 +245,7 @@ if (isset($_REQUEST['unique_id']) && $_REQUEST['unique_id'])
 		if (file_exists(DEBUG_FLAG))
 			$oTest->timeout = 30;
 
-		if ($_REQUEST['global_test_vars'] && ($d = base64_decode($_REQUEST['global_test_vars'])))
+		if (!empty($_REQUEST['global_test_vars']) && ($d = base64_decode($_REQUEST['global_test_vars'])))
 			$oTest->arTestVars = unserialize($d, ['allowed_classes' => false]);
 		else
 			$oTest->arTestVars = array();
@@ -257,7 +292,6 @@ if(isset($_REQUEST['test_start']) && $_REQUEST['test_start'])
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 IncludeModuleLangFile(__FILE__);
 
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/prolog.php");
 define("HELP_FILE", "utilities/site_checker.php");
 //error_reporting(E_ALL &~E_NOTICE);
 
@@ -326,7 +360,7 @@ if (isset($_POST['access_check']) && $_POST['access_check'])
 					<input type=hidden name=check_type value="<?=$check_type?>">
 					<input type=hidden name=break_point value="<?=htmlspecialcharsbx($sNextPath)?>">
 				</form>
-				<?
+				<?php
 				CAdminMessage::ShowMessage(array(
 					'TYPE' => 'OK',
 					'HTML' => true,
@@ -338,14 +372,14 @@ if (isset($_POST['access_check']) && $_POST['access_check'])
 				<script>
 				if (parent.document.getElementById('access_submit').disabled)
 					window.setTimeout("parent.ShowWaitWindow();document.getElementById('postform').submit()",500);
-				</script><?
+				</script><?php
 			}
 			else
 			{
 				if ($check_type == 'full')
 					COption::SetOptionString('main', 'site_checker_access', 'Y');
 				CAdminMessage::ShowMessage(Array("TYPE"=>"OK", "MESSAGE"=>GetMessage("SC_FILES_OK")));
-				?><script>parent.access_check_start(0);</script><?
+				?><script>parent.access_check_start(0);</script><?php
 			}
 		}
 		else
@@ -358,7 +392,7 @@ if (isset($_POST['access_check']) && $_POST['access_check'])
 				'HTML' => true
 				)
 			);
-			?><script>parent.access_check_start(0);</script><?
+			?><script>parent.access_check_start(0);</script><?php
 		}
 	}
 	else
@@ -414,7 +448,7 @@ elseif (isset($_REQUEST['read_log']) && $_REQUEST['read_log']) // after prolog t
 	if (($s = strlen($str)) > ini_get('pcre.backtrack_limit'))
 		@ini_set('pcre.backtrack_limit', $s);
 
-	?><!DOCTYPE HTML><html><body style="color:#666"><h1 style="color:#000"><?=GetMessage("MAIN_SC_SYSTEST_LOG")?></h1><?
+	?><!DOCTYPE HTML><html><body style="color:#666"><h1 style="color:#000"><?=GetMessage("MAIN_SC_SYSTEST_LOG")?></h1><?php
 	$str = preg_replace('#^[0-9]{4}-...-[0-9]{2} .*\):#m','<span style="color:#000">$0</span>', $str);
 
 	$a = $_REQUEST['anchor'] ?? '';
@@ -441,7 +475,7 @@ elseif (isset($_REQUEST['fix_mode']) && ($fix_mode = intval($_REQUEST['fix_mode'
 		var fix_mode = <?=$fix_mode?>;
 		BX.ajax.get('site_checker.php?fix_mode=' + fix_mode + '&test_start=Y&lang=<?=LANGUAGE_ID?>&charset=<?=LANG_CHARSET?>&<?=bitrix_sessid_get()?>&unique_id=<?=checker_get_unique_id()?>', fix_onload);
 	</script>
-	<?
+	<?php
 	exit;
 }
 
@@ -620,7 +654,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 				if (ob = BX('express_status'))
 					ob.innerHTML = '';
 				document.getElementById('result').innerHTML = '<table id="result_table" width="100%" class="internal"></table>';
-				document.getElementById('status').innerHTML = '<?
+				document.getElementById('status').innerHTML = '<?php
 					$oTest = new CSiteCheckerTest();
 					echo $oTest->strCurrentTestName;
 				?>';
@@ -703,17 +737,17 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 
 				if (strNextRequest)
 				{
-					<? if (isset($_GET['HTTP_HOST']))
+					<?php if (isset($_GET['HTTP_HOST']))
 					{
 						?>
 						BX.ajax.get('site_checker.php?HTTP_HOST=<?=urlencode($_GET['HTTP_HOST'])?>&SERVER_PORT=<?=urlencode($_GET['SERVER_PORT'])?>&HTTPS=<?=urlencode($_GET['HTTPS'])?>&test_start=Y&lang=<?=LANGUAGE_ID?>&<?=bitrix_sessid_get()?>' + strNextRequest, test_onload);
-						<?
+						<?php
 					}
 					else
 					{
 						?>
 						BX.ajax.get('site_checker.php?HTTP_HOST=' + window.location.hostname + '&SERVER_PORT=' + window.location.port + '&HTTPS=' + (window.location.protocol == 'https:' ? 'on' : '') + '&test_start=Y&lang=<?=LANGUAGE_ID?>&<?=bitrix_sessid_get()?>' + strNextRequest, test_onload);
-						<?
+						<?php
 					}?>
 				}
 				else // Finish
@@ -892,7 +926,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 		<?=(isset($_REQUEST['start_test']) && $_REQUEST['start_test'] ? 'window.setTimeout(\'set_start(1)\', 500);' : '')?>
 	</script>
 
-<?
+<?php
 $tabControl->Begin();
 
 if ($bIntranet)
@@ -907,7 +941,7 @@ $tabControl->BeginNextTab();
 	</td>
 	</tr>
 	<tr><td colspan="2" id="express_result"></td></tr>
-<?
+<?php
 }
 
 // site_checker
@@ -941,19 +975,19 @@ $tabControl->BeginNextTab();
 
 	</td>
 	</tr>
-<?
+<?php
 // disk permissions
 $tabControl->BeginNextTab();
 ?>
 	<tr>
-		<td colspan="2"><?echo GetMessage("SC_SUBTITLE_DISK_DESC");?></td>
+		<td colspan="2"><?= GetMessage("SC_SUBTITLE_DISK_DESC");?></td>
 	</tr>
 	<tr>
 		<td colspan="2">
 		<script>
 		var obHelp = new Object;
 		obHelp["notopic"] = "<?=CUtil::JSEscape(GetMessage('SC_HELP_NOTOPIC'))?>";
-		<?
+		<?php
 		foreach(CSiteCheckerTest::GetTestList() as $test)
 		{
 			$help = GetMessage('SC_HELP_'.mb_strtoupper($test));
@@ -989,7 +1023,7 @@ $tabControl->BeginNextTab();
 				CloseWaitWindow();
 		}
 		</script>
-			<? // CAdminMessage::ShowMessage(Array("MESSAGE"=>GetMessage("SC_CHECK_FILES_ATTENTION"), "TYPE"=>"ERROR","DETAILS"=>GetMessage("SC_CHECK_FILES_WARNING")));	?>
+			<?php // CAdminMessage::ShowMessage(Array("MESSAGE"=>GetMessage("SC_CHECK_FILES_ATTENTION"), "TYPE"=>"ERROR","DETAILS"=>GetMessage("SC_CHECK_FILES_WARNING")));	?>
 			<form method="POST" action="site_checker.php" target="access_frame" onsubmit="access_check_start(1)">
 			<input type=hidden name=access_check value=Y>
 			<input type=hidden name=lang value="<?=LANGUAGE_ID?>">
@@ -997,9 +1031,9 @@ $tabControl->BeginNextTab();
 			<label><input type=radio name=check_type value=full checked> <?=GetMessage("SC_CHECK_FULL")?></label><br>
 			<label><input type=radio name=check_type value=upload> <?=GetMessage("SC_CHECK_UPLOAD")?></label><br>
 			<label><input type=radio name=check_type value=kernel> <?=GetMessage("SC_CHECK_KERNEL")?></label><br>
-			<? if ('/bitrix' != BX_PERSONAL_ROOT): ?>
+			<?php if ('/bitrix' != BX_PERSONAL_ROOT): ?>
 				<label><input type=radio name=check_type value=cache> <?=GetMessage("SC_CHECK_FOLDER")?> <b><?=BX_PERSONAL_ROOT?></b></label><br>
-			<? endif; ?>
+			<?php endif; ?>
 			<br>
 			<input type=submit value="<?=GetMessage("SC_CHECK_B")?>" id="access_submit">
 			<input type=button value="<?=GetMessage("SC_STOP_B")?>" disabled id="access_stop" onclick="access_check_start(0)">
@@ -1008,13 +1042,7 @@ $tabControl->BeginNextTab();
 			<iframe name="access_frame" style="width:1px;height:1px;visibility:hidden" onload="onFrameLoad(this)"></iframe>
 		</td>
 	</tr>
-<?
-?>
-<script>
-</script>
-<?
-		?>
-<?
+<?php
 //$tabControl->Buttons();
 $tabControl->End();
 $tabControl->ShowWarnings("fticket", $message);

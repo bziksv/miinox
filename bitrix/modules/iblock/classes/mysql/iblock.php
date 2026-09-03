@@ -1,5 +1,10 @@
 <?php
 
+use Bitrix\Main\Application;
+use Bitrix\Main\DB\MysqlCommonConnection;
+use Bitrix\Main\DB\SqlQueryException;
+use Bitrix\Main\ORM\Fields;
+
 class CIBlock extends CAllIBlock
 {
 	///////////////////////////////////////////////////////////////////
@@ -11,6 +16,10 @@ class CIBlock extends CAllIBlock
 
 		$strSqlSearch = "";
 		$bAddSites = false;
+		if (!is_array($arFilter))
+		{
+			$arFilter = [];
+		}
 		foreach($arFilter as $key => $val)
 		{
 			$res = CIBlock::MkOperationFilter($key);
@@ -255,7 +264,7 @@ class CIBlock extends CAllIBlock
 			$strSqlOrder = "";
 		}
 
-		return $DB->Query($strSql.$strSqlOrder, false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+		return $DB->Query($strSql.$strSqlOrder);
 	}
 
 	public static function _Upper($str)
@@ -265,39 +274,140 @@ class CIBlock extends CAllIBlock
 
 	public function _Add($ID)
 	{
-		global $DB;
-		$err_mess = "FILE: ".__FILE__."<br>LINE: ";
-		$ID = intval($ID);
+		$ID = (int)$ID;
 
-		if(defined("MYSQL_TABLE_TYPE") && MYSQL_TABLE_TYPE <> '')
+		$connection = Application::getConnection();
+
+		if (
+			$connection instanceof MysqlCommonConnection
+			&& defined('MYSQL_TABLE_TYPE')
+			&& MYSQL_TABLE_TYPE !== ''
+		)
 		{
-			$DB->Query("SET storage_engine = '".MYSQL_TABLE_TYPE."'", true);
+			// TODO: remove try-catch when mysql 8.0 will be minimal system requirement
+			try
+			{
+				$connection->query('SET default_storage_engine = \'' . MYSQL_TABLE_TYPE . '\'');
+			}
+			catch (SqlQueryException)
+			{
+				try
+				{
+					$connection->query('SET storage_engine = \''.MYSQL_TABLE_TYPE.'\'');
+				}
+				catch (SqlQueryException)
+				{
+
+				}
+			}
 		}
-		$strSql = "
-			CREATE TABLE IF NOT EXISTS b_iblock_element_prop_s".$ID." (
-				IBLOCK_ELEMENT_ID 	int(11) not null REFERENCES b_iblock_element(ID),
+
+		$singleTableName = static::getSinglePropertyValuesTableName($ID);
+		$multiTableName = static::getMultiplePropertyValuesTableName($ID);
+
+		if (!$connection->isTableExists($singleTableName))
+		{
+			$fields = [
+				'IBLOCK_ELEMENT_ID' => (new Fields\IntegerField('IBLOCK_ELEMENT_ID'))
+					->configurePrimary()
+				,
+			];
+			$connection->createTable($singleTableName, $fields, ['IBLOCK_ELEMENT_ID']);
+			if (!$connection->isTableExists($singleTableName))
+			{
+				return false;
+			}
+		}
+
+		if (!$connection->isTableExists($multiTableName))
+		{
+			$fields = [
+				'ID' => (new Fields\IntegerField('ID'))
+					->configurePrimary()
+					->configureAutocomplete()
+					->configureSize(8)
+				,
+				'IBLOCK_ELEMENT_ID' => (new Fields\IntegerField('IBLOCK_ELEMENT_ID')),
+				'IBLOCK_PROPERTY_ID' => (new Fields\IntegerField('IBLOCK_PROPERTY_ID')),
+				'VALUE' => (new Fields\TextField('VALUE')),
+				'VALUE_ENUM' => (new Fields\IntegerField('VALUE_ENUM'))
+					->configureNullable()
+				,
+				'VALUE_NUM' => (new Fields\DecimalField('VALUE_NUM'))
+					->configureNullable()
+					->configurePrecision(18)
+					->configureScale(4)
+				,
+				'DESCRIPTION' => (new Fields\StringField('DESCRIPTION'))
+					->configureSize(255)
+					->configureNullable()
+				,
+			];
+			$connection->createTable($multiTableName, $fields, ['ID'], ['ID']);
+			if (!$connection->isTableExists($multiTableName))
+			{
+				return false;
+			}
+			else
+			{
+				$connection->createIndex(
+					$multiTableName,
+					'ix_iblock_elem_prop_m' . $ID . '_1',
+					[
+						'IBLOCK_ELEMENT_ID',
+						'IBLOCK_PROPERTY_ID',
+					]
+				);
+				$connection->createIndex(
+					$multiTableName,
+					'ix_iblock_elem_prop_m' . $ID . '_2',
+					[
+						'IBLOCK_PROPERTY_ID',
+					]
+				);
+				$connection->createIndex(
+					$multiTableName,
+					'ix_iblock_elem_prop_m' . $ID . '_3',
+					[
+						'VALUE_ENUM',
+						'IBLOCK_PROPERTY_ID',
+					]
+				);
+			}
+		}
+
+		return true;
+
+		/*
+		$strSql = '
+			CREATE TABLE IF NOT EXISTS b_iblock_element_prop_s' . $ID . ' (
+				IBLOCK_ELEMENT_ID int(11) not null,
 				primary key (IBLOCK_ELEMENT_ID)
 			)
-		";
+		';
 		$rs = $DB->DDL($strSql, false, $err_mess.__LINE__);
-		$strSql = "
-			CREATE TABLE IF NOT EXISTS b_iblock_element_prop_m".$ID." (
-				ID			int(11) not null auto_increment,
-				IBLOCK_ELEMENT_ID 	int(11) not null REFERENCES b_iblock_element(ID),
-				IBLOCK_PROPERTY_ID	int(11) not null REFERENCES b_iblock_property(ID),
-				VALUE			text	not null,
-				VALUE_ENUM 		int(11),
-				VALUE_NUM 		numeric(18,4),
-				DESCRIPTION 		VARCHAR(255) NULL,
+		$strSql = '
+			CREATE TABLE IF NOT EXISTS b_iblock_element_prop_m' . $ID . ' (
+				ID bigint not null auto_increment,
+				IBLOCK_ELEMENT_ID int(11) not null,
+				IBLOCK_PROPERTY_ID int(11) not null,
+				VALUE text not null,
+				VALUE_ENUM int(11),
+				VALUE_NUM numeric(18,4),
+				DESCRIPTION VARCHAR(255) NULL,
 				PRIMARY KEY (ID),
-				INDEX ix_iblock_elem_prop_m".$ID."_1(IBLOCK_ELEMENT_ID,IBLOCK_PROPERTY_ID),
-				INDEX ix_iblock_elem_prop_m".$ID."_2(IBLOCK_PROPERTY_ID),
-				INDEX ix_iblock_elem_prop_m".$ID."_3(VALUE_ENUM,IBLOCK_PROPERTY_ID)
+				INDEX ix_iblock_elem_prop_m' . $ID . '_1(IBLOCK_ELEMENT_ID,IBLOCK_PROPERTY_ID),
+				INDEX ix_iblock_elem_prop_m' . $ID . '_2(IBLOCK_PROPERTY_ID),
+				INDEX ix_iblock_elem_prop_m' . $ID . '_3(VALUE_ENUM,IBLOCK_PROPERTY_ID)
 			)
-		";
-		if($rs)
-			$rs = $DB->DDL($strSql, false, $err_mess.__LINE__);
+		';
+		if ($rs)
+		{
+			$rs = $DB->DDL($strSql, false, $err_mess . __LINE__);
+		}
+
 		return $rs;
+		*/
 	}
 
 	public static function _Order($by, $order, $default_order, $nullable = true)
@@ -331,6 +441,6 @@ class CIBlock extends CAllIBlock
 
 	public static function _NotEmpty($column)
 	{
-		return "if(".$column." is null, 0, 1)";
+		return 'case when ' . $column . ' is null then 0 else 1 end';
 	}
 }

@@ -120,17 +120,7 @@ class ConsentBuilderMail extends AbstractConsentMessageBuilder
 		$uri = null;
 		if (static::checkUri($siteId))
 		{
-			$uri = static::URI;
-			if (Service::isCloud() && !in_array(mb_substr(BX24_HOST_NAME, -7), ['.com.br', '.com.de'])) // exclude com.br & com.de domains
-			{
-				$domain = BX24_HOST_NAME;
-				if (!\CBitrix24::isCustomDomain())
-				{
-					$domain = preg_replace('/^([-\.\w]+)\.bitrix24\.([-\.\w]+)/', '$2.$1', $domain);
-					$domain = "mailinternetsub.com/" . $domain;
-				}
-				$uri = "https://$domain$uri";
-			}
+			$uri = Service::replaceTrackingDomainIfNeed(static::URI);
 		}
 		return $uri;
 	}

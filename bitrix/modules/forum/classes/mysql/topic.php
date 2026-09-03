@@ -139,7 +139,7 @@ class CForumTopic extends CAllForumTopic
 				FROM b_forum_topic FT
 				WHERE 1 = 1 
 				".$strSqlSearch;
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 			$iCnt = 0;
 			if ($ar_res = $db_res->Fetch()):
 				$iCnt = intval($ar_res["CNT"]);
@@ -220,7 +220,15 @@ class CForumTopic extends CAllForumTopic
 		$limit = $iNum > 0 ? (int)$iNum : $selectTopCount;
 		if ($limit > 0)
 		{
-			$strSql .= "\nLIMIT 0,".$limit;
+			$connection = \Bitrix\Main\Application::getConnection();
+			if ($connection->getType() === 'pgsql')
+			{
+				$strSql .= "\nLIMIT ".$limit;
+			}
+			else
+			{
+				$strSql .= "\nLIMIT 0,".$limit;
+			}
 		}
 		
 		if (!$iNum && $descPageNumbering)
@@ -230,7 +238,7 @@ class CForumTopic extends CAllForumTopic
 		}
 		else 
 		{
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 		}
 		return new _CTopicDBResult($db_res, $arAddParams);
 	}
@@ -525,7 +533,7 @@ class CForumTopic extends CAllForumTopic
 
 			$strSql .= $strSqlCountFrom . " WHERE 1 = 1 ".$strSqlSearch;
 
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 			$iCnt = 0;
 			if ($ar_res = $db_res->Fetch())
 			{
@@ -616,7 +624,15 @@ class CForumTopic extends CAllForumTopic
 		$limit = $iNum ?? $selectTopCount;
 		if ($limit > 0)
 		{
-			$strSql .= "\nLIMIT 0,".$limit;
+			$connection = \Bitrix\Main\Application::getConnection();
+			if ($connection->getType() === 'pgsql')
+			{
+				$strSql .= "\nLIMIT ".$limit;
+			}
+			else
+			{
+				$strSql .= "\nLIMIT 0,".$limit;
+			}
 		}
 		if (!$iNum && $descPageNumbering)
 		{
@@ -625,7 +641,7 @@ class CForumTopic extends CAllForumTopic
 		}
 		else 
 		{
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 		}
 		return new _CTopicDBResult($db_res, $arAddParams);
 	}

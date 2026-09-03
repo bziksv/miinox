@@ -31,7 +31,7 @@ $actions[] = Controller\Action::create('test')->setHandler(
 			$messageData = array();
 		}
 
-		\CUtil::decodeURIComponent($messageData);
+		$messageData['RAW'] = $request->getRaw('messageData');
 
 		$list = $request->get('list');
 		if (!is_array($list))
@@ -75,6 +75,8 @@ $actions[] = Controller\Action::create('consent')->setHandler(
 		$transport = \Bitrix\Sender\Transport\Adapter::create($request->get('messageCode'));
 
 		$messageData = $request->get('messageData');
+		$messageData['RAW'] = $request->getRaw('messageData');
+
 		$letter = new Entity\Letter;
 		$letter->mergeData(array(
 			'MESSAGE_CODE' => $request->get('messageCode'),
@@ -129,8 +131,10 @@ function prepareOptions(&$letter, &$messageData)
 	$parameters = [];
 	if (is_array($messageData) && count($messageData))
 	{
+		$allowedOptionCodes = [];
 		foreach ($letter->getMessage()->getConfiguration()->getOptions() as $option)
 		{
+			$allowedOptionCodes[$option->getCode()] = true;
 			if (!isset($messageData[$option->getCode()]))
 			{
 				continue;
@@ -138,8 +142,8 @@ function prepareOptions(&$letter, &$messageData)
 
 			if ($option->getType() === \Bitrix\Sender\Message\ConfigurationOption::TYPE_MAIL_EDITOR)
 			{
-				$value = $messageData[$option->getCode()];
-				$value = Security\Sanitizer::fixReplacedStyles($value);
+				$value = $messageData['RAW'][$option->getCode()] ?? $messageData[$option->getCode()];
+
 				$value = Security\Sanitizer::sanitizeHtml($value, $option->getValue());
 				$messageData[$option->getCode()] = $value;
 			}
@@ -178,7 +182,12 @@ function prepareOptions(&$letter, &$messageData)
 
 			$messageData[$option->getCode()] = $postFiles->getFiles([], $files);
 		}
-		$letter->getMessage()->setConfigurationData($messageData);
+		// Pass only declared configuration options to the message. Keys that are
+		// not options (e.g. BODY_PHP) must never be taken from the client request,
+		// otherwise they reach the mail compiler as raw PHP and lead to RCE.
+		$letter->getMessage()->setConfigurationData(
+			array_intersect_key($messageData, $allowedOptionCodes)
+		);
 		if ($messageData['CAMPAIGN_ID'] ?? false)
 		{
 			$parameters['CAMPAIGN_ID'] = $messageData['CAMPAIGN_ID'];

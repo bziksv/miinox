@@ -76,7 +76,7 @@ if (isset($arResult['ACCESS_CODES']))
 							<?= \htmlspecialcharsbx($accessItem['PROVIDER'])?>: <?= \htmlspecialcharsbx($accessItem['NAME']);?>
 							<span class="table-blue-delete table-blue-delete-landing-role" <?
 							?>data-code="<?= $code;?>" <?
-							?>data-id="<?= $accessItem['CODE'];?>" <?
+							?>data-id="<?= \htmlspecialcharsbx($accessItem['CODE']);?>" <?
 							?>onclick="deleteAccessRowExtended(this);" <?
 							?>title="<?= Loc::getMessage('LANDING_TPL_ACTION_DEL');?>"></span>
 						</div>
@@ -116,7 +116,7 @@ if (isset($arResult['ACCESS_CODES']))
 	</button>
 </form>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function(){
 		new BX.Landing.AccessExtended({
 		});
@@ -146,10 +146,10 @@ if (isset($arResult['ACCESS_CODES']))
 						<td class="table-blue-td-param"><?= \htmlspecialcharsbx($code['NAME']);?></td>
 						<td class="table-blue-td-select">
 							<?= $drawSelect($i, $code['ROLE_ID']);?>
-							<input type="hidden" name="rights[ACCESS_CODE][<?= $i;?>]" value="<?= $code['CODE']?>">
+							<input type="hidden" name="rights[ACCESS_CODE][<?= $i;?>]" value="<?= \htmlspecialcharsbx($code['CODE'])?>">
 						</td>
 						<td class="table-blue-td-action">
-							<span class="table-blue-delete table-blue-delete-landing-role bitrix24-metrika" data-metrika24="permission_delete" data-id="<?= $code['CODE'];?>" onclick="deleteAccessRow(this);" title="<?= Loc::getMessage('LANDING_TPL_ACTION_DEL');?>"></span>
+							<span class="table-blue-delete table-blue-delete-landing-role bitrix24-metrika" data-metrika24="permission_delete" data-id="<?= \htmlspecialcharsbx($code['CODE']);?>" onclick="deleteAccessRow(this);" title="<?= Loc::getMessage('LANDING_TPL_ACTION_DEL');?>"></span>
 						</td>
 					</tr>
 					<?endforeach;?>
@@ -212,7 +212,7 @@ if (isset($arResult['ACCESS_CODES']))
 	<input type="hidden" name="action" value="mode" />
 </form>
 
-<script type="text/javascript">
+<script>
 	var landingAccessSelected = <?= json_encode(array_fill_keys($accessCodes, true));?>;
 	BX.ready(function(){
 		new BX.Landing.Access({

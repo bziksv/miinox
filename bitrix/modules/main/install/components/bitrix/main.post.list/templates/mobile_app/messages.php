@@ -1,22 +1,28 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+use Bitrix\Main\Web\Json;
+
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
+	die();
 /**
+ * @global CUser $USER
  * @var string $template
  * @var string $thumb
 */
 ?>
-<script type="text/javascript">
-<? if (IsModuleInstalled("socialnetwork")): ?>
+<script>
+<?php if (IsModuleInstalled("socialnetwork")): ?>
 BX.ready(function()
 {
 	if (BX.CommentAux)
 	{
 		BX.	CommentAux.init({
-			currentUserSonetGroupIdList: <?=CUtil::PhpToJSObject(\Bitrix\Socialnetwork\ComponentHelper::getUserSonetGroupIdList($USER->GetID(), SITE_ID))?>,
+			currentUserSonetGroupIdList: <?= Json::encode(\Bitrix\Socialnetwork\ComponentHelper::getUserSonetGroupIdList($USER->GetID(), SITE_ID)) ?>,
 			mobile: true
 		});
 	}
 });
-<? endif ?>
+<?php endif ?>
 BX.message({
 	BPC_MES_EDIT : "<?=GetMessageJS("BPC_MES_EDIT")?>",
 	BPC_MES_HIDE : "<?=GetMessageJS("BPC_MES_HIDE")?>",
@@ -34,6 +40,6 @@ BX.message({
 	BLOG_C_REPLY : '<?=GetMessageJS("BLOG_C_REPLY")?>',
 	BLOG_C_HIDE : '<?=GetMessageJS("BLOG_C_HIDE")?>',
 	INCORRECT_SERVER_RESPONSE : '<?=GetMessageJS('INCORRECT_SERVER_RESPONSE')?>',
-	INCORRECT_SERVER_RESPONSE_2 : '<?=GetMessageJS('INCORRECT_SERVER_RESPONSE_2')?>'
+	INCORRECT_SERVER_RESPONSE_2 : '<?=GetMessageJS('INCORRECT_SERVER_RESPONSE_2')?>',
 	});
 </script>

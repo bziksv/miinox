@@ -79,7 +79,8 @@ class EntityMarker
 			$fields['SUCCESS'] = static::ENTITY_SUCCESS_CODE_FAIL;
 			static::addItem($order, $entityType, $fields);
 		}
-		$lastWarning = end($result->getWarnings());
+		$resultWarnings = $result->getWarnings();
+		$lastWarning = end($resultWarnings);
 		$order->setField('REASON_MARKED', $lastWarning->getMessage());
 
 		if (
@@ -228,7 +229,7 @@ class EntityMarker
 	 *
 	 * @return array|null
 	 */
-	public static function getMarker($orderCode, Internals\Entity $entity = null)
+	public static function getMarker($orderCode, ?Internals\Entity $entity = null)
 	{
 		if (empty(static::$pool[$orderCode]))
 		{
@@ -292,7 +293,7 @@ class EntityMarker
 	 * @throws Main\ArgumentNullException
 	 * @throws \Exception
 	 */
-	public static function saveMarkers(Order $order = null)
+	public static function saveMarkers(?Order $order = null)
 	{
 		global $USER;
 		$result = new Result();
@@ -467,8 +468,8 @@ class EntityMarker
 					}
 				}
 			}
-			
-			
+
+
 			if (!empty($filter['filter']['=ENTITY_TYPE']))
 			{
 				$res = static::getList($filter);
@@ -674,7 +675,7 @@ class EntityMarker
 		{
 			$filter['filter']['!=SUCCESS'] = static::ENTITY_SUCCESS_CODE_DONE;
 		}
-		
+
 		$res = static::getList($filter);
 		while($markerData = $res->fetch())
 		{

@@ -13,7 +13,11 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
  * @var CUser $USER
  * @var MainPostList $this->__component
  */
+
+use Bitrix\Main\Loader;
+use \Bitrix\Main\UI\Extension;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Web\Json;
 
 global $USER;
 
@@ -22,12 +26,13 @@ global $USER;
 \Bitrix\Main\Page\Asset::getInstance()->addString('<link href="'.CUtil::GetAdditionalFileURL('/bitrix/js/ui/icons/base/ui.icons.base.css').'" type="text/css" rel="stylesheet" />');
 \Bitrix\Main\Page\Asset::getInstance()->addString('<link href="'.CUtil::GetAdditionalFileURL('/bitrix/js/ui/icons/b24/ui.icons.b24.css').'" type="text/css" rel="stylesheet" />');
 
-$extensionsList = [ 'uploader', 'date', 'fx', 'ls' ];
+$extensionsList = [ 'uploader', 'date', 'fx', 'ls', 'main.core', 'ui.avatar'];
 if (CModule::IncludeModule('socialnetwork'))
 {
 	$extensionsList[] = 'comment_aux';
 }
-CUtil::InitJSCore($extensionsList); // does not work
+
+Extension::load($extensionsList); // does not work
 
 $prefixNode = $arParams["ENTITY_XML_ID"].'-'.$arParams["EXEMPLAR_ID"];
 $eventNodeId = $prefixNode."_main";
@@ -37,30 +42,64 @@ ob_start();
 ?>
 <!--RCRD_#FULL_ID#-->
 <a id="com#ID#" name="com#ID#" bx-mpl-full-id="#FULL_ID#"></a>
-<div id="record-#FULL_ID#" class="post-comment-block post-comment-block-#NEW# post-comment-block-#APPROVED# #RATING_NONEMPTY_CLASS# mobile-longtap-menu#CLASSNAME#" <?=($arResult["ajax_comment"] == $comment["ID"] ? ' data-send="Y"' : '')?> <?
-	?>bx-mpl-id="#FULL_ID#" <?
-	?>bx-mpl-menu-show="#SHOW_MENU#" <?
-	?>bx-mpl-reply-show="#SHOW_POST_FORM#" <?
-	?>bx-mpl-view-url="#VIEW_URL###ID#" bx-mpl-view-show="#VIEW_SHOW#" <?
-	?>bx-mpl-edit-url="#EDIT_URL#" bx-mpl-edit-show="#EDIT_SHOW#" <?
-	?>bx-mpl-moderate-url="#MODERATE_URL#" bx-mpl-moderate-show="#MODERATE_SHOW#" bx-mpl-moderate-approved="#APPROVED#" <?
-	?>bx-mpl-delete-url="#DELETE_URL###ID#" bx-mpl-delete-show="#DELETE_SHOW#" <?
-	?>bx-mpl-createtask-show="#CREATETASK_SHOW#" <?
-	?>bx-mpl-post-entity-type="#POST_ENTITY_TYPE#" <?
-	?>bx-mpl-comment-entity-type="#COMMENT_ENTITY_TYPE#" <?
-	?>bx-mpl-vote-id="#VOTE_ID#" <?
-	?>bx-longtap-menu-eventname="BX.MPL:onGetMenuItems" <?
-	?>bx-mpl-entity-xml-id="#ENTITY_XML_ID#" <?
-	?>bx-mpl-comment-id="#ID#" <?
+<div id="record-#FULL_ID#" class="post-comment-block post-comment-block-#NEW# post-comment-block-#APPROVED# #RATING_NONEMPTY_CLASS# mobile-longtap-menu#CLASSNAME#" <?=(isset($arResult["ajax_comment"]) && isset($comment["ID"]) && $arResult["ajax_comment"] == $comment["ID"] ? ' data-send="Y"' : '')?>
+     <?php
+	?>bx-mpl-id="#FULL_ID#"
+     <?php
+	?>bx-mpl-menu-show="#SHOW_MENU#"
+     <?php
+	?>bx-mpl-reply-show="#SHOW_POST_FORM#"
+     <?php
+	?>bx-mpl-view-url="#VIEW_URL###ID#" bx-mpl-view-show="#VIEW_SHOW#"
+     <?php
+	?>bx-mpl-edit-url="#EDIT_URL#" bx-mpl-edit-show="#EDIT_SHOW#"
+     <?php
+	?>bx-mpl-moderate-url="#MODERATE_URL#" bx-mpl-moderate-show="#MODERATE_SHOW#" bx-mpl-moderate-approved="#APPROVED#"
+     <?php
+	?>bx-mpl-delete-url="#DELETE_URL###ID#" bx-mpl-delete-show="#DELETE_SHOW#"
+     <?php
+	?>bx-mpl-createtask-show="#CREATETASK_SHOW#"
+     <?php
+	?>bx-mpl-post-entity-type="#POST_ENTITY_TYPE#"
+     <?php
+	?>bx-mpl-comment-entity-type="#COMMENT_ENTITY_TYPE#"
+     <?php
+	?>bx-mpl-vote-id="#VOTE_ID#"
+     <?php
+	?>bx-longtap-menu-eventname="BX.MPL:onGetMenuItems"
+     <?php
+	?>bx-mpl-entity-xml-id="#ENTITY_XML_ID#"
+     <?php
+	?>bx-mpl-comment-id="#ID#" <?php
 ?>>
 	#BEFORE_RECORD#
 	<script>
-	BX.ready(function()
-	{
-		BX.MSL.viewImageBind('record-#FULL_ID#', { tag: 'IMG', attr: 'data-bx-image' });
-	});
+		BX.ready(function() {
+			BX.MSL.viewImageBind('record-#FULL_ID#', { tag: 'IMG', attr: 'data-bx-image' });
+			const avatarParams = {
+				messageId: '#ID#',
+				user: {
+					name: '#AUTHOR_NAME#',
+					image: '#AUTHOR_AVATAR#',
+					type: '#AUTHOR_TYPE#',
+				},
+			};
+
+			if (BX?.MPL?.UIAvatar)
+			{
+				BX.MPL.UIAvatar(avatarParams);
+			}
+			else if (!window?.UIAvatars)
+			{
+				window.UIAvatars = [avatarParams];
+			}
+			else
+			{
+				window?.UIAvatars?.push(avatarParams);
+			}
+		});
 	</script>
-	<div class="ui-icon ui-icon-common-user post-comment-block-avatar"><i style="#AUTHOR_AVATAR_BG#"></i></div>
+	<div class="ui-icon ui-icon-common-user post-comment-block-avatar"><div class="ui-post-avatar"></div><i style="#AUTHOR_AVATAR_BG#"></i></div>
 	<div class="post-comment-detail">
 		<div class="post-comment-balloon" onclick="mobileShowActions('#ENTITY_XML_ID#', '#ID#', arguments[0])">
 			#BEFORE_HEADER#
@@ -87,7 +126,7 @@ ob_start();
 		#AFTER#
 		<div class="post-comment-control-box">
 			#BEFORE_ACTIONS#
-			<?
+			<?php
 			if (
 				!isset($arParams["SHOW_POST_FORM"])
 				|| $arParams["SHOW_POST_FORM"] != 'N'
@@ -100,30 +139,31 @@ ob_start();
 						? "return mobileReply('#ENTITY_XML_ID#', event)"
 						: $arParams["REPLY_ACTION"]
 				);
-				?><div class="post-comment-control-item" id="record-#FULL_ID#-reply-action" onclick="<?=$action?>" <?
-					?>bx-mpl-author-id="#AUTHOR_ID#" <?
-					?>bx-mpl-author-name="#AUTHOR_NAME#"><?
-					?><?=Loc::getMessage('BLOG_C_REPLY')?><?
-				?></div><?
+				?><div class="post-comment-control-item" id="record-#FULL_ID#-reply-action" onclick="<?=$action?>" <?php
+					?>bx-mpl-author-id="#AUTHOR_ID#" <?php
+					?>bx-mpl-author-name="#AUTHOR_NAME#"><?php
+					?><?=Loc::getMessage('BLOG_C_REPLY')?><?php
+				?></div><?php
 			}
 			?>
 		</div>
 	</div>
-	#AFTER_RECORD#<?
-	?><script>BX.ready(function() { BX.onCustomEvent(BX('<?=$eventNodeIdTemplate?>'), 'OnUCCommentIsInDOM', ['#ID#', BX('<?=$eventNodeIdTemplate?>')]);});</script><?
+	#AFTER_RECORD#<?php
+	?><script>BX.ready(function() { BX.onCustomEvent(BX('<?=$eventNodeIdTemplate?>'), 'OnUCCommentIsInDOM', ['#ID#', BX('<?=$eventNodeIdTemplate?>')]);});</script><?php
 ?></div>
 <!--RCRD_END_#FULL_ID#-->
-<? // post-comment-block
+<?php
+// post-comment-block
 $template = preg_replace("/[\t\n]/", "", ob_get_clean());
 
 ob_start();
 
 ?><div class="post-comment-block">
-	<div class="ui-icon ui-icon-common-user post-comment-block-avatar"><i style="#AUTHOR_AVATAR_BG#"></i></div>
+	<div class="ui-icon ui-icon-common-user post-comment-block-avatar"><div class="ui-post-avatar"></div><i style="#AUTHOR_AVATAR_BG#"></i></div>
 	<div class="post-comment-detail">
 		<div class="post-comment-balloon">
 			<div class="post-comment-cont">
-				<div class="post-comment-author">#AUTHOR_NAME#</div>
+				<div class="post-comment-author #AUTHOR_EXTRANET_STYLE#">#AUTHOR_NAME#</div>
 				<div class="post-comment-time">#DATE#</div>
 			</div>
 			<!--/noindex-->
@@ -147,7 +187,7 @@ ob_start();
 			<div class="post-comment-error-text"></div>
 		</div>
 	</div>
-</div><?
+</div><?php
 
 $avatar = \CFile::ResizeImageGet(
 	$USER->GetParam("PERSONAL_PHOTO"),
@@ -170,24 +210,61 @@ $name = CUser::FormatName(
 	false
 );
 
-$thumb = preg_replace(array(
+$userId = $USER->getId();
+$avatarType = null;
+
+if (Loader::includeModule('intranet') && Loader::includeModule('extranet'))
+{
+	$serviceContainer = class_exists(\Bitrix\Extranet\Service\ServiceContainer::class)
+			? \Bitrix\Extranet\Service\ServiceContainer::getInstance()
+			: null;
+
+	if ($serviceContainer?->getCollaberService()?->isCollaberById($userId))
+	{
+		$avatarType = "COLLABER";
+	}
+	else if (!(new \Bitrix\Intranet\User($userId))->isIntranet())
+	{
+		$avatarType = "EXTRANET";
+	}
+}
+
+$author = [
+	'AUTHOR_ID' => $userId,
+	'AUTHOR_AVATAR_IS' => ($avatar ? "Y" : "N"),
+	'AUTHOR_AVATAR' => ($avatar ? $avatar["src"] : ''),
+	'AUTHOR_AVATAR_BG' => ($avatar ? "background-image:url('" . $avatar["src"] . "')" : ''),
+	'AUTHOR_NAME' => htmlspecialcharsbx($name),
+	'AUTHOR_TYPE' => $avatarType,
+	'AUTHOR_EXTRANET_STYLE' => $avatarType ? " feed-com-name-".strtolower($avatarType) : "",
+];
+
+$thumb = preg_replace(
+	[
 		"/[\t\n]/",
 		"/\\#AUTHOR_ID\\#/",
 		"/\\#AUTHOR_AVATAR_IS\\#/",
 		"/\\#AUTHOR_AVATAR\\#/",
 		"/\\#AUTHOR_AVATAR_BG\\#/",
-		"/\\#AUTHOR_NAME\\#/"
+		"/\\#AUTHOR_NAME\\#/",
+		"/\\#AUTHOR_TYPE\\#/",
+		"/\\#AUTHOR_EXTRANET_STYLE\\#/",
 
-	), array(
+	],
+	[
 		"",
-		$USER->getId(),
-		($avatar ? "Y" : "N"),
-		($avatar ? $avatar["src"] : ''),
-		($avatar ? "background-image:url('".$avatar["src"]."')" : ''),
-		htmlspecialcharsbx($name)
-	), ob_get_clean());
-
-?><div id="<?=$eventNodeId?>"><?
+		$author['AUTHOR_ID'],
+		$author['AUTHOR_AVATAR_IS'],
+		$author['AUTHOR_AVATAR'],
+		$author['AUTHOR_AVATAR_BG'],
+		$author['AUTHOR_NAME'],
+		$author['AUTHOR_TYPE'],
+		$author['AUTHOR_EXTRANET_STYLE'],
+	],
+	ob_get_clean()
+);
+?>
+<div id="<?=$eventNodeId?>"><?php
 if (empty($arParams["RECORDS"]))
 {
 	// For the future developing
@@ -202,19 +279,19 @@ else
 
 			if ($arParams["PREORDER"] == "Y")
 			{
-				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?
+				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?php
 			}
 
 			?><div class="post-comments-link-cont">
-				<a href="<?=$arParams["NAV_STRING"]?>" id="<?=$prefixNode?>_page_nav" class="post-comments-link" bx-mpl-comments-count="<?=$arResult["NAV_STRING_COUNT_MORE"]?>"><?
-					?><?=Loc::getMessage("BLOG_C_VIEW")?><?
-					?><span class="post-comments-link-count"><?=$arResult["NAV_STRING_COUNT_MORE"]?></span><?
+				<a href="<?=$arParams["NAV_STRING"]?>" id="<?=$prefixNode?>_page_nav" class="post-comments-link" bx-mpl-comments-count="<?=$arResult["NAV_STRING_COUNT_MORE"]?>"><?php
+					?><?=Loc::getMessage("BLOG_C_VIEW")?><?php
+					?> <span class="post-comments-link-count"><?=$arResult["NAV_STRING_COUNT_MORE"]?></span><?php
 				?></a>
 				<span class="post-comments-link-loader-informer" id="<?=$prefixNode?>_page_nav_loader" style='display: none;'><?=Loc::getMessage("BLOG_C_LOADING")?></span>
-			</div><?
+			</div><?php
 			if ($arParams["PREORDER"] != "Y")
 			{
-				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?
+				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?php
 			}
 			$arParams["NAV_STRING"] = ob_get_clean();
 		}
@@ -225,9 +302,9 @@ else
 	}
 	reset($arParams["RECORDS"]);
 
-	if ($arParams["PREORDER"] != "Y"): ?><?=$arParams["NAV_STRING"]?><? endif;
+	if ($arParams["PREORDER"] != "Y"): ?><?=$arParams["NAV_STRING"]?><?php endif;
 	$iCount = 0;
-	?><!--RCRDLIST_<?=$arParams["ENTITY_XML_ID"]?>--><?
+	?><!--RCRDLIST_<?=$arParams["ENTITY_XML_ID"]?>--><?php
 	$collapsedMessages = 0;
 	$collapsedMessagesBlockIsCollapsed = true;
 	$collapsedMessagesBlock = null;
@@ -250,18 +327,18 @@ else
 				<input type="checkbox" id="collapsed_switcher_<?=$arParams["ENTITY_XML_ID"]?>_<?=$res["ID"]?>" #COLLAPSED_MESSAGES_BLOCK_IS_COLLAPSED#>
 				<label for="collapsed_switcher_<?=$arParams["ENTITY_XML_ID"]?>_<?=$res["ID"]?>" data-bx-collapse-role="show">
 					<div class="post-comment-control-item">
-						<?=GetMessage("MPL_SHOW_COLLAPSED_COMMENTS")?> (#COLLAPSED_MESSAGES_COUNT#)
+						<?=GetMessage("MPL_SHOW_COLLAPSED_COMMENTS_MSGVER_1")?>
 					</div>
 				</label>
 				<label for="collapsed_switcher_<?=$arParams["ENTITY_XML_ID"]?>_<?=$res["ID"]?>" data-bx-collapse-role="hide">
 					<div class="post-comment-control-item">
-						<?=GetMessage("MPL_HIDE_COLLAPSED_COMMENTS")?> (#COLLAPSED_MESSAGES_COUNT#)
+						<?=GetMessage("MPL_HIDE_COLLAPSED_COMMENTS_MSGVER_1")?>
 					</div>
 				</label>
 				<div class="feed-com-collapsed-block">
 					#COLLAPSED_MESSAGES_BLOCK#
 				</div>
-				</div><?
+				</div><?php
 				$collapsedMessagesBlock = ob_get_clean();
 				ob_start();
 			}
@@ -288,16 +365,16 @@ else
 		$isMessageBlank = !(array_key_exists("POST_MESSAGE_TEXT", $res) && $res["POST_MESSAGE_TEXT"] !== null);
 		$collapsedMessagesBlockIsCollapsed = ($res["NEW"] == "Y" ? false : $collapsedMessagesBlockIsCollapsed);
 		$iCount++;
-		?><div id="record-<?=$arParams["ENTITY_XML_ID"]?>-<?=$res["ID"]?>-cover" <?
-			?>bx-mpl-xml-id="<?=$arParams["ENTITY_XML_ID"]?>" <?
-			?>bx-mpl-entity-id="<?=$res["ID"]?>" <?
-			?>bx-mpl-read-status="<?=(($res["NEW"] == "Y" ? "new" : "old"))?>" <?
-			?>bx-mpl-blank-status="<?=($isMessageBlank ? "blank" : "full")?>" <?
-			?>bx-mpl-block="main" <?
-		?>class="feed-com-block-cover"><?
+		?><div id="record-<?=$arParams["ENTITY_XML_ID"]?>-<?=$res["ID"]?>-cover" <?php
+			?>bx-mpl-xml-id="<?=$arParams["ENTITY_XML_ID"]?>" <?php
+			?>bx-mpl-entity-id="<?=$res["ID"]?>" <?php
+			?>bx-mpl-read-status="<?=(($res["NEW"] == "Y" ? "new" : "old"))?>" <?php
+			?>bx-mpl-blank-status="<?=($isMessageBlank ? "blank" : "full")?>" <?php
+			?>bx-mpl-block="main" <?php
+		?>class="feed-com-block-cover"><?php
 		?><?=$this->__component->parseTemplate($res, $arParams, $template)?>
 		</div>
-	<?
+		<?php
 	}
 	if ($collapsedMessagesBlock !== null)
 	{
@@ -316,14 +393,14 @@ else
 		$collapsedMessages = 0;
 		$collapsedMessagesBlockIsCollapsed = true;
 	}
-	?><!--RCRDLIST_END_<?=$arParams["ENTITY_XML_ID"]?>--><?
-	if ($arParams["PREORDER"] == "Y"): ?><?=$arParams["NAV_STRING"]?><? endif;
+	?><!--RCRDLIST_END_<?=$arParams["ENTITY_XML_ID"]?>--><?php
+	if ($arParams["PREORDER"] == "Y"): ?><?=$arParams["NAV_STRING"]?><?php endif;
 }
-?><div id="record-<?=$prefixNode?>-new"></div><?
+?><div id="record-<?=$prefixNode?>-new"></div><?php
 include_once(__DIR__."/messages.php");
 if ($arParams["SHOW_POST_FORM"] == "Y")
 {
-	?><div id="record-<?=$prefixNode?>-form-holder" style="display:none;"></div><?
+	?><div id="record-<?=$prefixNode?>-form-holder" style="display:none;"></div><?php
 }
 $ajaxParams = [];
 if ($this->__component->__parent instanceof \Bitrix\Main\Engine\Contract\Controllerable)
@@ -410,37 +487,38 @@ if ($this->__component->__parent instanceof \Bitrix\Main\Engine\Contract\Control
 						CREATETASK : '<?=$arParams["RIGHTS"]["CREATETASK"]?>'
 					},
 					sign : '<?=$arParams["SIGN"]?>',
-					ajax : <?=CUtil::PhpToJSObject($ajaxParams)?>
+					ajax : <?= Json::encode($ajaxParams)?>,
+					author: <?= Json::encode($author)?>,
 			},
 			{
-				VIEW_URL : '<?=CUtil::JSEscape($arParams["~VIEW_URL"])?>',
-				EDIT_URL : '<?=CUtil::JSEscape($arParams["~EDIT_URL"])?>',
-				MODERATE_URL : '<?=CUtil::JSEscape($arParams["~MODERATE_URL"])?>',
-				DELETE_URL : '<?=CUtil::JSEscape($arParams["~DELETE_URL"])?>',
-				AUTHOR_URL : '<?=CUtil::JSEscape($arParams["~AUTHOR_URL"])?>',
-				AUTHOR_URL_PARAMS: <?=(isset($arParams["AUTHOR_URL_PARAMS"]) ? CUtil::PhpToJSObject($arParams["AUTHOR_URL_PARAMS"]) : '{}')?>,
+				VIEW_URL: '<?=CUtil::JSEscape($arParams["~VIEW_URL"])?>',
+				EDIT_URL: '<?=CUtil::JSEscape($arParams["~EDIT_URL"])?>',
+				MODERATE_URL: '<?=CUtil::JSEscape($arParams["~MODERATE_URL"])?>',
+				DELETE_URL: '<?=CUtil::JSEscape($arParams["~DELETE_URL"])?>',
+				AUTHOR_URL: '<?=CUtil::JSEscape($arParams["~AUTHOR_URL"])?>',
+				AUTHOR_URL_PARAMS: <?=(isset($arParams["AUTHOR_URL_PARAMS"]) ? Json::encode($arParams["AUTHOR_URL_PARAMS"]) : '{}') ?>,
 
-				AVATAR_SIZE : '<?=CUtil::JSEscape($arParams["AVATAR_SIZE"])?>',
-				NAME_TEMPLATE : '<?=CUtil::JSEscape($arParams["~NAME_TEMPLATE"])?>',
-				SHOW_LOGIN : '<?=CUtil::JSEscape($arParams["SHOW_LOGIN"])?>',
+				AVATAR_SIZE: '<?=CUtil::JSEscape($arParams["AVATAR_SIZE"])?>',
+				NAME_TEMPLATE: '<?=CUtil::JSEscape($arParams["~NAME_TEMPLATE"])?>',
+				SHOW_LOGIN: '<?=CUtil::JSEscape($arParams["SHOW_LOGIN"])?>',
 
-				DATE_TIME_FORMAT : '<?=CUtil::JSEscape($arParams["~DATE_TIME_FORMAT"])?>',
-				LAZYLOAD : '<?=$arParams["LAZYLOAD"]?>',
+				DATE_TIME_FORMAT: '<?=CUtil::JSEscape($arParams["~DATE_TIME_FORMAT"])?>',
+				LAZYLOAD: '<?=$arParams["LAZYLOAD"]?>',
 
-				SHOW_POST_FORM : '<?=CUtil::JSEscape($arParams["SHOW_POST_FORM"])?>',
-				BIND_VIEWER : '<?=$arParams["BIND_VIEWER"]?>',
-				USE_LIVE : <?=(isset($arParams["USE_LIVE"]) && !$arParams["USE_LIVE"] ? 'false' : 'true')?>,
+				SHOW_POST_FORM: '<?=CUtil::JSEscape($arParams["SHOW_POST_FORM"])?>',
+				BIND_VIEWER: '<?=$arParams["BIND_VIEWER"]?>',
+				USE_LIVE: <?=(isset($arParams["USE_LIVE"]) && !$arParams["USE_LIVE"] ? 'false' : 'true')?>,
 			},
 			{
 				id : '<?=CUtil::JSEscape($arParams["FORM"]["ID"])?>',
 				url : '<?=CUtil::JSEscape($arParams["FORM"]["URL"])?>',
-				fields : <?=CUtil::PhpToJSObject($arParams["FORM"]["FIELDS"])?>
+				fields : <?= Json::encode($arParams["FORM"]["FIELDS"] ?? null) ?>
 			}
 			);
 			BX.removeCustomEvent("main.post.list/mobile", f);
 		}, scripts = [];
 		BX.addCustomEvent("main.post.list/mobile", f);
-		if (BX["MPL"])
+		if (BX.MPL)
 		{
 			f();
 			return;

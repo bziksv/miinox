@@ -1,10 +1,12 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
+
 include_once __DIR__."/base.php";
+
 class CCommentUFs extends CCommentBase
 {
-	function __construct(&$component)
+	public function __construct(&$component, ?\CUser $user = null)
 	{
-		parent::__construct($component);
+		parent::__construct($component, $user);
 
 		$this->removeHandler("OnCommentFormDisplay");
 		$this->removeHandler("OnCommentPreviewDisplay");
@@ -18,8 +20,8 @@ class CCommentUFs extends CCommentBase
 		}
 		$arResult =& $this->component->arResult;
 		$arParams =& $this->component->arParams;
-		$arParams["USER_FIELDS_SETTINGS"] = (is_array($arParams["USER_FIELDS_SETTINGS"]) ? $arParams["USER_FIELDS_SETTINGS"] : array());
-		$arParams["USER_FIELDS"] = (is_array($arParams["USER_FIELDS"]) ? $arParams["USER_FIELDS"] : array("UF_FORUM_MESSAGE_DOC", "UF_FORUM_MESSAGE_VER", "UF_FORUM_MES_URL_PRV"));
+		$arParams["USER_FIELDS_SETTINGS"] = $arParams["USER_FIELDS_SETTINGS"] ?? [];
+		$arParams["USER_FIELDS"] = $arParams["USER_FIELDS"] ?? ["UF_FORUM_MESSAGE_DOC", "UF_FORUM_MESSAGE_VER", "UF_FORUM_MES_URL_PRV"];
 		$arResult["~USER_FIELDS"] = $GLOBALS["USER_FIELD_MANAGER"]->GetUserFields("FORUM_MESSAGE", 0, LANGUAGE_ID);
 		foreach($arResult["~USER_FIELDS"] as $key => $val)
 		{
@@ -29,7 +31,7 @@ class CCommentUFs extends CCommentBase
 			}
 		}
 		$arResult["USER_FIELDS"] = array_intersect_key($arResult["~USER_FIELDS"], array_flip($arParams["USER_FIELDS"]));
-		$arResult['UFS'] = array();
+		$arResult['UFS'] = [];
 	}
 
 	function OnPrepareComments($component)
@@ -50,7 +52,7 @@ class CCommentUFs extends CCommentBase
 			$arFilter = array(
 				"FORUM_ID" => $arParams["FORUM_ID"],
 				"TOPIC_ID" => $arResult["FORUM_TOPIC_ID"],
-				"APPROVED_AND_MINE" => $GLOBALS["USER"]->GetId(),
+				"APPROVED_AND_MINE" => $this->getUser()?->getId(),
 				">ID" => intval(min($res)) - 1,
 				"<ID" => intval(max($res)) + 1);
 			if ($arFilter[">ID"] <= 0)

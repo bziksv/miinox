@@ -1,21 +1,17 @@
-<?
+<?php
+
 use Bitrix\Main\Localization\Loc;
 
-Loc::loadMessages(__FILE__);
-
-Class messageservice extends CModule
+class messageservice extends \CModule
 {
-	var $MODULE_ID = "messageservice";
-	var $MODULE_VERSION;
-	var $MODULE_VERSION_DATE;
-	var $MODULE_NAME;
-	var $MODULE_DESCRIPTION;
-	var $MODULE_CSS;
-	var $MODULE_GROUP_RIGHTS = "Y";
+	public $MODULE_ID = "messageservice";
+	public $MODULE_GROUP_RIGHTS = "Y";
+
+	private $errors = [];
 
 	public function __construct()
 	{
-		$arModuleVersion = array();
+		$arModuleVersion = [];
 
 		include(__DIR__.'/version.php');
 
@@ -27,13 +23,16 @@ Class messageservice extends CModule
 	}
 
 
-	function InstallDB($install_wizard = true)
+	public function InstallDB($install_wizard = true)
 	{
 		global $DB, $APPLICATION;
-
+		$connection = \Bitrix\Main\Application::getConnection();
 		$errors = null;
-		if (!$DB->Query("SELECT 'x' FROM b_messageservice_message", true))
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/mysql/install.sql");
+
+		if (!$DB->TableExists('b_messageservice_message'))
+		{
+			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/messageservice/install/db/' . $connection->getType() . '/install.sql');
+		}
 
 		if (!empty($errors))
 		{
@@ -41,19 +40,37 @@ Class messageservice extends CModule
 			return false;
 		}
 
-		RegisterModule("messageservice");
+		\Bitrix\Main\ModuleManager::registerModule('messageservice');
 
-		RegisterModuleDependences('main', 'OnAfterEpilog', 'messageservice', '\Bitrix\MessageService\Queue', 'run');
-		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestServiceBuildDescription');
-		RegisterModuleDependences('rest', 'OnRestAppDelete', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppDelete');
-		RegisterModuleDependences('rest', 'OnRestAppUpdate', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppUpdate');
+		$eventManager = \Bitrix\Main\EventManager::getInstance();
 
-		COption::SetOptionString("messageservice", "clean_up_period", "14");
+		/** @see \Bitrix\MessageService\Queue::run */
+		$eventManager->registerEventHandlerCompatible('main', 'OnAfterEpilog', 'messageservice', '\Bitrix\MessageService\Queue', 'run');
+		/** @see \Bitrix\MessageService\RestService::onRestServiceBuildDescription */
+		$eventManager->registerEventHandlerCompatible('rest', 'OnRestServiceBuildDescription', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestServiceBuildDescription');
+		/** @see \Bitrix\MessageService\RestService::onRestAppDelete */
+		$eventManager->registerEventHandlerCompatible('rest', 'OnRestAppDelete', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppDelete');
+		/** @see \Bitrix\MessageService\RestService::onRestAppUpdate */
+		$eventManager->registerEventHandlerCompatible('rest', 'OnRestAppUpdate', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppUpdate');
 
-		CAgent::AddAgent('\Bitrix\MessageService\Queue::cleanUpAgent();',"messageservice", "Y", 86400);
-		CAgent::AddAgent('\Bitrix\MessageService\IncomingMessage::cleanUpAgent();', 'messageservice', 'Y', 86400);
+		$eventManager->registerEventHandler('imconnector', 'OnReceivedStatusReading', 'messageservice', '\Bitrix\MessageService\Sender\Sms\Wazzup', 'onReceivedStatusRead');
+		$eventManager->registerEventHandler('imconnector', 'onReceivedStatusDelivery', 'messageservice', '\Bitrix\MessageService\Sender\Sms\Wazzup', 'onReceivedStatusDelivered');
 
-		if (CModule::IncludeModule('messageservice'))
+		\Bitrix\Main\Config\Option::set('messageservice', 'clean_up_period', '14');
+
+		/** @see \Bitrix\MessageService\Providers\Edna\RegionHelper::REGION_RU */
+		$region = \Bitrix\Main\Application::getInstance()->getLicense()->getRegion();
+		if (!in_array($region, ['ru', 'by'], true))
+		{
+			\Bitrix\Main\Config\Option::set('messageservice', 'disable_international', 'Y');
+		}
+
+		/** @see \Bitrix\MessageService\Queue::cleanUpAgent */
+		\CAgent::AddAgent('Bitrix\MessageService\Queue::cleanUpAgent();',"messageservice", "Y", 86400);
+		/** @see \Bitrix\MessageService\IncomingMessage::cleanUpAgent */
+		\CAgent::AddAgent('Bitrix\MessageService\IncomingMessage::cleanUpAgent();', 'messageservice', 'Y', 86400);
+
+		if (\Bitrix\Main\Loader::includeModule('messageservice'))
 		{
 			\Bitrix\MessageService\Converter::onInstallModule();
 		}
@@ -64,11 +81,11 @@ Class messageservice extends CModule
 	function UnInstallDB($arParams = Array())
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
 
-		$errors = null;
-		if(array_key_exists("savedata", $arParams) && $arParams["savedata"] != "Y")
+		if (array_key_exists("savedata", $arParams) && $arParams["savedata"] != "Y")
 		{
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/mysql/uninstall.sql");
+			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/".$connection->getType()."/uninstall.sql");
 
 			if (!empty($errors))
 			{
@@ -78,64 +95,62 @@ Class messageservice extends CModule
 			\Bitrix\Main\Config\Option::delete($this->MODULE_ID);
 		}
 
-		UnRegisterModuleDependences('main', 'OnAfterEpilog', 'messageservice', '\Bitrix\MessageService\Queue', 'run');
-		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestServiceBuildDescription');
-		UnRegisterModuleDependences('rest', 'OnRestAppDelete', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppDelete');
-		UnRegisterModuleDependences('rest', 'OnRestAppUpdate', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppUpdate');
+		$eventManager = \Bitrix\Main\EventManager::getInstance();
 
-		UnRegisterModule("messageservice");
+		/** @see \Bitrix\MessageService\Queue::run */
+		$eventManager->unRegisterEventHandler('main', 'OnAfterEpilog', 'messageservice', '\Bitrix\MessageService\Queue', 'run');
+		/** @see \Bitrix\MessageService\RestService::onRestServiceBuildDescription */
+		$eventManager->unRegisterEventHandler('rest', 'OnRestServiceBuildDescription', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestServiceBuildDescription');
+		/** @see \Bitrix\MessageService\RestService::onRestAppDelete */
+		$eventManager->unRegisterEventHandler('rest', 'OnRestAppDelete', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppDelete');
+		/** @see \Bitrix\MessageService\RestService::onRestAppUpdate */
+		$eventManager->unRegisterEventHandler('rest', 'OnRestAppUpdate', 'messageservice', '\Bitrix\MessageService\RestService', 'onRestAppUpdate');
+
+		$eventManager->unRegisterEventHandler('imconnector', 'OnReceivedStatusReading', 'messageservice', '\Bitrix\MessageService\Sender\Sms\Wazzup', 'onReceivedStatusRead');
+		$eventManager->unRegisterEventHandler('imconnector', 'onReceivedStatusDelivery', 'messageservice', '\Bitrix\MessageService\Sender\Sms\Wazzup', 'onReceivedStatusDelivered');
+
+		\Bitrix\Main\ModuleManager::unRegisterModule('messageservice');
 
 		return true;
 	}
 
-	function InstallEvents()
+	public function InstallFiles()
 	{
+		\CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin", true);
+		\CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", true, true);
+		\CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/tools", $_SERVER["DOCUMENT_ROOT"]."/bitrix/tools", true, true);
+		\CopyDirFiles($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/messageservice/install/js', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/js', true, true);
+
 		return true;
 	}
 
-	function UnInstallEvents()
+	public function UnInstallFiles()
 	{
-		return true;
-	}
+		\DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
+		\DeleteDirFiles($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/messageservice/install/js', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/js');
 
-	function InstallFiles()
-	{
-		if($_ENV["COMPUTERNAME"]!='BX')
+		if (is_dir($p = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/components/bitrix"))
 		{
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin", true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/tools", $_SERVER["DOCUMENT_ROOT"]."/bitrix/tools", true, true);
-		}
-		return true;
-	}
-
-	function UnInstallFiles()
-	{
-		if($_ENV["COMPUTERNAME"]!='BX')
-		{
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
-
-			if (is_dir($p = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/components/bitrix"))
+			foreach (scandir($p) as $item)
 			{
-				foreach (scandir($p) as $item)
+				if ($item == '..' || $item == '.')
 				{
-					if ($item == '..' || $item == '.')
-						continue;
-
-					DeleteDirFilesEx('/bitrix/components/bitrix/'.$item);
+					continue;
 				}
+
+				\DeleteDirFilesEx('/bitrix/components/bitrix/'.$item);
 			}
-			DeleteDirFilesEx("/bitrix/tools/messageservice");
 		}
+		\DeleteDirFilesEx("/bitrix/tools/messageservice");
 
 		return true;
 	}
 
-	function DoInstall()
+	public function DoInstall()
 	{
-		global $APPLICATION, $step;
+		global $APPLICATION;
 
-		$this->errors = null;
+		$this->errors = [];
 
 		$this->InstallFiles();
 		$this->InstallDB(false);
@@ -144,22 +159,22 @@ Class messageservice extends CModule
 		$APPLICATION->IncludeAdminFile(Loc::getMessage("MESSAGESERVICE_INSTALL_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/step1.php");
 	}
 
-	function DoUninstall()
+	public function DoUninstall()
 	{
-		global $APPLICATION, $step;
+		global $APPLICATION;
 
-		$this->errors = array();
+		$this->errors = [];
 
-		$step = (int)$step;
-		if($step<2)
+		$step = (int)($_REQUEST['step'] ?? 1);
+		if ($step < 2)
 		{
 			$GLOBALS["messageservice_installer_errors"] = $this->errors;
 			$APPLICATION->IncludeAdminFile(Loc::getMessage("MESSAGESERVICE_INSTALL_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/unstep1.php");
 		}
-		elseif($step==2)
+		elseif ($step==2)
 		{
 			$this->UnInstallDB(array(
-				'savedata' => $_REQUEST['savedata']
+				'savedata' => ($_REQUEST['savedata'] ?? 'N')
 			));
 			$this->UnInstallFiles();
 
@@ -168,4 +183,3 @@ Class messageservice extends CModule
 		}
 	}
 }
-?>

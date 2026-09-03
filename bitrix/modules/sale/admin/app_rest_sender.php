@@ -1,5 +1,6 @@
 <?
 
+use Bitrix\Main\Application;
 use \Bitrix\Main\Localization\Loc,
 	\Bitrix\Sale\Exchange\Integration\Rest;
 
@@ -18,7 +19,16 @@ $sender = new Rest\Sender();
 $APPLICATION->SetTitle(Loc::getMessage('SALE_ORDER_REQUEST_SEND'));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 
-\Bitrix\Main\Page\Asset::getInstance()->addJs("//api.bitrix24.com/api/v1/", true);
+$region = Application::getInstance()->getLicense()->getRegion();
+if (in_array($region, ['ru', 'by', 'kz'], true))
+{
+	$jsPath = '//api.bitrix24.tech/api/v1/';
+}
+else
+{
+	$jsPath = '//api.bitrix24.com/api/v1/';
+}
+\Bitrix\Main\Page\Asset::getInstance()->addJs($jsPath, true);
 
 $r = $sender->checkFields();
 if($r->isSuccess())
@@ -34,7 +44,7 @@ if($r->isSuccess())
     }
     ?>
 
-    <script type="text/javascript">
+    <script>
 
 		BX.ready(function () {
             stepper = new BX.Sale.Stepper({ownerTypeId: <?=$sender->getField('entityTypeId')?>,ownerId:<?=$sender->getField('entityId')?>});

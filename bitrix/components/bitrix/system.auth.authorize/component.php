@@ -1,6 +1,8 @@
 <?php
 
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
+	die();
+
 /**
  * @global CMain $APPLICATION
  * @global CUser $USER
@@ -10,9 +12,10 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
  *	NOT_SHOW_LINKS - Whether to show links to register page && password restoration (Y/N)
  */
 
-use \Bitrix\Main\Security;
-use \Bitrix\Main\Controller;
-use \Bitrix\Pull;
+use Bitrix\Main\Security;
+use Bitrix\Main\Engine\Controller;
+use Bitrix\Main\Controller\QrCodeAuth;
+use Bitrix\Pull;
 
 $arParams["NOT_SHOW_LINKS"] = ($arParams["NOT_SHOW_LINKS"] == "Y" ? "Y" : "N");
 if(!is_array($arParams["~AUTH_RESULT"]) && $arParams["~AUTH_RESULT"] <> '')
@@ -33,10 +36,7 @@ $arParamsToDelete = array(
 	"logout_butt",
 );
 
-if(defined("AUTH_404"))
-	$arResult["AUTH_URL"] = htmlspecialcharsback(POST_FORM_ACTION_URI);
-else
-	$arResult["AUTH_URL"] = $APPLICATION->GetCurPageParam("login=yes", $arParamsToDelete);
+$arResult["AUTH_URL"] = $APPLICATION->GetCurPageParam("login=yes", $arParamsToDelete);
 
 $custom_reg_page = COption::GetOptionString('main', 'custom_register_page');
 $arResult["AUTH_REGISTER_URL"] = ($custom_reg_page <> ''? $custom_reg_page : $APPLICATION->GetCurPageParam("register=yes", $arParamsToDelete));
@@ -52,7 +52,7 @@ foreach($arResult as $key=>$value)
 }
 $arResult = $arRes;
 
-$arVarExcl = array("USER_LOGIN"=>1, "USER_PASSWORD"=>1, "backurl"=>1, "auth_service_id"=>1, "TYPE"=>1, "AUTH_FORM"=>1);
+$arVarExcl = array("USER_LOGIN"=>1, "USER_PASSWORD"=>1, "backurl"=>1, "auth_service_id"=>1, "TYPE"=>1, "AUTH_FORM"=>1, 'sessid' => 1);
 $arResult["POST"] = array();
 foreach($_POST as $vname=>$vvalue)
 {
@@ -88,14 +88,12 @@ $arResult["LAST_LOGIN"] = htmlspecialcharsbx($arResult["~LAST_LOGIN"]);
 $arResult["STORE_PASSWORD"] = COption::GetOptionString("main", "store_password", "Y") == "Y" ? "Y" : "N";
 $arResult["NEW_USER_REGISTRATION"] = (COption::GetOptionString("main", "new_user_registration", "N") == "Y" ? "Y" : "N");
 $arResult["ALLOW_SOCSERV_AUTHORIZATION"] = (COption::GetOptionString("main", "allow_socserv_authorization", "Y") != "N" ? "Y" : "N");
-$arResult["ALLOW_QRCODE_AUTH"] = (COption::GetOptionString("main", "allow_qrcode_auth", "N") == "Y" && \Bitrix\Main\Loader::includeModule('pull'));
 
+$controller = new QrCodeAuth();
+$arResult["ALLOW_QRCODE_AUTH"] = $controller->isAllowed();
 if ($arResult['ALLOW_QRCODE_AUTH'])
 {
-	$arResult['QRCODE_CHANNEL_TAG'] = Security\Random::getString(32, true);
-	$arResult['QRCODE_CHANNEL'] = Pull\Model\Channel::createWithTag($arResult['QRCODE_CHANNEL_TAG']);
-	$arResult['QRCODE_CONFIG'] = Pull\Config::get(['CHANNEL' => $arResult['QRCODE_CHANNEL'], 'JSON' => true]);
-	$arResult['QRCODE_UNIQUE_ID'] = Controller\QrCodeAuth::getUniqueId();
+	$arResult['QRCODE'] = QrCodeAuth::getPullConfig();
 }
 
 $arResult["AUTH_SERVICES"] = false;
@@ -113,7 +111,7 @@ if(!$USER->IsAuthorized() && CModule::IncludeModule("socialservices") && ($arRes
 	if(!empty($arServices))
 	{
 		$arResult["AUTH_SERVICES"] = $arServices;
-		if(isset($_REQUEST["auth_service_id"]) && $_REQUEST["auth_service_id"] <> '' && isset($arResult["AUTH_SERVICES"][$_REQUEST["auth_service_id"]]))
+		if (!empty($_REQUEST["auth_service_id"]) && is_string($_REQUEST["auth_service_id"]) && isset($arResult["AUTH_SERVICES"][$_REQUEST["auth_service_id"]]))
 		{
 			$arResult["CURRENT_SERVICE"] = $_REQUEST["auth_service_id"];
 			if(isset($_REQUEST["auth_service_error"]) && $_REQUEST["auth_service_error"] <> '')

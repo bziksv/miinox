@@ -21,7 +21,7 @@ return [
 		]
 	],
 	'active' => \LandingSiteDemoComponent::checkActive([
-		'ONLY_IN' => ['ru', 'kz', 'by'],
+		'ONLY_IN' => ['ru', 'kz', 'by', 'uz'],
 		'EXCEPT' => []
 	]),
 	'items' => [
@@ -89,7 +89,7 @@ return [
 
 				<!-- Responsive Toggle Button -->
 				<button class="navbar-toggler btn g-line-height-1 g-brd-none g-pa-0 ml-auto g-flex-centered-item--center" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navBar" data-toggle="collapse" data-target="#navBar">
-                <span class="hamburger hamburger--slider">
+                <span class="hamburger hamburger--slider hamburger--md">
                   <span class="hamburger-box">
                     <span class="hamburger-inner"></span>
                   </span>

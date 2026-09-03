@@ -8,10 +8,12 @@
 namespace Bitrix\Sale;
 
 use Bitrix\Main;
+use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main\DI\ServiceLocator;
 use Bitrix\Main\Localization;
 use Bitrix\Sale\Basket\RefreshFactory;
-use Bitrix\Sale\Internals;
-use Bitrix\Sale\Tax\VatCalculator;
+use Bitrix\Sale\Public\Dto\BasketItemCalculationInput;
+use Bitrix\Sale\Public\Service\BasketItemCalculator;
 
 Localization\Loc::loadMessages(__FILE__);
 
@@ -251,6 +253,7 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	{
 		return [
 			'PRICE' => 'PRICE',
+			'BASE_PRICE' => 'BASE_PRICE',
 			'VAT_INCLUDED' => 'VAT_INCLUDED',
 			'VAT_RATE' => 'VAT_RATE'
 		];
@@ -897,16 +900,28 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	 * @return float|int
 	 * @throws Main\ArgumentNullException
 	 */
-	public function getVat()
+	public function getVat(): float|int
 	{
-		$calculator = new VatCalculator((float)$this->getVatRate());
-		$vat = $calculator->calc(
-			$this->getPrice(),
-			$this->isVatInPrice(),
-			false
-		);
+		return PriceMaths::roundPrecision($this->getVatUnit() * $this->getQuantity());
+	}
 
-		return PriceMaths::roundPrecision($vat * $this->getQuantity());
+	/**
+	 * @param bool $withRound
+	 * @return float|int
+	 * @throws ArgumentNullException
+	 */
+	public function getVatUnit(bool $withRound = true): float|int
+	{
+		$calculator = self::getItemCalculator();
+		$input = new BasketItemCalculationInput(
+			basePrice: $this->getPrice(),
+			quantity: 1.0,
+			vatRate: (float)$this->getVatRate() * 100,
+			vatIncluded: $this->isVatInPrice(),
+		);
+		$result = $calculator->calculate($input);
+
+		return $withRound ? $result->vatAmount : (float)$result->vatAmount;
 	}
 
 	/**
@@ -915,12 +930,15 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	 */
 	public function getInitialPrice()
 	{
-		$price = PriceMaths::roundPrecision($this->getPrice() * $this->getQuantity());
+		$calculator = self::getItemCalculator();
+		$input = new BasketItemCalculationInput(
+			basePrice: $this->getPrice(),
+			quantity: $this->getQuantity(),
+			vatRate: (float)$this->getVatRate() * 100,
+			vatIncluded: $this->isVatInPrice(),
+		);
 
-		if ($this->isVatInPrice())
-			$price -= $this->getVat();
-
-		return $price;
+		return $calculator->calculate($input)->totalCalculation->totalNetto;
 	}
 
 	/**
@@ -929,15 +947,15 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	 */
 	public function getBasePriceWithVat()
 	{
-		$price = $this->getBasePrice();
+		$calculator = self::getItemCalculator();
+		$input = new BasketItemCalculationInput(
+			basePrice: $this->getBasePrice(),
+			quantity: 1.0,
+			vatRate: (float)$this->getVatRate() * 100,
+			vatIncluded: $this->isVatInPrice(),
+		);
 
-		if (!$this->isVatInPrice())
-		{
-			$vatRate = (float)$this->getVatRate();
-			$price += $this->getBasePrice() * $vatRate;
-		}
-
-		return PriceMaths::roundPrecision($price);
+		return $calculator->calculate($input)->priceBrutto;
 	}
 
 	/**
@@ -946,15 +964,15 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	 */
 	public function getPriceWithVat()
 	{
-		$price = $this->getPrice();
+		$calculator = self::getItemCalculator();
+		$input = new BasketItemCalculationInput(
+			basePrice: $this->getPrice(),
+			quantity: 1.0,
+			vatRate: (float)$this->getVatRate() * 100,
+			vatIncluded: $this->isVatInPrice(),
+		);
 
-		if (!$this->isVatInPrice())
-		{
-			$vatRate = (float)$this->getVatRate();
-			$price += $this->getPrice() * $vatRate;
-		}
-
-		return PriceMaths::roundPrecision($price);
+		return $calculator->calculate($input)->priceBrutto;
 	}
 
 	/**
@@ -963,12 +981,15 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	 */
 	public function getFinalPrice()
 	{
-		$price = PriceMaths::roundPrecision($this->getPrice() * $this->getQuantity());
+		$calculator = self::getItemCalculator();
+		$input = new BasketItemCalculationInput(
+			basePrice: $this->getPrice(),
+			quantity: $this->getQuantity(),
+			vatRate: (float)$this->getVatRate() * 100,
+			vatIncluded: $this->isVatInPrice(),
+		);
 
-		if (!$this->isVatInPrice())
-			$price += $this->getVat();
-
-		return $price;
+		return $calculator->calculate($input)->totalCalculation->totalPrice;
 	}
 
 	/**
@@ -1746,5 +1767,10 @@ abstract class BasketItemBase extends Internals\CollectableEntity
 	public function getDefaultPrice()
 	{
 		return (float)$this->getField('DEFAULT_PRICE');
+	}
+
+	private static function getItemCalculator(): BasketItemCalculator
+	{
+		return ServiceLocator::getInstance()->get('sale.basketItemCalculator');
 	}
 }

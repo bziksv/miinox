@@ -1,8 +1,9 @@
-import {Reflection, Type} from "main.core";
-import {Address as AddressEntity} from "location.core";
+import { Address as AddressEntity } from 'location.core';
+import { Reflection, Type } from 'main.core';
+import { EventEmitter } from 'main.core.events';
+import { Edit } from './view/edit';
 
-import {View} from './view/view';
-import {Edit} from './view/edit';
+import { View } from './view/view';
 
 class AddressField
 {
@@ -14,6 +15,7 @@ class AddressField
 	#addresses: [];
 	#isMultiple: boolean = false;
 	#showMap: boolean = true;
+	#showDetailsToggle: boolean = true;
 
 	#fieldConfig = {};
 	#additionalProperties = {};
@@ -37,7 +39,8 @@ class AddressField
 		});
 
 		const showMap = params.showMap ?? true;
-		let addressFieldParams = {
+		const showDetailsToggle = Boolean(params.showDetailsToggle ?? true);
+		const addressFieldParams = {
 			addresses: addresses,
 			wrapper: wrapper,
 			mode: mode,
@@ -47,6 +50,7 @@ class AddressField
 			},
 			isMultiple: params.isMultiple,
 			showMap,
+			showDetailsToggle,
 		};
 
 		if (params.additionalProperties)
@@ -56,6 +60,8 @@ class AddressField
 
 		const addressField = new AddressField(addressFieldParams);
 		addressField.layout();
+
+		EventEmitter.emit(this, 'BX.Fileman.UserField.AddressField:onInitiated', addressFieldParams);
 	}
 
 	constructor(params: Object)
@@ -66,6 +72,7 @@ class AddressField
 		this.#fieldConfig = params.fieldConfig;
 		this.#isMultiple = params.isMultiple;
 		this.#showMap = params.showMap;
+		this.#showDetailsToggle = Boolean(params.showDetailsToggle ?? true);
 		if (params.additionalProperties)
 		{
 			this.#additionalProperties = params.additionalProperties;
@@ -95,6 +102,7 @@ class AddressField
 				isMultiple: this.#isMultiple,
 				compactMode: this.#additionalProperties.compactMode ?? false,
 				showMap: this.#showMap,
+				showDetailsToggle: this.#showDetailsToggle,
 			});
 		}
 

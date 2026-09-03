@@ -1,6 +1,6 @@
-import {Event, Reflection, Type, Uri} from 'main.core';
-import {EventEmitter} from 'main.core.events'
-import {Slider} from 'catalog.store-use'
+import { Event, Reflection, Type, Uri } from 'main.core';
+import { EventEmitter } from 'main.core.events';
+import { EnableWizardOpener, AnalyticsContextList } from 'catalog.store-enable-wizard';
 
 class ProductStoreGridManager
 {
@@ -82,6 +82,7 @@ class ProductStoreGridManager
 			return;
 		}
 
+		this.bindSliderToReservedQuantityNodes();
 		this.refreshTotalWrapper();
 	}
 
@@ -183,14 +184,18 @@ class ProductStoreGridManager
 	{
 		if (this.inventoryManagementLink)
 		{
-			new Slider().open(this.inventoryManagementLink,
+			new EnableWizardOpener().open(
+				this.inventoryManagementLink,
 				{
+					urlParams: {
+						analyticsContextSection: AnalyticsContextList.PRODUCT_CARD,
+					},
 					data: {
 						openGridOnDone: false,
 					},
 					events: {
 						onCloseComplete: function(event) {
-							let slider = event.getSlider();
+							const slider = event.getSlider();
 							if (!slider)
 							{
 								return;
@@ -200,9 +205,9 @@ class ProductStoreGridManager
 							{
 								window.top.location.reload();
 							}
-						}
-					}
-				}
+						},
+					},
+				},
 			);
 		}
 	}

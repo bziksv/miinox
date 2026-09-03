@@ -16,9 +16,9 @@ use Bitrix\Main;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_BuyerStatistic_Query query()
- * @method static EO_BuyerStatistic_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_BuyerStatistic_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_BuyerStatistic_Result getById($id)
- * @method static EO_BuyerStatistic_Result getList(array $parameters = array())
+ * @method static EO_BuyerStatistic_Result getList(array $parameters = [])
  * @method static EO_BuyerStatistic_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_BuyerStatistic createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_BuyerStatistic_Collection createCollection()
@@ -68,7 +68,7 @@ class BuyerStatisticTable extends Main\Entity\DataManager
 				)
 			),
 
-			new Main\Entity\StringField(
+			new Main\Entity\IntegerField(
 				'USER_ID',
 				array(
 					'required' => true,
@@ -87,12 +87,13 @@ class BuyerStatisticTable extends Main\Entity\DataManager
 			new Main\Entity\FloatField(
 				'SUM_PAID',
 				array(
-					'default_value' => '0.0000'
+					'default_value' => '0.0',
+					'scale' => 8
 				)
 			),
 
 			new Main\Entity\IntegerField('COUNT_FULL_PAID_ORDER'),
-			
+
 			new Main\Entity\IntegerField('COUNT_PART_PAID_ORDER'),
 
 			new Main\Entity\ReferenceField(

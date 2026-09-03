@@ -2,6 +2,7 @@
 namespace Bitrix\Landing\Node;
 
 use Bitrix\Landing\History;
+use Bitrix\Landing\Sanitizer;
 
 class Text extends \Bitrix\Landing\Node
 {
@@ -11,7 +12,7 @@ class Text extends \Bitrix\Landing\Node
 	 */
 	public static function getHandlerJS()
 	{
-		return 'BX.Landing.Block.Node.Text';
+		return 'BX.Landing.Node.Text';
 	}
 
 	/**
@@ -27,17 +28,13 @@ class Text extends \Bitrix\Landing\Node
 		$result = [];
 		$doc = $block->getDom();
 		$resultList = $doc->querySelectorAll($selector);
-		$additional['sanitize'] = !isset($additional['sanitize']) ||
-								  isset($additional['sanitize']) &&
-								  $additional['sanitize'] === true;
+		$needSanitize = ($additional['sanitize'] ?? true) === true;
 
 		foreach ($data as $pos => $value)
 		{
 			if (isset($value['url']))
 			{
-				$url = is_array($value['url'])
-					? json_encode($value['url'])
-					: $value['url'];
+				$url = (new Sanitizer())->sanitizePseudoUrl($value['url']);
 			}
 			else
 			{
@@ -60,25 +57,13 @@ class Text extends \Bitrix\Landing\Node
 			{
 				$result[$pos] = [];
 
-				if ($additional['sanitize'])
+				$sanitizer = new Sanitizer();
+				$sanitizer->enableTextFilter(Sanitizer::AVAILABLE_TEXT_FILTERS['noEmptyText']);
+				if (!$needSanitize)
 				{
-					$value = \Bitrix\Landing\Manager::sanitize($value, $bad);
+					$sanitizer->disableTextFilter(Sanitizer::AVAILABLE_TEXT_FILTERS['sanitize']);
 				}
-
-				// clear some amp
-				if ($value)
-				{
-					$value = preg_replace('/&amp;([^\s]{1})/is', '&$1', $value);
-					$value = str_replace(
-						' bxstyle="',
-						' style="',
-						$value
-					);
-				}
-				else
-				{
-					$value = ' ';
-				}
+				$value = $sanitizer->sanitizeText($value);
 
 				if (History::isActive())
 				{

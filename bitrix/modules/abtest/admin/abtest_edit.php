@@ -30,7 +30,7 @@ foreach (Bitrix\ABTest\AdminHelper::getSiteCapacity(array_keys($arSites)) as $li
 	$arEstDays[$lid] = $value['est'];
 
 
-if ($REQUEST_METHOD == "POST" && ($save <> '' || $apply <> '') && check_bitrix_sessid())
+if ($_SERVER['REQUEST_METHOD'] == "POST" && ($save <> '' || $apply <> '') && check_bitrix_sessid())
 {
 	$arFields = array(
 		'SITE_ID'  => $SITE,
@@ -590,7 +590,7 @@ $test_form_msg = array(
 	'saveConfig'    => true
 )); ?>
 
-<script type="text/javascript">
+<script>
 
 	var initialSite = '<?=CUtil::jsEscape($abtest['SITE_ID']); ?>';
 	var siteDirs = <?=CUtil::phpToJSObject(array_map(function($site) {

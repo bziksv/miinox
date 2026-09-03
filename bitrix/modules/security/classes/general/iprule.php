@@ -73,19 +73,19 @@ class CSecurityIPRule
 		$DB->StartTransaction();
 
 
-		$res = $DB->Query("DELETE FROM b_sec_iprule_incl_mask WHERE IPRULE_ID = ".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query("DELETE FROM b_sec_iprule_incl_mask WHERE IPRULE_ID = ".$ID);
 
 		if($res)
-			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_mask WHERE IPRULE_ID = ".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_mask WHERE IPRULE_ID = ".$ID);
 
 		if($res)
-			$res = $DB->Query("DELETE FROM b_sec_iprule_incl_ip WHERE IPRULE_ID = ".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_incl_ip WHERE IPRULE_ID = ".$ID);
 
 		if($res)
-			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_ip WHERE IPRULE_ID = ".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_ip WHERE IPRULE_ID = ".$ID);
 
 		if($res)
-			$res = $DB->Query("DELETE FROM b_sec_iprule WHERE ID = ".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule WHERE ID = ".$ID);
 
 		if($res)
 			$DB->Commit();
@@ -119,7 +119,7 @@ class CSecurityIPRule
 				".$strUpdate."
 				WHERE ID = ".$ID."
 			";
-			if(!$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__))
+			if(!$DB->Query($strSql))
 				return false;
 		}
 
@@ -171,7 +171,7 @@ class CSecurityIPRule
 
 		if(is_array($arInclMasks))
 		{
-			$res = $DB->Query("DELETE FROM b_sec_iprule_incl_mask WHERE IPRULE_ID = ".$IPRULE_ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_incl_mask WHERE IPRULE_ID = ".$IPRULE_ID);
 			if($res)
 			{
 
@@ -203,7 +203,7 @@ class CSecurityIPRule
 
 		if(is_array($arExclMasks))
 		{
-			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_mask WHERE IPRULE_ID = ".$IPRULE_ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_mask WHERE IPRULE_ID = ".$IPRULE_ID);
 			if($res)
 			{
 
@@ -245,14 +245,14 @@ class CSecurityIPRule
 
 		if(is_array($arInclIPs))
 		{
-			$res = $DB->Query("DELETE FROM b_sec_iprule_incl_ip WHERE IPRULE_ID = ".$IPRULE_ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_incl_ip WHERE IPRULE_ID = ".$IPRULE_ID);
 			if($res)
 			{
 				$added = array();
 				$i = 10;
 				foreach($arInclIPs as $ip)
 				{
-					$ip = preg_replace("/[\\s]/".BX_UTF_PCRE_MODIFIER, "", $ip);
+					$ip = preg_replace("/[\\s]/u", "", $ip);
 					if($ip && !array_key_exists($ip, $added))
 					{
 						$ar = explode("-", $ip);
@@ -282,14 +282,14 @@ class CSecurityIPRule
 
 		if(is_array($arExclIPs))
 		{
-			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_ip WHERE IPRULE_ID = ".$IPRULE_ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$res = $DB->Query("DELETE FROM b_sec_iprule_excl_ip WHERE IPRULE_ID = ".$IPRULE_ID);
 			if($res)
 			{
 				$added = array();
 				$i = 10;
 				foreach($arExclIPs as $ip)
 				{
-					$ip = preg_replace("/[\\s]/".BX_UTF_PCRE_MODIFIER, "", $ip);
+					$ip = preg_replace("/[\\s]/u", "", $ip);
 					if($ip && !array_key_exists($ip, $added))
 					{
 						$ar = explode("-", $ip);
@@ -341,7 +341,7 @@ class CSecurityIPRule
 		{
 			foreach($arInclIPs as $id => $ip)
 			{
-				$ip = preg_replace("/[\\s]/".BX_UTF_PCRE_MODIFIER, "", $ip);
+				$ip = preg_replace("/[\\s]/u", "", $ip);
 				if($ip)
 				{
 					$ar = explode("-", $ip);
@@ -362,7 +362,7 @@ class CSecurityIPRule
 		{
 			foreach($arExclIPs as $id => $ip)
 			{
-				$ip = preg_replace("/[\\s]/".BX_UTF_PCRE_MODIFIER, "", $ip);
+				$ip = preg_replace("/[\\s]/u", "", $ip);
 				if($ip)
 				{
 					$ar = explode("-", $ip);
@@ -452,7 +452,7 @@ class CSecurityIPRule
 		{
 			foreach($arFields["INCL_IPS"] as $id => $ip)
 			{
-				$ip = preg_replace("/[\\s]/".BX_UTF_PCRE_MODIFIER, "", $ip);
+				$ip = preg_replace("/[\\s]/u", "", $ip);
 				if($ip)
 				{
 					$ar = explode("-", $ip);
@@ -501,7 +501,7 @@ class CSecurityIPRule
 		{
 			foreach($arFields["EXCL_IPS"] as $id => $ip)
 			{
-				$ip = preg_replace("/[\\s]/".BX_UTF_PCRE_MODIFIER, "", $ip);
+				$ip = preg_replace("/[\\s]/u", "", $ip);
 				if($ip)
 				{
 					$ar = explode("-", $ip);
@@ -576,7 +576,7 @@ class CSecurityIPRule
 			$files = array($files);
 
 		foreach ($files as $file)
-				$DB->Query("DELETE FROM b_sec_iprule_excl_mask WHERE RULE_MASK = '".$DB->ForSQL($file)."'", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query("DELETE FROM b_sec_iprule_excl_mask WHERE RULE_MASK = '".$DB->ForSQL($file)."'");
 	}
 
 	public static function AddRuleExclFiles($files)
@@ -627,7 +627,7 @@ class CSecurityIPRule
 		{
 			$files=array_map(array($DB,'ForSQL'),$files);
 			$masks=implode("','", $files);
-			$rs = $DB->Query("SELECT IPRULE_ID FROM b_sec_iprule_excl_mask WHERE RULE_MASK IN ('".$masks."')", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$rs = $DB->Query("SELECT IPRULE_ID FROM b_sec_iprule_excl_mask WHERE RULE_MASK IN ('".$masks."')");
 			while($ar = $rs->Fetch())
 				$res[] = $ar["IPRULE_ID"];
 		}
@@ -880,7 +880,7 @@ class CSecurityIPRule
 			";
 		}
 
-		return $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		return $DB->Query($strSql);
 	}
 
 	public static function GetActiveCount()
@@ -1172,13 +1172,21 @@ class CSecurityIPRule
 					//IP does match to blocking condition let's check path
 					if($bMatch)
 					{
-						$bMatch = false;
-						foreach($arRule["INCL_MASKS"] as $mask)
+						if (defined("ADMIN_SECTION") && ADMIN_SECTION === true &&
+							(!defined('SELF_FOLDER_URL') || SELF_FOLDER_URL == '/bitrix/admin/'))
 						{
-							if(preg_match("#^".$mask."$#", $uri))
+							$bMatch = $arRule["ADMIN_SECTION"] == "Y";
+						}
+						else
+						{
+							$bMatch = false;
+							foreach($arRule["INCL_MASKS"] as $mask)
 							{
-								$bMatch = true;
-								break;
+								if(preg_match("#^".$mask."$#", $uri))
+								{
+									$bMatch = true;
+									break;
+								}
 							}
 						}
 						//Check path for exclusion
@@ -1248,6 +1256,9 @@ class CSecurityIPRule
 			return false;
 
 		if (mb_strpos($uri, "\0") !== false)
+			return false;
+
+		if (mb_strpos($uri, '/./') !== false)
 			return false;
 
 		if (mb_strpos($uri, '/') !== 0)

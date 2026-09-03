@@ -1,9 +1,14 @@
 <?php
 
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Iblock\UserField\Types\SectionType;
 use Bitrix\Main\Text\HtmlFilter;
+
+/** @var array $arResult */
 
 if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
 {
@@ -22,7 +27,7 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
 	}
 	?>
 	</span>
-	<span	id="<?= $arResult['controlNodeIdJs'] ?>"></span>
+	<span id="<?= $arResult['controlNodeIdJs'] ?>" class="iblock-section-selector-wrapper"></span>
 	<?php
 	$script = <<<EOT
 	<script>
@@ -92,6 +97,8 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_UI)
 						node: BX('{$arResult['controlNodeIdJs']}').firstChild
 					});
 			}));
+			
+			BX.fireEvent(BX('{$arResult['controlNodeIdJs']}'), 'click');
 		});
 	</script>
 EOT;
@@ -121,11 +128,7 @@ elseif($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_CH
 
 	foreach($arResult['additionalParameters']['items'] as $itemId => $item)
 	{
-		$isSelected = (
-			(in_array($itemId, $arResult['additionalParameters']['VALUE']))
-			||
-			($arResult['userField']['ENTITY_VALUE_ID'] <= 0 && $item['DEF'] === 'Y')
-		);
+		$isSelected = in_array($itemId, $arResult['additionalParameters']['VALUE']);
 		$isWasSelect = ($isWasSelect || $isSelected);
 		$checked = ($isSelected ? ' checked' : '');
 		$editInList = ($arResult['userField']['EDIT_IN_LIST'] !== 'Y' ? ' disabled="disabled" ' : '');
@@ -179,11 +182,7 @@ elseif($arResult['userField']['SETTINGS']['DISPLAY'] === SectionType::DISPLAY_LI
 
 		foreach($arResult['additionalParameters']['items'] as $itemId => $item)
 		{
-			$isSelected = (
-				in_array($itemId, $arResult['additionalParameters']['VALUE'])
-				||
-				($arResult['userField']['ENTITY_VALUE_ID'] <= 0 && $item['DEF'] === 'Y')
-			);
+			$isSelected = in_array($itemId, $arResult['additionalParameters']['VALUE']);
 			$isWasSelect = ($isWasSelect || $isSelected);
 			$selected = ($isSelected ? ' selected' : '');
 			$result .= <<<EOL

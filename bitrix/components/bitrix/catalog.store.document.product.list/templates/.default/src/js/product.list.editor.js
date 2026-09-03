@@ -1,21 +1,22 @@
-import {ajax, Cache, Dom, Event, Reflection, Runtime, Text, Type, Loc} from 'main.core';
-import {BaseEvent, EventEmitter} from 'main.core.events';
-import {Row} from './product.list.row';
-import {PageEventsManager} from './page.events.manager';
+import { OneCPlanRestrictionSlider } from 'catalog.tool-availability-manager';
+import { ajax, Cache, Dom, Event, Reflection, Runtime, Text, Type, Loc } from 'main.core';
+import { type BaseEvent, EventEmitter } from 'main.core.events';
+import { Row } from './product.list.row';
+import { PageEventsManager } from './page.events.manager';
 import SettingsPopup from './settings.button';
-import {CurrencyCore} from 'currency.currency-core';
-import {ProductSelector} from 'catalog.product-selector';
-import {StoreSelector} from "catalog.store-selector";
+import { CurrencyCore } from 'currency.currency-core';
+import { ProductSelector } from 'catalog.product-selector';
+import { StoreSelector } from 'catalog.store-selector';
 import HintPopup from './hint.popup';
-import ProductListController from "catalog.document-card";
-import {ProductModel} from "catalog.product-model";
-import {FieldHintManager} from "./field.hint.manager";
-import {Guide} from "ui.tour";
-import {UI} from 'ui.notification';
-import "ui.hint";
+import ProductListController from 'catalog.document-card';
+import { ProductModel } from 'catalog.product-model';
+import { FieldHintManager } from './field.hint.manager';
+import { Guide } from 'ui.tour';
+import { UI } from 'ui.notification';
+import 'ui.hint';
 
 const GRID_TEMPLATE_ROW = 'template_0';
-const DEFAULT_PRECISION: number = 2;
+const DEFAULT_PRECISION: number = 8;
 
 const isEmptyObject = function(obj): boolean
 {
@@ -38,7 +39,7 @@ export class Editor
 	settings: Object;
 	controller: ?ProductListController;
 	container: ?HTMLElement;
-	form: ?HTMLElement
+	form: ?HTMLElement;
 	products: Row[] = [];
 	productsWasInitiated = false;
 	pageEventsManager: PageEventsManager;
@@ -50,7 +51,7 @@ export class Editor
 		productChange: 'productChange',
 		productListChanged: 'productListChanged',
 		updateListField: 'listField',
-		updateTotal: 'total'
+		updateTotal: 'total',
 	};
 
 	updateFieldForList = null;
@@ -99,7 +100,7 @@ export class Editor
 
 		this.#fieldHintManager = new FieldHintManager(this.getContainer(), this.getGrid.bind(this));
 
-		EventEmitter.emit( 'DocumentProductListController', [this]);
+		EventEmitter.emit('DocumentProductListController', [this]);
 
 		this.#initSupportCustomRowActions();
 		this.subscribeDomEvents();
@@ -112,7 +113,6 @@ export class Editor
 				BX.UI.Hint.init(buttonBlock);
 			})
 		;
-
 	}
 
 	subscribeDomEvents()
@@ -122,10 +122,15 @@ export class Editor
 		if (Type.isElementNode(container))
 		{
 			container.querySelectorAll('[data-role="product-list-add-button"]').forEach((addButton) => {
+				if (this.getSettingValue('isOnecInventoryManagementRestricted') === true)
+				{
+					Dom.addClass(addButton, 'ui-btn-icon-lock');
+				}
+
 				Event.bind(
 					addButton,
 					'click',
-					this.productRowAddHandler
+					this.productRowAddHandler,
 				);
 			});
 
@@ -135,7 +140,7 @@ export class Editor
 					Event.bind(
 						addButton,
 						'click',
-						this.productRowCreateHandler
+						this.productRowCreateHandler,
 					);
 				});
 			}
@@ -144,7 +149,7 @@ export class Editor
 				Event.bind(
 					configButton,
 					'click',
-					this.showSettingsPopupHandler
+					this.showSettingsPopupHandler,
 				);
 			});
 
@@ -152,7 +157,7 @@ export class Editor
 				Event.bind(
 					configButton,
 					'click',
-					this.showBarcodeSettingsPopupHandler
+					this.showBarcodeSettingsPopupHandler,
 				);
 			});
 		}
@@ -168,7 +173,7 @@ export class Editor
 				Event.unbind(
 					selectButton,
 					'click',
-					this.productSelectionPopupHandler
+					this.productSelectionPopupHandler,
 				);
 			});
 
@@ -176,7 +181,7 @@ export class Editor
 				Event.unbind(
 					createButton,
 					'click',
-					this.productRowCreateHandler
+					this.productRowCreateHandler,
 				);
 			});
 
@@ -184,7 +189,7 @@ export class Editor
 				Event.unbind(
 					addButton,
 					'click',
-					this.productRowAddHandler
+					this.productRowAddHandler,
 				);
 			});
 
@@ -192,7 +197,7 @@ export class Editor
 				Event.unbind(
 					configButton,
 					'click',
-					this.showSettingsPopupHandler
+					this.showSettingsPopupHandler,
 				);
 			});
 		}
@@ -295,8 +300,8 @@ export class Editor
 
 		this.products.forEach((product) => {
 			const item = {
-				fields: {...product.fields},
-				rowId: product.fields.ROW_ID
+				fields: { ...product.fields },
+				rowId: product.fields.ROW_ID,
 			};
 			items.push(item);
 		});
@@ -305,8 +310,7 @@ export class Editor
 	}
 
 	handleEditorSubmit(event: BaseEvent)
-	{
-	}
+	{}
 
 	handleProductListFocus(event: BaseEvent)
 	{
@@ -322,7 +326,7 @@ export class Editor
 			if (product.isEmptyRow())
 			{
 				listHaveEmptyRows = true;
-				this.focusProductSelector(product.fields['ROW_ID']);
+				this.focusProductSelector(product.fields.ROW_ID);
 				break;
 			}
 		}
@@ -368,14 +372,14 @@ export class Editor
 
 		this.getGrid().reloadTable(
 			'POST',
-			{useProductsFromRequest},
-			() => this.actionUpdateTotalData({isInternalChanging})
+			{ useProductsFromRequest },
+			() => this.actionUpdateTotalData({ isInternalChanging }),
 		);
 	}
 
 	/*
 		keep in mind different actions for this handler:
-		- native reload by grid actions (columns settings, etc)		- products from request
+		- native reload by grid actions (columns settings, etc.)		- products from request
 		- rollback													- products from db			this.reloadGrid(false)
 	 */
 	handleOnBeforeGridRequest(event: BaseEvent)
@@ -387,7 +391,7 @@ export class Editor
 			return;
 		}
 
-		// reload by native grid actions (columns settings, etc), otherwise by this.reloadGrid()
+		// reload by native grid actions (columns settings, etc.), otherwise by this.reloadGrid()
 		const isNativeAction = !('useProductsFromRequest' in eventArgs.data);
 		const useProductsFromRequest = isNativeAction ? true : eventArgs.data.useProductsFromRequest;
 
@@ -419,11 +423,11 @@ export class Editor
 					return;
 				}
 
-				this.actionUpdateTotalData({isInternalChanging: false});
+				this.actionUpdateTotalData({ isInternalChanging: false });
 				if (isDeletingRequest)
 				{
 					this.executeActions([
-						{type: this.actions.productListChanged},
+						{ type: this.actions.productListChanged },
 					]);
 				}
 			});
@@ -456,14 +460,14 @@ export class Editor
 		{
 			this.refreshSortFields();
 			this.numerateRows();
-			this.executeActions([{type: this.actions.productListChanged}]);
+			this.executeActions([{ type: this.actions.productListChanged }]);
 		}
 	}
 
 	initPageEventsManager(): void
 	{
 		const componentId = this.getSettingValue('componentId');
-		this.pageEventsManager = new PageEventsManager({id: componentId});
+		this.pageEventsManager = new PageEventsManager({ id: componentId });
 	}
 
 	getPageEventsManager(): PageEventsManager
@@ -501,6 +505,9 @@ export class Editor
 	{
 		if (this.getGrid().getRows().getCountDisplayed() === 0)
 		{
+			this.setSettingValue('taxIncluded', null);
+			this.setSettingValue('taxIncludedFormatted', null);
+
 			requestAnimationFrame(() => this.addProductRow());
 		}
 	}
@@ -553,6 +560,7 @@ export class Editor
 		{
 			return;
 		}
+
 		if (this.controller)
 		{
 			this.controller.clearProductList();
@@ -583,7 +591,7 @@ export class Editor
 
 	setSettings(settings)
 	{
-		this.settings = settings ? settings : {};
+		this.settings = settings || {};
 	}
 
 	getSettingValue(name: string, defaultValue)
@@ -654,6 +662,7 @@ export class Editor
 	setCurrencyId(currencyId): Promise
 	{
 		this.setSettingValue('currencyId', currencyId);
+
 		return CurrencyCore.loadCurrencyFormat(currencyId);
 	}
 
@@ -663,7 +672,7 @@ export class Editor
 
 		return salesOrdersDocumentTypeCodes.includes(this.settings.documentType);
 	}
-	
+
 	changeCurrencyId(currencyId): void
 	{
 		const oldCurrencyId = this.getCurrencyId();
@@ -679,8 +688,13 @@ export class Editor
 				this.products.forEach((product) => {
 					product.getModel().setOption('currency', currencyId);
 					products.push({
-						fields: product.getFields(),
-						id: product.getId()
+						fields: product.getFieldsWithHashed([
+							'BASE_PRICE',
+							'PURCHASING_PRICE',
+							'STORE_FROM',
+							'STORE_TO',
+						]),
+						id: product.getId(),
 					});
 				});
 
@@ -696,8 +710,8 @@ export class Editor
 								products,
 								currencyId,
 								oldCurrencyId,
-							}
-						}
+							},
+						},
 					)
 						.then(this.onCalculatePricesResponse.bind(this));
 				}
@@ -724,8 +738,30 @@ export class Editor
 		this.products.forEach((product) => {
 			if (Type.isObject(products[product.getId()]))
 			{
-				product.updateField('BASE_PRICE', products[product.getId()]['BASE_PRICE']);
-				product.updateField('PURCHASING_PRICE', products[product.getId()]['PURCHASING_PRICE']);
+				const rawRealValues = products[product.getId()].REAL_VALUES || {};
+
+				let realValues = {};
+
+				if (Object.keys(rawRealValues).length > 0)
+				{
+					realValues = product.parseRealValues(products[product.getId()].REAL_VALUES);
+					product.updateRealValues(realValues);
+				}
+
+				let basePrice = products[product.getId()].BASE_PRICE;
+				if ('BASE_PRICE' in realValues)
+				{
+					basePrice = realValues.BASE_PRICE;
+				}
+				product.updateField('BASE_PRICE', basePrice);
+
+				let purchasingPrice = products[product.getId()].PURCHASING_PRICE;
+				if ('PURCHASING_PRICE' in realValues)
+				{
+					purchasingPrice = realValues.PURCHASING_PRICE;
+				}
+				product.updateField('PURCHASING_PRICE', purchasingPrice);
+
 				product.updateUiCurrencyFields();
 			}
 		});
@@ -762,6 +798,7 @@ export class Editor
 		}
 
 		const format = CurrencyCore.getCurrencyFormat(currencyId);
+
 		return format && format.FORMAT_STRING.replace(/(^|[^&])#/, '$1').trim() || '';
 	}
 
@@ -780,6 +817,21 @@ export class Editor
 	getPricePrecision(): number
 	{
 		return this.getSettingValue('pricePrecision', DEFAULT_PRECISION);
+	}
+
+	getDisplayPrecision(): number
+	{
+		const currencyId = this.getCurrencyId();
+		if (currencyId)
+		{
+			const format = CurrencyCore.getCurrencyFormat(currencyId);
+			if (format && Type.isNumber(format.DECIMALS))
+			{
+				return format.DECIMALS;
+			}
+		}
+
+		return 2;
 	}
 
 	getQuantityPrecision(): number
@@ -891,6 +943,7 @@ export class Editor
 			{
 				result = defaultValue;
 			}
+
 			if (isNegative)
 			{
 				result = -result;
@@ -978,7 +1031,7 @@ export class Editor
 		{
 			container.appendChild(Dom.create(
 				'input',
-				{attrs: {type: "hidden", name: fieldName}}
+				{ attrs: { type: 'hidden', name: fieldName } },
 			));
 		}
 	}
@@ -1044,7 +1097,7 @@ export class Editor
 
 		for (let item of list)
 		{
-			const fields = {...item.fields};
+			const fields = { ...item.fields };
 			this.products.push(new Row(item.rowId, fields, this.getSettingValue('rowSettings', {}), this));
 		}
 
@@ -1058,7 +1111,7 @@ export class Editor
 	{
 		this.products.forEach((product, index) => {
 			product.setRowNumber(index + 1);
-		})
+		});
 	}
 
 	getGrid(): ?BX.Main.Grid
@@ -1068,7 +1121,7 @@ export class Editor
 
 			if (!Reflection.getClass('BX.Main.gridManager.getInstanceById'))
 			{
-				throw Error(`Cannot find grid with '${gridId}' id.`)
+				throw Error(`Cannot find grid with '${gridId}' id.`);
 			}
 
 			return BX.Main.gridManager.getInstanceById(gridId);
@@ -1160,7 +1213,7 @@ export class Editor
 		return this.products
 			.filter((product) => product.getModel().getErrorCollection().hasErrors())
 			.length > 0
-			;
+		;
 	}
 
 	handleFieldChange(event)
@@ -1273,18 +1326,25 @@ export class Editor
 
 		this.initializeNewProductRow(newId, anchorProduct);
 		this.getGrid().bindOnRowEvents();
+
 		return newId;
 	}
 
 	handleProductRowAdd(): void
 	{
+		if (this.getSettingValue('isOnecInventoryManagementRestricted') === true)
+		{
+			OneCPlanRestrictionSlider.show();
+
+			return;
+		}
+
 		const id = this.addProductRow();
 		this.focusProductSelector(id);
 	}
 
 	handleProductRowCreate(): void
-	{
-	}
+	{}
 
 	handleShowBarcodeSettingsPopup()
 	{
@@ -1311,7 +1371,7 @@ export class Editor
 			return new SettingsPopup(
 				this.getContainer().querySelector('.catalog-document-product-list-add-block-active [data-role="product-list-settings-button"]'),
 				this.getSettingValue('popupSettings', []),
-				this
+				this,
 			);
 		});
 	}
@@ -1377,7 +1437,7 @@ export class Editor
 		const originalTemplateData = data[GRID_TEMPLATE_ROW];
 		const customEditData = this.prepareCustomEditData(originalTemplateData, newId);
 
-		this.setOriginalTemplateEditData({...originalTemplateData, ...customEditData})
+		this.setOriginalTemplateEditData({ ...originalTemplateData, ...customEditData });
 
 		return originalTemplateData;
 	}
@@ -1395,7 +1455,7 @@ export class Editor
 				{
 					customEditData[i] = originalEditData[i].replace(
 						new RegExp(templateIdMask, 'g'),
-						newId
+						newId,
 					);
 				}
 				else if (Type.isPlainObject(originalEditData[i]))
@@ -1424,17 +1484,16 @@ export class Editor
 			fields = {
 				...this.getSettingValue('templateItemFields', {}),
 				...{
-					CURRENCY: this.getCurrencyId()
-				}
+					CURRENCY: this.getCurrencyId(),
+				},
 			};
 		}
 
 		if (Type.isNil(anchorProduct) && this.products.length > 0)
 		{
-			const previousRow =
-				this.getSettingValue('newRowPosition') === 'bottom'
-					? this.products[this.products.length - 1]
-					: this.products[0]
+			const previousRow = this.getSettingValue('newRowPosition') === 'bottom'
+				? this.products[this.products.length - 1]
+				: this.products[0]
 			;
 			const stores = this.getSettingValue('stores', {});
 			const storeFields = previousRow.getSettingValue('storeHeaderMap', {});
@@ -1456,13 +1515,13 @@ export class Editor
 		fields.ROW_ID = newId;
 		if (Type.isObject(fields.IMAGE_INFO))
 		{
-			delete(fields.IMAGE_INFO.input);
+			delete (fields.IMAGE_INFO.input);
 		}
 		const product = new Row(
 			rowId,
 			fields,
 			this.getSettingValue('rowSettings', {}),
-			this
+			this,
 		);
 
 		if (anchorProduct instanceof Row)
@@ -1524,6 +1583,32 @@ export class Editor
 		if (productRow && data.fields)
 		{
 			delete data.fields.ID;
+
+			// taxes
+			const taxIncludedFromFirstItem = this.getSettingValue('taxIncludedFromFirstItem', null);
+			const taxIncludedFromFirstItemFormatted = this.getSettingValue('taxIncludedFromFirstItemFormatted', null);
+			const taxIncluded = taxIncludedFromFirstItem ? taxIncludedFromFirstItem : this.getSettingValue('taxIncluded', null);
+			const taxIncludedFormatted = taxIncludedFromFirstItemFormatted ? taxIncludedFromFirstItemFormatted : this.getSettingValue('taxIncludedFormatted', null);
+			if (taxIncluded && taxIncludedFormatted)
+			{
+				if (
+					data.fields['TAX_INCLUDED'] === 'Y'
+					&& data.fields['TAX_INCLUDED'] !== taxIncluded
+				)
+				{
+					data.fields['BASE_PRICE'] = data.fields['BASE_PRICE'] / (1 + data.fields['TAX_RATE'] / 100);
+				}
+
+				data.fields['TAX_INCLUDED'] = taxIncluded;
+				data.fields['TAX_INCLUDED_FORMATTED'] = taxIncludedFormatted;
+			}
+			else
+			{
+				this.setSettingValue('taxIncluded', data.fields.TAX_INCLUDED);
+				this.setSettingValue('taxIncludedFormatted', data.fields.TAX_INCLUDED_FORMATTED);
+			}
+			// end taxes
+
 			productRow.setFields(data.fields);
 			Object.keys(data.fields).forEach((key) => {
 				productRow.updateFieldValue(key, data.fields[key]);
@@ -1553,7 +1638,7 @@ export class Editor
 
 	handleOnProductClear(event: BaseEvent)
 	{
-		const {selectorId, rowId} = event.getData();
+		const { selectorId, rowId } = event.getData();
 
 		const product = this.getProductByRowId(rowId);
 		if (product && product.getSelector().getId() === selectorId)
@@ -1572,6 +1657,12 @@ export class Editor
 				.layout()
 			;
 			product.executeExternalActions();
+		}
+
+		if (this.getProductCount() === 1)
+		{
+			this.setSettingValue('taxIncluded', null);
+			this.setSettingValue('taxIncludedFormatted', null);
 		}
 	}
 
@@ -1631,6 +1722,7 @@ export class Editor
 			'BASE_PRICE',
 			'BASE_PRICE_EXTRA',
 			'BASE_PRICE_EXTRA_RATE',
+			'COMMENT',
 			'DOC_BARCODE',
 			'BARCODE',
 			'STORE_TO',
@@ -1657,6 +1749,10 @@ export class Editor
 			'STORE_TO_TITLE',
 			'TOTAL_PRICE',
 			'TYPE',
+			'PRICE',
+			'TAX_RATE',
+			'TAX_INCLUDED',
+			'TAX_SUM',
 		];
 	}
 
@@ -1755,12 +1851,20 @@ export class Editor
 	updateTotalDataDelayed(options = {})
 	{
 		let totalCost = 0;
-		const field = this.getSettingValue('totalCalculationSumField', 'PURCHASING_PRICE');
-		this.products.forEach(item => totalCost += Text.toNumber(item.getField(field)) * Text.toNumber(item.getField('AMOUNT')));
-		this.setTotalData({totalCost});
+		let totalTax = 0;
+		const totalCostField = this.getSettingValue('totalCalculationSumField', 'PURCHASING_PRICE');
+		const totalTaxField = this.getSettingValue('totalCalculationSumTaxField', 'TAX_SUM');
+
+		this.products.forEach(item => {
+			totalCost += Text.toNumber(item.getField(totalCostField)) * Text.toNumber(item.getField('AMOUNT'));
+			totalTax += Text.toNumber(item.getField(totalTaxField));
+		});
+
+		const totalBeforeTax = totalCost - totalTax;
+		this.setTotalData({ totalCost, totalBeforeTax, totalTax });
 	}
 
-	getProductsFields(fields: Array = [])
+	getProductsFields(fields: Array = []): Array
 	{
 		const productFields = [];
 
@@ -1778,7 +1882,7 @@ export class Editor
 		if (Type.isElementNode(item))
 		{
 			const currencyId = this.getCurrencyId();
-			const list = ['totalCost'];
+			const list = ['totalCost', 'totalBeforeTax', 'totalTax'];
 
 			for (const id of list)
 			{
@@ -1905,22 +2009,22 @@ export class Editor
 
 		this.addFirstRowIfEmpty();
 		this.executeActions([
-			{type: this.actions.productListChanged},
-			{type: this.actions.updateTotal}
+			{ type: this.actions.productListChanged },
+			{ type: this.actions.updateTotal },
 		]);
 	}
 
 	copyRow(row: Row): void
 	{
-		this.addProductRow(row)
+		this.addProductRow(row);
 		this.refreshSortFields();
 		this.numerateRows();
 
 		EventEmitter.emit('Grid::thereEditedRows', []);
 
 		this.executeActions([
-			{type: this.actions.productListChanged},
-			{type: this.actions.updateTotal}
+			{ type: this.actions.productListChanged },
+			{ type: this.actions.updateTotal },
 		]);
 	}
 
@@ -1967,25 +2071,25 @@ export class Editor
 	{
 		this.products.forEach((product) => {
 			product.getBarcodeSelector()?.removeSpotlight();
-		})
+		});
 
-		this.setSettingValue('showBarcodeSpotlightInfo',false);
+		this.setSettingValue('showBarcodeSpotlightInfo', false);
 	}
 
 	closeBarcodeQrAuths(): void
 	{
 		this.products.forEach((product) => {
 			product.getBarcodeSelector()?.removeQrAuth();
-		})
+		});
 
-		this.setSettingValue('showBarcodeQrAuth',false);
+		this.setSettingValue('showBarcodeQrAuth', false);
 	}
 
 	enableSendBarcodeMobilePush(): void
 	{
 		this.products.forEach((product) => {
 			product.getBarcodeSelector()?.setConfig('IS_INSTALLED_MOBILE_APP', true);
-		})
+		});
 
 		this.setSettingValue('isInstalledMobileApp', true);
 	}
@@ -2035,7 +2139,7 @@ export class Editor
 		}
 	}
 
-	getActiveHint(): Guide|null
+	getActiveHint(): Guide | null
 	{
 		return this.#fieldHintManager.getActiveHint();
 	}
@@ -2063,7 +2167,7 @@ export class Editor
 			return;
 		}
 
-		const selectedRows  = this.getGrid().getRows().getSelected();
+		const selectedRows = this.getGrid().getRows().getSelected();
 		if (selectedRows.length === 0)
 		{
 			return;
@@ -2088,14 +2192,13 @@ export class Editor
 			});
 
 			const documentTypeMoving = 'M';
-			const messageId =
-				this.settings.documentType !== documentTypeMoving
-					? 'CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_STORE_CHANGED_HINT'
-					: 'CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_' + actionId + '_CHANGED_HINT'
+			const messageId = this.settings.documentType !== documentTypeMoving
+				? 'CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_STORE_CHANGED_HINT'
+				: 'CATALOG_DOCUMENT_PRODUCT_LIST_ACTION_' + actionId + '_CHANGED_HINT'
 			;
 
 			UI.Notification.Center.notify({
-				content: Loc.getMessage(messageId, {'#STORE_NAME#': Text.encode(actionStoreName)}),
+				content: Loc.getMessage(messageId, { '#STORE_NAME#': Text.encode(actionStoreName) }),
 				autoHide: true,
 				autoHideDelay: 4000,
 			});

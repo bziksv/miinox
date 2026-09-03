@@ -44,7 +44,7 @@ class StoreProvider extends BaseProvider
 		parent::__construct();
 	}
 
-	private function getMeasureSymbol(int $measureId = null): string
+	private function getMeasureSymbol(?int $measureId = null): string
 	{
 		$measureResult = \CCatalogMeasure::getList(
 			array('CODE' => 'ASC'),
@@ -161,12 +161,15 @@ class StoreProvider extends BaseProvider
 		{
 			$storeProductRaw = StoreProductTable::getList([
 				'filter' => ['=PRODUCT_ID' => $this->getProductId()],
-				'select' => ['STORE_ID', 'AMOUNT'],
+				'select' => ['STORE_ID', 'AMOUNT', 'QUANTITY_RESERVED'],
 			]);
 
 			while ($storeProduct = $storeProductRaw->fetch())
 			{
-				$storeProducts[$storeProduct['STORE_ID']] = $storeProduct['AMOUNT'];
+				$storeProducts[$storeProduct['STORE_ID']] = [
+					'RESERVED' => $storeProduct['QUANTITY_RESERVED'],
+					'AMOUNT' => $storeProduct['AMOUNT'],
+				];
 			}
 		}
 
@@ -178,17 +181,23 @@ class StoreProvider extends BaseProvider
 		$stores = [];
 		while ($store = $storeRaw->fetch())
 		{
-			$store['PRODUCT_AMOUNT'] = 0;
-			if (isset($storeProducts[$store['ID']]))
-			{
-				$store['PRODUCT_AMOUNT'] = $storeProducts[$store['ID']];
-			}
 
-			$store['IMAGE'] = null;
-			if ($store['IMAGE_ID'] > 0)
+			$store['PRODUCT_AMOUNT'] = $storeProducts[$store['ID']]['AMOUNT'] ?? 0;
+			$store['PRODUCT_RESERVED'] = $storeProducts[$store['ID']]['RESERVED'] ?? 0;
+
+			if ($store['IMAGE_ID'] !== null)
 			{
-				$store['IMAGE'] = $this->getImageSource($store['IMAGE_ID']);
+				$store['IMAGE_ID'] = (int)$store['IMAGE_ID'];
+				if ($store['IMAGE_ID'] <= 0)
+				{
+					$store['IMAGE_ID'] = null;
+				}
 			}
+			$store['IMAGE'] =
+				$store['IMAGE_ID'] !== null
+					? $this->getImageSource($store['IMAGE_ID'])
+					: null
+			;
 
 			$stores[] = $store;
 		}
@@ -232,7 +241,7 @@ class StoreProvider extends BaseProvider
 
 	private function makeItem($store): Item
 	{
-		$title = $store['TITLE'];
+		$title = trim((string)$store['TITLE']);
 		if ($title === '')
 		{
 			$title = ($this->isUseAddressAsTitle())
@@ -241,7 +250,7 @@ class StoreProvider extends BaseProvider
 			;
 		}
 
-		$item = new Item([
+		return new Item([
 			'id' => $store['ID'],
 			'sort' => $store['SORT'],
 			'entityId' => self::ENTITY_ID,
@@ -256,8 +265,10 @@ class StoreProvider extends BaseProvider
 				,
 				'type' => 'html',
 			],
+			'customData' => [
+				'amount' => (float)$store['PRODUCT_AMOUNT'],
+				'availableAmount' => (float)$store['PRODUCT_AMOUNT'] - (float)$store['PRODUCT_RESERVED'],
+			],
 		]);
-
-		return $item;
 	}
 }

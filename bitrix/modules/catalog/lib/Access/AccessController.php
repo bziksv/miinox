@@ -13,6 +13,7 @@ use Bitrix\Catalog\Access\IblockRule\Factory\IblockRuleFactory;
 use Bitrix\Catalog\Access\Install\AccessInstaller\InstallStatus;
 use Bitrix\Catalog\Access\Rule\BaseRule;
 use Bitrix\Catalog\Access\Rule\VariableRule;
+use Bitrix\Catalog\Config\State;
 use Bitrix\Main\Access\AccessibleItem;
 use Bitrix\Main\Access\BaseAccessController;
 use Bitrix\Catalog\Access\Model\UserModel;
@@ -42,7 +43,15 @@ class AccessController extends BaseAccessController
 
 	public static function getCurrent(): self
 	{
-		return static::getInstance(CurrentUser::get()->getId());
+		global $USER;
+
+		$userId = 0;
+		if (isset($USER) && $USER instanceof \CUser)
+		{
+			$userId = (int)$USER->GetID();
+		}
+
+		return static::getInstance($userId);
 	}
 
 	/**
@@ -54,11 +63,19 @@ class AccessController extends BaseAccessController
 	 * @return bool
 	 * @throws UnknownActionException
 	 */
-	public function check(string $action, AccessibleItem $item = null, $params = null): bool
+	public function check(string $action, ?AccessibleItem $item = null, $params = null): bool
 	{
 		if (!ModuleManager::isModuleInstalled('crm') || InstallStatus::inProgress())
 		{
 			return $this->checkLegacy($action);
+		}
+
+		if (
+			$action === ActionDictionary::ACTION_CATALOG_READ
+			&& State::isExternalCatalog()
+		)
+		{
+			return true;
 		}
 
 		$params ??= [];
@@ -139,7 +156,7 @@ class AccessController extends BaseAccessController
 		return $this->user->isAdmin() || (Loader::includeModule("bitrix24") && \CBitrix24::isPortalAdmin($this->user->getUserId()));
 	}
 
-	protected function loadItem(int $itemId = null): ?AccessibleItem
+	protected function loadItem(?int $itemId = null): ?AccessibleItem
 	{
 		return null;
 	}

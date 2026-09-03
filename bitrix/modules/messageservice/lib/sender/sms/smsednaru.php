@@ -4,6 +4,7 @@ namespace Bitrix\MessageService\Sender\Sms;
 
 use Bitrix\Main\Result;
 use Bitrix\MessageService\Providers\Base\Option;
+use Bitrix\MessageService\Providers\CacheManager;
 use Bitrix\MessageService\Providers\Constants\InternalOption;
 use Bitrix\MessageService\Providers\Edna;
 use Bitrix\MessageService\Providers\Edna\SMS;
@@ -71,7 +72,13 @@ class SmsEdnaru extends Sender\BaseConfigurable
 
 	public function register(array $fields): Result
 	{
-		return $this->registrar->register($fields);
+		$result = $this->registrar->register($fields);
+		if ($result->isSuccess())
+		{
+			\Bitrix\Main\Application::getInstance()->addBackgroundJob([$this, 'refreshFromList']);
+			\Bitrix\Main\Application::getInstance()->addBackgroundJob([$this, 'addRefreshFromListAgent']);
+		}
+		return $result;
 	}
 
 	public function getOwnerInfo(): array
@@ -104,9 +111,21 @@ class SmsEdnaru extends Sender\BaseConfigurable
 		return $this->registrar->sendConfirmationCode();
 	}
 
+	/**
+	 * @return array<array{id: int, name: string, channelPhone: string}>
+	 */
 	public function getFromList(): array
 	{
 		return $this->initiator->getFromList();
+	}
+
+	/**
+	 * The agent's goal is regular refreshing FromList.
+	 * @return void
+	 */
+	public function refreshFromList(): void
+	{
+		$this->utils->updateSavedChannelList($this->initiator->getChannelType());
 	}
 
 	public function isCorrectFrom($from): bool
@@ -188,14 +207,14 @@ class SmsEdnaru extends Sender\BaseConfigurable
 	private function initializeOldApiComponents(): void
 	{
 		$this->registrar = new SMS\Old\Registrar($this->getId(), $this->optionManager, $this->utils);
-		$this->initiator = new SMS\Old\Initiator($this->optionManager, $this->registrar, $this->utils);
+		$this->initiator = new SMS\Old\Initiator($this->optionManager, $this->registrar, $this->utils, $this->getId());
 		$this->sender = new SMS\Old\Sender($this->optionManager,$this->registrar, $this->utils);
 	}
 
 	private function initializeNewApiComponents(): void
 	{
 		$this->registrar = new SMS\Registrar($this->getId(), $this->optionManager, $this->utils);
-		$this->initiator = new SMS\Initiator($this->optionManager, $this->registrar, $this->utils);
+		$this->initiator = new SMS\Initiator($this->optionManager, $this->registrar, $this->utils, $this->getId());
 		$this->sender = new SMS\Sender($this->optionManager,$this->registrar, $this->utils);
 	}
 
@@ -242,5 +261,35 @@ class SmsEdnaru extends Sender\BaseConfigurable
 	private function getMigratingOptionName(): string
 	{
 		return $this->getId() . '_' . InternalOption::NEW_API_AVAILABLE;
+	}
+
+	/**
+	 * Adds agent for execution.
+	 * @return void
+	 * @see refreshFromListAgent
+	 */
+	public function addRefreshFromListAgent(): void
+	{
+		$cacheManager = new CacheManager($this->getId());
+		$period = (int)ceil( $cacheManager->getTtl(CacheManager::CHANNEL_CACHE_ENTITY_ID) * .9);// async with cache expiration
+
+		\CAgent::AddAgent(static::class . "::refreshFromListAgent();", 'messageservice', 'Y', $period);
+	}
+
+	/**
+	 * The agent's goal is regular refreshing FromList cache.
+	 * @return string
+	 */
+	public static function refreshFromListAgent(): string
+	{
+		$sender = new static();
+		if (!$sender::isSupported() || !$sender->isRegistered())
+		{
+			return '';
+		}
+
+		$sender->refreshFromList();
+
+		return __METHOD__ . '();';
 	}
 }

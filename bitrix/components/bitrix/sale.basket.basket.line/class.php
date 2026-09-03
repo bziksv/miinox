@@ -10,7 +10,8 @@ class SaleBasketLineComponent extends CBitrixComponent
 	protected $readyForOrderFilter = array("CAN_BUY" => "Y", "DELAY" => "N", "SUBSCRIBE" => "N");
 	protected $disableUseBasket = false;
 
-	protected $currentFuser = null;
+	protected ?int $currentFuser = null;
+	protected bool $loaderCurrentFuser = false;
 
 	/** @var Sale\Basket\Storage $basketStorage */
 	protected $basketStorage;	// temporary unused
@@ -19,86 +20,69 @@ class SaleBasketLineComponent extends CBitrixComponent
 	{
 		// common
 
-		$arParams['PATH_TO_BASKET'] = trim($arParams['PATH_TO_BASKET']);
-		if ($arParams['PATH_TO_BASKET'] == '')
-			$arParams['PATH_TO_BASKET'] = SITE_DIR.'personal/cart/';
+		$path = $arParams['PATH_TO_BASKET'] ?? '';
+		$path = is_string($path) ? trim($path) : '';
+		$arParams['PATH_TO_BASKET'] = $path ?: SITE_DIR . 'personal/cart/';
 
-		$arParams['PATH_TO_ORDER'] = trim(($arParams['PATH_TO_ORDER'] ?? ''));
-		if ($arParams['PATH_TO_ORDER'] == '')
-			$arParams['PATH_TO_ORDER'] = SITE_DIR.'personal/order/make/';
-
-		$arParams["HIDE_ON_BASKET_PAGES"] = (isset($arParams["HIDE_ON_BASKET_PAGES"]) && $arParams["HIDE_ON_BASKET_PAGES"] == 'N' ? 'N' : 'Y');
-
-		if ($arParams['SHOW_NUM_PRODUCTS'] != 'N')
-			$arParams['SHOW_NUM_PRODUCTS'] = 'Y';
-
-		if ($arParams['SHOW_TOTAL_PRICE'] != 'N')
-			$arParams['SHOW_TOTAL_PRICE'] = 'Y';
-
-		if (($arParams['SHOW_EMPTY_VALUES'] ?? '') != 'N')
-			$arParams['SHOW_EMPTY_VALUES'] = 'Y';
+		$path = $arParams['PATH_TO_ORDER'] ?? '';
+		$path = is_string($path) ? trim($path) : '';
+		$arParams['PATH_TO_ORDER'] = $path ?: SITE_DIR . 'personal/order/make/';
 
 		// personal
 
-		if ($arParams['SHOW_PERSONAL_LINK'] != 'Y')
-			$arParams['SHOW_PERSONAL_LINK'] = 'N';
+		$path = $arParams['PATH_TO_PERSONAL'] ?? '';
+		$path = is_string($path) ? trim($path) : '';
+		$arParams['PATH_TO_PERSONAL'] = $path ?: SITE_DIR . 'personal/';
 
-		$arParams['PATH_TO_PERSONAL'] = trim($arParams['PATH_TO_PERSONAL']);
-		if ($arParams['PATH_TO_PERSONAL'] == '')
-			$arParams['PATH_TO_PERSONAL'] = SITE_DIR.'personal/';
+		unset($path);
+
+		$arParams["HIDE_ON_BASKET_PAGES"] = ($arParams["HIDE_ON_BASKET_PAGES"] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_NUM_PRODUCTS'] = ($arParams['SHOW_NUM_PRODUCTS'] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_TOTAL_PRICE'] = ($arParams['SHOW_TOTAL_PRICE'] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_EMPTY_VALUES'] = ($arParams['SHOW_EMPTY_VALUES'] ?? 'Y') === 'N' ? 'N' : 'Y';
+
+		$arParams['SHOW_PERSONAL_LINK'] = ($arParams['SHOW_PERSONAL_LINK'] ?? 'N') === 'Y' ? 'Y' : 'N';
 
 		// authorization
 
-		if ($arParams['SHOW_AUTHOR'] != 'Y')
-			$arParams['SHOW_AUTHOR'] = 'N';
-
+		$arParams['SHOW_AUTHOR'] = ($arParams['SHOW_AUTHOR'] ?? 'N') === 'Y' ? 'Y' : 'N';
 		if ($arParams['SHOW_AUTHOR'] === 'Y')
 		{
-			$arParams['SHOW_REGISTRATION'] = isset($arParams['SHOW_REGISTRATION']) && $arParams['SHOW_REGISTRATION'] === 'N' ? 'N' : 'Y';
+			$arParams['SHOW_REGISTRATION'] = ($arParams['SHOW_REGISTRATION'] ?? 'Y') === 'N' ? 'N' : 'Y';
 		}
 		else
 		{
 			$arParams['SHOW_REGISTRATION'] = 'N';
 		}
 
-		$arParams['PATH_TO_REGISTER'] = (isset($arParams['PATH_TO_REGISTER']) ? trim($arParams['PATH_TO_REGISTER']) : '');
+		$path = $arParams['PATH_TO_REGISTER'] ?? '';
+		$path = is_string($path) ? trim($path) : '';
+		$arParams['PATH_TO_REGISTER'] = $path ?: Main\Config\Option::get('main', 'custom_register_page');
 		if ($arParams['PATH_TO_REGISTER'] === '')
-			$arParams['PATH_TO_REGISTER'] = (string)Main\Config\Option::get('main', 'custom_register_page');
-		if ($arParams['PATH_TO_REGISTER'] === '')
-			$arParams['PATH_TO_REGISTER'] = SITE_DIR.'login/';
+		{
+			$arParams['PATH_TO_REGISTER'] = SITE_DIR . 'login/';
+		}
 
-		$arParams['PATH_TO_AUTHORIZE'] = (isset($arParams['PATH_TO_AUTHORIZE']) ? trim($arParams['PATH_TO_AUTHORIZE']) : '');
-		if ($arParams['PATH_TO_AUTHORIZE'] === '')
-			$arParams['PATH_TO_AUTHORIZE'] = $arParams['PATH_TO_REGISTER'];
+		$path = $arParams['PATH_TO_AUTHORIZE'] ?? '';
+		$path = is_string($path) ? trim($path) : '';
+		$arParams['PATH_TO_AUTHORIZE'] = $path ?: $arParams['PATH_TO_REGISTER'];
 
-		$arParams['PATH_TO_PROFILE'] = trim($arParams['PATH_TO_PROFILE']);
-		if ($arParams['PATH_TO_PROFILE'] == '')
-			$arParams['PATH_TO_PROFILE'] = SITE_DIR.'personal/';
+		$path = $arParams['PATH_TO_PROFILE'] ?? '';
+		$path = is_string($path) ? trim($path) : '';
+		$arParams['PATH_TO_PROFILE'] = $path ?: SITE_DIR . 'personal/';
+		unset($path);
 
 		// list
 
-		if ($arParams['SHOW_PRODUCTS'] != 'Y')
-			$arParams['SHOW_PRODUCTS'] = 'N';
-
-		if (!isset($arParams['SHOW_DELAY']) || $arParams['SHOW_DELAY'] != 'N')
-			$arParams['SHOW_DELAY'] = 'Y';
-
-		if (!isset($arParams['SHOW_NOTAVAIL']) || $arParams['SHOW_NOTAVAIL'] != 'N')
-			$arParams['SHOW_NOTAVAIL'] = 'Y';
-
-		if (!isset($arParams['SHOW_IMAGE']) || $arParams['SHOW_IMAGE'] != 'N')
-			$arParams['SHOW_IMAGE'] = 'Y';
-
-		if (($arParams['SHOW_PRICE'] ?? '') != 'N')
-			$arParams['SHOW_PRICE'] = 'Y';
-
-		if (($arParams['SHOW_SUMMARY'] ?? '') != 'N')
-			$arParams['SHOW_SUMMARY'] = 'Y';
+		$arParams['SHOW_PRODUCTS'] = ($arParams['SHOW_PRODUCTS'] ?? 'N') === 'Y' ? 'Y' : 'N';
+		$arParams['SHOW_DELAY'] = ($arParams['SHOW_DELAY'] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_NOTAVAIL'] = ($arParams['SHOW_NOTAVAIL'] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_IMAGE'] = ($arParams['SHOW_IMAGE'] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_PRICE'] = ($arParams['SHOW_PRICE'] ?? 'Y') === 'N' ? 'N' : 'Y';
+		$arParams['SHOW_SUMMARY'] = ($arParams['SHOW_SUMMARY'] ?? 'Y') === 'N' ? 'N' : 'Y';
 
 		// Visual
-
-		if ($arParams['POSITION_FIXED'] != 'Y')
-			$arParams['POSITION_FIXED'] = 'N';
+		$arParams['POSITION_FIXED'] = ($arParams['POSITION_FIXED'] ?? 'N') === 'Y' ? 'Y' : 'N';
 
 		if (!isset($arParams['POSITION_VERTICAL']) || ($arParams['POSITION_VERTICAL'] != 'bottom' && $arParams['POSITION_VERTICAL'] != 'vcenter'))
 			$arParams['POSITION_VERTICAL'] = 'top';
@@ -112,8 +96,7 @@ class SaleBasketLineComponent extends CBitrixComponent
 
 		// ajax
 
-		if (($arParams['AJAX'] ?? '') != 'Y')
-			$arParams['AJAX'] = 'N';
+		$arParams['AJAX'] = ($arParams['AJAX'] ?? 'N') === 'Y' ? 'Y' : 'N';
 
 		return $arParams;
 	}
@@ -212,12 +195,20 @@ class SaleBasketLineComponent extends CBitrixComponent
 		}
 		else
 		{
+			$currentFuser = $this->getFuserId();
 			if($this->arParams["SHOW_TOTAL_PRICE"] == "Y")
 			{
-				$this->arResult["TOTAL_PRICE"] = \Bitrix\Sale\BasketComponentHelper::getFUserBasketPrice($this->getFuserId(), $this->getSiteId());
+				$this->arResult["TOTAL_PRICE"] = \Bitrix\Sale\BasketComponentHelper::getFUserBasketPrice(
+					$currentFuser,
+					$this->getSiteId()
+				);
 			}
 
-			$this->arResult["NUM_PRODUCTS"] = \Bitrix\Sale\BasketComponentHelper::getFUserBasketQuantity($this->getFuserId(), $this->getSiteId());
+			$this->arResult["NUM_PRODUCTS"] = \Bitrix\Sale\BasketComponentHelper::getFUserBasketQuantity(
+				$currentFuser,
+				$this->getSiteId()
+			);
+			unset($currentFuser);
 		}
 		$this->arResult["TOTAL_PRICE_RAW"] = $this->arResult["TOTAL_PRICE"];
 
@@ -288,9 +279,11 @@ class SaleBasketLineComponent extends CBitrixComponent
 			]
 		];
 
-		$currentFuser = (int)$this->getFuserId();
-		if ($currentFuser <= 0)
+		$currentFuser = $this->getFuserId();
+		if ($currentFuser === null)
+		{
 			return $result;
+		}
 
 		$registry = Sale\Registry::getInstance(Sale\Registry::REGISTRY_TYPE_ORDER);
 
@@ -575,17 +568,24 @@ class SaleBasketLineComponent extends CBitrixComponent
 		return $basketQuantity;
 	}
 
-	protected function getFuserId()
+	protected function getFuserId(): ?int
 	{
-		if ($this->currentFuser === null)
+		if (!$this->loaderCurrentFuser)
+		{
 			$this->loadCurrentFuser();
+		}
 
 		return $this->currentFuser;
 	}
 
 	protected function loadCurrentFuser()
 	{
+		if ($this->loaderCurrentFuser)
+		{
+			return;
+		}
 		$this->currentFuser = Sale\Fuser::getId(true);
+		$this->loaderCurrentFuser = true;
 	}
 
 	protected function getBasketStorage()
@@ -630,9 +630,9 @@ class SaleBasketLineComponent extends CBitrixComponent
 		$result['MEASURE_NAME'] = (string)$result['MEASURE_NAME'];
 		if ($result['MEASURE_NAME'] == '')
 			$result['MEASURE_NAME'] = GetMessage('TSB1_MEASURE_NAME');
-		$result['PRICE'] = Sale\PriceMaths::roundPrecision($result['PRICE']);
-		$result['BASE_PRICE'] = Sale\PriceMaths::roundPrecision($result['BASE_PRICE']);
-		$result['DISCOUNT_PRICE'] = Sale\PriceMaths::roundPrecision($result['DISCOUNT_PRICE']);
+		$result['PRICE'] = Sale\PriceMaths::roundByFormatCurrency($result['PRICE'], $result['CURRENCY']);
+		$result['BASE_PRICE'] = Sale\PriceMaths::roundByFormatCurrency($result['BASE_PRICE'], $result['CURRENCY']);
+		$result['DISCOUNT_PRICE'] = Sale\PriceMaths::roundByFormatCurrency($result['DISCOUNT_PRICE'], $result['CURRENCY']);
 		$result['SUM_VALUE'] = $result['PRICE'] * $result['QUANTITY'];
 
 		$result['SUM'] = \CCurrencyLang::CurrencyFormat($result['SUM_VALUE'], $result['CURRENCY'], true);

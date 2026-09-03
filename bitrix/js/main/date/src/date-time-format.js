@@ -316,6 +316,7 @@ export class DateTimeFormat
 		{
 			if (q === this._getMessage('MON_' + i).toUpperCase()
 				|| q === this._getMessage('MONTH_' + i).toUpperCase()
+				|| q === this._getMessage('MONTH_' + i + '_S').toUpperCase()
 				|| q === wordMonthCut[i - 1].toUpperCase()
 				|| q === wordMonth[i - 1].toUpperCase())
 			{
@@ -365,7 +366,7 @@ export class DateTimeFormat
 			});
 		}
 
-		const formatRegex = /\\?(sago|iago|isago|Hago|dago|mago|Yago|sdiff|idiff|Hdiff|ddiff|mdiff|Ydiff|sshort|ishort|Hshort|dshort|mhort|Yshort|yesterday|today|tommorow|tomorrow|[a-z])/gi;
+		const formatRegex = /\\?(sago|iago|isago|Hago|dago|mago|Yago|sdiff|idiff|Hdiff|ddiff|mdiff|Ydiff|sshort|ishort|Hshort|dshort|mshort|Yshort|yesterday|today|tommorow|tomorrow|.)/gi;
 
 		const dateFormats = {
 			d: () => {

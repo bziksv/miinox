@@ -5,7 +5,7 @@ import {ContentWrapper} from 'landing.ui.panel.basepresetpanel';
 import {RadioButtonField} from 'landing.ui.field.radiobuttonfield';
 import {BaseEvent} from 'main.core.events';
 import {FormSettingsForm} from 'landing.ui.form.formsettingsform';
-import {Text, Type} from 'main.core';
+import { Dom, Text, Type } from 'main.core';
 import {MessageBox, MessageBoxButtons} from 'ui.dialogs.messagebox';
 import StageField from './internal/stagefield/stagefield';
 import { SchemeManager } from 'landing.ui.panel.formsettingspanel.content.crm.schememanager';
@@ -144,7 +144,7 @@ export default class CrmContent extends ContentWrapper
 	{
 		return this.cache.remember('type4header', () => {
 			return new HeaderCard({
-				title: Loc.getMessage('LANDING_FORM_SETTINGS_CRM_TYPE_4').replace('&nbsp;', ' '),
+				title: Loc.getMessage('LANDING_FORM_SETTINGS_CRM_TYPE_4_MSGVER_1').replace('&nbsp;', ' '),
 				level: 2,
 			});
 		});
@@ -264,7 +264,7 @@ export default class CrmContent extends ContentWrapper
 				},
 				{
 					id: '4',
-					title: Loc.getMessage('LANDING_FORM_SETTINGS_CRM_TYPE_4'),
+					title: Loc.getMessage('LANDING_FORM_SETTINGS_CRM_TYPE_4_MSGVER_1'),
 					icon: 'landing-ui-crm-entity-type4',
 				},
 				{
@@ -363,6 +363,31 @@ export default class CrmContent extends ContentWrapper
 		});
 	}
 
+	#setDuplicatesEnabledFieldDependency(): void
+	{
+		const allowType = 'ALLOW';
+		const duplicatesField = this.getDuplicatesField();
+		const duplicatesEnabledField = this.getDuplicatesEnabledField();
+		const isDuplicatesFieldAllowed = (): boolean => {
+			return this.getDuplicatesField().getValue()[0] === allowType;
+		};
+
+		if (isDuplicatesFieldAllowed())
+		{
+			Dom.hide(duplicatesEnabledField.layout);
+		}
+
+		duplicatesField.subscribe('onchange', () => {
+			if (isDuplicatesFieldAllowed())
+			{
+				Dom.hide(duplicatesEnabledField.layout);
+
+				return;
+			}
+			Dom.show(duplicatesEnabledField.layout);
+		});
+	}
+
 	getSchemeById(id: number)
 	{
 		return this.options.dictionary.document.schemes.find((scheme) => {
@@ -439,8 +464,9 @@ export default class CrmContent extends ContentWrapper
 		{
 			expertSettingsForm.addField(this.getType3Header());
 			expertSettingsForm.addField(this.getDealCategoryField());
-			expertSettingsForm.addField(this.getDuplicatesEnabledField());
 			expertSettingsForm.addField(this.getDuplicatesField());
+			expertSettingsForm.addField(this.getDuplicatesEnabledField());
+			this.#setDuplicatesEnabledFieldDependency();
 		}
 
 		if (String(item.id) === '4' || String(item.id) === '7')
@@ -511,6 +537,7 @@ export default class CrmContent extends ContentWrapper
 			return new MessageBox({
 				title: Loc.getMessage('LANDING_FORM_SETTINGS_PANEL_CRM_SCHEME_CHANGE_CONFIRM_TITLE'),
 				buttons: MessageBoxButtons.OK_CANCEL,
+				useAirDesign: true,
 			});
 		});
 	}
@@ -521,6 +548,7 @@ export default class CrmContent extends ContentWrapper
 			return new MessageBox({
 				title: Loc.getMessage('LANDING_FORM_SETTINGS_PANEL_CRM_SCHEME_CHANGE_CONFIRM_TITLE'),
 				buttons: MessageBoxButtons.OK_CANCEL,
+				useAirDesign: true,
 			});
 		});
 	}
@@ -531,7 +559,8 @@ export default class CrmContent extends ContentWrapper
 			return new MessageBox({
 				title: Loc.getMessage('LANDING_FORM_SETTINGS_PANEL_CRM_SCHEME_CREATE_ORDER_CHANGE_CONFIRM_TITLE'),
 				buttons: MessageBoxButtons.OK_CANCEL,
-				message: Loc.getMessage('LANDING_FORM_SETTINGS_PANEL_CRM_CREATE_ORDER_MESSAGE_BOX_TITLE_1')
+				message: Loc.getMessage('LANDING_FORM_SETTINGS_PANEL_CRM_CREATE_ORDER_MESSAGE_BOX_TITLE_1'),
+				useAirDesign: true,
 			});
 		});
 	}

@@ -1,20 +1,27 @@
 <?php
 namespace Bitrix\Landing\PublicAction;
 
-use \Bitrix\Landing\Manager;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Rest\Marketplace\Client;
-use \Bitrix\Rest\PlacementTable;
-use \Bitrix\Landing\Placement;
-use \Bitrix\Landing\Block as BlockCore;
-use \Bitrix\Landing\Repo as RepoCore;
-use \Bitrix\Landing\PublicActionResult;
-use \Bitrix\Landing\Node\StyleImg;
+use Bitrix\Landing;
+use Bitrix\Landing\Error;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\Site;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Rest\HandlerHelper;
+use Bitrix\Rest\Marketplace\Client;
+use Bitrix\Rest\PlacementTable;
+use Bitrix\Landing\Placement;
+use Bitrix\Landing\PublicActionResult;
+use Bitrix\Landing\Node\StyleImg;
 
 Loc::loadMessages(__FILE__);
 
 class Repo
 {
+	/**
+	 * Prefix of the placement codes served by this module.
+	 */
+	private const PLACEMENT_PREFIX = 'LANDING_';
+
 	/**
 	 * Check content for bad substring.
 	 * @param string $content
@@ -24,15 +31,17 @@ class Repo
 	public static function checkContent($content, $splitter = '#SANITIZE#')
 	{
 		$result = new PublicActionResult();
-		$content = Manager::sanitize(
+		$bad = false;
+		$content = (new Landing\Sanitizer())->sanitizeText(
 			$content,
 			$bad,
 			$splitter
 		);
 		$result->setResult(array(
 			'is_bad' => $bad,
-			'content' => $content
+			'content' => $content,
 		));
+
 		return $result;
 	}
 
@@ -48,23 +57,22 @@ class Repo
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
 
-		// unset not allowed keys
-		$notAllowed = array('callbacks');
-		foreach ($notAllowed as $key)
+		$app = \Bitrix\Landing\PublicAction::restApplication();
+		if (!self::checkRepositoryAccess($app, $error))
 		{
-			if (isset($manifest[$key]))
-			{
-				unset($manifest[$key]);
-			}
+			$result->setError($error);
+
+			return $result;
 		}
 
-		if (!is_array($fields))
+		static::onRegisterCheckFields($fields, $error);
+		static::onRegisterBefore($fields, $manifest, $error);
+		if (!empty($error->getErrors()))
 		{
-			$fields = array();
-		}
+			$result->setError($error);
 
-		$check = false;
-		$fields['XML_ID'] = trim($code);
+			return $result;
+		}
 
 		// check intersect item of nodes and styles for background type
 		if (is_array($manifest['nodes'] ?? null))
@@ -91,117 +99,52 @@ class Repo
 							Loc::getMessage('LANDING_APP_MANIFEST_INTERSECT_IMG', ['#selector#' => $selector])
 						);
 						$result->setError($error);
+
 						return $result;
 					}
 				}
 			}
 		}
 
-		if (isset($fields['CONTENT']))
-		{
-			// sanitize content
-			$fields['CONTENT'] = Manager::sanitize(
-				$fields['CONTENT'],
-				$bad
-			);
-			if ($bad)
-			{
-				$error->addError(
-					'CONTENT_IS_BAD',
-					Loc::getMessage('LANDING_APP_CONTENT_IS_BAD')
-				);
-				$result->setError($error);
-				return $result;
-			}
-			// sanitize card's content
-			if (
-				isset($manifest['cards']) &&
-				is_array($manifest['cards'])
-			)
-			{
-				foreach ($manifest['cards'] as $cardCode => &$card)
-				{
-					if (
-						isset($card['presets']) &&
-						is_array($card['presets'])
-					)
-					{
-						foreach ($card['presets'] as $presetCode => &$preset)
-						{
-							foreach (['html', 'name', 'values'] as $code)
-							{
-								if (isset($preset[$code]))
-								{
-									$preset[$code] = Manager::sanitize(
-										$preset[$code],
-										$bad
-									);
-									if ($bad)
-									{
-										$error->addError(
-											'PRESET_CONTENT_IS_BAD',
-											Loc::getMessage(
-												'LANDING_APP_PRESET_CONTENT_IS_BAD',
-												array(
-													'#preset#' => $presetCode,
-													'#card#' => $cardCode
-												))
-										);
-										$result->setError($error);
-										return $result;
-									}
-								}
-							}
-						}
-						unset($preset);
-					}
-				}
-				unset($card);
-			}
-		}
+		$needReset = isset($fields['RESET']) && $fields['RESET'] == 'Y';
 
-		$fields['MANIFEST'] = serialize($manifest);
-
-		// set app code
-		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
+		$normalized = Landing\Security\RepoNormalizer::normalize(
+			$fields,
+			$manifest,
+			trim($code),
+			$app['CODE'] ?? null
+		);
+		if ($normalized->contentRejected)
 		{
-			$fields['APP_CODE'] = $app['CODE'];
+			self::addRejectedContentError($fields, $manifest, $error);
+			$result->setError($error);
+
+			return $result;
 		}
+		$fields = $normalized->fields;
 
 		// check unique
+		$exists = false;
 		if ($fields['XML_ID'])
 		{
-			$check = RepoCore::getList(array(
-				'select' => array(
-					'ID'
-				),
-				'filter' =>
-					isset($fields['APP_CODE'])
-					? array(
-						'=XML_ID' => $fields['XML_ID'],
-						'=APP_CODE' => $fields['APP_CODE']
-					)
-					: array(
-						'=XML_ID' => $fields['XML_ID']
-					)
-			))->fetch();
+			$exists = Landing\Repo::getList([
+				'select' => ['ID'],
+				'filter' => self::getRepositoryFilter($fields['XML_ID'], $app),
+			])->fetch();
 		}
 
 		// register (add / update)
-		if ($check)
+		if ($exists)
 		{
-			$res = RepoCore::update($check['ID'], $fields);
+			$res = Landing\Repo::update($exists['ID'], $fields);
 		}
 		else
 		{
-			$res = RepoCore::add($fields);
+			$res = Landing\Repo::add($fields);
 		}
 		if ($res->isSuccess())
 		{
-			if (
-				isset($fields['RESET']) &&
-				$fields['RESET'] == 'Y'
-			)
+			if ($needReset)
 			{
 				\Bitrix\Landing\Update\Block::register(
 					'repo_' . $res->getId()
@@ -216,6 +159,199 @@ class Repo
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Report the content the normalizer has rejected.
+	 * The normalizer gives one verdict for the block content and for the card presets together,
+	 * while the method answers with a separate error code for each, so the source of the rejection
+	 * is located by normalizing the parts of the same data one by one.
+	 * @param array $fields Incoming fields.
+	 * @param array $manifest Manifest data.
+	 * @param Error $error - object for set errors
+	 * @return void
+	 */
+	private static function addRejectedContentError(array $fields, array $manifest, Error $error): void
+	{
+		$rejectedPreset = self::isContentRejected($fields, [])
+			? null
+			: self::findRejectedPreset($manifest)
+		;
+
+		if ($rejectedPreset === null)
+		{
+			$error->addError(
+				'CONTENT_IS_BAD',
+				Loc::getMessage('LANDING_APP_CONTENT_IS_BAD')
+			);
+
+			return;
+		}
+
+		$error->addError(
+			'PRESET_CONTENT_IS_BAD',
+			Loc::getMessage(
+				'LANDING_APP_PRESET_CONTENT_IS_BAD',
+				[
+					'#preset#' => $rejectedPreset['preset'],
+					'#card#' => $rejectedPreset['card'],
+				]
+			)
+		);
+	}
+
+	/**
+	 * Codes of the card and of the first preset within it the normalizer rejects.
+	 * @param array $manifest Manifest data.
+	 * @return array|null
+	 */
+	private static function findRejectedPreset(array $manifest): ?array
+	{
+		$cards = is_array($manifest['cards'] ?? null) ? $manifest['cards'] : [];
+
+		foreach ($cards as $cardCode => $card)
+		{
+			$presets = is_array($card['presets'] ?? null) ? $card['presets'] : [];
+			foreach ($presets as $presetCode => $preset)
+			{
+				$singlePreset = ['cards' => [$cardCode => ['presets' => [$presetCode => $preset]]]];
+				if (self::isContentRejected([], $singlePreset))
+				{
+					return [
+						'card' => $cardCode,
+						'preset' => $presetCode,
+					];
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private static function isContentRejected(array $fields, array $manifest): bool
+	{
+		return Landing\Security\RepoNormalizer::normalize($fields, $manifest, '')->contentRejected;
+	}
+
+	/**
+	 * Check rights for write access to the block repository.
+	 * A REST application owns only its own items, an item without the application is portal-wide.
+	 * @param array|null $app Current REST application.
+	 * @param Error $error - object for set errors
+	 * @return bool
+	 */
+	private static function checkRepositoryAccess(?array $app, Error $error): bool
+	{
+		if (isset($app['CODE']) || Landing\Rights::isAdmin())
+		{
+			return true;
+		}
+
+		$error->addError(
+			'ACCESS_DENIED',
+			Loc::getMessage('LANDING_APP_REPO_ACCESS_DENIED')
+		);
+
+		return false;
+	}
+
+	/**
+	 * Filter of the repository items available to the caller.
+	 * @param string $xmlId Unique code of block.
+	 * @param array|null $app Current REST application.
+	 * @return array
+	 */
+	private static function getRepositoryFilter(string $xmlId, ?array $app): array
+	{
+		return [
+			'=XML_ID' => $xmlId,
+			'=APP_CODE' => $app['CODE'] ?? false,
+		];
+	}
+
+	/**
+	 * Check required fields
+	 * @param $fields
+	 * @param Error $error - object for set errors
+	 * @return void
+	 */
+	protected static function onRegisterCheckFields($fields, Error $error): void
+	{
+		$requiredFields = [
+			'NAME',
+			'CONTENT',
+			'SECTIONS',
+			'PREVIEW',
+		];
+
+		foreach ($requiredFields as $field)
+		{
+			if (!isset($fields[$field]))
+			{
+				$error->addError(
+					'REQUIRED_FIELD_NO_EXISTS',
+					Loc::getMessage('LANDING_FIELD_NO_EXISTS', ['#field#' => $field])
+				);
+			}
+		}
+	}
+
+	/**
+	 * Some fixes in fields and manifest, specific by scope (mainpage widget or any)
+	 * @param array $fields
+	 * @param array $manifest
+	 * @param Error $error - object for set errors
+	 * @return array
+	 */
+	protected static function onRegisterBefore(array &$fields, array &$manifest, Error $error): void
+	{
+		// unset not allowed site types
+		if (isset($manifest['block']['type']))
+		{
+			$manifest['block']['type'] = array_filter(
+				(array)$manifest['block']['type'],
+				function ($type) use ($error) {
+					$notAllowedBlockTypes = [
+						Site\Type::SCOPE_CODE_VIBE,
+					];
+					if (in_array(mb_strtolower($type), $notAllowedBlockTypes))
+					{
+						$error->addError(
+							'UNSUPPORTED_BLOCK_TYPE',
+							Loc::getMessage('LANDING_UNSUPPORTED_BLOCK_TYPE', ['#type#' => $type])
+						);
+
+						return false;
+					}
+					return true;
+				}
+			);
+		}
+
+		// unset not allowed subtypes
+		if (isset($manifest['block']['subtype']))
+		{
+			$manifest['block']['subtype'] = array_filter(
+				(array)$manifest['block']['subtype'],
+				function ($type) use ($error) {
+					// a widget is registered by its own action only, where its handler is checked
+					$notAllowedSubtypes = [
+						'widget',
+						'widgetvue',
+					];
+					if (in_array(mb_strtolower($type), $notAllowedSubtypes))
+					{
+						$error->addError(
+							'UNSUPPORTED_BLOCK_SUBTYPE',
+							Loc::getMessage('LANDING_UNSUPPORTED_BLOCK_SUBTYPE', ['#type#' => $type])
+						);
+
+						return false;
+					}
+					return true;
+				}
+			);
+		}
 	}
 
 	/**
@@ -235,43 +371,32 @@ class Repo
 			return $result;
 		}
 
+		$app = \Bitrix\Landing\PublicAction::restApplication();
+		if (!self::checkRepositoryAccess($app, $error))
+		{
+			$result->setError($error);
+
+			return $result;
+		}
+
 		// search and delete
 		if ($code)
 		{
-			// set app code
-			$app = \Bitrix\Landing\PublicAction::restApplication();
-
-			$row = RepoCore::getList(array(
+			$row = Landing\Repo::getList(array(
 				'select' => array(
-					'ID'
+					'ID',
 				),
-				'filter' =>
-					isset($app['CODE'])
-					? array(
-						'=XML_ID' => $code,
-						'=APP_CODE' => $app['CODE']
-					)
-					: array(
-						'=XML_ID' => $code
-					)
+				'filter' => self::getRepositoryFilter($code, $app),
 			))->fetch();
 			if ($row)
 			{
 				// delete all sush blocks from landings
 				$codeToDelete = array();
-				$res = RepoCore::getList(array(
+				$res = Landing\Repo::getList(array(
 					'select' => array(
-						'ID'
+						'ID',
 					),
-					'filter' =>
-						isset($app['CODE'])
-						? array(
-							'=XML_ID' => $code,
-							'=APP_CODE' => $app['CODE']
-						)
-						: array(
-							'=XML_ID' => $code
-						)
+					'filter' => self::getRepositoryFilter($code, $app),
 				));
 				while ($rowRepo = $res->fetch())
 				{
@@ -279,10 +404,10 @@ class Repo
 				}
 				if (!empty($codeToDelete))
 				{
-					BlockCore::deleteByCode($codeToDelete);
+					Landing\Block::deleteByCode($codeToDelete);
 				}
 				// delete block from repo
-				$res = RepoCore::delete($row['ID']);
+				$res = Landing\Repo::delete($row['ID']);
 				if ($res->isSuccess())
 				{
 					$result->setResult(true);
@@ -315,7 +440,7 @@ class Repo
 			return $result;
 		}
 
-		if ($appLocal = RepoCore::getAppByCode($code))
+		if ($appLocal = Landing\Repo::getAppByCode($code))
 		{
 			$app = array(
 				'CODE' => $appLocal['CODE'],
@@ -324,7 +449,7 @@ class Repo
 				'PAYMENT_ALLOW' => $appLocal['PAYMENT_ALLOW'],
 				'ICON' => '',
 				'PRICE' => array(),
-				'UPDATES' => 0
+				'UPDATES' => 0,
 			);
 			if (\Bitrix\Main\Loader::includeModule('rest'))
 			{
@@ -342,7 +467,7 @@ class Repo
 					}
 				}
 				$updates = Client::getUpdates(array(
-					$code => $appLocal['VERSION']
+					$code => $appLocal['VERSION'],
 				));
 				if (
 					isset($updates['ITEMS'][0]['VERSIONS']) &&
@@ -377,56 +502,61 @@ class Repo
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
-		\trimArr($fields);
 
-		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
+		$app = \Bitrix\Landing\PublicAction::restApplication();
+		if (!isset($app['ID']) || !\Bitrix\Main\Loader::includeModule('rest'))
 		{
-			$fields['APP_ID'] = $app['ID'];
+			$error->addError(
+				'ACCESS_DENIED',
+				Loc::getMessage('LANDING_APP_PLACEMENT_ACCESS_DENIED')
+			);
+			$result->setError($error);
+
+			return $result;
+		}
+
+		$fields = self::preparePlacementFields($fields, $app, $error);
+		if (!$error->isEmpty())
+		{
+			$result->setError($error);
+
+			return $result;
 		}
 
 		$res = Placement::getList(array(
 			'select' => array(
-				'ID'
+				'ID',
 			),
 			'filter' => array(
-				'APP_ID' => isset($fields['APP_ID'])
-							? $fields['APP_ID']
-							: false,
-				'PLACEMENT' => isset($fields['PLACEMENT'])
-							? $fields['PLACEMENT']
-							: false,
-				'PLACEMENT_HANDLER' => isset($fields['PLACEMENT_HANDLER'])
-							? $fields['PLACEMENT_HANDLER']
-							: false
-			)
+				'APP_ID' => $fields['APP_ID'],
+				'PLACEMENT' => $fields['PLACEMENT'],
+				'PLACEMENT_HANDLER' => $fields['PLACEMENT_HANDLER'],
+			),
 		));
 		// add, if not exist
 		if (!$res->fetch())
 		{
-			if (\Bitrix\Main\Loader::includeModule('rest'))
+			// first try add in the local table
+			$resLocal = Placement::add($fields);
+			if ($resLocal->isSuccess())
 			{
-				// first try add in the local table
-				$resLocal = Placement::add($fields);
-				if ($resLocal->isSuccess())
+				// then add in the rest table
+				$restFields = $fields;
+				$restFields['USER_ID'] = PlacementTable::DEFAULT_USER_ID_VALUE;
+				$resRest = PlacementTable::add($restFields);
+				if ($resRest->isSuccess())
 				{
-					// then add in the rest table
-					$resRest = PlacementTable::add(
-						$fields
-					);
-					if ($resRest->isSuccess())
-					{
-						$result->setResult(true);
-					}
-					else
-					{
-						$error->addFromResult($resRest);
-						Placement::delete($resLocal->getId());
-					}
+					$result->setResult(true);
 				}
 				else
 				{
-					$error->addFromResult($resLocal);
+					$error->addFromResult($resRest);
+					Placement::delete($resLocal->getId());
 				}
+			}
+			else
+			{
+				$error->addFromResult($resLocal);
 			}
 		}
 		else
@@ -440,6 +570,55 @@ class Repo
 		$result->setError($error);
 
 		return $result;
+	}
+
+	/**
+	 * Prepare fields for the placement row.
+	 * The placement is shown in the admin interface, so the owner application, the target user and
+	 * the set of the fields are defined here and not by the caller.
+	 * @param array $fields Incoming fields.
+	 * @param array $app Current REST application.
+	 * @param Error $error - object for set errors
+	 * @return array
+	 */
+	private static function preparePlacementFields(array $fields, array $app, Error $error): array
+	{
+		$placement = is_string($fields['PLACEMENT'] ?? null)
+			? mb_strtoupper(trim($fields['PLACEMENT']))
+			: '';
+		$handler = is_string($fields['PLACEMENT_HANDLER'] ?? null)
+			? trim($fields['PLACEMENT_HANDLER'])
+			: '';
+		$title = is_string($fields['TITLE'] ?? null)
+			? trim($fields['TITLE'])
+			: '';
+
+		if (!str_starts_with($placement, self::PLACEMENT_PREFIX))
+		{
+			$error->addError(
+				'PLACEMENT_UNKNOWN',
+				Loc::getMessage('LANDING_APP_PLACEMENT_UNKNOWN')
+			);
+		}
+
+		try
+		{
+			HandlerHelper::checkCallback($handler, $app);
+		}
+		catch (\Throwable)
+		{
+			$error->addError(
+				'PLACEMENT_HANDLER_INVALID',
+				Loc::getMessage('LANDING_APP_PLACEMENT_HANDLER_INVALID')
+			);
+		}
+
+		return [
+			'APP_ID' => (int)$app['ID'],
+			'PLACEMENT' => $placement,
+			'PLACEMENT_HANDLER' => $handler,
+			'TITLE' => $title,
+		];
 	}
 
 	/**
@@ -476,12 +655,12 @@ class Repo
 		// common ORM params
 		$params = [
 			'select' => [
-				'ID'
+				'ID',
 			],
 			'filter' => [
 				'APP_ID' => $fields['APP_ID'],
-				'=PLACEMENT' => $code
-			]
+				'=PLACEMENT' => $code,
+			],
 		];
 		if ($handler)
 		{
@@ -530,14 +709,14 @@ class Repo
 	 * @param array $params Params ORM array.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function getList(array $params = array())
+	public static function getList(array $params = array()): PublicActionResult
 	{
 		$result = new PublicActionResult();
 		$params = $result->sanitizeKeys($params);
 
 		if (!is_array($params))
 		{
-			$params = array();
+			$params = [];
 		}
 		if (
 			!isset($params['filter']) ||
@@ -556,8 +735,15 @@ class Repo
 			$params['filter']['APP_CODE'] = false;
 		}
 
-		$data = array();
-		$res = RepoCore::getList($params);
+		// manifest always needed
+		if (isset($params['select']))
+		{
+			$params['select'][] = 'MANIFEST';
+		}
+
+		$data = [];
+		$res = Landing\Repo::getList($params);
+
 		while ($row = $res->fetch())
 		{
 			if (isset($row['DATE_CREATE']))

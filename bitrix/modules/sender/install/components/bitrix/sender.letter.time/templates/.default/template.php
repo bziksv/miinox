@@ -5,7 +5,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 }
 
 /** @var \CBitrixComponentTemplate $this */
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 
 /** @var array $arResult */
@@ -15,6 +15,7 @@ use Bitrix\Main\Web\Json;
 use Bitrix\Sender\Integration\Bitrix24;
 use Bitrix\Sender\Internals\PrettyDate;
 use Bitrix\Main\UI\Extension;
+use Bitrix\UI\Toolbar\Facade\Toolbar;
 
 Extension::load("ui.buttons");
 Extension::load("ui.notification");
@@ -37,9 +38,14 @@ $enablePhoneVerification =
 	&& $arParams['IS_BX24_INSTALLED']
 	&& $arParams['IS_MAIL_TRANSPORT']
 ;
+
+if ($_REQUEST['IFRAME'] === 'Y')
+{
+	Toolbar::deleteFavoriteStar();
+}
 ?>
 <div id="<?= htmlspecialcharsbx($containerId) ?>" class="sender-letter-time">
-	<script type="text/javascript">
+	<script>
 		function BXPhoneVerifyOnSliderClose(result)
 		{
 			if (result)
@@ -137,11 +143,13 @@ $enablePhoneVerification =
 					<?= htmlspecialcharsbx($arResult['DATE_SEND']) ?>
 				</a>
 			</div>
-			<div class="sender-letter-time-button" style="<?= (!$arResult['CAN_CHANGE'] ? 'display: none;' : '') ?>">
+			<div class="sender-letter-time-button sender-letter-time-act-button" style="<?= (!$arResult['CAN_CHANGE'] ? 'display: none;' : '') ?>">
 				<span class="sender-letter-time-button-name"><?= $getMessageLocal('SENDER_LETTER_TIME_TMPL_ACT_SEND') ?>:</span>
-				<a data-role="time-selector"
-				   class="<?= ($arResult['CAN_CHANGE'] ? 'sender-letter-time-link' : '') ?>"
-				></a>
+				<div class="sender-letter-time-link-container">
+					<a data-role="time-selector"
+					   class="<?= ($arResult['CAN_CHANGE'] ? 'sender-letter-time-link' : '') ?>"
+					></a>
+				</div>
 				<input data-role="time-input" type="hidden" name="LETTER_TIME"
 					   value="<?= htmlspecialcharsbx($arResult['LETTER_TIME']) ?>">
 			</div>

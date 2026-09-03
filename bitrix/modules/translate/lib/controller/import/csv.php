@@ -6,7 +6,9 @@ use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Translate;
 
-
+/**
+ * @internal
+ */
 class Csv
 	extends Translate\Controller\Controller
 	implements Translate\Controller\IProcessParameters
@@ -56,37 +58,37 @@ class Csv
 		$configureActions = parent::configureActions();
 		$permission = new Translate\Controller\CheckPermission(Translate\Permission::WRITE);
 
-		$configureActions[self::ACTION_UPLOAD] = array(
-			'+prefilters' => array(
+		$configureActions[self::ACTION_UPLOAD] = [
+			'+prefilters' => [
 				new Main\Engine\ActionFilter\HttpMethod([Main\Engine\ActionFilter\HttpMethod::METHOD_POST]),
 				$permission
-			),
-		);
-		$configureActions[self::ACTION_IMPORT] = array(
-			'+prefilters' => array(
+			],
+		];
+		$configureActions[self::ACTION_IMPORT] = [
+			'+prefilters' => [
 				$permission
-			),
-		);
-		$configureActions[self::ACTION_PURGE] = array(
-			'+prefilters' => array(
+			],
+		];
+		$configureActions[self::ACTION_PURGE] = [
+			'+prefilters' => [
 				$permission
-			),
-		);
-		$configureActions[self::ACTION_CANCEL] = array(
-			'+prefilters' => array(
+			],
+		];
+		$configureActions[self::ACTION_CANCEL] = [
+			'+prefilters' => [
 				$permission
-			),
-		);
-		$configureActions[self::ACTION_FINALIZE] = array(
-			'+prefilters' => array(
+			],
+		];
+		$configureActions[self::ACTION_FINALIZE] = [
+			'+prefilters' => [
 				$permission
-			),
-		);
-		$configureActions[self::ACTION_INDEX] = array(
-			'+prefilters' => array(
+			],
+		];
+		$configureActions[self::ACTION_INDEX] = [
+			'+prefilters' => [
 				new Translate\Controller\CheckPermission(Translate\Permission::READ)
-			),
-		);
+			],
+		];
 
 		return $configureActions;
 	}
@@ -163,7 +165,7 @@ class Csv
 	 *
 	 * @return array
 	 */
-	public function importAction()
+	public function importAction(): array
 	{
 		$action = new Translate\Controller\Import\ImportCsv(
 			self::ACTION_IMPORT,
@@ -191,10 +193,10 @@ class Csv
 			}
 			else
 			{
-				$messagePlaceholders = array(
+				$messagePlaceholders = [
 					'#TOTAL_PHRASES#' => $result['TOTAL_ITEMS'],
 					'#PROCESSED_PHRASES#' => $result['PROCESSED_ITEMS'],
-				);
+				];
 				if ($action->hasProcessCompleted())
 				{
 					$result['SUMMARY'] =
@@ -215,10 +217,10 @@ class Csv
 			}
 			else
 			{
-				$messagePlaceholders = array(
+				$messagePlaceholders = [
 					'#TOTAL_PHRASES#' => $result['TOTAL_ITEMS'],
 					'#PROCESSED_PHRASES#' => $result['PROCESSED_ITEMS'],
-				);
+				];
 
 				$result['SUMMARY'] =
 					Loc::getMessage('TR_IMPORT_COMPLETED')."\n".
@@ -234,7 +236,7 @@ class Csv
 	 *
 	 * @return array
 	 */
-	public function indexAction()
+	public function indexAction(): array
 	{
 		if ($this->reindex !== true)
 		{
@@ -268,10 +270,10 @@ class Csv
 			}
 			else
 			{
-				$messagePlaceholders = array(
+				$messagePlaceholders = [
 					'#TOTAL_FILES#' => $result['TOTAL_ITEMS'],
 					'#PROCESSED_FILES#' => $result['PROCESSED_ITEMS'],
-				);
+				];
 				$result['SUMMARY'] = Loc::getMessage('TR_INDEX_ACTION_STATS', $messagePlaceholders);
 			}
 		}
@@ -289,9 +291,9 @@ class Csv
 	 *
 	 * @return array
 	 */
-	public function uploadAction()
+	public function uploadAction(): array
 	{
-		$result = array();
+		$result = [];
 		$success = false;
 		if (
 			isset($_FILES['csvFile'], $_FILES['csvFile']['tmp_name'])
@@ -340,7 +342,7 @@ class Csv
 	 *
 	 * @return boolean
 	 */
-	private function moveUploadedFile($postedFile, $suffix = '.csv', $timeToLive = 3)
+	private function moveUploadedFile($postedFile, $suffix = '.csv', $timeToLive = 3): bool
 	{
 		if (
 			isset($postedFile['tmp_name'])
@@ -369,7 +371,7 @@ class Csv
 	 *
 	 * @return array
 	 */
-	public function cancelAction($tabId)
+	public function cancelAction($tabId): array
 	{
 		$result = $this->purgeAction($tabId);
 		$result['SUMMARY'] = Loc::getMessage('TR_IMPORT_ACTION_CANCEL');
@@ -386,7 +388,7 @@ class Csv
 	 * @return array
 	 * @throws Main\ArgumentException
 	 */
-	public function purgeAction($tabId)
+	public function purgeAction($tabId): array
 	{
 		if (empty($tabId) || (int)$tabId <= 0)
 		{
@@ -406,10 +408,10 @@ class Csv
 
 		$this->clearProgressParameters();
 
-		return array(
+		return [
 			'SUMMARY' => Loc::getMessage('TR_IMPORT_FILE_DROPPED'),
 			'STATUS' => Translate\Controller\STATUS_COMPLETED
-		);
+		];
 	}
 
 	/**
@@ -417,7 +419,7 @@ class Csv
 	 *
 	 * @return array
 	 */
-	public function finalizeAction()
+	public function finalizeAction(): array
 	{
 		$settings = $this->getProgressParameters();
 
@@ -432,8 +434,8 @@ class Csv
 
 		$this->clearProgressParameters();
 
-		return array(
+		return [
 			'STATUS' => Translate\Controller\STATUS_COMPLETED
-		);
+		];
 	}
 }

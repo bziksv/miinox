@@ -1,5 +1,7 @@
 import {Dom, Type} from 'main.core';
 import {BaseField} from 'landing.ui.field.basefield';
+import {TextField} from 'landing.ui.field.textfield';
+import ColorPopup from './control/color_popup/color_popup';
 
 import BaseProcessor from './processor/base_processor';
 import Color from './processor/color';
@@ -23,6 +25,9 @@ import FillColorSecond from './processor/fill_color_second';
 import ButtonColor from './processor/button_color';
 import {IColorValue} from './types/i_color_value';
 import NavbarCollapseBgColor from './processor/navbar_collapse_bg';
+import ColorValue from './color_value';
+import BgImageValue from './bg_image_value';
+import GradientValue from './gradient_value';
 
 export class ColorField extends BaseField
 {
@@ -36,13 +41,15 @@ export class ColorField extends BaseField
 		this.frame = (typeof options.frame === 'object') ? options.frame : null;
 		const processorOptions = {
 			block: options.block,
+			style: options.style,
 			styleNode: options.styleNode,
 			selector: options.selector,
 			contentRoot: this.contentRoot,
+			content: options.content,
 		};
 
 		this.changeHandler = (typeof options.onChange === "function") ? options.onChange : (() => {});
-		this.resetHandler = (typeof options.onReset === "function") ? options.onReset : (function () {});
+		this.valueChangeHandler = (typeof options.onValueChange === "function") ? options.onValueChange : (() => {});
 
 		// todo: rename "subtype"
 		switch (options.subtype)
@@ -131,6 +138,11 @@ export class ColorField extends BaseField
 				break;
 		}
 
+		if (!this.processor)
+		{
+			return;
+		}
+
 		this.property = this.processor.getProperty()[this.processor.getProperty().length - 1];
 		this.processor.getClassName().forEach(
 			item => this.items.push({name: item, value: item}),
@@ -142,7 +154,6 @@ export class ColorField extends BaseField
 		Dom.append(this.processor.getLayout(), this.layout);
 
 		this.processor.subscribe('onChange', this.onChange.bind(this));
-		this.processor.subscribe('onReset', this.onReset.bind(this));
 	}
 
 	getInlineProperties(): [string]
@@ -178,12 +189,33 @@ export class ColorField extends BaseField
 			this.property,
 		);
 
-		this.emit('onChange');
-	}
+		// add fake text field for correctly getValue() in handler
+		const value = this.getValue();
 
-	onReset()
-	{
-		this.resetHandler(this.items, this.postfix, this.property);
+		let content = '';
+		if (value instanceof ColorValue)
+		{
+			content = value.getStyleString();
+		}
+		else if (value instanceof BgImageValue)
+		{
+			content = value.getUrl();
+		}
+		else if (value instanceof GradientValue)
+		{
+			content = value.getStyleString();
+		}
+
+		this.valueChangeHandler(
+			new TextField({
+				selector: this.selector,
+				attribute: this.attribute,
+				content: content,
+				textOnly: true,
+			})
+		);
+
+		this.emit('onChange');
 	}
 
 	getValue(): IColorValue
@@ -235,5 +267,10 @@ export class ColorField extends BaseField
 		// todo: now not work with "group select", can use just any node from elements. If group - need forEach
 		const value = this.data.styleNode.getValue(true);
 		this.setValue(value.style);
+	}
+
+	createPopup(options)
+	{
+		this.colorPopup = new ColorPopup(options);
 	}
 }

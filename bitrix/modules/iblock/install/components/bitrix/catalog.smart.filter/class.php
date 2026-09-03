@@ -32,6 +32,8 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 		$arParams["CACHE_TIME"] = (int)($arParams["CACHE_TIME"] ?? 36000000);
 		$arParams["IBLOCK_ID"] = (int)($arParams["IBLOCK_ID"] ?? 0);
 		$arParams["SECTION_ID"] = (int)($arParams["SECTION_ID"] ?? 0);
+		$arParams['SECTION_CODE'] = (string)($arParams['SECTION_CODE'] ?? '');
+		$arParams['SECTION_CODE_PATH'] = (string)($arParams['SECTION_CODE_PATH'] ?? '');
 		if ($arParams["SECTION_ID"] <= 0 && Loader::includeModule('iblock'))
 		{
 			$arParams["SECTION_ID"] = CIBlockFindTools::GetSectionID(
@@ -238,8 +240,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 							$arPrice["NAME_LANG"] = $arPrice["NAME"];
 						$minID = $this->SAFE_FILTER_NAME.'_P'.$arPrice['ID'].'_MIN';
 						$maxID = $this->SAFE_FILTER_NAME.'_P'.$arPrice['ID'].'_MAX';
-						$error = "";
-						$utf_id = \Bitrix\Main\Text\Encoding::convertEncoding(toLower($arPrice["NAME"]), LANG_CHARSET, "utf-8", $error);
+						$utf_id = mb_strtolower($arPrice["NAME"]);
 						$items[$arPrice["NAME"]] = array(
 							"ID" => $arPrice["ID"],
 							"CODE" => $arPrice["NAME"],
@@ -696,7 +697,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 				{
 					$value = $enum["VALUE"];
 					$sort  = $enum["SORT"];
-					$url_id = toLower($enum["XML_ID"]);
+					$url_id = mb_strtolower($enum["XML_ID"]);
 				}
 				else
 				{
@@ -715,9 +716,9 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 				$value = $this->cache[$PROPERTY_TYPE][$key]["NAME"];
 				$sort = $this->cache[$PROPERTY_TYPE][$key]["SORT"];
 				if ($this->cache[$PROPERTY_TYPE][$key]["CODE"])
-					$url_id = toLower($this->cache[$PROPERTY_TYPE][$key]["CODE"]);
+					$url_id = mb_strtolower($this->cache[$PROPERTY_TYPE][$key]["CODE"]);
 				else
-					$url_id = toLower($value);
+					$url_id = mb_strtolower($value);
 				break;
 			case PropertyTable::TYPE_SECTION:
 				if(!isset($this->cache[$PROPERTY_TYPE][$key]))
@@ -731,9 +732,9 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 				$value = $this->cache[$PROPERTY_TYPE][$key]['DEPTH_NAME'];
 				$sort = $this->cache[$PROPERTY_TYPE][$key]["LEFT_MARGIN"];
 				if ($this->cache[$PROPERTY_TYPE][$key]["CODE"])
-					$url_id = toLower($this->cache[$PROPERTY_TYPE][$key]["CODE"]);
+					$url_id = mb_strtolower($this->cache[$PROPERTY_TYPE][$key]["CODE"]);
 				else
-					$url_id = toLower($value);
+					$url_id = mb_strtolower($value);
 				break;
 			case "U":
 				if(!isset($this->cache[$PROPERTY_ID]))
@@ -753,7 +754,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 
 				$value = $this->cache[$PROPERTY_ID][$key];
 				$sort = 0;
-				$url_id = toLower($value);
+				$url_id = mb_strtolower($value);
 				break;
 			case "Ux":
 				if(!isset($this->cache[$PROPERTY_ID]))
@@ -775,7 +776,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 					$value = $this->cache[$PROPERTY_ID][$key]['VALUE'];
 					$file_id = $this->cache[$PROPERTY_ID][$key]['FILE_ID'];
 					$sort = ($this->cache[$PROPERTY_ID][$key]['SORT'] ?? 0);
-					$url_id = toLower($this->cache[$PROPERTY_ID][$key]['UF_XML_ID']);
+					$url_id = mb_strtolower($this->cache[$PROPERTY_ID][$key]['UF_XML_ID']);
 				}
 				else
 				{
@@ -785,7 +786,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 			default:
 				$value = $key;
 				$sort = 0;
-				$url_id = toLower($value);
+				$url_id = mb_strtolower($value);
 				break;
 		}
 
@@ -803,7 +804,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 			"HTML_VALUE" => "Y",
 			"VALUE" => $safeValue,
 			"SORT" => $sort,
-			"UPPER" => ToUpper($safeValue),
+			"UPPER" => mb_strtoupper($safeValue),
 			"FLAG" => $flag,
 		);
 
@@ -814,9 +815,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 
 		if($url_id <> '')
 		{
-			$error = "";
-			$utf_id = \Bitrix\Main\Text\Encoding::convertEncoding($url_id, LANG_CHARSET, "utf-8");
-			$resultItem["VALUES"][$htmlKey]['URL_ID'] = rawurlencode(str_replace("/", "-", $utf_id));
+			$resultItem["VALUES"][$htmlKey]['URL_ID'] = rawurlencode(str_replace("/", "-", $url_id));
 		}
 
 		return $htmlKey;
@@ -1058,21 +1057,19 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 
 	public function searchPrice($items, $lookupValue)
 	{
-		$error = "";
-		$searchValue = \Bitrix\Main\Text\Encoding::convertEncoding($lookupValue, LANG_CHARSET, "utf-8", $error);
-		if (!$error)
+		$encodedValue = rawurlencode($lookupValue);
+		foreach ($items as $itemId => $arItem)
 		{
-			$encodedValue = rawurlencode($searchValue);
-			foreach($items as $itemId => $arItem)
+			if (isset($arItem['PRICE']) && $arItem['PRICE'])
 			{
-				if (isset($arItem["PRICE"]) && $arItem["PRICE"])
+				$code = mb_strtolower($arItem['CODE']);
+				if ($lookupValue === $code || $encodedValue === $arItem['URL_ID'])
 				{
-					$code = toLower($arItem["CODE"]);
-					if ($lookupValue === $code || $encodedValue === $arItem["URL_ID"])
-						return $itemId;
+					return $itemId;
 				}
 			}
 		}
+
 		return null;
 	}
 
@@ -1082,7 +1079,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 		{
 			if (!(isset($arItem["PRICE"]) && $arItem["PRICE"]))
 			{
-				$code = toLower($arItem["CODE"]);
+				$code = mb_strtolower($arItem["CODE"]);
 				if ($lookupValue === $code)
 					return $itemId;
 				if ($lookupValue == intval($arItem["ID"]))
@@ -1094,17 +1091,15 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 
 	public function searchValue($item, $lookupValue)
 	{
-		$error = "";
-		$searchValue = \Bitrix\Main\Text\Encoding::convertEncoding($lookupValue, LANG_CHARSET, "utf-8", $error);
-		if (!$error)
+		$encodedValue = rawurlencode($lookupValue);
+		foreach ($item as $itemId => $arValue)
 		{
-			$encodedValue = rawurlencode($searchValue);
-			foreach($item as $itemId => $arValue)
+			if ($encodedValue === $arValue['URL_ID'])
 			{
-				if ($encodedValue === $arValue["URL_ID"])
-					return $itemId;
+				return $itemId;
 			}
 		}
+
 		return false;
 	}
 
@@ -1215,7 +1210,7 @@ class CBitrixCatalogSmartFilter extends CBitrixComponent
 				if ($smartPart)
 				{
 					if ($arItem["CODE"])
-						array_unshift($smartPart, toLower($arItem["CODE"]));
+						array_unshift($smartPart, mb_strtolower($arItem["CODE"]));
 					else
 						array_unshift($smartPart, $arItem["ID"]);
 

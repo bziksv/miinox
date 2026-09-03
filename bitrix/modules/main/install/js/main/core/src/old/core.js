@@ -64,7 +64,7 @@
 		space: /\s+/,
 		ltrim: /^[\s\r\n]+/g,
 		rtrim: /[\s\r\n]+$/g,
-		style: /<link.*?(rel="stylesheet"|type="text\/css")[^>]*>/i,
+		style: /<link[^>]*?(rel="stylesheet"|type="text\/css")[^>]*>/i,
 		style_href: /href=["\']([^"\']+)["\']/i
 	};
 
@@ -2385,8 +2385,9 @@
 	const LOADING = 3;
 	const LOADED = 4;
 	const assets = {};
+	const loadingAssetCallbacks = {};
 
-	BX.load = function(items, callback, doc)
+	BX.load = function(items, callback, doc, reject)
 	{
 		if (!BX.isReady)
 		{
@@ -2402,10 +2403,10 @@
 
 		callback = BX.Type.isFunction(callback) ? callback : () => {};
 
-		return loadAsync(items, callback, doc);
+		return loadAsync(items, callback, doc, reject);
 	};
 
-	function loadAsync(items, callback, doc)
+	function loadAsync(items, callback, doc, reject)
 	{
 		if (!BX.type.isArray(items))
 		{
@@ -2419,7 +2420,7 @@
 			const nextAsset = queue.shift();
 			if (nextAsset)
 			{
-				load(nextAsset, onLoad, doc);
+				load(nextAsset, onLoad, doc, reject);
 			}
 			else if (allLoaded())
 			{
@@ -2457,7 +2458,7 @@
 			const parallelLoads = Math.min(queue.length, maxParallelLoads);
 			const firstPackage = queue.splice(0, parallelLoads);
 			firstPackage.forEach(asset => {
-				load(asset, onLoad, doc);
+				load(asset, onLoad, doc, reject);
 			});
 		}
 		else
@@ -2466,7 +2467,7 @@
 		}
 	}
 
-	function load(asset, callback, doc)
+	function load(asset, callback, doc, reject)
 	{
 		callback = callback || BX.DoNothing;
 
@@ -2476,30 +2477,76 @@
 			return;
 		}
 
+		if (asset.state === LOADING)
+		{
+			if (!BX.Type.isArray(loadingAssetCallbacks[asset.name]))
+			{
+				loadingAssetCallbacks[asset.name] = [];
+			}
+
+			loadingAssetCallbacks[asset.name].push(callback);
+
+			return;
+		}
+
 		asset.state = LOADING;
+
+		const onReject = () => {
+			delete assets[asset.name];
+			delete loadingAssetCallbacks[asset.name];
+			reject();
+		};
 
 		loadAsset(
 			asset,
 			function () {
 				asset.state = LOADED;
 				callback();
+				if (BX.Type.isArrayFilled(loadingAssetCallbacks[asset.name]))
+				{
+					for (const cb of loadingAssetCallbacks[asset.name])
+					{
+						cb();
+					}
+				}
+
+				delete loadingAssetCallbacks[asset.name];
 			},
-			doc
+			doc,
+			BX.Type.isFunction(reject) ? onReject : null,
 		);
 	}
 
-	function loadAsset(asset, callback, doc)
+	function loadAsset(asset, callback, doc, reject)
 	{
 		callback = callback || BX.DoNothing;
 
 		function error(event)
 		{
+			window.clearTimeout(asset.errorTimeout);
+			window.clearTimeout(asset.cssTimeout);
 			ele.onload = ele.onreadystatechange = ele.onerror = null;
-			callback();
+			if (BX.Type.isFunction(reject))
+			{
+				reject();
+			}
+			else
+			{
+				callback();
+			}
 		}
 
 		function process(event)
 		{
+			if (ext === "css")
+			{
+				cssList.push(normalizeMinUrl(normalizeUrl(asset.url)));
+			}
+			else
+			{
+				jsList.push(normalizeMinUrl(normalizeUrl(asset.url)));
+			}
+
 			event = event || window.event;
 			if (event.type === "load" || (/loaded|complete/.test(ele.readyState) && (!doc.documentMode || doc.documentMode < 9)))
 			{
@@ -2551,21 +2598,12 @@
 		ele.onload = ele.onreadystatechange = process;
 		ele.onerror = error;
 
-		ele.async = false;
+		ele.async = asset.async === true;
 		ele.defer = false;
 
 		asset.errorTimeout = window.setTimeout(function () {
 			error({type: "timeout"});
 		}, 7000);
-
-		if (ext === "css")
-		{
-			cssList.push(normalizeMinUrl(normalizeUrl(asset.url)));
-		}
-		else
-		{
-			jsList.push(normalizeMinUrl(normalizeUrl(asset.url)));
-		}
 
 		let templateLink = null;
 		const head = doc.head || doc.getElementsByTagName("head")[0];
@@ -2768,18 +2806,7 @@
 
 	BX.reload = function(back_url, bAddClearCache)
 	{
-		if (window !== window.top)
-		{
-			BX.Runtime
-				.loadExtension('main.pageobject')
-				.then(function() {
-					reloadInternal(back_url, bAddClearCache);
-				});
-		}
-		else
-		{
-			reloadInternal(back_url, bAddClearCache);
-		}
+		reloadInternal(back_url, bAddClearCache);
 	};
 
 	BX.clearCache = function()
@@ -3845,30 +3872,16 @@
 		return true;
 	}
 
-	/* garbage collector */
-	function Trash()
-	{
-		var i,len;
+	window.addEventListener('pagehide', () => {
+		garbageCollectors.forEach(({ callback, context = window }) => {
+			try
+			{
+				callback.apply(context);
+			} catch (err) {}
+		});
+	});
 
-		for (i = 0, len = garbageCollectors.length; i<len; i++)
-		{
-			try {
-				garbageCollectors[i].callback.apply(garbageCollectors[i].context || window);
-				delete garbageCollectors[i];
-				garbageCollectors[i] = null;
-			} catch (e) {}
-		}
-	}
-
-	if(window.attachEvent) // IE
-		window.attachEvent("onunload", Trash);
-	else if(window.addEventListener) // Gecko / W3C
-		window.addEventListener('unload', Trash, false);
-	else
-		window.onunload = Trash;
-	/* \garbage collector */
-
-// set empty ready handler
+	// set empty ready handler
 	BX(BX.DoNothing);
 	window.BX = BX;
 

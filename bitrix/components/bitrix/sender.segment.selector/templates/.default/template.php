@@ -2,9 +2,9 @@
 
 /** @var array $arParams */
 /** @var array $arResult */
-/** @global \CAllMain $APPLICATION */
-/** @global \CAllUser $USER */
-/** @global \CAllDatabase $DB */
+/** @global CMain $APPLICATION */
+/** @global CUser $USER */
+/** @global CDatabase $DB */
 /** @var CBitrixComponentTemplate $this */
 /** @var string $templateName */
 /** @var string $templateFile */
@@ -106,7 +106,7 @@ $containerId = 'sender-segment-selector';
 
 	</div>
 
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 			window.senderSegmentSelector = new BX.Sender.Segment.SelectorManager(<?=Json::encode(array(
 				'containerId' => $containerId,

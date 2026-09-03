@@ -1,9 +1,4 @@
-<?php
-
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
-{
-	die();
-}
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
 
 function forumCommentsCommentMobile(
 	array $comment,
@@ -22,7 +17,7 @@ function forumCommentsCommentMobile(
 	}
 
 	$parser->arUserfields = $comment["PROPS"];
-	$text = $parser->convert($comment["~POST_MESSAGE_TEXT"], $comment["ALLOW"]);
+	$text = $parser->convert($comment["~POST_MESSAGE_TEXT"], $comment["ALLOW"], 'html', false, $arParams['ATTRIBUTES'] ?? null);
 
 	$res = array(
 		"ID" => $comment["ID"],

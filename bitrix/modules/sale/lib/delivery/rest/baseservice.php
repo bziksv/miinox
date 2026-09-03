@@ -99,7 +99,14 @@ class BaseService extends \IRestService
 	 */
 	protected static function prepareOutcomingFields(array $data): array
 	{
-		return self::replaceOutcomingKeys($data);
+		return self::replaceOutcomingKeys(
+			static::castOutcomingFieldsData($data)
+		);
+	}
+
+	protected static function castOutcomingFieldsData(array $data): array
+	{
+		return $data;
 	}
 
 	/**
@@ -145,7 +152,7 @@ class BaseService extends \IRestService
 		return $data;
 	}
 
-	protected static function hasAccessToDelivery(array $deliveryData, string $appId = null): bool
+	protected static function hasAccessToDelivery(array $deliveryData, ?string $appId = null): bool
 	{
 		$className = $deliveryData['CLASS_NAME'];
 		if (self::isRestHandler($className))

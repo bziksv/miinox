@@ -2,7 +2,13 @@
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
+/**
+ * @var array $arResult
+ * @var array $arParams
+ */
+
 use Bitrix\Main\Text\HtmlFilter;
+use Bitrix\Main\Web\Json;
 
 ?>
 
@@ -57,13 +63,13 @@ use Bitrix\Main\Text\HtmlFilter;
 	BX.ready(function ()
 	{
 		new BX.Mobile.Field.File(
-			<?=CUtil::PhpToJSObject([
+			<?= Json::encode([
 				'name' => 'BX.Mobile.Field.File',
 				'nodes' => $nodes,
 				'restrictedMode' => true,
 				'formId' => $arParams['additionalParameters']['formId'],
 				'gridId' => $arParams['additionalParameters']['gridId']
-			])?>
+			]) ?>
 		);
 	});
 </script>

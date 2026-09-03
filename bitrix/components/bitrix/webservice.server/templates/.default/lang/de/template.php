@@ -1,0 +1,30 @@
+<?
+$MESS ['BX_WSTMPL_ERROR_NOFORCOMPLEX'] = "Das Testformular ist nur für Methoden zugänglich, deren Parameter vom pmimitiven Typ sind.";
+$MESS ['BX_WSTMPL_ERROR_NOTFORAUTH'] = "Das Testformular ist nur für Methoden zugänglich, die keine HTTP Basis Anmeldung erfordern.";
+$MESS ['BX_WSTMPL_RESULT'] = "Anfrageergebnis:";
+$MESS ['BX_WSTMPL_DOC'] = "Beschreibung:";
+$MESS ['BX_WSTMPL_ERROR_UNKNOWN'] = "Die Anfrage kann nicht gesendet werden.";
+$MESS ['BX_WSTMPL_ERROR_NOWSDESCR'] = "Die Web-Service Beschreibung ist nicht vorhanden.";
+$MESS ['BX_WSTMPL_ERROR_NOMETHODS'] = "Es wurden keine Methoden für diesen Service definiert.";
+$MESS ['BX_WSTMPL_WSDLDESCPRE'] = "Folgenden Operationen werden unterstützt. Die Definition finden Sie in";
+$MESS ['BX_WSTMPL_BACK'] = "hier.";
+$MESS ['BX_WSTMPL_INNERTEST'] = "hier.";
+$MESS ['BX_WSTMPL_ERROR_NOTENOUGHTPARAMS'] = "In der Anfrage sind nicht genügend Parameter.";
+$MESS ['BX_WSTMPL_CLASS'] = "Klasse:";
+$MESS ['BX_WSTMPL_BACKPRE'] = "Klicken Sie, um eine volle Liste der Operationen zu erhalten";
+$MESS ['BX_WSTMPL_METHODS'] = "Methoden:";
+$MESS ['BX_WSTMPL_NAMESPACE'] = "Namensraum:";
+$MESS ['BX_WSTMPL_ERROR_PARAMETER'] = "Parameter";
+$MESS ['BX_WSTMPL_PARAMS'] = "Parameter:";
+$MESS ['BX_WSTMPL_WSDLDESC'] = "Service Beschreibung.";
+$MESS ['BX_WSTMPL_ERRSEC_NOOP'] = "Sie haben einen nicht existierenden Content angefordert.";
+$MESS ['BX_WSTMPL_INNERTESTPRE'] = "Sie können die eingebauten Web-Service-Tests starten";
+$MESS ['BX_WSTMPL_ERROR_SUBMIT'] = "Start";
+$MESS ['BX_WSTMPL_TEST'] = "Test:";
+$MESS ['BX_WSTMPL_BSTYLE'] = "Verbindungsstyle:";
+$MESS ['BX_WSTMPL_TITLE_PREFIX'] = "Web-Service Beschreibung:";
+$MESS ['BX_WSTMPL_METHOD'] = "Web-Service Methode:";
+$MESS ['BX_WSTMPL_WEBSERVICE'] = "Web-Service:";
+$MESS ['BX_WSTMPL_ERROR_VALUE'] = "Wert";
+$MESS ['BX_WSTMPL_ENDPOINT'] = "Zugangspunkt:";
+?>

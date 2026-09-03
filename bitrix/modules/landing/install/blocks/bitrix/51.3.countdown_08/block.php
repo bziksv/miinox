@@ -1,4 +1,4 @@
-<section class="landing-block landing-block-node-img g-bg-attachment-scroll u-bg-overlay g-flex-centered g-bg-img-hero g-bg-black-opacity-0_6--after g-pt-100 g-pb-120"
+<section class="landing-block landing-block-node-img u-bg-overlay g-flex-centered g-bg-black-opacity-0_6--after g-pt-100 g-pb-120"
 		style="background-image: url(https://cdn.bitrix24.site/bitrix/images/landing/business/1332x806/img1.jpg);">
 	<div class="landing-block-node-container container g-max-width-800 u-bg-overlay__inner">
 		<div class="text-center g-mb-35 g-mb-60--sm">
@@ -7,14 +7,13 @@
 
 		<div class="row">
 			<div class="landing-block-node-date mx-auto js-countdown u-countdown text-center"
-				 data-end-date="1712938800000"
+				 data-end-date="#COUNTDOWN#"
 				 data-days-format="%D"
 				 data-hours-format="%H"
 				 data-minutes-format="%M"
 				 data-seconds-format="%S"
 				 data-days-expired-classes="u-countdown--days-expiried"
 			>
-
 				<div class="d-inline-block g-line-height-1 u-countdown--days-hide">
 					<div class="landing-block-node-number align-top g-bg-white-opacity-0_1 g-brd-around g-brd-white-opacity-0_2 g-px-12 g-py-10 g-px-30--sm g-py-20--sm g-mx-5 g-mx-15--sm">
 						<div class="landing-block-node-number-number g-color-white g-font-size-22 g-font-size-40--sm g-font-weight-700 g-mb-0 g-mb-10--sm">

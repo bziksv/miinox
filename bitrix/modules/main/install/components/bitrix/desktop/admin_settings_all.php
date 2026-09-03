@@ -1,37 +1,40 @@
-<?
+<?php
+
+/**
+ * @global CMain $APPLICATION
+ * @global CUser $USER
+ */
+
 define("STOP_STATISTICS", true);
 define("BX_SECURITY_SHOW_MESSAGE", true);
 
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+require_once $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php";
+require_once $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/interface/init_admin.php";
 
 CComponentUtil::__IncludeLang("/bitrix/components/bitrix/desktop/", "/admin_settings_all.php");
 
-if (false == check_bitrix_sessid() || !$GLOBALS["USER"]->IsAuthorized())
+if (!check_bitrix_sessid() || !$USER->IsAuthorized())
 {
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
-	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_after.php");
-	die();
+	CMain::FinalActions();
 }
 
 $APPLICATION->SetAdditionalCSS('/bitrix/themes/.default/pubstyles.css');
 
-$arUserOptions = CUserOptions::GetOption("intranet", "~gadgets_admin_index", array(), false);
+$arUserOptions = CUserOptions::GetOption("intranet", "~gadgets_admin_index", array());
 if(!is_array($arUserOptions))
 	$arUserOptions = Array();
 
 /******* POST **********/
 
-if ($REQUEST_METHOD == "POST" && $_REQUEST['desktop_backurl'] && mb_strpos($_REQUEST['desktop_backurl'], "/") === 0)
+if ($_SERVER['REQUEST_METHOD'] == "POST" && $_REQUEST['desktop_backurl'] && str_starts_with($_REQUEST['desktop_backurl'], "/"))
 	$desktop_backurl = $_REQUEST['desktop_backurl'];
 else
 	$desktop_backurl = "";
 
-if($REQUEST_METHOD=="POST" && $_REQUEST['save'] == 'Y')
+if ($_SERVER['REQUEST_METHOD']=="POST" && isset($_REQUEST['save']) && $_REQUEST['save'] == 'Y')
 {
-	CUtil::JSPostUnescape();
-
-	if (!is_array($ids)) 
+	$ids = $_REQUEST['ids'] ?? [];
+	if (!is_array($ids))
 		$ids = array();
 
 	$arValues = $_POST;
@@ -45,37 +48,41 @@ if($REQUEST_METHOD=="POST" && $_REQUEST['save'] == 'Y')
 			continue;
 
 		$arTmp = $arUserOptions[$num-1];
-		
+
 		if(trim($arValues["text_".$num]) <> '')
 			$arTmp["NAME"] = $arValues["text_".$num];
 
 		$arUserOptionsTmp[] = $arTmp;
 	}
 
-	CUserOptions::SetOption("intranet", "~gadgets_admin_index", $arUserOptionsTmp, false, false);	
+	CUserOptions::SetOption("intranet", "~gadgets_admin_index", $arUserOptionsTmp);
 ?>
 	<script bxrunfirst="true">
 	top.BX.WindowManager.Get().Close();
 	top.BX.showWait();
 	top.location.href = '<?=htmlspecialcharsbx(CUtil::JSEscape($desktop_backurl))?>';
 	</script>
-<?
-	die();
+<?php
+	CMain::FinalActions();
 }
 /******* /POST **********/
 $obJSPopup = new CJSPopup('',
 	array(
 		'TITLE' => GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_DIALOG_TITLE'),
-		'ARGS' => "lang=".urlencode($_GET["lang"])."&site=".urlencode($_GET["site"])."&back_url=".urlencode($_GET["back_url"])."&path=".urlencode($_GET["path"])."&name=".urlencode($_GET["name"])
+		'ARGS' => "lang=" . urlencode($_GET["lang"] ?? '')
+			. "&site=" . urlencode($_GET["site"] ?? '')
+			. "&back_url=" . urlencode($_GET["back_url"] ?? '')
+			. "&path=" . urlencode($_GET["path"] ?? '')
+			. "&name=" . urlencode($_GET["name"] ?? '')
 	)
 );
 
 // ======================== Show titlebar ============================= //
 $obJSPopup->ShowTitlebar();
 ?>
-<script src="/bitrix/js/main/dd.js" type="text/javascript"></script>
+<script src="/bitrix/js/main/dd.js"></script>
 
-<?
+<?php
 // ======================== Show content ============================= //
 $obJSPopup->StartContent();
 ?>
@@ -90,7 +97,7 @@ div.bx-core-dialog-content div.bx-desktopset-current-row div.edit-field-active {
 <thead>
 	<tr class="heading">
 		<td width="0"></td>
-		<td width="50%"><b><?echo GetMessage("CMDESKTOP_ADMIN_SETTINGS_ALL_NAME")?></b></td>
+		<td width="50%"><b><?= GetMessage("CMDESKTOP_ADMIN_SETTINGS_ALL_NAME")?></b></td>
 		<td width="0"></td>
 		<td width="0"></td>
 		<td width="0"></td>
@@ -98,7 +105,7 @@ div.bx-core-dialog-content div.bx-desktopset-current-row div.edit-field-active {
 </thead>
 </table>
 
-<div id="bx_desktopset_layout" class="bx-desktopset-layout"><?
+<div id="bx_desktopset_layout" class="bx-desktopset-layout"><?php
 $itemcnt = 0;
 
 for($i=1; $i<=count($arUserOptions); $i++):
@@ -111,20 +118,19 @@ for($i=1; $i<=count($arUserOptions); $i++):
 			<input type="hidden" name="del_<?=$i?>" value="N" />
 			<span class="rowcontrol drag" title="<?=GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_DRAG')?>"></span>
 		</td>
-		</td>
 		<td>
-			<div onmouseout="rowMouseOut(this)" onmouseover="rowMouseOver(this)" class="edit-field view-area" id="view_area_text_<?=$i?>" onclick="editArea('text_<?=$i?>')" title="<?=GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_TOOLTIP_TEXT_EDIT')?>"><?=($arUserOption["NAME"] <> ''?htmlspecialcharsbx($arUserOption["NAME"]):GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_DIALOG_DESKTOP').$i)?></div>
-			<div class="edit-area" id="edit_area_text_<?=$i?>" style="display: none;"><input type="text" style="width: 220px;" name="text_<?echo $i?>" value="<?=($arUserOption["NAME"] <> ''?htmlspecialcharsbx($arUserOption["NAME"]):GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_DIALOG_DESKTOP').$i)?>" onblur="viewArea('text_<?=$i?>')" /></div>
+			<div onmouseout="rowMouseOut(this)" onmouseover="rowMouseOver(this)" class="edit-field view-area" id="view_area_text_<?=$i?>" onclick="editArea('text_<?=$i?>')" title="<?=GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_TOOLTIP_TEXT_EDIT')?>"><?=(($arUserOption["NAME"] ?? '') <> '' ? htmlspecialcharsbx($arUserOption["NAME"]):GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_DIALOG_DESKTOP').$i)?></div>
+			<div class="edit-area" id="edit_area_text_<?=$i?>" style="display: none;"><input type="text" style="width: 220px;" name="text_<?= $i?>" value="<?=(($arUserOption["NAME"] ?? '') <> '' ? htmlspecialcharsbx($arUserOption["NAME"]) : GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_DIALOG_DESKTOP').$i)?>" onblur="viewArea('text_<?=$i?>')" /></div>
 		</td>
 		<td><span onclick="dsMoveUp(<?=$i?>)" class="rowcontrol up" style="visibility: <?=($i == 1 ? 'hidden' : 'visible')?>" title="<?=GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_TOOLTIP_UP')?>"></span></td>
 		<td><span onclick="dsMoveDown(<?=$i?>)" class="rowcontrol down" style="visibility: <?=($i == count($arUserOptions) ? 'hidden' : 'visible')?>" title="<?=GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_TOOLTIP_DOWN')?>"></span></td>
 		<td><span onclick="dsDelete(<?=$i?>)" class="rowcontrol delete" title="<?=GetMessage('CMDESKTOP_ADMIN_SETTINGS_ALL_TOOLTIP_DELETE')?>"></span></td>
 	</tr>
-	</tbody></table></div></div><?
+	</tbody></table></div></div><?php
 endfor?></div>
-<input type="hidden" name="itemcnt" value="<?echo $itemcnt?>" />
+<input type="hidden" name="itemcnt" value="<?= $itemcnt?>" />
 <input type="hidden" name="desktop_backurl" value="<?=htmlspecialcharsbx(CUtil::JSEscape($desktop_backurl))?>">
-<script type="text/javascript">
+<script>
 var currentRow = null;
 
 var GLOBAL_bDisableActions = false;
@@ -206,7 +212,7 @@ function dsDelete(i)
 	if (GLOBAL_bDisableActions)
 		return;
 
-	var obInput = <?echo $obJSPopup->jsPopup?>.GetForm()['del_' + i];
+	var obInput = <?= $obJSPopup->jsPopup?>.GetForm()['del_' + i];
 	var obPlacement = BX('bx_desktopset_row_' + i).parentNode;
 
 	obInput.value = 'Y';
@@ -360,7 +366,7 @@ BX.ready(function ()
 {
 	jsDD.Reset();
 
-<?
+<?php
 for($i=1; $i<=count($arUserOptions); $i++):
 ?>
 	jsDD.registerDest(BX('bx_desktopset_placement_<?=$i?>'));
@@ -370,7 +376,7 @@ for($i=1; $i<=count($arUserOptions); $i++):
 	obEl.onbxdragstop = BXDD_DragStop;
 	obEl.onbxdraghover = BXDD_DragHover;
 	jsDD.registerObject(obEl);
-<?
+<?php
 endfor;
 ?>
 	jsDD.registerContainer(BX.WindowManager.Get().GetContent());
@@ -379,6 +385,5 @@ endfor;
 	l.style.MozUserSelect = 'none';
 });
 </script>
-<?
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
-?>
+<?php
+CMain::FinalActions();

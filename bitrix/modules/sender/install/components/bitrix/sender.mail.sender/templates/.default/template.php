@@ -1,9 +1,9 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @var array $arParams */
 /** @var array $arResult */
-/** @global CAllMain $APPLICATION */
-/** @global CAllUser $USER */
-/** @global CAllDatabase $DB */
+/** @global CMain $APPLICATION */
+/** @global CUser $USER */
+/** @global CDatabase $DB */
 /** @var CBitrixComponentTemplate $this */
 /** @var string $templateName */
 /** @var string $templateFile */
@@ -28,7 +28,7 @@ $GLOBALS['APPLICATION']->IncludeComponent('bitrix:main.mail.confirm',
 
 $containerId = 'sender-ui-mailbox-selector';
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Sender.UI.Mailbox.Selector.init(<?=Json::encode(array(
 			'containerId' => $containerId,

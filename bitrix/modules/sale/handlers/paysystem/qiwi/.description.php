@@ -5,7 +5,7 @@ use Bitrix\Main\Loader,
 
 Loc::loadMessages(__FILE__);
 
-$isAvailable = PaySystem\Manager::HANDLER_AVAILABLE_TRUE;
+$isAvailable = PaySystem\Manager::HANDLER_AVAILABLE_FALSE;
 
 $licensePrefix = Loader::includeModule('bitrix24') ? \CBitrix24::getLicensePrefix() : '';
 $portalZone = Loader::includeModule('intranet') ? CIntranetUtils::getPortalZone() : '';
@@ -23,7 +23,8 @@ elseif (Loader::includeModule('intranet') && $portalZone !== 'ru')
 }
 
 $data = [
-	'NAME' => Loc::getMessage('SALE_HPS_QIWI_NAME'),
+	'NAME' => Loc::getMessage('SALE_HPS_QIWI_NAME_MSGVER_1'),
+	'DESCRIPTION' => Loc::getMessage('SALE_HPS_QIWI_DESCRIPTION'),
 	'SORT' => 750,
 	'IS_AVAILABLE' => $isAvailable,
 	'CODES' => [

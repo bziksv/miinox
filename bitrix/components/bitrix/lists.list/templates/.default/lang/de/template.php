@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["CT_BLL_ADD_SECTION_POPUP_BUTTON_ADD"] = "Hinzufügen";
 $MESS["CT_BLL_ADD_SECTION_POPUP_BUTTON_CLOSE"] = "Schließen";
 $MESS["CT_BLL_ADD_SECTION_POPUP_BUTTON_EDIT"] = "Speichern";
@@ -9,9 +9,13 @@ $MESS["CT_BLL_DELETE_POPUP_ACCEPT_BUTTON"] = "Löschen";
 $MESS["CT_BLL_DELETE_POPUP_CANCEL_BUTTON"] = "Abbrechen";
 $MESS["CT_BLL_DELETE_POPUP_TITLE"] = "Löschen bestätigen";
 $MESS["CT_BLL_EDIT_SECTION_POPUP_TITLE"] = "Bereich bearbeiten";
+$MESS["CT_BLL_EXPORT_DIALOG_SUMMARY"] = "Ihre Microsoft Excel Datei wird gerade erstellt. Das kann eine Weile dauern.";
 $MESS["CT_BLL_EXPORT_EXCEL"] = "Nach Microsoft Excel exportieren";
+$MESS["CT_BLL_EXPORT_EXCEL_DIALOG_TITLE"] = "Nach Microsoft Excel exportieren";
 $MESS["CT_BLL_EXPORT_EXCEL_TITLE"] = "Nach Microsoft Excel exportieren";
 $MESS["CT_BLL_EXPORT_IN_EXCEL"] = "Nach Microsoft Excel exportieren";
+$MESS["CT_BLL_GRID_ROW_COUNT_TITLE"] = "Gesamt:";
+$MESS["CT_BLL_GRID_SHOW_ROW_COUNT"] = "Menge anzeigen";
 $MESS["CT_BLL_GROUP_STEPPER_PROGRESS_ERROR"] = "Elemente mit folgenden IDs konnten nicht kopiert werden:";
 $MESS["CT_BLL_GROUP_STEPPER_PROGRESS_TITLE"] = "Elemente kopieren";
 $MESS["CT_BLL_HIDE_SECTION_GRID"] = "Bereiche ausblenden";
@@ -36,4 +40,3 @@ $MESS["CT_BLL_TOOLBAR_LIST_TITLE"] = "Listeneinstellungen bearbeiten";
 $MESS["CT_BLL_TOOLBAR_PROCESS"] = "Workfloweinstellungen";
 $MESS["CT_BLL_TOOLBAR_PROCESS_TITLE"] = "Workfloweinstellungen ändern";
 $MESS["CT_BLL_TOOLBAR_SECTION_DELETE_WARNING"] = "Möchten Sie diesen Bereich wirklich löschen?";
-?>

@@ -23,9 +23,9 @@ use \Bitrix\Main\DB\SqlQueryException;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_UsageEntity_Query query()
- * @method static EO_UsageEntity_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_UsageEntity_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_UsageEntity_Result getById($id)
- * @method static EO_UsageEntity_Result getList(array $parameters = array())
+ * @method static EO_UsageEntity_Result getList(array $parameters = [])
  * @method static EO_UsageEntity_Entity getEntity()
  * @method static \Bitrix\Rest\EO_UsageEntity createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_UsageEntity_Collection createCollection()
@@ -49,6 +49,9 @@ class UsageEntityTable extends Main\Entity\DataManager
 	const SUB_ENTITY_TYPE_LANDING = 'L';
 	const SUB_ENTITY_TYPE_LANDING_KNOWLEDGE = 'K';
 	const SUB_ENTITY_TYPE_UI = 'U';
+	const SUB_ENTITY_TYPE_AI = 'G';
+	const SUB_ENTITY_TYPE_BI_SUPERSET = 'I';
+	const SUB_ENTITY_TYPE_LANDING_WIDGET = 'W';
 
 	protected static $info = array();
 
@@ -111,6 +114,8 @@ class UsageEntityTable extends Main\Entity\DataManager
 					self::SUB_ENTITY_TYPE_SEND_MESSAGE,
 					self::SUB_ENTITY_TYPE_LANDING,
 					self::SUB_ENTITY_TYPE_LANDING_KNOWLEDGE,
+					self::SUB_ENTITY_TYPE_BI_SUPERSET,
+					self::SUB_ENTITY_TYPE_LANDING_WIDGET,
 				),
 				'validation' => array(
 					__CLASS__,
@@ -137,9 +142,8 @@ class UsageEntityTable extends Main\Entity\DataManager
 		$key = $entityType.'|'.$entityId;
 		if (!isset(static::$info[$key]))
 		{
-			if ($entityType == self::ENTITY_TYPE_APPLICATION)
+			if ($entityType == self::ENTITY_TYPE_APPLICATION && ($appInfo = AppTable::getByClientId($entityId)))
 			{
-				$appInfo = AppTable::getByClientId($entityId);
 				static::$info[$key] = array(
 					'ENTITY_ID' => $appInfo['ID'],
 					'ENTITY_CODE' => $appInfo['CLIENT_ID'],

@@ -94,7 +94,7 @@ class CComponentEngine
 	 */
 	public function hasNoVariables($pageTemplate)
 	{
-		return strpos($pageTemplate, "#") === false;
+		return !str_contains($pageTemplate, "#");
 	}
 	/**
 	 * Checks if page template.has greedy templates it it.
@@ -290,7 +290,7 @@ class CComponentEngine
 			if (array_key_exists($componentPage, $arVariableAliases) && is_array($arVariableAliases[$componentPage]))
 			{
 				foreach ($arVariableAliases[$componentPage] as $variableName => $aliasName)
-					if (!array_key_exists($variableName, $arVariables))
+					if (!array_key_exists($variableName, $arVariables) && array_key_exists($aliasName, $_REQUEST))
 						$arVariables[$variableName] = $_REQUEST[$aliasName];
 			}
 		}

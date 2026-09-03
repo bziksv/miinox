@@ -7,6 +7,7 @@
 	var addClass = BX.Landing.Utils.addClass;
 	var onCustomEvent = BX.Landing.Utils.onCustomEvent;
 	var bind = BX.Landing.Utils.bind;
+	var unbind = BX.Landing.Utils.unbind;
 	var makeFilterablePopupMenu = BX.Landing.Utils.makeFilterablePopupMenu;
 	var makeSelectablePopupMenu = BX.Landing.Utils.makeSelectablePopupMenu;
 	var style = BX.Landing.Utils.style;
@@ -23,6 +24,8 @@
 	BX.Landing.UI.Panel.Top = function(id, data)
 	{
 		BX.Landing.UI.Panel.BasePanel.apply(this, arguments);
+
+		this.isDialog = false; // permanent top chrome, not a modal dialog — opt out of BasePanel dialog semantics (TPL-01)
 
 		this.layout = document.querySelector(".landing-ui-panel-top");
 		this.siteButton = this.layout.querySelector(".landing-ui-panel-top-chain-link-site");
@@ -46,18 +49,10 @@
 		this.onPageButtonClick = this.onPageButtonClick.bind(this);
 		this.onUndo = this.onUndo.bind(this);
 		this.onRedo = this.onRedo.bind(this);
-		this.onKeyDown = this.onKeyDown.bind(this);
 		this.adjustHistoryButtonsState = this.adjustHistoryButtonsState.bind(this);
 
-		bind(this.desktopButton, "click", this.onDesktopSizeChange);
-		bind(this.tabletButton, "click", this.onTabletSizeChange);
-		bind(this.mobileButton, "click", this.onMobileSizeChange);
-		bind(this.iframe.contentDocument, "click", this.onIframeClick);
-		bind(this.undoButton, "click", this.onUndo);
-		bind(this.redoButton, "click", this.onRedo);
-		bind(document, "keydown", this.onKeyDown);
+		this.bindEvents();
 
-		onCustomEvent(document, "iframe:keydown", this.onKeyDown);
 		onCustomEvent(window, "BX.Landing.History:init", this.adjustHistoryButtonsState);
 		onCustomEvent(window, "BX.Landing.History:update", this.adjustHistoryButtonsState);
 
@@ -88,6 +83,14 @@
 
 	BX.Landing.UI.Panel.Top.instance = null;
 
+	BX.Landing.UI.Panel.Top.resetInstance = function() {
+		if (BX.Landing.UI.Panel.Top.instance)
+		{
+			BX.Landing.UI.Panel.Top.instance.unbindEvents();
+			BX.Landing.UI.Panel.Top.instance = null;
+		}
+	};
+
 
 	/**
 	 * Gets instance of BX.Landing.UI.Panel.Top
@@ -111,6 +114,25 @@
 		__proto__: BX.Landing.UI.Panel.BasePanel.prototype,
 		superclass: BX.Landing.UI.Panel.BasePanel.prototype,
 
+		bindEvents: function()
+		{
+			bind(this.desktopButton, "click", this.onDesktopSizeChange);
+			bind(this.tabletButton, "click", this.onTabletSizeChange);
+			bind(this.mobileButton, "click", this.onMobileSizeChange);
+			bind(this.iframe.contentDocument, "click", this.onIframeClick);
+			bind(this.undoButton, "click", this.onUndo);
+			bind(this.redoButton, "click", this.onRedo);
+		},
+
+		unbindEvents: function()
+		{
+			unbind(this.desktopButton, "click", this.onDesktopSizeChange);
+			unbind(this.tabletButton, "click", this.onTabletSizeChange);
+			unbind(this.mobileButton, "click", this.onMobileSizeChange);
+			unbind(this.iframe.contentDocument, "click", this.onIframeClick);
+			unbind(this.undoButton, "click", this.onUndo);
+			unbind(this.redoButton, "click", this.onRedo);
+		},
 
 		/**
 		 * Handles keydown event
@@ -118,29 +140,10 @@
 		 */
 		onKeyDown: function(event)
 		{
-			var key = event.keyCode || event.which;
-
+			const key = event.keyCode || event.which;
 			if (key === 90 && (window.navigator.userAgent.match(/win/i) ? event.ctrlKey : event.metaKey))
 			{
-				var rootWindow = BX.Landing.PageObject.getRootWindow();
-				var formSettingsPanel = rootWindow.BX.Reflection.getClass('BX.Landing.UI.Panel.FormSettingsPanel');
-
-				if (
-					!formSettingsPanel
-					|| !formSettingsPanel.getInstance().isShown()
-				)
-				{
-					if (event.shiftKey)
-					{
-						event.preventDefault();
-						this.onRedo();
-					}
-					else
-					{
-						event.preventDefault();
-						this.onUndo();
-					}
-				}
+				// ctrl + z handle was here, but we remove this functionality
 			}
 		},
 
@@ -205,13 +208,23 @@
 		{
 			if (this.loader === null)
 			{
-				this.loader = new BX.Loader({size: 23, offset: {top: "3px", left: "1px"}});
-				void style(this.loader.layout.querySelector(".main-ui-loader-svg-circle"), {
-					"stroke-width": "4px"
-				});
-				void style(this.loader.layout.querySelector(".main-ui-loader-svg"), {
-					"margin-top": "-3px"
-				});
+				if (this.layout && this.layout.classList.contains("landing-ui-panel-top-ai"))
+				{
+					this.loader = new BX.Loader({size: 20});
+					void style(this.loader.layout.querySelector(".main-ui-loader-svg-circle"), {
+						"stroke-width": "4px"
+					});
+				}
+				else
+				{
+					this.loader = new BX.Loader({size: 23, offset: {top: "3px", left: "1px"}});
+					void style(this.loader.layout.querySelector(".main-ui-loader-svg-circle"), {
+						"stroke-width": "4px"
+					});
+					void style(this.loader.layout.querySelector(".main-ui-loader-svg"), {
+						"margin-top": "-3px"
+					});
+				}
 			}
 
 			return this.loader;
@@ -228,20 +241,40 @@
 			{
 				this.undoButton.classList.remove("landing-ui-disabled");
 				this.undoButton.removeAttribute('data-disabled');
+				if (this.undoButton.tagName === 'BUTTON')
+				{
+					this.undoButton.disabled = false;
+					this.undoButton.setAttribute('tabindex', '0');
+				}
 			}
 			else
 			{
 				this.undoButton.classList.add("landing-ui-disabled");
+				if (this.undoButton.tagName === 'BUTTON')
+				{
+					this.undoButton.disabled = true;
+					this.undoButton.setAttribute('tabindex', '-1');
+				}
 			}
 
 			if (history.canRedo())
 			{
 				this.redoButton.classList.remove("landing-ui-disabled");
 				this.redoButton.removeAttribute('data-disabled');
+				if (this.redoButton.tagName === 'BUTTON')
+				{
+					this.redoButton.disabled = false;
+					this.redoButton.setAttribute('tabindex', '0');
+				}
 			}
 			else
 			{
 				this.redoButton.classList.add("landing-ui-disabled");
+				if (this.redoButton.tagName === 'BUTTON')
+				{
+					this.redoButton.disabled = true;
+					this.redoButton.setAttribute('tabindex', '-1');
+				}
 			}
 		},
 
@@ -249,8 +282,18 @@
 		{
 			this.undoButton.classList.add("landing-ui-disabled");
 			this.undoButton.setAttribute('data-disabled', '');
+			if (this.undoButton.tagName === 'BUTTON')
+			{
+				this.undoButton.disabled = true;
+				this.undoButton.setAttribute('tabindex', '-1');
+			}
 			this.redoButton.classList.add("landing-ui-disabled");
 			this.redoButton.setAttribute('data-disabled', '');
+			if (this.redoButton.tagName === 'BUTTON')
+			{
+				this.redoButton.disabled = true;
+				this.redoButton.setAttribute('tabindex', '-1');
+			}
 		},
 
 		enableHistory: function()
@@ -278,8 +321,10 @@
 		onDesktopSizeChange: function()
 		{
 			this.lastActive.classList.remove("active");
+			this.lastActive.setAttribute("aria-pressed", "false");
 			this.lastActive = this.desktopButton;
 			this.desktopButton.classList.add("active");
+			this.desktopButton.setAttribute("aria-pressed", "true");
 
 			BX.DOM.write(function() {
 				this.iframeWrapper.style.width = null;
@@ -303,8 +348,10 @@
 		onTabletSizeChange: function()
 		{
 			this.lastActive.classList.remove("active");
+			this.lastActive.setAttribute("aria-pressed", "false");
 			this.lastActive = this.tabletButton;
 			this.tabletButton.classList.add("active");
+			this.tabletButton.setAttribute("aria-pressed", "true");
 
 			BX.DOM.write(function() {
 				this.iframeWrapper.style.width = "990px";
@@ -328,8 +375,10 @@
 		onMobileSizeChange: function()
 		{
 			this.lastActive.classList.remove("active");
+			this.lastActive.setAttribute("aria-pressed", "false");
 			this.lastActive = this.mobileButton;
 			this.mobileButton.classList.add("active");
+			this.mobileButton.setAttribute("aria-pressed", "true");
 
 			BX.DOM.write(function() {
 				this.iframeWrapper.style.width = "375px";

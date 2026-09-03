@@ -1,7 +1,11 @@
 <?php
 namespace Bitrix\Landing\Node;
 
+use Bitrix\Landing\Block;
+use Bitrix\Landing\History;
+use Bitrix\Landing\Node\Component\SaveParametersNormalizer;
 use \Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Web\Json;
 
 Loc::loadMessages(__FILE__);
 
@@ -19,7 +23,7 @@ class Component extends \Bitrix\Landing\Node
 	 */
 	public static function getHandlerJS()
 	{
-		return 'BX.Landing.Block.Node.Component';
+		return 'BX.Landing.Node.Component';
 	}
 
 	/**
@@ -33,6 +37,44 @@ class Component extends \Bitrix\Landing\Node
 		{
 			self::$predefineForDynamicProps[$code] = $val;
 		}
+	}
+
+	/**
+	 * Check if manual add-to-basket action can work for current block.
+	 * @param Block $block Block instance.
+	 * @return bool
+	 */
+	protected static function isManualAddToBasketActionAvailable(Block $block): bool
+	{
+		if (!\Bitrix\Main\ModuleManager::isModuleInstalled('sale'))
+		{
+			return false;
+		}
+
+		$classBlock = $block->getBlockClass();
+		if (!$classBlock)
+		{
+			return false;
+		}
+
+		$syspageType = $classBlock->getAddToBasketActionSyspageType($block);
+		if ($syspageType === null)
+		{
+			return false;
+		}
+
+		$siteId = (int)$block->getSiteId();
+		if ($siteId <= 0)
+		{
+			return false;
+		}
+
+		$syspages = \Bitrix\Landing\Syspage::get(
+			$siteId,
+			$classBlock->isAddToBasketActionSyspageActiveOnly($block)
+		);
+
+		return isset($syspages[$syspageType]);
 	}
 
 	/**
@@ -51,6 +93,9 @@ class Component extends \Bitrix\Landing\Node
 			if ($component['DATA']['COMPONENT_NAME'] == $code)
 			{
 				$params = array_merge($component['DATA']['PARAMS'], $params);
+				$params = array_filter($params, function ($param) {
+					return $param !== null;
+				});
 				$componentCode = ($component['DATA']['VARIABLE'] ? $component['DATA']['VARIABLE'] . '=' : '') .
 					'$APPLICATION->IncludeComponent(' . PHP_EOL .
 					"\t" . '"' . $component['DATA']['COMPONENT_NAME'] . '", ' . PHP_EOL .
@@ -108,19 +153,35 @@ class Component extends \Bitrix\Landing\Node
 
 	/**
 	 * Save data for this node.
-	 * @param \Bitrix\Landing\Block $block Block instance.
+	 * @param Block $block Block instance.
 	 * @param string $selector Selector.
 	 * @param array $data Data array.
 	 * @return void
 	 */
-	public static function saveNode(\Bitrix\Landing\Block $block, $selector, array $data)
+	public static function saveNode(Block $block, $selector, array $data): void
 	{
-		//$data = array_pop($data);// we allow one type of component per block
-		$manifest = $block->getManifest();
-		if (isset($manifest['nodes'][$selector]['extra']))
+		if (empty($data))
 		{
-			$updateProps = array();
+			return;
+		}
+
+		$manifest = $block->getManifest();
+		if (isset ($manifest['nodes'][$selector]['extra']))
+		{
+			$updateProps = [];
 			$allowedProps = $manifest['nodes'][$selector]['extra'];
+			$propsBefore = [];
+			if (History::isActive())
+			{
+				foreach ($allowedProps as $code => $prop)
+				{
+					$propsBefore[$code] = self::transformPropValue(
+						$prop['VALUE'],
+						$prop
+					);
+				}
+			}
+
 			foreach ($data as $code => $val)
 			{
 				if (isset($allowedProps[$code]))
@@ -137,6 +198,12 @@ class Component extends \Bitrix\Landing\Node
 			}
 			if (!empty($updateProps))
 			{
+				$updateProps = SaveParametersNormalizer::normalize(
+					$block,
+					$selector,
+					$updateProps,
+					$allowedProps
+				);
 				// !tmp bugfix about set section id to null
 				if (
 					array_key_exists('SECTION_ID', $updateProps) &&
@@ -158,19 +225,37 @@ class Component extends \Bitrix\Landing\Node
 				}
 				// and load new content
 				$doc->loadHTML($newContent);
+
+				if (History::isActive())
+				{
+					$propsAfter = array_merge($propsBefore, $updateProps);
+					$history = new History($block->getLandingId(), History::ENTITY_TYPE_LANDING);
+					$history->push('EDIT_COMPONENT', [
+						'block' => $block,
+						'selector' => $selector,
+						'position' => 0,
+						'valueBefore' => $propsBefore,
+						'valueAfter' => $propsAfter,
+					]);
+				}
 			}
 		}
 	}
 
 	/**
 	 * Prepare item-node of manifest.
-	 * @param \Bitrix\Landing\Block $block Block instance.
+	 * @param Block $block Block instance.
 	 * @param array $manifest Manifest of current node.
 	 * @param array &$manifestFull Full manifest of block (by ref).
 	 * @return array|null Return null for delete from manifest.
 	 */
-	public static function prepareManifest(\Bitrix\Landing\Block $block, array $manifest, array &$manifestFull = array())
+	public static function prepareManifest(Block $block, array $manifest, array &$manifestFull = array())
 	{
+		// set predefined
+		Component::setPredefineForDynamicProps(array(
+			'LANDING_MODE' => (\Bitrix\Landing\Landing::getEditMode() === true) ? 'Y' : 'N',
+		));
+
 		if (
 			!isset($manifest['extra']['editable']) ||
 			!is_array($manifest['extra']['editable'])
@@ -211,6 +296,7 @@ class Component extends \Bitrix\Landing\Node
 		$classBlock = $block->getBlockClass();
 		foreach ($components as $component)
 		{
+			$componentParamsOriginal = $component['DATA']['PARAMS'];
 			foreach ($component['DATA']['PARAMS'] as $key => $param)
 			{
 				if (
@@ -291,29 +377,67 @@ class Component extends \Bitrix\Landing\Node
 					{
 						// change node manifest
 						$newExtra[$field] = $props[$field];
-						$newExtra[$field]['VALUE'] = isset($component['DATA']['PARAMS'][$field])
-													? $component['DATA']['PARAMS'][$field]
-													: '';
+						if (isset($fieldItem['VALUES']))
+						{
+							$newExtra[$field]['VALUES'] =
+								$fieldItem['VALUES'] + ($newExtra[$field]['VALUES'] ?? []);
+						}
+						if (isset($fieldItem['DEFAULT']))
+						{
+							$newExtra[$field]['DEFAULT'] = $fieldItem['DEFAULT'];
+						}
+						if (isset($fieldItem['MULTIPLE']))
+						{
+							$newExtra[$field]['MULTIPLE'] = $fieldItem['MULTIPLE'];
+						}
+						$newExtra[$field]['VALUE'] = $component['DATA']['PARAMS'][$field] ?? null;
+						if (
+							isset($fieldItem['DYNAMIC_VALUE'])
+							&& isset($componentParamsOriginal[$field])
+							&& self::checkPhpCode([$field => $componentParamsOriginal[$field]])
+						)
+						{
+							$newExtra[$field]['VALUE'] = $fieldItem['DYNAMIC_VALUE'];
+						}
+						if (
+							isset($newExtra[$field]['MULTIPLE'])
+							&& $newExtra[$field]['MULTIPLE'] === 'N'
+							&& is_array($newExtra[$field]['VALUE'])
+						)
+						{
+							$fieldValue = $newExtra[$field]['VALUE'];
+							$newExtra[$field]['VALUE'] = reset($fieldValue);
+						}
+						if (
+							$field === 'ADD_TO_BASKET_ACTION'
+							&& isset($newExtra[$field]['VALUES']['ADD'])
+							&& !self::isManualAddToBasketActionAvailable($block)
+						)
+						{
+							unset($newExtra[$field]['VALUES']['ADD']);
+							if ($newExtra[$field]['VALUE'] === 'ADD')
+							{
+								$newExtra[$field]['VALUE'] = 'BUY';
+							}
+						}
 						// add attr
 						if (!isset($manifestFull['attrs'][$componentName]))
 						{
 							$manifestFull['attrs'][$componentName] = array();
 						}
 						$propType = self::transformPropType(array(
-							'name' => isset($fieldItem['name'])
-										? $fieldItem['name']
-										: $newExtra[$field]['NAME'],
+							'name' => $fieldItem['name'] ?? $newExtra[$field]['NAME'],
 							'style' => isset($fieldItem['style'])
 										&& $fieldItem['style'],
 							'original_type' => 'component',
-							'component_type' => isset($newExtra[$field]['TYPE'])
-										? $newExtra[$field]['TYPE']
-										: '',
+							'component_type' => $newExtra[$field]['TYPE'] ?? '',
 							'attribute' => $field,
+							'placeholder' => $newExtra[$field]['PLACEHOLDER'] ?? '',
 							'value' => self::preparePropValue(
 								$newExtra[$field]['VALUE'],
 								$fieldItem
 							),
+							'default_value' => $newExtra[$field]['DEFAULT'] ?? null,
 							//'original_value' => $newExtra[$field]['VALUE'],
 							'allowInlineEdit' => false
 						) + $fieldItem, $newExtra[$field]);
@@ -406,13 +530,17 @@ class Component extends \Bitrix\Landing\Node
 				case 'CHECKBOX':
 				{
 					$item['type'] = 'checkbox';
-					$item['items'] = array(
-						array(
+					$item['items'] = [
+						[
 							'name' => $item['name'],
 							'value' => 'Y',
-							'checked' => $item['value'] == 'Y'
-						)
-					);
+							'checked' => (
+								(isset($item['value']) && $item['value'] !== '')
+									? $item['value']
+									: $prop['DEFAULT']
+								) == 'Y'
+						]
+					];
 					$item['compact'] = true;
 					unset($item['name']);
 					break;
@@ -432,7 +560,7 @@ class Component extends \Bitrix\Landing\Node
 						array('name' => '', 'image' => '/bitrix/images/landing/catalog_images/preset-6-1.svg', 'value' => '8'),
 						array('name' => '', 'image' => '/bitrix/images/landing/catalog_images/preset-line.svg', 'value' => '9')
 					);
-					$jsArray = \Cutil::jsObjectToPhp($item['value']);
+					$jsArray = \Cutil::jsObjectToPhp($item['value'], true);
 					$item['value'] = array();
 					if (is_array($jsArray))
 					{
@@ -470,7 +598,7 @@ class Component extends \Bitrix\Landing\Node
 					{
 						$item['value'] = explode(',', $item['value']);
 					}
-					$items = \Cutil::jsObjectToPhp($prop['JS_DATA']);
+					$items = Json::decode($prop['JS_DATA']);
 					if (is_array($items))
 					{
 						foreach ($items as $code => $val)
@@ -484,6 +612,73 @@ class Component extends \Bitrix\Landing\Node
 					}
 					break;
 				}
+				case 'CUSTOM_initColorField':
+				{
+					$item['type'] = 'color';
+					$item['subtype'] = 'color';
+
+					break;
+				}
+				case 'CUSTOM_initIconField':
+				{
+					$item['type'] = 'icon';
+					$item['disableLink'] = 'true';
+					$item['value'] = is_array($item['value']) && !empty($item['value'])
+						? $item['value']
+						: $prop['DEFAULT']
+					;
+
+					break;
+				}
+				case 'CUSTOM_initImageField':
+				{
+
+					$item['type'] = 'image';
+					$item['disableLink'] = 'true';
+					$data = \Cutil::jsObjectToPhp($prop['JS_DATA'], true);
+					$item['dimensions'] = $data['dimensions'] ?? 'false';
+
+					break;
+				}
+
+				case 'CUSTOM_initUserSelectField':
+				{
+					$item['type'] = 'user-select';
+					$item['value'] = (int)$item['value'] > 0 ? $item['value'] : $prop['DEFAULT'];
+					$item['value'] = (int)$item['value'];
+
+					break;
+				}
+
+				case 'CUSTOM_initDynamicSource':
+				{
+					$item['type'] = 'dynamic_source';
+					$item['hideSort'] = 'true';
+					$data = \Cutil::jsObjectToPhp($prop['JS_DATA'], true);
+					if ($data['sources'] && is_array($data['sources']))
+					{
+						$item['sources'] = $data['sources'];
+					}
+					if ($data['title'] && is_string($data['title']))
+					{
+						$item['title'] = $data['title'];
+					}
+					if ($data['stubText'] && is_string($data['stubText']))
+					{
+						$item['stubText'] = $data['stubText'];
+					}
+					if ($data['useLink'] && is_string($data['useLink']))
+					{
+						$item['useLink'] = $data['useLink'];
+					}
+					if ($data['linkType'] && is_string($data['linkType']))
+					{
+						$item['linkType'] = $data['linkType'];
+					}
+
+					break;
+				}
+
 				default:
 				{
 					if (!isset($item['type']) || !$item['type'])
@@ -520,7 +715,7 @@ class Component extends \Bitrix\Landing\Node
 						}
 						default:
 						{
-							$item['placeholder'] = '';
+							$item['placeholder'] = $item['placeholder'] ?? '';
 						}
 					}
 					break;
@@ -581,7 +776,7 @@ class Component extends \Bitrix\Landing\Node
 	{
 		if (!is_array($value))
 		{
-			$value = \CUtil::jsObjectToPhp($value);
+			$value = \CUtil::jsObjectToPhp($value, true);
 		}
 
 		if (isset($prop['TYPE']))
@@ -714,11 +909,11 @@ class Component extends \Bitrix\Landing\Node
 
 	/**
 	 * Get data for this node.
-	 * @param \Bitrix\Landing\Block $block Block instance.
+	 * @param Block $block Block instance.
 	 * @param string $selector Selector.
 	 * @return array
 	 */
-	public static function getNode(\Bitrix\Landing\Block $block, $selector)
+	public static function getNode(Block $block, $selector)
 	{
 		$data = array();
 		$manifest = $block->getManifest();

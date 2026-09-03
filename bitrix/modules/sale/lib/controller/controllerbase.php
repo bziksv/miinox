@@ -49,7 +49,7 @@ class ControllerBase extends Base
 		return ModuleManager::isModuleInstalled('crm');
 	}
 
-	public function getBuilder(SettingsContainer $settings=null)
+	public function getBuilder(?SettingsContainer $settings = null)
 	{
 		$settings = $settings === null? $this->getSettingsContainerDefault():$settings;
 
@@ -107,7 +107,7 @@ class ControllerBase extends Base
 
 	protected function toArray(\Bitrix\Sale\Order $order, array $fields=[])
 	{
-		//äîáàâëÿåì òå ïîëÿ, ê ñóùåñòâóþùèì ïîëÿì ñóùíîñòè, êîòîðûå ó íå¸ îòñóòñòâóþò
+		//Ð´Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ñ‚Ðµ Ð¿Ð¾Ð»Ñ, Ðº ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÑŽÑ‰Ð¸Ð¼ Ð¿Ð¾Ð»ÑÐ¼ ÑÑƒÑ‰Ð½Ð¾ÑÑ‚Ð¸, ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ Ñƒ Ð½ÐµÑ‘ Ð¾Ñ‚ÑÑƒÑ‚ÑÑ‚Ð²ÑƒÑŽÑ‚
 		$fields = array_merge($fields, $this->getAdditionalFields($order));
 
 		if($this->isCrmModuleInstalled() && Loader::includeModule('crm'))

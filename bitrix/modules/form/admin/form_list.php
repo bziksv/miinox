@@ -35,10 +35,10 @@ $lAdmin->InitFilter($arFilterFields);
 
 $old_module_version = CForm::IsOldVersion();
 
-$reset_id = intval($reset_id);
+$reset_id = intval($_REQUEST['reset_id'] ?? 0);
 if ($FORM_RIGHT=="W" && $reset_id>0 && check_bitrix_sessid()) CForm::Reset($reset_id);
 
-$copy_id = intval($makecopy_id);
+$copy_id = intval($_REQUEST['makecopy_id'] ?? 0);
 if ($FORM_RIGHT=="W" && $copy_id>0 && check_bitrix_sessid())
 {
 	CForm::Copy($copy_id);
@@ -68,23 +68,27 @@ if ($lAdmin->EditAction() && $FORM_RIGHT>="W" && check_bitrix_sessid())
 	{
 		if(!$lAdmin->IsUpdated($ID))
 			continue;
-		$DB->StartTransaction();
 		$ID = intval($ID);
 		$F_RIGHT = CForm::GetPermission($ID);
 		if ($F_RIGHT>=30)
 		{
 			$arFieldsStore = Array(
 				"TIMESTAMP_X"	=> $DB->GetNowFunction(),
-				"C_SORT"		=> "'".intval($arFields[C_SORT])."'"
-				);
+				"C_SORT"		=> "'".intval($arFields['C_SORT'])."'"
+			);
+
+			$DB->StartTransaction();
 
 			if (!$DB->Update("b_form",$arFieldsStore,"WHERE ID='".$ID."'",$err_mess.__LINE__))
 			{
 				$lAdmin->AddUpdateError(GetMessage("SAVE_ERROR").$ID.": ".GetMessage("FORM_SAVE_ERROR"), $ID);
 				$DB->Rollback();
 			}
+			else
+			{
+				$DB->Commit();
+			}
 		}
-		$DB->Commit();
 	}
 }
 
@@ -114,7 +118,10 @@ if(($arID = $lAdmin->GroupAction()) && $FORM_RIGHT=="W" && check_bitrix_sessid()
 				$DB->Rollback();
 				$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
 			}
-			$DB->Commit();
+			else
+			{
+				$DB->Commit();
+			}
 			break;
 		}
 	}
@@ -167,7 +174,7 @@ while($arRes = $rsData->NavNext(true, "f_"))
 	//$F_RIGHT = CForm::GetPermission($f_ID);
 	$F_RIGHT = $f_F_RIGHT;
 
-	unset($txt);
+	$txt = '';
 	$arrSITE = CForm::GetSiteArray($f_ID);
 	reset($arrSITE);
 	if (is_array($arrSITE))
@@ -177,7 +184,7 @@ while($arRes = $rsData->NavNext(true, "f_"))
 	}
 	else
 		$txt="&nbsp;";
-		$txt=trim($txt,",");
+	$txt=trim($txt,",");
 	$row->AddViewField("SITE",$txt);
 
 	if ($bSimple)

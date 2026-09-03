@@ -23,6 +23,7 @@ Loc::loadMessages(__FILE__);
  * <li> BASKET_ID int mandatory
  * <li> QUANTITY unknown mandatory
  * <li> RESERVED_QUANTITY unknown mandatory
+ * <li> PURCHASING_PRICE float mandatory
  * </ul>
  *
  * @package Bitrix\Sale
@@ -31,9 +32,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_ShipmentItem_Query query()
- * @method static EO_ShipmentItem_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_ShipmentItem_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_ShipmentItem_Result getById($id)
- * @method static EO_ShipmentItem_Result getList(array $parameters = array())
+ * @method static EO_ShipmentItem_Result getList(array $parameters = [])
  * @method static EO_ShipmentItem_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_ShipmentItem createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_ShipmentItem_Collection createCollection()

@@ -1,14 +1,13 @@
 ;(function (window)
 {
-
 	BX.namespace('BX.Sender');
 	if (BX.Sender.Letter)
 	{
 		return;
 	}
 
-	var Page = BX.Sender.Page;
-	var Helper = BX.Sender.Helper;
+	const Page = BX.Sender.Page;
+	const Helper = BX.Sender.Helper;
 
 	/**
 	 * Letter.
@@ -18,16 +17,23 @@
 	{
 		this.context = null;
 	}
-	Letter.prototype.init = function (params)
+
+	Letter.prototype.init = function(params)
 	{
 		this.context = BX(params.containerId);
 		this.actionUri = params.actionUri;
 		this.isFrame = params.isFrame || false;
-		this.prettyDateFormat = params.prettyDateFormat;
 		this.isSaved = params.isSaved || false;
 		this.isOutside = params.isOutside || false;
+		this.prettyDateFormat = params.prettyDateFormat;
 		this.mess = params.mess;
+		this.isSlider = params.isSlider;
+		this.toolbarId = params.toolbarId;
 		this.letterTile = params.letterTile || {};
+		this.AITextContextId = params.AITextContextId;
+		this.isAITextAvailable = params.isAITextAvailable === 'Y';
+		this.hasBottomTextareaPanel = params.hasBottomTextareaPanel;
+		this.isTemplateSelectorShowed = params.isTemplateSelectorShowed;
 
 		this.templateChangeButton = BX('SENDER_LETTER_BUTTON_CHANGE');
 		this.selectorNode = Helper.getNode('template-selector', this.context);
@@ -39,6 +45,25 @@
 		this.templateTypeNode = Helper.getNode('template-type', this.editorNode);
 		this.templateIdNode = Helper.getNode('template-id', this.editorNode);
 		this.consentPreviewNodes = Helper.getNodes('consent-preview', this.editorNode);
+		this.uiToolbar = BX.UI.ToolbarManager.get(this.toolbarId);
+		this.titleNode.value = this.mess.initTitle;
+
+		if (this.isTemplateSelectorShowed)
+		{
+			this.uiToolbar.getTitleEditor()?.disable();
+		}
+
+		if (this.uiToolbar && this.isSlider)
+		{
+			this.uiToolbar.subscribe(BX.UI.ToolbarEvents.finishEditing, (event) => {
+				const updatedTitle = event.getData().updatedTitle;
+
+				if (updatedTitle && this.titleNode)
+				{
+					this.titleNode.value = updatedTitle;
+				}
+			});
+		}
 
 		if (BX.Sender.Template && BX.Sender.Template.Selector)
 		{
@@ -61,12 +86,6 @@
 
 		if (this.isFrame)
 		{
-			Helper.titleEditor.init({
-				dataNode: this.titleNode,
-				disabled: params.isTemplateShowed,
-				defaultTitle: this.getPatternTitle(this.mess.name)
-			});
-
 			BX.addCustomEvent("SidePanel.Slider:onClose", this.onPopupClose.bind(this));
 		}
 
@@ -90,7 +109,62 @@
 		{
 			this.context.classList.add('bx-sender-letter-ms-ie');
 		}
+
+		if (this.hasBottomTextareaPanel)
+		{
+			this.createBottomTextareaPanel();
+		}
 	};
+	Letter.prototype.createBottomTextareaPanel = function() {
+		this.configurationMessageInput = document.getElementById('CONFIGURATION_COMMENT');
+		if (this.configurationMessageInput)
+		{
+			const bottomPanel = BX.create('div', {
+				'props': {
+					'className': 'sender-letter-textarea-bottom-panel'
+				},
+				'children': [
+					BX.create(
+						'span',
+						{
+							'attrs': {
+								'data-bx-sms-panel-tools-button': 'ai-text',
+								'class': 'sender-letter-text-editor-panel-tools-item sender-letter-text-editor-panel-tools-ai-text',
+							},
+						}
+					),
+				],
+			});
+			this.configurationMessageInput.classList.add('sender-letter-text-editor-configuration-message-with-panel')
+			const parentNode = this.configurationMessageInput.parentNode;
+			parentNode.classList.add('sender-letter-text-editor-message-wrap');
+			parentNode.appendChild(bottomPanel);
+			this.initPanelToolsButtons();
+		}
+	}
+	Letter.prototype.initPanelToolsButtons = function() {
+		if (this.isAITextAvailable)
+		{
+			const aiTextButton = this.context.querySelector('[data-bx-sms-panel-tools-button="ai-text"]');
+			aiTextButton.addEventListener('click', () => {
+				const aiTextPicker = new BX.AI.Picker({
+					moduleId: 'sender',
+					contextId: this.AITextContextId,
+					analyticLabel: 'sender_letter_ai_text',
+					history: true,
+					onSelect: (info) => {
+						const text = info.data;
+						this.configurationMessageInput.value = this.configurationMessageInput.value + text;
+					},
+					onTariffRestriction: () => {
+						// BX.UI.InfoHelper.show(`limit_sender_ai_image`);
+					},
+				});
+				aiTextPicker.setLangSpace(BX.AI.Picker.LangSpace.text);
+				aiTextPicker.text();
+			});
+		}
+	}
 	Letter.prototype.onPopupClose = function(event) {
 		var slider = event.getSlider();
 		var _this = this;
@@ -189,7 +263,10 @@
 		BX.fireEvent(this.titleNode, 'change');
 
 		this.closeTemplateSelector();
-		window.scrollTo(0,0);
+		window.scrollTo(0, 0);
+
+		this.uiToolbar.getTitleEditor()?.enable();
+		this.uiToolbar.setTitle(this.getPatternTitle(template.name));
 	};
 	Letter.prototype.closeTemplateSelector = function ()
 	{
@@ -221,7 +298,7 @@
 		Helper.changeDisplay(this.templateChangeButton, !isShow);
 		Helper.changeDisplay(this.buttonsNode, !isShow);
 
-		isShow ? Helper.titleEditor.disable() : Helper.titleEditor.enable();
+		this.uiToolbar.getTitleEditor()?.disable();
 	};
 	Letter.prototype.applyChanges = function()
 	{

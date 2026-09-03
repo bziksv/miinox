@@ -1,4 +1,4 @@
-<?
+<?php
 
 use Bitrix\Main\Engine\ActionFilter\Csrf;
 
@@ -30,7 +30,7 @@ class CMainUIFilterAjaxController extends \Bitrix\Main\Engine\Controller
 			$request = $app->getContext()->getRequest();
 			$params = $request->getPost('params');
 			$options = new \Bitrix\Main\UI\Filter\Options(
-				$params['FILTER_ID'], null, $params['commonPresetsId']
+				$params['FILTER_ID'], null, $params['commonPresetsId'] ?? null
 			);
 		}
 
@@ -77,7 +77,19 @@ class CMainUIFilterAjaxController extends \Bitrix\Main\Engine\Controller
 	public function setFilterArrayAction($data = [])
 	{
 		$options = static::getOptions();
-		$options->setFilterSettingsArray($data);
+
+		if (is_string($data["current_preset"]))
+		{
+			$options->setCurrentPreset($data["current_preset"]);
+		}
+
+		$excludedKeys = ["current_preset", "common_presets_id"];
+		$presets = array_filter($data, function ($key) use ($excludedKeys) {
+			return !in_array($key, $excludedKeys);
+		}, ARRAY_FILTER_USE_KEY);
+
+		$options->setFilterSettingsArray($presets);
+
 		$options->save();
 
 		return static::makeResponse();

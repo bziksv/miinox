@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["CAT_MENU_ROOT_TITLE"] = "Товарный каталог";
 $MESS["CAT_MENU_ROOT"] = "Каталог товаров";
 $MESS["CAT_MENU_ROOT_MULTI"] = "Каталоги товаров";
@@ -22,7 +22,7 @@ $MESS["CAT_DISCOUNT_SAVE"] = "Накопительные скидки";
 $MESS["CAT_DISCOUNT_SAVE_DESCR"] = "Программы накопительных скидок";
 $MESS["CM_STORE"] = "Склады";
 $MESS["CM_CONTRACTORS"] = "Поставщики";
-$MESS["CM_STORE_DOCS"] = "Документы";
+$MESS["CM_STORE_DOCS_MSGVER_1"] = "Документы";
 $MESS["PRICES_SECTION"] = "Цены";
 $MESS["PRICES_SECTION_TITLE"] = "Типы цен, округление, наценки";
 $MESS["EXTRA"] = "Наценки";
@@ -42,4 +42,3 @@ $MESS["CAT_MENU_CATALOG_MARKETPLACE_ADD"] = "Установить из Марк�
 $MESS["CAT_MENU_CATALOG_MARKETPLACE_CATALOG_TOOLS"] = "Установить инструменты из Маркетплейс";
 $MESS["SALE_MENU_MARKETPLACE_MARKETING_ADD"] = "Установить из Маркетплейс";
 $MESS["SALE_MENU_MARKETPLACE_SETTINGS_ADD"] = "Установить из Маркетплейс импорт/экспорт";
-?>

@@ -19,9 +19,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Landing_Query query()
- * @method static EO_Landing_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Landing_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Landing_Result getById($id)
- * @method static EO_Landing_Result getList(array $parameters = array())
+ * @method static EO_Landing_Result getList(array $parameters = [])
  * @method static EO_Landing_Entity getEntity()
  * @method static \Bitrix\Landing\Internals\EO_Landing createObject($setDefaultValues = true)
  * @method static \Bitrix\Landing\Internals\EO_Landing_Collection createCollection()
@@ -81,7 +81,7 @@ class LandingTable extends Entity\DataManager
 				'default_value' => 'Y'
 			)),
 			'DELETED' => new Entity\StringField('DELETED', array(
-				'title' => Loc::getMessage('LANDING_TABLE_FIELD_SITE_DELETED'),
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_LANDING_DELETED'),
 				'default_value' => 'N'
 			)),
 			'PUBLIC' => new Entity\StringField('PUBLIC', array(
@@ -147,7 +147,8 @@ class LandingTable extends Entity\DataManager
 				'default_value' => 10
 			)),
 			'HISTORY_STEP' => new Entity\IntegerField('HISTORY_STEP', array(
-				'title' => Loc::getMessage('LANDING_TABLE_FIELD_HISTORY_STEP')
+				'title' => 'History step',
+				'default_value' => 0
 			)),
 			'CREATED_BY_ID' => new Entity\IntegerField('CREATED_BY_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CREATED_BY_ID'),
@@ -232,11 +233,10 @@ class LandingTable extends Entity\DataManager
 		//$tasks = Rights::getAccessTasksReferences();
 		//$readCode = Rights::ACCESS_TYPES['read'];
 		$extendedRights = Rights::isExtendedMode();
-		static $expectedRoles = null;
-		if ($expectedRoles === null)
-		{
-			$expectedRoles = Role::getExpectedRoleIds();
-		}
+		// no local cache of the ids: the scope is switched per command inside a single process
+		// (REST / AJAX batch), and a method-static copy would survive the switch and join the next
+		// section against the role ids of the previous one. Role keeps its own cache per type.
+		$expectedRoles = Role::getExpectedRoleIds();
 
 		// create runtime fields
 		$runtimeParams = [];
@@ -346,6 +346,16 @@ class LandingTable extends Entity\DataManager
 					new Entity\EntityError(
 						Loc::getMessage('LANDING_TABLE_ERROR_WRONG_CODE_FORMAT'),
 						'WRONG_CODE_FORMAT'
+					)
+				));
+				return $result;
+			}
+			if (!\Bitrix\Landing\Security\SyspageUrl::isSafeCode((string)$fields['CODE']))
+			{
+				$result->setErrors(array(
+					new Entity\EntityError(
+						'Page address contains forbidden characters.',
+						'WRONG_CODE_CHARS'
 					)
 				));
 				return $result;

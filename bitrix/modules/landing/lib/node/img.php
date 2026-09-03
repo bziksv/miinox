@@ -4,6 +4,7 @@ namespace Bitrix\Landing\Node;
 
 use \Bitrix\Landing\File;
 use Bitrix\Landing\History;
+use Bitrix\Landing\Sanitizer;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Main\Web\DOM\StyleInliner;
 use \Bitrix\Landing\Node;
@@ -16,7 +17,7 @@ class Img extends \Bitrix\Landing\Node
 	 */
 	public static function getHandlerJS()
 	{
-		return 'BX.Landing.Block.Node.Img';
+		return 'BX.Landing.Node.Img';
 	}
 
 	/**
@@ -54,13 +55,21 @@ class Img extends \Bitrix\Landing\Node
 
 			if (isset($value['url']))
 			{
-				$url = is_array($value['url'])
-					? json_encode($value['url'])
-					: $value['url'];
+				$url = (new Sanitizer())->sanitizePseudoUrl($value['url']);
 			}
 			else
 			{
 				$url = '';
+			}
+
+			if (
+				Sanitizer::containsUnneutralizedPhpOpenTag($src)
+				|| Sanitizer::containsUnneutralizedPhpOpenTag($src2x)
+				|| Sanitizer::containsUnneutralizedPhpOpenTag($alt)
+				|| (is_string($url) && Sanitizer::containsUnneutralizedPhpOpenTag($url))
+			)
+			{
+				continue;
 			}
 
 			if (isset($resultList[$pos]))
@@ -139,15 +148,18 @@ class Img extends \Bitrix\Landing\Node
 					if ($isLazy)
 					{
 						$resultList[$pos]->setAttribute('data-lazy-bg', 'Y');
-						if ($lazyOrigSrc = $value['lazyOrigSrc'])
+						$lazyOrigSrc = ($value['lazyOrigSrc'] ?? null);
+						if ($lazyOrigSrc)
 						{
 							$resultList[$pos]->setAttribute('data-src', $lazyOrigSrc);
 						}
-						if ($lazyOrigSrc2x = $value['lazyOrigSrc2x'])
+						$lazyOrigSrc2x = ($value['lazyOrigSrc2x'] ?? null);
+						if ($lazyOrigSrc2x)
 						{
 							$resultList[$pos]->setAttribute('data-src2x', $lazyOrigSrc2x);
 						}
-						if ($lazyOrigStyle = $value['lazyOrigStyle'])
+						$lazyOrigStyle = ($value['lazyOrigStyle'] ?? null);
+						if ($lazyOrigStyle)
 						{
 							$resultList[$pos]->setAttribute('data-style', $lazyOrigStyle);
 						}
@@ -386,13 +398,12 @@ class Img extends \Bitrix\Landing\Node
 	}
 
 	/**
-	 * Prepare node if is styleImg type.
+	 * Change node type if is styleImg type.
 	 * @param \Bitrix\Landing\Block $block Block instance.
 	 * @param array $node Selector.
-	 * @param $manifest
 	 * @return array
 	 */
-	public static function prepareManifest(\Bitrix\Landing\Block $block, array $node, $manifest): array
+	public static function changeNodeType(array $node, \Bitrix\Landing\Block $block): array
 	{
 		$matches = [];
 		$pattern = '/' . substr($node['code'], 1) . '[^\"]*/i';

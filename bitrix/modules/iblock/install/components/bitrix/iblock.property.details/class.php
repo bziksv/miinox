@@ -7,7 +7,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use Bitrix\Iblock\Helpers\Arrays\ArrayFlatterator;
 use Bitrix\Iblock\IblockTable;
-use Bitrix\Iblock\Integration\UI\EntityEditor\FrendlyPropertyProvider;
+use Bitrix\Iblock\Integration\UI\EntityEditor\FriendlyPropertyProvider;
 use Bitrix\Iblock\Integration\UI\EntityEditor\PropertyProvider;
 use Bitrix\Iblock\Model\PropertyFeature;
 use Bitrix\Iblock\PropertyFeatureTable;
@@ -17,7 +17,10 @@ use Bitrix\Main\Engine\Contract\Controllerable;
 use Bitrix\Main\Engine\Response\ContentArea\ContentAreaInterface;
 use Bitrix\Main\Engine\Response\ContentArea\DataSectionInterface;
 use Bitrix\Main\Engine\Response\HtmlContent;
+use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+
+Loader::includeModule('iblock');
 
 class IblockPropertyDetails extends CBitrixComponent implements Controllerable
 {
@@ -188,6 +191,8 @@ class IblockPropertyDetails extends CBitrixComponent implements Controllerable
 		]);
 		$entity = $faltterator->flatten($entity);
 
+		$entity = $this->fillPublicFeature($entity);
+
 		$this->entityFields = $entity;
 
 		return true;
@@ -260,7 +265,7 @@ class IblockPropertyDetails extends CBitrixComponent implements Controllerable
 
 	private function getEditorProvider(): PropertyProvider
 	{
-		return new FrendlyPropertyProvider(
+		return new FriendlyPropertyProvider(
 			$this->getPropertyType(),
 			$this->getPropertyUserType(),
 			$this->getEntityFields()
@@ -293,6 +298,46 @@ class IblockPropertyDetails extends CBitrixComponent implements Controllerable
 		return [$propertyFullType, null];
 	}
 
+	/**
+	 * @param array $entity Entity fields.
+	 *
+	 * @return array
+	 */
+	private function fillPublicFeature(array $entity): array
+	{
+		if ($this->isNew())
+		{
+			return $entity;
+		}
+
+		$value = 'N';
+
+		$listIndex = PropertyFeature::getIndex([
+			'MODULE_ID' => 'iblock',
+			'FEATURE_ID' => PropertyFeature::FEATURE_ID_LIST_PAGE_SHOW,
+		]);
+		$detailIndex = PropertyFeature::getIndex([
+			'MODULE_ID' => 'iblock',
+			'FEATURE_ID' => PropertyFeature::FEATURE_ID_DETAIL_PAGE_SHOW,
+		]);
+		if (
+			isset($entity['FEATURES'][$listIndex])
+			|| isset($entity['FEATURES'][$detailIndex])
+		)
+		{
+			$listShow = ($entity['FEATURES'][$listIndex] ?? 'N') === 'Y';
+			$detailShow = ($entity['FEATURES'][$detailIndex] ?? 'N') === 'Y';
+
+			if ($listShow || $detailShow)
+			{
+				$value = 'Y';
+			}
+		}
+		$entity[FriendlyPropertyProvider::FEATURE_PUBLIC_PROPERTY] = $value;
+
+		return $entity;
+	}
+
 	//
 	// AJAX
 	//
@@ -322,11 +367,15 @@ class IblockPropertyDetails extends CBitrixComponent implements Controllerable
 
 		$parts = $this->parseUserType($propertyFullType);
 
-		$this->entityFields = [
-			'IBLOCK_ID' => $this->iblockId,
-			'PROPERTY_TYPE' => $parts[0],
-			'USER_TYPE' => $parts[1],
-		];
+		$this->entityFields = array_merge(
+			[
+				'IBLOCK_ID' => $this->iblockId,
+				'ID' => $this->propertyId,
+				'PROPERTY_TYPE' => $parts[0],
+				'USER_TYPE' => $parts[1],
+			],
+			$this->getAdditionalEntityFields($parts[0], $parts[1])
+		);
 
 		$this->initResult();
 
@@ -374,5 +423,74 @@ class IblockPropertyDetails extends CBitrixComponent implements Controllerable
 		];
 
 		return new HtmlContent($content);
+	}
+
+	private function getAdditionalEntityFields(string $propertyType, ?string $userType): array
+	{
+		$defaultValues = [
+			'NAME' => '',
+			'ACTIVE' => 'Y',
+			'SORT' => '500',
+			'CODE' => '',
+			'DEFAULT_VALUE' => '',
+			'ROW_COUNT' => '1',
+			'COL_COUNT' => '30',
+			'LIST_TYPE' => PropertyTable::LISTBOX,
+			'MULTIPLE' => 'N',
+			'XML_ID' => '',
+			'FILE_TYPE' => '',
+			'MULTIPLE_CNT' => PropertyTable::DEFAULT_MULTIPLE_CNT,
+			'TMP_ID' => '',
+			'LINK_IBLOCK_ID' => '0',
+			'WITH_DESCRIPTION' => 'N',
+			'SEARCHABLE' => 'N',
+			'FILTRABLE' => 'N',
+			'IS_REQUIRED' => 'N',
+			'USER_TYPE_SETTINGS' => '',
+			'HINT' => '',
+		];
+
+		$result = null;
+		if ($this->propertyId > 0)
+		{
+			$row = PropertyTable::getRow([
+				'filter' => [
+					'=ID' => $this->propertyId,
+				]
+			]);
+			if (is_array($row))
+			{
+				$row['USER_TYPE'] = (string)$row['USER_TYPE'];
+				if ($row['USER_TYPE'] === '')
+				{
+					$row['USER_TYPE'] = null;
+				}
+				if (
+					$row['PROPERTY_TYPE'] === $propertyType
+					&& $row['USER_TYPE'] === $userType
+				)
+				{
+					$result = array_intersect_key($row, $defaultValues);
+					$result['USER_TYPE_SETTINGS'] = (string)$result['USER_TYPE_SETTINGS'];
+					if (
+						$result['USER_TYPE_SETTINGS'] !== ''
+						&& CheckSerializedData($result['USER_TYPE_SETTINGS'])
+					)
+					{
+						$result['USER_TYPE_SETTINGS'] = unserialize($result['USER_TYPE_SETTINGS'], ['allowed_classes' => false]);
+					}
+					if (!is_array($result['USER_TYPE_SETTINGS']))
+					{
+						$result['USER_TYPE_SETTINGS'] = [];
+					}
+				}
+			}
+		}
+
+		return
+			is_array($result)
+				? $result
+				: $defaultValues
+		;
 	}
 }

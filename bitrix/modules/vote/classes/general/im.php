@@ -1,10 +1,12 @@
-<?
-#############################################
-# Bitrix Site Manager Forum					#
-# Copyright (c) 2002-2013 Bitrix			#
-# http://www.bitrixsoft.com					#
-# mailto:admin@bitrixsoft.com				#
-#############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage vote
+ * @copyright 2001-2025 Bitrix
+ */
+
 IncludeModuleLangFile(__FILE__);
 
 class CVoteNotifySchema
@@ -15,13 +17,16 @@ class CVoteNotifySchema
 
 	public static function OnGetNotifySchema()
 	{
-		return array(
-			"vote" => array(
-				"voting" => Array(
-					"NAME" => GetMessage('V_VOTING'),
-				)
-			)
-		);
+		return [
+			"vote" => [
+				"NAME" => GetMessage("V_NS_GROUP"),
+				"NOTIFY" => [
+					"voting" => [
+						"NAME" => GetMessage("V_VOTING"),
+					],
+				],
+			],
+		];
 	}
 }
 ?>

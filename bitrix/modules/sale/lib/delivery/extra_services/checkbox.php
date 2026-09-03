@@ -4,6 +4,7 @@ namespace Bitrix\Sale\Delivery\ExtraServices;
 
 use Bitrix\Main\SystemException;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Sale\PriceMaths;
 
 Loc::loadMessages(__FILE__);
 
@@ -23,12 +24,11 @@ class Checkbox extends Base
 
 	public function getCost()
 	{
-		if($this->value == "Y")
-			$result = $this->getPrice();
-		else
-			$result = 0;
-
-		return $result;
+		return
+			$this->value === 'Y'
+				? (float)$this->getPrice()
+				: 0
+		;
 	}
 
 	public static function getAdminParamsName()
@@ -36,6 +36,13 @@ class Checkbox extends Base
 		return Loc::getMessage("DELIVERY_EXTRA_SERVICE_CHECKBOX_PRICE");
 	}
 
+	public static function prepareParamsToSave(array $params): array
+	{
+		$params['PARAMS']['PRICE'] ??= 0.0;
+		$params['PARAMS']['PRICE'] = (float)$params['PARAMS']['PRICE'];
+
+		return $params;
+	}
 	public static function getAdminParamsControl($name, array $params, $currency = "")
 	{
 		$currency = (string)$currency;
@@ -60,7 +67,7 @@ class Checkbox extends Base
 
 	protected function createJSOnchange($id, $price)
 	{
-		$price = roundEx(floatval($price), SALE_VALUE_PRECISION);
+		$price = PriceMaths::roundPrecision((float)$price);
 		return "BX.onCustomEvent('onDeliveryExtraServiceValueChange', [{'id' : '".$id."', 'value': this.checked, 'price': this.checked ? '".$price."' : '0'}]);";
 	}
 

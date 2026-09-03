@@ -8,8 +8,10 @@ use \Bitrix\Crm\WebForm\Preset;
 use \Bitrix\Landing\Rights;
 use \Bitrix\Landing\Block;
 use \Bitrix\Landing\Manager;
+use Bitrix\Landing\Site\Type;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Main\Application;
+use Bitrix\Main\Security\Random;
 use \Bitrix\Main\Web\Uri;
 use \Bitrix\Main\Loader;
 use \Bitrix\Main\SiteTemplateTable;
@@ -43,8 +45,6 @@ if (Loader::includeModule('crm'))
 	}
 }
 
-// refresh block repo
-Block::getRepository();
 $arParams['TYPE'] = isset($arParams['TYPE']) ? $arParams['TYPE'] : '';
 $arParams['STRICT_TYPE'] = isset($arParams['STRICT_TYPE']) ? $arParams['STRICT_TYPE'] : 'N';
 
@@ -52,15 +52,13 @@ Manager::setPageTitle(
 	Loc::getMessage('LANDING_CMP_TITLE')
 );
 
-if (!\Bitrix\Landing\Site\Type::isEnabled($arParams['TYPE']))
+if (!Type::isEnabled($arParams['TYPE']))
 {
 	Showerror(Loc::getMessage('LANDING_CMP_TYPE_IS_NOT_ENABLED'));
 	return;
 }
 
-\Bitrix\Landing\Site\Type::setScope(
-	$arParams['TYPE']
-);
+Type::setScope($arParams['TYPE']);
 
 // check rights
 \Bitrix\Landing\Role::checkRequiredRoles();
@@ -77,7 +75,11 @@ if (Loader::includeModule('bitrix24'))
 		return;
 	}
 }
-if (!Rights::hasAdditionalRight(Rights::ADDITIONAL_RIGHTS['menu24'], null, true))
+// menu24 of VIBE only controls the navigation, the vibe pages keep their own checks
+if (
+	Type::getCurrentScopeId() !== Type::SCOPE_CODE_VIBE
+	&& !Rights::hasAdditionalRight(Rights::ADDITIONAL_RIGHTS['menu24'], null, true)
+)
 {
 	Manager::getApplication()->showAuthForm(
 		Loc::getMessage('LANDING_CMP_ACCESS_DENIED2')
@@ -103,11 +105,15 @@ $defaultUrlTemplates404 = array(
 	'landing_settings' => 'site/#site_show#/settings/#landing_edit#/',
 	'domains' => 'domains/',
 	'domain_edit' => 'domain/edit/#domain_edit#/',
+	'ai' => 'ai/',
 	'roles' => 'roles/',
 	'notes' => 'notes/',
 	'role_edit' => 'role/edit/#role_edit#/',
 	'folder_edit' => 'folder/edit/#folder_edit#/',
-	'ai_settings' => 'ai/settings/',
+	'vibe_new' => 'new/#vibe_module#/#vibe_embed#/',
+	'vibe_edit' => 'edit/#vibe_module#/#vibe_embed#/',
+	'vibe_settings' => 'settings/#vibe_module#/#vibe_embed#/',
+	'vibe_setting' => 'settings/#vibe_module#/#vibe_embed#/#setting_type#/',
 );
 $urlTpls = array(
 	'sites' => array(),
@@ -126,11 +132,15 @@ $urlTpls = array(
 	'landing_settings' => array('landing_edit', 'site_show'),
 	'domains' => array(),
 	'domain_edit' => array('domain_edit'),
+	'ai' => array(),
 	'roles' => array(),
 	'notes' => array(),
 	'role_edit' => array('role_edit'),
 	'folder_edit' => array('folder_edit'),
-	'ai_settings' => array(),
+	'vibe_new' => array('vibe_module', 'vibe_embed'),
+	'vibe_edit' => array('vibe_module', 'vibe_embed'),
+	'vibe_settings' => array('vibe_module', 'vibe_embed'),
+	'vibe_setting' => array('vibe_module', 'vibe_embed', 'setting_type'),
 );
 
 // init vars
@@ -141,10 +151,37 @@ $request = Application::getInstance()->getContext()->getRequest();
 $uriString = $request->getRequestUri();
 $uriPage = $request->getRequestedPage();
 $landingTypes = \Bitrix\Landing\Site::getTypes();
+$initialPromptField = 'initial_prompt';
+$initialPromptTokenField = 'initial_prompt_token';
+$initialPromptSessionKey = 'landing_ai_site_initial_prompt';
+$initialPromptMaxLength = 4000;
+$normalizeInitialPrompt = static function ($prompt) use ($initialPromptMaxLength): string
+{
+	if (!is_scalar($prompt))
+	{
+		return '';
+	}
+
+	$prompt = str_replace(["\r\n", "\r"], "\n", (string)$prompt);
+	$prompt = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $prompt);
+	if (!is_string($prompt))
+	{
+		return '';
+	}
+
+	$prompt = trim($prompt);
+	if (mb_strlen($prompt) > $initialPromptMaxLength)
+	{
+		$prompt = mb_substr($prompt, 0, $initialPromptMaxLength);
+	}
+
+	return $prompt;
+};
 
 // template vars
 $arResult['AGREEMENT'] = array();
 $arResult['AGREEMENT_ACCEPTED'] = false;
+$arResult['AGREEMENT_INITIAL_PROMPT'] = '';
 $arResult['CHECK_FEATURE_PERM'] = \Bitrix\Landing\Restriction\Manager::isAllowed('limit_sites_access_permissions');
 $arParams['ACTION_FOLDER'] = isset($arParams['ACTION_FOLDER']) ? $arParams['ACTION_FOLDER'] : 'folderId';
 $arParams['SEF_MODE'] = isset($arParams['SEF_MODE']) ? $arParams['SEF_MODE'] : 'Y';
@@ -259,40 +296,69 @@ else
 $arResult['VARS'] = $variables;
 
 // check rules for templates
-if (
-	$arParams['SEF_MODE'] == 'Y' &&
-	isset($arParams['PAGE_URL_LANDING_VIEW'])
-)
+if ($arParams['SEF_MODE'] === 'Y')
 {
-	$condition = $arParams['PAGE_URL_LANDING_VIEW'];
-	$condition = str_replace(
-		array('#site_show#', '#landing_edit#'),
-		'[\\d]+',
-		$condition
-	);
-	$condition = 'preg_match(\'#' . $condition . '#\', ' .
-				 '$GLOBALS[\'APPLICATION\']->GetCurPage(0))';
-	$res = SiteTemplateTable::getList(array(
-		'select' => array(
-			'ID'
-		),
-		'filter' => array(
-			'=SITE_ID' => SITE_ID,
-			'=CONDITION' => $condition
-		)
-	));
-	if (!$res->fetch())
+	if (
+		isset($arParams['PAGE_URL_LANDING_VIEW'])
+		&& $arParams['TYPE'] !== Type::SCOPE_CODE_VIBE
+	)
 	{
-		SiteTemplateTable::add(array(
-			'TEMPLATE' => Manager::getTemplateId(SITE_ID),
-			'SITE_ID' => SITE_ID,
-			'SORT' => 500,
-			'CONDITION' => $condition
-		));
-		Manager::getCacheManager()->clean('b_site_template');
-		if ($componentPage == 'landing_view')
+		$condition = $arParams['PAGE_URL_LANDING_VIEW'];
+		$condition = str_replace(
+			array('#site_show#', '#landing_edit#'),
+			'[\\d]+',
+			$condition
+		);
+		$condition = 'preg_match(\'#' . $condition . '#\', ' . '$GLOBALS[\'APPLICATION\']->GetCurPage(0))';
+		$res = SiteTemplateTable::getList([
+			'select' => [
+				'ID',
+			],
+			'filter' => [
+				'=SITE_ID' => SITE_ID,
+				'=CONDITION' => $condition,
+			],
+		]);
+		if (!$res->fetch())
 		{
-			\localRedirect(Manager::getApplication()->getCurPage());
+			SiteTemplateTable::add([
+				'TEMPLATE' => Manager::getTemplateId(SITE_ID),
+				'SITE_ID' => SITE_ID,
+				'SORT' => 500,
+				'CONDITION' => $condition
+			]);
+			if ($componentPage === 'landing_view')
+			{
+				\localRedirect(Manager::getApplication()->getCurPage());
+			}
+		}
+	}
+	if (isset($arParams['PAGE_URL_AI']))
+	{
+		$condition = $arParams['PAGE_URL_AI'];
+		$condition = 'preg_match(\'#' . $condition . '#\', ' .
+			'$GLOBALS[\'APPLICATION\']->GetCurPage(0))';
+		$res = SiteTemplateTable::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => [
+				'=SITE_ID' => SITE_ID,
+				'=CONDITION' => $condition
+			]
+		]);
+		if (!$res->fetch())
+		{
+			SiteTemplateTable::add([
+				'TEMPLATE' => Manager::getTemplateId(SITE_ID),
+				'SITE_ID' => SITE_ID,
+				'SORT' => 450,
+				'CONDITION' => $condition
+			]);
+			if ($componentPage === 'ai')
+			{
+				\localRedirect(Manager::getApplication()->getCurPage());
+			}
 		}
 	}
 }
@@ -331,14 +397,9 @@ if ($componentPage == 'domains' || $componentPage == 'domain_edit')
 }
 
 // only AGREEMENTS below
-
-if (
-	$request->get('landing_mode') ||
-	!Manager::isB24()
-)
+if ($componentPage === 'ai' && $request->isPost() && check_bitrix_sessid())
 {
-	$this->IncludeComponentTemplate($componentPage);
-	return;
+	$arResult['AGREEMENT_INITIAL_PROMPT'] = $normalizeInitialPrompt($request->getPost($initialPromptField));
 }
 
 $currentLang = LANGUAGE_ID;
@@ -352,7 +413,8 @@ $agreements = array(
 $virtualLangs = array(
 	'ua' => 'ru',
 	'by' => 'ru',
-	'kz' => 'ru'
+	'kz' => 'ru',
+	'uz' => 'ru',
 );
 
 if (isset($agreements['es']))
@@ -361,7 +423,7 @@ if (isset($agreements['es']))
 }
 
 // lang zone is in CIS
-$cis = $currentZone == 'by' || $currentZone == 'kz';
+$cis = $currentZone === 'by' || $currentZone === 'kz' || $currentZone === 'uz';
 
 // actual from lang-file
 foreach ($agreements as $lng => $item)
@@ -450,6 +512,27 @@ while ($row = $res->fetch())
 	$agreements[$row['LANGUAGE_ID']]['ID'] = $row['ID'];
 }
 
+// check accepted
+$consentTableRes = ConsentTable::getList(array(
+	'filter' => array(
+		'USER_ID' => Manager::getUserId(),
+		'AGREEMENT_ID' => $agreementsId
+	)
+));
+if ($consentTableRes->fetch())
+{
+	$arResult['AGREEMENT_ACCEPTED'] = true;
+}
+
+if (
+	$request->get('landing_mode') ||
+	!Manager::isB24()
+)
+{
+	$this->IncludeComponentTemplate($componentPage);
+	return;
+}
+
 // add new to db
 foreach ($agreements as $lng => $agreement)
 {
@@ -499,16 +582,9 @@ else
 }
 
 // check accepted
-$res = ConsentTable::getList(array(
-	'filter' => array(
-		'USER_ID' => Manager::getUserId(),
-		'AGREEMENT_ID' => $agreementsId
-	)
-));
-if ($res->fetch())
+if ($consentTableRes->fetch())
 {
 	$redirectIfUnAccept = false;
-	$arResult['AGREEMENT_ACCEPTED'] = true;
 }
 
 // accept
@@ -518,10 +594,34 @@ if (
 	check_bitrix_sessid()
 )
 {
+	$redirectUriString = $uriString;
 	Consent::addByContext(
 		$arResult['AGREEMENT']['ID']
 	);
-	LocalRedirect($uriString);
+	if ($componentPage === 'ai')
+	{
+		$session = Application::getInstance()->getSession();
+		$initialPrompt = $normalizeInitialPrompt($request->getPost($initialPromptField));
+		if ($initialPrompt !== '')
+		{
+			$initialPromptToken = Random::getString(32, true);
+			$session->set($initialPromptSessionKey, [
+				'prompt' => $initialPrompt,
+				'token' => $initialPromptToken,
+				'createdAt' => time(),
+			]);
+
+			$redirectUri = new Uri($uriString);
+			$redirectUri->deleteParams([$initialPromptTokenField]);
+			$redirectUri->addParams([$initialPromptTokenField => $initialPromptToken]);
+			$redirectUriString = $redirectUri->getUri();
+		}
+		elseif ($session->has($initialPromptSessionKey))
+		{
+			$session->remove($initialPromptSessionKey);
+		}
+	}
+	LocalRedirect($redirectUriString);
 }
 
 // if not accept and don't exist agreement

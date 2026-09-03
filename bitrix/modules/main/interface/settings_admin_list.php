@@ -1,5 +1,13 @@
-<?
+<?php
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+
+/**
+ * @global CUser $USER
+ * @var array $aOptions Defined in CAdminList::ShowSettings()
+ * @var array $aAllCols Defined in CAdminList::ShowSettings()
+ * @var array $aCols Defined in CAdminList::ShowSettings()
+ */
+
 IncludeModuleLangFile(__FILE__);
 
 if($this->sort)
@@ -30,12 +38,12 @@ echo '</form>';
 	<tr>
 		<td width="0">
 			<select class="select" name="all_columns" id="list_settings_all_columns" size="10" multiple onchange="document.list_settings.add.disabled=(this.selectedIndex == -1);">
-<?
+<?php
 $bNeedSort = false;
 foreach($aAllCols as $header)
 {
 	echo '<option value="'.$header["id"].'">'.(!empty($header["name"]) ? $header["name"] : $header["content"]).'</option>';
-	if($header["sort"] <> "")
+	if(!empty($header["sort"]))
 	{
 		$bNeedSort = true;
 	}
@@ -46,7 +54,7 @@ foreach($aAllCols as $header)
 		<td align="center" width="50%"><input type="button" name="add" value="&nbsp; &gt; &nbsp;" title="<?=GetMessage("admin_lib_sett_sel_title")?>" disabled onclick="BX.selectUtils.addSelectedOptions(document.list_settings.all_columns, 'list_settings_selected_columns');"></td>
 		<td width="0">
 			<select class="select" name="selected_columns" id="list_settings_selected_columns" size="10" multiple onchange="var frm=document.list_settings; frm.up.disabled=frm.down.disabled=frm.del.disabled=(this.selectedIndex == -1);">
-<?
+<?php
 $bEmptyCols = empty($aCols);
 foreach($this->aHeaders as $header)
 {
@@ -67,7 +75,7 @@ foreach($this->aHeaders as $header)
 </table>
 <h2><?=GetMessage("admin_lib_sett_def_title")?></h2>
 <table cellspacing="0" width="100%">
-<?
+<?php
 if($this->sort && $bNeedSort)
 {
 ?>
@@ -75,12 +83,12 @@ if($this->sort && $bNeedSort)
 		<td align="right"><?=GetMessage("admin_lib_sett_sort")?></td>
 		<td>
 			<select name="order_field">
-<?
+<?php
 $by = mb_strtoupper($aOptions["by"]);
 $order = mb_strtoupper($aOptions["order"]);
 	foreach($aAllCols as $header)
 	{
-		if($header["sort"] <> "")
+		if(!empty($header["sort"]))
 		{
 			echo '<option value="'.$header["sort"].'"'.($by == mb_strtoupper($header["sort"])? ' selected':'').'>'.(!empty($header["name"]) ? $header["name"] : $header["content"]).'</option>';
 		}
@@ -93,14 +101,14 @@ $order = mb_strtoupper($aOptions["order"]);
 			</select>
 		</td>
 	</tr>
-<?
+<?php
 } // if($this->sort && $bNeedSort)
 ?>
 	<tr>
 		<td align="right"><?=GetMessage("admin_lib_sett_rec")?></td>
 		<td>
 			<select name="nav_page_size">
-<?
+<?php
 $aSizes = array(10, 20, 50, 100, 200, 500);
 foreach($aSizes as $size)
 {
@@ -111,7 +119,7 @@ foreach($aSizes as $size)
 		</td>
 	</tr>
 </table>
-<?
+<?php
 if($USER->CanDoOperation('edit_other_settings'))
 {
 ?>
@@ -123,20 +131,19 @@ if($USER->CanDoOperation('edit_other_settings'))
 		<td><a class="delete-icon" title="<?=GetMessage("admin_lib_sett_common_del")?>" href="javascript:if(confirm('<?=CUtil::JSEscape(GetMessage("admin_lib_sett_common_del_conf"))?>'))<?=$this->table_id?>.DeleteSettings(true)"></a></td>
 	</tr>
 </table>
-<?
+<?php
 } //if($USER->CanDoOperation('edit_other_settings'))
 ?>
 </form>
 </div>
-<script type="text/javascript">
+<script>
 BX.adminFormTools.modifyFormElements('list_settings')
 </script>
-<?
+<?php
 $obJSPopup->StartButtons();
 ?>
 <input class="adm-btn-save" type="button" value="<?=GetMessage("admin_lib_sett_save")?>" onclick="<?=$this->table_id?>.SaveSettings(this)" title="<?=GetMessage("admin_lib_sett_save_title")?>" />
 <input type="button" value="<?=GetMessage("admin_lib_sett_cancel")?>" onclick="BX.WindowManager.Get().Close()" title="<?=GetMessage("admin_lib_sett_cancel_title")?>" />
 <input type="button" value="<?=GetMessage("admin_lib_sett_reset")?>" onclick="if(confirm('<?=CUtil::JSEscape(GetMessage("admin_lib_sett_reset_ask"))?>'))<?=$this->table_id?>.DeleteSettings()" title="<?=GetMessage("admin_lib_sett_reset_title")?>" />
-<?
+<?php
 $obJSPopup->EndButtons();
-?>

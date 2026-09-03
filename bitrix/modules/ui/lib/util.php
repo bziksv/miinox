@@ -1,4 +1,5 @@
-<?
+<?php
+
 namespace Bitrix\UI;
 
 use Bitrix\Main\Loader;
@@ -21,12 +22,11 @@ class Util
 		'it' => 'https://helpdesk.bitrix24.it',
 		'pl' => 'https://helpdesk.bitrix24.pl',
 		'ru' => 'https://helpdesk.bitrix24.ru',
-		'ua' => 'https://helpdesk.bitrix24.ua',
 	];
 
-	public static function getHelpdeskUrl($byLang = false)
+	public static function getHelpdeskUrl($byLang = false, ?string $language = null): string
 	{
-		$lang = LANGUAGE_ID;
+		$lang = $language ?? LANGUAGE_ID;
 		if (Loader::includeModule('bitrix24'))
 		{
 			$licensePrefix = \CBitrix24::getLicensePrefix();
@@ -46,10 +46,6 @@ class Util
 
 			case "de":
 				$helpdeskUrl = static::HELPDESK_DOMAIN['de'];
-				break;
-
-			case "ua":
-				$helpdeskUrl = static::HELPDESK_DOMAIN['ua'];
 				break;
 
 			case "br":
@@ -91,13 +87,14 @@ class Util
 
 	/**
 	 * @param string $code article code.
-	 * @return string
+	 * @param string|null $language
+	 * @return string|null
 	 */
-	public static function getArticleUrlByCode(string $code): ?string
+	public static function getArticleUrlByCode(string $code, ?string $language = null): ?string
 	{
 		if (preg_match('/([\w]+)/', $code, $matches))
 		{
-			$articleUrl = self::getHelpdeskUrl();
+			$articleUrl = self::getHelpdeskUrl(false, $language);
 			$articleUrl .= '/open/code_' . $code . '/';
 
 			return $articleUrl;
@@ -106,4 +103,3 @@ class Util
 		return null;
 	}
 }
-

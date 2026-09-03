@@ -10,11 +10,11 @@ use Bitrix\Main\Text\Encoding;
 /**
  * This class implements "Standards of financial transactions. Two-dimensional barcode symbols for payments by individuals"
  *
- * ÃÎÑÒ Ð 56042-2014. Ñòàíäàðòû ôèíàíñîâûõ îïåðàöèé. Äâóìåðíûå ñèìâîëû øòðèõîâîãî êîäà äëÿ îñóùåñòâëåíèÿ ïëàòåæåé ôèçè÷åñêèõ ëèö
+ * Ð“ÐžÐ¡Ð¢ Ð  56042-2014. Ð¡Ñ‚Ð°Ð½Ð´Ð°Ñ€Ñ‚Ñ‹ Ñ„Ð¸Ð½Ð°Ð½ÑÐ¾Ð²Ñ‹Ñ… Ð¾Ð¿ÐµÑ€Ð°Ñ†Ð¸Ð¹. Ð”Ð²ÑƒÐ¼ÐµÑ€Ð½Ñ‹Ðµ ÑÐ¸Ð¼Ð²Ð¾Ð»Ñ‹ ÑˆÑ‚Ñ€Ð¸Ñ…Ð¾Ð²Ð¾Ð³Ð¾ ÐºÐ¾Ð´Ð° Ð´Ð»Ñ Ð¾ÑÑƒÑ‰ÐµÑÑ‚Ð²Ð»ÐµÐ½Ð¸Ñ Ð¿Ð»Ð°Ñ‚ÐµÐ¶ÐµÐ¹ Ñ„Ð¸Ð·Ð¸Ñ‡ÐµÑÐºÐ¸Ñ… Ð»Ð¸Ñ†
  *
  * Maximum length of BankName is increased up to 120, standard states it should not be more than 45.
  */
-final class FinancialTransactionsRu
+class FinancialTransactionsRu
 {
 	public const FORMAT_IDENTIFIER = 'ST';
 	public const FORMAT_VERSION = '0001';
@@ -39,7 +39,7 @@ final class FinancialTransactionsRu
 	public const FIELD_CBC = 'CBC';
 	public const FIELD_OKTMO = 'OKTMO';
 	public const FIELD_PAYMENT_REASON_CODE = 'PaytReason';
-	public const FIELD_TAX_PERIOD = 'ÒaxPeriod';
+	public const FIELD_TAX_PERIOD = 'Ð¢axPeriod';
 	public const FIELD_DOCUMENT_NUMBER = 'DocNo';
 	public const FIELD_DOCUMENT_DATE = 'DocDate';
 	public const FIELD_TAX_PAYMENT_KIND_CODE = 'TaxPaytKind';
@@ -237,6 +237,7 @@ final class FinancialTransactionsRu
 			self::FIELD_BANK_NAME => 120,
 			self::FIELD_BIC => 9,
 			self::FIELD_CORRESPONDENT_ACCOUNT => 20,
+			self::FIELD_PURPOSE => 210,
 		];
 
 		return $maximumFieldLengths[$fieldName] ?? null;

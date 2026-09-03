@@ -1,9 +1,14 @@
 <?php
 namespace Bitrix\Pull;
 
+use Bitrix\Main\EventResult;
+use Bitrix\Main\Type\Collection;
+
 class MobileCounter
 {
 	const MOBILE_APP = 'Bitrix24';
+
+	private static array $counterCache = [];
 
 	public static function getTypes()
 	{
@@ -14,7 +19,7 @@ class MobileCounter
 
 		foreach ($event->getResults() as $eventResult)
 		{
-			if ($eventResult->getType() != \Bitrix\Main\EventResult::SUCCESS)
+			if ($eventResult->getType() != EventResult::SUCCESS)
 			{
 				continue;
 			}
@@ -46,6 +51,11 @@ class MobileCounter
 		if (!$userId)
 		{
 			return false;
+		}
+
+		if (isset(self::$counterCache[$userId]))
+		{
+			return self::$counterCache[$userId];
 		}
 
 		$counter = 0;
@@ -80,24 +90,34 @@ class MobileCounter
 
 		foreach ($event->getResults() as $eventResult)
 		{
-			if ($eventResult->getType() != \Bitrix\Main\EventResult::SUCCESS)
+			if ($eventResult->getType() != EventResult::SUCCESS)
 			{
 				continue;
 			}
 
-			$result = $eventResult->getParameters();
+			$mobileCounters = $eventResult->getParameters();
 
-			$type = $eventResult->getModuleId().'_'.$result['TYPE'];
-			if ($typeStatus[$type] === false)
+			if (Collection::isAssociative($mobileCounters))
 			{
-				continue;
+				$mobileCounters = [$mobileCounters];
 			}
 
-			if (intval($result['COUNTER']) > 0)
+			foreach ($mobileCounters as $mobileCounter)
 			{
-				$counter += $result['COUNTER'];
+				$type = $eventResult->getModuleId() . '_' . $mobileCounter['TYPE'];
+				if ($typeStatus[$type] === false)
+				{
+					continue;
+				}
+
+				if ((int)$mobileCounter['COUNTER'] > 0)
+				{
+					$counter += $mobileCounter['COUNTER'];
+				}
 			}
 		}
+
+		self::$counterCache[$userId] = $counter;
 
 		return $counter;
 	}
@@ -174,25 +194,13 @@ class MobileCounter
 		return true;
 	}
 
+	/**
+	 * @deprecated use Bitrix\Pull\Push::add - push sending was moved to the Push service
+	 * @see Bitrix\Pull\Push::add
+	 */
 	public static function send($userId = null, $appId = self::MOBILE_APP)
 	{
-		if (is_null($userId) && is_object($GLOBALS['USER']))
-		{
-			$userId = $GLOBALS['USER']->getId();
-		}
-
-		$userId = intval($userId);
-		if ($userId <= 0)
-		{
-			return false;
-		}
-
-		\Bitrix\Pull\Push::add($userId, Array(
-			'module_id' => 'pull',
-			'push' => Array('badge' => 'Y')
-		));
-
-		return true;
+		return false;
 	}
 
 	public static function onSonetLogCounterClear($counterType = '', $timestamp = 0)
@@ -206,8 +214,6 @@ class MobileCounter
 		{
 			return false;
 		}
-
-		self::send($userId);
 
 		return true;
 	}

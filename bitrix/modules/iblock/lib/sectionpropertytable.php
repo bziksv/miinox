@@ -1,8 +1,10 @@
 <?php
+
 namespace Bitrix\Iblock;
 
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
 
 /**
  * Class SectionPropertyTable
@@ -27,9 +29,9 @@ use Bitrix\Main\Localization\Loc;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_SectionProperty_Query query()
- * @method static EO_SectionProperty_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_SectionProperty_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_SectionProperty_Result getById($id)
- * @method static EO_SectionProperty_Result getList(array $parameters = array())
+ * @method static EO_SectionProperty_Result getList(array $parameters = [])
  * @method static EO_SectionProperty_Entity getEntity()
  * @method static \Bitrix\Iblock\EO_SectionProperty createObject($setDefaultValues = true)
  * @method static \Bitrix\Iblock\EO_SectionProperty_Collection createCollection()
@@ -37,7 +39,7 @@ use Bitrix\Main\Localization\Loc;
  * @method static \Bitrix\Iblock\EO_SectionProperty_Collection wakeUpCollection($rows)
  */
 
-class SectionPropertyTable extends Entity\DataManager
+class SectionPropertyTable extends DataManager
 {
 	//ABCDE - for numbers
 	public const NUMBERS_WITH_SLIDER = 'A';

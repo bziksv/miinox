@@ -54,7 +54,7 @@ $old_module_version = CForm::IsOldVersion();
 $F_RIGHT = CForm::GetPermission($WEB_FORM_ID);
 if($F_RIGHT<25) $APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-$cp_id = intval($cp_id);
+$cp_id = intval($_REQUEST['cp_id'] ?? 0);
 if ($cp_id>0 && check_bitrix_sessid() && $F_RIGHT >= 30)
 {
 	CFormStatus::Copy($cp_id);
@@ -88,8 +88,8 @@ if ($lAdmin->EditAction() && $FORM_RIGHT>="W" && $F_RIGHT>=30 && check_bitrix_se
 
 		$arFieldsStore = Array(
 			"TIMESTAMP_X"	=> $DB->GetNowFunction(),
-			"ACTIVE"		=> "'".$DB->ForSql($arFields[ACTIVE])."'",
-			"C_SORT"		=> "'".intval($arFields[C_SORT])."'",
+			"ACTIVE"		=> "'".$DB->ForSql($arFields['ACTIVE'])."'",
+			"C_SORT"		=> "'".intval($arFields['C_SORT'])."'",
 		);
 
 		if (!$DB->Update("b_form_status",$arFieldsStore,"WHERE ID='".$ID."'",$err_mess.__LINE__))
@@ -97,8 +97,10 @@ if ($lAdmin->EditAction() && $FORM_RIGHT>="W" && $F_RIGHT>=30 && check_bitrix_se
 			$lAdmin->AddUpdateError(GetMessage("FORM_ERROR").$ID.": ".GetMessage("FORM_ERROR_SAVE"), $ID);
 			$DB->Rollback();
 		}
-
-		$DB->Commit();
+		else
+		{
+			$DB->Commit();
+		}
 	}
 }
 
@@ -128,7 +130,10 @@ if(($arID = $lAdmin->GroupAction()) && $FORM_RIGHT=="W" && $F_RIGHT>=30 && check
 					$DB->Rollback();
 					$lAdmin->AddGroupError(GetMessage("FORM_STATUS_DELETE_ERROR").' '.$ID, $ID);
 				}
-				$DB->Commit();
+				else
+				{
+					$DB->Commit();
+				}
 				break;
 			case "activate":
 			case "deactivate":
@@ -140,7 +145,10 @@ if(($arID = $lAdmin->GroupAction()) && $FORM_RIGHT=="W" && $F_RIGHT>=30 && check
 					$DB->Rollback();
 					$lAdmin->AddGroupError(GetMessage("FORM_STATUS_ACTIVE_ERROR").' '.$ID, $ID);
 				}
-				$DB->Commit();
+				else
+				{
+					$DB->Commit();
+				}
 			break;
 		}
 	}
@@ -252,8 +260,8 @@ echo BeginNote('width="100%"');?>
 <b><?=GetMessage("FORM_FORM_NAME")?></b> [<a title='<?=GetMessage("FORM_EDIT_FORM")?>' href='form_edit.php?lang=<?=LANGUAGE_ID?>&ID=<?=$WEB_FORM_ID?>'><?=$WEB_FORM_ID?></a>]&nbsp;(<?=htmlspecialcharsbx($arForm["SID"])?>)&nbsp;<?=htmlspecialcharsbx($arForm["NAME"])?>
 <?echo EndNote();
 
-echo ShowError($strError);
-echo ShowNote($strNote);
+ShowError($strError);
+ShowNote($strNote);
 
 // Filter
 ?>

@@ -64,7 +64,7 @@ class SenderContactImportComponent extends CBitrixComponent
 			?
 			$this->arParams['CAN_EDIT']
 			:
-			Security\Access::getInstance()->canModifySegments();
+			Security\Access::getInstance()->canModifyClientPersonalList();
 	}
 
 	protected function preparePost()
@@ -88,7 +88,6 @@ class SenderContactImportComponent extends CBitrixComponent
 		/* Set title */
 		if ($this->arParams['SET_TITLE'])
 		{
-			/**@var CAllMain*/
 			$GLOBALS['APPLICATION']->SetTitle(
 				$this->arParams['BLACKLIST'] ?
 					Loc::getMessage('SENDER_CONTACT_IMPORT_BLACKLIST_TITLE')

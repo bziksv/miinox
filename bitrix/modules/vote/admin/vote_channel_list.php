@@ -1,10 +1,12 @@
-<?
-##############################################
-# Bitrix Site Manager Forum					 #
-# Copyright (c) 2002-2009 Bitrix			 #
-# http://www.bitrixsoft.com					 #
-# mailto:admin@bitrixsoft.com				 #
-##############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage vote
+ * @copyright 2001-2025 Bitrix
+ */
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
 $sTableID = "tbl_vote_channel";
@@ -72,9 +74,10 @@ if ($lAdmin->EditAction() && $VOTE_RIGHT>="W" && check_bitrix_sessid())
 			$DB->Rollback();
 		}
 		else
+		{
+			$DB->Commit();
 			$bupdate = true;
-
-		$DB->Commit();
+		}
 	}
 
 	if ($bupdate)
@@ -104,10 +107,13 @@ if(($arID = $lAdmin->GroupAction()) && $VOTE_RIGHT=="W" && check_bitrix_sessid()
 						$DB->StartTransaction();
 						if(!CVoteChannel::Delete($ID))
 						{
-								$DB->Rollback();
-								$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
+							$DB->Rollback();
+							$lAdmin->AddGroupError(GetMessage("DELETE_ERROR"), $ID);
 						}
-						$DB->Commit();
+						else
+						{
+							$DB->Commit();
+						}
 						break;
 				case "activate":
 				case "deactivate":

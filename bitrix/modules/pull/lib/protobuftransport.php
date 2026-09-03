@@ -3,13 +3,9 @@
 namespace Bitrix\Pull;
 
 use Bitrix\Main\Config\Option;
-use Bitrix\Main\Result;
-use Bitrix\Main\SystemException;
-use Bitrix\Main\Text\BinaryString;
-use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\HttpClient;
-use Bitrix\Pull\Protobuf;
 use Protobuf\MessageCollection;
+use Bitrix\Main\Web\Uri;
 
 class ProtobufTransport
 {
@@ -19,20 +15,21 @@ class ProtobufTransport
 	/**
 	 * @param array $messages Messages to send to the pull server.
 	 */
-	public static function sendMessages(array $messages, array $options = []): Result
+	public static function sendMessages(array $messages, array $options = []): TransportResult
 	{
-		$result = new Result();
-		if(!Config::isProtobufUsed())
-		{
-			throw new SystemException("Sending messages in protobuf format is not supported by queue server");
-		}
+		$result = new TransportResult();
 
 		$protobufMessages = static::convertMessages($messages);
 		$requests = static::createRequests($protobufMessages);
 		$requestBatches = static::createRequestBatches($requests);
 
 		$queueServerUrl = $options['serverUrl'] ?? Config::getPublishUrl();
-		$queueServerUrl = \CHTTP::urlAddParams($queueServerUrl, ["binaryMode" => "true"]);
+		$result->withRemoteAddress($queueServerUrl);
+
+		$queueServerUrl = (string)(new Uri($queueServerUrl))->addParams([
+			"binaryMode" => "true",
+			"hostname" => Config::getHostname(),
+		]);
 		foreach ($requestBatches as $requestBatch)
 		{
 			$urlWithSignature = $queueServerUrl;
@@ -41,7 +38,7 @@ class ProtobufTransport
 			if(\CPullOptions::IsServerShared())
 			{
 				$signature = \CPullChannel::GetSignature($bodyStream->getContents());
-				$urlWithSignature = \CHTTP::urlAddParams($urlWithSignature, ["signature" => $signature]);
+				$urlWithSignature = (string)(new Uri($urlWithSignature))->addParams(["signature" => $signature]);
 			}
 
 			$httpClient->disableSslVerification();
@@ -52,9 +49,47 @@ class ProtobufTransport
 				$errorMsg = $httpClient->getError()[$errorCode];
 				$result->addError(new \Bitrix\Main\Error($errorMsg, $errorCode));
 			}
+
+			if (Option::get('pull', 'pull_log_196916_enable', 'N') === 'Y')
+			{
+				self::logMessageSending($httpClient, $requestBatch);
+			}
 		}
 
 		return $result;
+	}
+
+	protected static function logMessageSending(HttpClient $httpClient, Protobuf\RequestBatch $batch): void
+	{
+		$status = $httpClient->getStatus();
+		$result = $httpClient->getResult();
+		$url = $httpClient->getEffectiveUrl();
+		$logId = 'pull-196916';
+		$channels = [];
+
+		$requestList = $batch->getRequestsList() ?? [];
+		/** @var Protobuf\IncomingMessage $message */
+		foreach ($requestList[0]?->getIncomingMessages()?->getMessagesList() ?? [] as $message)
+		{
+			$receiversList = $message->getReceiversList() ?? [];
+			/** @var Protobuf\Receiver $receiver */
+			foreach ($receiversList as $receiver)
+			{
+				$channel = bin2hex($receiver->getId()?->getContents() ?? '');
+				$channels[$channel] = $channel;
+			}
+		}
+		$channelsString = implode(',', array_values($channels));
+
+		$message =
+			"logId: {$logId}\n"
+			. "status: {$status}\n"
+			. "result: {$result}\n"
+			. "url: {$url}\n"
+			. "channels: {$channelsString}\n"
+		;
+
+		AddMessage2Log($message, 'pull', 0);
 	}
 
 	/**
@@ -96,7 +131,10 @@ class ProtobufTransport
 			$requests[] = $request;
 		}
 
-		$queueServerUrl = \CHTTP::urlAddParams(Config::getPublishUrl(), ["binaryMode" => "true"]);
+		$queueServerUrl = (string)(new Uri(Config::getPublishUrl()))->addParams([
+			"binaryMode" => "true",
+			"hostname" => Config::getHostname(),
+		]);
 
 		$requestBatches = static::createRequestBatches($requests);
 		foreach ($requestBatches as $requestBatch)
@@ -109,7 +147,7 @@ class ProtobufTransport
 			if(\CPullOptions::IsServerShared())
 			{
 				$signature = \CPullChannel::GetSignature($bodyStream->getContents());
-				$urlWithSignature = \CHTTP::urlAddParams($urlWithSignature, ["signature" => $signature]);
+				$urlWithSignature = (string)(new Uri($urlWithSignature))->addParams(["signature" => $signature]);
 			}
 
 			$binaryResponse = $http->post($urlWithSignature, $bodyStream);
@@ -127,7 +165,7 @@ class ProtobufTransport
 			{
 				$responseBatch = Protobuf\ResponseBatch::fromStream($binaryResponse);
 			}
-			catch (\Exception $e)
+			catch (\Exception)
 			{
 				return [];
 			}

@@ -1,10 +1,12 @@
-<?
-##############################################
-# Bitrix Site Manager IBlock                 #
-# Copyright (c) 2002-2007 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage photogallery
+ * @copyright 2001-2025 Bitrix
+ */
+
 CModule::AddAutoloadClasses(
 	"photogallery",
 	array(
@@ -14,7 +16,7 @@ CModule::AddAutoloadClasses(
 		"CPhotogalleryNotifySchema" => "classes/general/photo_notify_schema.php",
 	)
 );
-if (!is_array($GLOBALS["PHOTOGALLERY_VARS"]))
+if (!isset($GLOBALS["PHOTOGALLERY_VARS"]) || !is_array($GLOBALS["PHOTOGALLERY_VARS"]))
 {
 	$GLOBALS["PHOTOGALLERY_VARS"] = array(
 		"arSections" => array(),
@@ -159,7 +161,7 @@ function PhotoFormatDate($strDate, $format="DD.MM.YYYY HH:MI:SS", $new_format="D
 	$strDate = trim($strDate);
 
 	$new_format = str_replace("MI","I", $new_format);
-	$new_format = preg_replace("/([DMYIHS])\\1+/is".BX_UTF_PCRE_MODIFIER, "\\1", $new_format);
+	$new_format = preg_replace("/([DMYIHS])\\1+/isu", "\\1", $new_format);
 	$new_format_len = mb_strlen($new_format);
 	$arFormat = preg_split('/[^0-9A-Za-z]/', mb_strtoupper($format));
 	$arDate = preg_split('/[^0-9]/', $strDate);

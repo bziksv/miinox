@@ -1,7 +1,8 @@
 <?php
 
 use Bitrix\Main;
-use Bitrix\Main\Web;
+use Bitrix\Main\Web\Uri;
+use Bitrix\Main\Config\Configuration;
 
 class CHTTP
 {
@@ -24,7 +25,7 @@ class CHTTP
 
 	public function __construct()
 	{
-		$defaultOptions = \Bitrix\Main\Config\Configuration::getValue("http_client_options");
+		$defaultOptions = Configuration::getValue("http_client_options");
 		if(isset($defaultOptions["socketTimeout"]))
 		{
 			$this->http_timeout = intval($defaultOptions["socketTimeout"]);
@@ -38,28 +39,14 @@ class CHTTP
 	 */
 	public static function URN2URI($urn, $server_name = '')
 	{
-		/** @global CMain $APPLICATION */
-		global $APPLICATION;
+		$url = (string)(new Uri($urn))->toAbsolute($server_name ?: null);
 
-		if(preg_match("/^[a-z]+:\\/\\//", $urn))
+		if ($urn == '')
 		{
-			$uri = $urn;
+			$url = rtrim($url, '/');
 		}
-		else
-		{
-			if($APPLICATION->IsHTTPS())
-				$proto = "https://";
-			else
-				$proto = "http://";
 
-			if($server_name <> '')
-				$server_name = preg_replace("/:(443|80)$/", "", $server_name);
-			else
-				$server_name = preg_replace("/:(443|80)$/", "", $_SERVER["HTTP_HOST"]);
-
-			$uri = $proto.$server_name.$urn;
-		}
-		return $uri;
+		return $url;
 	}
 
 	public function Download($url, $file)
@@ -140,9 +127,9 @@ class CHTTP
 			}
 		}
 
-		if($prefix == '' && mb_substr($str, 0, 1) == '&')
+		if($prefix == '' && str_starts_with($str, '&'))
 		{
-			$str = mb_substr($str, 1);
+			$str = substr($str, 1);
 		}
 
 		return $str;
@@ -369,7 +356,7 @@ class CHTTP
 					$this->status = intval($arFind[1]);
 				}
 			}
-			elseif(strpos($header, ':') !== false)
+			elseif(str_contains($header, ':'))
 			{
 				$arHeader = explode(':', $header, 2);
 				if ($arHeader[0] == 'Set-Cookie')
@@ -507,7 +494,7 @@ class CHTTP
 		}
 	}
 
-	/*
+	/**
 	 * @deprecated Use \Bitrix\Main\Server::parseAuthRequest()
 	 */
 	public static function ParseAuthRequest()
@@ -518,37 +505,44 @@ class CHTTP
 	/**
 	 * @deprecated Use \Bitrix\Main\Web\Uri::addParams().
 	 */
-	public static function urlAddParams($url, $add_params, $options = array())
+	public static function urlAddParams($url, $add_params, $options = [])
 	{
-		if(!empty($add_params))
+		if (!empty($add_params))
 		{
-			$params = array();
-			foreach($add_params as $name => $value)
+			$params = [];
+			foreach ($add_params as $name => $value)
 			{
-				if(($options["skip_empty"] ?? false) && (string)$value == '')
-					continue;
-				if(($options["encode"] ?? false))
-					$params[] = urlencode($name).'='.urlencode($value);
-				else
-					$params[] = $name.'='.$value;
-			}
-
-			if(!empty($params))
-			{
-				$p1 = mb_strpos($url, "?");
-				if($p1 === false)
-					$ch = "?";
-				else
-					$ch = "&";
-
-				$p2 = mb_strpos($url, "#");
-				if($p2===false)
+				if (is_array($value))
 				{
-					$url = $url.$ch.implode("&", $params);
+					// arrays are unsupported, use \Bitrix\Main\Web\Uri::addParams()
+					continue;
+				}
+				if (!empty($options["skip_empty"]) && (string)$value == '')
+				{
+					continue;
+				}
+				if (!empty($options["encode"]))
+				{
+					$params[] = urlencode($name) . '=' . urlencode($value);
 				}
 				else
 				{
-					$url = mb_substr($url, 0, $p2).$ch.implode("&", $params).mb_substr($url, $p2);
+					$params[] = $name . '=' . $value;
+				}
+			}
+
+			if (!empty($params))
+			{
+				$ch = (mb_strpos($url, "?") === false ? "?" : "&");
+
+				$p2 = mb_strpos($url, "#");
+				if ($p2 === false)
+				{
+					$url = $url . $ch . implode("&", $params);
+				}
+				else
+				{
+					$url = mb_substr($url, 0, $p2) . $ch . implode("&", $params) . mb_substr($url, $p2);
 				}
 			}
 		}
@@ -588,7 +582,7 @@ class CHTTP
 	 */
 	public static function urnEncode($str, $charset = false)
 	{
-		return Web\Uri::urnEncode($str, $charset);
+		return Uri::urnEncode($str, $charset);
 	}
 
 	/**
@@ -596,7 +590,7 @@ class CHTTP
 	 */
 	public static function urnDecode($str, $charset = false)
 	{
-		return Web\Uri::urnDecode($str, $charset);
+		return Uri::urnDecode($str, $charset);
 	}
 
 	/**
@@ -604,7 +598,7 @@ class CHTTP
 	 */
 	public static function isPathTraversalUri($url)
 	{
-		$uri = new Web\Uri($url);
+		$uri = new Uri($url);
 		return $uri->isPathTraversal();
 	}
 }

@@ -1,5 +1,9 @@
-<?
+<?php
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
+
+/**
+ * @global CUser $USER
+ */
 
 //Functions
 function BXDeleteFromSystem($absoluteFilePath, $path, $site)
@@ -21,17 +25,11 @@ function BXDeleteFromSystem($absoluteFilePath, $path, $site)
 	if (!$sucess)
 		return false;
 
-	if(COption::GetOptionString("fileman", "log_page", "Y")=="Y")
+	if (COption::GetOptionString("fileman", "log_page", "Y")=="Y")
 	{
-		$res_log['path'] = mb_substr($path, 1);
-		CEventLog::Log(
-			"content",
-			"PAGE_DELETE",
-			"main",
-			"",
-			serialize($res_log)
-		);
+		CEventLog::Log("content", "PAGE_DELETE", "fileman", $path);
 	}
+
 	$GLOBALS["APPLICATION"]->RemoveFileAccessPermission(Array($site, $path));
 
 	if (CModule::IncludeModule("search"))
@@ -101,8 +99,6 @@ function BXDeleteFromMenu($documentRoot, $path, $site)
 
 function BXDeleteFromMenuFile($menuFile, $documentRoot, $site, $path)
 {
-	$aMenuLinks = Array();
-
 	$arMenu = CFileman::GetMenuArray($documentRoot.$menuFile);
 	if (empty($arMenu["aMenuLinks"]))
 		return false;
@@ -141,18 +137,7 @@ function BXDeleteFromMenuFile($menuFile, $documentRoot, $site, $path)
 
 		if(COption::GetOptionString("fileman", "log_page", "Y")=="Y")
 		{
-			$res_log = array();
-			$mt = COption::GetOptionString("fileman", "menutypes", $default_value, $site);
-			$mt = unserialize(str_replace("\\", "", $mt), ['allowed_classes' => false]);
-			$res_log['menu_name'] = $mt[$menuType];
-			$res_log['path'] = mb_substr($dirName, 1);
-			CEventLog::Log(
-				"content",
-				"MENU_EDIT",
-				"main",
-				"",
-				serialize($res_log)
-			);
+			CEventLog::Log("content", "MENU_EDIT", "fileman", $menuFile);
 		}
 	}
 	return $arFound;
@@ -160,7 +145,7 @@ function BXDeleteFromMenuFile($menuFile, $documentRoot, $site, $path)
 
 IncludeModuleLangFile(__FILE__);
 
-$popupWindow = new CJSPopup(GetMessage("PAGE_DELETE_WINDOW_TITLE"), array("SUFFIX"=>($_GET['subdialog'] == 'Y'? 'subdialog':'')));
+$popupWindow = new CJSPopup(GetMessage("PAGE_DELETE_WINDOW_TITLE"), array("SUFFIX"=>(($_GET['subdialog'] ?? '') == 'Y'? 'subdialog':'')));
 
 if (IsModuleInstalled("fileman"))
 {
@@ -221,7 +206,6 @@ else
 //Delete File
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_REQUEST["save"]) && $strWarning == "")
 {
-	CUtil::JSPostUnescape();
 	CModule::IncludeModule("fileman");
 
 	$f = $io->GetFile($absoluteFilePath);
@@ -254,7 +238,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_REQUEST["save"]) && $strWarn
 
 		//CUndo::Escape($ID);
 
-		$popupWindow->Close($bReload=($_GET['subdialog'] <> 'Y'), $back_url);
+		$popupWindow->Close($bReload=(($_GET['subdialog'] ?? '') <> 'Y'), $back_url);
 	}
 	else
 	{
@@ -267,27 +251,28 @@ $popupWindow->ShowTitlebar(GetMessage("PAGE_DELETE_WINDOW_TITLE"));
 $popupWindow->StartDescription("bx-delete-page");
 ?>
 <p><?=str_replace("#FILENAME#", htmlspecialcharsbx($path), GetMessage("PAGE_DELETE_CONFIRM_TEXT"))?></p>
-<?
+<?php
 $popupWindow->EndDescription("bx-delete-page");
 $popupWindow->StartContent();
 if (isset($strWarning) && $strWarning != "")
 	$popupWindow->ShowValidationError($strWarning);
 ?>
-<?if (IsModuleInstalled("fileman")):?>
+<?php if (IsModuleInstalled("fileman")):?>
 	<input type="checkbox" name="delete_from_menu" value="Y" id="bx_delete_from_menu" <?=($deleteFromMenu ? "checked" : "")?>> <label for="bx_delete_from_menu"><?=GetMessage("PAGE_DELETE_FROM_MENU")?></label>
-<?
+	<?php
 if (isset($strNotice) && $strNotice != '')
 	CAdminMessage::ShowMessage(array("MESSAGE" => $strNotice, "TYPE" => "ERROR"))
 ?>
-<?endif?>
+<?php endif?>
 
-
-<?$popupWindow->StartButtons();?>
+<?php
+$popupWindow->StartButtons();?>
 
 <input name="btn_popup_save" type="button" value="<?=GetMessage("PAGE_DELETE_BUTTON_YES")?>" title="<?=GetMessage("PAGE_DELETE_BUTTON_YES")?>" onclick="BXDeletePage();"/>
 &nbsp;&nbsp;&nbsp;<input name="btn_popup_close" type="button" value="<?=GetMessage("PAGE_DELETE_BUTTON_NO")?>" onclick="<?=$popupWindow->jsPopup?>.CloseDialog()" title="<?=GetMessage("PAGE_DELETE_BUTTON_NO")?>" />
 
-<?$popupWindow->EndButtons();?>
+<?php
+$popupWindow->EndButtons();?>
 
 <script>
 window.BXDeletePage = function()
@@ -301,4 +286,5 @@ window.BXDeletePage = function()
 }
 </script>
 
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");?>
+<?php
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");

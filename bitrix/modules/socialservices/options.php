@@ -83,13 +83,6 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["Update"].$_POST["Apply"].$_PO
 	}
 	$sendTwit = $allowSendActivity = 'N';
 
-	if($_POST["get_message_from_twitter"] == 'Y')
-	{
-		$sendTwit = 'Y';
-		CAgent::AddAgent("CSocServAuthManager::GetTwitMessages();", "socialservices", "N", 90, "", "Y", "");
-	}
-	COption::SetOptionString("socialservices", "get_message_from_twitter", $sendTwit);
-
 	if($_POST["allow_send_user_activity"] == 'Y')
 		$allowSendActivity = 'Y';
 	COption::SetOptionString("socialservices", "allow_send_user_activity", $allowSendActivity);
@@ -116,7 +109,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["Update"].$_POST["Apply"].$_PO
 }
 
 ?>
-<script type="text/javascript">
+<script>
 function MoveRowUp(a)
 {
 	var table = BX.findParent(a, {'tag':'table'});
@@ -214,7 +207,7 @@ window.networkRegister = (function(){
 						opacity: 50
 					},
 					closeIcon: true,
-					titleBar: {content: BX.create('SPAN', {text:'<?=GetMessageJS('SOC_OPT_B24NET_TITLE')?>'})},
+					titleBar: {content: BX.create('SPAN', {text:'<?=GetMessageJS('SOC_OPT_B24NET_TITLE_MSGVER_1')?>'})},
 					content: BX.create('DIV', {
 						style: {
 							padding: '15px',
@@ -298,13 +291,6 @@ foreach($arSiteList as $site):
 			</td>
 		</tr>
 	<?endif;?>
-	<tr>
-		<td> <?=str_replace("#hash#", $twitHashInput, GetMessage("socserv_twit_to_buzz2"))?> </td><td>
-			<input type="checkbox" name="get_message_from_twitter" id="get_message_from_twitter" value="Y"
-				<?if(COption::GetOptionString("socialservices", "get_message_from_twitter", "N") == 'Y') echo " checked"; elseif(COption::GetOptionString("socialservices", "get_message_from_twitter", false) === false)  echo " checked";?>>
-
-		</td>
-	</tr>
 	<tr class="heading">
 		<td colspan="2"><?=GetMessage("soc_serv_opt_list_title")?></td>
 	</tr>

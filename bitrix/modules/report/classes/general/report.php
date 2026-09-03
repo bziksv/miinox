@@ -109,8 +109,7 @@ class CReport
 		$strSql = "UPDATE b_report SET ".$strUpdate." WHERE ID='".$DB->ForSQL($ID)."'";
 
 		$result = $DB->QueryBind(
-			$strSql, array('SETTINGS' => $settings, 'DESCRIPTION' => $description),false,
-			"File: ".__FILE__."<br>Line: ".__LINE__
+			$strSql, array('SETTINGS' => $settings, 'DESCRIPTION' => $description)
 		);
 
 		// post-events
@@ -144,7 +143,7 @@ class CReport
 		}
 
 		// save data
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 
 		// post-events
 		foreach (GetModuleEvents("report", "OnReportDelete", true) as $arEvent)
@@ -244,7 +243,7 @@ class CReport
 
 		$strSql = "SELECT COUNT(ID) AS CNT FROM b_report WHERE CREATED_BY='".$DB->ForSql($USER->GetID())."' AND OWNER_ID='".$DB->ForSql($owner)."'";
 
-		$res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query($strSql);
 		$row = $res->Fetch();
 
 		return (int) $row['CNT'];
@@ -584,7 +583,8 @@ class CReport
 			$elem = $select[$elemIndex];
 			$result = false;
 
-			if ($elem['prcnt'] <> '' && $elem['prcnt'] !== 'self_column')
+			$prcnt = $elem['prcnt'] ?? '';
+			if ($prcnt !== '' && $prcnt !== 'self_column')
 			{
 				$result = self::checkSelectViewElementCyclicDependency($select, $elem['prcnt']);
 			}
@@ -612,7 +612,8 @@ class CReport
 		$totalInfo = null;
 		$alias = null;
 
-		if (empty($elem['aggr']) && !mb_strlen($elem['prcnt']))
+		$prcnt = $elem['prcnt'] ?? '';
+		if (empty($elem['aggr']) && !mb_strlen($prcnt))
 		{
 			$selectElem = $elem['name'];
 		}
@@ -732,7 +733,7 @@ class CReport
 					foreach ($entity->GetPrimaryArray() as $primary)
 					{
 						$filter['='.$primary] = new CSQLWhereExpression(
-							'?#', ToLower($entity->getCode()).'.'.$primary
+							'?#', mb_strtolower($entity->getCode()).'.'.$primary
 						);
 					}
 
@@ -796,12 +797,12 @@ class CReport
 				}
 			}
 
-			if($elem['prcnt'] <> '')
+			if($prcnt !== '')
 			{
 				$alias = $alias.'_PRCNT';
 				$dataType = 'integer';
 
-				if($elem['prcnt'] == 'self_column')
+				if($prcnt === 'self_column')
 				{
 					if(empty($expression))
 					{
@@ -822,7 +823,7 @@ class CReport
 					}
 
 					list($remoteAlias, $remoteSelect) = self::prepareSelectViewElement(
-						$select[$elem['prcnt']],
+						$select[$prcnt],
 						$select,
 						$isInitEntityAggregated,
 						$fList,
@@ -1201,9 +1202,9 @@ class CReport
 	{
 		foreach ($vReports as &$dReport)
 		{
-			$dReport['settings']['mark_default'] = $dReport['mark_default'];
-			$dReport['settings']['title'] = $dReport['title'];
-			$dReport['settings']['description'] = $dReport['description'];
+			$dReport['settings']['mark_default'] = $dReport['mark_default'] ?? 0;
+			$dReport['settings']['title'] = $dReport['title'] ?? '';
+			$dReport['settings']['description'] = $dReport['description'] ?? '';
 			$dReport['settings']['owner'] = $ownerId;
 
 			self::Add($dReport['settings']);

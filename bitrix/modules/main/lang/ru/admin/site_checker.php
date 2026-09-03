@@ -4,10 +4,8 @@ $MESS["SC_SUBTITLE_DISK_DESC"] = "Скрипты сайта должны име�
 $MESS["SC_VER_ERR"] = "Установлена версия PHP #CUR#, требуется #REQ# и выше";
 $MESS['PHP_VER_NOTIFY'] = 'Внимание! В настоящее время вы не получаете обновления продукта, включая обновление системы безопасности, так как установлена устаревшая версия PHP #CUR#. Требуется обновить PHP до версии #REQ#. Перед обновлением PHP обязательно ознакомьтесь со <a href="https://helpdesk.bitrix24.ru/open/17332020/">статьей поддержки</a>.';
 $MESS["SC_MOD_XML"] = "Поддержка XML";
-$MESS["SC_MOD_PERL_REG"] = "Поддержка регулярных выражений (Perl-Compatible)";
 $MESS["SC_MOD_GD"] = "Библиотека GD";
 $MESS["SC_MOD_GD_JPEG"] = "Поддержка jpeg в GD";
-$MESS["SC_MOD_JSON"] = "Поддержка JSON";
 $MESS["SC_UPDATE_ACCESS"] = "Доступ к серверу обновлений";
 $MESS["SC_UPDATE_ERROR"] = "Нет соединения с сервером обновлений";
 $MESS["SC_TMP_FOLDER_PERMS"] = "Нет прав на запись во временную папку";
@@ -15,20 +13,12 @@ $MESS["SC_NO_TMP_FOLDER"] = "Временная папка не существу
 $MESS["ERR_NO_MODS"] = "Не установлены требуемые расширения:";
 $MESS["ERR_NO_MODS_DOC_GENERATOR"] = "Для работы модуля &quot;Генератор документов&quot; необходимо установить расширения php-xml и php-zip.";
 $MESS["SC_ERR_DNS"] = "Не удалось получить MX запись для домена #DOMAIN#";
-$MESS["SC_ERR_DNS_WRONG"] = "DNS настроен неправильно, должна быть одна MX запись: mail-001.bitrix24.com (настроено: #DOMAIN#).";
-$MESS["SC_ERR_CONNECT_MAIL001"] = "Не удалось подключиться к почтовому серверу mail-001.bitrix24.com";
+$MESS["SC_ERR_DNS_WRONG"] = "DNS настроен неправильно, должна быть одна MX запись: mail-001.bitrix24.ru (настроено: #DOMAIN#).";
+$MESS["SC_ERR_CONNECT_MAIL001"] = "Не удалось подключиться к почтовому серверу mail-001.bitrix24.ru";
 $MESS["ERR_NO_SSL"] = "Поддержка ssl не настроена в php";
 $MESS["SC_RUS_L1"] = "Обращение с сайта";
-$MESS["SC_TIK_SEND_SUCCESS"] = "Сообщение успешно отправлено. Через некоторое время на адрес #EMAIL# должно прийти подтверждение получения сообщения от системы техподдержки.";
-$MESS["SC_TIK_TITLE"] = "Отправить сообщение в службу техподдержки";
-$MESS["SC_TIK_DESCR"] = "Описание проблемы";
-$MESS["SC_TIK_DESCR_DESCR"] = "последовательность действий, которая привела к ошибке, описание ошибки,...";
-$MESS["SC_TIK_LAST_ERROR"] = "Текст последней ошибки";
 $MESS["SC_ERR_TEST_MAIL_PUSH"] = "Не удалось выполнить тестовое подключение к порталу #DOMAIN# с почтового сервера";
-$MESS["SC_TIK_LAST_ERROR_ADD"] = "прикреплен";
-$MESS["SC_TIK_SEND_MESS"] = "Отправить сообщение";
 $MESS["SC_TAB_2"] = "Проверка доступа";
-$MESS["SC_TAB_5"] = "Техподдержка";
 $MESS["SC_ERROR0"] = "Ошибка!";
 $MESS["SC_ERROR1"] = "Не работает";
 $MESS["SC_CHECK_FILES"] = "Проверить доступ";
@@ -69,12 +59,14 @@ $MESS["SC_T_CACHE"] = "Работа с файлами кеша";
 $MESS["SC_T_AUTH"] = "HTTP авторизация";
 $MESS["SC_T_EXEC"] = "Создание и запуск файла";
 $MESS["SC_T_DBCONN"] = "Лишний вывод в файлах конфигурации";
-$MESS["SC_T_DBCONN_SETTINGS"] = "Параметры подключения к базе данных";
-$MESS["SC_ERR_CONN_DIFFER"] = "Отличаются в .settings.php и dbconn.php.";
 $MESS["SC_T_MYSQL_VER"] = "Версия MySQL-сервера";
 $MESS["SC_T_TIME"] = "Время на БД и веб-сервере";
 $MESS["SC_T_SQL_MODE"] = "Режим работы MySQL";
 $MESS["SC_T_CHARSET"] = "Кодировки таблиц в БД";
+$MESS["SC_T_FORMAT"] = "Формат хранения таблиц в БД";
+$MESS["SC_TABLE_ROW_FORMAT"] = "Формат хранения таблицы &quot;#TABLE#&quot; не InnoDB или формат хранения строк не Dynamic";
+$MESS["SC_TABLE_ROW_FORMAT_ERRORS"] = "Не все таблицы InnoDB или не имеют формат хранения Dynamic, общее число ошибок: #VAL#, из них автоматически могут быть исправлены: #VAL1#.";
+$MESS["SC_TABLE_ROW_FORMAT_NA"] = "Не проверено из-за ошибок формата хранения таблиц";
 $MESS["SC_T_STRUCTURE"] = "Структура базы данных";
 $MESS["SC_DB_CHARSET"] = "Кодировка базы данных";
 $MESS["SC_MBSTRING_NA"] = "Не удалось проверить из-за ошибок в настройке UTF";
@@ -88,6 +80,9 @@ $MESS["SC_SEC"] = "сек.";
 $MESS["SC_DB_ERR"] = "Проблемная версия БД:";
 $MESS["SC_DB_ERR_MODE"] = "Переменная sql_mode в MySQL должна быть пустая, текущее значение:";
 $MESS["SC_DB_ERR_INNODB_STRICT"] = "innodb_strict_mode=#VALUE#, требуется OFF";
+$MESS["SC_DB_ERR_INNODB_LARGE_PREFIX"] = "innodb_large_prefix=#VALUE#, требуется ON";
+$MESS["SC_DB_ERR_INNODB_DEFAULT_ROW_FORMAT"] = "innodb_default_row_format=#VALUE#, требуется DYNAMIC";
+$MESS["SC_DB_ERR_DEFAULT_STORAGE_ENGINE"] = "default_storage_engine=#VALUE#, требуется InnoDB";
 $MESS["SC_NO_PROXY"] = "Нет соединения с прокси сервером";
 $MESS["SC_PROXY_ERR_RESP"] = "Ошибочный ответ сервера обновлений через прокси";
 $MESS["SC_UPDATE_ERR_RESP"] = "Ошибочный ответ сервера обновлений";
@@ -106,8 +101,6 @@ $MESS["SC_NOT_LESS"] = "Не менее #VAL# М";
 $MESS["SC_MEMORY_CHANGED"] = "Значение memory_limit было увеличено с #VAL0# до #VAL1# на момент тестирования через ini_set.";
 $MESS["SC_CRON_WARN"] = "Определена константа BX_CRONTAB_SUPPORT в /bitrix/php_interface/dbconn.php, при этом должен быть настроен вызов агентов на cron.";
 $MESS["SC_CACHED_EVENT_WARN"] = "Закеширована информация об отправке почты, возможно это произошло в результате сбоя, попробуйте очистить весь кеш.";
-$MESS["SC_TIK_ADD_TEST"] = "Отправить журнал тестирования конфигурации";
-$MESS["SC_SUPPORT_COMMENT"] = "В случае возникновения проблем с отправкой обращения, пожалуйста, воспользуйтесь формой на нашем сайте:";
 $MESS["SC_NOT_FILLED"] = "Не введено описание проблемы";
 $MESS["SC_TEST_WARN"] = "Сейчас будет собрана информация о конфигурации сервера.
 Если произойдёт сбой, пожалуйста, снимите опцию \"Отправить журнал тестирования конфигурации\" и повторите попытку.";
@@ -123,15 +116,13 @@ $MESS["SC_MB_UTF"] = "Сайт работает в UTF кодировке";
 $MESS["SC_MB_NOT_UTF"] = "Сайт работает в однобайтовой кодировке";
 $MESS["SC_T_MBSTRING"] = "Параметры настройки UTF (mbstring и константа BX_UTF)";
 $MESS["SC_T_SITES"] = "Настройки сайтов";
-$MESS["SC_BX_UTF"] = "Необходимо установить в <i>/bitrix/php_interface/dbconn.php</i> код
-<code>define('BX_UTF', true);</code> ";
-$MESS["SC_BX_UTF_DISABLE"] = "Константа BX_UTF не должна быть установлена";
 $MESS["SC_T_PHP"] = "Обязательные параметры PHP";
 $MESS["SC_ERR_PHP_PARAM"] = "Параметр #PARAM# = #CUR#, требуется #REQ#";
+$MESS["SC_T_PGSQL_VER"] = "Версия PostgreSQL сервера";
+$MESS["SC_PGSQL_ERR_VER"] = "Установлена PostgreSQL версии #CUR#, требуется #REQ#";
 $MESS["SC_MYSQL_ERR_VER"] = "Установлена MySQL версии #CUR#, требуется #REQ#";
 $MESS["SC_T_SERVER"] = "Значения переменных сервера";
 $MESS["SC_CONNECTION_CHARSET_WRONG"] = "Кодировка соединения с базой данных должна быть #VAL#, текущее значение: #VAL1#";
-$MESS["SC_CONNECTION_CHARSET_WRONG_NOT_UTF"] = "Кодировка соединения с базой данных не должна быть utf8, текущее значение: #VAL#";
 $MESS["SC_CONNECTION_COLLATION_WRONG_UTF"] = "Сравнение соединения с базой данных должно быть utf8_unicode_ci, текущее значение: #VAL#.";
 $MESS["SC_TABLE_CHECK_NA"] = "Не проверено из-за ошибки кодировки базы";
 $MESS["SC_TABLE_COLLATION_NA"] = "Не проверено из-за ошибок кодировки таблиц";
@@ -149,6 +140,7 @@ $MESS["SC_FIX_MBSTRING_CONFIRM"] = "Внимание!
 Продолжить?";
 $MESS["SC_CHECK_TABLES_ERRORS"] = "Кодировки таблиц имеют ошибки, общее число ошибок: #VAL#, из них автоматически могут быть исправлены: #VAL1#.";
 $MESS["SC_CONNECTION_CHARSET_NA"] = "Не удалось проверить из-за ошибки кодировки соединения";
+$MESS["SC_DATABASE_LC_CTYPE"] = "Сравнение для базы (#VAL0#) не UTF-8, часть функций будет работать неверно. Для исправления необходимо экспортировать базу данных, затем создать новую \"CREATE DATABASE newDB lc_ctype='C.UTF-8' template template0\" и импортировать данные в неё. После чего изменить подключение сайта на использование новой базы данных.";
 $MESS["SC_DATABASE_COLLATION_DIFF"] = "Сравнение для базы (#VAL1#) отличается от сравнения для соединения (#VAL0#).";
 $MESS["SC_DATABASE_CHARSET_DIFF"] = "Кодировка базы (#VAL1#) отличается от кодировки соединения (#VAL0#).";
 $MESS["SC_HELP_NOTOPIC"] = "К сожалению, информации по данному вопросу нет.";
@@ -161,27 +153,17 @@ $MESS["SC_HELP_CHECK_PHP_MODULES"] = "Проверяется доступнос�
 Для решения проблемы необходимо обратиться к хостеру, а для локальной установки самостоятельно установить требуемые расширения на основе документации на сайте php.net";
 $MESS["SC_HELP_CHECK_PHP_SETTINGS"] = "Проверяются критические значения параметров, определяемых в файле настроек php.ini. В случае ошибки выводится список параметров, которые настроены неправильно. Подробную информацию по каждому параметру можно найти на сайте php.net.
 
-<a href=\"https://www.1c-bitrix.ru/products/vmbitrix/index.php\" target=_blank>Битрикс веб-окружение</a> - это оптимально сконфигурированная серверная среда для работы продуктов &quot;1С-Битрикс24&quot; и &quot;1С-Битрикс управление сайтом&quot;.";
+<a href=\"https://www.1c-bitrix.ru/download/vmbitrix.php\" target=_blank>Битрикс веб-окружение</a> - это оптимально сконфигурированная серверная среда для работы продуктов &quot;1С-Битрикс24&quot; и &quot;1С-Битрикс управление сайтом&quot;.";
 $MESS["SC_HELP_CHECK_SERVER_VARS"] = "Проверяются значения переменных, определяемых веб-сервером.
 
 Значение HTTP_HOST берется на основе имени текущего виртуального хоста (домена). Невалидный домен приводит к тому, что некоторые браузеры (например, Internet Explorer 6) отказываются сохранять для него cookie, как следствие - не сохраняется авторизация.";
-$MESS["MAIN_SC_MBSTRING_SETTIGNS_DIFFER"] = "Настройки mbstring в <i>/bitrix/.settings.php</i> (utf_mode) и в <i>/bitrix/php_interface/dbconn.php</i> (BX_UTF) отличаются.";
 $MESS["SC_HELP_CHECK_MBSTRING"] = "Модуль mbstring необходим для работы с разными языками. 
 
 Кодировка сайта должна быть указана в параметре default_charset, например:
 
 <b>default_charset=utf-8</b>
 
-Если параметры не соответствуют требуемым, то в разных местах будут появляться совершенно непредсказуемые ошибки: частично обрезанный текст, неработающий импорт xml, система обновлений и т.д.
-
-Для сайта в UTF-8 необходимо установить в <i>/bitrix/php_interface/dbconn.php</i> код:
-<code>define('BX_UTF', true);</code>
-а в <i>/bitrix/.settings.php</i> код:
-<code>'utf_mode' => 
-  array (
-    'value' => true,
-    'readonly' => true,
-  ),</code>";
+Если параметры не соответствуют требуемым, то в разных местах будут появляться совершенно непредсказуемые ошибки: частично обрезанный текст, неработающий импорт xml, система обновлений и т.д.";
 $MESS["SC_HELP_CHECK_SITES"] = "Проверяются базовые настройки многосайтовости. Если для сайтов указан путь к корневой папке (а это необходимо делать только для сайтов на разных доменах), в каждой такой папке должна быть символьная ссылка на папку bitrix, доступную на запись.
 
 На одной установке продукта все сайты должны работать либо в кодировке UTF-8, либо в однобайтовой кодировке.";
@@ -190,12 +172,6 @@ $MESS["SC_HELP_CHECK_SOCKET"] = "Осуществляется сетевое п�
 А значит, если этот базовый тест не отработал, то дальнейшие тесты, где требуется создание независимого php процесса, не могут быть произведены.
 
 Обычно проблема возникает, если подключение запрещено фаерволом, доступ к административной части запрещен по IP или для входа на сайт требуется HTTP/NTLM авторизация. На этапе тестирования необходимо отключить эти ограничения.";
-$MESS["SC_HELP_CHECK_DBCONN_SETTINGS"] = "Сравниваются параметры подключения к базе данных из <i>/bitrix/php_interface/dbconn.php</i> и <i>/bitrix/.settings.php</i>. 
-Они должны быть одинаковые, в противном случае часть SQL запросов может пойти на другую базу данных, что приводит к непредсказуемым последствиям.
-
-Новое ядро D7 использует параметры из <i>.settings.php</i>. Из соображений обратной совместимости нет возможности отказаться от <i>dbconn.php</i>.
-
-Если данные подключения в <i>.settings.php</i> не указаны, новое ядро использует данные из <i>dbconn.php</i>.";
 $MESS["SC_HELP_CHECK_DBCONN"] = "Проверяется вывод текста в файлах конфигурации: <i>dbconn.php</i> и <i>init.php</i>.
 
 Даже пробел или перенос строки может приводить к тому, что с включенной компрессией страница не сможет распаковаться на стороне браузера и будет нечитаема.
@@ -331,15 +307,12 @@ $MESS["SC_HELP_CHECK_MYSQL_CONNECTION_CHARSET"] = "Проверяется код
 $MESS["SC_READ_MORE_ANC"] = "Подробности в <a href=\"#LINK#\" target=_blank>журнале проверки системы</a>.";
 $MESS["SC_CHARSET_CONN_VS_RES"] = "Кодировка соединения (#CONN#) отличается от кодировки результата (#RES#)";
 $MESS["SC_STRLEN_FAIL_PHP56"] = "Строковая функция strlen работает некорректно.";
-$MESS["SC_STRTOUPPER_FAIL"] = "Строковые функции strtoupper и strtolower работают некорректно";
 $MESS["SC_T_RECURSION"] = "Размер стека и pcre.recursion_limit";
 $MESS["SC_HELP_CHECK_PCRE_RECURSION"] = "Если параметр <i>pcre.recursion_limit</i> превышает системный размер стека (обычно 8 Мб), то PHP падает с ошибкой <i>Segmentation fault</i> при выполнении сложных регулярных выражений.
 
 Если нет возможности увеличить системный размер стека, необходимо уменьшить параметр <i>pcre.recursion_limit</i>. В этом случае PHP падать не будет, но обработка строк будет работать не всегда правильно: могут появляться пустые сообщения на форуме.";
 $MESS["SC_PCRE_CLEAN"] = "Возможны проблемы в работе с длинными строками из-за системных ограничений";
 $MESS["SC_T_METHOD_EXISTS"] = "Вызов method_exists на строке";
-$MESS["SC_HELP_CHECK_METHOD_EXISTS"] = "На некоторых версиях php скрипт падает на вызове функции <i>method_exists</i>. Обсуждение проблемы есть на сайте php: <a href=\"http://bugs.php.net/bug.php?id=51425\" target=_blank>http://bugs.php.net/bug.php?id=51425</a>
-В качестве решения следует установить другую версию php.";
 $MESS["SC_HELP_CHECK_MYSQL_TABLE_STRUCTURE"] = "Установочные файлы модулей содержат информацию о структуре таблиц, с которыми они работают. При обновлении модулей меняется структура таблиц и установочные файлы.
 
 Если файлы модуля не соответствуют фактической структуре данных, в работе продукта возникнут проблемы.
@@ -360,11 +333,11 @@ $MESS["SC_ERR_NO_INDEX_ENABLED"] = "Не включен полнотекстов
 $MESS["SC_ERR_NO_TABLE"] = "Отсутствует таблица #TABLE#";
 $MESS["SC_CHECK_TABLES_STRUCT_ERRORS"] = "Структура базы данных имеет ошибки. Всего #VAL#, автоматически могут быть исправлены: #VAL1#.";
 $MESS["SC_CHECK_TABLES_STRUCT_ERRORS_FIX"] = "Автоисправление прошло успешно, но ряд полей (#VAL#) отличаются по типу, необходимо вручную их исправить на основе журнала проверки сайта.";
-$MESS["SC_HELP_CHECK_PERF"] = "Оценка производительности сервера методом <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=32&CHAPTER_ID=1146\">монитора производительности</a>.
+$MESS["SC_HELP_CHECK_PERF"] = "Оценка производительности сервера методом <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=32&CHAPTER_ID=1146\">монитора производительности</a>.
 
 Показывает число пустых страниц, которое может отдать сервер за секунду. Т.е. величина, обратная времени создания страницы, содержащей только подключение ядра продукта.
 
-Эталонная <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">виртуальная машина &quot;1С-Битрикс&quot;</a> имеет оценку около 30 единиц.
+Эталонная <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">виртуальная машина &quot;1С-Битрикс&quot;</a> имеет оценку около 30 единиц.
 
 Если на незагруженном сервере вы получили низкую оценку, это свидетельствует об ошибках конфигурации. Если же низкая оценка появляется только под нагрузкой, это может свидетельствовать о недостатке аппаратных ресурсов.";
 $MESS["SC_HELP_CHECK_CA_FILE"] = "Тест пытается подключиться к сайту www.1c-bitrix.ru. 
@@ -381,51 +354,51 @@ $MESS["SC_HELP_CHECK_SOCKET_SSL"] = "Шифрованное подключени
 ";
 $MESS["SC_HELP_CHECK_PULL_STREAM"] = "Сервер очередей Push and Pull служит для мгновенного взаимодействия между собой многих инструментов продуктов Битрикс24 и 1С-Битрикс: Управление сайтом. Он используется в Задачах, Календарях, ленте Новостей, Группах, RPA, мобильном приложении Битрикс24, Чатах, Генераторе документов, Телефонии, Центре продаж и в других сервисах.
 
-Для полноценной работы системы необходима настройка модуля <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a> и Push server.
+Для полноценной работы системы необходима настройка модуля <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a> и Push server.
 
-<a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> с версии 4.2 имеет встроенную поддержку Push server.
+<a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> с версии 4.2 имеет встроенную поддержку Push server.
 ";
-$MESS["SC_HELP_CHECK_PULL_COMMENTS"] = "Для того чтобы комментарии в живой ленте были видны всем пользователям сразу после добавления, необходима настройка модуля <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a>.
+$MESS["SC_HELP_CHECK_PULL_COMMENTS"] = "Для того чтобы комментарии в живой ленте были видны всем пользователям сразу после добавления, необходима настройка модуля <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a>.
 
-<a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> с версии 4.2 имеет встроенную поддержку push&amp;pull.
+<a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> с версии 4.2 имеет встроенную поддержку push&amp;pull.
 ";
 $MESS["SC_HELP_CHECK_CONNECT_MAIL"] = "Чтобы получать уведомления о новых почтовых сообщениях непосредственно из корпоративного портала, необходимо чтобы пользователь указал данные подключения к своему почтовому ящику со своей личной страницы настроек портала.";
 $MESS["SC_HELP_CHECK_SOCNET"] = "Чтобы получать в живую ленту портала сообщения из социальных сетей, необходимо <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=48&CHAPTER_ID=03040\">настроить</a> модуль социальных сервисов, указав ключи для каждого сервиса отдельно. ";
 $MESS["SC_HELP_CHECK_REST"] = "Модуль rest должен быть установлен для интеграции с внешними приложенями и работы ряда приложений из Битрикс24.Маркет. Вы можете интегрировать свои приложения в Битрикс24 на основе <a href=\"https://dev.1c-bitrix.ru/rest_help/\" target=\"_blank\">документации для разработчиков</a>.";
-$MESS["SC_HELP_CHECK_EXTRANET"] = "Для работы модуля <a href=\"http://dev.1c-bitrix.ru/learning/course/?COURSE_ID=45&CHAPTER_ID=794\">экстранет</a> необходим доступ к порталу из Интернета. 
+$MESS["SC_HELP_CHECK_EXTRANET"] = "Для работы модуля <a href=\"https://dev.1c-bitrix.ru/learning/course/?COURSE_ID=45&CHAPTER_ID=794\">экстранет</a> необходим доступ к порталу из Интернета. 
 
 Если вы не используете этот модуль, удалите его из <a href=\"/bitrix/admin/module_admin.php\">списка модулей</a>.";
 $MESS["SC_HELP_CHECK_WEBDAV"] = "Протокол <a href=\"http://ru.wikipedia.org/wiki/WebDAV\">WebDAV</a> позволяет редактировать документы в MS Office непосредственно на портале, не загружая их на локальный компьютер. Для этого сервер, на котором работает портал, должен передавать без изменений запросы по этому протоколу в скрипты php. Если такие запросы блокируются сервером, редактирование документов из MS Office работать не будет.
 
-Кроме этого нужна дополнительная <a href=\"http://dev.1c-bitrix.ru/learning/course/?COURSE_ID=45&LESSON_ID=2262#office\">настройка</a> на стороне пользователя, проверить которую возможности нет.
+Кроме этого нужна дополнительная <a href=\"https://dev.1c-bitrix.ru/learning/course/?COURSE_ID=45&LESSON_ID=2262#office\">настройка</a> на стороне пользователя, проверить которую возможности нет.
 ";
-$MESS["SC_HELP_CHECK_AD"] = "Если в локальной сети настроен Windows Active Directory или LDAP сервер, желательно <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&CHAPTER_ID=726\">настроить</a> интеграцию с AD, чтобы обеспечить единое место хранения паролей и структуру компании.
+$MESS["SC_HELP_CHECK_AD"] = "Если в локальной сети настроен Windows Active Directory или LDAP сервер, желательно <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&CHAPTER_ID=726\">настроить</a> интеграцию с AD, чтобы обеспечить единое место хранения паролей и структуру компании.
 
 Для этого в php должен быть установлен модуль ldap.";
-$MESS["SC_HELP_CHECK_NTLM"] = "<a href=\"http://wikipedia.org/wiki/SSO\">Технология единого входа</a> требует настройки специальных модулей на стороне веб-сервера и <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=32&LESSON_ID=5510\">настройку</a> портала.
+$MESS["SC_HELP_CHECK_NTLM"] = "<a href=\"http://wikipedia.org/wiki/SSO\">Технология единого входа</a> требует настройки специальных модулей на стороне веб-сервера и <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=32&LESSON_ID=5510\">настройку</a> портала.
 
-Задача настройки NTLM в среде Linux нетривиальна, но на <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">виртуальной машине &quot;1С-Битрикс&quot;</a> с версии 4.2 это настроено, нужно только включить через мастер настройки машины.";
+Задача настройки NTLM в среде Linux нетривиальна, но на <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">виртуальной машине &quot;1С-Битрикс&quot;</a> с версии 4.2 это настроено, нужно только включить через мастер настройки машины.";
 $MESS["SC_HELP_CHECK_TURN"] = "Для осуществления видеозвонков нужен браузер с поддержкой <a href=\"http://wikipedia.org/wiki/WebRTC\">WebRTC</a> (Google Chrome с 17 версии, Opera с 12 версии и Firefox с 18).
 
-<a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> с версии 4.2 имеет встроенную поддержку push&amp;pull.
+<a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> с версии 4.2 имеет встроенную поддержку push&amp;pull.
 
-Если прямое сетевое соединение браузеров невозможно, нужен специальный TURN сервер. Компания &quot;1С-Битрикс&quot; бесплатно предоставляет для своих клиентов настроенный TURN сервер по адресу: turn.calls.bitrix24.com, который используется по умолчанию. Вы можете настроить собственный сервер и указать его адрес в настройках модуля &quot;веб-мессенджер&quot; (im).";
-$MESS["SC_HELP_CHECK_PUSH_BITRIX"] = "Модуль <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a> обеспечивает мгновенную передачу сообщений по технологии Pull и отправку уведомлений на мобильные устройства по технологии Push в <a href=\"http://www.1c-bitrix.ru/products/intranet/features/mobileapp.php\">мобильное приложение 1С-Битрикс</a>.
+Если прямое сетевое соединение браузеров невозможно, нужен специальный TURN сервер. Компания &quot;1С-Битрикс&quot; бесплатно предоставляет для своих клиентов настроенный TURN сервер по адресу: turn.bitrix24.tech, который используется по умолчанию. Вы можете настроить собственный сервер и указать его адрес в настройках модуля &quot;веб-мессенджер&quot; (im).";
+$MESS["SC_HELP_CHECK_PUSH_BITRIX"] = "Модуль <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a> обеспечивает мгновенную передачу сообщений по технологии Pull и отправку уведомлений на мобильные устройства по технологии Push в <a href=\"https://www.1c-bitrix.ru/products/intranet/features/mobileapp.php\">мобильное приложение 1С-Битрикс</a>.
 
-Отправка уведомлений на Apple и Android устройства осуществляется через единый сервис 1С-Битрикс https://cloud-messaging.bitrix24.com через HTTPS.
+Отправка уведомлений на Apple и Android устройства осуществляется через единый сервис 1С-Битрикс https://cloud-messaging.bitrix24.tech через HTTPS.
 
 Для работы push уведомлений на мобильные устройства должна быть возможность доступа с портала на этот сервер.
 ";
 $MESS["SC_HELP_CHECK_ACCESS_MOBILE"] = "Для работы мобильного приложения нужен доступ к порталу из Интернета.
 
-Тест использует специальный сервер checker.internal.bitrix24.com, который пытается осуществить подключение к порталу, используя адрес портала из браузера. При этом никакие пользовательские данные не передаются на наш сервер.
+Тест использует специальный сервер checker.bitrix24.tech, который пытается осуществить подключение к порталу, используя адрес портала из браузера. При этом никакие пользовательские данные не передаются на наш сервер.
 
-Для работы мгновенных сообщений необходима также возможность подключения к порту чтения сообщений Push server. Порт подключения берется из настроек модуля <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a>.";
+Для работы мгновенных сообщений необходима также возможность подключения к порту чтения сообщений Push server. Порт подключения берется из настроек модуля <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Push and Pull</a>.";
 $MESS["SC_HELP_CHECK_FAST_DOWNLOAD"] = "Быстрая отдача файлов использует внутреннюю переадресацию <a href=\"http://wiki.nginx.org/X-accel\">Nginx</a>. В этом случае осуществляется проверка доступа к файлу средствами PHP, о отдача - через Nginx. 
 
 Ресурсы PHP освобождаются для обработки следующего запроса. Это существенно повышает производительность портала в целом и скорость отдачи файлов через Битрикс.Диск, работу с библиотекой документов, отдачу приложенных файлов из живой ленты.
 
-В настройках <a href=\"/bitrix/admin/settings.php?mid=main\">главного модуля</a> необходимо включить соответствующую опцию. <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> имеет поддержку этой возможности по умолчанию.
+В настройках <a href=\"/bitrix/admin/settings.php?mid=main\">главного модуля</a> необходимо включить соответствующую опцию. <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> имеет поддержку этой возможности по умолчанию.
 
 ";
 $MESS["SC_HELP_CHECK_COMPRESSION"] = "Сжатие готового html необходимо, чтобы сократить время передачи и уменьшить общее время ожидания открытия страниц.
@@ -436,11 +409,18 @@ $MESS["SC_HELP_CHECK_COMPRESSION"] = "Сжатие готового html нео�
 $MESS["SC_HELP_CHECK_ACCESS_DOCS"] = "Для просмотра и редактирования документов через Google Docs или MS Office Online для этих сервисов создается специальная внешняя ссылка, по которой они забирают документ. С целью безопасности ссылка имеет уникальный вид и удаляется сразу после закрытия документа.
 
 Чтобы этот механизм корректно работал, необходимо наличие к порталу доступа из Интернета.";
-$MESS["SC_HELP_CHECK_SEARCH"] = "Для поиска по содержимому документов требуется <a href=\"http://dev.1c-bitrix.ru/learning/course/?COURSE_ID=48&CHAPTER_ID=04759\">настройка</a> внешних инструментов. В настройках модуля <a href=\"/bitrix/admin/settings.php?mid=intranet\">intranet</a> должны быть указаны корректные пути к этим приложениям. Иначе поиск документов на портале возможен только по имени файла.
+$MESS["SC_HELP_CHECK_SEARCH"] = "Для поиска по содержимому документов требуется <a href=\"https://dev.1c-bitrix.ru/learning/course/?COURSE_ID=48&CHAPTER_ID=04759\">настройка</a> внешних инструментов. В настройках модуля <a href=\"/bitrix/admin/settings.php?mid=intranet\">intranet</a> должны быть указаны корректные пути к этим приложениям. Иначе поиск документов на портале возможен только по имени файла.
 
 
 
-<a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> имеет поддержку этой возможности по умолчанию.";
+<a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">Виртуальная машина &quot;1С-Битрикс&quot;</a> имеет поддержку этой возможности по умолчанию.";
+$MESS["SC_HELP_CHECK_PGSQL_DB_CHARSET"] = "Локаль базы данных PostgreSQL должна быть основана на кодировке UTF-8.";
+$MESS["SC_HELP_CHECK_PGSQL_CONNECTION_CHARSET"] = "Кодировка подключения к PostgreSQL должна быть UTF-8.";
+$MESS["SC_HELP_CHECK_PGSQL_VERSION"] = "Версия сервера PostgreSQL должна соответствовать минимальным требованиям.";
+$MESS["SC_HELP_CHECK_MYSQL_TABLE_FORMAT"] = "Для корректной работы с базой данных требуется:
+
+1. Система хранения InnoDB, обладающая высокой надёжностью и поддержкой транзакций.
+2. Формат хранения строк в таблицах не должен быть REDUNDANT или COMPACT т.к. в этом случае для кодировки UTF-8 не смогут быть созданы некоторые индексы из-за ограничений на длину хранения строк в индексах.";
 $MESS["MAIN_SC_AGENTS_CRON"] = "Выполнение агентов на cron";
 $MESS["MAIN_SC_PERF_TEST"] = "Оценка производительности сервера";
 $MESS["MAIN_SC_COMP_DISABLED"] = "Компрессия не поддерживается сервером, используется сжатие на php модулем compression";
@@ -453,7 +433,7 @@ $MESS["MAIN_SC_SSL_NOT_VALID"] = "Сервер имеет невалидный S
 $MESS["MAIN_SC_PATH_PUB"] = "Путь для публикации сообщений в настройках модуля Push and Pull некорректен";
 $MESS["MAIN_SC_PATH_SUB"] = "Путь для чтения сообщений в настройках модуля Push and Pull некорректен";
 $MESS["MAIN_SC_STREAM_DISABLED_2"] = "Не настроен Push server в настройках модуля Push and Pull.";
-$MESS["MAIN_SC_PULL_UNSUPPORTED_VERSION"] = "В настройках модуля Push and Pull указана версия Push server, которая объявлена устаревшей. Вам необходимо перейти на новую версию Push server. <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Подробнее.</a> ";
+$MESS["MAIN_SC_PULL_UNSUPPORTED_VERSION"] = "В настройках модуля Push and Pull указана версия Push server, которая объявлена устаревшей. Вам необходимо перейти на новую версию Push server. <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=41&LESSON_ID=2033\">Подробнее.</a> ";
 $MESS["MAIN_SC_PULL_NOT_REGISTERED"] = "Ошибка регистрации на Push сервере, предоставленном 1С-Битрикс";
 $MESS["MAIN_NO_PULL"] = "Модуль Push and Pull не установлен. ";
 $MESS["MAIN_NO_PULL_MODULE"] = "Модуль Push and Pull не установлен. PUSH уведомления не будут приходить на мобильные устройства.";
@@ -513,7 +493,7 @@ $MESS["MAIN_SC_NOT_SUPPORTED"] = "Эта возможность не подде�
 $MESS["MAIN_SC_NO_CONFLICT"] = "Конфликтов не выявлено";
 $MESS["MAIN_SC_ABSENT_ALL"] = "Отсутствуют";
 $MESS["MAIN_SC_REQUIRED_MODS_DESC"] = "Проверяется наличие необходимых модулей и базовые настройки системы для работы портала. Без этого работа портала не гарантируется.";
-$MESS["MAIN_SC_CORRECT_DESC"] = "Чтобы обеспечить корректную работу портала, нужны специальные настройки серверного окружения. На <a href=\"http://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">виртуальной машине &quot;1С-Битрикс&quot;</a> эти настройки сделаны по-умолчанию. Если нужные настройки не выполнены, часть функционала портала будет работать некорректно.";
+$MESS["MAIN_SC_CORRECT_DESC"] = "Чтобы обеспечить корректную работу портала, нужны специальные настройки серверного окружения. На <a href=\"https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37\">виртуальной машине &quot;1С-Битрикс&quot;</a> эти настройки сделаны по-умолчанию. Если нужные настройки не выполнены, часть функционала портала будет работать некорректно.";
 $MESS["MAIN_SC_GOT_ERRORS"] = "Обнаружены ошибки в работе корпоративного портала. <a href=\"#LINK#\">Проверить и исправить.</a>";
 $MESS["MAIN_SC_SITE_GOT_ERRORS"] = "Обнаружены ошибки в работе сайта. <a href=\"#LINK#\">Проверить и исправить.</a>";
 $MESS["MAIN_SC_FULL_TEST_DESC"] = "Полная проверка системы помогает найти причины проблем в работе сайта и избежать появление ошибок в дальнейшем. Справка по каждому тесту поможет устранить причину ошибки.";
@@ -530,7 +510,7 @@ $MESS["MAIN_SC_TEST_MOBILE"] = "Мобильное приложение Битр
 $MESS["MAIN_SC_TEST_MAIL_PUSH"] = "Публикация сообщений в живую ленту из почты";
 $MESS["MAIN_SC_TEST_PUSH"] = "Уведомления пользователям на мобильные устройства (push уведомления)";
 $MESS["MAIN_SC_TEST_DOCS"] = "Работа с документами через Google Docs и MS Office Online";
-$MESS["MAIN_SC_TEST_FAST_FILES"] = "Битрикс24.Диск. Быстрая работа с файлами";
+$MESS["MAIN_SC_TEST_FAST_FILES_MSGVER_1"] = "Битрикс24.Диск. Быстрая работа с файлами";
 $MESS["MAIN_SC_TEST_SEARCH_CONTENTS"] = "Поиск по содержимому документов";
 $MESS["MAIN_SC_TEST_MAIL_INTEGRATION"] = "Интеграция с почтой внутри компании";
 $MESS["MAIN_SC_TEST_SOCNET_INTEGRATION"] = "Интеграция с соцсетями";
@@ -575,7 +555,6 @@ $MESS["MAIN_CATDOC_WARN"] = "Ошибочная версия catdoc: #VERSION#<b
 Установите более раннюю версию catdoc или новую версию с исправлением.";
 $MESS["MAIN_SC_ENC_EQUAL"] = "Значения mbstring.internal_encoding и default_charset не совпадают. Рекомендуется очистить mbstring.internal_encoding и установить default_charset.";
 $MESS["MAIN_SC_ENC_UTF"] = "Значение default_charset должно быть установлено в UTF-8.";
-$MESS["MAIN_SC_ENC_NON_UTF"] = "Значение default_charset должно быть установлено в кодировку, отличную от UTF-8.";
 $MESS["MAIN_SC_FUNC_OVERLOAD"] = "Используется устаревшая настройка mbstring.func_overload, удалите ее.";
 $MESS["MAIN_SC_DEFAULT_CHARSET"] = "Настройка default_charset не должна быть пустой.";
 ?>

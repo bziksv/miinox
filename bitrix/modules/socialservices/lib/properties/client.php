@@ -2,6 +2,7 @@
 
 namespace Bitrix\Socialservices\Properties;
 
+use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
@@ -15,7 +16,7 @@ Loc::loadMessages(__FILE__);
 
 class Client
 {
-	const SERVICE_HOST = 'https://properties.bitrix.info';
+	const SERVICE_HOST = 'https://properties.bitrix24.tech';
 	const REST_URI = '/rest/';
 	const REGISTER_URI = '/oauth/register/';
 	const SCOPE = 'ps';
@@ -31,6 +32,7 @@ class Client
 	const METHOD_UA_SEARCH_FO_BY_NAME = 'ps.ua.searchFoByName';
 	const METHOD_UA_SEARCH_BY_NAME = 'ps.ua.searchByName';
 	const METHOD_IS_SERVICE_ONLINE = 'ps.common.isOnline';
+	const METHOD_COMMON_GET_BY_BIC = 'ps.bic.getByBic';
 	const ERROR_WRONG_INPUT = 1;
 	const ERROR_WRONG_LICENSE = 2;
 	const ERROR_SERVICE_UNAVAILABLE = 3;
@@ -185,6 +187,11 @@ class Client
 		));
 	}
 
+	public function getByBic($bic)
+	{
+		return $this->call(static::METHOD_COMMON_GET_BY_BIC, ['bic' => $bic]);
+	}
+
 	/**
 	 * Checks service's availability.
 	 * @return bool Returns true if service is ready and false otherwise.
@@ -218,10 +225,6 @@ class Client
 		if(!is_array($additionalParams))
 		{
 			$additionalParams = array();
-		}
-		else
-		{
-			$additionalParams = Encoding::convertEncodingArray($additionalParams, LANG_CHARSET, "utf-8");
 		}
 
 		$additionalParams['client_id'] = $this->accessSettings['client_id'];
@@ -284,7 +287,14 @@ class Client
 	 */
 	protected function prepareAnswer($result)
 	{
-		return Json::decode($result);
+		try
+		{
+			return Json::decode($result);
+		}
+		catch (ArgumentException $e)
+		{
+			return false;
+		}
 	}
 
 	/**

@@ -53,6 +53,13 @@ class SenderContactListComponent extends Bitrix\Sender\Internals\CommonSenderCom
 		switch ($action)
 		{
 			case 'delete':
+				if (!$this->getAccessController()->check(ActionDictionary::ACTION_SEGMENT_CLIENT_EDIT))
+				{
+					Security\AccessChecker::addError($this->errors);
+
+					break;
+				}
+
 				if (!is_array($ids))
 				{
 					$ids = array($ids);
@@ -62,6 +69,7 @@ class SenderContactListComponent extends Bitrix\Sender\Internals\CommonSenderCom
 				{
 					Entity\Contact::removeById($id);
 				}
+
 				break;
 		}
 	}
@@ -90,11 +98,10 @@ class SenderContactListComponent extends Bitrix\Sender\Internals\CommonSenderCom
 		/* Set title */
 		if ($this->arParams['SET_TITLE'])
 		{
-			/**@var CAllMain*/
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_CONTACT_LIST_TITLE1'));
 		}
 
-		if (!Security\Access::getInstance()->canViewSegments())
+		if (!Security\Access::getInstance()->canViewClientList())
 		{
 			Security\AccessChecker::addError($this->errors);
 			return false;
@@ -475,12 +482,18 @@ class SenderContactListComponent extends Bitrix\Sender\Internals\CommonSenderCom
 	public function executeComponent()
 	{
 		parent::executeComponent();
+
+		if ($this->getAccessController()->isAdmin() && $this->request->get('clearAll') === 'y')
+		{
+			ContactTable::deleteList(['>ID' => 0]);
+		}
+
 		parent::prepareResultAndTemplate();
 	}
 
 	public function getEditAction()
 	{
-		return ActionDictionary::ACTION_SEGMENT_CLIENT_VIEW;
+		return ActionDictionary::ACTION_SEGMENT_CLIENT_EDIT;
 	}
 
 	public function getViewAction()

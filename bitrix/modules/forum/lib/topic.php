@@ -4,6 +4,7 @@ namespace Bitrix\Forum;
 use Bitrix\Main;
 use Bitrix\Forum;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DeleteResult;
 use Bitrix\Main\ORM\Event;
 use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Fields\DatetimeField;
@@ -58,9 +59,9 @@ use Bitrix\Main\Type\DateTime;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Topic_Query query()
- * @method static EO_Topic_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Topic_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Topic_Result getById($id)
- * @method static EO_Topic_Result getList(array $parameters = array())
+ * @method static EO_Topic_Result getList(array $parameters = [])
  * @method static EO_Topic_Entity getEntity()
  * @method static \Bitrix\Forum\EO_Topic createObject($setDefaultValues = true)
  * @method static \Bitrix\Forum\EO_Topic_Collection createCollection()
@@ -182,13 +183,14 @@ class TopicTable extends Main\Entity\DataManager
 		$data = $event->getParameter("fields");
 		$id = $event->getParameter("id");
 		$id = $id["ID"];
-		$topic = TopicTable::getById($id)->fetch();
+		$topic = null;
 
 		if (Main\Config\Option::get("forum", "FILTER", "Y") == "Y")
 		{
 			$filteredFields = self::getFilteredFields();
 			if (!empty(array_intersect($filteredFields, array_keys($data))))
 			{
+				$topic = TopicTable::getById($id)->fetch();
 				$res = [];
 				foreach ($filteredFields as $key)
 				{
@@ -210,7 +212,24 @@ class TopicTable extends Main\Entity\DataManager
 			$data["TITLE_SEO"] = trim($data["TITLE_SEO"], " -");
 			if ($data["TITLE_SEO"] == '')
 			{
-				$title = array_key_exists("TITLE", $data) ? $data["TITLE"] : $topic["TITLE"];
+				if (array_key_exists("TITLE", $data))
+				{
+					$title = $data["TITLE"];
+				}
+				else
+				{
+					if (is_null($topic))
+					{
+						$res = \Bitrix\Forum\TopicTable::query()->setSelect(['TITLE'])
+							->where('ID', $id)
+							->fetch();
+						$title = $res["TITLE"];
+					}
+					else
+					{
+						$title = $topic["TITLE"];
+					}
+				}
 				$data["TITLE_SEO"] = \CUtil::translit($title, LANGUAGE_ID, array("max_len"=>255, "safe_chars"=>".", "replace_space" => '-'));
 			}
 		}
@@ -321,6 +340,7 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 				$this->data["STATE"] = self::STATE_OPENED;
 				\CForumEventLog::Log("topic", "open", $this->getId(), serialize($this->data));
 				$result->setData(["STATE" => self::STATE_OPENED]);
+				(new Main\Event("forum", "onTopicOpen", [$this->getId(), $this->data]))->send();
 			}
 			else
 			{
@@ -340,6 +360,7 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 				$this->data["STATE"] = self::STATE_CLOSED;
 				\CForumEventLog::Log("topic", "close", $this->getId(), serialize($this->data));
 				$result->setData(["STATE" => self::STATE_CLOSED]);
+				(new Main\Event("forum", "onTopicClose", [$this->getId(), $this->data]))->send();
 			}
 			else
 			{
@@ -428,7 +449,7 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 	public function remove()
 	{
 		Forum\Statistic\User::runForTopic($this->getId());
-		if (self::delete($this->getId())->isSuccess())
+		if (self::deleteTopic($this->getId(), $this->data)->isSuccess())
 		{
 			Forum\Integration\Search\Topic::deleteIndex($this);
 			Forum\Forum::getById($this->getForumId())->calculateStatistic();
@@ -444,20 +465,20 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 		global $USER_FIELD_MANAGER;
 
 		$forum = Forum\Forum::getInstance($parentObject);
-		$date = new Main\Type\DateTime($fields["START_DATE"] ?: $fields["POST_DATE"]);
+		$date = new Main\Type\DateTime($fields["START_DATE"] ?? $fields["POST_DATE"] ?? null);
 		$author = [
-			"ID" => $fields["USER_START_ID"] ?: $fields["AUTHOR_ID"],
-			"NAME" => $fields["USER_START_NAME"] ?: $fields["AUTHOR_NAME"]
+			"ID" => $fields["USER_START_ID"] ?? $fields["AUTHOR_ID"],
+			"NAME" => $fields["USER_START_NAME"] ?? $fields["AUTHOR_NAME"]
 		];
 
 		$topicData = [
 			"TITLE" => $fields["TITLE"],
-			"TITLE_SEO" => (array_key_exists("TITLE_SEO", $fields) ? $fields["TITLE_SEO"] : ""),
-			"TAGS" => $fields["TAGS"],
-			"DESCRIPTION" => $fields["DESCRIPTION"],
-			"ICON" => $fields["ICON"],
-			"STATE" => $fields["STATE"] ?: Topic::STATE_OPENED,
-			"APPROVED" => $fields["APPROVED"],
+			"TITLE_SEO" => $fields["TITLE_SEO"] ?? '',
+			"TAGS" => $fields["TAGS"] ?? '',
+			"DESCRIPTION" => $fields["DESCRIPTION"] ?? '',
+			"ICON" => $fields["ICON"] ?? '',
+			"STATE" => $fields["STATE"] ?? Topic::STATE_OPENED,
+			"APPROVED" => $fields["APPROVED"] ?? 'Y',
 
 			"POSTS" => 0,
 			"POSTS_SERVICE" => 0,
@@ -477,10 +498,10 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 			"ABS_LAST_POST_DATE" => $date,
 			"ABS_LAST_MESSAGE_ID" => 0,
 
-			"XML_ID" => $fields["TOPIC_XML_ID"],
+			"XML_ID" => $fields["TOPIC_XML_ID"] ?? '',
 
-			"OWNER_ID" => $fields["OWNER_ID"] ?: null,
-			"SOCNET_GROUP_ID" => $fields["SOCNET_GROUP_ID"] ?: null
+			"OWNER_ID" => $fields["OWNER_ID"] ?? null,
+			"SOCNET_GROUP_ID" => $fields["SOCNET_GROUP_ID"] ?? null
 		];
 		$result = Topic::add($forum, $topicData);
 		if ($result->isSuccess())
@@ -489,19 +510,19 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 				"NEW_TOPIC" => "Y",
 				"APPROVED" => $topicData["APPROVED"],
 
-				"USE_SMILES" => $fields["USE_SMILES"],
+				"USE_SMILES" => $fields["USE_SMILES"] ?? 'Y',
 				"POST_DATE" => $date,
 				"POST_MESSAGE" => $fields["POST_MESSAGE"],
 
-				"ATTACH_IMG" => $fields["ATTACH_IMG"],
-				"FILES" => $fields["FILES"],
+				"ATTACH_IMG" => $fields["ATTACH_IMG"] ?? null,
+				"FILES" => $fields["FILES"] ?? null,
 
-				"PARAM1" => $fields["PARAM1"],
-				"PARAM2" => $fields["PARAM2"],
+				"PARAM1" => $fields["PARAM1"] ?? null,
+				"PARAM2" => $fields["PARAM2"] ?? null,
 
 				"AUTHOR_ID" => $author["ID"],
 				"AUTHOR_NAME" => $author["NAME"],
-				"AUTHOR_EMAIL" => $fields["AUTHOR_EMAIL"],
+				"AUTHOR_EMAIL" => $fields["AUTHOR_EMAIL"] ?? '',
 
 				"AUTHOR_IP" => $fields["AUTHOR_IP"] ?? null,
 				"AUTHOR_REAL_IP" =>  $fields["AUTHOR_REAL_IP"] ?? null,
@@ -681,13 +702,12 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 	{
 		unset($data["FORUM_ID"]);
 
-		$topic = Forum\TopicTable::getById($id)->fetch();
-
 		$result = new Main\ORM\Data\UpdateResult();
 		$result->setPrimary(["ID" => $id]);
 
 		if (($events = GetModuleEvents("forum", "onBeforeTopicUpdate", true)) && !empty($events))
 		{
+			$topic = Forum\TopicTable::getById($id)->fetch();
 			global $APPLICATION;
 			foreach ($events as $ev)
 			{
@@ -722,13 +742,20 @@ class Topic extends \Bitrix\Forum\Internals\Entity
 		return $result;
 	}
 
-	public static function delete(int $id)
+	public static function delete(int $id): DeleteResult
 	{
-		$result = new Main\Orm\Data\DeleteResult();
+		$result = new DeleteResult();
 		if (!($topicData = Forum\TopicTable::getById($id)->fetch()))
 		{
 			return $result;
 		}
+
+		return self::deleteTopic($id, $topicData);
+	}
+
+	private static function deleteTopic(int $id, array $topicData): DeleteResult
+	{
+		$result = new DeleteResult();
 
 		/***************** Event onBeforeTopicDelete ***********************/
 		foreach (GetModuleEvents("forum", "onBeforeTopicDelete", true) as $arEvent)

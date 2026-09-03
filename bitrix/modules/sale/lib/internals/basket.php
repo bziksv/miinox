@@ -15,6 +15,22 @@ use Bitrix\Sale\Reservation\Internals\BasketReservationTable;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class BasketTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Basket_Query query()
+ * @method static EO_Basket_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_Basket_Result getById($id)
+ * @method static EO_Basket_Result getList(array $parameters = [])
+ * @method static EO_Basket_Entity getEntity()
+ * @method static \Bitrix\Sale\Internals\EO_Basket createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sale\Internals\EO_Basket_Collection createCollection()
+ * @method static \Bitrix\Sale\Internals\EO_Basket wakeUpObject($row)
+ * @method static \Bitrix\Sale\Internals\EO_Basket_Collection wakeUpCollection($rows)
+ */
 class BasketTable extends Main\Entity\DataManager
 {
 
@@ -164,7 +180,10 @@ class BasketTable extends Main\Entity\DataManager
 			),
 
 			new Main\Entity\FloatField(
-				'PRICE'
+				'PRICE',
+				array(
+					'scale' => 8
+				)
 			),
 
 			'CURRENCY' => array(
@@ -174,7 +193,10 @@ class BasketTable extends Main\Entity\DataManager
 			),
 
 			new Main\Entity\FloatField(
-				'BASE_PRICE'
+				'BASE_PRICE',
+				array(
+					'scale' => 8
+				)
 			),
 
 			'VAT_INCLUDED' => array(
@@ -263,7 +285,8 @@ class BasketTable extends Main\Entity\DataManager
 			new Main\Entity\FloatField(
 				'DISCOUNT_PRICE',
 				array(
-					'default_value' => '0.00'
+					'default_value' => '0.0',
+					'scale' => 8
 				)
 			),
 
@@ -291,7 +314,10 @@ class BasketTable extends Main\Entity\DataManager
 			),
 
 			new Main\Entity\FloatField(
-				'VAT_RATE'
+				'VAT_RATE',
+				array(
+					'scale' => 4
+				)
 			),
 
 			new Main\Entity\ExpressionField(

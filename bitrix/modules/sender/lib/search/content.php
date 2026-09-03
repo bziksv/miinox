@@ -60,7 +60,7 @@ class Content
 	{
 		if (!is_callable($callback))
 		{
-			throw new ArgumentException('Parameter `$callback` does not callable.');
+			throw new ArgumentException('Parameter \'callback\' does not callable.');
 		}
 		$this->callbacks[] = $callback;
 		return $this;
@@ -223,7 +223,7 @@ class Content
 
 		if(is_array($userData))
 		{
-			$value = \CAllUser::formatName(\CAllSite::getNameFormat(), $userData, true, false);
+			$value = \CUser::formatName(\CSite::getNameFormat(), $userData, true, false);
 			$this->addText($value);
 		}
 

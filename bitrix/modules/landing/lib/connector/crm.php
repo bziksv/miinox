@@ -1,11 +1,13 @@
 <?php
 namespace Bitrix\Landing\Connector;
 
-use Bitrix\Crm\Settings\CompanySettings;
+use Bitrix\Crm\CompanyTable;
 use Bitrix\Crm\Requisite\EntityLink;
-use Bitrix\Main\Loader;
-use Bitrix\SalesCenter\Integration\CrmManager;
+use Bitrix\Crm\Settings\CompanySettings;
 use Bitrix\Landing\Manager;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Text\Encoding;
+use Bitrix\SalesCenter\Integration\CrmManager;
 
 class Crm
 {
@@ -266,5 +268,156 @@ class Crm
 		}
 
 		return $replace;
+	}
+
+	/**
+	 * Returns replace-array for requisite company name.
+	 *
+	 * @param string $xmlId landing xml id.
+	 * @return array
+	 */
+	public static function getReplaceRequisiteCompanyNameForContent(string $xmlId): array
+	{
+		$companyId = (int)(explode("_", $xmlId)[1] ?? 0);
+		$requisites = self::getMyRequisites();
+		if (isset($requisites[$companyId]['companyTitle']) && $companyId > 0)
+		{
+			$companyTitle = $requisites[$companyId]['companyTitle'];
+		}
+		if (!isset($companyTitle))
+		{
+			$companyTitle = 'Company24';
+		}
+		// block content is executed through eval() in Block::view(), so the title must be escaped (Mantis #253063)
+		// default ENT_COMPAT is enough: the marker lands in a text node, attributes are serialized in double quotes
+		// guarded by CrmRequisiteCompanyTitleEscapeTest
+		$replace['#requisiteCompanyTitle'] = \htmlspecialcharsbx($companyTitle);
+
+		return $replace;
+	}
+
+	/**
+	 * Returns requisites each of my companies.
+	 * @return array
+	 */
+	public static function getMyRequisites(): array
+	{
+		if (!Loader::includeModule('crm'))
+		{
+			return [];
+		}
+
+		$fullData = [];
+
+		$companies = CompanyTable::query()
+			->setSelect(['ID', 'TITLE'])
+			->where('IS_MY_COMPANY', 'Y')
+			->setOrder(['DATE_MODIFY' => 'desc'])
+			->fetchAll()
+		;
+		foreach ($companies as $company)
+		{
+			$requisites = [];
+			$bankRequisites = [];
+			$requisitesRaw = \CCrmEntitySelectorHelper::PrepareRequisiteData(
+				\CCrmOwnerType::Company,
+				$company['ID'],
+				[
+					'VIEW_FORMATTED' => true,
+					'SKIP_CHECK_MY_COMPANY_PERMISSION' => true,
+				]
+			);
+			foreach ($requisitesRaw as $requisite)
+			{
+				$requisiteData = json_decode($requisite['requisiteData'], 1);
+				if (!empty($requisiteData['viewData']['fields']))
+				{
+					$requisites[$requisite['requisiteId']] = [
+						'id' =>  $requisite['requisiteId'],
+						'title' => $requisiteData['viewData']['title'] ?? null,
+						'data' => $requisiteData['viewData']['fields'],
+					];
+				}
+				if (!empty($requisiteData['bankDetailViewDataList']))
+				{
+					$bankRequisites[$requisite['requisiteId']] = [
+						'id' =>  $requisite['requisiteId'],
+						'title' => $requisiteData['viewData']['title'] ?? null,
+						'bankData' => $requisiteData['bankDetailViewDataList'][0]['viewData']['fields'] ?? null,
+					];
+				}
+			}
+
+			if (empty($requisites))
+			{
+				continue;
+			}
+
+			$fullData[$company['ID']] = [
+				'companyId' => $company['ID'],
+				'companyTitle' => $company['TITLE'],
+				'requisites' => $requisites,
+				'bankRequisites' => $bankRequisites,
+			];
+		}
+
+		return $fullData;
+	}
+
+	/**
+	 * Returns requisites each of my companies (as plain list).
+	 * @param array $requisites requisites each of my companies.
+	 * @param string $requisitesType type of requisites.
+	 * @return array
+	 */
+	public static function getMyRequisitesPlainList(array $requisites = [], string $requisitesType = 'requisites'): array
+	{
+		$requisitesPlainList = [];
+		foreach ($requisites as $company)
+		{
+			foreach ($company[$requisitesType] as $requisite)
+			{
+				$requisitesPlainList["{$company['companyId']}_{$requisite['id']}"]
+					= "{$company['companyTitle']}: {$requisite['title']} : {$requisite['id']}";
+			}
+		}
+
+		return $requisitesPlainList;
+	}
+
+	/**
+	 * Returns all company's communication variants.
+	 * @param int $companyId Company ID.
+	 * @return array
+	 */
+	public static function getCompanyCommunications(int $companyId): array
+	{
+		if (!Loader::includeModule('crm'))
+		{
+			return [];
+		}
+
+		$data = [];
+
+		$res = \CCrmFieldMulti::getList(
+			['ID' => 'asc'],
+			[
+				'ENTITY_ID' => \CCrmOwnerType::CompanyName,
+				'ELEMENT_ID' => $companyId,
+			]
+		);
+		while ($row = $res->Fetch())
+		{
+			$row = array_change_key_case($row);
+			$row['type_id'] = mb_strtolower($row['type_id']);
+
+			if (!isset($data[$row['type_id']]))
+			{
+				$data[$row['type_id']] = [];
+			}
+			$data[$row['type_id']][] = $row['value'];
+		}
+
+		return $data;
 	}
 }

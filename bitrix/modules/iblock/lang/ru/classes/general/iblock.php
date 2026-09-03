@@ -1,9 +1,10 @@
-<?
+<?php
 $MESS["IBLOCK_BAD_SITE_ID_NA"] = "Не введена привязка к сайту.";
 $MESS["IBLOCK_BAD_SITE_ID"] = "Неверный сайт!";
 $MESS["IBLOCK_BAD_NAME"] = "Не введено название информационного блока.";
 $MESS["IBLOCK_BAD_BLOCK_TYPE"] = "Не введен тип блока.";
 $MESS["IBLOCK_BAD_REST_ON_WO_API_CODE"] = "Для включения REST должно быть заполнено поле API_CODE.";
+$MESS["IBLOCK_BAD_FULLTEXT_INDEX"] = "Введено некорректное значение для поля полнотекстовый поиск";
 $MESS["IBLOCK_MESS_ELEMENT_NAME"] = "Элемент";
 $MESS["IBLOCK_MESS_ELEMENTS_NAME"] = "Элементы";
 $MESS["IBLOCK_MESS_ELEMENT_ADD"] = "Добавить элемент";
@@ -54,4 +55,4 @@ $MESS["IBLOCK_FIELD_DETAIL_TEXT"] = "Детальное описание";
 $MESS["IBLOCK_FIELD_XML_ID"] = "Внешний код";
 $MESS["IBLOCK_FIELD_CODE"] = "Символьный код";
 $MESS["IBLOCK_FIELD_TAGS"] = "Теги";
-?>
+$MESS["IBLOCK_ERR_IBLOCK_IS_ABSENT"] = "Не найден инфоблок";

@@ -1,14 +1,19 @@
 <?php
 
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\UserField\Types\EnumType;
+use Bitrix\Main\Web\Json;
 
 /**
  * @var EnumUfComponent $component
  * @var array $arResult
+ * @var array $arParams
  */
 
 $component = $this->getComponent();
@@ -70,39 +75,25 @@ $nodes = [$arResult['userField']['~id']];
 	?>
 </a>
 <?php
-if($arParams['additionalParameters']['canDrop'] !== false)
-{
-	?>
-	<del
-		id="<?= $item['attrList']['id'] ?>_del"
-		<?= ($item['value'] ? '' : 'style="display:none"') ?>
-	>
-	</del>
-	<?php
-}
-
 if ($arResult['isEnabled'])
 {
 	?>
-
 	<script>
-
-		BX.message(<?= \CUtil::PhpToJSObject([
+		BX.message(<?= Json::encode([
 			'USER_TYPE_ENUM_NO_VALUE' => Loc::getMessage('USER_TYPE_ENUM_NO_VALUE')
 		]) ?>);
 
 		BX.ready(function () {
 			new BX.Mobile.Field.Enum(
-				<?= \CUtil::PhpToJSObject([
+				<?= Json::encode([
 					'name' => 'BX.Mobile.Field.Enum',
 					'nodes' => $nodes,
 					'restrictedMode' => true,
 					'formId' => $arParams['additionalParameters']['formId'],
 					'gridId' => $arParams['additionalParameters']['gridId']
-				])?>
+				]) ?>
 			);
 		});
 	</script>
-
 	<?php
 }

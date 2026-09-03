@@ -10,8 +10,7 @@ namespace Bitrix\Seo;
 use Bitrix\Main\IO;
 use Bitrix\Main\SiteTable;
 
-class RobotsFile
-	extends IO\File
+class RobotsFile extends IO\File
 {
 	const ROBOTS_FILE_NAME = 'robots.txt';
 	const SECTION_RULE = 'User-Agent';
@@ -45,11 +44,11 @@ class RobotsFile
 		$this->load();
 		if($bCheckUnique)
 		{
-			$strRule = ToUpper($this->getRuleText($rule));
+			$strRule = mb_strtoupper($this->getRuleText($rule));
 			$arRules = $this->getSection($section);
 			foreach($arRules as $existingRule)
 			{
-				$strExistingRule = ToUpper($this->getRuleText($existingRule));
+				$strExistingRule = mb_strtoupper($this->getRuleText($existingRule));
 				if($strRule == $strExistingRule)
 				{
 					return true;
@@ -85,10 +84,10 @@ class RobotsFile
 		$arRules = array();
 		if(isset($this->contents[$section]))
 		{
-			$rule = ToUpper($rule);
+			$rule = mb_strtoupper($rule);
 			foreach ($this->contents[$section] as $arRule)
 			{
-				if(ToUpper($arRule[0]) == $rule)
+				if(mb_strtoupper($arRule[0]) == $rule)
 				{
 					$arRules[] = $arRule;
 				}
@@ -99,10 +98,10 @@ class RobotsFile
 
 	protected function getSection($section)
 	{
-		$section = ToUpper($section);
+		$section = mb_strtoupper($section);
 		foreach($this->contents as $currentAgent => $arRules)
 		{
-			if(ToUpper($currentAgent) == $section)
+			if(mb_strtoupper($currentAgent) == $section)
 			{
 				return $arRules;
 			}
@@ -113,10 +112,10 @@ class RobotsFile
 
 	protected function addSectionRule($section, $rule)
 	{
-		$section = ToUpper($section);
+		$section = mb_strtoupper($section);
 		foreach($this->contents as $currentAgent => $arRules)
 		{
-			if(ToUpper($currentAgent) == $section)
+			if(mb_strtoupper($currentAgent) == $section)
 			{
 				$this->contents[$section][] = $rule;
 				return;
@@ -135,7 +134,7 @@ class RobotsFile
 			$currentAgent = '';
 			if(count($arLines) > 0)
 			{
-				$strSectionCompare = ToUpper(self::SECTION_RULE);
+				$strSectionCompare = mb_strtoupper(self::SECTION_RULE);
 				foreach($arLines as $line)
 				{
 					$line = trim($line);
@@ -143,7 +142,7 @@ class RobotsFile
 					if($line <> '')
 					{
 						$rule = $this->parseRule($line);
-						if(ToUpper($rule[0]) == $strSectionCompare)
+						if(mb_strtoupper($rule[0]) == $strSectionCompare)
 						{
 							$currentAgent = $rule[1];
 						}

@@ -1,6 +1,8 @@
 import { type BaseEvent } from 'main.core.events';
-import { ZIndexComponentOptions } from 'main.core.z-index-manager';
-import type CloseIconSize from './popup-close-icon-size';
+import { type ZIndexComponentOptions } from 'main.core.z-index-manager';
+import { type FocusTrapOptions } from 'ui.a11y';
+
+import { type CloseIconSize } from './popup-close-icon-size';
 
 export type PopupOptions = {
 	id?: string,
@@ -34,20 +36,38 @@ export type PopupOptions = {
 	events?: { [eventName: string]: (event: BaseEvent) => void },
 	titleBar?: string | { content: string },
 	angle?: boolean | { offset: number, position?: 'top' | 'bottom' | 'left' | 'right' },
-	overlay?: boolean | { backgroundColor?: string, opacity?: number },
+	overlay?: boolean | PopupOverlay,
 	contentColor?: 'white' | 'gray',
-	draggable?: boolean | { restrict: boolean },
+	draggable?: boolean | PopupDraggable,
 	darkMode?: boolean,
 	fixed?: boolean,
+	designSystemContext?: string,
 	compatibleMode?: boolean,
 	bindOnResize?: boolean,
 	targetContainer?: HTMLElement,
 	disableScroll?: boolean,
 
-	//Compatibility
+	focusTrap?: boolean | FocusTrapOptions,
+	ariaLabel?: string;
+	ariaLabelledBy?: string;
+	ariaDescribedBy?: string;
+	role?: string,
+
+	// Compatibility
 	noAllPaddings?: boolean,
 	contentNoPaddings?: boolean,
 }
+
+export type PopupOverlay = {
+	backgroundColor: string,
+	opacity: number,
+	blur: string,
+};
+
+export type PopupDraggable = {
+	restrict: boolean,
+	element: HTMLElement,
+};
 
 export type PopupTarget = Element | { left: number, top: number } | null | MouseEvent;
 export type PopupTargetOptions = {
@@ -61,3 +81,4 @@ export type PopupAnimationOptions =
 	string
 	| boolean
 	| { showClassName?: string, closeClassName?: string, closeAnimationType: ? string }
+;

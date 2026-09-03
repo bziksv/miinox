@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 BX.namespace("BX.UI");
 
 if(typeof BX.UI.EntityConfigType === "undefined")
@@ -57,11 +59,15 @@ if(typeof BX.UI.EntityConfig === "undefined")
 		this._data = {};
 		this._items = [];
 		this._options = {};
+		this._signedParams = null;
 
 		this._isChanged = false;
 
 		this.categoryName = '';
 		this.moduleId = '';
+
+		this.onAddPostfix = 'on_add';
+		this.onUpdatePostfix = 'on_update';
 	};
 	BX.UI.EntityConfig.prototype =
 	{
@@ -77,6 +83,7 @@ if(typeof BX.UI.EntityConfig === "undefined")
 
 			this._canUpdatePersonalConfiguration = BX.prop.getBoolean(this._settings, "canUpdatePersonalConfiguration", true);
 			this._canUpdateCommonConfiguration = BX.prop.getBoolean(this._settings, "canUpdateCommonConfiguration", false);
+			this._signedParams = BX.prop.getString(this._settings, "signedParams", '');
 
 			this._data = BX.prop.getArray(this._settings, "data", []);
 
@@ -250,7 +257,7 @@ if(typeof BX.UI.EntityConfig === "undefined")
 		{
 			return this._scope;
 		},
-		setScope: function(scope, userScopeId, moduleId)
+		setScope: function(scope, userScopeId, moduleId, entityId)
 		{
 			var promise = new BX.Promise();
 			if(
@@ -282,7 +289,8 @@ if(typeof BX.UI.EntityConfig === "undefined")
 					moduleId: this.moduleId,
 					guid: this._id,
 					scope: this._scope,
-					userScopeId: (this._userScopeId || 0)
+					userScopeId: (this._userScopeId || 0),
+					entityId,
 				}
 			}).then(function (response) {
 				promise.fulfill();
@@ -344,6 +352,7 @@ if(typeof BX.UI.EntityConfig === "undefined")
 					function(){ promise.fulfill(); },
 					0
 				);
+
 				return promise;
 			}
 
@@ -363,6 +372,7 @@ if(typeof BX.UI.EntityConfig === "undefined")
 			{
 				data['params']['userScopeId'] = this._userScopeId;
 			}
+			data['signedConfigParams'] = this._signedParams;
 
 			BX.ajax.runComponentAction(
 				"bitrix:ui.form",
@@ -371,35 +381,57 @@ if(typeof BX.UI.EntityConfig === "undefined")
 			).then(function(){ promise.fulfill(); });
 
 			this._isChanged = false;
+
 			return promise;
 		},
-		reset: function(forAllUsers)
+		reset(forAllUsers, entityId)
 		{
-			var data = { guid: this._id, params: { scope: this._scope }, categoryName: this.categoryName };
-			if(forAllUsers)
+			const data = { guid: this._id, params: { scope: this._scope }, categoryName: this.categoryName };
+			if (forAllUsers)
 			{
-				data["params"]["forAllUsers"] = "Y";
+				data.params.forAllUsers = 'Y';
 			}
 
-			var promise = new BX.Promise();
+			if (!BX.Type.isUndefined(entityId) && BX.Type.isInteger(entityId))
+			{
+				data.params.type = entityId > 0 ? this.onUpdatePostfix : this.onAddPostfix;
+			}
+			data.signedConfigParams = this._signedParams;
+
+			const promise = new BX.Promise();
 
 			BX.ajax.runComponentAction(
-				"bitrix:ui.form",
-				"resetConfiguration",
-				{ mode: "ajax", data: data }
-			).then(function(){ promise.fulfill(); });
+				'bitrix:ui.form',
+				'resetConfiguration',
+				{ mode: 'ajax', data },
+			).then(() => {
+				promise.fulfill();
+			}).catch((response) => {});
 
 			return promise;
 		},
-		forceCommonScopeForAll: function()
+		forceCommonScopeForAll(entityId)
 		{
-			var promise = new BX.Promise();
+			const promise = new BX.Promise();
+
+			const data = {
+				guid: this._id,
+				categoryName: this.categoryName,
+				signedConfigParams: this._signedParams
+			};
+
+			if (!BX.Type.isUndefined(entityId) && BX.Type.isInteger(entityId))
+			{
+				data.type = entityId > 0 ? this.onUpdatePostfix : this.onAddPostfix;
+			}
 
 			BX.ajax.runComponentAction(
-				"bitrix:ui.form",
-				"forceCommonScopeForAll",
-				{ mode: "ajax", data: { guid: this._id, categoryName: this.categoryName } }
-			).then(function(){ promise.fulfill(); });
+				'bitrix:ui.form',
+				'forceCommonScopeForAll',
+				{ mode: 'ajax', data },
+			).then(() => {
+				promise.fulfill();
+			}).catch((response) => {});
 
 			return promise;
 		},

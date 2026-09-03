@@ -1,14 +1,11 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 
 if (!$USER->CanDoOperation('seo_tools'))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
 IncludeModuleLangFile(__FILE__);
 CModule::IncludeModule('seo');
-
-CUtil::JSPostUnescape();
 
 Header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
 

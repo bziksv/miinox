@@ -27,11 +27,11 @@ $APPLICATION->ShowProperty('FooterJS');
 <?php if (\Bitrix\Landing\Connector\Mobile::isMobileHit()):
 	Extension::load(['mobile_tools']);
 	?>
-<script type="text/javascript">
+<script>
 
 	if (typeof BXMPage !== 'undefined')
 	{
-		BXMPage.TopBar.title.setText('<?= $APPLICATION->getTitle();?>');
+		BXMPage.TopBar.title.setText('<?= htmlspecialcharsback($APPLICATION->getTitle());?>');
 		BXMPage.TopBar.title.show();
 	}
 

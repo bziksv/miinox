@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 if(typeof BX.UI.EntityConfigurationManager === "undefined")
 {
 	BX.UI.EntityConfigurationManager = function()
@@ -14,23 +16,33 @@ if(typeof BX.UI.EntityConfigurationManager === "undefined")
 			},
 			isSelectionEnabled: function()
 			{
-				return this._editor.getUserFieldManager().isSelectionEnabled();
+				const userFieldManager = this._editor.getUserFieldManager();
+
+				return userFieldManager ? userFieldManager.isSelectionEnabled() : true;
 			},
 			isCreationEnabled: function()
 			{
-				return this._editor.getUserFieldManager().isCreationEnabled();
+				const userFieldManager = this._editor.getUserFieldManager();
+
+				return userFieldManager ? userFieldManager.isCreationEnabled() : false;
 			},
 			isMandatoryControlEnabled: function()
 			{
-				return this._editor.getUserFieldManager().isMandatoryControlEnabled();
+				const userFieldManager = this._editor.getUserFieldManager();
+
+				return userFieldManager ? userFieldManager.isMandatoryControlEnabled() : false;
 			},
 			getTypeInfos: function()
 			{
-				return this._editor.getUserFieldManager().getTypeInfos();
+				const userFieldManager = this._editor.getUserFieldManager();
+
+				return userFieldManager ? userFieldManager.getTypeInfos() : false;
 			},
 			getCreationPageUrl: function(typeId)
 			{
-				return this._editor.getUserFieldManager().getCreationPageUrl();
+				const userFieldManager = this._editor.getUserFieldManager();
+
+				return userFieldManager ? userFieldManager.getCreationPageUrl() : "";
 			},
 			openCreationPageUrl: function(typeId)
 			{
@@ -56,8 +68,15 @@ if(typeof BX.UI.EntityConfigurationManager === "undefined")
 					throw "BX.UI.EntityConfigurationManager: The 'params' argument must be object.";
 				}
 
+				const userFieldManager = this._editor.getUserFieldManager();
 				var child = BX.prop.get(params, "field", null);
-				if(!child || (child.getType() === "userField" && this._editor.getUserFieldManager().isModificationEnabled()))
+				if (
+					!child
+					|| (
+						child.getType() === "userField"
+						&& (userFieldManager ? userFieldManager.isModificationEnabled() : false)
+					)
+				)
 				{
 					return this.getUserFieldConfigurator(params, parent);
 				}
@@ -113,16 +132,27 @@ if(typeof BX.UI.EntityConfigurationManager === "undefined")
 					typeId = BX.prop.get(params, "typeId", BX.UI.EntityUserFieldType.string);
 				}
 
+				let tooltipConfigurator = null;
+				if (params?.enableTooltipConfigurator)
+				{
+					tooltipConfigurator = new BX.UI.EntityEditorUfConfigurators.TooltipConfigurator(
+						this._id,
+						this._editor,
+						field,
+					);
+				}
+
 				return BX.UI.EntityEditorUserFieldConfigurator.create(
 					"",
 					{
+						parent,
+						typeId,
+						field,
+						tooltipConfigurator,
 						editor: this._editor,
 						schemeElement: null,
 						model: parent.getModel(),
 						mode: BX.UI.EntityEditorMode.edit,
-						parent: parent,
-						typeId: typeId,
-						field: field,
 						enableMandatoryControl: BX.prop.getBoolean(params, "enableMandatoryControl", true),
 						mandatoryConfigurator: params.mandatoryConfigurator,
 						showAlways: true
@@ -161,6 +191,8 @@ if (typeof BX.UI.EntityEditorFieldConfigurator === "undefined")
 
 		this._enableMandatoryControl = true;
 		this._mandatoryConfigurator = null;
+
+		this.tooltipConfigurator = null;
 	};
 	BX.extend(BX.UI.EntityEditorFieldConfigurator, BX.UI.EntityEditorControl);
 	BX.UI.EntityEditorFieldConfigurator.prototype.doInitialize = function()
@@ -174,6 +206,8 @@ if (typeof BX.UI.EntityEditorFieldConfigurator === "undefined")
 
 		this._enableMandatoryControl = BX.prop.getBoolean(this._settings, "enableMandatoryControl", true);
 		this._mandatoryConfigurator = BX.prop.get(this._settings, "mandatoryConfigurator", null);
+
+		this.tooltipConfigurator = this._settings?.tooltipConfigurator;
 
 		this._typeId = BX.prop.getString(this._settings, "typeId", "");
 	};
@@ -336,9 +370,16 @@ if (typeof BX.UI.EntityEditorFieldConfigurator === "undefined")
 		}
 
 		//region Show Always
-		this._showAlwaysCheckBox = this.createOption(
-			{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS") }
-		);
+		if (this.getEditor().isShowAlwaysFeautureEnabled())
+		{
+			this._showAlwaysCheckBox = this.createOption(
+				{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS") }
+			);
+		}
+		else
+		{
+			this._showAlwaysCheckBox = { checked: false };
+		}
 		this._showAlwaysCheckBox.checked = this._field.checkOptionFlag(BX.UI.EntityEditorControlOptions.showAlways);
 		//endregion
 
@@ -386,7 +427,7 @@ if (typeof BX.UI.EntityEditorFieldConfigurator === "undefined")
 	BX.UI.EntityEditorFieldConfigurator.prototype.getIsTimeEnabledCheckBox = function()
 	{
 		var checkBox = null;
-		if(this._field === null && (this._typeId === "datetime" || this._typeId === "date"))
+		if(this._field === null && this._typeId === "datetime")
 		{
 			checkBox = this.createOption({ caption: BX.message("UI_ENTITY_EDITOR_UF_ENABLE_TIME") });
 		}
@@ -537,6 +578,11 @@ if (typeof BX.UI.EntityEditorFieldConfigurator === "undefined")
 			return;
 		}
 
+		if (this.tooltipConfigurator && !this.tooltipConfigurator.validateInputText())
+		{
+			return;
+		}
+
 		if(this._mandatoryConfigurator)
 		{
 			if(this._mandatoryConfigurator.isChanged())
@@ -585,6 +631,11 @@ if (typeof BX.UI.EntityEditorFieldConfigurator === "undefined")
 		{
 			params["innerConfig"] = (this._field) ? this._field.getInnerConfig() : {};
 			params["enumeration"] = this._enumConfigurator.prepareSaveParams();
+		}
+
+		if (this.tooltipConfigurator)
+		{
+			params['HELP_MESSAGE'] = this.tooltipConfigurator.getTooltip();
 		}
 
 		return params;

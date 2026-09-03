@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["TR_ASSIGNMENT_TYPE_ACTIVITIES"] = "Aktivitäten";
 $MESS["TR_ASSIGNMENT_TYPE_ADMIN"] = "Seite des administrativen Bereichs";
 $MESS["TR_ASSIGNMENT_TYPE_BLOCKS"] = "Sites24-Vorlage";
@@ -41,4 +41,3 @@ $MESS["TR_SEARCH_METHOD_EXACT_WORD"] = "genaue Übereinstimmung der Schreibung";
 $MESS["TR_SEARCH_METHOD_START_WITH"] = "anfangen mit";
 $MESS["TR_SEARCH_PHRASE_ENTRY"] = "Erweiterte Suchoptionen für Nachrichten";
 $MESS["TR_UNCOMPATIBLE_ENCODING"] = "Die Codierung der aktuellen Seite ist mit der Codierung der Lokalisierung nicht kompatibel. Einige Zeichen können nicht korrekt angezeigt werden.";
-?>

@@ -31,14 +31,16 @@ CREATE TABLE b_pull_push (
 	UNIQUE_HASH varchar(50) null,
 	DEVICE_ID varchar(255) null,
 	DEVICE_NAME varchar(50) null,
-	DEVICE_TOKEN varchar(255) not null,
+	DEVICE_TOKEN varchar(255) default '' not null,
 	VOIP_TYPE varchar(50) null,
 	VOIP_TOKEN varchar(255) null,
 	DATE_CREATE datetime not null,
 	DATE_AUTH datetime null,
 	PRIMARY KEY (ID),
 	KEY IX_PULL_PSH_UID (USER_ID),
-	KEY IX_PULL_PSH_UH (UNIQUE_HASH)
+	KEY IX_PULL_PSH_UH (UNIQUE_HASH),
+	KEY IX_PULL_PSH_DEVICE_TOKEN (DEVICE_TOKEN),
+	KEY IX_PULL_PSH_VOIP_TOKEN (VOIP_TOKEN)
 );
 
 CREATE TABLE b_pull_push_queue (

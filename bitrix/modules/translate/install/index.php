@@ -50,17 +50,7 @@ class translate extends \CModule
 				return false;
 			}
 
-			$errors = $DB->runSqlBatch(sprintf(
-				'%s/bitrix/modules/%s/install/db/mysql/install_ft.sql',
-				$_SERVER['DOCUMENT_ROOT'],
-				mb_strtolower($this->MODULE_ID)
-			));
-			if ($errors !== false)
-			{
-				$APPLICATION->ThrowException(implode("<br>", $errors));
-
-				return false;
-			}
+			\CAgent::AddAgent('\Bitrix\Translate\Index\Internals\PhraseFts::checkTables();', $this->MODULE_ID, 'N', 1);
 		}
 
 		Main\ModuleManager::registerModule($this->MODULE_ID);
@@ -76,8 +66,60 @@ class translate extends \CModule
 	public function InstallEvents()
 	{
 		$eventManager = Main\EventManager::getInstance();
-		$eventManager->registerEventHandlerCompatible('main', 'OnPanelCreate', $this->MODULE_ID, '\\Bitrix\\Translate\\Ui\\Panel', 'onPanelCreate');
-		$eventManager->registerEventHandlerCompatible('perfmon', 'OnGetTableSchema', $this->MODULE_ID, 'translate', 'onGetTableSchema');
+
+		/** @see \Bitrix\Translate\Ui\Panel::onPanelCreate */
+		$eventManager->registerEventHandlerCompatible(
+			'main',
+			'OnPanelCreate',
+			'translate',
+			'\Bitrix\Translate\Ui\Panel',
+			'onPanelCreate'
+		);
+
+		/** @see \translate::OnGetTableSchema */
+		$eventManager->registerEventHandlerCompatible(
+			'perfmon',
+			'OnGetTableSchema',
+			'translate',
+			'translate',
+			'onGetTableSchema'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageAdd */
+		$eventManager->registerEventHandlerCompatible(
+			'main',
+			'OnAfterLanguageAdd',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageAdd'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageAdd */
+		$eventManager->registerEventHandler(
+			'main',
+			'\Bitrix\Main\Localization\Language::OnAfterAdd',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageAdd'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageDelete */
+		$eventManager->registerEventHandler(
+			'main',
+			'\Bitrix\Main\Localization\Language::OnAfterDelete',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageDelete'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageDelete */
+		$eventManager->registerEventHandlerCompatible(
+			'main',
+			'OnLanguageDelete',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageDelete'
+		);
 
 		return true;
 	}
@@ -105,9 +147,18 @@ class translate extends \CModule
 			}
 		}
 
+		$tablesRes = $DB->Query("SHOW TABLES LIKE 'b_translate_phrase_fts_%'");
+		while ($row = $tablesRes->fetch())
+		{
+			$tableName = array_shift($row);
+			$DB->Query("DROP TABLE IF EXISTS `{$tableName}`");
+		}
+
 		Main\Config\Option::delete($this->MODULE_ID);
 
 		$this->UnInstallEvents();
+
+		\CAgent::RemoveModuleAgents($this->MODULE_ID);
 
 		Main\ModuleManager::unRegisterModule($this->MODULE_ID);
 
@@ -120,8 +171,60 @@ class translate extends \CModule
 	public function UnInstallEvents()
 	{
 		$eventManager = Main\EventManager::getInstance();
-		$eventManager->unRegisterEventHandler('main', 'OnPanelCreate', $this->MODULE_ID, '\\Bitrix\\Translate\\Ui\\Panel', 'onPanelCreate');
-		$eventManager->unRegisterEventHandler('perfmon', 'OnGetTableSchema', $this->MODULE_ID, 'translate', 'onGetTableSchema');
+
+		/** @see \Bitrix\Translate\Ui\Panel::onPanelCreate */
+		$eventManager->unRegisterEventHandler(
+			'main',
+			'OnPanelCreate',
+			'translate',
+			'\Bitrix\Translate\Ui\Panel',
+			'onPanelCreate'
+		);
+
+		/** @see \translate::OnGetTableSchema */
+		$eventManager->unRegisterEventHandler(
+			'perfmon',
+			'OnGetTableSchema',
+			'translate',
+			'translate',
+			'onGetTableSchema'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageAdd */
+		$eventManager->unRegisterEventHandler(
+			'main',
+			'OnAfterLanguageAdd',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageAdd'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageAdd */
+		$eventManager->unRegisterEventHandler(
+			'main',
+			'\Bitrix\Main\Localization\Language::OnAfterAdd',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageAdd'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageDelete */
+		$eventManager->unRegisterEventHandler(
+			'main',
+			'\Bitrix\Main\Localization\Language::OnAfterDelete',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageDelete'
+		);
+
+		/** @see \Bitrix\Translate\Index\Internals\PhraseFts::onLanguageDelete */
+		$eventManager->unRegisterEventHandler(
+			'main',
+			'OnLanguageDelete',
+			'translate',
+			'\Bitrix\Translate\Index\Internals\PhraseFts',
+			'onLanguageDelete'
+		);
 
 		return true;
 	}
@@ -205,14 +308,12 @@ class translate extends \CModule
 					'ID' => array(
 						'b_translate_file' => 'PATH_ID',
 						'b_translate_phrase' => 'PATH_ID',
-						'b_translate_diff' => 'PATH_ID',
 						'b_translate_path' => 'PARENT_ID',
 					),
 				),
 				'b_translate_file' => array(
 					'ID' => array(
 						'b_translate_phrase' => 'FILE_ID',
-						'b_translate_diff' => 'FILE_ID',
 					),
 					'LANG_ID' => array(
 						'b_language' => 'LID',

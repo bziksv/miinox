@@ -1,5 +1,10 @@
 <?php
 
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\Component\BaseForm;
@@ -23,11 +28,7 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Request;
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\UI\PageNavigation;
-
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
-{
-	die();
-}
+use Bitrix\Catalog\Store\EnableWizard\Manager;
 
 class CatalogProductVariationGridComponent
 	extends \CBitrixComponent
@@ -254,8 +255,15 @@ class CatalogProductVariationGridComponent
 								$copyItemMap[$sku->getHash()] = $copyItem->getId();
 								$fields = $copyItem->getFields();
 								unset(
-									$fields['ID'], $fields['IBLOCK_ID'], $fields['PREVIEW_PICTURE'],
-									$fields['DETAIL_PICTURE'], $fields['QUANTITY'], $fields['QUANTITY_RESERVED']
+									$fields['ID'],
+									$fields['IBLOCK_ID'],
+									$fields['XML_ID'],
+									$fields['PREVIEW_PICTURE'],
+									$fields['DETAIL_PICTURE'],
+									$fields['QUANTITY'],
+									$fields['QUANTITY_RESERVED'],
+									$fields['DATE_CREATE'],
+									$fields['CREATED_BY'],
 								);
 
 								$sku->setFields($fields);
@@ -351,7 +359,7 @@ class CatalogProductVariationGridComponent
 		return true;
 	}
 
-	public function isAjaxGridAction(Request $request = null): bool
+	public function isAjaxGridAction(?Request $request = null): bool
 	{
 		if ($request === null)
 		{
@@ -371,25 +379,25 @@ class CatalogProductVariationGridComponent
 
 	private function processGridActions(Request $request): void
 	{
-		$actionButton = 'action_button_'.$this->getGridId();
+		$actionButton = 'action_button_' . $this->getGridId();
 		$gridGroupAction = $request[$actionButton] ?? null;
 		$gridItemAction = $request['action'] ?? null;
 		$gridAction = $request['grid_action'] ?? null;
 
-		if ($gridGroupAction && $gridGroupAction === 'delete')
+		if ($gridGroupAction === 'delete')
 		{
 			$ids = $request['ID'] ?? [];
-			$actionAllRows = 'action_all_rows_'.$this->getGridId();
+			$actionAllRows = 'action_all_rows_' . $this->getGridId();
 			$allRows = ($request[$actionAllRows] ?? 'N') === 'Y';
 
 			$this->processGridDelete($ids, $allRows);
 			$this->checkGridStateCurrentPage();
 		}
-		elseif ($gridItemAction && $gridItemAction === 'deleteRow')
+		elseif ($gridItemAction === 'deleteRow')
 		{
 			$id = $request['id'] ?? null;
 
-			if (is_numeric($id))
+			if ($this->isNumericId($id))
 			{
 				$this->processGridDelete([$id]);
 			}
@@ -435,12 +443,12 @@ class CatalogProductVariationGridComponent
 
 			foreach ($ids as $id)
 			{
-				if (!is_numeric($id))
+				if (!$this->isNumericId($id))
 				{
 					continue;
 				}
 
-				$sku = $skuCollection->findById($id);
+				$sku = $skuCollection->findById((int)$id);
 
 				if ($sku)
 				{
@@ -469,21 +477,19 @@ class CatalogProductVariationGridComponent
 		}
 	}
 
-	private function hasSkuProperties(\Bitrix\Catalog\v2\Sku\SkuCollection $skuCollection): bool
+	private static function isNumericId($rawId): bool
 	{
-		foreach ($skuCollection as $sku)
+		if (is_int($rawId))
 		{
-			foreach ($sku->getPropertyCollection() as $property)
-			{
-				if ((int)$property->getId() === $sku->getIblockInfo()->getSkuPropertyId())
-				{
-					continue;
-				}
+			return true;
+		}
 
-				if (!$property->getPropertyValueCollection()->isEmpty())
-				{
-					return true;
-				}
+		if (is_string($rawId))
+		{
+			$id = (int)$rawId;
+			if ((string)$id === $rawId)
+			{
+				return true;
 			}
 		}
 
@@ -515,6 +521,7 @@ class CatalogProductVariationGridComponent
 		$this->arResult['GRID'] = $this->getGridData();
 		$this->arResult['STORE_AMOUNT'] = $this->getStoreAmount();
 		$this->arResult['IS_SHOWED_STORE_RESERVE'] = \Bitrix\Catalog\Config\State::isShowedStoreReserve();
+		$this->arResult['IS_CATALOG_HIDDEN'] = \Bitrix\Catalog\Config\State::isExternalCatalog();
 		$this->arResult['RESERVED_DEALS_SLIDER_LINK'] = $this->getReservedDealsSliderLink();
 		$this->arResult['SUPPORTED_AJAX_FIELDS'] = $form ? $form->getGridSupportedAjaxColumns() : [];
 	}
@@ -578,12 +585,33 @@ class CatalogProductVariationGridComponent
 
 	public function getGridOptionsSorting(): array
 	{
-		return $this->getGridOptions()
-			->getSorting([
-				'sort' => ['NAME' => 'ASC'],
-				'vars' => ['by' => 'by', 'order' => 'order'],
-			])
+		$default = [
+			'sort' => [
+				'NAME' => 'ASC',
+			],
+			'vars' => [
+				'by' => 'by',
+				'order' => 'order',
+			],
+		];
+		$sorting = $this->getGridOptions()
+			->getSorting($default)
 		;
+
+		$field = array_key_first($sorting['sort']);
+		if (
+			$field !== null
+			&& trim($field) === 'PROPERTY_'
+		)
+		{
+			$field = null;
+		}
+		if ($field === null)
+		{
+			$sorting['sort'] = $default['sort'];
+		}
+
+		return $sorting;
 	}
 
 	protected function getVariationLink(?int $skuId): ?string
@@ -697,7 +725,7 @@ class CatalogProductVariationGridComponent
 
 	private function getDomElementForReservedQuantity($quantity): string
 	{
-		return $this->isNewProduct() ? (string)$quantity : '<a class="main-grid-cell-content-catalog-reserved-quantity">' . $quantity . '</a>';
+		return $this->isNewProduct() || Manager::isOnecMode() ? (string)$quantity : '<a class="main-grid-cell-content-catalog-reserved-quantity">' . $quantity . '</a>';
 	}
 
 	protected function getGridEditData(array $rows): array
@@ -891,6 +919,10 @@ class CatalogProductVariationGridComponent
 			'SHOW_PAGESIZE' => true,
 			'SHOW_ACTION_PANEL' => !$this->getProduct()->isSimple() && !$isReadOnly,
 			'ENABLE_FIELDS_SEARCH' => 'Y',
+			'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+			'CONFIG' => [
+				'popupWidth' => 800,
+			],
 		];
 	}
 
@@ -899,7 +931,7 @@ class CatalogProductVariationGridComponent
 		return $this->getVariationLink(0);
 	}
 
-	private function canHaveSku()
+	private function canHaveSku(): bool
 	{
 		$iblockInfo = ServiceContainer::getIblockInfo($this->getIblockId());
 
@@ -1058,11 +1090,15 @@ class CatalogProductVariationGridComponent
 		);
 	}
 
-	private function getReservedDealsSliderLink()
+	private function getReservedDealsSliderLink(): bool|string
 	{
-		$sliderUrl = \CComponentEngine::makeComponentPath('bitrix:catalog.productcard.reserved.deal.list');
-		$sliderUrl = getLocalPath('components'.$sliderUrl.'/slider.php');
+		if (Manager::isOnecMode())
+		{
+			return false;
+		}
 
-		return $sliderUrl;
+		$sliderUrl = \CComponentEngine::makeComponentPath('bitrix:catalog.productcard.reserved.deal.list');
+
+		return getLocalPath('components'.$sliderUrl.'/slider.php');
 	}
 }

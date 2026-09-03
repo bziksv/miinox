@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * This file is used only for compatibility.
  * Some scripts could include cache_html.php using code like this
@@ -7,7 +7,7 @@
 
 $oldClassName = "CHTMLPagesCache";
 $newClassName = "Bitrix\\Main\\Composite\\Helper";
-$newClassFile = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lib/composite/helper.php";
+$newClassFile = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lib/Composite/Helper.php";
 
 if (!class_exists($oldClassName, false))
 {

@@ -8,6 +8,8 @@
 namespace Bitrix\Sender\Security;
 
 use Bitrix\Main\Config\Option;
+use Bitrix\Main\Engine\CurrentUser;
+use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UserTable;
 
@@ -24,7 +26,7 @@ class User
 	/** @var integer|null $id User ID. */
 	protected $id = null;
 
-	/** @var \CAllUser $object User object. */
+	/** @var \CUser $object User object. */
 	protected $object;
 
 	/** @var Access $access Access. */
@@ -36,6 +38,7 @@ class User
 	/** @var static $instance Instance. */
 	protected static $instance;
 
+	protected static array $cache = [];
 	/**
 	 * Get current user.
 	 *
@@ -165,6 +168,11 @@ class User
 
 	private function isBroadAccess()
 	{
+		if ($this->isExtranet())
+		{
+			return false;
+		}
+
 		if (!Integration\Bitrix24\Service::isPortal())
 		{
 			return false;
@@ -228,6 +236,44 @@ class User
 		return $this->getObject()->canDoOperation('bitrix24_config', $this->id);
 	}
 
+	public function isExtranet()
+	{
+		if(!$this->isConfigured())
+		{
+			return false;
+		}
+
+		if(array_key_exists($this->getId(), static::$cache))
+		{
+			return static::$cache[$this->getId()];
+		}
+
+		$result = !\CExtranet::IsIntranetUser(SITE_ID, $this->getId());
+
+		static::$cache[$this->getId()] = $result;
+
+		return $result;
+	}
+
+	private function isConfigured()
+	{
+		return Loader::includeModule('extranet') && $this->getExtranetSiteID();
+	}
+
+	private function getExtranetSiteID()
+	{
+		$extranet_site_id = \COption::GetOptionString("extranet", "extranet_site");
+		if (
+			($extranet_site_id !== '')
+			&& \CSite::GetArrayByID($extranet_site_id)
+		)
+		{
+			return $extranet_site_id;
+		}
+
+		return false;
+	}
+
 	/**
 	 * Return true if user accepted agreement.
 	 *
@@ -276,7 +322,7 @@ class User
 	/**
 	 * Get USER object.
 	 *
-	 * @return \CAllUser|null
+	 * @return \CUser|null
 	 */
 	public function getObject()
 	{
@@ -287,7 +333,7 @@ class User
 
 		if ($this->isCurrent())
 		{
-			$this->object = (is_object($GLOBALS['USER']) && ($GLOBALS['USER'] instanceof \CAllUser)) ? $GLOBALS['USER'] : null;
+			$this->object = (is_object($GLOBALS['USER']) && ($GLOBALS['USER'] instanceof \CUser)) ? $GLOBALS['USER'] : null;
 		}
 
 		if (!$this->object)
@@ -298,8 +344,8 @@ class User
 		return $this->object;
 	}
 
-	private function isCurrent()
+	private function isCurrent(): bool
 	{
-		return !$this->id;
+		return !$this->id || ($this?->id == CurrentUser::get()->getId());
 	}
 }

@@ -4,7 +4,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2024 Bitrix
  */
 
 /**
@@ -41,50 +41,11 @@ function OnModuleInstalledEvent($id)
 }
 
 //Get list of subdirs in modules folder
-$folders = array(
-	"/local/modules",
-	"/bitrix/modules",
-);
-foreach ($folders as $folder)
-{
-	if (!file_exists($_SERVER["DOCUMENT_ROOT"].$folder))
-	{
-		continue;
-	}
+$arModules = ModuleManager::getModulesFromDisk(true, false);
 
-	$handle = @opendir($_SERVER["DOCUMENT_ROOT"].$folder);
-	if ($handle)
-	{
-		while (false !== ($dir = readdir($handle)))
-		{
-			if (
-				!isset($arModules[$dir])
-				&& is_dir($_SERVER["DOCUMENT_ROOT"].$folder . "/" . $dir)
-				&& !in_array($dir, ['.', '..', 'main'], true)
-				&& strpos($dir, ".") === false
-			)
-			{
-				$module_dir = $_SERVER["DOCUMENT_ROOT"] . $folder . "/" . $dir;
-				if ($info = CModule::CreateModuleObject($dir))
-				{
-					$arModules[$dir]["MODULE_ID"] = $info->MODULE_ID;
-					$arModules[$dir]["MODULE_NAME"] = $info->MODULE_NAME;
-					$arModules[$dir]["MODULE_DESCRIPTION"] = $info->MODULE_DESCRIPTION;
-					$arModules[$dir]["MODULE_VERSION"] = $info->MODULE_VERSION;
-					$arModules[$dir]["MODULE_VERSION_DATE"] = $info->MODULE_VERSION_DATE;
-					$arModules[$dir]["MODULE_SORT"] = $info->MODULE_SORT;
-					$arModules[$dir]["MODULE_PARTNER"] = (strpos($dir, ".") !== false) ? $info->PARTNER_NAME : "";
-					$arModules[$dir]["MODULE_PARTNER_URI"] = (strpos($dir, ".") !== false) ? $info->PARTNER_URI : "";
-					$arModules[$dir]["IsInstalled"] = $info->IsInstalled();
-				}
-			}
-		}
-		closedir($handle);
-	}
-}
 \Bitrix\Main\Type\Collection::sortByColumn(
 	$arModules,
-	['MODULE_SORT' => SORT_ASC, 'MODULE_NAME' => SORT_STRING],
+	['sort' => SORT_ASC, 'name' => SORT_STRING],
 	'',
 	null,
 	true
@@ -98,6 +59,10 @@ if ($isAdmin && !$fb && check_bitrix_sessid())
 		$id = str_replace("\\", "", str_replace("/", "", $id));
 		if ($Module = CModule::CreateModuleObject($id))
 		{
+			global $step;
+
+			$step = (int)($_REQUEST['step'] ?? 0);
+
 			if (!empty($_REQUEST["uninstall"]) && $Module->IsInstalled())
 			{
 				OnModuleInstalledEvent($id);
@@ -113,56 +78,62 @@ if ($isAdmin && !$fb && check_bitrix_sessid())
 
 				OnModuleInstalledEvent($id);
 				$Module->DoInstall();
-				LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANG);
+				LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANGUAGE_ID);
 			}
 		}
 	}
 	elseif (isset($_REQUEST["action"]) && $_REQUEST["action"] === "version_down")
 	{
+		if (isset($_REQUEST["id"]) && is_string($_REQUEST["id"]))
+		{
+			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+
+			$count = isset($_REQUEST['count']) ? (int)$_REQUEST['count'] : 0;
+
+			if (($newVersion = ModuleManager::decreaseVersion($_REQUEST["id"], $count)) !== null)
+			{
+				echo $newVersion;
+			}
+
+			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
+		}
+	}
+	elseif (isset($_REQUEST["action"]) && $_REQUEST["action"] === "db_version_down")
+	{
 		require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 
 		if (isset($_REQUEST["id"]) && $_REQUEST["id"] === "main")
 		{
-			$fn = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/version.php";
+			$updatesDir = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/dev/updates";
 		}
 		else
 		{
-			$fn = $_SERVER["DOCUMENT_ROOT"].getLocalPath("modules/".preg_replace("/[^a-z0-9.]/", "", $_REQUEST["id"])."/install/version.php");
+			$updatesDir = $_SERVER["DOCUMENT_ROOT"].getLocalPath("modules/".preg_replace("/[^a-z0-9.]/", "", $_REQUEST["id"])."/dev/updates");
 		}
 
-		$count = isset($_REQUEST['count']) ? (int)$_REQUEST['count'] : 0;
-		$count = $count > 0? $count: 1;
-
-		if (file_exists($fn) && is_file($fn))
+		$dbVersion = \Bitrix\Main\Config\Option::get('main', 'updates_' . $_REQUEST["id"] . '_version');
+		if ($dbVersion)
 		{
-			$fc = file_get_contents($fn);
-			if (preg_match("/(\\d+)\\.(\\d+)\\.(\\d+)/", $fc, $match))
+			$updaters = [];
+			foreach (array_merge(
+				glob($updatesDir . '/[0-9]*/[0-9]*.[0-9]*.[0-9]*/updater/index.php'),
+				glob($updatesDir . '/[0-9]*/[0-9]*.[0-9]*.[0-9]*/updater.php')
+			) as $updater)
 			{
-				if ($match[3]-$count >= 0)
+				if (preg_match('#/(\d+)/(\1\.\d+\.\d+)/updater(\.php|/index\.php)$#', $updater, $match))
 				{
-					$match[3] -= $count;
-				}
-				else
-				{
-					$match[3] = (100-$count)+($match[3]);
-					if ($match[2] == 0)
+					if (version_compare($match[2], $dbVersion) < 0)
 					{
-						$match[2] = 9;
-						$match[1] -= 1;
-					}
-					else
-					{
-						$match[2] -= 1;
+						$updaters[$match[2]] = $updater;
 					}
 				}
-
-				if ($match[1] > 0 && $match[2] >= 0 && $match[3] >= 0)
-				{
-					$fc = str_replace($match[0], $match[1].".".$match[2].".".$match[3], $fc);
-					file_put_contents($fn, $fc);
-					bx_accelerator_reset();
-				}
-				echo $match[1].".".$match[2].".".$match[3];
+			}
+			if ($updaters)
+			{
+				uksort($updaters, 'version_compare');
+				$newVersion = array_key_last($updaters);
+				\Bitrix\Main\Config\Option::set('main', 'updates_' . $_REQUEST["id"] . '_version', $newVersion);
+				echo $newVersion;
 			}
 		}
 
@@ -181,8 +152,9 @@ function DoAction(oEvent, action, module_id)
 {
 	if (oEvent.ctrlKey || BX.browser.IsMac() && (oEvent.altKey || oEvent.metaKey))
 	{
-		BX('version_for_' + module_id).className = 'no-select';
-		if (action == 'version_down')
+		const control = event.target;
+		control.className = 'no-select';
+		if (action == 'version_down' || action == 'db_version_down')
 		{
 			ShowWaitWindow();
 			BX.ajax.post(
@@ -191,10 +163,10 @@ function DoAction(oEvent, action, module_id)
 				function(result)
 				{
 					CloseWaitWindow();
-					BX('version_for_' + module_id).className = '';
+					control.className = '';
 					if (result.length > 0)
 					{
-						BX('version_for_' + module_id).innerHTML = result;
+						control.innerHTML = result;
 					}
 				}
 			);
@@ -212,10 +184,21 @@ function DoAction(oEvent, action, module_id)
 	</tr>
 	<tr>
 		<td><b><?= Loc::getMessage("MOD_MAIN_MODULE") ?></b><br><?php
-		$str = str_replace("#A1#","<a  href='update_system.php?lang=".LANG."'>", Loc::getMessage("MOD_MAIN_DESCRIPTION"));
+		$str = str_replace("#A1#","<a  href='update_system.php?lang=".LANGUAGE_ID."'>", Loc::getMessage("MOD_MAIN_DESCRIPTION"));
 		$str = str_replace("#A2#", "</a>", $str);
 		echo $str;?></td>
-		<td ondblclick="<?= htmlspecialcharsbx("DoAction(event, 'version_down', 'main')") ?>" id="version_for_main"><?= SM_VERSION ?></td>
+		<td>
+			<div ondblclick="<?= htmlspecialcharsbx("DoAction(event, 'version_down', 'main')") ?>" id="version_for_main"><?= SM_VERSION ?></div><?php
+			if (class_exists('\Dev\Main\Migrator\ModuleUpdater'))
+			{
+				$dbVersion = \Bitrix\Main\Config\Option::get('main', 'updates_main_version');
+				if ($dbVersion)
+				{
+					?><div title="DB" ondblclick="<?= htmlspecialcharsbx("DoAction(event, 'db_version_down', 'main')") ?>"><?=htmlspecialcharsEx($dbVersion);?></div><?php
+				}
+			}
+			?>
+		</td>
 		<td nowrap><?= CDatabase::FormatDate(SM_VERSION_DATE, "YYYY-MM-DD HH:MI:SS", CLang::GetDateFormat("SHORT")) ?></td>
 		<td><?= Loc::getMessage("MOD_INSTALLED") ?></td>
 		<td>&nbsp;</td>
@@ -223,13 +206,28 @@ function DoAction(oEvent, action, module_id)
 <?php
 foreach($arModules as $info)
 {
+	if ($info["id"] == "main")
+	{
+		continue;
+	}
 	?>
 	<tr>
-		<td><b><?= htmlspecialcharsex($info["MODULE_NAME"]) ?></b> <?= htmlspecialcharsex($info["MODULE_PARTNER"] <> ''? " <b><i>(".str_replace(array("#NAME#", "#URI#"), array($info["MODULE_PARTNER"], $info["MODULE_PARTNER_URI"]), Loc::getMessage("MOD_PARTNER_NAME")).")</i></b>" : "(".$info["MODULE_ID"].")") ?><br><?= $info["MODULE_DESCRIPTION"] ?></td>
-		<td ondblclick="<?= htmlspecialcharsbx("DoAction(event, 'version_down', '".CUtil::AddSlashes($info["MODULE_ID"])."')") ?>" id="version_for_<?= htmlspecialcharsbx($info["MODULE_ID"]) ?>"><?= $info["MODULE_VERSION"] ?></td>
-		<td nowrap><?= CDatabase::FormatDate($info["MODULE_VERSION_DATE"], "YYYY-MM-DD HH:MI:SS", CLang::GetDateFormat("SHORT")) ?></td>
+		<td><b><?= htmlspecialcharsex($info["name"]) ?></b> <?= htmlspecialcharsex("(".$info["id"].")") ?><br><?= $info["description"] ?></td>
+		<td>
+			<div ondblclick="<?= htmlspecialcharsbx("DoAction(event, 'version_down', '".CUtil::AddSlashes($info["id"])."')") ?>"><?= $info["version"] ?></div><?php
+			if (class_exists('\Dev\Main\Migrator\ModuleUpdater'))
+			{
+				$dbVersion = \Bitrix\Main\Config\Option::get('main', 'updates_' . $info["id"] . '_version');
+				if ($dbVersion)
+				{
+					?><div title="DB" ondblclick="<?= htmlspecialcharsbx("DoAction(event, 'db_version_down', '".CUtil::AddSlashes($info["id"])."')") ?>"><?=htmlspecialcharsEx($dbVersion);?></div><?php
+				}
+			}
+			?>
+		</td>
+		<td nowrap><?= CDatabase::FormatDate($info["versionDate"], "YYYY-MM-DD HH:MI:SS", CLang::GetDateFormat("SHORT")) ?></td>
 		<td nowrap><?php
-			if ($info["IsInstalled"])
+			if ($info["isInstalled"])
 			{
 				?><?= Loc::getMessage("MOD_INSTALLED")?><?php
 			}
@@ -239,19 +237,19 @@ foreach($arModules as $info)
 			}
 		?></td>
 		<td>
-			<form action="<?= $APPLICATION->GetCurPage() ?>" method="GET" id="form_for_<?= htmlspecialcharsbx($info["MODULE_ID"]) ?>">
-				<input type="hidden" name="action" value="" id="action_for_<?= htmlspecialcharsbx($info["MODULE_ID"]) ?>">
-				<input type="hidden" name="lang" value="<?= LANG ?>">
-				<input type="hidden" name="id" value="<?= htmlspecialcharsbx($info["MODULE_ID"]) ?>">
+			<form action="<?= $APPLICATION->GetCurPage() ?>" method="GET" id="form_for_<?= htmlspecialcharsbx($info["id"]) ?>">
+				<input type="hidden" name="action" value="" id="action_for_<?= htmlspecialcharsbx($info["id"]) ?>">
+				<input type="hidden" name="lang" value="<?= LANGUAGE_ID ?>">
+				<input type="hidden" name="id" value="<?= htmlspecialcharsbx($info["id"]) ?>">
 				<?= bitrix_sessid_post() ?>
 				<?php
-				if ($info["IsInstalled"])
+				if ($info["isInstalled"])
 				{
 					$disabled = (
 						!$isAdmin
-						|| in_array($info["MODULE_ID"], [ "fileman", "intranet", "ui" ], true)
+						|| in_array($info["id"], ["fileman", "intranet", "ui", "security", "humanresources",], true)
 						|| (
-							in_array($info['MODULE_ID'], [ 'rest', 'socialnetwork' ], true)
+							in_array($info['id'], [ 'rest', 'socialnetwork' ], true)
 							&& ModuleManager::isModuleInstalled('intranet')
 						)
 							? 'disabled'

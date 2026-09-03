@@ -1,11 +1,11 @@
 <?
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/interface/init_admin.php");
 
 __IncludeLang($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/map.yandex.view/lang/'.LANGUAGE_ID.'/settings.php');
 
-//if(!$USER->IsAdmin())
-//	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+if(!$USER->IsAdmin())
+	CMain::FinalActions();
 
 $obJSPopup = new CJSPopup('',
 	array(
@@ -18,8 +18,6 @@ $obJSPopup = new CJSPopup('',
 $arData = array();
 if ($_REQUEST['MAP_DATA'])
 {
-	CUtil::JSPostUnescape();
-
 	if (CheckSerializedData($_REQUEST['MAP_DATA']))
 	{
 		$arData = unserialize($_REQUEST['MAP_DATA'], ['allowed_classes' => false]);
@@ -34,10 +32,10 @@ if ($_REQUEST['MAP_DATA'])
 	}
 }
 ?>
-<script type="text/javascript" src="/bitrix/components/bitrix/map.yandex.view/settings/settings_load.js"></script>
-<script type="text/javascript">
+<script src="/bitrix/components/bitrix/map.yandex.view/settings/settings_load.js"></script>
+<script>
 BX.loadCSS('/bitrix/components/bitrix/map.yandex.view/settings/settings.css');
-window._global_BX_UTF = <?echo defined('BX_UTF') && BX_UTF == true ? 'true' : 'false'?>;
+window._global_BX_UTF = true;
 window.jsYandexMess = {
 	noname: '<?echo CUtil::JSEscape(GetMessage('MYMV_SET_NONAME'))?>',
 	MAP_VIEW_MAP: '<?echo CUtil::JSEscape(GetMessage('MYMS_PARAM_INIT_MAP_TYPE_MAP'))?>',

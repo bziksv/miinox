@@ -31,7 +31,7 @@ class RestHandler extends PaySystem\ServiceHandler
 	 * @return ServiceResult
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public function initiatePay(Payment $payment, Request $request = null)
+	public function initiatePay(Payment $payment, ?Request $request = null)
 	{
 		if ($request === null)
 		{
@@ -754,7 +754,7 @@ class RestHandler extends PaySystem\ServiceHandler
 		{
 			$handler = $this->service->getField('ACTION_FILE');
 			$dbRes = PaySystemRestHandlersTable::getList([
-				'filter' => ['CODE' => $handler]
+				'filter' => ['=CODE' => $handler]
 			]);
 			$data = $dbRes->fetch();
 
@@ -773,7 +773,8 @@ class RestHandler extends PaySystem\ServiceHandler
 	private function getHandlerSettings(): array
 	{
 		$handlerFields = $this->getHandlerFields();
-		return $handlerFields['SETTINGS'] ?? [];
+
+		return is_array($handlerFields['SETTINGS']) ? $handlerFields['SETTINGS'] : [];
 	}
 
 	private function getMode(): string
@@ -932,7 +933,7 @@ class RestHandler extends PaySystem\ServiceHandler
 		return $template;
 	}
 
-	public function canCheckout(Payment $payment, Request $request = null): bool
+	public function canCheckout(Payment $payment, ?Request $request = null): bool
 	{
 		if ($request === null)
 		{

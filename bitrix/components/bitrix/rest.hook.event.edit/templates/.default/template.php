@@ -15,6 +15,8 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 use Bitrix\Main\Localization\Loc;
 
+\Bitrix\Main\UI\Extension::load(['intranet.old-interface.intranet-common']);
+
 $c = \Bitrix\Main\Text\Converter::getHtmlConverter();
 
 Loc::loadMessages($_SERVER['DOCUMENT_ROOT'].BX_ROOT.'/modules/rest/scope.php');
@@ -100,7 +102,7 @@ if(is_array($arResult["EVENTS"])):
 		$scopeHtml = '';
 		foreach($eventList as $event)
 		{
-			$event = ToUpper($event);
+			$event = mb_strtoupper($event);
 
 			if(array_key_exists($event, $arResult['EVENTS_DESC']))
 			{

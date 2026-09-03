@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * Bitrix Framework
  * @package bitrix
@@ -9,11 +9,15 @@
 /**
  * Bitrix vars
  * @global CMain $APPLICATION
+ * @global CUser $USER
  * @global CUserTypeManager $USER_FIELD_MANAGER
  * @var array $arParams
  * @var array $arResult
  * @var CBitrixComponent $this
  */
+
+use Bitrix\Main\Authentication;
+use Bitrix\Main\Authentication\Method;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
@@ -52,14 +56,7 @@ $arParamsToDelete = array(
 	"confirm_user_id",
 );
 
-if(defined("AUTH_404"))
-{
-	$arResult["AUTH_URL"] = POST_FORM_ACTION_URI;
-}
-else
-{
-	$arResult["AUTH_URL"] = $APPLICATION->GetCurPageParam("register=yes", $arParamsToDelete);
-}
+$arResult["AUTH_URL"] = $APPLICATION->GetCurPageParam("register=yes", $arParamsToDelete);
 
 $arResult["AUTH_AUTH_URL"] = $APPLICATION->GetCurPageParam("login=yes", $arParamsToDelete);
 
@@ -79,11 +76,11 @@ $arRequestParams = array(
 
 foreach ($arRequestParams as $param)
 {
-	$arResult[$param] = $_REQUEST[$param] <> '' ? $_REQUEST[$param] : "";
+	$arResult[$param] = !empty($_REQUEST[$param]) ? $_REQUEST[$param] : "";
 	$arResult[$param] = htmlspecialcharsbx($arResult[$param]);
 }
 
-$arResult["USER_EMAIL"] = htmlspecialcharsbx($_REQUEST["sf_EMAIL"] <> '' ? $_REQUEST["sf_EMAIL"] : $_REQUEST["USER_EMAIL"]);
+$arResult["USER_EMAIL"] = htmlspecialcharsbx(!empty($_REQUEST["sf_EMAIL"]) ? $_REQUEST["sf_EMAIL"] : ($_REQUEST["USER_EMAIL"] ?? ''));
 
 // ********************* User properties ***************************************************
 $arResult["USER_PROPERTIES"] = array("SHOW" => "N");
@@ -154,7 +151,7 @@ if(!CMain::IsHTTPS() && COption::GetOptionString('main', 'use_encrypted_auth', '
 }
 
 // verify phone code
-if ($_SERVER["REQUEST_METHOD"] == "POST" && $_REQUEST["code_submit_button"] <> '' && !$USER->IsAuthorized())
+if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_REQUEST["code_submit_button"]) && !$USER->IsAuthorized())
 {
 	if (!empty($_REQUEST["SIGNED_DATA"]))
 	{
@@ -169,7 +166,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_REQUEST["code_submit_button"] <> '
 					$user->Update($userId, ["ACTIVE" => "Y"]);
 				}
 				// authorize user
-				$USER->Authorize($userId);
+				$context = (new Authentication\Context())
+					->setUserId($userId)
+					->setMethod(Method::Registration)
+				;
+				$USER->Authorize($context);
 				LocalRedirect($APPLICATION->GetCurPageParam("", $arParamsToDelete));
 			}
 			else

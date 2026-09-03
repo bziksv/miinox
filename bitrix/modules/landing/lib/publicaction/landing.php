@@ -1,23 +1,34 @@
 <?php
 namespace Bitrix\Landing\PublicAction;
 
-use \Bitrix\Landing\Hook;
-use \Bitrix\Landing\Manager;
-use \Bitrix\Landing\File;
-use \Bitrix\Landing\Folder;
-use \Bitrix\Landing\Site;
-use \Bitrix\Landing\Block as BlockCore;
-use \Bitrix\Landing\TemplateRef;
-use \Bitrix\Landing\Landing as LandingCore;
-use \Bitrix\Landing\PublicActionResult;
-use \Bitrix\Landing\Internals\HookDataTable;
-use \Bitrix\Landing\History;
-use \Bitrix\Main\Localization\Loc;
+use Bitrix\Landing\Hook;
+use Bitrix\Landing\Hook\Page\Fonts;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\File;
+use Bitrix\Landing\Folder;
+use Bitrix\Landing\Metrika;
+use Bitrix\Landing\Sanitizer;
+use Bitrix\Landing\Site;
+use Bitrix\Landing\Block as BlockCore;
+use Bitrix\Landing\TemplateRef;
+use Bitrix\Landing\Landing as LandingCore;
+use Bitrix\Landing\PublicActionResult;
+use Bitrix\Landing\Internals\BlockFavouriteTable;
+use Bitrix\Landing\History;
+use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
 class Landing
 {
+	private const ACTION_ADD = 'add';
+	private const ACTION_REMOVE = 'remove';
+
+	private const STATUS_ADDED = 'added';
+	private const STATUS_ALREADY_EXISTS = 'already_exists';
+	private const STATUS_DELETED = 'deleted';
+	private const STATUS_NOT_FOUND = 'not_found';
+
 	/**
 	 * Clear disallow keys from add/update fields.
 	 * @param array $fields
@@ -144,7 +155,11 @@ class Landing
 
 		if ($landing->exist())
 		{
-			if ($landing->publication())
+			$metrikaParams = new Metrika\FieldsDto(
+				subSection: 'from_editor',
+				element: 'auto',
+			);
+			if ($landing->publication(null, $metrikaParams))
 			{
 				$result->setResult(true);
 			}
@@ -204,10 +219,11 @@ class Landing
 			}
 			if (isset($fields['CONTENT']))
 			{
-				$data['CONTENT'] = Manager::sanitize(
-					$fields['CONTENT'],
-					$bad
-				);
+				$data['CONTENT'] = (new Sanitizer())->sanitizeText($fields['CONTENT']);
+			}
+			if (isset($fields['CATEGORY']))
+			{
+				$data['CATEGORY'] = $fields['CATEGORY'];
 			}
 			// sort
 			if (isset($fields['AFTER_ID']))
@@ -262,6 +278,146 @@ class Landing
 			$landing->resortBlocks();
 		}
 		$result->setError($landing->getError());
+		return $result;
+	}
+
+	/**
+	 * Add or remove a block code from the user's list of favourite blocks.
+	 *
+	 * @param string $codeBlock The code of the block to add or remove from favourites.
+	 * @param string $action The action to perform: 'add' to add to favourites, 'remove' to remove from favourites.
+	 * @param string $type The type of the site or widget for metrika tracking.
+	 * @param string $blockSection The section of the block for metrika tracking.
+	 *
+	 * @return PublicActionResult Result object with status or error information.
+	 */
+	public static function markFavouriteBlock(string $codeBlock, string $action, string $type, string $blockSection): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		$userId = Manager::getUserId();
+
+		if ($userId <= 0 || !$codeBlock || !in_array($action, [self::ACTION_ADD, self::ACTION_REMOVE], true))
+		{
+			$error = new \Bitrix\Landing\Error;
+			$error->addError('DB_ERROR_ADD','Invalid user, codeBlock or action');
+			$result->setError($error);
+
+			return $result;
+		}
+
+		$existing = BlockFavouriteTable::getList([
+			'filter' => [
+				'=USER_ID' => $userId,
+				'=CODE' => $codeBlock,
+			],
+			'select' => ['ID'],
+		])->fetch();
+
+		switch ($action) {
+			case self::ACTION_ADD:
+				if (!$existing)
+				{
+					$addResult = BlockFavouriteTable::add([
+						'USER_ID' => $userId,
+						'CODE' => $codeBlock,
+						'DATE_CREATE' => new \Bitrix\Main\Type\DateTime(),
+					]);
+
+					if ($addResult->isSuccess())
+					{
+						$result->setResult(['status' => self::STATUS_ADDED]);
+					}
+					else
+					{
+						$error = new \Bitrix\Landing\Error;
+						$error->addError('DB_ERROR_ADD', $addResult->getErrorMessages());
+						$result->setError($error);
+					}
+				}
+				else
+				{
+					$result->setResult(['status' => self::STATUS_ALREADY_EXISTS]);
+				}
+				$metrikaEvent = Metrika\Events::addFavourite;
+
+				break;
+			case self::ACTION_REMOVE:
+				if ($existing)
+				{
+					$deleteResult = BlockFavouriteTable::delete($existing['ID']);
+					if ($deleteResult->isSuccess())
+					{
+						$result->setResult(['status' => self::STATUS_DELETED]);
+					}
+					else
+					{
+						$error = new \Bitrix\Landing\Error;
+						$error->addError('DB_ERROR_REMOVE', $deleteResult->getErrorMessages());
+						$result->setError($error);
+					}
+				}
+				else
+				{
+					$result->setResult(['status' => self::STATUS_NOT_FOUND]);
+				}
+				$metrikaEvent = Metrika\Events::deleteFavourite;
+
+				break;
+		}
+
+		if (isset($metrikaEvent))
+		{
+			$metrika = new Metrika\Metrika(
+				Metrika\Categories::WidgetList,
+				$metrikaEvent,
+				Metrika\Tools::getBySiteType($type),
+			);
+			$metrika
+				->setSection(Metrika\Sections::siteEditor)
+				->setSubSection('section_' .  $blockSection)
+				->setParam(2, 'widgetId', $codeBlock)
+				->send()
+			;
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Returns the list of block codes marked as favourite by the current user.
+	 *
+	 * @return PublicActionResult Result object containing an array of favourite block codes or error information.
+	 */
+	public static function getFavouriteBlocks(): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		$userId = Manager::getUserId();
+
+		if ($userId <= 0)
+		{
+			$error = new \Bitrix\Landing\Error;
+			$error->addError('INVALID_USER', 'Invalid user');
+			$result->setError($error);
+
+			return $result;
+		}
+
+		$codes = [];
+		$res = BlockFavouriteTable::getList([
+			'filter' => [
+				'=USER_ID' => $userId
+			],
+			'select' => ['CODE'],
+			'order' => ['DATE_CREATE' => 'DESC']
+		]);
+
+		while ($row = $res->fetch())
+		{
+			$codes[] = $row['CODE'];
+		}
+
+		$result->setResult($codes);
+
 		return $result;
 	}
 
@@ -463,38 +619,42 @@ class Landing
 	 * @param array $params Params array.
 	 * @return PublicActionResult
 	 */
-	private static function changeParentOfBlock($lid, $block, array $params)
+	private static function changeParentOfBlock($lid, $block, array $params): PublicActionResult
 	{
 		$result = new PublicActionResult();
 		$landing = LandingCore::createInstance($lid);
-		$afterId = isset($params['AFTER_ID']) ? $params['AFTER_ID'] : 0;
+		$afterId = (int)($params['AFTER_ID'] ?? 0);
 		if ($landing->exist())
 		{
 			if ($params['MOVE'])
 			{
-				$res = $landing->moveBlock($block, $afterId);
+				$res = $landing->moveBlock((int)$block, $afterId);
 			}
 			else
 			{
-				$res = $landing->copyBlock($block, $afterId);
+				$res = $landing->copyBlock((int)$block, $afterId);
 			}
 
-			if (
-				isset($params['RETURN_CONTENT']) &&
-				$params['RETURN_CONTENT'] == 'Y'
-			)
+			if ($res)
 			{
-				$result->setResult(array(
-					'result' => $res > 0,
-					'content' => BlockCore::getBlockContent($res, true)
-				));
-			}
-			else
-			{
-				$result->setResult($res);
+				if (
+					isset($params['RETURN_CONTENT']) &&
+					$params['RETURN_CONTENT'] == 'Y'
+				)
+				{
+					$result->setResult(array(
+						'result' => $res > 0,
+						'content' => BlockCore::getBlockContent($res, true)
+					));
+				}
+				else
+				{
+					$result->setResult($res);
+				}
 			}
 		}
 		$result->setError($landing->getError());
+
 		return $result;
 	}
 
@@ -1032,57 +1192,19 @@ class Landing
 
 		if ($landing->exist())
 		{
-			// fix module security
-			$content = str_replace('<st yle', '<style', $content);
-			$content = str_replace('<li nk ', '<link ', $content);
-
-			$fields = array(
-				'ENTITY_ID' => $lid,
-				'ENTITY_TYPE' => \Bitrix\Landing\Hook::ENTITY_TYPE_LANDING,
-				'HOOK' => 'FONTS',
-				'CODE' => 'CODE',
-				'PUBLIC' => 'N'
-			);
-			$res = HookDataTable::getList(array(
-				'select' => array(
-					'ID', 'VALUE'
-				),
-				'filter' => $fields
-			));
-			if ($row = $res->fetch())
+			if (!$landing->canEdit())
 			{
-				$existsContent = $row['VALUE'];
-
-				// concat new fonts to the exists
-				$found = preg_match_all(
-					'#(<noscript>.*?<style.*?data-id="([^"]+)"[^>]*>[^<]+</style>)#is',
-					$content,
-					$newFonts
+				$error = new \Bitrix\Landing\Error;
+				$error->addError(
+					'ACCESS_DENIED',
+					Loc::getMessage('LANDING_BLOCK_ACCESS_DENIED')
 				);
-				if ($found)
-				{
-					foreach ($newFonts[1] as $i => $newFont)
-					{
-						if (mb_strpos($existsContent, '"' . $newFonts[2][$i] . '"') === false)
-						{
-							$existsContent .= $newFont;
-						}
-					}
-				}
+				$result->setError($error);
 
-				if ($existsContent != $row['VALUE'])
-				{
-					HookDataTable::update(
-						$row['ID'],
-						['VALUE' => $existsContent]
-					);
-				}
+				return $result;
 			}
-			else
-			{
-				$fields['VALUE'] = $content;
-				HookDataTable::add($fields);
-			}
+
+			Fonts::saveFontsForLanding($lid, $content);
 
 			if (Manager::getOption('public_hook_on_save') === 'Y')
 			{
@@ -1098,3 +1220,4 @@ class Landing
 		return $result;
 	}
 }
+

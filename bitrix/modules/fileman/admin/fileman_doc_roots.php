@@ -1,10 +1,11 @@
-<?
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2002-2006 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage fileman
+ * @copyright 2001-2025 Bitrix
+ */
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
@@ -17,6 +18,7 @@ IncludeModuleLangFile(__FILE__);
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/prolog.php");
 
 $APPLICATION->SetTitle(GetMessage("FILEMAN_DOC_ROOT_TITLE"));
+$_REQUEST["mode"] ??= null;
 if($_REQUEST["mode"] == "list")
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 else

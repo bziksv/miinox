@@ -30,7 +30,7 @@ export class BaseField
 		{
 			this.setValue(options.value);
 		}
-		if ('emptyMessage' in options)
+		if (('emptyMessage' in options) && Type.isStringFilled(options.emptyMessage))
 		{
 			this.emptyMessage = options.emptyMessage;
 		}
@@ -83,10 +83,13 @@ export class BaseField
 		{
 			this.container = Tag.render`<div class="${DialogStyle.ProcessOptionContainer} ${this.className}"></div>`;
 
-			this.container
-				.appendChild(Tag.render`<div class="${DialogStyle.ProcessOptionsTitle}"></div>`)
-					.appendChild(Tag.render`<label for="${this.id}_inp">${this.title}</label>`)
-			;
+			if (this.title)
+			{
+				this.container
+					.appendChild(Tag.render`<div class="${DialogStyle.ProcessOptionsTitle}"></div>`)
+						.appendChild(Tag.render`<label for="${this.id}_inp">${this.title}</label>`)
+				;
+			}
 
 			this.container
 				.appendChild(Tag.render`<div class="${DialogStyle.ProcessOptionsInput}"></div>`)
@@ -108,27 +111,24 @@ export class BaseField
 
 	showWarning(message?: string)
 	{
+		const messageText = message ?? this.emptyMessage;
 		const alertId = this.id + '_alert';
 		const optionElement = this.container.querySelector('#' + alertId);
 		if (optionElement)
 		{
-			if (Type.isStringFilled(message))
+			if (Type.isStringFilled(messageText))
 			{
 				const messageElement = optionElement.querySelector('.ui-alert-message');
-				messageElement.innerHTML = message;
+				messageElement.innerHTML = messageText;
 			}
 			optionElement.style.display = 'block';
 		}
-		else
+		else if (Type.isStringFilled(messageText))
 		{
-			const message = message ? message : this.emptyMessage;
-			if (Type.isStringFilled(message))
-			{
-				this.container
-					.appendChild(Tag.render`<div id="${alertId}" class="${DialogStyle.ProcessOptionsObligatory}"></div>`)
-						.appendChild(Tag.render`<span class="ui-alert-message">${message}</span>`)
-				;
-			}
+			this.container
+				.appendChild(Tag.render`<div id="${alertId}" class="${DialogStyle.ProcessOptionsObligatory}"></div>`)
+					.appendChild(Tag.render`<span class="ui-alert-message">${messageText}</span>`)
+			;
 		}
 		return this;
 	}

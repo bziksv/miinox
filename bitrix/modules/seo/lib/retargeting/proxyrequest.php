@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Retargeting;
 
@@ -25,7 +25,8 @@ class ProxyRequest extends Request
 
 		$methodName = static::REST_METHOD_PREFIX . '.' . $params['methodName'];
 		$parameters = $params['parameters'];
-		$engine = new Engine\Bitrix();
+
+		$engine = \Bitrix\Seo\Service::getEngine($this);
 		if (!$engine->isRegistered())
 		{
 			return false;
@@ -33,20 +34,56 @@ class ProxyRequest extends Request
 		$parameters['proxy_client_id'] = $this->getAuthAdapter()->getClientId();
 		$parameters['lang'] = LANGUAGE_ID;
 
+		if (!$engine->getInterface())
+		{
+			return false;
+		}
+
 		$transport = $engine->getInterface()->getTransport();
-		if ($params['timeout'])
+		if (isset($params['timeout']))
 		{
 			$transport->setTimeout($params['timeout']);
 		}
+
+		if (isset($params['listenHttpErrors']) && $params['listenHttpErrors'])
+		{
+			$transport->listenHttpErrors();
+		}
+
+		if (isset($params['streamTimeout']))
+		{
+			$transport->setStreamTimeout((int)$params['streamTimeout']);
+		}
+
 		$response = $transport->call($methodName, $parameters);
-		if ($response['result']['RESULT'])
+		if (isset($response['result']['RESULT']))
 		{
 			return $response['result']['RESULT'];
 		}
-		if ($response['error'])
+
+		if (isset($response['error']))
 		{
 			throw new InvalidOperationException($response['error_description'] ? $response['error_description'] : $response['error']);
 		}
 		return [];
+	}
+
+	public function getServiceUrl(string $sourceUrl): string
+	{
+		$domains = [
+			'tech' => 'bitrix24.tech',
+			'info' => 'bitrix.info',
+		];
+
+		$domain = \Bitrix\Main\Application::getInstance()->getLicense()->getRegion() == 'ru'
+			? $domains['tech']
+			: $domains['info']
+		;
+
+		return str_replace(
+			array_values($domains),
+			[$domain, $domain],
+			$sourceUrl,
+		);
 	}
 }

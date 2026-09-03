@@ -1,5 +1,11 @@
 <?php
 $MESS["CANCEL_CONDUCT_BUTTON"] = "Verarbeitung abbrechen";
+$MESS["CANCEL_CONDUCT_CANCELLATION_POPUP_HINT"] = "Nur der aktuelle Lagerbestand und die Kosten werden korrigiert, wenn Sie die Verarbeitung abbrechen. #HELP_LINK#";
+$MESS["CANCEL_CONDUCT_CANCELLATION_POPUP_LINK"] = "Mehr";
+$MESS["CANCEL_CONDUCT_CANCELLATION_POPUP_NO"] = "Nein";
+$MESS["CANCEL_CONDUCT_CANCELLATION_POPUP_QUESTION"] = "Möchten Sie die Verarbeitung wirklich abbrechen?";
+$MESS["CANCEL_CONDUCT_CANCELLATION_POPUP_TITLE"] = "Verarbeitung abbrechen";
+$MESS["CANCEL_CONDUCT_CANCELLATION_POPUP_YES"] = "Ja, abbrechen";
 $MESS["CONDUCT_BUTTON"] = "Verarbeiten";
 $MESS["DOCUMENT_ADD_CONTRACTOR"] = "Anbieter erstellen:";
 $MESS["DOCUMENT_ADD_CONTRACTOR_ERROR"] = "Fehler beim Erstellen des Anbieters";

@@ -1,5 +1,10 @@
-<?
+<?php
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+
+/**
+ * @var array $arResult
+ * @var array $arParams
+ */
 
 CJSCore::Init(array('window'));
 
@@ -40,7 +45,7 @@ if (!empty($arDiff))
 	{
 		foreach($arUserOptions["GADGETS"] as $key => $arGadgetDefault)
 		{
-			list($gadget_id, $id) = explode("@", $key, 2);
+			[$gadget_id, $id] = explode("@", $key, 2);
 			if (
 				!in_array($gadget_id, $arParams["GADGETS_FIXED"])
 				|| !array_key_exists($gadget_id, $arResult["ALL_GADGETS"])
@@ -74,18 +79,18 @@ if (!empty($arDiff))
 				foreach($arParams as $id=>$p)
 				{
 					$pref = "G_".$gadget_id."_";
-					if(mb_strpos($id, $pref) === 0)
+					if(str_starts_with($id, $pref))
 					{
-						$arGadgetParams[mb_substr($id, mb_strlen($pref))]=$p;
+						$arGadgetParams[substr($id, strlen($pref))]=$p;
 					}
 
 					$pref = "GU_".$gadget_id."_";
 					if(
-						mb_strpos($id, $pref) === 0
-						&& !isset($arGadgetParams[mb_substr($id, mb_strlen($pref))])
+						str_starts_with($id, $pref)
+						&& !isset($arGadgetParams[substr($id, strlen($pref))])
 					)
 					{
-						$arGadgetParams[mb_substr($id, mb_strlen($pref))]=$p;
+						$arGadgetParams[substr($id, strlen($pref))]=$p;
 					}
 				}
 

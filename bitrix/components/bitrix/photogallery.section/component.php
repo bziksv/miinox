@@ -1,12 +1,24 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 if (!CModule::IncludeModule("photogallery"))
-	return ShowError(GetMessage("P_MODULE_IS_NOT_INSTALLED"));
+{
+	ShowError(GetMessage("P_MODULE_IS_NOT_INSTALLED"));
+	return;
+}
 elseif (!IsModuleInstalled("iblock"))
-	return ShowError(GetMessage("IBLOCK_MODULE_NOT_INSTALLED"));
+{
+	ShowError(GetMessage("IBLOCK_MODULE_NOT_INSTALLED"));
+	return;
+}
 elseif (empty($arParams["SECTION_CODE"]) && intval($arParams["SECTION_ID"]) <= 0)
-	return ShowError(GetMessage("P_SECTION_EMPTY"));
+{
+	ShowError(GetMessage("P_SECTION_EMPTY"));
+	return;
+}
 elseif ($arParams["BEHAVIOUR"] == "USER" && empty($arParams["USER_ALIAS"]))
-	return ShowError(GetMessage("P_GALLERY_EMPTY"));
+{
+	ShowError(GetMessage("P_GALLERY_EMPTY"));
+	return;
+}
 
 if (empty($arParams["INDEX_URL"]) && !empty($arParams["SECTIONS_TOP_URL"]))
 	$arParams["INDEX_URL"] = $arParams["SECTIONS_TOP_URL"];
@@ -14,13 +26,13 @@ if (empty($arParams["INDEX_URL"]) && !empty($arParams["SECTIONS_TOP_URL"]))
 				Input params
 ********************************************************************/
 //***************** BASE *******************************************/
-	$arParams["IBLOCK_TYPE"] = trim($arParams["IBLOCK_TYPE"]);
+	$arParams["IBLOCK_TYPE"] = trim($arParams["IBLOCK_TYPE"] ?? '');
 	$arParams["IBLOCK_ID"] = intval($arParams["IBLOCK_ID"]);
 	$arParams["SECTION_ID"] = intval($arParams["SECTION_ID"]);
-	$arParams["SECTION_CODE"] = trim($arParams["SECTION_CODE"]);
-	$arParams["USER_ALIAS"] = trim($arParams["USER_ALIAS"]);
+	$arParams["SECTION_CODE"] = trim($arParams["SECTION_CODE"] ?? '');
+	$arParams["USER_ALIAS"] = trim($arParams["USER_ALIAS"] ?? '');
 	$arParams["BEHAVIOUR"] = ($arParams["BEHAVIOUR"] == "USER" ? "USER" : "SIMPLE");
-	$arParams["PERMISSION_EXTERNAL"] = trim($arParams["PERMISSION"]);
+	$arParams["PERMISSION_EXTERNAL"] = trim($arParams["PERMISSION"] ?? '');
 //***************** URL ********************************************/
 	$URL_NAME_DEFAULT = array(
 		"index" => "",

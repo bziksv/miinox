@@ -13,10 +13,12 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
  * @global CMain $APPLICATION
  * @global CUser $USER
  */
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Main\Loader;
-use \Bitrix\Rest\Engine\Access;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Loader;
+use Bitrix\Rest\Engine\Access;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Rest\Internal\Integration\UI\CopilotService;
+use Bitrix\Main\Web\Uri;
 
 if(!CModule::IncludeModule("rest"))
 {
@@ -45,7 +47,7 @@ $arResult['INSTALL_HASH'] = false;
 if (isset($_GET["ver"]) && intval($_GET["ver"]) && isset($_GET["check_hash"]) && isset($_GET['install_hash']))
 {
 	$checkHash = $_GET['check_hash'];
-	$check = md5(rtrim(CHTTP::URN2URI('/'), '/').'|'.$_GET['ver'].'|'.$arParams['APP']);
+	$check = md5(rtrim((string)(new Uri('/'))->toAbsolute(), '/').'|'.$_GET['ver'].'|'.$arParams['APP']);
 
 	if($checkHash === $check)
 	{
@@ -193,6 +195,9 @@ if($request->isPost() && $request['install'] && check_bitrix_sessid())
 	{
 		$scopeList = \Bitrix\Rest\Engine\ScopeManager::getInstance()->listScope();
 		\Bitrix\Main\Localization\Loc::loadMessages($_SERVER['DOCUMENT_ROOT'].BX_ROOT.'/modules/rest/scope.php');
+		$copilotReplacements = [
+			'#COPILOT_NAME#' => CopilotService::getName(),
+		];
 		$arResult['SCOPE_DENIED'] = array();
 		if(is_array($arResult['APP']['RIGHTS']))
 		{
@@ -203,10 +208,15 @@ if($request->isPost() && $request['install'] && check_bitrix_sessid())
 					$title = Loc::getMessage('REST_SCOPE_LOG_MSGVER_1') ?: $scope;
 					$description = Loc::getMessage("REST_SCOPE_LOG_DESCRIPTION_MSGVER_1");
 				}
+				elseif (mb_strtoupper($key) === 'AI_ADMIN')
+				{
+					$title = Loc::getMessage('REST_SCOPE_AI_ADMIN_MSGVER_1', $copilotReplacements) ?: $scope;
+					$description = Loc::getMessage("REST_SCOPE_AI_ADMIN_DESCRIPTION", $copilotReplacements);
+				}
 				else
 				{
-					$title = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key)) ?: $scope;
-					$description = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key)."_DESCRIPTION");
+					$title = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key), $copilotReplacements) ?: $scope;
+					$description = Loc::getMessage("REST_SCOPE_".mb_strtoupper($key)."_DESCRIPTION", $copilotReplacements);
 				}
 				$arResult['APP']['RIGHTS'][$key] = [
 					"TITLE" => $title,
@@ -218,10 +228,9 @@ if($request->isPost() && $request['install'] && check_bitrix_sessid())
 				}
 			}
 		}
-		if(Loader::IncludeModule('bitrix24')
-			&& !in_array(\CBitrix24::getLicensePrefix(), array('ru', 'ua', 'kz', 'by')))
+		if(Loader::IncludeModule('bitrix24'))
 		{
-			$arResult['TERMS_OF_SERVICE_LINK'] = Loc::getMessage('REST_MARKETPLACE_TERMS_OF_SERVICE_LINK');
+			$arResult['TERMS_OF_SERVICE_LINK'] = (string)\Bitrix\Rest\Infrastructure\Market\MarketUrl::createByDefault()->getTermsUrl();
 		}
 		$arResult['IS_HTTPS'] = \Bitrix\Main\Context::getCurrent()->getRequest()->isHttps();
 

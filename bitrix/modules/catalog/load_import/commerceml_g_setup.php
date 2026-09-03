@@ -1,5 +1,5 @@
-<?
-//<title>CommerceML MySql Fast</title>
+<?php
+//<title>CommerceML MySql Fast - BETA VERS</title>
 IncludeModuleLangFile($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/catalog/import_setup_templ.php');
 
 $arSetupErrors = array();
@@ -269,7 +269,7 @@ if ($STEP < 2)
 $tabControl->End();
 
 ?></form>
-<script type="text/javascript">
+<script>
 <?if ($STEP < 2):?>
 tabControl.SelectTab("edit1");
 tabControl.DisableTab("edit2");

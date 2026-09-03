@@ -1,0 +1,52 @@
+.ui-actions-bar {
+	--ui-actions-bar-elements-gap-x: 12px;
+}
+
+.ui-actions-bar {
+	margin-top: 10px;
+	margin-bottom: 10px;
+	width: 100%;
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-start;
+	align-items: center;
+	gap: var(--ui-actions-bar-elements-gap-x);
+}
+
+.ui-actions-bar .ui-nav-panel {
+	margin-right: 0;
+}
+
+.ui-actions-bar__panel:nth-of-type(2),
+.ui-actions-bar__panel.--wide {
+	flex: 1;
+}
+
+/* f there is exactly one .ui-actions-bar__panel in .ui-actions-bar, then it gets flex: 1 */
+.ui-actions-bar:not(:has(.ui-actions-bar__panel:nth-of-type(2))) .ui-actions-bar__panel {
+	flex: 1;
+}
+
+/* If there are at least two .ui-actions-bar__panels in .bar, then flex: 1 only gets the second one */
+.ui-actions-bar:has(.panel:nth-of-type(2)) .panel:nth-of-type(2) {
+	flex: 1;
+}
+
+.ui-actions-bar__panel.--width-wide {
+	flex: 1 !important;
+}
+
+.ui-actions-bar__panel.--width-auto {
+	flex: none !important;
+}
+
+.ui-actions-bar__buttons {
+	display: flex;
+	gap: var(--ui-actions-bar-elements-gap-x);
+}
+
+/* for old template support */
+.ui-actions-bar .ui-actions-bar__buttons > .ui-btn {
+	margin-left: 0;
+	margin-right: 0;
+}

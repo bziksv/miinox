@@ -2,6 +2,7 @@
 namespace Bitrix\Landing\Connector;
 
 use \Bitrix\Landing\Manager;
+use \Bitrix\Main\Loader;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Main\Web\Json;
 use \Bitrix\MobileApp\Janative;
@@ -24,6 +25,11 @@ class Mobile
 	 */
 	public static function onMobileMenuStructureBuilt($menu): array
 	{
+		if (!Loader::includeModule('mobileapp'))
+		{
+			return $menu;
+		}
+
 		if (!isset($menu[0]['items']) || !is_array($menu[0]['items']))
 		{
 			return $menu;
@@ -50,10 +56,13 @@ class Mobile
 			$componentId
 		);
 
+
+
 		return [
 			'sort' => 100,
 			'title' => Loc::getMessage('LANDING_CONNECTOR_MB_MENU_TITLE'),
 			'imageUrl' => '/bitrix/images/landing/mobile/knowledge.png?4',
+			'imageName' => 'knowledge_base',
 			'color' => '#e597ba',
 			'params' => [
 				'onclick' => <<<JS
@@ -61,7 +70,7 @@ class Mobile
 						name: '{$componentId}',
 						object: 'list',
 						version: '{$componentVersion}',
-						widgetParams: {title: this.title, useSearch:true}
+						widgetParams: {titleParams: { text: this.title, type: 'section' } , useSearch:true}
 					});
 JS
 			]
@@ -74,19 +83,62 @@ JS
 	 */
 	private static function getLandingMenu(): array
 	{
+		$version = time();
+		$title = Loc::getMessage('LANDING_CONNECTOR_MB_LANDINGS_MENU_TITLE');
+		$titleTabPage = Loc::getMessage('LANDING_CONNECTOR_MB_LANDINGS_TAB_PAGE');
+		$titleTabStore = Loc::getMessage('LANDING_CONNECTOR_MB_LANDINGS_TAB_STORE');
+
 		return [
-			'sort' => 100,
-			'title' => Loc::getMessage('LANDING_CONNECTOR_MB_LANDINGS_MENU_TITLE'),
+			'sort' => 200,
+			'title' => $title,
 			'imageUrl' => '/bitrix/images/landing/mobile/knowledge.png',
 			'color' => '#e597ba',
 			'params' => [
 				'onclick' => <<<JS
-					PageManager.openComponent("JSLandingsComponent", {
-					    scriptPath:"/mobileapp/jn/landing.list/",    
-					    rootWidget:{
-					       name:"layout",
-					       settings:{objectName:"layoutWidget", title:"Hello World", modal: true}
-					    }});
+					PageManager.openComponent('JSStackComponent', {
+						rootWidget: {
+							name: 'tabs',
+							settings: {
+								objectName: 'layoutWidget',
+								title: '{$title}',
+								tabs: {
+									items: [
+										{
+											title: '{$titleTabPage}',
+											component: {
+												name: 'JSStackComponent',
+												scriptPath: '/mobileapp/jn/landing.list/?type=page&version={$version}',
+													params: { type: 'page' },
+													rootWidget: {
+														name: 'layout',
+														settings: {
+															objectName: 'layoutWidget',
+															title: '{$title}',
+														},
+													},
+											}
+										},
+										{
+											title: '{$titleTabStore}',
+											component: {
+												name: 'JSStackComponent',
+												scriptPath: '/mobileapp/jn/landing.list/?type=store&version={$version}',
+												params: { type: 'store' },
+												rootWidget: {
+													name: 'layout',
+													settings: {
+														objectName: 'layoutWidget',
+														title: '{$title}',
+													},
+												},
+											}
+										},
+									]
+								}
+							},
+						},
+					},
+				);
 JS
 			]
 		];
@@ -117,7 +169,7 @@ JS
 		if ($mobileHit === null)
 		{
 			$mobileHit = \Bitrix\Main\ModuleManager::isModuleInstalled('intranet')
-						&& mb_strpos(Manager::getCurDir(), SITE_DIR . 'mobile/') === 0;
+				&& mb_strpos(Manager::getCurDir(), SITE_DIR . 'mobile/') === 0;
 		}
 
 		return $mobileHit;

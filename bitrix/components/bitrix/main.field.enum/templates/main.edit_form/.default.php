@@ -8,8 +8,11 @@ if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 /** @var array $arResult */
 /** @var EnumUfComponent $component */
 
-use Bitrix\Main\UserField\Types\EnumType;
 use Bitrix\Main\Text\HtmlFilter;
+use Bitrix\Main\UserField\Types\EnumType;
+use Bitrix\Main\Web\Json;
+
+$isMultiple = ($arResult['userField']['MULTIPLE'] ?? 'N') === 'Y';
 
 if ($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_UI)
 {
@@ -36,7 +39,36 @@ if ($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_UI)
 	<span id="<?= $arResult['controlNodeId'] ?>"></span>
 
 	<?php
-	$scriptParams = CUtil::PhpToJSObject([
+	if (empty($arResult['currentValue']))
+	{
+		foreach ($arResult['additionalParameters']['items'] as $itemId => $item)
+		{
+			if (
+				(!isset($arResult['userField']['ENTITY_VALUE_ID']) || $arResult['userField']['ENTITY_VALUE_ID'] <= 0)
+				&& ($item['DEF'] ?? 'N') === 'Y'
+			)
+			{
+				if ($isMultiple)
+				{
+					$arResult['currentValue'][] = [
+						'NAME' => $item['VALUE'],
+						'VALUE' => $item['ID'],
+					];
+				}
+				else
+				{
+					$arResult['currentValue'] = [
+						'NAME' => $item['VALUE'],
+						'VALUE' => (int)$item['ID'],
+					];
+
+					break;
+				}
+			}
+		}
+	}
+
+	$scriptParams = Json::encode([
 		'fieldName' => $arResult['fieldNameJs'],
 		'container' => $arResult['controlNodeId'],
 		'valueContainerId' => $arResult['valueContainerId'],
@@ -79,8 +111,7 @@ elseif ($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_CHEC
 	{
 		$isSelected = (
 			(in_array($itemId, $arResult['additionalParameters']['VALUE']))
-			||
-			($arResult['userField']['ENTITY_VALUE_ID'] <= 0 && $item['DEF'] === 'Y')
+			|| ($arResult['userField']['ENTITY_VALUE_ID'] <= 0 && isset($item['DEF']) && $item['DEF'] === 'Y')
 		);
 		$isWasSelect = ($isWasSelect || $isSelected);
 		$checked = ($isSelected ? ' checked' : '');
@@ -132,7 +163,7 @@ elseif ($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_LIST
 		$result = '';
 
 		$showNoValue = ($arParams['userField']['SETTINGS']['SHOW_NO_VALUE'] ?? 'N');
-		if ($showNoValue === 'Y')
+		if ($showNoValue === 'Y' && ($arParams['userField']['MANDATORY'] ?? 'N') === 'Y')
 		{
 			$result .= '<option></option>';
 		}
@@ -143,6 +174,7 @@ elseif ($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_LIST
 				in_array($itemId, $arResult['additionalParameters']['VALUE'])
 				|| (
 					(!isset($arResult['userField']['ENTITY_VALUE_ID']) || $arResult['userField']['ENTITY_VALUE_ID'] <= 0)
+					&& isset($item['DEF'])
 					&& $item['DEF'] === 'Y'
 				)
 			);

@@ -76,10 +76,10 @@ class CounterCalculation
 	{
 		if(self::$startTime === null)
 		{
-			self::$startTime = getmicrotime();
+			self::$startTime = microtime(true);
 		}
 
-		if(self::$maxExecutionTime > 0 && (getmicrotime() - self::$startTime) > self::$maxExecutionTime)
+		if(self::$maxExecutionTime > 0 && (microtime(true) - self::$startTime) > self::$maxExecutionTime)
 		{
 			return true;
 		}
@@ -97,7 +97,7 @@ class CounterCalculation
 		}
 		else
 		{
-			return getmicrotime() - self::$startTime;
+			return microtime(true) - self::$startTime;
 		}
 	}
 
@@ -357,13 +357,12 @@ class CounterCalculation
 				$result->isSuccess();
 			}
 		}
-		
+
 		return false;
 	}
 
 	public static function updateContactEmailRegister()
 	{
-		$query = null;
 		$connection = \Bitrix\Main\Application::getConnection();
 		switch(mb_strtoupper($connection->getType()))
 		{
@@ -376,20 +375,20 @@ class CounterCalculation
 			case 'ORACLE':
 				$query = "SELECT ID FROM b_sender_contact WHERE TYPE_ID=1 AND REGEXP_LIKE(CODE, '[A-Z]')";
 				break;
+			default:
+				$helper = $connection->getSqlHelper();
+				$query =  "SELECT ID FROM b_sender_contact WHERE TYPE_ID=1 AND {$helper->getRegexpOperator('CODE', "'[A-Z]'")}";
 		}
 
-		if($query)
+		$senderContactDb = $connection->query($query);
+		while ($senderContact = $senderContactDb->fetch())
 		{
-			$senderContactDb = $connection->query($query);
-			while($senderContact = $senderContactDb->fetch())
+			if (self::isTimeUp())
 			{
-				if(self::isTimeUp())
-				{
-					return true;
-				}
-
-				$connection->Query("UPDATE b_sender_contact SET CODE = LOWER(CODE) WHERE TYPE_ID=1 AND ID = " . intval($senderContact['ID']));
+				return true;
 			}
+
+			$connection->Query("UPDATE b_sender_contact SET CODE = LOWER(CODE) WHERE TYPE_ID=1 AND ID = " . intval($senderContact['ID']));
 		}
 
 		return false;

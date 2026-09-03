@@ -15,7 +15,10 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)die();
  * @var string $componentPath
  */
 
-\Bitrix\Main\UI\Extension::load('ui.entity-editor');
+\Bitrix\Main\UI\Extension::load([
+	'ui.entity-editor',
+	'main.core',
+]);
 
 $guid = $arResult['GUID'];
 $prefix = mb_strtolower($guid);
@@ -33,6 +36,13 @@ $bbFieldNames = isset($arResult['ENTITY_BB_FIELD_NAMES']) && is_array($arResult[
 	? $arResult['ENTITY_BB_FIELD_NAMES']
 	: []
 ;
+
+$hasBBCodeFields = isset($arResult['HAS_BBCODE_FIELDS']) && $arResult['HAS_BBCODE_FIELDS'] === true;
+if ($hasBBCodeFields)
+{
+	\Bitrix\Main\UI\Extension::load(['ui.text-editor', 'ui.bbcode.formatter.html-formatter']);
+}
+
 foreach ($htmlFieldNames as $fieldName)
 {
 	$fieldPrefix = $prefix.'_'.strtolower($fieldName);
@@ -92,16 +102,14 @@ foreach ($bbFieldNames as $fieldName)
 
 if (!empty($htmlEditorConfigs))
 {
-	Bitrix\Main\Loader::includeModule('fileman');
-
-	foreach ($htmlEditorConfigs as $htmlEditorConfig)
+	foreach ($htmlEditorConfigs as $fieldName => $htmlEditorConfig)
 	{
+		$fieldInfo = $arResult['ENTITY_AVAILABLE_FIELDS_INFO'][$fieldName] ?? [];
 		?>
 		<div id="<?=htmlspecialcharsbx($htmlEditorConfig['containerId'])?>" style="display:none;">
 			<?php
-			$editor = new CHTMLEditor();
-
 			$editorControlsMap = $htmlEditorConfig['controlsMap'];
+			$parserList = [];
 
 			if (is_array($arResult['DISABLED_HTML_CONTROLS']))
 			{
@@ -111,12 +119,14 @@ if (!empty($htmlEditorConfigs))
 					$itemId = $item['id'] ?? false;
 					$isSeparator = $item['separator'] ?? false;
 
-					if (
-						$itemId
-						&& in_array($itemId, $arResult['DISABLED_HTML_CONTROLS'], true)
-					)
+					if ($itemId)
 					{
-						continue;
+						$parserList[] = $itemId;
+
+						if (in_array($itemId, $arResult['DISABLED_HTML_CONTROLS'], true))
+						{
+							continue;
+						}
 					}
 
 					if (
@@ -134,29 +144,47 @@ if (!empty($htmlEditorConfigs))
 				$editorControls = $editorControlsMap;
 			}
 
-			$editor->Show(
+			$chtmlEditorParams = [
+				'name' => $htmlEditorConfig['id'],
+				'id' => $htmlEditorConfig['id'],
+				'siteId' => SITE_ID,
+				'width' => '100%',
+				'minBodyWidth' => 230,
+				'normalBodyWidth' => $arResult["CHTML_EDITOR_PARAMS"]["normalBodyWidth"] ?? 530,
+				'height' => 200,
+				'minBodyHeight' => 200,
+				'showTaskbars' => false,
+				'showNodeNavi' => false,
+				'autoResize' => true,
+				'autoResizeOffset' => 10,
+				'bbCode' => $htmlEditorConfig['bb'],
+				'saveOnBlur' => false,
+				'bAllowPhp' => false,
+				'lazyLoad' => false,
+				'limitPhpAccess' => false,
+				'setFocusAfterShow' => false,
+				'askBeforeUnloadPage' => false,
+				'useFileDialogs' => false,
+				'controlsMap' => $editorControls,
+				'isMentionUnavailable' => $fieldInfo['copilotIntegrationParams']['isMentionUnavailable'] ?? false,
+				'isCopilotTextEnabledBySettings' => $fieldInfo['copilotIntegrationParams']['isCopilotTextEnabledBySettings'] ?? true,
+				'copilotParams' => $fieldInfo['copilotIntegrationParams']['copilotParams'] ?? [],
+			];
+
+			$APPLICATION->IncludeComponent(
+				'bitrix:main.post.form',
+				'',
 				[
-					'name' => $htmlEditorConfig['id'],
-					'id' => $htmlEditorConfig['id'],
-					'siteId' => SITE_ID,
-					'width' => '100%',
-					'minBodyWidth' => 230,
-					'normalBodyWidth' => 530,
-					'height' => 200,
-					'minBodyHeight' => 200,
-					'showTaskbars' => false,
-					'showNodeNavi' => false,
-					'autoResize' => true,
-					'autoResizeOffset' => 10,
-					'bbCode' => $htmlEditorConfig['bb'],
-					'saveOnBlur' => false,
-					'bAllowPhp' => false,
-					'lazyLoad' => true,
-					'limitPhpAccess' => false,
-					'setFocusAfterShow' => false,
-					'askBeforeUnloadPage' => false,
-					'useFileDialogs' => false,
-					'controlsMap' => $editorControls,
+					'PARSER' => $parserList,
+					'BUTTONS' => $fieldInfo['buttons'] ?? [],
+					'UPLOAD_FILE' => false,
+					'LHE' => $chtmlEditorParams,
+					'isAiImageEnabled' => $fieldInfo['postFormSettings']['isAiImageEnabled'] ?? false,
+					'isDnDEnabled' => $fieldInfo['postFormSettings']['isDnDEnabled'] ?? false,
+				],
+				false,
+				[
+					"HIDE_ICONS" => "Y",
 				]
 			);
 			?>
@@ -167,7 +195,7 @@ if (!empty($htmlEditorConfigs))
 ?>
 <div class="ui-entity-editor-container" id="<?=htmlspecialcharsbx($containerID)?>"></div>
 <div class="ui-entity-editor-section-add-btn-container" id="<?=htmlspecialcharsbx($buttonContainerID)?>"></div>
-<script type="text/javascript">
+<script>
 	BX.ready(
 		function()
 		{
@@ -184,7 +212,8 @@ if (!empty($htmlEditorConfigs))
 					enableScopeToggle: <?=$arResult['ENABLE_CONFIG_SCOPE_TOGGLE'] ? 'true' : 'false'?>,
 					canUpdatePersonalConfiguration: <?=$arResult['CAN_UPDATE_PERSONAL_CONFIGURATION'] ? 'true' : 'false'?>,
 					canUpdateCommonConfiguration: <?=$arResult['CAN_UPDATE_COMMON_CONFIGURATION'] ? 'true' : 'false'?>,
-					options: <?=CUtil::PhpToJSObject($arResult['ENTITY_CONFIG_OPTIONS'])?>
+					options: <?=CUtil::PhpToJSObject($arResult['ENTITY_CONFIG_OPTIONS'])?>,
+					signedParams: "<?=CUtil::JSEscape($arResult['ENTITY_CONFIG_SIGNED_PARAMS'])?>"
 				}
 			);
 
@@ -236,12 +265,15 @@ if (!empty($htmlEditorConfigs))
 						initialMode: "<?=CUtil::JSEscape($arResult['INITIAL_MODE'])?>",
 						enableModeToggle: <?=$arResult['ENABLE_MODE_TOGGLE'] ? 'true' : 'false'?>,
 						enableConfigControl: <?=$arResult['ENABLE_CONFIG_CONTROL'] ? 'true' : 'false'?>,
+						enableShowAlwaysFeauture: <?=$arResult['ENABLE_SHOW_ALWAYS_FEAUTURE'] ? 'true' : 'false'?>,
 						enableVisibilityPolicy: <?=$arResult['ENABLE_VISIBILITY_POLICY'] ? 'true' : 'false'?>,
 						enableToolPanel: <?=$arResult['ENABLE_TOOL_PANEL'] ? 'true' : 'false'?>,
 						isToolPanelAlwaysVisible: <?=$arResult['IS_TOOL_PANEL_ALWAYS_VISIBLE'] ? 'true' : 'false'?>,
 						enableBottomPanel: <?=$arResult['ENABLE_BOTTOM_PANEL'] ? 'true' : 'false'?>,
 						enableFieldsContextMenu: <?=$arResult['ENABLE_FIELDS_CONTEXT_MENU'] ? 'true' : 'false'?>,
 						enablePageTitleControls: <?=$arResult['ENABLE_PAGE_TITLE_CONTROLS'] ? 'true' : 'false'?>,
+						enablePageTitleControlsViaToolbar: <?=$arResult['ENABLE_PAGE_TITLE_CONTROLS_VIA_TOOLBAR'] ? 'true' : 'false'?>,
+						enablePageTitleEdit: <?=$arResult['ENABLE_PAGE_TITLE_EDIT'] ? 'true' : 'false'?>,
 						readOnly: <?=$arResult['READ_ONLY'] ? 'true' : 'false'?>,
 						enableAjaxForm: <?=$arResult['ENABLE_AJAX_FORM'] ? 'true' : 'false'?>,
 						enableRequiredUserFieldCheck: <?=$arResult['ENABLE_REQUIRED_USER_FIELD_CHECK'] ? 'true' : 'false'?>,
@@ -264,6 +296,7 @@ if (!empty($htmlEditorConfigs))
 						customToolPanelButtons: <?=CUtil::PhpToJSObject($arResult['CUSTOM_TOOL_PANEL_BUTTONS'])?>,
 						toolPanelButtonsOrder: <?=CUtil::PhpToJSObject($arResult['TOOL_PANEL_BUTTONS_ORDER'])?>,
 						isEmbedded: <?=$arResult['IS_EMBEDDED'] ? 'true' : 'false'?>,
+						analyticsConfig: <?= CUtil::PhpToJSObject($arResult['ANALYTICS_CONFIG'] ?? []) ?>,
 					}
 				)
 			);

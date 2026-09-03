@@ -8,6 +8,9 @@ use Bitrix\Main\Localization;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Translate;
 
+/**
+ * @internal
+ */
 
 abstract class ComponentBase
 	extends \CBitrixComponent
@@ -23,7 +26,7 @@ abstract class ComponentBase
 	const TEMPLATE_ERROR = 'error';
 
 	/** @var string */
-	protected $path;
+	protected $path = '';
 
 	/** @var int Session tab counter. */
 	protected $tabId = 0;
@@ -155,9 +158,31 @@ abstract class ComponentBase
 
 	/**
 	 * Checks some mysql config variables.
-	 * @return boolean
+	 * @return void
 	 */
-	protected function checkMysqlConfig()
+	protected function checkModuleStepper(): void
+	{
+		$stepper = \Bitrix\Main\Update\Stepper::getHtml('translate', Loc::getMessage('TRANSLATE_INDEX_STEPPER'));
+		if (!empty($stepper))
+		{
+			$this->arResult['STEPPER'] = $stepper;
+		}
+	}
+
+	/**
+	 * Checks FTS if tables exists.
+	 * @return void
+	 */
+	protected function checkFtsTables(): void
+	{
+		Translate\Index\Internals\PhraseFts::checkTables();
+	}
+
+	/**
+	 * Checks some mysql config variables.
+	 * @return void
+	 */
+	protected function checkMysqlConfig(): void
 	{
 		$majorVersion = (int)\mb_substr(\Bitrix\Main\Application::getConnection()->getVersion()[0], 0, 1);
 
@@ -172,8 +197,6 @@ abstract class ComponentBase
 				}
 			}
 		}
-
-		return true;
 	}
 
 	/**
@@ -257,7 +280,10 @@ abstract class ComponentBase
 	 */
 	protected function getLanguagesTitle($languageIds)
 	{
-		return Translate\Config::getLanguagesTitle($languageIds);
+		$titles = Translate\Config::getLanguagesTitle($languageIds);
+		array_walk($titles, function(&$title, $langId) { $title = "{$title} ({$langId})"; });
+
+		return $titles;
 	}
 
 	/**
@@ -553,5 +579,32 @@ abstract class ComponentBase
 		}
 
 		return $chainCache[$path];
+	}
+
+	public function getTopIndexedFolders(int $depth = 2): array
+	{
+		static $list;
+		if ($list === null)
+		{
+			$list = [0 => ''];
+			$res = Index\Internals\PathIndexTable::getList([
+				'select' => ['ID', 'PATH'],
+				'filter' => [
+					'=INDEXED' => 'Y',
+					'=IS_DIR' => 'Y',
+					'<=DEPTH_LEVEL' => $depth,
+				],
+				'order' => [
+					'DEPTH_LEVEL' => 'ASC',
+					'PATH' => 'ASC',
+				]
+			]);
+			while ($row = $res->fetch())
+			{
+				$list[$row['ID']] = $row['PATH'];
+			}
+		}
+
+		return $list;
 	}
 }

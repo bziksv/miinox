@@ -16,12 +16,15 @@ use Bitrix\Main\SystemException;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\Json;
 use Bitrix\Rest\OAuth\Engine;
+use Bitrix\Rest\Public\Provider;
 
 Loc::loadMessages(__FILE__);
 
 if(!defined("BITRIX_OAUTH_URL"))
 {
-	$defaultValue = \Bitrix\Main\Config\Option::get('rest', 'oauth_server', 'https://oauth.bitrix.info');
+//	replaced \Bitrix\Main\Config\Option::get('rest', 'oauth_server', 'https://oauth.bitrix.info');
+	$defaultValue = (new Provider\OAuth\AuthorizationServerProvider())->getCurrentAuthorizationUrl();
+
 	define("BITRIX_OAUTH_URL", $defaultValue);
 }
 
@@ -83,7 +86,7 @@ class OAuthService
 			);
 		}
 
-		if($result["error"])
+		if (!empty($result["error"]))
 		{
 			throw new SystemException($result["error"]);
 		}

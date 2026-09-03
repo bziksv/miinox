@@ -4,7 +4,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
-/** @var \CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
@@ -19,7 +19,7 @@ if($arResult['IS_IFRAME'])
 
 if(!$arResult['ERROR']):
 ?>
-	<? if ($arResult['JSON_RESULT'] != null):?>
+	<? if (isset($arResult['JSON_RESULT'])):?>
 		<div class="integration-container">
 			<div class="ui-title-4"><?= Loc::getMessage("REST_INTEGRATION_IFRAME_QUERY_RESULT_TITLE") ?></div>
 			<hr>

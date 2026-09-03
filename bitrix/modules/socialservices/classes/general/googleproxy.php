@@ -5,6 +5,7 @@ use Bitrix\Main\Security\Cipher;
 use Bitrix\Main\Service\MicroService\Client;
 use Bitrix\Main\SystemException;
 use Bitrix\SocialServices\UserTable;
+use Bitrix\Socialservices\OAuth\OAuthErrorCode;
 use Bitrix\Main\Web\HttpClient;
 
 
@@ -32,21 +33,27 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 		$APPLICATION->RestartBuffer();
 
 		$bSuccess = false;
-		$mode = '';
-		$addParams = false;
 
 		$authError = SOCSERV_AUTHORISATION_ERROR;
+		$this->logger->info('oauth.auth.start');
 
-		$state = $this->parseState($_REQUEST['state']);
-		if(
-			isset($_REQUEST["code"])
-			&& $_REQUEST["code"] !== ''
-			&& $this->checkUserToken($state['user_token'])
-		)
+		$state = $this->parseState($_REQUEST['state'] ?? '') ?? [];
+
+		if (empty($_REQUEST['code']))
+		{
+			$this->logger->error('oauth.request.invalid_code');
+			$this->sendOauthError(OAuthErrorCode::MissingCode);
+		}
+		elseif (!$this->checkUserToken($state['user_token'] ?? null))
+		{
+			$this->logger->error('oauth.request.invalid_check_key', [
+				'reason' => 'user_token_validation_failed',
+			]);
+			$this->sendOauthError(OAuthErrorCode::InvalidCheckKey);
+		}
+		else
 		{
 			$this->getEntityOAuth()->setCode($_REQUEST["code"]);
-
-			unset($_REQUEST["state"]);
 
 			if($this->getEntityOAuth()->GetAccessToken() !== false)
 			{
@@ -58,93 +65,50 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 					$arFields['USER_ID'] = $this->user->getId();
 					$authError = $this->AuthorizeUser($arFields);
 				}
+				elseif (isset($arGoogleUser["error"]))
+				{
+					$this->logger->error('oauth.user.fetch_failed', [
+						'reason' => 'provider_error',
+					]);
+				}
+				else
+				{
+					$this->logger->error('oauth.user.fetch_failed', [
+						'reason' => 'missing_user_id',
+					]);
+				}
+			}
+			else
+			{
+				$this->logger->error('oauth.token.exchange_failed', [
+					'reason' => 'get_access_token_failed',
+				]);
 			}
 		}
 
+		$this->logger->info('oauth.auth.finish', [
+			'success' => ($authError === true),
+			'auth_result' => $authError,
+		]);
 
-		$aRemove = ["logout", "auth_service_error", "auth_service_id", "code", "error_reason", "error", "error_description", "check_key", "current_fieldset"];
+		$mode = $state['mode'] ?? 'opener';
 
 		if($this->user && ($authError === true))
 		{
 			$bSuccess = true;
 			CSocServUtil::checkOAuthProxyParams();
-
-			$url = ($APPLICATION->GetCurDir() === "/login/") ? "" : $APPLICATION->GetCurDir();
-			$mode = 'opener';
-			$addParams = true;
-			if(isset($state) && is_array($state))
-			{
-				if(isset($state['backurl']) || isset($state['redirect_url']))
-				{
-					$url = !empty($state['redirect_url']) ? $state['redirect_url'] : $state['backurl'];
-					if(mb_strpos($url, "#") !== 0)
-					{
-						$parseUrl = parse_url($url);
-
-						$urlPath = $parseUrl["path"];
-						$arUrlQuery = explode('&', $parseUrl["query"]);
-
-						foreach($arUrlQuery as $key => $value)
-						{
-							foreach($aRemove as $param)
-							{
-								if(mb_strpos($value, $param."=") === 0)
-								{
-									unset($arUrlQuery[$key]);
-									break;
-								}
-							}
-						}
-
-						$url = (!empty($arUrlQuery)) ? $urlPath . '?' . implode("&", $arUrlQuery) : $urlPath;
-					}
-					else
-					{
-						$addParams = false;
-					}
-				}
-
-				if(isset($state['mode']))
-				{
-					$mode = $state['mode'];
-				}
-			}
 		}
+		$url = $this->getRedirectUriAfterAuthorize($authError, static::ID);
+		$addParams = !str_starts_with($url, '#');
 
-		if($authError === SOCSERV_REGISTRATION_DENY)
+		if ($bSuccess && $mode === self::MOBILE_MODE)
 		{
-			$url = (preg_match("/\?/", $url)) ? $url.'&' : $url.'?';
-			$url .= 'auth_service_id='.static::ID.'&auth_service_error='.SOCSERV_REGISTRATION_DENY;
+			$this->onAfterMobileAuth();
 		}
-		elseif($bSuccess !== true)
+		elseif (!isset($_REQUEST['auth_service_error']))
 		{
-			$url = (isset($urlPath)) ? $urlPath.'?auth_service_id='.static::ID.'&auth_service_error='.$authError : $APPLICATION->GetCurPageParam(('auth_service_id='.static::ID.'&auth_service_error='.$authError), $aRemove);
+			$this->onAfterWebAuth($addParams, $mode, $url);
 		}
-
-		if($addParams && CModule::IncludeModule("socialnetwork") && mb_strpos($url, "current_fieldset=") === false)
-		{
-			$url = (preg_match("/\?/", $url)) ? $url."&current_fieldset=SOCSERV" : $url."?current_fieldset=SOCSERV";
-		}
-
-		$url = CUtil::JSEscape($url);
-
-		if($addParams)
-		{
-			$location = ($mode === "opener") ? 'if(window.opener) window.opener.location = \''.$url.'\'; window.close();' : ' window.location = \''.$url.'\';';
-		}
-		else
-		{
-			//fix for chrome
-			$location = ($mode === "opener") ? 'if(window.opener) window.opener.location = window.opener.location.href + \''.$url.'\'; window.close();' : ' window.location = window.location.href + \''.$url.'\';';
-		}
-
-		$JSScript = '
-			<script type="text/javascript">
-			'.$location.'
-			</script>
-		';
-
-		echo $JSScript;
 
 		CMain::FinalActions();
 	}
@@ -168,22 +132,24 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 			$this->entityOAuth->addScope($addScope);
 		}
 
-		$state = 'provider='.static::ID
-			. '&site_id=' . SITE_ID
-			. '&backurl=' . urlencode(
-				$GLOBALS["APPLICATION"]
-					->GetCurPageParam(
-						'check_key=' . \CSocServAuthManager::getUniqueKey(),
-						["logout", "auth_service_error", "auth_service_id", "backurl"]
-					)
-			)
-			. '&mode=' . $location
-				. (isset($arParams['BACKURL'])
-					? '&redirect_url=' . urlencode($arParams['BACKURL'])
-					: '')
-			. '&user_token=' . urlencode($this->generateUserToken())
-			. '&hostUrl=' . urlencode(\Bitrix\Main\Engine\UrlManager::getInstance()->getHostUrl())
-		;
+		$defaultReturnUrl = $GLOBALS["APPLICATION"]->GetCurPageParam(
+			'',
+			["logout", "auth_service_error", "auth_service_id", "backurl", 'serviceName', 'hitHash']
+		);
+		$state = \Bitrix\Socialservices\OAuth\StateService::getInstance()->createState(
+			payload: [
+				'provider' => static::ID,
+				'site_id' => SITE_ID,
+				'check_key' => \CSocServAuthManager::getUniqueKey(),
+				'redirect_url' => isset($arParams['BACKURL']) ? $arParams['BACKURL'] : $defaultReturnUrl,
+				'mode' => $location,
+				'user_token' => $this->generateUserToken(),
+			],
+			additionalInfo: [
+				'hostUrl' => \Bitrix\Main\Engine\UrlManager::getInstance()->getHostUrl(),
+				'mode' => $location,
+			],
+		);
 
 		$redirect_uri = $this->getEntityOAuth()->getRedirectUri();
 
@@ -205,6 +171,8 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 		{
 			$this->entityOAuth->setCode($code);
 		}
+
+		$this->entityOAuth->setLogger($this->logger);
 
 		return $this->entityOAuth;
 	}
@@ -279,20 +247,7 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 
 	private function parseState(string $requestState = null): ?array
 	{
-		if (!$requestState)
-		{
-			return null;
-		}
-
-		$state = [];
-		parse_str($requestState, $state);
-
-		if (!$state)
-		{
-			return null;
-		}
-
-		return $state;
+		return $this->getState($requestState);
 	}
 
 	public function AuthorizeUser($socservUserFields, $bSave = false)
@@ -307,24 +262,29 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 			return false;
 		}
 
-		$dbSocUser = UserTable::getList([
-			'filter' => [
-				'=XML_ID'=>$socservUserFields['XML_ID'],
-				'=EXTERNAL_AUTH_ID'=>$socservUserFields['EXTERNAL_AUTH_ID']
-			],
-			'select' => ["ID", "USER_ID", "ACTIVE" => "USER.ACTIVE", "PERSONAL_PHOTO"],
-		]);
-		$socservUser = $dbSocUser->fetch();
-
-		if(!empty($socservUserFields['USER_ID']))
+		if (!empty($socservUserFields['USER_ID']))
 		{
-			if(!$socservUser)
+			$this->deleteOldTokens($socservUserFields['USER_ID'], $socservUserFields['EXTERNAL_AUTH_ID']);
+
+			$dbSocUser = UserTable::getList(
+				[
+					'filter' => [
+						'=XML_ID' => $socservUserFields['XML_ID'],
+						'=EXTERNAL_AUTH_ID' => $socservUserFields['EXTERNAL_AUTH_ID']
+					],
+					'select' => ['ID'],
+				]
+			);
+
+			$storedUser = $dbSocUser->fetch();
+
+			if (!$storedUser)
 			{
 				$result = UserTable::add(UserTable::filterFields($socservUserFields));
 			}
 			else
 			{
-				$result = UserTable::update($socservUser['ID'], UserTable::filterFields($socservUserFields));
+				$result = UserTable::update($storedUser['ID'], UserTable::filterFields($socservUserFields));
 			}
 		}
 		else
@@ -333,6 +293,27 @@ class CSocServGoogleProxyOAuth extends CSocServGoogleOAuth
 		}
 
 		return $result->isSuccess();
+	}
+
+	/**
+	 * @throws SystemException
+	 * @throws \Exception
+	 */
+	private function deleteOldTokens($userId, $externalAuthId): void
+	{
+		$dbTokens = \Bitrix\Socialservices\UserTable::getList(
+			[
+			'filter' => [
+				'=USER_ID' => $userId,
+				'=EXTERNAL_AUTH_ID' => $externalAuthId
+			],
+			'select' => ['ID']
+		]);
+
+		while ($accessToken = $dbTokens->fetch())
+		{
+			UserTable::delete($accessToken['ID']);
+		}
 	}
 }
 

@@ -8,6 +8,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	"ui.design-tokens",
 	"popup",
 	"ui.buttons.icons",
+	'report.integration.toolbar',
 ]);
 
 if (\Bitrix\Main\Loader::includeModule('intranet'))
@@ -21,14 +22,17 @@ if (\Bitrix\Main\Loader::includeModule('intranet'))
 		)
 	);
 }
+
+echo \Bitrix\UI\Buttons\SettingsButton::create([
+	'air' => true,
+	'tag' => \Bitrix\UI\Buttons\Tag::LINK,
+])
+	->addAttribute('id', 'analytic_board_configuration_button')
+	->render()
+;
 ?>
 
-<div class="analytic-board-config-control">
-	<a id="analytic_board_configuration_button" class="ui-btn ui-btn-light-border ui-btn-icon-setting"></a>
-</div>
-
-
-<script type="text/javascript">
+<script>
 	BX.message({
 		'VISUALCONSTRUCTOR_DASHBOARD_GO_TO_DEFAULT': "<?=\Bitrix\Main\Localization\Loc::getMessage('VISUALCONSTRUCTOR_DASHBOARD_GO_TO_DEFAULT')?>"
 	});

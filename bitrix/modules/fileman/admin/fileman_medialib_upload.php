@@ -33,7 +33,7 @@ class filemanMedialibUpload
 			return false;
 		}
 		$package["collectionId"] = $post["collectionId"];
-		$package["ml_type"] = $post["ml_type"];
+		$package["ml_type"] = $post["ml_type"] ?? null;
 		return true;
 	}
 
@@ -41,9 +41,7 @@ class filemanMedialibUpload
 	{
 		global $APPLICATION;
 		$name = $file["name"];
-		$pattern = defined('BX_UTF')
-			? "/[^\p{L}L0-9!\p{Z}\$&\(\)\[\]\{\}\-\.;=@\^_\~]/uis"
-			: "/[^A-Za-zÀ-ß¨à-ÿ¸0-9!\s\$&\(\)\[\]\{\}\-\.;=@\^_\~]/is";
+		$pattern = "/[^\p{L}L0-9!\p{Z}\$&\(\)\[\]\{\}\-\.;=@\^_\~]/uis";
 		$name = trim(preg_replace($pattern, "", $name));
 		if (trim(mb_substr($name, 0, mb_strpos($name, '.'))) == '')
 			$name = mb_substr(md5(uniqid(rand(), true)), 0, 8).trim($name);
@@ -406,6 +404,7 @@ CJSCore::Init(array("core", "ajax", "uploader", "canvas"));
 $uploaderID = "medialib";
 $options = CUserOptions::GetOption("fileman", "uploader_html5", array());
 $options = (is_array($options) ? $options : array());
+$options["template"] ??= null;
 ?>
 <div class="upl-main-wrap">
 <form id="<?=$uploaderID?>_form" name="<?=$uploaderID?>_form" action="<?=$APPLICATION->GetCurPageParam("type_ml=".urlencode($_GET["type"])."&".bitrix_sessid_get(), array("type_ml", "sessid"))?>" method="POST" enctype="multipart/form-data" class="bxiu-photo-form">
@@ -469,7 +468,7 @@ $options = (is_array($options) ? $options : array());
 		</div>
 	</div>
 </div>
-<script type="text/javascript">
+<script>
 <?
 	$cols = array();
 	foreach ($trees['Collections'] as $col)

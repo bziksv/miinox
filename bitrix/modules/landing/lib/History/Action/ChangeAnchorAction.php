@@ -11,12 +11,17 @@ class ChangeAnchorAction extends BaseAction
 	// now it is not used as separate js command, just as multy
 	protected const JS_COMMAND = 'changeAnchor';
 
-	public function execute(bool $undo = true): bool
+	protected function doExecute(bool $undo = true): bool
 	{
 		$value = $undo ? $this->params['valueBefore'] : $this->params['valueAfter'];
 
-		if ($this->params['block'] && $value)
+		if ($this->params['block'])
 		{
+			if ($value === '')
+			{
+				return true;
+			}
+
 			$block = new Block((int)$this->params['block']);
 			$block->setAnchor($value);
 

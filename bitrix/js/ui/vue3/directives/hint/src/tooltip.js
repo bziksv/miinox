@@ -1,108 +1,203 @@
-import { Popup, PopupOptions } from 'main.popup';
-import { Tag, Text, Type } from 'main.core';
+import { Event, Tag, Text, Type } from 'main.core';
+import { Popup, type PopupOptions } from 'main.popup';
+
+const POPUP_ANGLE_HALF_WIDTH = 17;
+const SCROLLABLE_OVERFLOW_VALUES = new Set(['auto', 'scroll', 'overlay']);
+
+export type HintParams = {
+	text: string,
+	html: string,
+	popupOptions: PopupOptions,
+	position: 'top',
+	timeout: number,
+	interactivity: boolean,
+};
+
+const isScrollableY = (element: HTMLElement): boolean => {
+	const { overflowY } = getComputedStyle(element);
+
+	return (
+		SCROLLABLE_OVERFLOW_VALUES.has(overflowY)
+		&& element.scrollHeight > element.clientHeight
+	);
+};
 
 class Tooltip
 {
+	#popup: ?Popup;
+	#cursorOnPopup: boolean;
+
 	constructor(): void
 	{
-		this.popup = null;
+		this.#popup = null;
+		this.#cursorOnPopup = false;
 	}
 
-	show(
-		element: HTMLElement,
-		bindings: Object = {}
-	): void
+	#getCenteredAngleOffset(element: HTMLElement): number | false
 	{
-		if (this.popup)
+		const elementRect = element.getBoundingClientRect();
+		const elementWidth = elementRect.width || element.offsetWidth;
+
+		return elementWidth
+			? Popup.getOption('angleLeftOffset') - POPUP_ANGLE_HALF_WIDTH + elementWidth / 2
+			: false
+		;
+	}
+
+	#fixPopupAngle(element: HTMLElement): void
+	{
+		if (!this.#popup?.angle)
 		{
-			this.popup.close();
+			return;
 		}
 
-		let popupOptions: PopupOptions = {};
+		const popupContainer = this.#popup.getPopupContainer();
 
-		let text;
-		if (Type.isObject(bindings.value))
+		if (!popupContainer)
 		{
-			if (bindings.value.text)
-			{
-				text = Text.encode(bindings.value.text);
-			}
-			else if (bindings.value.html)
-			{
-				text = bindings.value.html;
-			}
+			return;
+		}
 
-			if (Type.isObject(bindings.value.popupOptions))
-			{
-				popupOptions = bindings.value.popupOptions;
-			}
+		setTimeout(() => {
+			const elementRect = element.getBoundingClientRect();
+			const popupRect = popupContainer.getBoundingClientRect();
 
-			if (bindings.value.position === 'top')
+			const offset = elementRect.width
+				? elementRect.left + elementRect.width / 2 - popupRect.left - POPUP_ANGLE_HALF_WIDTH
+				: false
+			;
+
+			this.#popup.angle.offset = offset;
+
+			if (this.#popup.angle.position === 'bottom')
 			{
-				if (!Type.isObject(popupOptions.bindOptions))
+				this.#popup.angle.element.style.left = '0';
+				this.#popup.angle.element.style.marginLeft = offset === false ? '' : `${offset}px`;
+			}
+			else
+			{
+				this.#popup.angle.element.style.marginLeft = '0';
+				this.#popup.angle.element.style.left = offset === false ? '' : `${offset}px`;
+			}
+		}, 0);
+	}
+
+	#getBindElement(element: HTMLElement, params: HintParams): HTMLElement
+	{
+		if (Type.isDomNode(params.popupOptions?.bindElement))
+		{
+			return params.popupOptions.bindElement;
+		}
+
+		return element;
+	}
+
+	#getTargetContainer(element: HTMLElement): HTMLElement
+	{
+		let parent = element.parentElement;
+		const ownerDocument = element.ownerDocument;
+
+		while (parent && parent !== ownerDocument.body)
+		{
+			if (isScrollableY(parent))
+			{
+				const style = getComputedStyle(parent);
+				if (style.position === 'static')
 				{
-					popupOptions.bindOptions = {};
+					parent.style.position = 'relative';
 				}
 
-				popupOptions.bindOptions.position = 'top';
+				return parent;
 			}
+
+			parent = parent.parentElement;
+		}
+
+		return ownerDocument.body;
+	}
+
+	show(element: HTMLElement, params: HintParams): void
+	{
+		this.hide(false);
+
+		const bindElement = this.#getBindElement(element, params);
+
+		const popupClassName = [
+			'ui-hint-popup',
+			params.interactivity ? 'ui-hint-popup-interactivity' : '',
+			params.popupOptions?.className ?? '',
+		]
+			.filter(Boolean)
+			.join(' ');
+
+		const popupOptions: PopupOptions = {
+			id: `bx-vue-hint-${Date.now()}`,
+			bindOptions: {
+				position: (params.position === 'top') ? 'top' : 'bottom',
+			},
+			content: Tag.render`
+				<span class='ui-hint-content'>${this.#getText(element, params)}</span>
+			`,
+			darkMode: true,
+			autoHide: true,
+			cacheable: false,
+			focusTrap: false,
+			animation: 'fading',
+			angle: true,
+			...(params.popupOptions ?? null),
+			className: popupClassName,
+		};
+
+		popupOptions.bindElement = bindElement;
+		popupOptions.targetContainer ??= this.#getTargetContainer(bindElement);
+		popupOptions.angle = {
+			offset: this.#getCenteredAngleOffset(bindElement),
+		};
+
+		this.#popup = new Popup(popupOptions);
+		this.#popup.show();
+		this.#fixPopupAngle(bindElement);
+
+		const popupContainer = this.#popup?.getPopupContainer();
+
+		if (params.interactivity && popupContainer)
+		{
+			Event.bind(popupContainer, 'mouseenter', () => {
+				this.#cursorOnPopup = true;
+			});
+			Event.bind(popupContainer, 'mouseleave', () => {
+				this.#cursorOnPopup = false;
+				this.hide(true);
+			});
+		}
+	}
+
+	hide(isInteractive: boolean): void
+	{
+		if (isInteractive)
+		{
+			setTimeout(() => {
+				if (this.#popup && this.#popup.getPopupContainer() && !(this.#cursorOnPopup))
+				{
+					this.#popup.close();
+				}
+			}, 100);
 		}
 		else
 		{
-			text = bindings.value;
-			if (Type.isUndefined(element.dataset.hintHtml))
-			{
-				text = Text.encode(text);
-			}
+			this.#popup?.close();
 		}
-
-		popupOptions.bindElement = element;
-
-		if (Type.isUndefined(popupOptions.id))
-		{
-			popupOptions.id = 'bx-vue-hint';
-		}
-
-		if (Type.isUndefined(popupOptions.darkMode))
-		{
-			popupOptions.darkMode = true;
-		}
-
-		if (Type.isUndefined(popupOptions.content))
-		{
-			const content = Tag.render`<span class='ui-hint-content'></span>`;
-			content.innerHTML = text;
-			popupOptions.content = content;
-		}
-
-		if (Type.isUndefined(popupOptions.autoHide))
-		{
-			popupOptions.autoHide = true;
-		}
-
-		if (!Type.isObject(popupOptions.bindOptions))
-		{
-			popupOptions.bindOptions = {};
-		}
-		if (Type.isUndefined(popupOptions.bindOptions.position))
-		{
-			popupOptions.bindOptions.position = 'bottom';
-		}
-
-		popupOptions.cacheable = false;
-
-		this.popup = new Popup(popupOptions);
-		this.popup.show();
 	}
 
-	hide(): void
+	#getText(element: HTMLElement, params: HintParams): string
 	{
-		if (this.popup)
+		if (Type.isStringFilled(params) && Type.isUndefined(element.dataset.hintHtml))
 		{
-			this.popup.close();
+			return Text.encode(params);
 		}
+
+		return params.html || Text.encode(params.text) || params;
 	}
 }
 
-const TooltipManager = new Tooltip;
-export {TooltipManager as Tooltip};
+export const tooltip = new Tooltip();

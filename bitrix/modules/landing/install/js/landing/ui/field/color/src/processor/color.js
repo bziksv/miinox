@@ -25,15 +25,17 @@ export default class Color extends BaseProcessor
 
 		this.colorSet = new ColorSet(options);
 		this.colorSet.subscribe('onChange', this.onColorSetChange.bind(this));
-		this.colorSet.subscribe('onReset', this.onReset.bind(this));
 
 		this.opacity = new Opacity();
 		this.opacity.subscribe('onChange', this.onOpacityChange.bind(this));
 
-		this.zeroing = new Zeroing();
+		const zeroingOptions = {
+			styleNode: options.styleNode,
+		};
+		this.zeroing = new Zeroing(zeroingOptions);
 		this.zeroing.subscribe('onChange', this.onZeroingChange.bind(this));
 
-		this.primary = new Primary();
+		this.primary = new Primary(options);
 		this.primary.subscribe('onChange', this.onPrimaryChange.bind(this));
 
 		this.tabs = new Tabs().appendTab('Opacity', Loc.getMessage('LANDING_FIELD_COLOR-TAB_OPACITY'), this.opacity);
@@ -150,12 +152,6 @@ export default class Color extends BaseProcessor
 			this.colorSet.colorpicker.hex.setActive();
 		}
 		super.setDefaultValue(value);
-	}
-
-	onReset()
-	{
-		this.zeroing.unsetActive();
-		super.onReset();
 	}
 
 	setActiveControl(controlName)

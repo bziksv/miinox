@@ -1,8 +1,12 @@
 <?php
 namespace Bitrix\Landing\Transfer\Import;
 
+use Bitrix\Landing\History;
+use Bitrix\Landing\Internals\BlockTable;
 use \Bitrix\Landing\Landing as LandingCore;
+use Bitrix\Landing\Manager;
 use \Bitrix\Landing\Site as SiteCore;
+use Bitrix\Landing\Subtype\Form;
 use \Bitrix\Landing\Transfer\AppConfiguration;
 use \Bitrix\Landing\File;
 use \Bitrix\Landing\Folder;
@@ -11,8 +15,12 @@ use \Bitrix\Landing\Repo;
 use \Bitrix\Landing\Block;
 use \Bitrix\Landing\Node;
 use \Bitrix\Main\Event;
+use Bitrix\Main\Entity;
+use Bitrix\Main\EventManager;
+use Bitrix\Main\Loader;
 use \Bitrix\Rest\AppTable;
 use \Bitrix\Rest\Configuration;
+use \Bitrix\Crm;
 
 /**
  * Import landing from rest
@@ -50,8 +58,8 @@ class Landing
 			$items = [];
 			$res = Repo::getList([
 				'select' => [
-					'ID', 'APP_CODE', 'XML_ID'
-				]
+					'ID', 'APP_CODE', 'XML_ID',
+				],
 			]);
 			while ($row = $res->fetch())
 			{
@@ -280,7 +288,7 @@ class Landing
 						'SECTIONS' => $repoInfo['SECTIONS'] ?? null,
 						'PREVIEW' => $repoInfo['PREVIEW'] ?? null,
 						'MANIFEST' => serialize(unserialize($repoInfo['MANIFEST'] ?? '', ['allowed_classes' => false])),
-						'CONTENT' => $repoInfo['CONTENT'] ?? null
+						'CONTENT' => $repoInfo['CONTENT'] ?? null,
 					]);
 					if ($res->isSuccess())
 					{
@@ -298,7 +306,7 @@ class Landing
 						'PUBLIC' => 'N',
 						'SORT' => $sort,
 						'ANCHOR' => $block['anchor'] ?? '',
-						'INITIATOR_APP_CODE' => $block['repo_block']['app_code'] ?? null
+						'INITIATOR_APP_CODE' => $block['repo_block']['app_code'] ?? null,
 					]
 				);
 				if ($blockId)
@@ -339,7 +347,7 @@ class Landing
 			'PUBLIC' => 'N',
 			'SORT' => $sort,
 			'ANCHOR' => $block['anchor'] ?? '',
-			'INITIATOR_APP_CODE' => $block['repo_block']['app_code'] ?? null
+			'INITIATOR_APP_CODE' => $block['repo_block']['app_code'] ?? null,
 		];
 		if ($block['full_content'] ?? null)
 		{
@@ -421,10 +429,13 @@ class Landing
 		$contextUser = $event->getParameter('CONTEXT_USER');
 		$additional = $event->getParameter('ADDITIONAL_OPTION');
 		$appId = $event->getParameter('APP_ID');
+		$isReplaceSiteLandings = ($ratio[$code]['REPLACE_SITE_ID'] ?? 0) > 0;
+		$isMainPage = self::isMainpage($event);
+
 		$structure = new Configuration\Structure($contextUser);
 		$return = [
 			'RATIO' => $ratio[$code] ?? [],
-			'ERROR_MESSAGES' => []
+			'ERROR_MESSAGES' => [],
 		];
 
 		if (!isset($content['~DATA']))
@@ -434,27 +445,31 @@ class Landing
 
 		if (isset($return['RATIO']['TYPE']))
 		{
-			\Bitrix\Landing\Site\Type::setScope(
+			SiteCore\Type::setScope(
 				$return['RATIO']['TYPE']
 			);
 		}
 
-		if (!self::checkNeedImport($event))
+		if (!self::isNeedImport($event))
 		{
-			// todo: prepare data: remove layout, ...
 			return $return;
 		}
 
 		$data = $content['~DATA'];
-		$oldId = $data['ID'] ?? null;
+		$oldLid = $data['ID'] ?? null;
+		if (!$oldLid)
+		{
+			return $return;
+		}
 
+		$siteId = null;
 		if (isset($ratio[$code]['SITE_ID']) && (int)$ratio[$code]['SITE_ID'] > 0)
 		{
-			$data['SITE_ID'] = (int)$ratio[$code]['SITE_ID'];
+			$siteId = (int)$ratio[$code]['SITE_ID'];
 		}
 		elseif ($additional && (int)$additional['siteId'] > 0)
 		{
-			$data['SITE_ID'] = (int)$additional['siteId'];
+			$siteId = (int)$additional['siteId'];
 			$return['RATIO']['SITE_ID'] = (int)$additional['siteId'];
 		}
 
@@ -463,41 +478,16 @@ class Landing
 			LandingCore::enableCheckUniqueAddress();
 		}
 
-		// clear old keys
-		$notAllowedKeys = [
-			'ID', 'VIEWS', 'DATE_CREATE', 'DATE_MODIFY',
-			'DATE_PUBLIC', 'CREATED_BY_ID', 'MODIFIED_BY_ID'
-		];
-		foreach ($notAllowedKeys as $key)
+		$data['SITE_ID'] = $siteId;
+		$data = self::prepareData($data);
+		if ($isReplaceSiteLandings && $isMainPage)
 		{
-			if (isset($data[$key]))
-			{
-				unset($data[$key]);
-			}
+			$additionalFieldSite = (array)($ratio[$code]['ADDITIONAL_FIELDS_SITE'] ?? []);
+			$data = self::mergeAdditionalFieldsForReplace($data, $additionalFieldSite);
+			$return['RATIO']['ADDITIONAL_FIELDS_SITE'] = $data['ADDITIONAL_FIELDS'];
 		}
-
-		// files
-		$files = [];
-		foreach (Hook::HOOKS_CODES_FILES as $hookCode)
-		{
-			if (
-				isset($data['ADDITIONAL_FIELDS'][$hookCode]) &&
-				$data['ADDITIONAL_FIELDS'][$hookCode] > 0
-			)
-			{
-				$unpackFile = $structure->getUnpackFile($data['ADDITIONAL_FIELDS'][$hookCode]);
-				if ($unpackFile)
-				{
-					$files[] = $data['ADDITIONAL_FIELDS'][$hookCode] = AppConfiguration::saveFile(
-						$unpackFile
-					);
-				}
-				else
-				{
-					unset($data['ADDITIONAL_FIELDS'][$hookCode]);
-				}
-			}
-		}
+		$return['RATIO']['ADDITIONAL_FIELDS'][$oldLid] = $data['ADDITIONAL_FIELDS'];
+		$data = self::prepareAdditionalFiles($data, $structure);
 
 		// folders' old format
 		$convertFolderOldFormat = false;
@@ -508,12 +498,12 @@ class Landing
 			$data['FOLDER'] = 'N';
 			$res = SiteCore::addFolder($ratio[$code]['SITE_ID'], [
 				'TITLE' => $data['TITLE'],
-				'CODE' => $data['CODE']
+				'CODE' => $data['CODE'],
 			]);
 			if ($res->isSuccess())
 			{
 				$data['FOLDER_ID'] = $res->getId();
-				$return['RATIO']['FOLDERS_REF'][$oldId] = $data['FOLDER_ID'];
+				$return['RATIO']['FOLDERS_REF'][$oldLid] = $data['FOLDER_ID'];
 			}
 		}
 		elseif ($additional && $additional['folderId'])
@@ -530,7 +520,7 @@ class Landing
 			if ($appCode)
 			{
 				$data['XML_ID'] = $data['TITLE'] . '|' . $appCode;
-				$previousTplCode = $data['TPL_CODE'];
+				$data['PREVIOUS_TPL_CODE'] = $data['TPL_CODE'];
 				$data['TPL_CODE'] = $appCode;
 			}
 		}
@@ -555,192 +545,36 @@ class Landing
 
 			if (isset($data['BLOCKS']) && is_array($data['BLOCKS']))
 			{
-				// @fix wrapper classes from original
-				$newTplCode = $previousTplCode ?? $data['TPL_CODE'];
-				$delobotAppCode = 'local.5eea949386cd05.00160385';
-				$kraytAppCode = 'local.5f11a19f813b13.97126836';
-				$bitrixAppCode = 'bitrix.';
-				if (
-					strpos($newTplCode, $delobotAppCode) !== false
-					|| strpos($newTplCode, $kraytAppCode) !== false
-					|| strpos($appCode, $bitrixAppCode) === 0
-				)
-				{
-					$wrapperClasses = [];
-					$http = new \Bitrix\Main\Web\HttpClient;
-					$resPreview = $http->get('https://preview.bitrix24.site/tools/blocks.php?tplCode=' . $newTplCode);
-					if ($resPreview)
-					{
-						try
-						{
-							$wrapperClasses = \Bitrix\Main\Web\Json::decode($resPreview);
-						}
-						catch (\Exception $e){}
-					}
-
-					if ($wrapperClasses)
-					{
-						$i = 0;
-						foreach ($data['BLOCKS'] as &$blockData)
-						{
-							if (isset($wrapperClasses[$i]) && $wrapperClasses[$i]['code'] === $blockData['code'])
-							{
-								$blockData['style']['#wrapper'] = ['classList' => [$wrapperClasses[$i]['classList']]];
-							}
-							$i++;
-						}
-						unset($blockData);
-					}
-				}
-				unset($delobotAppCode, $kraytAppCode);
-				//fix, delete copyright block
-				$templateDateCreate = strtotime($content['DATA']['DATE_CREATE']);
-				$lastDate = strtotime('17.02.2022 00:00:00');
-				if ($templateDateCreate < $lastDate)
-				{
-					$kraytCode = 'bitrix.krayt';
-					$delobotCode = 'bitrix.delobot';
-					if (strpos($appCode, $kraytCode) !== false || strpos($appCode, $delobotCode) !== false)
-					{
-						if (array_slice($data['BLOCKS'], -1)[0]['code'] === '17.copyright')
-						{
-							array_pop($data['BLOCKS']);
-						}
-					}
-					unset($kraytCode, $delobotCode);
-				}
-				foreach ($data['BLOCKS'] as &$block)
-				{
-					//fix contact data
-					if (isset($block['nodes']) && strpos($appCode, $bitrixAppCode) === 0)
-					{
-						foreach ($block['nodes'] as &$node)
-						{
-							$countNodeItem = 0;
-							foreach ($node as &$nodeItem)
-							{
-								if (isset($nodeItem['href']))
-								{
-									$setContactsBlockCode = [
-										'14.1.contacts_4_cols',
-										'14.2contacts_3_cols',
-										'14.3contacts_2_cols'
-									];
-									if (preg_match('/^tel:.*$/i', $nodeItem['href']))
-									{
-										$nodeItem['href'] = 'tel:#crmPhone1';
-										if (isset($nodeItem['text']))
-										{
-											$nodeItem['text'] = '#crmPhoneTitle1';
-										}
-										if (
-											(isset($block['nodes']['.landing-block-node-linkcontact-text'])
-											&&	in_array($block['code'], $setContactsBlockCode, true))
-										)
-										{
-											$block['nodes']['.landing-block-node-linkcontact-text'][$countNodeItem] = '#crmPhoneTitle1';
-										}
-									}
-									if (preg_match('/^mailto:.*$/i', $nodeItem['href']))
-									{
-										$nodeItem['href'] = 'mailto:#crmEmail1';
-										if (isset($nodeItem['text']))
-										{
-											$nodeItem['text'] = '#crmEmailTitle1';
-										}
-										if (
-											isset($block['nodes']['.landing-block-node-linkcontact-text'])
-											&& (in_array($block['code'], $setContactsBlockCode, true))
-										)
-										{
-											$block['nodes']['.landing-block-node-linkcontact-text'][$countNodeItem] = '#crmEmailTitle1';
-										}
-									}
-								}
-								$countNodeItem++;
-							}
-							unset($nodeItem);
-						}
-						unset($node);
-					}
-					//fix countdown until the next unexpired date
-					if (isset($block['attrs']))
-					{
-						foreach ($block['attrs'] as &$attr)
-						{
-							foreach ($attr as &$attrItem)
-							{
-								if (array_key_exists('data-end-date', $attrItem))
-								{
-									$neededAttr = $attrItem['data-end-date'] / 1000;
-									$currenDate = time();
-									if ($neededAttr < $currenDate)
-									{
-										$m = date('m', $neededAttr);
-										$d = date('d', $neededAttr);
-										$currenDateY = (int)date('Y', $currenDate);
-										$currenDateM = date('m', $currenDate);
-										$currenDateD = date('d', $currenDate);
-										if ($currenDateM > $m)
-										{
-											$y = $currenDateY + 1;
-										}
-										else if (($currenDateM === $m) && $currenDateD >= $d)
-										{
-											$y = $currenDateY + 1;
-										}
-										else
-										{
-											$y = $currenDateY;
-										}
-										$time = '10:00:00';
-										$timestamp = strtotime($y . '-' . $m . '-' . $d . ' ' . $time) * 1000;
-										$attrItem['data-end-date'] = (string)$timestamp;
-
-										if (preg_match_all(
-											'/data-end-date="\d+"/',
-											$block['full_content'],
-											$matches)
-										)
-										{
-											$block['full_content'] = str_replace(
-												$matches[0],
-												'data-end-date="' . $attrItem['data-end-date'] . '"',
-												$block['full_content']
-											);
-										}
-									}
-								}
-							}
-							unset($attrItem);
-						}
-						unset($attr);
-					}
-				}
-				unset($block);
+				$data = self::prepareBlocksData($data, $event);
 			}
 
-			// save files to landing
-			foreach ($files as $fileId)
-			{
-				File::addToLanding($res->getId(), $fileId);
-			}
+			self::saveAdditionalFilesToLanding($data, $res->getId());
 
 			$landing = LandingCore::createInstance($res->getId());
+
 			// store old id and other references
-			if ($oldId)
+			if ($oldLid)
 			{
-				$return['RATIO']['LANDINGS'][$oldId] = $res->getId();
+				$return['RATIO']['LANDINGS'][$oldLid] = $res->getId();
 			}
+
 			if (isset($data['TPL_ID']) && $data['TPL_ID'])
 			{
 				$return['RATIO']['TEMPLATE_LINKING'][$res->getId()] = [
-					'TPL_ID' => (int) $data['TPL_ID'],
-					'TEMPLATE_REF' => isset($data['TEMPLATE_REF'])
-									? (array) $data['TEMPLATE_REF']
-									: []
+					'TPL_ID' => (int)$data['TPL_ID'],
+					'TEMPLATE_REF' => (array)($data['TEMPLATE_REF'] ?? []),
 				];
 			}
+			elseif ($isReplaceSiteLandings && $isMainPage && $siteId)
+			{
+				$siteTemplate = (array)($return['RATIO']['TEMPLATE_LINKING'][-1 * $siteId] ?? []);
+				if (!empty($siteTemplate))
+				{
+					$return['RATIO']['TEMPLATE_LINKING'][$res->getId()] = $siteTemplate;
+					unset($return['RATIO']['TEMPLATE_LINKING'][-1 * $siteId]);
+				}
+			}
+
 			if (isset($data['BLOCKS']) && is_array($data['BLOCKS']))
 			{
 				foreach ($data['BLOCKS'] as $oldBlockId => $blockItem)
@@ -772,15 +606,184 @@ class Landing
 	}
 
 	/**
-	 * In some cases we don't need import current landing.
+	 * No create new page, but replace blocks in current landing
 	 * @param Event $event
-	 * @return bool - if false - need skip current page import
+	 * @return array|null
 	 */
-	protected static function checkNeedImport(Event $event): bool
+	public static function replaceLanding(Event $event): ?array
 	{
 		$code = $event->getParameter('CODE');
 		$content = $event->getParameter('CONTENT');
 		$ratio = $event->getParameter('RATIO');
+		$contextUser = $event->getParameter('CONTEXT_USER');
+		$structure = new Configuration\Structure($contextUser);
+
+		if (!isset($content['~DATA']))
+		{
+			return null;
+		}
+
+		$return = [
+			'RATIO' => $ratio[$code] ?? [],
+			'ERROR_MESSAGES' => [],
+		];
+
+		if (
+			!isset($ratio[$code]['REPLACE_LID'])
+			|| (int)$ratio[$code]['REPLACE_LID'] <= 0
+		)
+		{
+			$return['ERROR_MESSAGES'] = 'Not set landing ID for replace';
+
+			return $return;
+		}
+		$replaceLid = (int)$ratio[$code]['REPLACE_LID'];
+
+		if (isset($return['RATIO']['TYPE']))
+		{
+			SiteCore\Type::setScope($return['RATIO']['TYPE']);
+		}
+		LandingCore::setEditMode();
+		$landing = LandingCore::createInstance($replaceLid);
+		if (!$landing->exist())
+		{
+			$return['ERROR_MESSAGES'] = 'Raplaced landing is not exists';
+
+			return $return;
+		}
+
+		// no landing imported
+		$return['RATIO']['LANDINGS'][$replaceLid] = $replaceLid;
+
+		if (!self::isNeedImport($event))
+		{
+			return $return;
+		}
+
+		$data = $content['~DATA'];
+		$data = self::prepareData($data);
+
+		$additionalFieldsBefore = self::getAdditionalFieldsForReplaceByLanding($replaceLid);
+		if (is_array($ratio[$code]['ADDITIONAL_FIELDS_SITE']) && !empty($ratio[$code]['ADDITIONAL_FIELDS_SITE']))
+		{
+			$data = self::mergeAdditionalFieldsForReplace($data, $ratio[$code]['ADDITIONAL_FIELDS_SITE']);
+			$data = self::prepareAdditionalFiles($data, $structure);
+			self::saveAdditionalFieldsToLanding($data, $replaceLid);
+			self::saveAdditionalFilesToLanding($data, $replaceLid);
+		}
+
+		if (isset($data['BLOCKS']) && is_array($data['BLOCKS']))
+		{
+			$data = self::prepareBlocksData($data, $event);
+			$blocksBefore = [];
+			$blocksAfter = [];
+
+			History::deactivate();
+			foreach ($landing->getBlocks() as $block)
+			{
+				$blockId = $block->getId();
+				$block->setAccess(Block::ACCESS_X);
+				if ($landing->markDeletedBlock($block->getId(), true))
+				{
+					$blocksBefore[] = $blockId;
+				}
+			}
+
+			foreach ($data['BLOCKS'] as $oldBlockId => $block)
+			{
+				if (is_array($block) && !empty($block))
+				{
+					$pending = false;
+					$newBlockId = self::importBlock(
+						$landing,
+						$block,
+						$structure,
+						$pending
+					);
+					$blocksAfter[] = $newBlockId;
+					$return['RATIO']['BLOCKS'][$oldBlockId] = $newBlockId;
+					if ($pending)
+					{
+						$return['RATIO']['BLOCKS_PENDING'][] = $newBlockId;
+					}
+				}
+			}
+
+			// find form block and replace form ID if need
+			$meta = $landing->getMeta();
+			$isCrmFormSite = null;
+			if ($meta['SITE_SPECIAL'] === 'Y')
+			{
+				$isCrmFormSite =
+					SiteCore\Type::getSiteSpecialType($meta['SITE_CODE']) === SiteCore\Type::PSEUDO_SCOPE_CODE_FORMS;
+			}
+			if ($isCrmFormSite && Loader::includeModule('crm'))
+			{
+				// find form
+				$res = Crm\WebForm\Internals\LandingTable::getList([
+					'select' => [
+						'FORM_ID',
+					],
+					'filter' => [
+						'=LANDING_ID' => $replaceLid,
+					],
+				]);
+				$row = $res->fetch();
+				$formId = $row ? $row['FORM_ID'] : null;
+				if ($formId)
+				{
+					foreach ($landing->getBlocks() as $block)
+					{
+						$manifest = $block->getManifest();
+						if (($manifest['block']['subtype'] ?? null) === 'form')
+						{
+							Form::setFormIdToBlock($block->getId(), $formId);
+							if ($block->getAccess() > Block::ACCESS_W)
+							{
+								BlockTable::update($block->getId(), [
+									'ACCESS' => Block::ACCESS_W,
+								]);
+							}
+						}
+					}
+				}
+			}
+
+			if (Manager::isAutoPublicationEnabled())
+			{
+				$landing->publication();
+			}
+
+			History::activate();
+			$history = new History($replaceLid, History::ENTITY_TYPE_LANDING);
+			$history->push('REPLACE_LANDING', [
+				'lid' => $replaceLid,
+				'template' => $code,
+				'blocksBefore' => $blocksBefore,
+				'blocksAfter' => $blocksAfter,
+				'additionalFieldsBefore' => $additionalFieldsBefore,
+				'additionalFieldsAfter' => $data['ADDITIONAL_FIELDS'],
+			]);
+		}
+
+		return $return;
+	}
+
+	/**
+	 * In some cases we don't need import current landing.
+	 * @param Event $event
+	 * @return bool - if false - need skip current page import
+	 */
+	protected static function isNeedImport(Event $event): bool
+	{
+		$code = $event->getParameter('CODE');
+		$content = $event->getParameter('CONTENT');
+		$ratio = $event->getParameter('RATIO');
+
+		if (($ratio[$code]['REPLACE_SITE_ID'] ?? 0) > 0)
+		{
+			return true;
+		}
 
 		if (
 			$ratio[$code]['IS_PAGE_IMPORT']
@@ -795,6 +798,125 @@ class Landing
 	}
 
 	/**
+	 * Check if current page is index page of site
+	 * @param Event $event
+	 * @return bool
+	 */
+	protected static function isMainpage(Event $event): bool
+	{
+		$code = $event->getParameter('CODE');
+		$content = $event->getParameter('CONTENT');
+		$ratio = $event->getParameter('RATIO');
+
+		return
+			isset($ratio[$code]['SPECIAL_PAGES']['LANDING_ID_INDEX'])
+			&& (int)$content['DATA']['ID'] === $ratio[$code]['SPECIAL_PAGES']['LANDING_ID_INDEX']
+		;
+	}
+
+	protected static function prepareData(array $data): array
+	{
+		// clear old keys
+		$notAllowedKeys = [
+			'ID', 'VIEWS', 'DATE_CREATE', 'DATE_MODIFY',
+			'DATE_PUBLIC', 'CREATED_BY_ID', 'MODIFIED_BY_ID',
+		];
+		foreach ($notAllowedKeys as $key)
+		{
+			if (isset($data[$key]))
+			{
+				unset($data[$key]);
+			}
+		}
+
+		return $data;
+	}
+
+	protected static function prepareBlocksData(array $data, Event $event): array
+	{
+		$data = self::fixWrapperClasses($data);
+		$data = self::deleteCopyrightBlock($data, $event);
+		$data = self::fixContactDataAndCountdown($data);
+
+		self::enableHiddenBlocksForCreatingPage();
+
+		return $data;
+	}
+
+	/**
+	 * Pass filters to block repository for enable add blocks with type 'null' (hidden from list)
+	 * @return void
+	 */
+	protected static function enableHiddenBlocksForCreatingPage(): void
+	{
+		$eventManager = EventManager::getInstance();
+		$eventManager->addEventHandler('landing', 'onBlockRepoSetFilters',
+			function(Event $event)
+			{
+				$result = new Entity\EventResult();
+				$result->modifyFields([
+					'DISABLE' => Block\BlockRepo::FILTER_SKIP_HIDDEN_BLOCKS,
+				]);
+
+				return $result;
+			}
+		);
+	}
+
+	/**
+	 * Processing additional data, then contains files
+	 * @param array $data
+	 * @param Configuration\Structure $structure
+	 * @return array
+	 */
+	protected static function prepareAdditionalFiles(array $data, Configuration\Structure $structure): array
+	{
+		foreach (Hook::HOOKS_CODES_FILES as $hookCode)
+		{
+			if (
+				isset($data['ADDITIONAL_FIELDS'][$hookCode]) &&
+				$data['ADDITIONAL_FIELDS'][$hookCode] > 0
+			)
+			{
+				$unpackFile = $structure->getUnpackFile($data['ADDITIONAL_FIELDS'][$hookCode]);
+
+				if ($unpackFile)
+				{
+					$data['ADDITIONAL_FIELDS'][$hookCode] = AppConfiguration::saveFile(
+						$unpackFile
+					);
+				}
+				else
+				{
+					unset($data['ADDITIONAL_FIELDS'][$hookCode]);
+				}
+			}
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Save hook files to landing
+	 * @param array $data
+	 * @param $landingId
+	 * @return void
+	 */
+	protected static function saveAdditionalFilesToLanding(array $data, $landingId): void
+	{
+		foreach (Hook::HOOKS_CODES_FILES as $hookCode)
+		{
+			if (
+				isset($data['ADDITIONAL_FIELDS'][$hookCode]) &&
+				$data['ADDITIONAL_FIELDS'][$hookCode] > 0
+			)
+			{
+				File::addToLanding($landingId, $data['ADDITIONAL_FIELDS'][$hookCode]);
+			}
+		}
+	}
+
+	/**
 	 * Prepare hooks and settings by additional fields
 	 * @param array $data - base params
 	 * @param array $additional - additional data
@@ -804,9 +926,9 @@ class Landing
 	protected static function prepareAdditionalFields(array $data, array $additional, array $ratio = null): array
 	{
 		$data['ADDITIONAL_FIELDS']['THEME_USE'] = 'N';
-		if ($additional['theme'] || $additional['theme_use_site'])
+		if (isset($additional['theme']))
 		{
-			$color = $additional['theme_use_site'] ?: $additional['theme'];
+			$color = $additional['theme'];
 			if ($color[0] !== '#')
 			{
 				$color = '#'.$color;
@@ -816,13 +938,13 @@ class Landing
 
 			// for variant if import only page in existing site
 			$isSinglePage = !is_array($ratio) || empty($ratio);
-			if ($isSinglePage && !$additional['theme_use_site'])
+			if ($isSinglePage)
 			{
 				$data['ADDITIONAL_FIELDS']['THEME_USE'] = 'Y';
 			}
 		}
 
-		// todo: how detecd mainpage?
+		// todo: move to isMainpage (need pass event)?
 		$isMainpage = false;
 		if ($additional['title'] && $isMainpage)
 		{
@@ -848,6 +970,281 @@ class Landing
 			$data['ADDITIONAL_FIELDS']['B24BUTTON_CODE'] = 'N';
 		}
 		$data['ADDITIONAL_FIELDS']['B24BUTTON_USE'] = 'N';
+
+		return $data;
+	}
+
+	/**
+	 * Find current additional field by landing id, filter only fields for replace landing import
+	 * @param int $lid
+	 * @return array
+	 */
+	protected static function getAdditionalFieldsForReplaceByLanding(int $lid): array
+	{
+		$additionalFields = [];
+		$hooks = Hook::getData($lid, Hook::ENTITY_TYPE_LANDING);
+		foreach ($hooks as $hook => $fields)
+		{
+			foreach ($fields as $code => $field)
+			{
+				$additionalFields[$hook . '_' . $code] = $field;
+			}
+		}
+
+		return self::getAdditionalFieldsForReplace($additionalFields);
+	}
+
+	/**
+	 * Find current additional field by landing id, filter only fields for replace landing import
+	 * @param int $siteId
+	 * @return array
+	 */
+	public static function getAdditionalFieldsForReplaceBySite(int $siteId): array
+	{
+		$additionalFields = [];
+		$hooks = Hook::getData($siteId, Hook::ENTITY_TYPE_SITE);
+		foreach ($hooks as $hook => $fields)
+		{
+			foreach ($fields as $code => $field)
+			{
+				$additionalFields[$hook . '_' . $code] = $field;
+			}
+		}
+
+		return self::getAdditionalFieldsForReplace($additionalFields);
+	}
+
+
+	/**
+	 * If replace landing - need replace hooks for page too. And for design - get settings from site
+	 * @param array $data
+	 * @param array $additionalFieldsSite
+	 * @return array
+	 */
+	protected static function mergeAdditionalFieldsForReplace(array $data, array $additionalFieldsSite): array
+	{
+		$additionalFields = $data['ADDITIONAL_FIELDS'] ?? [];
+		foreach (self::getAdditionalFieldsForReplace($additionalFieldsSite) as $code => $field)
+		{
+			if (!isset($additionalFields[$code]))
+			{
+				$additionalFields[$code] = $field;
+			}
+		}
+		$data['ADDITIONAL_FIELDS'] = $additionalFields;
+
+		return $data;
+	}
+
+	/**
+	 * Get additional fields, then need change when replace landing process
+	 * @param array $additionalFields - common fields list
+	 * @return array
+	 */
+	protected static function getAdditionalFieldsForReplace(array $additionalFields): array
+	{
+		$result = [];
+		foreach (Hook::HOOKS_CODES_DESIGN as $hookCode)
+		{
+			$result[$hookCode] = $additionalFields[$hookCode] ?? '';
+		}
+
+		return $result;
+	}
+
+	protected static function saveAdditionalFieldsToLanding(array $data, int $landingId): void
+	{
+		if (is_array($data['ADDITIONAL_FIELDS']) && !empty($data['ADDITIONAL_FIELDS']))
+		{
+			LandingCore::saveAdditionalFields($landingId, $data['ADDITIONAL_FIELDS']);
+		}
+	}
+
+	protected static function fixWrapperClasses(array $data): array
+	{
+		// @fix wrapper classes from original
+		$appCode = $data['INITIATOR_APP_CODE'];
+		$newTplCode = $data['PREVIOUS_TPL_CODE'] ?? $data['TPL_CODE'];
+		$delobotAppCode = 'local.5eea949386cd05.00160385';
+		$kraytAppCode = 'local.5f11a19f813b13.97126836';
+		$bitrixAppCode = 'bitrix.';
+		if (
+			strpos($newTplCode, $delobotAppCode) !== false
+			|| strpos($newTplCode, $kraytAppCode) !== false
+			|| strpos($appCode, $bitrixAppCode) === 0
+		)
+		{
+			$wrapperClasses = [];
+			$http = new \Bitrix\Main\Web\HttpClient;
+			$resPreview = $http->get(Manager::getPreviewHost() . '/tools/blocks.php?tplCode=' . $newTplCode);
+			if ($resPreview)
+			{
+				try
+				{
+					$wrapperClasses = \Bitrix\Main\Web\Json::decode($resPreview);
+				}
+				catch (\Exception $e){}
+			}
+
+			if ($wrapperClasses)
+			{
+				$i = 0;
+				foreach ($data['BLOCKS'] as &$blockData)
+				{
+					if (isset($wrapperClasses[$i]) && $wrapperClasses[$i]['code'] === $blockData['code'])
+					{
+						$blockData['style']['#wrapper'] = ['classList' => [$wrapperClasses[$i]['classList']]];
+					}
+					$i++;
+				}
+				unset($blockData);
+			}
+		}
+		unset($delobotAppCode, $kraytAppCode);
+
+		return $data;
+	}
+
+	protected static function deleteCopyrightBlock(array $data, Event $event): array
+	{
+		//fix, delete copyright block
+		$appCode = $data['INITIATOR_APP_CODE'];
+		$content = $event->getParameter('CONTENT');
+		$templateDateCreate = strtotime($content['DATA']['DATE_CREATE']);
+		$lastDate = strtotime('17.02.2022 00:00:00');
+		if ($templateDateCreate < $lastDate)
+		{
+			$kraytCode = 'bitrix.krayt';
+			$delobotCode = 'bitrix.delobot';
+			if (strpos($appCode, $kraytCode) !== false || strpos($appCode, $delobotCode) !== false)
+			{
+				if (array_slice($data['BLOCKS'], -1)[0]['code'] === '17.copyright')
+				{
+					array_pop($data['BLOCKS']);
+				}
+			}
+			unset($kraytCode, $delobotCode);
+		}
+
+		return $data;
+	}
+
+	protected static function fixContactDataAndCountdown(array $data): array
+	{
+		$appCode = $data['INITIATOR_APP_CODE'];
+		$bitrixAppCode = 'bitrix.';
+
+		foreach ($data['BLOCKS'] as &$block)
+		{
+			//fix contact data
+			if (isset($block['nodes']) && strpos($appCode, $bitrixAppCode) === 0)
+			{
+				foreach ($block['nodes'] as &$node)
+				{
+					$countNodeItem = 0;
+					foreach ($node as &$nodeItem)
+					{
+						if (isset($nodeItem['href']))
+						{
+							$setContactsBlockCode = [
+								'14.1.contacts_4_cols',
+								'14.2contacts_3_cols',
+								'14.3contacts_2_cols',
+							];
+							if (preg_match('/^tel:.*$/i', $nodeItem['href']))
+							{
+								$nodeItem['href'] = 'tel:#crmPhone1';
+								if (isset($nodeItem['text']))
+								{
+									$nodeItem['text'] = '#crmPhoneTitle1';
+								}
+								if (
+									(isset($block['nodes']['.landing-block-node-linkcontact-text'])
+										&&	in_array($block['code'], $setContactsBlockCode, true))
+								)
+								{
+									$block['nodes']['.landing-block-node-linkcontact-text'][$countNodeItem] = '#crmPhoneTitle1';
+								}
+							}
+							if (preg_match('/^mailto:.*$/i', $nodeItem['href']))
+							{
+								$nodeItem['href'] = 'mailto:#crmEmail1';
+								if (isset($nodeItem['text']))
+								{
+									$nodeItem['text'] = '#crmEmailTitle1';
+								}
+								if (
+									isset($block['nodes']['.landing-block-node-linkcontact-text'])
+									&& (in_array($block['code'], $setContactsBlockCode, true))
+								)
+								{
+									$block['nodes']['.landing-block-node-linkcontact-text'][$countNodeItem] = '#crmEmailTitle1';
+								}
+							}
+						}
+						$countNodeItem++;
+					}
+					unset($nodeItem);
+				}
+				unset($node);
+			}
+			//fix countdown until the next unexpired date
+			if (isset($block['attrs']))
+			{
+				foreach ($block['attrs'] as &$attr)
+				{
+					foreach ($attr as &$attrItem)
+					{
+						if (array_key_exists('data-end-date', $attrItem))
+						{
+							$neededAttr = is_numeric($attrItem['data-end-date'])
+								? (int)$attrItem['data-end-date'] / 1000
+								: 0;
+							$currenDate = time();
+							if ($neededAttr < $currenDate)
+							{
+								$m = date('m', $neededAttr);
+								$d = date('d', $neededAttr);
+								$currenDateY = (int)date('Y', $currenDate);
+								$currenDateM = date('m', $currenDate);
+								$currenDateD = date('d', $currenDate);
+								if ($currenDateM > $m)
+								{
+									$y = $currenDateY + 1;
+								}
+								else if (($currenDateM === $m) && $currenDateD >= $d)
+								{
+									$y = $currenDateY + 1;
+								}
+								else
+								{
+									$y = $currenDateY;
+								}
+								$time = '10:00:00';
+								$timestamp = strtotime($y . '-' . $m . '-' . $d . ' ' . $time) * 1000;
+								$attrItem['data-end-date'] = (string)$timestamp;
+
+								if (preg_match_all(
+									'/data-end-date="\d+"/',
+									$block['full_content'],
+									$matches)
+								)
+								{
+									$block['full_content'] = str_replace(
+										$matches[0],
+										'data-end-date="' . $attrItem['data-end-date'] . '"',
+										$block['full_content']
+									);
+								}
+							}
+						}
+					}
+					unset($attrItem);
+				}
+				unset($attr);
+			}
+		}
+		unset($block);
 
 		return $data;
 	}

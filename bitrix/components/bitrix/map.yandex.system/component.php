@@ -4,12 +4,14 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 if (!isset($arParams['YANDEX_VERSION']))
 	$arParams['YANDEX_VERSION'] = '2.0';
 
-$arParams['DEV_MODE'] = $arParams['DEV_MODE'] == 'Y' ? 'Y' : 'N';
+$arParams['DEV_MODE'] = ($arParams['DEV_MODE'] ?? null) == 'Y' ? 'Y' : 'N';
 
-if($arParams['API_KEY'] == '')
+if(($arParams['API_KEY'] ?? null) == '')
+{
 	$arParams['API_KEY'] =  \Bitrix\Main\Config\Option::get('fileman', 'yandex_map_api_key', '');
+}
 
-if (!$arParams['LOCALE'])
+if (!($arParams['LOCALE'] ?? null))
 {
 	switch (LANGUAGE_ID)
 	{
@@ -39,6 +41,7 @@ if (!defined('BX_YMAP_SCRIPT_LOADED'))
 	else
 	{
 		$host = 'enterprise.api-maps.yandex.ru';
+		$arParams['API_KEY'] = CUtil::JSEscape($arParams['API_KEY']);
 	}
 
 	$arResult['MAPS_SCRIPT_URL'] = $scheme.'://'.$host.'/'.$arParams['YANDEX_VERSION'].'/?load=package.full&mode=release&lang='.$arParams['LOCALE'].'&wizard=bitrix';
@@ -104,15 +107,17 @@ else
 {
 	foreach ($arParams['CONTROLS'] as $key => $control)
 	{
-		if (!$arResult['ALL_MAP_CONTROLS'][$control])
+		if (!($arResult['ALL_MAP_CONTROLS'][$control] ?? null))
+		{
 			unset($arParams['CONTROLS'][$key]);
+		}
 	}
 
 	$arParams['CONTROLS'] = array_values($arParams['CONTROLS']);
 }
 
 $arParams['MAP_WIDTH'] = trim($arParams['MAP_WIDTH']);
-if (ToUpper($arParams['MAP_WIDTH']) != 'AUTO' && mb_substr($arParams['MAP_WIDTH'], -1, 1) != '%')
+if (mb_strtoupper($arParams['MAP_WIDTH']) != 'AUTO' && mb_substr($arParams['MAP_WIDTH'], -1, 1) != '%')
 {
 	$arParams['MAP_WIDTH'] = intval($arParams['MAP_WIDTH']);
 	if ($arParams['MAP_WIDTH'] <= 0) $arParams['MAP_WIDTH'] = 600;

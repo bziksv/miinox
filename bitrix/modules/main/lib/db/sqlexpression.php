@@ -9,6 +9,8 @@
 namespace Bitrix\Main\DB;
 
 use Bitrix\Main\Application;
+use Bitrix\Main\Type\Date;
+use Bitrix\Main\Type\DateTime;
 
 /**
  * Class SqlExpression
@@ -23,7 +25,7 @@ class SqlExpression
 	/** @var array */
 	protected $args = array();
 
-	protected $pattern = '/([^\\\\]|^)(\?[#sif]?)/';
+	protected $pattern = '/([^\\\\]|^)(\?[#sifv@]?)/';
 
 	protected $i;
 
@@ -57,12 +59,14 @@ class SqlExpression
 	 * Returns $expression with replaced placeholders.
 	 *
 	 * @return string
+	 *
+	 * @throws \Bitrix\Main\ArgumentException
 	 */
 	public function compile()
 	{
 		$this->i = -1;
 
-		if (strpos($this->expression, '\\') === false)
+		if (!str_contains($this->expression, '\\'))
 		{
 			// regular case
 			return preg_replace_callback($this->pattern, array($this, 'execPlaceholders'), $this->expression);
@@ -92,6 +96,8 @@ class SqlExpression
 	 * @param array $matches Matches found by preg_replace.
 	 *
 	 * @return string
+	 *
+	 * @throws \Bitrix\Main\ArgumentException
 	 */
 	protected function execPlaceholders($matches)
 	{
@@ -106,17 +112,36 @@ class SqlExpression
 		{
 			$value = $this->args[$this->i];
 
-			if ($value === null && $ph !== '?#')
+			if ($value === null && $ph !== '?#' && $ph !== '?@')
 			{
 				$value = 'NULL';
 			}
-			elseif ($ph == '?' || $ph == '?s')
+			elseif ($ph == '?')
+			{
+				if ($value instanceof DateTime)
+				{
+					$value = $sqlHelper->convertToDbDateTime($value);
+				}
+				elseif ($value instanceof Date)
+				{
+					$value = $sqlHelper->convertToDbDate($value);
+				}
+				else
+				{
+					$value = "'" . $sqlHelper->forSql($value) . "'";
+				}
+			}
+			elseif ($ph == '?s')
 			{
 				$value = "'" . $sqlHelper->forSql($value) . "'";
 			}
 			elseif ($ph == '?#')
 			{
 				$value = $sqlHelper->quote($value);
+			}
+			elseif ($ph == '?v')
+			{
+				$value = $sqlHelper->values($value);
 			}
 			elseif ($ph == '?i')
 			{
@@ -126,11 +151,53 @@ class SqlExpression
 			{
 				$value = (float) $value;
 			}
+			elseif ($ph == '?@')
+			{
+				$value = $this->convertListPlaceholder($value);
+			}
 
 			return $pre . $value;
 		}
 
 		return $matches[0];
+	}
+
+	/**
+	 * @param mixed $value
+	 *
+	 * @return string
+	 *
+	 * @throws \Bitrix\Main\ArgumentException
+	 */
+	private function convertListPlaceholder($value)
+	{
+		if (is_array($value))
+		{
+			$items = $value;
+		}
+		elseif ($value instanceof \Traversable)
+		{
+			$items = iterator_to_array($value, false);
+		}
+		else
+		{
+			throw new \Bitrix\Main\ArgumentException('Placeholder ?@ expects an array or Traversable.');
+		}
+
+		if (empty($items))
+		{
+			throw new \Bitrix\Main\ArgumentException('Placeholder ?@ does not accept an empty list.');
+		}
+
+		$sqlHelper = $this->getConnection()->getSqlHelper();
+		$converted = [];
+
+		foreach ($items as $item)
+		{
+			$converted[] = $sqlHelper->convertToDb($item, null);
+		}
+
+		return implode(',', $converted);
 	}
 
 	public function __toString()

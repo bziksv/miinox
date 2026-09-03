@@ -6,6 +6,7 @@
  * @copyright 2001-2013 Bitrix
  */
 
+use Bitrix\Main\Application;
 use Bitrix\Main\Localization\CultureTable;
 
 require_once("utils.php");
@@ -97,7 +98,7 @@ class CSelectSiteWizardStep extends CWizardStep
 
 
 $this->content =
-'<script type="text/javascript">
+'<script>
 function SelectCreateSite(element, solutionId)
 {
 	var container = document.getElementById("solutions-container");
@@ -315,7 +316,7 @@ class CSelectThemeWizardStep extends CWizardStep
 		}
 
 		$this->content =
-'<script type="text/javascript">
+'<script>
 function SelectTheme(element, solutionId, imageUrl)
 {
 	var container = document.getElementById("solutions-container");
@@ -522,7 +523,7 @@ class CDataInstallWizardStep extends CWizardStep
 		$NextStepVarName = $wizard->GetRealName("nextStep");
 
 		$this->content .= '
-		<script type="text/javascript">
+		<script>
 			var ajaxForm = new CAjaxForm("'.$formName.'", "iframe-post-form", "'.$NextStepVarName.'");
 			ajaxForm.Post("'.$firstService.'", "'.$stage.'", "'.$status.'");
 		</script>';
@@ -563,7 +564,7 @@ class CDataInstallWizardStep extends CWizardStep
 					"=FORMAT_DATE" => (LANGUAGE_ID=="en"? "MM/DD/YYYY":"DD.MM.YYYY"),
 					"=FORMAT_DATETIME" => (LANGUAGE_ID=="en"? "MM/DD/YYYY H:MI:SS T":"DD.MM.YYYY HH:MI:SS"),
 					"=FORMAT_NAME" => CSite::GetDefaultNameFormat(),
-					"=CHARSET" => (defined("BX_UTF")? "UTF-8" : (LANGUAGE_ID=="ru"? "windows-1251":"ISO-8859-1")),
+					"=CHARSET" => "UTF-8",
 				)));
 
 				if($culture)
@@ -578,7 +579,7 @@ class CDataInstallWizardStep extends CWizardStep
 						"FORMAT_DATE" => (LANGUAGE_ID=="en"? "MM/DD/YYYY":"DD.MM.YYYY"),
 						"FORMAT_DATETIME" => (LANGUAGE_ID=="en"? "MM/DD/YYYY H:MI:SS T":"DD.MM.YYYY HH:MI:SS"),
 						"FORMAT_NAME" => CSite::GetDefaultNameFormat(),
-						"CHARSET" => (defined("BX_UTF")? "UTF-8" : (LANGUAGE_ID=="ru"? "windows-1251":"ISO-8859-1")),
+						"CHARSET" => "UTF-8",
 					));
 					$cultureId = $addResult->getId();
 				}
@@ -656,7 +657,7 @@ class CDataInstallWizardStep extends CWizardStep
 			if(!$arMenuTypes['top'] || $arMenuTypes['top'] == GetMessage("WIZ_MENU_TOP_DEFAULT"))
 				$arMenuTypes['top'] = GetMessage("WIZ_MENU_TOP");
 
-			if(!$arMenuTypes['bottom'])
+			if(empty($arMenuTypes['bottom']))
 				$arMenuTypes['bottom'] = GetMessage("WIZ_MENU_BOTTOM");
 		}
 
@@ -890,6 +891,6 @@ class CFinishWizardStep extends CWizardStep
 			$delete_after_copy = true
 		);
 
-		bx_accelerator_reset();
+		Application::resetAccelerator();
 	}
 }

@@ -1,5 +1,9 @@
-<?
+<?php
+
 /** @global CUser $USER */
+
+/** @global CMain $APPLICATION */
+global $APPLICATION;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
@@ -91,6 +95,8 @@ if ($arParams['USE_CHART'])
 
 $fieldList = array();
 
+$isPost = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST');
+
 try
 {
 	$userId = $USER->GetID();
@@ -119,7 +125,12 @@ try
 	// </editor-fold>
 
 	// <editor-fold defaultstate="collapsed" desc="validation">
-	if ($arParams['ACTION'] == 'edit' || $arParams['ACTION'] == 'copy' || $arParams['ACTION'] == 'delete')
+	if (
+		$arParams['ACTION'] == 'edit'
+		|| $arParams['ACTION'] == 'copy'
+		|| $arParams['ACTION'] == 'delete'
+		|| $arParams['ACTION'] == 'delete_confirmed'
+	)
 	{
 		$result = Bitrix\Report\ReportTable::getById($arParams['REPORT_ID']);
 		$report = $result->fetch();
@@ -130,8 +141,10 @@ try
 		}
 
 		$rightsManager = new Bitrix\Report\RightsManager($userId);
-		if(!$rightsManager->canRead($report['ID']))
+		if ($arParams['ACTION'] == 'copy' && !$rightsManager->canRead($report['ID']))
+		{
 			throw new BXUserException(GetMessage('REPORT_VIEW_PERMISSION_DENIED'));
+		}
 
 		if ($arParams['ACTION'] === 'edit')
 		{
@@ -140,7 +153,13 @@ try
 				throw new BXUserException(GetMessage('REPORT_DEFAULT_CAN_NOT_BE_EDITED'));
 		}
 
-		if($arParams['ACTION'] === 'delete' && !$rightsManager->canDelete($report['ID']))
+		if (
+			(
+				$arParams['ACTION'] === 'delete'
+				|| $arParams['ACTION'] == 'delete_confirmed'
+			)
+			&& !$rightsManager->canDelete($report['ID'])
+		)
 		{
 			throw new BXUserException(GetMessage('REPORT_DEFAULT_CAN_NOT_BE_DELETED'));
 		}
@@ -202,7 +221,7 @@ try
 		{
 			throw new BXFormException(GetMessage('REPORT_CSRF'));
 		}
-		$reportId = intval($_POST['EXPORT_REPORT']);
+		$reportId = (int)($_POST['EXPORT_REPORT'] ?? 0);
 		$rightsmanager = new Bitrix\Report\RightsManager($USER->GetID());
 		if(!$rightsmanager->canRead($reportId))
 		{
@@ -211,12 +230,9 @@ try
 		}
 
 		$queryObject = Bitrix\Report\ReportTable::getById($reportId);
-		if($report = $queryObject->fetch())
+		if ($report = $queryObject->fetch())
 		{
-			unset($report['ID']);
-			unset($report['CREATED_BY']);
-			unset($report['CREATED_DATE']);
-			unset($report['MARK_DEFAULT']);
+			unset($report['ID'], $report['CREATED_BY'], $report['CREATED_DATE'], $report['MARK_DEFAULT']);
 			$arResult['REPORT'] = $report;
 		}
 
@@ -266,7 +282,7 @@ try
 
 		// <editor-fold defaultstate="collapsed" desc="preapre period">
 		$period = [];
-		if (!empty($_POST['F_DATE_TYPE']) && in_array($_POST['F_DATE_TYPE'], $periodTypes, true))
+		if (!empty($_POST['F_DATE_TYPE']) && in_array($_POST['F_DATE_TYPE'] ?? '', $periodTypes, true))
 		{
 			$period = array('type' => $_POST['F_DATE_TYPE']);
 
@@ -362,7 +378,7 @@ try
 				}
 
 				// save prcnt
-				if($v['prcnt'] <> '')
+				if(($v['prcnt'] ?? '') !== '')
 				{
 					if($v['prcnt'] == 'self_column' || array_key_exists($v['prcnt'], $_POST['report_select_columns']))
 					{
@@ -494,12 +510,12 @@ try
 		// </editor-fold>
 
 		// <editor-fold defaultstate="collapsed" desc="prepare red negative values">
-		$redNegativeValues = ($_POST['report_red_neg_vals'] === 'on') ? true : false;
+		$redNegativeValues = (($_POST['report_red_neg_vals'] ?? '') === 'on') ? true : false;
 		// </editor-fold>
 
 		// <editor-fold defaultstate="collapsed" desc="prepare helper specific settings">
 		// use columns selection of price types
-		if ($_POST['helper_spec_ucspt'] === 'on')
+		if (($_POST['helper_spec_ucspt'] ?? '') === 'on')
 		{
 			$helperSpecSettings = array('ucspt' => true);
 		}
@@ -533,7 +549,7 @@ try
 
 		// <editor-fold defaultstate="collapsed" desc="prepare mobile settings">
 		$mobile = null;
-		if ($_POST['report_mobile_enabled'] === 'on')
+		if (($_POST['report_mobile_enabled'] ?? '') === 'on')
 		{
 			$mobile = array('enabled' => true);
 		}
@@ -565,9 +581,18 @@ try
 			'red_neg_vals' => $redNegativeValues,
 			'grouping_mode' => $bGroupingMode
 		);
-		if (isset($helperSpecSettings)) $reportSettings['helper_spec'] = $helperSpecSettings;
-		if ($arParams['USE_CHART']) $reportSettings['chart'] = $chart;
-		if (is_array($mobile) && count($mobile) > 0) $reportSettings['mobile'] = $mobile;
+		if (isset($helperSpecSettings))
+		{
+			$reportSettings['helper_spec'] = $helperSpecSettings;
+		}
+		if ($arParams['USE_CHART'] && isset($chart))
+		{
+			$reportSettings['chart'] = $chart;
+		}
+		if (is_array($mobile) && count($mobile) > 0)
+		{
+			$reportSettings['mobile'] = $mobile;
+		}
 
 		if (!empty($formErr))
 		{

@@ -754,15 +754,15 @@ abstract class Connector extends Entity\DataManager
 		if(!is_array($parameters))
 			$parameters = array();
 
-		if(is_array($parameters['runtime']))
+		if(isset($parameters['runtime']) && is_array($parameters['runtime']))
 			Assert::announceNotImplemented('Sorry, runtime clause is not implemented currently.');
 
 		$order = array();
-		if(is_array($parameters['order']))
+		if(isset($parameters['order']) && is_array($parameters['order']))
 			Assert::announceNotImplemented('Sorry, order-over-union clause is not implemented currently.');
 
 		$filter = array();
-		if(is_array($parameters['filter']) && !empty($parameters['filter']))
+		if(!empty($parameters['filter']) && is_array($parameters['filter']))
 			$filter = $parameters['filter'];
 
 		$select = array('*');
@@ -1157,8 +1157,8 @@ abstract class Connector extends Entity\DataManager
 			$usageFlags[$entityPrimary][static::DB_GROUP_FLAG] = !!static::getList(array(
 				'limit' => 1,
 				'filter' => array(
-					static::getLinkField() => $entityPrimary,
-					'LOCATION_TYPE' => static::DB_GROUP_FLAG
+					'=' . static::getLinkField() => $entityPrimary,
+					'=LOCATION_TYPE' => static::DB_GROUP_FLAG
 				)
 			))->fetch();
 		}

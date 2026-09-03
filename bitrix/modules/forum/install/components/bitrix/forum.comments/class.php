@@ -1,9 +1,5 @@
-<?php
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
 
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
-{
-	die();
-}
 
 use Bitrix\Forum\Internals\Error\Error;
 use Bitrix\Forum\Internals\Error\ErrorCollection;
@@ -17,15 +13,15 @@ Loc::loadMessages(__FILE__);
 
 final class ForumCommentsComponent extends CBitrixComponent implements Main\Engine\Contract\Controllerable
 {
-	const ERROR_REQUIRED_PARAMETER = 'FORUM_BASE_COMPONENT_22001';
-	const ERROR_ACTION = 'FORUM_BASE_COMPONENT_22002';
+	protected const ERROR_REQUIRED_PARAMETER = 'FORUM_BASE_COMPONENT_22001';
+	protected const ERROR_ACTION = 'FORUM_BASE_COMPONENT_22002';
 
-	const STATUS_SUCCESS = 'success';
-	const STATUS_DENIED  = 'denied';
-	const STATUS_ERROR   = 'error';
+	protected const STATUS_SUCCESS = 'success';
+	protected const STATUS_DENIED  = 'denied';
+	protected const STATUS_ERROR   = 'error';
 
-	const MID_NEW = 'Y';
-	const MID_OLD = 'N';
+	protected const MID_NEW = 'Y';
+	protected const MID_OLD = 'N';
 
 	/** @var  string */
 	protected $action;
@@ -44,11 +40,12 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 	/** @var integer */
 	private static $index = 0;
 
-	const STATUS_SCOPE_MOBILE = 'mobile';
-	const STATUS_SCOPE_WEB = 'web';
+	protected const STATUS_SCOPE_MOBILE = 'mobile';
+	protected const STATUS_SCOPE_WEB = 'web';
 
 	private $scope;
 	public $prepareMobileData;
+	private $user;
 
 	public function __construct($component = null)
 	{
@@ -59,15 +56,17 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		$this->componentId = $this->isAjaxRequest() ? randString(7) : $this->randString();
 		$this->errorCollection = new ErrorCollection();
 
+		global $USER;
+		$this->user = $USER instanceof \CUser ? $USER : null;
+
 		$this->prepareMobileData = IsModuleInstalled("mobile");
+
 		$this->scope = self::STATUS_SCOPE_WEB;
 		if (is_callable(array('\Bitrix\MobileApp\Mobile', 'getApiVersion')) && \Bitrix\MobileApp\Mobile::getApiVersion() >= 1 && defined("BX_MOBILE") && BX_MOBILE === true)
 			$this->scope = self::STATUS_SCOPE_MOBILE;
 		$this->changeTemplate();
 
 		self::$index++;
-
-		$this->changeTemplate();
 	}
 
 	protected function changeTemplate()
@@ -97,7 +96,6 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 
 		$this->end();
 	}
-
 
 	protected function sendJsonResponse($response)
 	{
@@ -154,6 +152,12 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 
 	protected function handleException(\Exception $e)
 	{
+		$exceptionHandling = Config\Configuration::getValue("exception_handling");
+		if (isset($exceptionHandling["debug"]) && $exceptionHandling["debug"] === true)
+		{
+			throw $e;
+		}
+
 		if ($this->isAjaxRequest())
 		{
 			$this->sendJsonResponse(array(
@@ -169,15 +173,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		}
 		else
 		{
-			$exceptionHandling = Config\Configuration::getValue("exception_handling");
-			if($exceptionHandling["debug"])
-			{
-				throw $e;
-			}
-			else
-			{
-				ShowError($e->getMessage());
-			}
+			ShowError($e->getMessage());
 		}
 	}
 
@@ -210,9 +206,10 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		$arParams['SUBSCRIBE_AUTHOR_ELEMENT'] = $arParams['SUBSCRIBE_AUTHOR_ELEMENT'] ?? 'N';
 
 		$arParams['CACHE_TYPE'] = $arParams['CACHE_TYPE'] ?? 'A';
-		$arParams['CACHE_TIME'] = $arParams['CACHE_TIME'] ?? '3600';
+		$arParams['CACHE_TIME'] = $arParams['CACHE_TIME'] ?? 3600;
 
 		$arParams['bFromList'] = $arParams['bFromList'] ?? false;
+		$arParams['USER'] = $this->getUser();
 
 		return $arParams;
 	}
@@ -227,6 +224,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 			}
 
 			$this->checkRequiredParams();
+
 			$this->feed = new Forum\Comments\Feed(
 				$this->arParams["FORUM_ID"],
 				array(
@@ -242,6 +240,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 			{
 				$this->feed->setPermission($this->arParams["PERMISSION"]);
 			}
+
 			if (array_key_exists("ALLOW_EDIT_OWN_MESSAGE", $this->arParams))
 				$this->feed->setEditOwn($this->arParams["ALLOW_EDIT_OWN_MESSAGE"] == "ALL" ||
 					$this->arParams["ALLOW_EDIT_OWN_MESSAGE"] === "LAST");
@@ -253,12 +252,14 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 				$this->prepareParams();
 
 				foreach (GetModuleEvents('forum', 'OnCommentsInit', true) as $arEvent)
+				{
 					ExecuteModuleEventEx($arEvent, array(&$this));
+				}
 
 				if (
 					(
 						$this->arParams["CHECK_ACTIONS"] != "N"
-						&& !$this->checkPreview()
+						&& $this->checkPreview() === false
 						&& $this->checkActions() === false
 					)
 					||
@@ -325,16 +326,9 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		$this->arParams["SHOW_LOGIN"] = $this->arParams["SHOW_LOGIN"] ?? 'Y';
 		if (!array_key_exists("USE_CAPTCHA", $this->arParams))
 			$this->arParams["USE_CAPTCHA"] = $this->forum["USE_CAPTCHA"];
-		if ($this->arParams["USE_CAPTCHA"] == "Y" && !$this->getUser()->IsAuthorized())
+		if ($this->arParams["USE_CAPTCHA"] == "Y" && $this->getUser()?->IsAuthorized() !== true)
 		{
-			include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/captcha.php");
 			$this->captcha = new CCaptcha();
-			$captchaPass = COption::GetOptionString("main", "captcha_password", "");
-			if ($captchaPass == '')
-			{
-				$captchaPass = randString(10);
-				COption::SetOptionString("main", "captcha_password", $captchaPass);
-			}
 		}
 
 		if (in_array($this->arParams["ALLOW_UPLOAD"], array("A", "Y", "F", "N", "I")))
@@ -350,10 +344,13 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 			$this->arResult["OK_MESSAGE"] = Loc::getMessage("COMM_COMMENT_OK");
 		else if ($this->request["result"] == "not_approved")
 			$this->arResult["OK_MESSAGE"] = Loc::getMessage("COMM_COMMENT_OK_AND_NOT_APPROVED");
+
 		unset($_GET["result"]);
 		unset($GLOBALS["HTTP_GET_VARS"]["result"]);
+
 		$this->arParams["AJAX_MODE"] = $this->isAjaxRequest() ? "Y" : "N";
 		$this->arParams["index"] = $this->componentId;
+		$this->arParams["form_index"] =  str_pad($this->componentId, 5, "0", STR_PAD_LEFT);
 		$this->arParams["COMPONENT_ID"] = $this->componentId;
 		return $this;
 	}
@@ -361,13 +358,13 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 	private function subscribeAuthor($tid)
 	{
 		CForumSubscribe::Add(array(
-			"USER_ID" => $this->getUser()->getId(),
+			"USER_ID" => $this->getUser()?->getId(),
 			"FORUM_ID" => $this->arParams["FORUM_ID"],
 			"SITE_ID" => SITE_ID,
 			"TOPIC_ID" => $tid,
 			"NEW_TOPIC_ONLY" => "N")
 		);
-		BXClearCache(true, "/bitrix/forum/user/".$this->getUser()->getId()."/subscribe/");
+		BXClearCache(true, "/bitrix/forum/user/".$this->getUser()?->getId()."/subscribe/");
 	}
 
 	/**
@@ -390,16 +387,16 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		$this->arParams["ALLOW_UPLOAD_EXT"] = $this->arParams["ALLOW_UPLOAD_EXT"] ?? $forum["ALLOW_UPLOAD_EXT"];
 		$path = __DIR__;
 		include_once($path."/files_input.php");
-		$this->arResult["objFiles"] = new CCommentFiles($this);
+		$this->arResult["objFiles"] = new CCommentFiles($this, $this->getUser());
 
 		include_once($path."/ufs.php");
-		$this->arResult["objUFs"] = new CCommentUFs($this);
+		$this->arResult["objUFs"] = new CCommentUFs($this, $this->getUser());
 
 		$this->arResult["objRating"] = false;
 		if ($this->arParams["SHOW_RATING"] == "Y")
 		{
 			include_once($path."/ratings.php");
-			$this->arResult["objRating"] = new CCommentRatings($this);
+			$this->arResult["objRating"] = new CCommentRatings($this, $this->getUser());
 		}
 	}
 
@@ -421,7 +418,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 			$code = $this->request->getPost("captcha_code");
 			$word = $this->request->getPost("captcha_word");
 
-			if ($code <> '' && !$this->captcha->CheckCodeCrypt($word, $code, COption::GetOptionString("main", "captcha_password", "")) ||
+			if ($code <> '' && !$this->captcha->CheckCodeCrypt($word, $code) ||
 				$code == '' && !$this->captcha->CheckCode($word, 0))
 			{
 				return false;
@@ -439,7 +436,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 			$this->arResult["MESSAGE_VIEW"] = array(
 				"POST_MESSAGE" => $post["REVIEW_TEXT"],
 				"USE_SMILES" => $post["REVIEW_USE_SMILES"],
-				"AUTHOR_ID" => $this->getUser()->getId(),
+				"AUTHOR_ID" => $this->getUser()?->getId(),
 				"FILES" => array());
 			foreach (GetModuleEvents('forum', 'OnCommentPreview', true) as $arEvent)
 				ExecuteModuleEventEx($arEvent, [$this]);
@@ -521,18 +518,22 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		}
 		else
 		{
-			if ($post["AJAX_POST"] == "Y" && $this->arParams["COMPONENT_AJAX"] !== "Y")
-				CUtil::decodeURIComponent($post);
-
 			if ($action == "add" || $action == "edit")
 			{
 				$arPost = array(
 					"POST_MESSAGE" => $post["REVIEW_TEXT"] ?? '',
-					"AUTHOR_NAME" => ($this->getUser()->isAuthorized() ? $this->getUserName() : ($post["REVIEW_AUTHOR"] ?? $GLOBALS["FORUM_STATUS_NAME"]["guest"])),
+					"AUTHOR_NAME" => ($this->getUser()?->isAuthorized() ? $this->getUserName() :
+						($post["REVIEW_AUTHOR"] ?? $GLOBALS["FORUM_STATUS_NAME"]["guest"])),
 					"AUTHOR_EMAIL" => $post["REVIEW_EMAIL"] ?? '',
 					"USE_SMILES" => $post["REVIEW_USE_SMILES"] ?? 'Y',
 					"GUEST_ID" => Main\ModuleManager::isModuleInstalled("statistic") ? $_SESSION["SESS_GUEST_ID"] : null
 				);
+
+				if (isset($post['SOURCE_ID']))
+				{
+					$arPost['SOURCE_ID'] = Forum\MessageTable::filterSourceIdParam($post['SOURCE_ID']);
+				}
+
 				if ($realIp = Main\Service\GeoIp\Manager::getRealIp())
 				{
 					$arPost["AUTHOR_IP"] = $realIp;
@@ -567,7 +568,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 					if ($action == "add")
 					{
 						$this->feed->setUserAsRead();
-						if ($this->arParams["SUBSCRIBE_AUTHOR_ELEMENT"] == "Y" && $this->getUser()->IsAuthorized())
+						if ($this->arParams["SUBSCRIBE_AUTHOR_ELEMENT"] == "Y" && $this->getUser()?->IsAuthorized())
 						{
 							$this->subscribeAuthor($message["TOPIC_ID"]);
 						}
@@ -575,7 +576,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 					if ($this->request["TOPIC_SUBSCRIBE"] == "Y")
 					{
 						ForumSubscribeNewMessagesEx($this->arParams["FORUM_ID"], $message["TOPIC_ID"], "N", $strErrorMessage, $strOKMessage);
-						BXClearCache(true, "/bitrix/forum/user/".$this->getUser()->getId()."/subscribe/");
+						BXClearCache(true, "/bitrix/forum/user/".$this->getUser()?->getId()."/subscribe/");
 					}
 				}
 			}
@@ -594,7 +595,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 			}
 			else if ($this->request["NOREDIRECT"] != "Y" && !$this->isAjaxRequest())
 			{
-				$strURL = $this->request["back_page"] ?: $this->getApplication()->GetCurPageParam("", array("MID", "ID", "SEF_APPLICATION_CUR_PAGE_URL", BX_AJAX_PARAM_ID, "result", "sessid", "bxajaxid"));
+				$strURL = $this->request["back_page"] ?: $this->getApplication()->GetCurPageParam("", array("MID", "ID", BX_AJAX_PARAM_ID, "result", "sessid", "bxajaxid"));
 				$strURL = ForumAddPageParams($strURL, array("MID" => $message["ID"], "result" => ($message["APPROVED"] == "Y" ? "reply" : "not_approved")));
 				LocalRedirect($strURL);
 			}
@@ -633,10 +634,9 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		return $APPLICATION;
 	}
 
-	public function getUser()
+	protected function getUser(): ?\CUser
 	{
-		global $USER;
-		return $USER;
+		return $this->user;
 	}
 
 	private static function getUserFromForum($userId)
@@ -647,9 +647,10 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		}
 		return self::$users[$userId];
 	}
+
 	private function getUserName()
 	{
-		$user = self::getUserFromForum($this->getUser()->getId());
+		$user = self::getUserFromForum($this->getUser()?->getId());
 		$sName = "";
 		if (is_array($user) && $user["SHOW_NAME"] == "Y")
 		{
@@ -658,6 +659,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 		}
 		return $sName;
 	}
+
 	public function configureActions()
 	{
 		return [];
@@ -666,6 +668,7 @@ final class ForumCommentsComponent extends CBitrixComponent implements Main\Engi
 	{
 		return [
 			"FORUM_ID",
+			"SHOW_POST_FORM",
 			"ENTITY_TYPE",
 			"ENTITY_ID",
 			"ENTITY_XML_ID",

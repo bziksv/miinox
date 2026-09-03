@@ -1,4 +1,4 @@
-<?
+<?php
 //<title>Yandex</title>
 /** @global CUser $USER */
 /** @var int $IBLOCK_ID */
@@ -12,12 +12,13 @@
 /** @var bool $boolNeedRootSection */
 /** @var int $intMaxSectionID */
 
-use Bitrix\Main,
-	Bitrix\Main\Loader,
-	Bitrix\Currency,
-	Bitrix\Iblock,
-	Bitrix\Catalog,
-	Bitrix\Sale;
+use Bitrix\Main;
+use Bitrix\Main\Loader;
+use Bitrix\Currency;
+use Bitrix\Iblock;
+use Bitrix\Catalog;
+use Bitrix\Sale;
+use Bitrix\Main\Web\Uri;
 
 IncludeModuleLangFile($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/catalog/export_yandex.php');
 IncludeModuleLangFile(__FILE__);
@@ -123,8 +124,7 @@ if (!function_exists("yandex_text2xml"))
 
 		$text = preg_replace("/[\x1-\x8\xB-\xC\xE-\x1F]/", "", $text);
 
-		$error = '';
-		return Main\Text\Encoding::convertEncoding($text, LANG_CHARSET, $options['CHARSET'], $error);
+		return Main\Text\Encoding::convertEncoding($text, LANG_CHARSET, $options['CHARSET']);
 	}
 }
 
@@ -305,7 +305,7 @@ function yandex_get_value(
 								if ($ar_file = CFile::GetFileArray($intValue))
 								{
 									if(mb_substr($ar_file["SRC"], 0, 1) == "/")
-										$strFile = $options['PROTOCOL'].$options['SITE_NAME'].CHTTP::urnEncode($ar_file['SRC'], 'utf-8');
+										$strFile = $options['PROTOCOL'].$options['SITE_NAME'] . Uri::urnEncode($ar_file['SRC']);
 									else
 										$strFile = $ar_file["SRC"];
 									$value .= ($value ? ', ' : '').$strFile;
@@ -322,7 +322,7 @@ function yandex_get_value(
 							if ($ar_file = CFile::GetFileArray($arProperty['VALUE']))
 							{
 								if(mb_substr($ar_file["SRC"], 0, 1) == "/")
-									$strFile = $options['PROTOCOL'].$options['SITE_NAME'].CHTTP::urnEncode($ar_file['SRC'], 'utf-8');
+									$strFile = $options['PROTOCOL'].$options['SITE_NAME'] . Uri::urnEncode($ar_file['SRC']);
 								else
 									$strFile = $ar_file["SRC"];
 								$value = $strFile;
@@ -454,7 +454,7 @@ if (!function_exists('yandexPrepareItems'))
 				if (!empty($pictureFile))
 				{
 					if (strncmp($pictureFile['SRC'], '/', 1) == 0)
-						$picturePath = $options['PROTOCOL'].$options['SITE_NAME'].CHTTP::urnEncode($pictureFile['SRC'], 'utf-8');
+						$picturePath = $options['PROTOCOL'].$options['SITE_NAME'] . Uri::urnEncode($pictureFile['SRC']);
 					else
 						$picturePath = $pictureFile['SRC'];
 					$row['PICTURE'] = $picturePath;
@@ -1026,22 +1026,18 @@ if ($firstStep)
 		fwrite($fp, '<yml_catalog date="'.date("Y-m-d H:i").'">'."\n");
 		fwrite($fp, '<shop>'."\n");
 
-		$charsetError = '';
-
 		fwrite($fp,
 			'<name>'.Main\Text\Encoding::convertEncoding(
 				htmlspecialcharsbx($site['SITE_NAME'], ENT_QUOTES|ENT_XML1),
 				LANG_CHARSET,
-				$itemOptions['CHARSET'],
-				$charsetError).
+				$itemOptions['CHARSET']).
 			"</name>\n"
 		);
 		fwrite($fp,
 			'<company>'.Main\Text\Encoding::convertEncoding(
 				htmlspecialcharsbx($site['COMPANY_NAME'], ENT_QUOTES|ENT_XML1),
 				LANG_CHARSET,
-				$itemOptions['CHARSET'],
-				$charsetError).
+				$itemOptions['CHARSET']).
 			"</company>\n"
 		);
 		fwrite($fp, '<url>'.$usedProtocol.htmlspecialcharsbx($site['SERVER_NAME'])."</url>\n");
@@ -1219,7 +1215,7 @@ if (empty($arRunErrors))
 	{
 		$saleDiscountOnly = (string)Main\Config\Option::get('sale', 'use_sale_discount_only') == 'Y';
 		if ($saleDiscountOnly)
-			$calculationConfig['PRECISION'] = (int)Main\Config\Option::get('sale', 'value_precision');
+			$calculationConfig['PRECISION'] = Catalog\Product\Price\Calculation::getPrecision();
 	}
 	Catalog\Product\Price\Calculation::setConfig($calculationConfig);
 	unset($calculationConfig);
@@ -2014,7 +2010,7 @@ if (empty($arRunErrors))
 
 				unset($row);
 
-				if ($MAX_EXECUTION_TIME > 0 && (getmicrotime() - START_EXEC_TIME) >= $MAX_EXECUTION_TIME)
+				if ($MAX_EXECUTION_TIME > 0 && (microtime(true) - START_EXEC_TIME) >= $MAX_EXECUTION_TIME)
 					break;
 			}
 			unset($id);

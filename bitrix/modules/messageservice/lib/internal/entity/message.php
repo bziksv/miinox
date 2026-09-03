@@ -5,10 +5,14 @@ use Bitrix\Main\Application;
 use Bitrix\Main\ORM\Data\DataManager;
 use Bitrix\Main\ORM\Fields\ArrayField;
 use Bitrix\Main\ORM\Fields\DatetimeField;
+use Bitrix\Main\ORM\Fields\EnumField;
+use Bitrix\Main\ORM\Fields\ExpressionField;
 use Bitrix\Main\ORM\Fields\IntegerField;
 use Bitrix\Main\ORM\Fields\StringField;
 use Bitrix\Main\ORM\Fields\TextField;
 use Bitrix\Main\ORM\Fields\Validators\LengthValidator;
+use Bitrix\Main\Type\DateTime;
+use Bitrix\MessageService\Internal\Entity\Message\SuccessExec;
 
 /**
  * Class MessageTable
@@ -83,7 +87,8 @@ class MessageTable extends DataManager
 					->configureRequired(true)
 			,
 			'DATE_INSERT' =>
-				(new DatetimeField('DATE_INSERT',	[]))
+				(new DatetimeField('DATE_INSERT'))
+					->configureDefaultValue(static fn() => new DateTime())
 			,
 			'DATE_EXEC' =>
 				(new DatetimeField('DATE_EXEC', []))
@@ -92,8 +97,14 @@ class MessageTable extends DataManager
 				(new DatetimeField('NEXT_EXEC', []))
 			,
 			'SUCCESS_EXEC' =>
-				(new StringField('SUCCESS_EXEC', []))
-					->configureDefaultValue('N')
+				(new EnumField('SUCCESS_EXEC', []))
+					->configureValues([
+						SuccessExec::NO,
+						SuccessExec::YES,
+						SuccessExec::ERROR,
+						SuccessExec::PROCESSED,
+					])
+					->configureDefaultValue(SuccessExec::NO)
 			,
 			'EXEC_ERROR' =>
 				(new StringField('EXEC_ERROR', [
@@ -122,14 +133,11 @@ class MessageTable extends DataManager
 
 	public static function getByExternalId(string $senderId, string $externalId, ?string $from = null)
 	{
-		$filter = [
-			'=SENDER_ID' => $senderId,
-			'=EXTERNAL_ID' => $externalId,
-		];
-
-
 		return MessageTable::getList([
-			'filter' => $filter,
+			'filter' => [
+				'=SENDER_ID' => $senderId,
+				'=EXTERNAL_ID' => $externalId,
+			],
 			'limit' => 1
 		]);
 	}
@@ -146,80 +154,69 @@ class MessageTable extends DataManager
 		$connection = Application::getConnection();
 		$tableName = static::getTableName();
 
-		$update = "STATUS_ID = {$newStatusId}";
-
-		$query = "
+		$connection->query("
 			UPDATE
-				$tableName
+				{$tableName}
 			SET
-				$update
+				STATUS_ID = {$newStatusId}
 			WHERE
 				ID = $id
 				AND STATUS_ID != {$newStatusId}
-		";
+		");
 
-		$connection->query($query);
 		return $connection->getAffectedRowsCount() === 1;
 	}
 
-	public static function updateMessageStatuses($id, $newInternalStatusId, $newExternalStatus)
+	public static function updateMessageStatuses($id, $newInternalStatusId, $newExternalStatus): bool
 	{
 		$connection = Application::getConnection();
 		$tableName = static::getTableName();
 
-		$helper = $connection->getSqlHelper();
-		$newExternalStatus = $helper->forSql($newExternalStatus);
+		$newExternalStatus = $connection->getSqlHelper()->forSql($newExternalStatus);
 
-		$update = "STATUS_ID = $newInternalStatusId, EXTERNAL_STATUS = '$newExternalStatus'";
-
-		$query = "
+		$connection->query("
 			UPDATE
-				$tableName
+				{$tableName}
 			SET
-				$update
+				STATUS_ID = {$newInternalStatusId},
+				EXTERNAL_STATUS = '{$newExternalStatus}'
 			WHERE
-				ID = $id
+				ID = {$id}
 				AND STATUS_ID < {$newInternalStatusId}
-		";
+		");
 
-		$connection->query($query);
 		return $connection->getAffectedRowsCount() === 1;
 	}
 
-	public static function getDailyCount($senderId, $fromId)
+	public static function getDailyCount($senderId, $fromId): int
 	{
-		$connection = Application::getConnection();
-		$helper = $connection->getSqlHelper();
-		$today = date('Y-m-d') . ' 00:00:00';
+		$today = (new DateTime)->setTime(0, 0, 0);
 
-		$senderId = $helper->forSql((string)$senderId);
-		$fromId = $helper->forSql((string)$fromId);
-
-		$strSql = "SELECT COUNT(*) CNT
-			FROM b_messageservice_message
-			WHERE SUCCESS_EXEC = 'Y'
-			AND DATE_EXEC >= '{$today}'
-			AND SENDER_ID = '{$senderId}'
-			AND MESSAGE_FROM = '{$fromId}'";
-
-		$result = $connection->query($strSql)->fetch();
-		return is_array($result) ? (int)$result['CNT'] : 0;
+		return self::getCount([
+			'=SUCCESS_EXEC' => 'Y',
+			'>=DATE_EXEC' => $today,
+			'=SENDER_ID' => $senderId,
+			'=MESSAGE_FROM' => $fromId,
+		]);
 	}
 
-	public static function getAllDailyCount()
+	public static function getAllDailyCount(): array
 	{
-		$connection = Application::getConnection();
-		$today = date('Y-m-d') . ' 00:00:00';
+		$today = (new DateTime)->setTime(0, 0, 0);
 
-		$strSql = "SELECT SENDER_ID, MESSAGE_FROM, COUNT(*) CNT
-			FROM b_messageservice_message
-			WHERE SUCCESS_EXEC = 'Y'
-			AND DATE_EXEC >= '{$today}'
-			GROUP BY SENDER_ID, MESSAGE_FROM";
+		$result = self::getList([
+			'runtime' => [new ExpressionField('CNT', 'COUNT(*)')],
+			'select' => [
+				'SENDER_ID', 'MESSAGE_FROM', 'CNT'
+			],
+			'filter' => [
+				'=SUCCESS_EXEC' => 'Y',
+				'>=DATE_EXEC' => $today,
+			],
+			'group' => ['SENDER_ID', 'MESSAGE_FROM'],
+		]);
 
-		$result = $connection->query($strSql);
-		$counts = array();
-
+		$counts = [];
 		while ($row = $result->fetch())
 		{
 			$id = $row['SENDER_ID'] .':'. $row['MESSAGE_FROM'];
@@ -229,7 +226,7 @@ class MessageTable extends DataManager
 		return $counts;
 	}
 
-	public static function returnDeferredToQueue($senderId, $fromId)
+	public static function returnDeferredToQueue($senderId, $fromId): bool
 	{
 		$connection = Application::getConnection();
 		$helper = $connection->getSqlHelper();
@@ -237,12 +234,15 @@ class MessageTable extends DataManager
 		$senderId = $helper->forSql((string)$senderId);
 		$fromId = $helper->forSql((string)$fromId);
 
-		$strSql = "UPDATE b_messageservice_message SET NEXT_EXEC = NULL 
-			WHERE SUCCESS_EXEC = 'N' AND NEXT_EXEC IS NOT NULL 
-			AND SENDER_ID = '{$senderId}'
-			AND MESSAGE_FROM = '{$fromId}'";
-
-		$connection->query($strSql);
+		$connection->queryExecute("
+			UPDATE b_messageservice_message
+			SET NEXT_EXEC = NULL
+			WHERE
+				SUCCESS_EXEC = 'N'
+				AND NEXT_EXEC IS NOT NULL
+				AND SENDER_ID = '{$senderId}'
+				AND MESSAGE_FROM = '{$fromId}'
+		");
 
 		return true;
 	}
@@ -329,5 +329,26 @@ class MessageTable extends DataManager
 		return [
 			new LengthValidator(null, 128),
 		];
+	}
+
+	public static function onAfterAdd(\Bitrix\Main\ORM\Event $event)
+	{
+		self::clearQueueCache();
+	}
+
+	public static function onAfterUpdate(\Bitrix\Main\ORM\Event $event)
+	{
+		self::clearQueueCache();
+	}
+
+	public static function onAfterDelete(\Bitrix\Main\ORM\Event $event)
+	{
+		self::clearQueueCache();
+	}
+
+	protected static function clearQueueCache(): void
+	{
+		$cache = \Bitrix\Main\Data\Cache::createInstance();
+		$cache->clean(\Bitrix\MessageService\Queue::CACHE_HAS_MESSAGES_ID, \Bitrix\MessageService\Queue::CACHE_HAS_MESSAGES_DIR);
 	}
 }

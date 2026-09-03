@@ -19,11 +19,21 @@ class Informant extends \Bitrix\MessageService\Providers\Base\Informant
 
 	public function getName(): string
 	{
+		if (RegionHelper::isInternational())
+		{
+			return 'Edna.io WhatsApp';
+		}
+
 		return 'Edna.ru WhatsApp';
 	}
 
 	public function getShortName(): string
 	{
+		if (RegionHelper::isInternational())
+		{
+			return 'Edna.io WhatsApp';
+		}
+
 		return 'Edna.ru WhatsApp';
 	}
 
@@ -39,7 +49,7 @@ class Informant extends \Bitrix\MessageService\Providers\Base\Informant
 			return '';
 		}
 
-		$contactCenterUrl = \Bitrix\ImOpenLines\Common::getContactCenterPublicFolder();
+		$contactCenterUrl = \Bitrix\MessageService\Integration\ImOpenLines::getContactCenterUrl();
 
 		return $contactCenterUrl . 'connector/?ID=' . Library::ID_EDNA_WHATSAPP_CONNECTOR;
 	}

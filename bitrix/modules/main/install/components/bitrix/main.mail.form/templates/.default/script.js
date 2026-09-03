@@ -4,14 +4,22 @@
 	if (window.BXMainMailForm)
 		return;
 
-	var BXMainMailForm = function(id, fields, options)
+	var BXMainMailForm = function(id, fields, replyTo, replyCC, selectedRecipients, options)
 	{
 		if (BXMainMailForm.__forms[id])
 			return BXMainMailForm.__forms[id];
 
 		this.id = id;
 		this.fields = fields;
+		this.selectedRecipients = selectedRecipients;
+		this.replyTo = replyTo;
+		this.replyCC = replyCC;
 		this.options = options;
+		this.fieldsData = {};
+		this.lastSearchText = '';
+
+		this.helpDeskCalendarCode = 17198666;
+		this.helpDeskCRMCalendarCode = 17502612;
 
 		BXMainMailForm.__forms[this.id] = this;
 	};
@@ -34,6 +42,151 @@
 		return false;
 	};
 
+	BXMainMailForm.prototype.cleanFields = function()
+	{
+		var fields = this.getFieldsData();
+
+		for (var key in fields)
+		{
+			if (fields.hasOwnProperty(key))
+			{
+				var field = fields[key];
+				if (BX.type.isFunction(field.tagSelector.removeTags))
+				{
+					field.tagSelector.removeTags();
+				}
+			}
+		}
+	}
+
+	BXMainMailForm.prototype.addTagsToField = function(dialog, tags)
+	{
+		for (var key in tags)
+		{
+			var itemOptions = tags[key];
+			var item = dialog.addItem(itemOptions);
+
+			if (item)
+			{
+				item.select();
+			}
+		}
+	}
+
+	BXMainMailForm.prototype.addItemsToField = function(dialog, items)
+	{
+		var itemsAdded = false;
+
+		items.forEach(function(item) {
+			if (Object.keys(item).length !== 0)
+			{
+				item.sort = 1;
+				item.tabs.push(dialog.getRecentTab().getId());
+
+				dialog.removeItem(item);
+				var builtItem = dialog.addItem(item);
+
+				if (builtItem)
+				{
+					builtItem.select();
+					itemsAdded = true;
+				}
+			}
+		});
+
+		if (itemsAdded)
+		{
+			dialog.clearSearch();
+		}
+	}
+
+	BXMainMailForm.prototype.fillFieldsForReply = function()
+	{
+		this.cleanFields();
+		var fields = this.getFieldsData();
+
+		for (var key in fields)
+		{
+			if (fields.hasOwnProperty(key))
+			{
+				var field = fields[key];
+
+				if (key.toUpperCase() === 'DATA[TO]')
+				{
+					this.addTagsToField(field.dialog, this.selectedRecipients);
+				}
+			}
+		}
+	};
+
+	BXMainMailForm.prototype.fillFieldsForReplyAll = function()
+	{
+		this.cleanFields();
+		var fields = this.getFieldsData();
+
+		for (var key in fields)
+		{
+			if (fields.hasOwnProperty(key))
+			{
+				var field = fields[key];
+
+				if (key.toUpperCase() === 'DATA[TO]')
+				{
+					this.addTagsToField(field.dialog, this.replyTo);
+				}
+				else if (key.toUpperCase() === 'DATA[CC]')
+				{
+					this.addTagsToField(field.dialog, this.replyCC);
+				}
+			}
+		}
+	};
+
+	BXMainMailForm.prototype.getFieldsData = function ()
+	{
+		return this.fieldsData;
+	};
+
+	BXMainMailForm.prototype.setFieldData = function(key, dialog, items, nodeForRender, tagSelector)
+	{
+		if (BX.type.isUndefined(nodeForRender) && !BX.type.isUndefined(this.fieldsData[key]))
+		{
+			nodeForRender = this.fieldsData[key]['nodeForRender'];
+		}
+
+		this.fieldsData[key] = {
+			dialog: dialog,
+			key: key,
+			items: items,
+			nodeForRender: nodeForRender,
+			tagSelector: tagSelector,
+		};
+
+		if (!BX.type.isUndefined(nodeForRender))
+		{
+			var inputsContainer = nodeForRender.querySelector('div');
+			inputsContainer.innerHTML = '';
+
+			for (var i = 0; i < items.length; i++)
+			{
+				var itemMap = items[i];
+				var itemObj = items[i];
+
+				itemMap.forEach(function(value, itemKey) {
+					itemObj[itemKey] = value;
+				});
+
+				inputsContainer.appendChild(BX.create('INPUT', {
+					'props': {
+						'type': 'hidden',
+						'name': key + '[]',
+						'value': JSON.stringify(itemObj)
+					}
+				}));
+			}
+		}
+	};
+
 	BXMainMailForm.prototype.onSubmit = function (event)
 	{
 		var form = this;
@@ -43,6 +196,8 @@
 
 		if (button.disabled)
 			return BX.PreventDefault();
+
+		this.fillFieldsFromDialogs();
 
 		this.editor.OnSubmit();
 
@@ -106,6 +261,8 @@
 
 		errorNode.innerHTML = '';
 		errorNode.append(alert.getContainer());
+		errorNode.setAttribute('tabindex', '-1');
+		errorNode.focus();
 
 		this.initScrollable();
 		if (this.__scrollable)
@@ -121,16 +278,683 @@
 		}
 	};
 
-	BXMainMailForm.prototype.init = function()
+	BXMainMailForm.prototype.fillFieldsFromDialogs = function ()
 	{
+		var fields = this.getFieldsData();
+
+		for (var key in fields)
+		{
+			if (fields.hasOwnProperty(key))
+			{
+				var field = fields[key];
+				var dialog = field.dialog;
+
+				if (dialog === null)
+				{
+					return;
+				}
+
+				if (BX.type.isFunction(dialog.getSelectedItems))
+				{
+					var selectedItems = dialog.getSelectedItems();
+					var itemsData = [];
+					for (var j = 0; j < selectedItems.length; j++)
+					{
+						var selectedItem = selectedItems[j];
+						if (BX.type.isFunction(selectedItem.getCustomData))
+						{
+							itemsData.push(selectedItem.getCustomData());
+						}
+					}
+					this.setFieldData(key, dialog, itemsData, field.nodeForRender, field.tagSelector);
+				}
+			}
+		}
+	}
+
+	BXMainMailForm.prototype.addSearchInput = function(text)
+	{
+		this.lastSearchText = text;
+	}
+
+	BXMainMailForm.prototype.unbindToAddressBookEvents = function()
+	{
+		top.BX.Event.EventEmitter.unsubscribe('BX.DialogEditContact:onSaveContact', BXMainMailForm.prototype.onSaveContactToAddressBook);
+	}
+
+	BXMainMailForm.prototype.onSaveContactToAddressBook = function(dialog, prefixSliderId, event)
+	{
+		if (
+			Object.keys(event.data) &&
+			event.data.prefixId === prefixSliderId &&
+			Array.isArray(event.data.items)
+		)
+		{
+			this.addItemsToField(dialog, event.data.items);
+			this.unbindToAddressBookEvents();
+		}
+	}
+
+	BXMainMailForm.prototype.bindToAddressBookEvents = function(dialog, prefixSliderId, contactID = 'new')
+	{
+		var eventHandlerDialogClose = function()
+		{
+			this.unbindToAddressBookEvents();
+			dialog.unsubscribe('onDestroy', eventHandlerDialogClose);
+		}.bind(this);
+
+		dialog.subscribe('onDestroy', eventHandlerDialogClose);
+
+		var eventHandlerSliderClose = function (event) {
+			if (event.getSlider().getUrl() === ('dialogEditContact_' + contactID + '_' + prefixSliderId))
+			{
+				top.BX.removeCustomEvent("SidePanel.Slider:onCloseComplete",  eventHandlerSliderClose);
+				this.unbindToAddressBookEvents()
+				dialog.getTagSelector().unlock();
+			}
+		}.bind(this)
+
+		top.BX.addCustomEvent("SidePanel.Slider:onCloseComplete", eventHandlerSliderClose);
+
+		top.BX.Event.EventEmitter.subscribe('BX.DialogEditContact:onSaveContact', BXMainMailForm.prototype.onSaveContactToAddressBook.bind(this, dialog, prefixSliderId));
+	}
+
+	BXMainMailForm.prototype.openEditContact = function(dialog, contactID, email, name)
+	{
+		const prefixSliderId = this.generatePrefixSliderId();
+
+		top.BX.Runtime.loadExtension('mail.dialogeditcontact').then(() => {
+			top.BX.Mail.AddressBook.DialogEditContact.openEditDialog({
+				contactID,
+				prefixId: prefixSliderId,
+				contactData: {
+					email,
+					name,
+				},
+			});
+		});
+
+		this.bindToAddressBookEvents(dialog, prefixSliderId, contactID);
+	}
+
+	BXMainMailForm.prototype.generatePrefixSliderId = function()
+	{
+		return Math.floor(Math.random() * 1000);
+	}
+
+	BXMainMailForm.prototype.addContactToAddressBook = function(dialog, preInstalledSearchText = null)
+	{
+		if (preInstalledSearchText !== null)
+		{
+			this.lastSearchText = preInstalledSearchText;
+		}
+
+		var openCreateSlider = function(searchText, showEmailError = false, responseError)
+		{
+			const prefixSliderId = this.generatePrefixSliderId();
+
+			var email;
+			var name;
+
+			if (searchText.includes("@"))
+			{
+				email = searchText;
+				name = '';
+			}
+			else
+			{
+				email = '';
+				name = searchText;
+				showEmailError = false;
+			}
+
+			const contactID = top.BX.Mail.AddressBook.DialogEditContact.openCreateDialog({
+				prefixId: prefixSliderId,
+				showEmailError,
+				responseError,
+				contactData: {
+					email,
+					name,
+				},
+			});
+
+			this.bindToAddressBookEvents(dialog, prefixSliderId, contactID);
+		}.bind(this);
+
+		return new Promise(function(resolve, reject) {
+			top.BX.Runtime.loadExtension('mail.dialogeditcontact').then(
+				function(){
+					if (BX.Validation.isEmail(this.lastSearchText))
+					{
+						top.BX.Mail.AddressBook.DialogEditContact.saveContact(this.lastSearchText, this.lastSearchText, 'new').then(
+							function(response)
+							{
+								this.addItemsToField(dialog, response.data);
+								resolve();
+							}.bind(this)
+						).catch(
+							function(responseError)
+							{
+								openCreateSlider(this.lastSearchText, false, responseError);
+								reject();
+							}.bind(this)
+						);
+					}
+					else
+					{
+						openCreateSlider(this.lastSearchText, true);
+						reject();
+					}
+				}.bind(this),
+			);
+		}.bind(this));
+	}
+
+	BXMainMailForm.prototype.renderField = function(fieldNode, type, formId, ownerId, ownerType, selectedRecipients, replyTo, replyCC, isReplyAll, contextName)
+	{
+		let codeArticle;
+		var dialogId = formId + '_' + type;
+
+		var entitiesDialog = [];
+
+		var dialogAdditionalOptions = {};
+		var selectorAdditionalOptions = {};
+		var selectorEvents = {};
+		var dialogEvents = {};
+		var dialogSearchOptions = {};
+
+		const {
+			oldRecipientsMode,
+			ownerCategoryId,
+		} = this.options;
+
+		if (contextName === 'MAIL')
+		{
+			entitiesDialog.push(
+				{
+					id: 'address_book',
+					dynamicLoad: true,
+				},
+				{
+					id: 'contact',
+					dynamicLoad: true,
+					dynamicSearch: true,
+					filters: [
+						{
+							id: 'mail.mailCrmRecipientAppearanceFilter',
+						},
+					],
+					options: {
+						onlyWithEmail: true,
+					},
+				},
+				{
+					id: 'company',
+					dynamicLoad: true,
+					dynamicSearch: true,
+					filters: [
+						{
+							id: 'mail.mailCrmRecipientAppearanceFilter',
+						},
+					],
+					options: {
+						onlyWithEmail: true,
+					},
+				},
+				{
+					id: 'lead',
+					dynamicLoad: true,
+					dynamicSearch: true,
+					filters: [
+						{
+							id: 'mail.mailCrmRecipientAppearanceFilter',
+						},
+					],
+					options: {
+						onlyWithEmail: true,
+					},
+				},
+				{
+					id: 'mail_crm_recipient',
+					dynamicLoad: true,
+				}
+			);
+
+			codeArticle = 24146582;
+		}
+		else
+		{
+			entitiesDialog.push(
+				{
+					options: {
+						ownerId: ownerId,
+						ownerType: ownerType,
+					},
+					id: 'mail_recipient',
+					dynamicLoad: true,
+				},
+			);
+
+			if (oldRecipientsMode)
+			{
+				if (ownerCategoryId === 0)
+				{
+					entitiesDialog.push(
+						{
+							id: 'contact',
+							dynamicSearch: true,
+							filters: [
+								{
+									id: 'mail.mailCrmRecipientAppearanceFilter',
+								},
+							],
+							options: {
+								onlyWithEmail: true,
+							},
+						},
+						{
+							id: 'company',
+							dynamicSearch: true,
+							filters: [
+								{
+									id: 'mail.mailCrmRecipientAppearanceFilter',
+								},
+							],
+							options: {
+								onlyWithEmail: true,
+							},
+						},
+						{
+							id: 'lead',
+							dynamicSearch: true,
+							filters: [
+								{
+									id: 'mail.mailCrmRecipientAppearanceFilter',
+								},
+							],
+							options: {
+								onlyWithEmail: true,
+							},
+						},
+					);
+				}
+
+				entitiesDialog.push(
+					{
+						id: 'address_book',
+						dynamicSearch: true,
+					},
+				);
+			}
+
+			codeArticle = 24196378;
+		}
+
+		if (contextName === 'MAIL' || oldRecipientsMode)
+		{
+			var loader;
+
+			selectorAdditionalOptions = {
+				tagClickable: true,
+			};
+
+			function showLoader()
+			{
+				loader.show();
+				BX.Dom.addClass(addEmailToAddressBookNodeLink, 'hide-before');
+			}
+
+			function hideLoader()
+			{
+				loader.hide();
+				BX.Dom.removeClass(addEmailToAddressBookNodeLink, 'hide-before');
+			}
+
+			var dialog;
+
+			var addEmailToAddressBookNodeLink = BX.Dom.create('span', {
+				props: {
+					className: 'ui-selector-footer-link ui-selector-footer-link-add'
+				},
+				text: BX.Loc.getMessage('MAIN_MAIL_FORM_ADDRESS_BOOK_FOOTER_ADD_BUTTON_MSGVER_1'),
+				events: {
+					click: function(){
+						if (!loader.isShown())
+						{
+							showLoader();
+							this.addContactToAddressBook(dialog).then(function(){
+								hideLoader();
+							}.bind(this)).catch(function(){
+								hideLoader();
+							}.bind(this));
+						}
+					}.bind(this),
+				}
+			});
+
+			loader = new BX.Loader({
+				color: '#3bc8f5',
+				offset: {
+					left: 'calc(-50% - 19px)',
+					top: '-2px',
+				},
+				size: 29,
+				target: addEmailToAddressBookNodeLink
+			});
+
+			dialogAdditionalOptions = {
+				searchTabOptions: {
+					stub: true,
+					stubOptions: {
+						title: BX.Loc.getMessage('MAIN_MAIL_FORM_ADDRESS_BOOK_EMPTY_SEARCH_TITLE_MSGVER_1'),
+						subtitle: BX.Loc.getMessage('MAIN_MAIL_FORM_ADDRESS_BOOK_EMPTY_SEARCH_SUBTITLE_MSGVER_1') +
+							'<br>' +
+							`<a style="cursor: pointer;" onclick="top.BX.Helper.show('redirect=detail&code=${codeArticle}');">` +
+							BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_2') +
+							'</a>',
+						icon: '/bitrix/images/mail/entity_provider_icons/addressbook.svg',
+						iconOpacity: 85,
+						arrow: true,
+					}
+				},
+				footer: [
+					addEmailToAddressBookNodeLink,
+				],
+			};
+
+			dialogSearchOptions = {
+				allowCreateItem: true,
+				footerOptions: {
+					label: BX.Loc.getMessage('MAIN_MAIL_FORM_ADDRESS_BOOK_FOOTER_ADD_BUTTON_ALLOW_CREATE_ITEM_MSGVER_1'),
+				}
+			};
+
+			selectorEvents = {
+				onInput: function(event) {
+					const selector = event.getTarget();
+					const text = selector.getTextBoxValue();
+					this.addSearchInput(text);
+				}.bind(this),
+				onBlur: function() {
+					this.lastSearchText = '';
+				}.bind(this),
+				'TagItem:onClick': (event) => {
+					const tagItem = event.getData().item;
+					if (tagItem && tagItem.entityId === 'address_book')
+					{
+						const item = dialog.getItem([tagItem.getEntityId(), tagItem.getId()]);
+						const customData = item.getCustomData();
+						let id = Number(customData.get('entityId'));
+						const email = customData.get('email');
+						const name = customData.get('name');
+
+						if (dialog.getTagSelector().isLocked())
+						{
+							return;
+						}
+
+						dialog.getTagSelector().lock();
+
+						if (!BX.type.isNumber(id) || id === 0)
+						{
+							BX.ajax.runAction('mail.addressbook.getContactIdByEmail', {
+								data: {
+									email,
+								},
+							}).then((response) => {
+								id = response.data;
+								if (BX.type.isNumber(id) && id > 0)
+								{
+									this.openEditContact(dialog, id, email, name);
+								}
+							});
+						}
+						else
+						{
+							this.openEditContact(dialog, id, email, name);
+						}
+					}
+				},
+			};
+
+			dialogEvents = {
+				'Search:onItemCreateAsync': function(event) {
+					return new Promise(function(resolve, reject) {
+						const searchQuery = event.getData().searchQuery.getQuery()
+						this.addContactToAddressBook(dialog, searchQuery).then(function(){
+							resolve();
+						}.bind(this)).catch(function(){
+							reject();
+						}.bind(this));
+					}.bind(this))
+				}.bind(this),
+			};
+		}
+		else
+		{
+			let crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE');
+			let crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE');
+
+			switch (ownerType)
+			{
+				case 'DEAL':
+					crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE_DEAL');
+					crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_DEAL');
+					break;
+				case 'COMPANY':
+					crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE_COMPANY');
+					crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_COMPANY');
+					break;
+				case 'LEAD':
+					crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE_LEAD');
+					crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_LEAD');
+					break;
+				case 'CONTACT':
+					crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE_CONTACT');
+					crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_CONTACT');
+					break;
+				case 'SMART_INVOICE':
+					crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE_SMART_INVOICE');
+					crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_SMART_INVOICE');
+					break;
+				case 'QUOTE':
+					crmEmptyTitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_TITLE_QUOTE');
+					crmEmptySubtitleStub = BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_QUOTE');
+					break;
+			}
+
+			dialogAdditionalOptions = {
+				searchTabOptions: {
+					stub: true,
+					stubOptions: {
+						title: crmEmptyTitleStub,
+						subtitle: crmEmptySubtitleStub +
+							'<br>' +
+							`<a style="cursor: pointer;" onclick="top.BX.Helper.show('redirect=detail&code=${codeArticle}');">` +
+							BX.Loc.getMessage('MAIN_MAIL_FORM_CRM_EMPTY_SEARCH_SUBTITLE_2') +
+							'</a>',
+					}
+				},
+			};
+		}
+
+		var selectedItemsDialog = [];
+
+		switch (type.toUpperCase())
+		{
+			case 'DATA[TO]':
+				if (isReplyAll === true)
+				{
+					selectedItemsDialog = replyTo;
+				}
+				else
+				{
+					selectedItemsDialog = selectedRecipients;
+				}
+				break;
+			case 'DATA[CC]':
+				if (isReplyAll === true)
+				{
+					selectedItemsDialog = replyCC;
+				}
+				break;
+		}
+
+		if (((contextName === 'MAIL' || oldRecipientsMode) && ['DATA[TO]', 'DATA[CC]', 'DATA[BCC]'].includes(type.toUpperCase())) ||
+			['DATA[CC]', 'DATA[BCC]'].includes(type.toUpperCase()))
+		{
+			entitiesDialog.push({
+				id: 'user',
+				filters: [
+					{
+						id: 'mail.mailUserRecipientAppearanceFilter',
+					},
+				],
+				options: {
+					showInvitationFooter: false,
+					onlyWithEmail: true,
+				},
+			});
+		}
+
+		const tagSelector = new BX.UI.EntitySelector.TagSelector({
+			textBoxWidth: 220,
+			tagMaxWidth: 400,
+			...selectorAdditionalOptions,
+			dialogOptions: Object.assign(
+				{
+					events: dialogEvents,
+					searchOptions: dialogSearchOptions,
+					context: 'MAIN_MAIL_FROM',
+					id: dialogId,
+					entities: entitiesDialog,
+					selectedItems: selectedItemsDialog,
+				},
+				dialogAdditionalOptions,
+			),
+			events: selectorEvents,
+		});
+
+		dialog = tagSelector.getDialog();
+
+		this.setFieldData(
+			type,
+			dialog,
+			[],
+			fieldNode,
+			tagSelector,
+		);
+
+		tagSelector.renderTo(fieldNode);
+
+		const fieldRow = BX.findParent(fieldNode, { tag: 'tr' });
+		const labelNode = fieldRow ? fieldRow.querySelector('label.main-mail-form-field-title') : null;
+
+		const selectorContainer = fieldNode.querySelector('.ui-tag-selector-outer-container');
+		if (selectorContainer)
+		{
+			selectorContainer.setAttribute('tabindex', '0');
+			selectorContainer.setAttribute('aria-haspopup', 'dialog');
+			selectorContainer.setAttribute('aria-expanded', 'false');
+			if (labelNode?.id)
+			{
+				selectorContainer.setAttribute('aria-labelledby', labelNode.id);
+			}
+
+			if (fieldNode.dataset.fieldRequired === 'true')
+			{
+				selectorContainer.setAttribute('aria-required', 'true');
+			}
+			selectorContainer.addEventListener('keydown', (event) => {
+				if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA')
+				{
+					return;
+				}
+
+				if (event.key === 'Enter' || event.key === ' ')
+				{
+					event.preventDefault();
+					const addButtonCaption = selectorContainer.querySelector('.ui-tag-selector-add-button-caption');
+					addButtonCaption?.click();
+				}
+			});
+
+			const selectorDialog = tagSelector.getDialog();
+			selectorDialog?.subscribe('onShow', () => {
+				selectorContainer.setAttribute('aria-expanded', 'true');
+			});
+			selectorDialog?.subscribe('onHide', () => {
+				selectorContainer.setAttribute('aria-expanded', 'false');
+			});
+		}
+	};
+
+	BXMainMailForm.prototype.init = function(props)
+	{
+		props = props || {};
 		var form = this;
+		var isReplyAll = props.isReplyAll ?? false;
+		var selectedRecipients = this.selectedRecipients ?? [];
+		var replyTo = this.replyTo ?? [];
+		var replyCC = this.replyCC ?? [];
+		var ownerId = this.options.ownerId ?? null;
+		var ownerType = this.options.ownerType ?? null;
+		var contextName = this.options.contextName ?? null;
+		var hideEmptyContactError = Boolean(props.hideEmptyContactError);
 
 		if (this.__inited)
-			return;
+		{
+			return false;
+		}
 
 		this.formId = 'main_mail_form_'+this.id;
+
+		var formFieldsCollection = document.querySelectorAll('[data-field-form-id="' + this.formId + '"]');
+		var formFieldsArray = Array.prototype.slice.call(formFieldsCollection);
+
+		formFieldsArray.forEach(function(fieldNode) {
+			var fieldFormId = fieldNode.dataset.fieldFormId;
+			var fieldType = fieldNode.dataset.formFieldType;
+			this.renderField(fieldNode, fieldType, fieldFormId, ownerId, ownerType, selectedRecipients, replyTo, replyCC, isReplyAll, contextName);
+		}.bind(this));
+
+		this.configureMenuItemId = 'signature-configure';
 		this.formWrapper = BX(this.formId);
 		this.htmlForm = BX.findParent(this.formWrapper, {tag: 'form'});
+
+		if (contextName !== 'MAIL' && selectedRecipients.length === 0 && !hideEmptyContactError)
+		{
+			let text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION');
+
+			switch (ownerType)
+			{
+				case 'DEAL':
+					text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION_DEAL');
+					break;
+				case 'COMPANY':
+					text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION_COMPANY');
+					break;
+				case 'LEAD':
+					text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION_LEAD');
+					break;
+				case 'CONTACT':
+					text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION_CONTACT');
+					break;
+				case 'SMART_INVOICE':
+					text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION_SMART_INVOICE');
+					break;
+				case 'QUOTE':
+					text = BX.Loc.getMessage('MAIN_MAIL_FORM_MESSAGE_SEND_WARNING_EMPTY_RECIPIENT_DESCRIPTION_QUOTE');
+					break;
+			}
+
+			const alert = new BX.UI.Alert({
+				text,
+				color: BX.UI.Alert.Color.WARNING,
+			});
+
+			alert.renderTo(BX('main-mail-form-message-send-warning-empty'));
+		}
 
 		this.postForm = LHEPostForm.getHandler(this.formId+'_editor');
 		this.editor = BXHtmlEditor.Get(this.formId+'_editor');
@@ -143,45 +967,25 @@
 		this.quoteNodeId = this.formId + '_quote_' + this.timestamp.toString(16);
 		this.signatureNodeId = this.formId + '_signature_' + this.timestamp.toString(16);
 
+		this.sharingLinkClassPrefix = '_sharing_calendar_link';
+		this.sharingLinkNodeClass = this.formId + this.sharingLinkClassPrefix;
+
 		// insert signature on change 'from' field
 		BX.addCustomEvent(this, 'MailForm::from::change', BX.proxy(function(field, signature)
 		{
 			if(!BX.type.isString(signature))
 			{
 				signature = '';
-				var currentSender;
-				var input = BX(field.fieldId+'_value');
-				if(input)
+				var currentSignatures = form.getSenderSignatures(field);
+				var firstSignature = currentSignatures[0];
+				if (BX.type.isNotEmptyObject(firstSignature) && BX.type.isNotEmptyString(firstSignature.full))
 				{
-					currentSender = input.value;
-				}
-				if(currentSender && field.params && BX.type.isArray(field.params.mailboxes) && BX.type.isNotEmptyObject(field.params.signatures))
-				{
-					for(var i in field.params.mailboxes)
-					{
-						if(field.params.mailboxes.hasOwnProperty(i))
-						{
-							if(field.params.mailboxes[i].formated === currentSender)
-							{
-								if(BX.type.isNotEmptyString(field.params.signatures[field.params.mailboxes[i].formated]))
-								{
-									signature = field.params.signatures[field.params.mailboxes[i].formated];
-								}
-								else if(BX.type.isNotEmptyString(field.params.signatures[field.params.mailboxes[i].email]))
-								{
-									signature = field.params.signatures[field.params.mailboxes[i].email];
-								}
-								else if(BX.type.isNotEmptyString(field.params.signatures['']))
-								{
-									signature = field.params.signatures[''];
-								}
-								break;
-							}
-						}
-					}
+					signature = firstSignature.full;
 				}
 			}
+			this.rebuildSignatureMenu(currentSignatures, field.params);
 			this.insertSignature(signature);
+			this.appendCalendarLinkButton(field.params);
 		}, this));
 
 		this.initFields();
@@ -192,7 +996,66 @@
 		this.__inited = true;
 
 		BX.onCustomEvent(BXMainMailForm, 'MailForm:init:'+this.id, [this]);
-	}
+
+		BX.addCustomEvent(this, 'MailForm::editor::init', () => {
+			this.showCalendarSharingInitialTour();
+			BX(this.editor.GetIframeDoc()).onmouseup = () => {
+				this.userSelection = this.editor.GetIframeDoc().body;
+			};
+			this.userSelection = this.editor.GetIframeDoc().body;
+		});
+
+		document.addEventListener('selectionchange', () => {
+			this.userSelection = document.getSelection();
+		});
+
+		this.hideAiImageGeneratorButton();
+		this.initSliderFocusOnOpen();
+
+		return true;
+	};
+
+	BXMainMailForm.prototype.initSliderFocusOnOpen = function()
+	{
+		const topWindow = window.top || window.parent || window;
+		const editor = this.editor;
+
+		topWindow.BX.addCustomEvent('SidePanel.Slider:onClose', (event) => {
+			const slider = event.getSlider();
+			if (!slider || slider.getFrameWindow() !== window)
+			{
+				return;
+			}
+
+			if (document.activeElement && document.activeElement !== document.body)
+			{
+				document.activeElement.blur();
+			}
+		});
+
+		topWindow.BX.addCustomEvent('SidePanel.Slider:onOpenComplete', (event) => {
+			const slider = event.getSlider();
+			if (!slider || slider.getFrameWindow() !== window || !editor)
+			{
+				return;
+			}
+
+			const iframeElement = editor.sandbox && editor.sandbox.GetIframe();
+			if (iframeElement)
+			{
+				iframeElement.focus();
+			}
+
+			setTimeout(() => {
+				editor.Focus(false);
+				const body = editor.GetIframeDoc()?.body;
+				if (body?.firstChild)
+				{
+					editor.selection.SetBefore(body.firstChild);
+				}
+			}, 0);
+		});
+	};
 
 	BXMainMailForm.prototype.initScrollable = function()
 	{
@@ -398,6 +1261,13 @@
 				{
 					BX.remove(signatureNode);
 				}
+
+				const quoteNode = this.editor.GetIframeDoc().getElementById(this.quoteNodeId);
+				if (quoteNode && !quoteNode.previousSibling)
+				{
+					BX.Dom.insertBefore(BX.Tag.render`<br>`, quoteNode);
+				}
+
 				return;
 			}
 			var signatureHtml = '--<br />' + signature;
@@ -482,8 +1352,11 @@
 				BX.onCustomEvent(field.form, 'MailForm:field:setMenuExt', [field.form, field]);
 
 				const result = [];
-				field.__menuExt.forEach(function(item) {
-					if ((item.text === undefined) || (item.value === null))
+				field.__menuExt.forEach((item) => {
+					if (item.value === null
+						|| !BX.type.isString(item.text)
+						|| item.text.length === 0
+					)
 					{
 						return;
 					}
@@ -502,28 +1375,37 @@
 						return;
 					}
 
+					const children = [];
+
+					item.items.forEach((child) => {
+						if (
+							child.value !== undefined
+							&& child.text !== undefined
+							&& child.value.length > 0
+							&& child.text.length > 0
+						)
+						{
+							children.push(
+								{
+									supertitle: item.text,
+									id: child.value,
+									entityId: child.text,
+									title: child.text,
+									customData: {
+										field: child.value,
+									},
+									tabs: ['recents'],
+								},
+							)
+						}
+					});
+
 					result.push({
 						id: item.value,
 						entityId: item.text,
 						title: item.text,
 						tabs: ['recents'],
-						children: item.items.map((children) => {
-							if ((children.value === undefined) || (children.text === undefined))
-							{
-								return;
-							}
-
-							return {
-								supertitle: item.text,
-								id: children.value,
-								entityId: children.text,
-								title: children.text,
-								customData: {
-									field: children.value,
-								},
-								tabs: ['recents'],
-							}
-						})
+						children,
 					});
 				});
 
@@ -577,7 +1459,8 @@
 
 		BX(this.fieldId).style.display = this.params.folded ? 'none' : '';
 		this.__switch.style.display = this.params.folded ? '' : 'none';
-	}
+		this.__switch.setAttribute('aria-expanded', this.params.folded ? 'false' : 'true');
+	};
 
 	BXMainMailFormField.prototype.hide = function()
 	{
@@ -595,7 +1478,10 @@
 		this.params.folded = true;
 
 		if (!this.params.hidden)
+		{
 			this.__switch.style.display = '';
+			this.__switch.setAttribute('aria-expanded', 'false');
+		}
 
 		BX(this.fieldId).style.display = 'none';
 		BX.removeClass(this.fieldId, 'main-mail-form-drop-animation');
@@ -609,9 +1495,20 @@
 		{
 			BX.addClass(this.fieldId, 'main-mail-form-drop-animation');
 			BX(this.fieldId).style.display = '';
+			this.__switch.setAttribute('aria-expanded', 'true');
 		}
 
 		this.__switch.style.display = 'none';
+
+		var fieldRow = BX(this.fieldId);
+		if (fieldRow)
+		{
+			var input = fieldRow.querySelector('input:not([type="hidden"]), textarea, [tabindex]');
+			if (input)
+			{
+				input.focus();
+			}
+		}
 	}
 
 	BXMainMailFormField.__types = {
@@ -695,6 +1592,28 @@
 		});
 
 		BX.onCustomEvent(field.form, 'MailForm::from::change', [field]);
+		const senderInputNode = BX(`${field.fieldId}_value`);
+		let senderButtonTextNode = null;
+
+		if (senderInputNode)
+		{
+			senderButtonTextNode = senderInputNode.parentNode.querySelector('.sender-selector-button-text');
+		}
+
+		if (BX.UI.Mail?.SenderSelector && senderButtonTextNode)
+		{
+			const observer = new MutationObserver(() => {
+				BX.onCustomEvent(field.form, 'MailForm::from::change', [field]);
+			});
+
+			observer.observe(senderButtonTextNode, {
+				childList: true,
+				subtree: true,
+			});
+
+			return;
+		}
+
 		var selector = BX.findChildByClassName(field.params.__row, 'main-mail-form-field-value-menu', true);
 		BX.bind(selector, 'click', function()
 		{
@@ -916,13 +1835,6 @@
 			});
 		}
 
-
-
-
-
-
-
-
 		BX.bind(more, 'click', function(e)
 		{
 			var items = BX.findChildrenByClassName(wrapper, 'main-mail-form-field-rcpt-item', false);
@@ -940,15 +1852,29 @@
 		var postForm = field.form.postForm;
 		var editor = field.form.editor;
 
-		if (field.params.value === null || field.params.value === undefined)
-			field.params.value = '';
-
-		field.quoteNode = document.createElement('DIV');
-		var quoteContentNode = document.createElement('DIV');
-		quoteContentNode.setAttribute('id', field.form.quoteNodeId);
-		quoteContentNode.innerHTML = field.params.value;
-		field.quoteNode.appendChild(quoteContentNode);
-		field.quoteNode.__folded = field.form.options.foldQuote;
+		field.quoteNode = document.createElement('div');
+		if (field.form.options.foldQuote || field.params.value)
+		{
+			if (field.form.formId.includes('_crm_mail_template_edit_form_') && field.params.value)
+			{
+				field.quoteNode.innerHTML = field.params.value;
+			}
+			else
+			{
+				const quoteContentNode = document.createElement('div');
+				quoteContentNode.setAttribute('id', field.form.quoteNodeId);
+				if (field.params.value)
+				{
+					quoteContentNode.innerHTML = field.params.value;
+				}
+				else
+				{
+					quoteContentNode.innerHTML = '<br>';
+				}
+				BX.Dom.append(quoteContentNode, field.quoteNode);
+			}
+		}
+		field.quoteNode.__folded = field.form.options.foldQuote ?? false;
 
 		//postForm.controllerInit('hide');
 		BX.onCustomEvent(postForm.eventNode, 'OnShowLHE', ['justShow']);
@@ -973,7 +1899,8 @@
 		);
 
 		// append original message quote
-		var quoteButton = BX.findChildByClassName(field.form.htmlForm, 'main-mail-form-quote-button', true);
+		var quoteButtonSpan = BX.findChildByClassName(field.form.htmlForm, 'main-mail-form-quote-button', true);
+		var quoteButton = quoteButtonSpan?.closest('button') || quoteButtonSpan;
 		var quoteHandler = function()
 		{
 			if (field.quoteNode.__folded)
@@ -983,7 +1910,19 @@
 				field.setValue(editor.GetContent(), {quote: true, signature: false});
 				editor.Focus(false);
 
-				BX.hide(quoteButton.parentNode.parentNode || quoteButton.parentNode)
+				BX.hide(quoteButton.closest('[data-id="ReplyQuote"]') || quoteButton);
+
+				const editorIframeCopilot = editor.iframeView?.copilot;
+				if (
+					!editorIframeCopilot
+					|| BX.Type.isFunction(editorIframeCopilot?.copilot?.setContextParameters)
+				)
+				{
+					return;
+				}
+				const newContextParams = editorIframeCopilot.copilotParams?.contextParameters ?? {};
+				newContextParams.isAddedQuote = true;
+				editorIframeCopilot.copilot.setContextParameters(newContextParams);
 			}
 		};
 		BX.bind(quoteButton, 'click', quoteHandler);
@@ -1069,7 +2008,22 @@
 				field.setValue('', {quote: true, signature: true});
 				field.form.editorInited = true;
 				BX.onCustomEvent(field.form, 'MailForm::editor::init', [field]);
-			}
+
+				const editorDoc = editor.GetIframeDoc();
+				if (editorDoc)
+				{
+					editorDoc.addEventListener('keydown', (e) => {
+						if (e.key === 'Escape')
+						{
+							const slider = top.BX.SidePanel.Instance.getTopSlider();
+							if (slider && slider.canCloseByEsc())
+							{
+								slider.close();
+							}
+						}
+					});
+				}
+			},
 		);
 
 		BX.addCustomEvent(field.form, 'MailForm:show', function ()
@@ -1099,7 +2053,16 @@
 	BXMainMailFormField.__types['from'].setValue = function(field, value)
 	{
 		var input = BX(field.fieldId+'_value');
-		var selector = BX.findChildByClassName(field.params.__row, 'main-mail-form-field-value-menu', true);
+		let selector = BX.findChildByClassName(field.params.__row, 'sender-selector-button-text', true);
+		if (!selector)
+		{
+			selector = BX.findChildByClassName(field.params.__row, 'main-mail-form-field-value-menu', true);
+		}
+
+		if (!selector)
+		{
+			return;
+		}
 
 		if (!value.trim())
 		{
@@ -1213,33 +2176,20 @@
 
 	BXMainMailFormField.__types['editor'].setValue = function(field, value, options)
 	{
-		var postForm = field.form.postForm;
-		var editor = field.form.editor;
-
-		if (value.length > 0)
+		const filesInfo = options.filesInfo;
+		if (Array.isArray(filesInfo))
 		{
-			for (var uid in postForm.controllers)
+			const files = new Map(options.filesInfo.map((file) => [file.serverFileId, file.serverPreviewUrl]));
+			if (value.length > 0 && files.size > 0)
 			{
-				if (!postForm.controllers.hasOwnProperty(uid))
-					continue;
-
-				var ctrl = postForm.controllers[uid];
-
-				if (ctrl.storage != 'disk')
-					continue;
-
-				if (!ctrl.values)
-					break;
-
-				for (var id in ctrl.values)
+				for (let [id, previewUrl] of files)
 				{
-					if (ctrl.values.hasOwnProperty(id) && ctrl.values[id].src)
-						value = value.replace('bxacid:'+id, ctrl.values[id].src+'&__bxacid='+id);
+					value = value.replace('bxacid:' + id, previewUrl + '&__bxacid=' + id)
 				}
-
-				break;
 			}
 		}
+
+		const editor = field.form.editor;
 
 		if (options && options.signature)
 		{
@@ -1261,7 +2211,11 @@
 
 		var regex = /[&?]__bxacid=(n?\d+)/;
 
-		var types = {'IMG': 'src', 'A': 'href'};
+		var types = {
+			'IMG': 'src',
+			'A': 'href'
+		};
+
 		for (var name in types)
 		{
 			var nodeList = editor.GetIframeDoc().getElementsByTagName(name);
@@ -1315,9 +2269,570 @@
 				}
 			}
 
+			if (ctrl.handler.removeFiles)
+			{
+				ctrl.handler.removeFiles(postForm.currentTemplateFiles);
+			}
+
 			ctrl.handler.selectFile({}, {}, value);
+			postForm.currentTemplateFiles = value.map(item => item.serverFileId);
 
 			break;
+		}
+	};
+
+	BXMainMailForm.prototype.rebuildSignatureMenu = function(signatures, params)
+	{
+		if (BX.type.isNotEmptyObject(params)
+			&& BX.type.isNotEmptyString(params.signatureSelectTitle)
+			&& BX.type.isNotEmptyString(params.signatureConfigureTitle)
+			&& BX.type.isNotEmptyString(params.pathToMailSignatures))
+		{
+			if (!this.signatureSelectButton) {
+				this.appendSignatureSelectButton(params.signatureSelectTitle);
+			}
+			if (this.signatureSelectButton)
+			{
+				this.initSignatureMenu(params.signatureConfigureTitle, params.pathToMailSignatures);
+				this.removeSignaturesFromMenu();
+				this.appendSignaturesToMenu(signatures);
+			}
+		}
+	};
+
+	BXMainMailForm.prototype.appendSignatureSelectButton = function(title)
+	{
+		var id = 'signature-select';
+		this.postForm.getToolbar().insertAfter({
+			BODY: '<i></i>' + title,
+			ID: id,
+		});
+		this.signatureSelectButton = this.getSelectButton(id);
+	};
+
+	BXMainMailForm.prototype.getSelectButton = function(id)
+	{
+		var items = this.postForm.getToolbar().getItems();
+		for (var i in items)
+		{
+			if (items.hasOwnProperty(i)
+				&& items[i].attributes
+				&& items[i].attributes.getNamedItem('data-id')
+				&& items[i].attributes.getNamedItem('data-id').value === id)
+			{
+				return items[i];
+			}
+		}
+		return null;
+	};
+
+	BXMainMailForm.prototype.initSignatureMenu = function(configureTitle, configurePath)
+	{
+		if (!this.signatureSelectMenu)
+		{
+			var form = this;
+			this.signatureSelectMenu = new BX.PopupMenuWindow({
+				maxWidth: 300,
+				maxHeight: 300,
+				focusTrap: true,
+				bindElement: this.signatureSelectButton,
+				items: [
+					{
+						id: this.configureMenuItemId,
+						text: configureTitle,
+						onclick: function(event, item)
+						{
+							item.getMenuWindow().close();
+							BX.SidePanel.Instance.open(configurePath, {
+								cacheable: false,
+								events: {
+									onCloseComplete: function()
+									{
+										form.ajaxRefreshSignatures();
+									}
+								}
+							});
+						},
+					}
+				]
+			});
+			var signatureSelectMenu = this.signatureSelectMenu;
+			this.signatureSelectButton.addEventListener("click", function()
+			{
+				if (signatureSelectMenu.getMenuItems().length > 1) {
+					signatureSelectMenu.show();
+				} else {
+					BX.SidePanel.Instance.open(configurePath, {
+						cacheable: false,
+						events: {
+							onCloseComplete: function()
+							{
+								form.ajaxRefreshSignatures();
+							}
+						}
+					});
+				}
+			});
+		}
+	}
+
+	BXMainMailForm.prototype.ajaxRefreshSignatures = function()
+	{
+		var form = this;
+		BX.ajax.runComponentAction(
+			'bitrix:main.mail.form',
+			'signatures',
+			{ mode: 'class' }
+		).then(function(response)
+		{
+			if (BX.type.isNotEmptyObject(response)
+				&& BX.type.isNotEmptyObject(response.data)
+				&& response.data.hasOwnProperty('signatures'))
+			{
+				for (var i in form.fields)
+				{
+					if (form.fields.hasOwnProperty(i)
+						&& BX.type.isNotEmptyObject(form.fields[i])
+						&& BX.type.isNotEmptyObject(form.fields[i].params)
+						&& form.fields[i].params.hasOwnProperty('allUserSignatures')) {
+						var field = form.fields[i];
+						field.params.allUserSignatures = response.data.signatures;
+						var currentSignatures = form.getSenderSignatures(field);
+						form.rebuildSignatureMenu(currentSignatures, field.params);
+						break;
+					}
+				}
+			}
+		});
+	}
+
+	BXMainMailForm.prototype.getSenderSignatures = function(field)
+	{
+		var currentSender;
+		var input = BX(field.fieldId+'_value');
+		var currentSignatures = [];
+		if (input)
+		{
+			currentSender = input.value;
+		}
+		if (currentSender
+			&& field.params
+			&& BX.type.isArray(field.params.mailboxes)
+			&& BX.type.isNotEmptyObject(field.params.allUserSignatures))
+		{
+			for (var i in field.params.mailboxes)
+			{
+				if (field.params.mailboxes.hasOwnProperty(i))
+				{
+					if (field.params.mailboxes[i].formated === currentSender)
+					{
+						var mailbox = field.params.mailboxes[i];
+						var signatures = field.params.allUserSignatures;
+						if (BX.type.isArrayFilled(signatures[mailbox.formated]))
+						{
+							currentSignatures.push.apply(currentSignatures ,signatures[mailbox.formated]);
+						}
+						if (BX.type.isArrayFilled(signatures[mailbox.email]))
+						{
+							currentSignatures.push.apply(currentSignatures ,signatures[mailbox.email]);
+						}
+						if (BX.type.isArrayFilled(signatures['']))
+						{
+							currentSignatures.push.apply(currentSignatures , signatures['']);
+						}
+						break;
+					}
+				}
+			}
+		}
+		return currentSignatures;
+	}
+
+	BXMainMailForm.prototype.removeSignaturesFromMenu = function()
+	{
+		var ids = this.signatureSelectMenu.getMenuItems().map(function(item)
+		{
+			return item.getId();
+		});
+		for (var i in ids)
+		{
+			if (ids.hasOwnProperty(i) && ids[i] !== this.configureMenuItemId)
+			{
+				this.signatureSelectMenu.removeMenuItem(ids[i]);
+			}
+		}
+	}
+
+	BXMainMailForm.prototype.appendSignaturesToMenu = function(signatures) {
+		var items = this.getSignatureSelectItemsMenu(signatures);
+		for (var i in items)
+		{
+			if (items.hasOwnProperty(i))
+			{
+				this.signatureSelectMenu.addMenuItem(items[i], this.configureMenuItemId);
+			}
+		}
+	}
+
+	BXMainMailForm.prototype.getSignatureSelectItemsMenu = function(signatures)
+	{
+		var signatureSelectItems = [];
+
+		if (BX.type.isArrayFilled(signatures))
+		{
+
+			var form = this;
+			for(var i in signatures)
+			{
+				if (signatures.hasOwnProperty(i)
+					&& BX.type.isNotEmptyObject(signatures[i])
+					&& BX.type.isNotEmptyString(signatures[i].list)
+					&& BX.type.isNotEmptyString(signatures[i].full))
+				{
+					signatureSelectItems.push({
+						id: 'signature-' + i,
+						text: signatures[i].list,
+						title: signatures[i].list,
+						fullSignature: signatures[i].full,
+						onclick: function(event, item)
+						{
+							item.getMenuWindow().close();
+							form.insertSignature(item.fullSignature);
+						},
+					})
+				}
+			}
+
+			if (signatureSelectItems.length)
+			{
+				signatureSelectItems.push({
+					id: 'after-signatures-delimiter',
+					delimiter: true,
+				})
+			}
+		}
+		return signatureSelectItems;
+	};
+
+	BXMainMailForm.prototype.appendCalendarLinkButton = function(params)
+	{
+		if (
+			BX.type.isNotEmptyObject(params)
+			&& BX.type.isBoolean(params.showCalendarSharingButton)
+			&& !this.calendarSharingLinkButton
+		)
+		{
+			const id = 'calendar-sharing-link';
+			const ownerType = this.options.ownerType ?? null;
+			const sharingFeatureLimitEnable = params.sharingFeatureLimitEnable
+				|| (params.crmSharingFeatureLimitEnable && ownerType === 'DEAL')
+			;
+			if (sharingFeatureLimitEnable)
+			{
+				this.postForm.getToolbar().insertAfter({
+					BODY: `<i></i>${BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_SELECT')}`,
+					ID: id,
+				});
+			}
+			else
+			{
+				this.postForm.getToolbar().insertAfter({
+					BODY: `<div class="--locked"><i></i>${BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_SELECT')}</div>`,
+					ID: id,
+				});
+			}
+
+			this.calendarSharingLinkButton = this.getSelectButton(id);
+			if (sharingFeatureLimitEnable)
+			{
+				BX.Event.bind(this.calendarSharingLinkButton, 'click', this.insertCalendarSharingLink.bind(this));
+				this.calendarSharingLoader = new BX.Loader({
+					target: this.calendarSharingLinkButton,
+					size: 20,
+					mode: 'inline',
+					offset: {
+						left: '4%',
+						top: '-2%',
+					},
+				});
+				this.initPopupOpenCalendar();
+			}
+			else
+			{
+				BX.Event.bind(this.calendarSharingLinkButton, 'click', () => {
+					this.showCalendarSharingLimit(ownerType);
+				});
+			}
+		}
+	};
+
+	BXMainMailForm.prototype.insertCalendarSharingLink = function()
+	{
+		const ownerId = this.options.ownerId ?? null;
+		const ownerType = this.options.ownerType ?? null;
+
+		this.calendarSharingLoader.show();
+		BX.ajax.runComponentAction(
+			'bitrix:main.mail.form',
+			'getCalendarSharingLink',
+			{
+				mode: 'class',
+				data: {
+					entityId: ownerId,
+					entityType: ownerType,
+				},
+			},
+		).then((response) => {
+			if (BX.type.isNotEmptyObject(response)
+				&& BX.type.isNotEmptyObject(response.data)
+				&& Object.hasOwn(response.data, 'isSharingFeatureEnabled'))
+			{
+				if (response.data.isSharingFeatureEnabled === true)
+				{
+					const sharingLink = BX.Text.encode(response.data.sharingUrl);
+					const sharingTextNode = this.getCalendarSharingText(sharingLink);
+					this.insertCalendarSharingMessage(sharingTextNode);
+					const range = this.editor.selection.GetRange();
+					range.setStartAfter(sharingTextNode);
+					range.setEndAfter(sharingTextNode);
+					this.editor.selection.SetSelection(range);
+				}
+				else
+				{
+					this.popupOpenCalendar.show();
+				}
+			}
+			this.calendarSharingLoader.hide();
+		});
+	};
+
+	BXMainMailForm.prototype.showCalendarSharingLimit = function(ownerType)
+	{
+		if (ownerType === 'DEAL')
+		{
+			BX.UI.InfoHelper.show('limit_crm_calendar_free_slots');
+		}
+		else
+		{
+			BX.Runtime.loadExtension('ui.info-helper')
+				.then(({ FeaturePromotersRegistry }) => {
+					if (FeaturePromotersRegistry)
+					{
+						FeaturePromotersRegistry.getPromoter({ featureId: 'calendar_sharing' }).show();
+					}
+				})
+				.catch((error) => {})
+			;
+		}
+	};
+
+	BXMainMailForm.prototype.insertCalendarSharingMessage = function(sharingLinkNode)
+	{
+		const range = this.editor.selection.GetRange();
+		if (this.userSelection === this.editor.GetIframeDoc().body)
+		{
+			const containerTags = ['DIV', 'HTML', 'BODY'];
+			const parentTag = range.endContainer.parentElement.tagName;
+			if (containerTags.includes(parentTag))
+			{
+				this.editor.selection.InsertNode(sharingLinkNode, range);
+
+				return;
+			}
+			range.endContainer.parentElement.after(sharingLinkNode);
+
+			return;
+		}
+		const signatureNode = this.editor.GetIframeDoc().getElementById(this.signatureNodeId);
+
+		if (signatureNode)
+		{
+			signatureNode.before(sharingLinkNode);
+
+			return;
+		}
+		const quoteNode = this.editor.GetIframeDoc().getElementById(this.quoteNodeId);
+		if (quoteNode)
+		{
+			quoteNode.before(sharingLinkNode);
+
+			return;
+		}
+
+		range.setStartAfter(this.editor.GetIframeDoc().body.lastChild);
+		range.setEndAfter(this.editor.GetIframeDoc().body.lastChild);
+		this.editor.selection.SetSelection(range);
+		this.editor.selection.InsertNode(sharingLinkNode, range);
+	};
+
+	BXMainMailForm.prototype.getCalendarSharingText = function(sharingLink)
+	{
+		return BX.Tag.render`
+			<span>
+				${BX.Loc.getMessage(
+					'MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_TEXT_MSGVER_1',
+					{
+						'[sharing_link]': `<a class="${this.sharingLinkNodeClass}" href="${sharingLink}">`,
+						'[/sharing_link]': '</a>',
+						'#SHARING_LINK#': sharingLink,
+					},
+				)}
+			</span>
+		`;
+	};
+
+	BXMainMailForm.prototype.initPopupOpenCalendar = function()
+	{
+		this.popupOpenCalendar = BX.Main.PopupManager.create(
+			{
+				id: 'popup-calendar-sharing-link',
+				titleBar: BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_POPUP_CALENDAR_TITLE'),
+				content: BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_POPUP_CALENDAR_TEXT'),
+				width: 400,
+				angle: true,
+				overlay: true,
+				bindElement: this.calendarSharingLinkButton,
+				offsetLeft: 40,
+				closeByEsc: true,
+				buttons: [
+					new BX.UI.CloseButton({
+						text: BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_POPUP_CALENDAR_OPEN_BUTTON'),
+						color: BX.UI.ButtonColor.PRIMARY,
+						events: {
+							click: () => {
+								const returnFocusTarget = this.calendarSharingLinkButton;
+								BX.SidePanel.Instance.open(
+									this.options.userCalendarPath,
+									{
+										events: {
+											onCloseComplete: () => {
+												if (returnFocusTarget && document.body.contains(returnFocusTarget))
+												{
+													returnFocusTarget.focus({ focusVisible: true });
+												}
+											},
+										},
+									},
+								);
+								this.popupOpenCalendar.close();
+							},
+						},
+					}),
+					new BX.UI.CancelButton({
+						events: {
+							click: () => {
+								this.popupOpenCalendar.close();
+							},
+						},
+					}),
+				],
+			},
+		);
+	};
+
+	BXMainMailForm.prototype.needShowCalendarTour = function()
+	{
+		const hasShowParam = function hasShowCalendarSharingTour(field)
+		{
+			return BX.type.isNotEmptyObject(field)
+				&& Object.hasOwn(field.params, 'showCalendarSharingTour');
+		};
+
+		return this.fields.find((element) => hasShowParam(element))?.params?.showCalendarSharingTour ?? false;
+	};
+
+	BXMainMailForm.prototype.showCalendarSharingInitialTour = function()
+	{
+		if (!this.needShowCalendarTour())
+		{
+			return;
+		}
+
+		const tourId = this.options.calendarSharingTourId;
+		const ownerType = this.options.ownerType;
+
+		BX.ajax.runComponentAction(
+			'bitrix:main.mail.form',
+			'getCalendarSharingLink',
+			{ mode: 'class' },
+		).then((response) => {
+			if (BX.type.isNotEmptyObject(response)
+				&& BX.type.isNotEmptyObject(response.data)
+				&& Object.hasOwn(response.data, 'isSharingFeatureEnabled'))
+			{
+				let titleText = BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_TOUR_TITLE');
+				let tourText = '';
+				let helpDeskCode = this.helpDeskCalendarCode;
+				if (ownerType === 'DEAL' && response.data.sharingLink !== '')
+				{
+					titleText = BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_TOUR_DEAL_TITLE');
+					tourText = BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_TOUR_DEAL_TEXT');
+					helpDeskCode = this.helpDeskCRMCalendarCode;
+				}
+				else if (response.data.isSharingFeatureEnabled === true)
+				{
+					tourText = BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_TOUR_SETTING_IS_ACTIVATE_TEXT');
+				}
+				else
+				{
+					tourText = BX.Loc.getMessage('MAIN_MAIL_FORM_EDITOR_CALENDAR_SHARING_TOUR_SETTING_IS_DEACTIVATE_TEXT');
+				}
+
+				const guide = new BX.UI.Tour.Guide({
+					id: tourId,
+					autoSave: true,
+					simpleMode: true,
+					steps: [{
+						position: 'top',
+						title: titleText,
+						text: tourText,
+						article: helpDeskCode,
+					}],
+				});
+				const guidePopup = guide.getPopup();
+				guidePopup.setWidth(400);
+				setTimeout(() => {
+					const step = guide.getCurrentStep();
+					if (step)
+					{
+						guide.scrollToTarget(this.calendarSharingLinkButton);
+						step.setTarget(this.calendarSharingLinkButton);
+						guide.start();
+					}
+				}, 1500);
+			}
+		});
+	};
+
+	BXMainMailForm.prototype.updateSharingLinkNode = function(text, sharingLink = null) {
+		const element = new DOMParser().parseFromString(text, 'text/html');
+		const sharingLinkNodes = element.getElementsByClassName(this.sharingLinkNodeClass);
+		for (const sharingLinkNode of sharingLinkNodes)
+		{
+			if (sharingLink)
+			{
+				sharingLinkNode.innerText = sharingLink;
+				sharingLinkNode.href = sharingLink;
+			}
+			else
+			{
+				sharingLinkNode.remove();
+			}
+		}
+
+		return element.documentElement.innerHTML;
+	};
+
+	BXMainMailForm.prototype.hideAiImageGeneratorButton = function() {
+		if (this.editorInited)
+		{
+			this.editor.toolbar.HideControl('ai-image-generator');
+		}
+		else
+		{
+			BX.addCustomEvent(this, 'MailForm::editor::init', () => {
+				this.editor.toolbar.HideControl('ai-image-generator');
+			});
 		}
 	};
 

@@ -28,6 +28,7 @@ class StyleImg extends Node
 	];
 	protected const STYLES_URL_MARKER = '#url#';
 	protected const STYLES_URL_REGEXP = '/url\([\'"]?([^\'")]+)[\'")]?\)/i';
+	protected const STYLES_NODE_CLASS = 'g-bg-image';
 
 	/**
 	 * Get class - frontend handler.
@@ -129,9 +130,9 @@ class StyleImg extends Node
 								if (!$stylesChanged)
 								{
 									$classList = $resultList[$pos]->getAttribute('class');
-									if (!stripos($classList, 'g-bg-image'))
+									if (!stripos($classList, self::STYLES_NODE_CLASS))
 									{
-										$classList .= ' g-bg-image';
+										$classList .= ' ' . self::STYLES_NODE_CLASS;
 									}
 									$resultList[$pos]->setAttribute('class', $classList);
 									$fileArray1x = \CFile::GetFileArray($id);
@@ -178,9 +179,11 @@ class StyleImg extends Node
 	 * Get data for this node.
 	 * @param Block $block Block instance.
 	 * @param string $selector Selector.
+	 * @param int[]|null $preloadedFiles File ids of the block, read once by the caller to avoid a query
+	 *        per selector; null means read them here on demand.
 	 * @return array
 	 */
-	public static function getNode(Block $block, $selector): array
+	public static function getNode(Block $block, $selector, ?array $preloadedFiles = null): array
 	{
 		if (!self::isCorrectNodeType($block, $selector))
 		{
@@ -190,6 +193,7 @@ class StyleImg extends Node
 		{
 			$data = [];
 			$resultList = Node\Style::getNodesBySelector($block, $selector);
+			$files = $preloadedFiles;
 
 			foreach ($resultList as $pos => $res)
 			{
@@ -215,7 +219,10 @@ class StyleImg extends Node
 					;
 					if ($nodeData)
 					{
-						$files = File::getFilesFromBlock($block->getId());
+						if ($files === null)
+						{
+							$files = File::getFilesFromBlock($block->getId());
+						}
 						if (!in_array($nodeData['id'], $files))
 						{
 							continue;
@@ -358,7 +365,7 @@ class StyleImg extends Node
 		$pattern = '/' . substr($selector, 1) . '[^\"]*/i';
 		if (preg_match($pattern, $block->getContent(), $matches) === 1)
 		{
-			$pattern = '/[\s]?g-bg-image[\s]?/i';
+			$pattern = '/[\s]?' . self::STYLES_NODE_CLASS . '[\s]?/i';
 			if (preg_match($pattern, $matches[0]) === 1)
 			{
 				return true;

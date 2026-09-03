@@ -1,20 +1,24 @@
 <?php
 
-use Bitrix\Main\Localization\Loc;
-
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
-\Bitrix\Main\UI\Extension::load([
+use Bitrix\Catalog\Store\EnableWizard\Manager;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Extension;
+
+Extension::load([
 	'ui.alerts',
 	'ui.tooltip',
 	'ui.icons',
 	'ui.notification',
 	'ui.tour',
+	'ui.banner-dispatcher',
+	'main.core',
 	'catalog.document-grid',
-	'catalog.store-use',
+	'catalog.store-enable-wizard',
 ]);
 
 global $APPLICATION;
@@ -69,9 +73,17 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 		var currentSlider = BX.SidePanel.Instance.getTopSlider();
 		if (!currentSlider || !currentSlider.data.get('preventMasterSlider'))
 		{
-			(new BX.Catalog.StoreUse.Slider()).open(
+			(new BX.Catalog.Store.EnableWizardOpener()).open(
 				"<?= $arResult['MASTER_SLIDER_URL'] ?>",
 				{
+					urlParams: {
+						<?php if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER_IN_B24_MODE']): ?>
+							initEnableMode: BX.Catalog.Store.ModeList.MODE_B24,
+							analyticsContextSection: BX.Catalog.Store.AnalyticsContextList.LANDING,
+						<?php else:?>
+							analyticsContextSection: BX.Catalog.Store.AnalyticsContextList.SECTION,
+						<?php endif; ?>
+					},
 					cacheable: false,
 					data: {
 						openGridOnDone: false,
@@ -86,9 +98,20 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 
 							if (slider.getData().get('isInventoryManagementEnabled'))
 							{
-								document.location.reload();
+								BX.Catalog.Store.EnableWizardOpener.saveEnabledFlag();
+
+								if (slider.getData().get('inventoryManagementMode') === BX.Catalog.Store.ModeList.MODE_1C)
+								{
+									top.document.location = '/crm/';
+								}
+								else
+								{
+									document.location.reload();
+								}
 							}
-						}
+
+							return Promise.resolve();
+						},
 					}
 				}
 			);
@@ -116,9 +139,9 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 
 	function openInventoryMarketplaceSlider()
 	{
-		var url = '/marketplace/?tag[0]=migrator&tag[1]=inventory'
-		var rule = BX.SidePanel.Instance.getUrlRule(url);
-		var options = (rule && BX.type.isPlainObject(rule.options)) ? rule.options : {};
+		const url = '/market/collection/migration_inventory/';
+		const rule = BX.SidePanel.Instance.getUrlRule(url);
+		const options = (rule && BX.type.isPlainObject(rule.options)) ? rule.options : {};
 		options["cacheable"] = false;
 		options["allowChangeHistory"] = false;
 		options["requestMethod"] = "post";
@@ -148,8 +171,57 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 				],
 				onEvents: true,
 			});
-			guide.showNextStep();
+			BX.UI.BannerDispatcher.high.toQueue(() => {
+				guide.showNextStep();
+			});
 		});
+	}
+
+	function showProductBatchMethodPopup()
+	{
+		BX.Runtime.loadExtension('ui.dialogs.messagebox').then((exports) => {
+			const { MessageBox } = exports;
+
+			MessageBox.confirm(
+				BX.Tag.render`
+					<div>
+						<p>${<?= CUtil::PhpToJSObject(Loc::getMessage('BATCH_METHOD_POPUP_TEXT_1_MSGVER_1')) ?>}</p>
+						<p>
+							${<?= CUtil::PhpToJSObject(Loc::getMessage(
+								'BATCH_METHOD_POPUP_TEXT_2_MSGVER_1',
+								[
+									'[link]' => '<a href="#" onclick="openHelpdesk()">',
+									'[/link]' => '</a>',
+								],
+							)) ?>}
+						</p>
+					</div>
+				`,
+				<?= CUtil::PhpToJSObject(Loc::getMessage('BATCH_METHOD_POPUP_TITLE')) ?>,
+				(messageBox) => {
+					BX.Runtime.loadExtension('catalog.config.settings').then((exports) => {
+						const { Slider } = exports;
+						Slider.open(<?= CUtil::PhpToJSObject($arResult['INVENTORY_MANAGEMENT_SOURCE']) ?>);
+					});
+					messageBox.close();
+					BX.userOptions.save('catalog', 'document-list', 'was_batch_method_popup_shown', 'Y');
+				},
+				<?= CUtil::PhpToJSObject(Loc::getMessage('BATCH_METHOD_POPUP_GO_TO_SETTINGS')) ?>,
+				(messageBox) => {
+					messageBox.close();
+					BX.userOptions.save('catalog', 'document-list', 'was_batch_method_popup_shown', 'Y');
+				},
+				<?= CUtil::PhpToJSObject(Loc::getMessage('BATCH_METHOD_POPUP_LATER')) ?>,
+			);
+		});
+	}
+
+	function openHelpdesk(event)
+	{
+		if (top.BX.Helper)
+		{
+			top.BX.Helper.show("redirect=detail&code=17858278");
+		}
 	}
 
 	function resetAddDocumentButton()
@@ -178,12 +250,20 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 			showAddDocumentGuide();
 		}
 
+		const isShowProductBatchMethodPopup = <?= CUtil::PhpToJSObject($arResult['IS_SHOW_PRODUCT_BATCH_METHOD_POPUP']) ?>;
+		if (isShowProductBatchMethodPopup)
+		{
+			showProductBatchMethodPopup();
+		}
+
 		BX.Catalog.DocumentGridManager.Instance = new BX.Catalog.DocumentGridManager({
 			gridId: '<?= $arResult['GRID']['GRID_ID'] ?>',
 			filterId: '<?= $arResult['FILTER_ID'] ?>',
 			isConductDisabled: <?= $arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER_ON_ACTION'] ? 'true' : 'false' ?>,
 			masterSliderUrl: <?= CUtil::PhpToJSObject($arResult['MASTER_SLIDER_URL']) ?>,
 			inventoryManagementSource: <?= CUtil::PhpToJSObject($arResult['INVENTORY_MANAGEMENT_SOURCE']) ?>,
+			isInventoryManagementDisabled: <?= CUtil::PhpToJSObject($arResult['IS_INVENTORY_MANAGEMENT_DISABLED']) ?>,
+			inventoryManagementFeatureCode: <?= CUtil::PhpToJSObject($arResult['INVENTORY_MANAGEMENT_FEATURE_SLIDER_CODE']) ?>,
 		});
 	});
 
@@ -238,7 +318,7 @@ if ($arResult['OPEN_INVENTORY_MANAGEMENT_SLIDER'])
 		}
 	});
 
-	top.BX.addCustomEvent('CatalogWarehouseMasterClear:resetDocuments', function(event) {
-		reloadGrid();
-	});
 </script>
+
+<?php
+Manager::showEnabledJsNotificationIfNeeded();

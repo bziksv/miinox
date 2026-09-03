@@ -1,8 +1,11 @@
-<?
+<?php
 require_once(__DIR__."/../include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/wizard.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/tar_gz.php");
+
+/**
+ * @global CMain $APPLICATION
+ * @global CUser $USER
+ */
 
 if(!$USER->CanDoOperation('edit_php') || !check_bitrix_sessid())
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
@@ -73,4 +76,3 @@ if ($strError <> '')
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_before.php");
 }
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_after.php");
-?>

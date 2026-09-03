@@ -3,6 +3,7 @@
 namespace Bitrix\Translate\Index;
 
 use Bitrix\Main;
+use Bitrix\Main\ORM\Fields\ExpressionField;
 use Bitrix\Translate;
 use Bitrix\Translate\Index;
 
@@ -16,16 +17,16 @@ class PhraseIndexCollection
 	/**
 	 * @var bool
 	 */
-	static $verbose = false;
+	public static bool $verbose = false;
 
 	/**
 	 * Counts items to process.
 	 *
-	 * @param Translate\Filter $filter Params to filter file list.
+	 * @param Translate\Filter|null $filter Params to filter file list.
 	 *
 	 * @return int
 	 */
-	public function countItemsToProcess(Translate\Filter $filter = null)
+	public function countItemsToProcess(?Translate\Filter $filter = null): int
 	{
 		if (isset($filter, $filter->path))
 		{
@@ -47,11 +48,11 @@ class PhraseIndexCollection
 				$checkLanguages = \array_intersect($filter->langId, $checkLanguages);
 			}
 
-			$fileFilter = array(
+			$fileFilter = [
 				'=PATH.DESCENDANTS.PARENT_ID' => $topPath['ID'],//ancestor
 				'=LANG_ID' => $checkLanguages,
 				//todo: add filter by INDEXED_TIME
-			);
+			];
 			$totalItems = (int)Index\Internals\FileIndexTable::getCount($fileFilter);
 		}
 		else
@@ -66,13 +67,13 @@ class PhraseIndexCollection
 	/**
 	 * Collect index phrases.
 	 *
-	 * @param Translate\Filter $filter Params to filter file list.
-	 * @param Translate\Controller\ITimeLimit $timer Time counter.
-	 * @param Translate\Filter $seek Params to seek position.
+	 * @param Translate\Filter|null $filter Params to filter file list.
+	 * @param Translate\Controller\ITimeLimit|null $timer Time counter.
+	 * @param Translate\Filter|null $seek Params to seek position.
 	 *
 	 * @return int
 	 */
-	public function collect(Translate\Filter $filter = null, Translate\Controller\ITimeLimit $timer = null, Translate\Filter $seek = null)
+	public function collect(?Translate\Filter $filter = null, ?Translate\Controller\ITimeLimit $timer = null, ?Translate\Filter $seek = null): int
 	{
 		if (isset($filter, $filter->path))
 		{
@@ -101,11 +102,11 @@ class PhraseIndexCollection
 			return 0;
 		}
 
-		$fileFilter = array(
+		$fileFilter = [
 			'=PATH.DESCENDANTS.PARENT_ID' => $topPath['ID'],//ancestor
 			'=LANG_ID' => $checkLanguages,
 			//todo: add filter by INDEXED_TIME
-		);
+		];
 		if (isset($seek, $seek->pathId))
 		{
 			$fileFilter['>PATH_ID'] = $seek->pathId;
@@ -118,13 +119,13 @@ class PhraseIndexCollection
 		$fileListQuery
 			->addSelect('PATH_ID')
 
-			->registerRuntimeField(new Main\ORM\Fields\ExpressionField('FILE_IDS', "GROUP_CONCAT(%s ORDER BY (%s) SEPARATOR '\\n')", ['ID', 'ID']))
+			->registerRuntimeField(new ExpressionField('FILE_IDS', "GROUP_CONCAT(%s ORDER BY (%s) SEPARATOR '\\n')", ['ID', 'ID']))
 			->addSelect('FILE_IDS')
 
-			->registerRuntimeField(new Main\ORM\Fields\ExpressionField('LANG_IDS', "GROUP_CONCAT(%s ORDER BY (%s) SEPARATOR '\\n')", ['LANG_ID', 'ID']))
+			->registerRuntimeField(new ExpressionField('LANG_IDS', "GROUP_CONCAT(%s ORDER BY (%s) SEPARATOR '\\n')", ['LANG_ID', 'ID']))
 			->addSelect('LANG_IDS')
 
-			->registerRuntimeField(new Main\ORM\Fields\ExpressionField('FULL_PATHS', "GROUP_CONCAT(%s ORDER BY (%s) SEPARATOR '\\n')", ['FULL_PATH', 'ID']))
+			->registerRuntimeField(new ExpressionField('FULL_PATHS', "GROUP_CONCAT(%s ORDER BY (%s) SEPARATOR '\\n')", ['FULL_PATH', 'ID']))
 			->addSelect('FULL_PATHS')
 
 			->setFilter($fileFilter)
@@ -134,12 +135,18 @@ class PhraseIndexCollection
 
 		$fileListRes = $fileListQuery->exec();
 
+		$phraseId = Index\Internals\PhraseIndexTable::query()
+			->registerRuntimeField(new ExpressionField('MAXID', 'MAX(%s)', ['ID']))
+			->addSelect('MAXID')
+			->exec()
+			->fetch()['MAXID'];
+
 		$processedItemCount = 0;
 
 		while (true)
 		{
 			$lastPathId = null;
-			$filePortion = array();
+			$filePortion = [];
 			while ($pathRow = $fileListRes->fetch())
 			{
 				$filePortion[] = $pathRow;
@@ -154,6 +161,7 @@ class PhraseIndexCollection
 			}
 
 			$fileData = [];
+			$phraseCodeData = [];
 			$phraseData = [];
 			$pathIdPortion = [];
 			$nonexistentFiles = [];
@@ -181,7 +189,6 @@ class PhraseIndexCollection
 					$filePaths[] = \trim($v);
 				}
 
-
 				foreach ($fileIds as $inx => $indexFileId)
 				{
 					$langId = $langIds[$inx];
@@ -200,7 +207,7 @@ class PhraseIndexCollection
 						continue;
 					}
 
-					$fileData[] = array(
+					$fileData[] = [
 						'ID' => $indexFileId,
 						'PATH_ID' => $pathId,
 						'LANG_ID' => $langId,
@@ -208,35 +215,62 @@ class PhraseIndexCollection
 						'FULL_PATH' => $current->getPath(),
 						'INDEXED' => 'Y',
 						'INDEXED_TIME' => new Main\Type\DateTime(),
-					);
+					];
 
 					foreach ($current as $code => $phrase)
 					{
-						$phraseData[] = array(
+						$phraseId ++;
+						$phraseCodeData[] = [
+							'ID' => $phraseId,
 							'FILE_ID' => $indexFileId,
 							'PATH_ID' => $pathId,
 							'LANG_ID' => $langId,
 							'CODE' => $code,
+						];
+						if (!isset($phraseData[$langId]))
+						{
+							$phraseData[$langId] = [];
+						}
+						$phraseData[$langId][] = [
+							'ID' => $phraseId,
+							'FILE_ID' => $indexFileId,
+							'PATH_ID' => $pathId,
+							'CODE' => $code,
 							'PHRASE' => $phrase,
-						);
+						];
 					}
 				}
 
 				$processedItemCount += \count($fileIds);
 			}
 
-			Index\Internals\PhraseIndexTable::bulkDelete(['=PATH_ID' => $pathIdPortion, '=LANG_ID' => $checkLanguages]);
+			// delete
+			Index\Internals\PhraseIndexTable::bulkDelete([
+				'=PATH_ID' => $pathIdPortion,
+				'=LANG_ID' => $checkLanguages,
+			]);
 
 			if (\count($nonexistentFiles) > 0)
 			{
-				Index\Internals\FileDiffTable::bulkDelete(['=FILE_ID' => $nonexistentFiles]);
 				Index\Internals\PhraseIndexTable::bulkDelete(['=FILE_ID' => $nonexistentFiles]);
 				Index\Internals\FileIndexTable::bulkDelete(['=ID' => $nonexistentFiles]);
+				foreach (Translate\Config::getEnabledLanguages() as $langId)
+				{
+					$ftsClass = Index\Internals\PhraseFts::getFtsEntityClass($langId);
+					$ftsClass::bulkDelete(['=FILE_ID' => $nonexistentFiles]);
+				}
 			}
-			if (\count($phraseData) > 0)
+
+			// Add
+			if (\count($phraseCodeData) > 0)
 			{
 				Index\Internals\FileIndexTable::bulkAdd($fileData, 'ID');
-				Index\Internals\PhraseIndexTable::bulkAdd($phraseData);
+				Index\Internals\PhraseIndexTable::bulkAdd($phraseCodeData);
+				foreach ($phraseData as $langId => $phraseLangData)
+				{
+					$ftsClass = Index\Internals\PhraseFts::getFtsEntityClass($langId);
+					$ftsClass::bulkAdd($phraseLangData, 'ID');
+				}
 			}
 
 			Index\Internals\PathIndexTable::bulkUpdate(
@@ -273,11 +307,11 @@ class PhraseIndexCollection
 	/**
 	 * Drop index.
 	 *
-	 * @param Translate\Filter $filter Params to filter file list.
+	 * @param Translate\Filter|null $filter Params to filter file list.
 	 *
 	 * @return self
 	 */
-	public function purge(Translate\Filter $filter = null)
+	public function purge(?Translate\Filter $filter = null): self
 	{
 		Index\Internals\PhraseIndexTable::purge($filter);
 
@@ -291,7 +325,7 @@ class PhraseIndexCollection
 	 *
 	 * @return Index\PhraseIndex|null
 	 */
-	public function getPhraseByCode($code)
+	public function getPhraseByCode($code): ?string
 	{
 		foreach ($this as $phrase)
 		{

@@ -24,7 +24,7 @@ class PayMasterHandler extends WebMoneyHandler
 	 * @param Request|null $request
 	 * @return PaySystem\ServiceResult
 	 */
-	public function initiatePay(Payment $payment, Request $request = null)
+	public function initiatePay(Payment $payment, ?Request $request = null)
 	{
 		$extraParams = array(
 			'PS_MODE' => $this->service->getField('PS_MODE'),
@@ -170,7 +170,7 @@ class PayMasterHandler extends WebMoneyHandler
 
 		$hash = base64_encode(hash($algorithm, $string, true));
 
-		return ToUpper($hash) == ToUpper($request->get('LMI_HASH'));
+		return mb_strtoupper($hash) == mb_strtoupper($request->get('LMI_HASH'));
 	}
 
 	/**

@@ -1,8 +1,8 @@
 <?php
 /**
- * @global \CUser $USER
- * @global \CMain $APPLICATION
- * @global \CDatabase $DB
+ * @global CUser $USER
+ * @global CMain $APPLICATION
+ * @global CDatabase $DB
  */
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
@@ -99,8 +99,8 @@ if (!empty($_REQUEST['action']))
 	}
 	elseif ($_REQUEST['action'] == 'restore')
 	{
-		$http = new CHTTP;
-		if (!$http->Download('https://www.1c-bitrix.ru/download/files/scripts/restore.php', DOCUMENT_ROOT.'/restore.php'))
+		$http = new \Bitrix\Main\Web\HttpClient();
+		if (!$http->download('https://www.1c-bitrix.ru/download/files/scripts/restore.php', DOCUMENT_ROOT.'/restore.php'))
 		{
 			if (file_exists(DOCUMENT_ROOT.'/restore.php'))
 				unlink(DOCUMENT_ROOT.'/restore.php');
@@ -134,10 +134,7 @@ if (!empty($_REQUEST['action']))
 		die();
 	}
 }
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
-######### Admin list #######
-#$arFilterFields = array();
-#$lAdmin->InitFilter($arFilterFields);
+
 $lAdmin->BeginPrologContent();
 
 if ($arID = $lAdmin->GroupAction())
@@ -239,14 +236,14 @@ if ($arID = $lAdmin->GroupAction())
 				}
 			break;
 			case "rename":
-				if (preg_match('#^[a-z0-9\-\._]+$#i',$_REQUEST['name'] ?? ''))
+				if (preg_match('#^[a-z0-9\-._]+$#i',$_REQUEST['name'] ?? ''))
 				{
 					$arName = ParseFileName($_REQUEST['ID'] ?? '');
 					$new_name = ($_REQUEST['name'] ?? '').'.'.$arName['ext'];
 
 					if ($BUCKET_ID = intval($_REQUEST['BUCKET_ID'] ?? 0))
 					{
-						// Not realized 'cos no cloud API
+						// Not realized because no cloud API
 					}
 					else
 					{
@@ -363,11 +360,11 @@ foreach($arTmpFiles as $k=>$ar)
 		$arSize[$BUCKET_ID.$regs[1]] += $ar['SIZE'];
 		if (empty($regs[3]))
 		{
-			if ($by == 'size')
+			if ($oSort->getField() == 'size')
 				$key = $arSize[$BUCKET_ID.$regs[1]];
-			elseif ($by == 'timestamp')
+			elseif ($oSort->getField() == 'timestamp')
 				$key = $ar['DATE'];
-			elseif ($by == 'location')
+			elseif ($oSort->getField() == 'location')
 				$key = $ar['PLACE'];
 			else // name
 				$key = $regs[1];
@@ -377,12 +374,12 @@ foreach($arTmpFiles as $k=>$ar)
 	}
 }
 
-if ($order == 'desc')
+if ($oSort->getOrder() == 'desc')
 	krsort($arFiles);
 else
 	ksort($arFiles);
 
-$rsDirContent = new CDBResult;
+$rsDirContent = new CAdminResult(null, $sTableID);
 $rsDirContent->InitFromArray($arFiles);
 $rsDirContent->NavStart(20);
 
@@ -395,10 +392,10 @@ $lAdmin->AddHeaders(array(
 ));
 
 $arWriteBucket = CBackup::GetBucketList($arFilter = array('READ_ONLY' => 'N'));
-while($f = $rsDirContent->NavNext(true, "f_"))
+while($f = $rsDirContent->Fetch())
 {
 	$BUCKET_ID = intval($f['BUCKET_ID']);
-	$row =& $lAdmin->AddRow($BUCKET_ID.'_'.$f['NAME'], $f);
+	$row = $lAdmin->AddRow($BUCKET_ID.'_'.$f['NAME'], $f);
 
 	$c = $arParts[$BUCKET_ID.$f['NAME']];
 	if ($c > 1)
@@ -565,7 +562,7 @@ require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/prolog_admin_af
 	}
 </script>
 <div id="dump_result_div"></div>
-<?
+<?php
 $lAdmin->DisplayList();
 
 echo BeginNote();
@@ -573,14 +570,12 @@ echo GetMessage("MAIN_DUMP_HEADER_MSG1", array('#EXPORT#' => 'https://www.1c-bit
 echo EndNote();
 
 require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin.php");
-#################################################
-################## FUNCTIONS
+
 function ParseFileName($name)
 {
 	if (preg_match('#^(.+)\.(tar.*)$#', $name, $regs))
 		return array('name' => $regs[1], 'ext' => $regs[2]);
-	elseif (preg_match('#^(.+)\.([^\.]+)$#', $name, $regs))
+	elseif (preg_match('#^(.+)\.([^.]+)$#', $name, $regs))
 		return array('name' => $regs[1], 'ext' => $regs[2]);
 	return array('name' => $name, 'ext' => '');
 }
-?>

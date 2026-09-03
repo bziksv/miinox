@@ -21,6 +21,7 @@ use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
 use Bitrix\UI\Buttons\Button;
 use Bitrix\UI\Buttons\Color;
+use Bitrix\UI\Buttons\Icon;
 use Bitrix\UI\Buttons\JsHandler;
 use Bitrix\UI\Buttons\SettingsButton;
 use Bitrix\UI\Toolbar\Facade\Toolbar;
@@ -52,6 +53,7 @@ $feedbackButton = new Button([
 		'BX.Catalog.ProductCard.Instance'
 	),
 ]);
+$feedbackButton->addDataAttribute('toolbar-collapsed-icon', Icon::ADD);
 Toolbar::addButton($feedbackButton);
 
 Toolbar::deleteFavoriteStar();
@@ -110,6 +112,7 @@ $cardParameters = [
 	'hiddenFields' => $arResult['HIDDEN_FIELDS'],
 	'isWithOrdersMode' => $arResult['IS_WITH_ORDERS_MODE'],
 	'isInventoryManagementUsed' => $arResult['IS_INVENTORY_MANAGEMENT_USED'],
+	'isInventoryManagementToolEnabled' => $arResult['IS_INVENTORY_MANAGEMENT_TOOL_ENABLED'],
 	'createDocumentButtonId' => $createDocumentButtonId,
 	'createDocumentButtonMenuPopupItems' => $arResult['CREATE_DOCUMENT_BUTTON']['POPUP_ITEMS'] ?? [],
 	'feedbackUrl' => $arParams['PATH_TO']['FEEDBACK'] ?? '',
@@ -122,6 +125,7 @@ $cardParameters = [
 	'productStoreGridId' => $arResult['STORE_AMOUNT_GRID_ID'],
 	'productTypeSelector' => 'catalog-productcard-product-type-selector',
 	'productTypeSelectorTypes' => $arResult['DROPDOWN_TYPES'],
+	'isCopilotEnabled' => $arResult['IS_COPILOT_ENABLED'],
 ];
 ?>
 <script>

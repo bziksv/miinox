@@ -7,6 +7,7 @@
  */
 namespace Bitrix\Sender\Entity;
 
+use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sender\TemplateTable;
 
@@ -47,6 +48,18 @@ class Template extends Base
 	 */
 	protected function saveData($id, array $data)
 	{
+		$sizeInBytes = mb_strlen($data['CONTENT'] ?? "");
+		$sizeInKilobytes = $sizeInBytes / 1024;
+		$limitInKilobytes = 2.4 * 1024;
+
+		if ($sizeInKilobytes > $limitInKilobytes)
+		{
+			$this->addError(new Error(Loc::getMessage('SENDER_INTEGRATION_MAIL_BODY_LIMIT')));
+
+			return null;
+		}
+
+
 		return $this->saveByEntity(TemplateTable::getEntity(), $id, $data);
 	}
 
@@ -59,6 +72,23 @@ class Template extends Base
 	{
 		return $this->removeByEntity(TemplateTable::getEntity(), $this->getId());
 	}
+
+	/**
+	 * Copy.
+	 *
+	 *
+	 */
+	public function copy()
+	{
+		$data = [
+			'ACTIVE' => $this->data['ACTIVE'],
+			'NAME' => $this->data['NAME'],
+			'CONTENT' => $this->data['CONTENT'],
+		];
+		$instance = static::create()->mergeData($data);
+		return $instance->save();
+	}
+
 
 	/**
 	 * Remove by letter ID.

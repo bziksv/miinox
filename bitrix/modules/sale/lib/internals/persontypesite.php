@@ -20,9 +20,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_PersonTypeSite_Query query()
- * @method static EO_PersonTypeSite_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_PersonTypeSite_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_PersonTypeSite_Result getById($id)
- * @method static EO_PersonTypeSite_Result getList(array $parameters = array())
+ * @method static EO_PersonTypeSite_Result getList(array $parameters = [])
  * @method static EO_PersonTypeSite_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_PersonTypeSite createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_PersonTypeSite_Collection createCollection()
@@ -49,16 +49,42 @@ class PersonTypeSiteTable extends Main\Entity\DataManager
 	 */
 	public static function getMap()
 	{
-		return array(
-			'PERSON_TYPE_ID' => array(
+		return [
+			'PERSON_TYPE_ID' => [
 				'data_type' => 'integer',
 				'primary' => true,
-			),
-			'SITE_ID' => array(
+			],
+			'SITE_ID' => [
 				'data_type' => 'string',
 				'primary' => true
-			),
-		);
+			],
+		];
 	}
 
+	public static function deleteByPersonTypeId($personTypeId)
+	{
+		$result = new Main\ORM\Data\DeleteResult();
+
+		$dbRes = static::getList([
+			'select' => ['PERSON_TYPE_ID', 'SITE_ID'],
+			'filter' => [
+				'=PERSON_TYPE_ID' => $personTypeId
+			]
+		]);
+
+		while ($item = $dbRes->fetch())
+		{
+			$r = static::delete([
+				'PERSON_TYPE_ID' => $personTypeId,
+				'SITE_ID' => $item['SITE_ID'],
+			]);
+
+			if (!$r->isSuccess())
+			{
+				$result->addErrors($r->getErrors());
+			}
+		}
+
+		return $result;
+	}
 }

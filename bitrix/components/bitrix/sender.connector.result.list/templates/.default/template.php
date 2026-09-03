@@ -4,7 +4,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sender\Recipient;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
@@ -68,32 +68,18 @@ foreach ($arResult['ROWS'] as $index => $data)
 	);
 }
 
-ob_start();
-$APPLICATION->IncludeComponent(
-	"bitrix:main.ui.filter",
-	"",
-	array(
-		"FILTER_ID" => $arParams['FILTER_ID'],
-		"GRID_ID" => $arParams['GRID_ID'],
-		"FILTER" => $arResult['FILTERS'],
-		"DISABLE_SEARCH" => true,
-		"ENABLE_LABEL" => true,
-	)
-);
-$filterLayout = ob_get_clean();
-
-$APPLICATION->IncludeComponent(
-	"bitrix:sender.ui.panel.title",
-	"",
-	[
-		'LIST' => [
-			[
-				'type' => 'filter',
-				'content' => $filterLayout
-			],
-		]
-	]
-);
+$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", ['LIST' => [
+		[
+			'type' => 'filter',
+			'params' => [
+				"FILTER_ID" => $arParams['FILTER_ID'],
+				"GRID_ID" => $arParams['GRID_ID'],
+				"FILTER" => $arResult['FILTERS'],
+				"DISABLE_SEARCH" => true,
+				"ENABLE_LABEL" => true,
+			]
+		],
+	]]);
 
 $controlPanel = array('GROUPS' => array(array('ITEMS' => array())));
 $containerId = 'bx-sender-connector-result-list';

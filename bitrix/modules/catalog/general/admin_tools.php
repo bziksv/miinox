@@ -46,7 +46,7 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 				self::TAB_CATALOG => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_CATALOG'),
 				self::TAB_SKU => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_SKU'),
 				self::TAB_SET => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_SET'),
-				self::TAB_GROUP => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_GROUP'),
+				self::TAB_GROUP => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_GROUP_MSGVER_1'),
 				self::TAB_SERVICE => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_SERVICE'),
 			];
 		}
@@ -59,6 +59,110 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 			self::TAB_GROUP,
 			self::TAB_SERVICE,
 		];
+	}
+
+	/**
+	 * Returns the number of fraction digits for displaying a price in the given currency.
+	 * Falls back to CATALOG_VALUE_PRECISION when the currency has no localized format.
+	 *
+	 * @param string $currency
+	 * @return int
+	 */
+	public static function getCurrencyDecimals(string $currency): int
+	{
+		$decimals = defined('CATALOG_VALUE_PRECISION') ? CATALOG_VALUE_PRECISION : 2;
+		if ($currency !== '' && Loader::includeModule('currency'))
+		{
+			$format = \CCurrencyLang::GetCurrencyFormat($currency);
+			if (isset($format['DECIMALS']))
+			{
+				$decimals = (int)$format['DECIMALS'];
+			}
+		}
+
+		return $decimals;
+	}
+
+	/**
+	 * Formats a raw price for display in an admin input by the currency display precision.
+	 *
+	 * Mirrors the service-based approach used by CRM (\Bitrix\Crm\Format\Money::toNumberString):
+	 * the value is rounded to the currency display format through the catalog price service
+	 * Catalog\Product\Price\Calculation::roundByFormatCurrency(), which delegates to the
+	 * 'sale.priceRounder' service (ServiceLocator) and falls back to CATALOG_VALUE_PRECISION
+	 * when the sale module is absent. The rounded value is then rendered with number_format()
+	 * using the currency DECIMALS, a dot decimal point and no thousands separator on purpose,
+	 * so the value stays parseable by the legacy inline parseFloat()-based price calculations.
+	 *
+	 * @param mixed $value raw price value (DECIMAL(26,8)); empty string is returned as is
+	 * @param string $currency
+	 * @return string
+	 */
+	public static function formatMoneyForDisplay($value, string $currency): string
+	{
+		if (is_string($value))
+		{
+			$value = trim($value);
+		}
+		if ($value === '' || $value === null)
+		{
+			return '';
+		}
+
+		$value = (float)$value;
+		if ($currency !== '')
+		{
+			$value = Catalog\Product\Price\Calculation::roundByFormatCurrency($value, $currency);
+		}
+
+		return number_format($value, self::getCurrencyDecimals($currency), '.', '');
+	}
+
+	/**
+	 * Renders an editable money input: the visible value is formatted by the currency DECIMALS,
+	 * while the full DECIMAL(26,8) precision is preserved in data-money-raw and restored on submit
+	 * for untouched fields. Behaviour (display reformat on currency change, submit-restore) is
+	 * provided by the "catalog.admin-money-field" JS extension.
+	 *
+	 * @param array $params NAME (required), ID, VALUE (raw price), CURRENCY, CURRENCY_CONTROL_ID,
+	 *                      DISABLED (bool), SIZE (int), ATTRIBUTES (raw html attrs)
+	 * @return string
+	 */
+	public static function renderMoneyEditField(array $params): string
+	{
+		$name = (string)($params['NAME'] ?? '');
+		$id = (string)($params['ID'] ?? $name);
+		$rawValue = $params['VALUE'] ?? '';
+		$rawValue = is_string($rawValue) ? trim($rawValue) : (string)$rawValue;
+		$currency = (string)($params['CURRENCY'] ?? '');
+		$currencyControlId = (string)($params['CURRENCY_CONTROL_ID'] ?? '');
+		$size = (int)($params['SIZE'] ?? 0);
+		$disabled = !empty($params['DISABLED']) ? ' disabled' : '';
+		$extraAttributes = (string)($params['ATTRIBUTES'] ?? '');
+
+		$displayValue = self::formatMoneyForDisplay($rawValue, $currency);
+
+		$html = '<input type="text"' . $disabled
+			. ' id="' . htmlspecialcharsbx($id) . '"'
+			. ' name="' . htmlspecialcharsbx($name) . '"'
+			. ' class="catalog-money-edit"'
+			. ' value="' . htmlspecialcharsbx($displayValue) . '"'
+			. ' data-money-raw="' . htmlspecialcharsbx($rawValue) . '"';
+		if ($currencyControlId !== '')
+		{
+			$html .= ' data-money-currency-source="' . htmlspecialcharsbx($currencyControlId) . '"';
+		}
+		if ($size > 0)
+		{
+			$html .= ' size="' . $size . '"';
+		}
+		if ($extraAttributes !== '')
+		{
+			$html .= ' ' . $extraAttributes;
+		}
+		$html .= '>';
+
+		return $html;
 	}
 
 	public static function getTabDescriptions(): array
@@ -81,8 +185,8 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 				'TITLE' => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_SET'),
 			],
 			self::TAB_GROUP => [
-				'NAME' => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_GROUP'),
-				'TITLE' => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_GROUP'),
+				'NAME' => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_GROUP_MSGVER_1'),
+				'TITLE' => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_GROUP_MSGVER_1'),
 			],
 			self::TAB_SERVICE => [
 				'NAME' => Loc::getMessage('BT_CAT_ADM_TOOLS_TAB_SERVICE'),
@@ -135,7 +239,7 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 		$intIBlockID,
 		&$arCatalog,
 		$arParams,
-		BaseBuilder $urlBuilder = null,
+		?BaseBuilder $urlBuilder = null,
 		$gridId = ''
 	)
 	{
@@ -349,7 +453,7 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 						if (CCatalogSku::TYPE_OFFERS != $arCatalog['CATALOG_TYPE'])
 						{
 							$arItems[] = array(
-								'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_SET'),
+								'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_SET_MSGVER_2'),
 								'LINK' => $urlBuilder->getElementDetailUrl(
 									0,
 									self::getParamsWithTab($arParams, self::TAB_SET)
@@ -358,7 +462,7 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 							);
 						}
 						$arItems[] = array(
-							'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_GROUP'),
+							'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_GROUP_MSGVER_1'),
 							'LINK' => $urlBuilder->getElementDetailUrl(
 								0,
 								self::getParamsWithTab($arParams, self::TAB_GROUP)
@@ -374,13 +478,13 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 							if (CCatalogSku::TYPE_OFFERS != $arCatalog['CATALOG_TYPE'])
 							{
 								$arItems[] = [
-									'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_SET'),
+									'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_SET_MSGVER_2'),
 									$helpLink['TYPE'] => $helpLink['LINK'],
 									'ICON' => 'btn_lock',
 								];
 							}
 							$arItems[] = [
-								'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_GROUP'),
+								'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_GROUP_MSGVER_1'),
 								$helpLink['TYPE'] => $helpLink['LINK'],
 								'ICON' => 'btn_lock',
 							];
@@ -409,29 +513,6 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 				);
 			}
 
-			if (
-				$publicShop
-				&& $arCatalog['CATALOG'] === 'Y'
-				&& (
-					CCatalogSku::TYPE_FULL == $arCatalog['CATALOG_TYPE']
-					|| CCatalogSku::TYPE_CATALOG == $arCatalog['CATALOG_TYPE']
-				)
-				&& \Bitrix\Main\Loader::includeModule('crm')
-			)
-			{
-				if (\Bitrix\Crm\Order\Import\Instagram::isAvailable()
-					&& Access\AccessController::getCurrent()->check(Access\ActionDictionary::ACTION_CATALOG_IMPORT_EXECUTION)
-				)
-				{
-					$arItems[] = [
-						'TEXT' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_INSTAGRAM_IMPORT_2'),
-						'TITLE' => Loc::getMessage('BT_CAT_ADM_TOOLS_ADD_INSTAGRAM_IMPORT_TITLE'),
-						'LINK' => \Bitrix\Main\Config\Option::get('crm', 'path_to_order_import_instagram'),
-						'PUBLIC' => true,
-						'SHOW_TITLE' => true,
-					];
-				}
-			}
 		}
 		unset($productLimits);
 
@@ -462,7 +543,7 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 		$intID,
 		&$arCatalog,
 		$arParams,
-		BaseBuilder $urlBuilder = null
+		?BaseBuilder $urlBuilder = null
 	)
 	{
 		$arResult = false;
@@ -1789,54 +1870,21 @@ class CCatalogAdminTools extends CCatalogAdminToolsAll
 	/**
 	 * Returns true, if enable inventory managment and current user not have full store access.
 	 *
+	 * @deprecated
 	 * @return bool
 	 */
 	public static function needSummaryStoreAmountByPermissions(): bool
 	{
-		if (!Loader::includeModule('crm'))
-		{
-			return false;
-		}
-
-		if (!Catalog\Config\State::isUsedInventoryManagement())
-		{
-			return false;
-		}
-
-		$allowedStores = Access\AccessController::getCurrent()->getPermissionValue(
-			Access\ActionDictionary::ACTION_STORE_VIEW
-		);
-		if (
-			is_array($allowedStores)
-			&& in_array(Access\Permission\PermissionDictionary::VALUE_VARIATION_ALL, $allowedStores, true)
-		)
-		{
-			return false;
-		}
-
-		return true;
+		return Catalog\Grid\Column\ProductProvider::needSummaryStoreAmountByPermissions();
 	}
 
+	/**
+	 * @deprecated
+	 * @return bool
+	 */
 	public static function allowedShowQuantityFields(): bool
 	{
-		if (!Loader::includeModule('crm'))
-		{
-			return true;
-		}
-
-		if (!Catalog\Config\State::isUsedInventoryManagement())
-		{
-			return true;
-		}
-		$allowedStores = Access\AccessController::getCurrent()->getPermissionValue(
-			Access\ActionDictionary::ACTION_STORE_VIEW
-		);
-		if (!empty($allowedStores))
-		{
-			return true;
-		}
-
-		return false;
+		return Catalog\Grid\Column\ProductProvider::allowedShowQuantityColumns();
 	}
 
 	public static function getSummaryStoreAmountByPermissions(array $productIds): array
@@ -2311,7 +2359,7 @@ class CCatalogAdminProductSetEdit
 				'SEARCH_PAGE' => (defined('SELF_FOLDER_URL') ? '/shop/settings/' : '/bitrix/admin/').'cat_product_search_dialog.php',
 			);
 			?>
-<script type="text/javascript">
+<script>
 if (!window.ob<?=$blockName; ?>)
 {
 	window.ob<?=$blockName; ?> = new JCCatTblEditExt(<? echo CUtil::PhpToJSObject($arJSParams); ?>);

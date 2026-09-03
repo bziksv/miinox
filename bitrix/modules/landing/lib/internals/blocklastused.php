@@ -6,6 +6,22 @@ use \Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class BlockLastUsedTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_BlockLastUsed_Query query()
+ * @method static EO_BlockLastUsed_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_BlockLastUsed_Result getById($id)
+ * @method static EO_BlockLastUsed_Result getList(array $parameters = [])
+ * @method static EO_BlockLastUsed_Entity getEntity()
+ * @method static \Bitrix\Landing\Internals\EO_BlockLastUsed createObject($setDefaultValues = true)
+ * @method static \Bitrix\Landing\Internals\EO_BlockLastUsed_Collection createCollection()
+ * @method static \Bitrix\Landing\Internals\EO_BlockLastUsed wakeUpObject($row)
+ * @method static \Bitrix\Landing\Internals\EO_BlockLastUsed_Collection wakeUpCollection($rows)
+ */
 class BlockLastUsedTable extends Entity\DataManager
 {
 	/**
@@ -26,7 +42,8 @@ class BlockLastUsedTable extends Entity\DataManager
 		return array(
 			'ID' => new Entity\IntegerField('ID', array(
 				'title' => 'ID',
-				'primary' => true
+				'primary' => true,
+				'autocomplete' => true,
 			)),
 			'USER_ID' => new Entity\IntegerField('USER_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_LU_USER_ID'),

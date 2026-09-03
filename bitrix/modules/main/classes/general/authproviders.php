@@ -1,10 +1,15 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2025 Bitrix
  */
+
+use Bitrix\Main\Application;
+use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\UserGroupTable;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -51,60 +56,78 @@ class CGroupAuthProvider extends CAuthProvider implements IProviderInterface
 	public function UpdateCodes($USER_ID)
 	{
 		global $DB;
+
 		$USER_ID = intval($USER_ID);
 
-		$DB->Query("
-			INSERT INTO b_user_access (USER_ID, PROVIDER_ID, ACCESS_CODE)
-			SELECT UG.USER_ID, '".$DB->ForSQL($this->id)."', ".$DB->Concat("'G'", "UG.GROUP_ID")."
-			FROM b_user_group UG, b_group G 
-			WHERE UG.USER_ID=".$USER_ID."
-				AND G.ID=UG.GROUP_ID
-				AND G.ACTIVE='Y'
-				AND ((UG.DATE_ACTIVE_FROM IS NULL) OR (UG.DATE_ACTIVE_FROM <= ".$DB->CurrentTimeFunction().")) 
-				AND ((UG.DATE_ACTIVE_TO IS NULL) OR (UG.DATE_ACTIVE_TO >= ".$DB->CurrentTimeFunction().")) 
-			UNION 
-			SELECT ID, '".$DB->ForSQL($this->id)."', 'G2' 
-			FROM b_user
-			WHERE ID=".$USER_ID."
-		");
+		$connection = Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$sql = $helper->getInsertIgnore(
+			'b_user_access',
+			'(USER_ID, PROVIDER_ID, ACCESS_CODE)',
+			"SELECT UG.USER_ID, '".$DB->ForSQL($this->id)."', ".$DB->Concat("'G'", "UG.GROUP_ID")."
+				FROM b_user_group UG, b_group G 
+				WHERE UG.USER_ID=".$USER_ID."
+					AND G.ID=UG.GROUP_ID
+					AND G.ACTIVE='Y'
+					AND ((UG.DATE_ACTIVE_FROM IS NULL) OR (UG.DATE_ACTIVE_FROM <= ".$DB->CurrentTimeFunction().")) 
+					AND ((UG.DATE_ACTIVE_TO IS NULL) OR (UG.DATE_ACTIVE_TO >= ".$DB->CurrentTimeFunction().")) 
+				UNION 
+				SELECT ID, '".$DB->ForSQL($this->id)."', 'G2' 
+				FROM b_user
+				WHERE ID=".$USER_ID
+		);
+
+		$DB->Query($sql);
 	}
 
-	public static function OnBeforeGroupUpdate($ID, &$arFields)
+	public static function OnAfterSetUserGroup($USER_ID, $groups)
 	{
-		if(array_key_exists("ACTIVE", $arFields) || array_key_exists("USER_ID", $arFields))
+		$dates = [];
+		foreach ($groups as $group)
 		{
-			self::RecalculateForGroup($ID);
+			if ($group['DATE_ACTIVE_FROM'] !== null)
+			{
+				$dates[(string)$group['DATE_ACTIVE_FROM']] = $group['DATE_ACTIVE_FROM'];
+			}
+			if ($group['DATE_ACTIVE_TO'] !== null)
+			{
+				$dates[(string)$group['DATE_ACTIVE_TO']] = $group['DATE_ACTIVE_TO'];
+			}
 		}
-		return true;
-	}
 
-	public static function OnAfterGroupAdd(&$arFields)
-	{
-		if(is_array($arFields["USER_ID"]) && !empty($arFields["USER_ID"]))
-		{
-			self::RecalculateForGroup($arFields["ID"]);
-		}
-	}
-
-	public static function OnBeforeGroupDelete($ID)
-	{
-		self::RecalculateForGroup($ID);
-		return true;
-	}
-
-	public static function OnAfterSetUserGroup($USER_ID)
-	{
 		CAccess::RecalculateForUser($USER_ID, self::ID);
+
+		foreach ($dates as $date)
+		{
+			CAccess::RecalculateForUser($USER_ID, self::ID, $date);
+		}
 	}
 
-	protected static function RecalculateForGroup($ID)
+	public static function RecalculateForGroup($ID, $checkTime = true)
 	{
-		global $DB;
+		$users = UserGroupTable::getList([
+			'filter' => ['=GROUP_ID' => $ID],
+			'cache' => ['ttl' => 3600],
+		]);
 
-		$users = $DB->Query("select USER_ID from b_user_group where GROUP_ID=".intval($ID));
-		while($user = $users->Fetch())
+		while ($user = $users->fetch())
 		{
-			CAccess::RecalculateForUser($user["USER_ID"], self::ID);
+			if (($user['DATE_ACTIVE_FROM'] == '' && $user['DATE_ACTIVE_TO'] == '') || !$checkTime)
+			{
+				CAccess::RecalculateForUser($user["USER_ID"], self::ID);
+			}
+			else
+			{
+				if ($user['DATE_ACTIVE_FROM'] != '')
+				{
+					CAccess::RecalculateForUser($user["USER_ID"], self::ID, $user['DATE_ACTIVE_FROM']);
+				}
+				if ($user['DATE_ACTIVE_TO'] != '')
+				{
+					CAccess::RecalculateForUser($user["USER_ID"], self::ID, $user['DATE_ACTIVE_TO']);
+				}
+			}
 		}
 	}
 
@@ -225,14 +248,21 @@ class CUserAuthProvider extends CAuthProvider implements IProviderInterface
 	public function UpdateCodes($USER_ID)
 	{
 		global $DB;
+
 		$USER_ID = intval($USER_ID);
 
-		$DB->Query("
-			insert into b_user_access (user_id, provider_id, access_code)
-			select ID, '".$DB->ForSQL($this->id)."', 'U".$USER_ID."'
-			from b_user
-			where id=".$USER_ID."
-		");
+		$connection = Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$sql = $helper->getInsertIgnore(
+			'b_user_access',
+			'(user_id, provider_id, access_code)',
+			"select ID, '".$DB->ForSQL($this->id)."', 'U".$USER_ID."'
+				from b_user
+				where id=".$USER_ID
+		);
+
+		$DB->Query($sql);
 	}
 
 	public function AjaxRequest()

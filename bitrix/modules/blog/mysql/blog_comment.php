@@ -48,7 +48,7 @@ class CBlogComment extends CAllBlogComment
 			$strSql =
 				"INSERT INTO b_blog_comment(".$arInsert[0].") ".
 				"VALUES(".$arInsert[1].")";
-			$DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 
 			$ID = intval($DB->LastID());
 		}
@@ -92,7 +92,7 @@ class CBlogComment extends CAllBlogComment
 				{
 					$arGroup = CBlogGroup::GetByID(isset($arFields["SEARCH_GROUP_ID"]) && intval($arFields["SEARCH_GROUP_ID"]) > 0 ? $arFields["SEARCH_GROUP_ID"] : $arBlog["GROUP_ID"]);
 
-					if($arFields["PATH"] <> '')
+					if (($arFields["PATH"] ?? '') <> '')
 					{
 						$arFields["PATH"] = str_replace("#comment_id#", $ID, $arFields["PATH"]);
 						$arCommentSite = array($arGroup["SITE_ID"] => $arFields["PATH"]);
@@ -180,8 +180,10 @@ class CBlogComment extends CAllBlogComment
 
 		$ID = intval($ID);
 		
-		if($arFields["PATH"] <> '')
+		if (($arFields["PATH"] ?? null) <> '')
+		{
 			$arFields["PATH"] = str_replace("#comment_id#", $ID, $arFields["PATH"]);
+		}
 
 		$arFields1 = array();
 		foreach ($arFields as $key => $value)
@@ -215,7 +217,7 @@ class CBlogComment extends CAllBlogComment
 
 		if ($strUpdate <> '')
 		{
-			if(is_set($arFields["PUBLISH_STATUS"]) && $arFields["PUBLISH_STATUS"] <> '')
+			if (!empty($arFields["PUBLISH_STATUS"]))
 			{
 				$arComment = CBlogComment::GetByID($ID);
 				if($arComment["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH && $arFields["PUBLISH_STATUS"] != BLOG_PUBLISH_STATUS_PUBLISH)
@@ -228,7 +230,7 @@ class CBlogComment extends CAllBlogComment
 				"UPDATE b_blog_comment SET ".
 				"	".$strUpdate." ".
 				"WHERE ID = ".$ID." ";
-			$DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 			unset($GLOBALS["BLOG_COMMENT"]["BLOG_COMMENT_CACHE_".$ID]);
 
 			$USER_FIELD_MANAGER->Update("BLOG_COMMENT", $ID, $arFields, (isset($arFields["AUTHOR_ID"]) && intval($arFields["AUTHOR_ID"]) > 0 ? intval($arFields["AUTHOR_ID"]) : false));
@@ -258,12 +260,12 @@ class CBlogComment extends CAllBlogComment
 				{
 					$arGroup = CBlogGroup::GetByID(isset($arFields["SEARCH_GROUP_ID"]) && intval($arFields["SEARCH_GROUP_ID"]) > 0 ? $arFields["SEARCH_GROUP_ID"] : $arBlog["GROUP_ID"]);
 
-					if($arFields["PATH"] <> '')
+					if (($arFields["PATH"] ?? '') <> '')
 					{
 						$arFields["PATH"] = str_replace("#comment_id#", $ID, $arFields["PATH"]);
 						$arPostSite = array($arGroup["SITE_ID"] => $arFields["PATH"]);
 					}
-					elseif($arComment["PATH"] <> '')
+					elseif(($arComment["PATH"] ?? '') <> '')
 					{
 						$arComment["PATH"] = str_replace("#comment_id#", $ID, $arComment["PATH"]);
 						$arPostSite = array($arGroup["SITE_ID"] => $arComment["PATH"]);
@@ -453,6 +455,7 @@ class CBlogComment extends CAllBlogComment
 			$arFields["RATING_TOTAL_NEGATIVE_VOTES"] = array("FIELD" => $DB->IsNull('RV.TOTAL_NEGATIVE_VOTES', '0'), "TYPE" => "int", "FROM" => "LEFT JOIN b_rating_voting RV ON ( RV.ENTITY_TYPE_ID = 'BLOG_COMMENT' AND RV.ENTITY_ID = C.ID )");
 		}
 
+		$strSqlUFFilter = '';
 		$bNeedDistinct = false;
 		$blogModulePermissions = $APPLICATION->GetGroupRight("blog");
 		if ($blogModulePermissions < "W")
@@ -521,7 +524,7 @@ class CBlogComment extends CAllBlogComment
 
 			//echo "!1!=".htmlspecialcharsbx($strSql)."<br>";
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -564,7 +567,7 @@ class CBlogComment extends CAllBlogComment
 
 			//echo "!2.1!=".htmlspecialcharsbx($strSql_tmp)."<br>";
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if ($arSqls["GROUPBY"] == '')
 			{
@@ -589,7 +592,7 @@ class CBlogComment extends CAllBlogComment
 
 			//echo "!3!=".htmlspecialcharsbx($strSql)."<br>";
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			$dbRes->SetUserFields($USER_FIELD_MANAGER->GetUserFields("BLOG_POST"));
 		}
 		return $dbRes;

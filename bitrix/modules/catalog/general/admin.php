@@ -1,15 +1,13 @@
 <?php
 /** @global CAdminMenu $adminMenu */
 
-use Bitrix\Main\Loader,
-	Bitrix\Catalog\Access\ActionDictionary,
-	Bitrix\Catalog\Access\AccessController,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Main\Config\Option,
-	Bitrix\Iblock,
-	Bitrix\Catalog;
-
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\Loader;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Config\Option;
+use Bitrix\Iblock;
+use Bitrix\Catalog;
 
 class CCatalogAdmin
 {
@@ -274,10 +272,14 @@ class CCatalogAdmin
 			while ($row = $iterator->fetch())
 			{
 				$iblockId = (int)$row['ID'];
-				if ($iblockId == $defaultCrmIblock)
+				if ($iblockId === $defaultCrmIblock)
+				{
 					continue;
-				if (strncmp($row['XML_ID'], 'crm_external_', 13) === 0)
+				}
+				if (strncmp($row['XML_ID'] ?? '', 'crm_external_', 13) === 0)
+				{
 					unset($arCatalogs[$iblockId]);
+				}
 			}
 			unset($iblockId, $row, $iterator);
 		}
@@ -285,7 +287,9 @@ class CCatalogAdmin
 		$listIblockId = array_keys($arCatalogs);
 
 		if (empty($listIblockId))
+		{
 			return;
+		}
 
 		$defaultProductsName = Loc::getMessage('CAT_MENU_PRODUCT_LIST_EXT');
 		$defaultSectionsName = Loc::getMessage('CAT_MENU_PRODUCT_SECTION_LIST');
@@ -790,22 +794,13 @@ class CCatalogAdmin
 				$allowRows = false;
 				$rows = [
 					[
-						"text" => Loc::getMessage("CM_STORE_DOCS"),
+						"text" => Loc::getMessage("CM_STORE_DOCS_MSGVER_1"),
 						"url" => "cat_store_document_list.php?lang=".LANGUAGE_ID,
 						"more_url" => ["cat_store_document_edit.php"],
-						"title" => Loc::getMessage("CM_STORE_DOCS"),
+						"title" => Loc::getMessage("CM_STORE_DOCS_MSGVER_1"),
 						"readonly" => !self::$catalogStore,
 						"items_id" => "cat_store_document_list",
 						"sort" => 551,
-					],
-					[
-						"text" => Loc::getMessage("CM_CONTRACTORS"),
-						"url" => "cat_contractor_list.php?lang=".LANGUAGE_ID,
-						"more_url" => ["cat_contractor_edit.php"],
-						"title" => Loc::getMessage("CM_CONTRACTORS"),
-						"readonly" => !self::$catalogStore,
-						"items_id" => "cat_contractor_list",
-						"sort" => 552,
 					],
 				];
 				if (Catalog\Config\Feature::isInventoryManagementEnabled())
@@ -845,6 +840,16 @@ class CCatalogAdmin
 				"readonly" => !self::$catalogStore,
 				"items_id" => "cat_store_list",
 				"sort" => 553,
+			];
+
+			$result[] = [
+				"text" => Loc::getMessage("CM_CONTRACTORS"),
+				"url" => "cat_contractor_list.php?lang=".LANGUAGE_ID,
+				"more_url" => ["cat_contractor_edit.php"],
+				"title" => Loc::getMessage("CM_CONTRACTORS"),
+				"readonly" => !self::$catalogStore,
+				"items_id" => "cat_contractor_list",
+				"sort" => 552,
 			];
 			$arItems = $result;
 		}

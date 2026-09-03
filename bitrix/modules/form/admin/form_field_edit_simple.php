@@ -32,7 +32,7 @@ if (false === $arForm)
 {
 	require_once ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	echo "<a href='form_list.php?lang=".LANGUAGE_ID."' >".GetMessage("FORM_FORM_LIST")."</a>";
-	echo ShowError(GetMessage("FORM_NOT_FOUND"));
+	ShowError(GetMessage("FORM_NOT_FOUND"));
 	require_once ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
@@ -57,7 +57,7 @@ if (intval($copy_id)>0 && check_bitrix_sessid() && $F_RIGHT >= 30)
 }
 
 //get/post processing
-if (($save <> '' || $apply <> '') && $REQUEST_METHOD=="POST" && $F_RIGHT >= 30 && check_bitrix_sessid())
+if (($save <> '' || $apply <> '') && $_SERVER['REQUEST_METHOD']=="POST" && $F_RIGHT >= 30 && check_bitrix_sessid())
 {
 	$arIMAGE = $_FILES["IMAGE_ID"];
 	$arIMAGE["MODULE_ID"] = "form";
@@ -293,7 +293,7 @@ if($strError)
 	CAdminMessage::ShowOldStyleError($strError);
 
 ?>
-<script language="JavaScript">
+<script>
 function FormSubmit()
 {
 	return jsFormValidatorSettings.PrepareToSubmit();
@@ -361,7 +361,7 @@ $str_IMAGE_ID = intval($str_IMAGE_ID);
 //********************
 ?>
 <? ################################# JS START ######### ?>
-<script language="JavaScript">
+<script>
 
 var multi = false;
 function ShowSelected()
@@ -662,7 +662,7 @@ $rsValidators = CFormValidator::GetAllList();
 if ($rsValidators->SelectedRowsCount() > 0)
 {
 ?>
-	<script language="javascript">
+	<script>
 	var arValidatorsType = [];
 	var arValidators = [];
 <?
@@ -690,7 +690,7 @@ if ($rsValidators->SelectedRowsCount() > 0)
 	}
 ?>
 	</script>
-	<script language="JavaScript">
+	<script>
 var arCurrentValidators = new Array();
 <?
 if (is_array($arCurrentValidators) && count($arCurrentValidators) > 0)
@@ -728,10 +728,10 @@ if (is_array($arCurrentValidators) && count($arCurrentValidators) > 0)
 ?>
 	</script>
 	<script>
-var _global_BX_UTF = <?if (defined('BX_UTF') && BX_UTF === true):?>true<?else:?>false<?endif?>;
+var _global_BX_UTF = true;
 	</script>
 	<script src="/bitrix/js/form/form_validators.js?<?=@filemtime($_SERVER['DOCUMENT_ROOT'].'/bitrix/js/form/form_validators.js')?>"></script>
-	<script language="JavaScript">
+	<script>
 BX.message({
 	WND_TITLE:'<?=CUtil::JSEscape(GetMessage('FORM_VAL_PROPS_TITLE'))?>',
 	ADD_TITLE:'<?=CUtil::JSEscape(GetMessage('FORM_VAL_ADD_TITLE'))?>',
@@ -755,7 +755,7 @@ var jsFormValidatorSettings = new CFormValidatorSettings(true);
 	<tr>
 		<td colspan="2" align="center" id="validators_current"></td>
 	</tr>
-	<script language="JavaScript">
+	<script>
 jsFormValidatorSettings.UpdateAll();
 </script>
 <?
@@ -764,7 +764,7 @@ else
 {
 ?>
 	<tr>
-		<td colspan="2"><?=ShowError(GetMessage("FORM_VAL_NO_REGISTERED_VALS"))?></td>
+		<td colspan="2"><? ShowError(GetMessage("FORM_VAL_NO_REGISTERED_VALS")) ?></td>
 	</tr>
 <?
 }

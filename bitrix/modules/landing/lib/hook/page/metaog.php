@@ -21,7 +21,7 @@ class MetaOg extends \Bitrix\Landing\Hook\Page
 	protected function getMap()
 	{
 		return array(
-			'TITLE' => new Field\Text('TITLE', array(
+			'TITLE' => new Field\Textarea('TITLE', array(
 				'title' => Loc::getMessage('LANDING_HOOK_METAOG_TITLE'),
 				'placeholder' => Loc::getMessage('LANDING_HOOK_METAOG_TITLE_PLACEHOLDER'),
 				'maxlength' => 140,
@@ -80,6 +80,44 @@ class MetaOg extends \Bitrix\Landing\Hook\Page
 		}
 
 		return $images;
+	}
+
+	/**
+	 * Specific method for getting image of one landing.
+	 *
+	 * @param int $entityId Entity id.
+	 * @param string $entityType Entity type.
+	 *
+	 * @return string|null
+	 */
+	public static function getImageByEntityId(int $entityId, string $entityType = Hook::ENTITY_TYPE_LANDING): ?string
+	{
+		if ($entityId <= 0)
+		{
+			return null;
+		}
+
+		$row = HookDataTable::getList(array(
+			'select' => array(
+				'VALUE'
+			),
+			'filter' => array(
+				'=HOOK' => 'METAOG',
+				'=CODE' => 'IMAGE',
+				'=ENTITY_TYPE' => $entityType,
+				'=PUBLIC' => 'N',
+				'=ENTITY_ID' => $entityId,
+			),
+			'limit' => 1,
+		))->fetch();
+
+		$value = $row['VALUE'] ?? null;
+		if ($value === null || $value === '')
+		{
+			return null;
+		}
+
+		return (string)$value;
 	}
 
 	/**

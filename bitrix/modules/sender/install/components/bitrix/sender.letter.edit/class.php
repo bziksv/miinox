@@ -110,6 +110,11 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 				? (bool) $this->arParams['SHOW_SEGMENTS']
 				: true
 		;
+		if ($this->arParams['SHOW_SEGMENTS'] &&
+			!$this->getAccessController()->check(ActionDictionary::ACTION_SEGMENT_VIEW))
+		{
+			$this->arParams['SHOW_SEGMENTS'] = false;
+		}
 		$this->arParams['GOTO_URI_AFTER_SAVE'] = isset($this->arParams['GOTO_URI_AFTER_SAVE'])
 			?
 			$this->arParams['GOTO_URI_AFTER_SAVE']
@@ -154,7 +159,8 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 					$value = PostFiles::getFromContext($key, $value);
 					break;
 				case Message\ConfigurationOption::TYPE_MAIL_EDITOR:
-					$value = Security\Sanitizer::fixReplacedStyles($value);
+					$value = $this->request->getRaw($key);
+
 					$value = Security\Sanitizer::sanitizeHtml($value, $option->getValue());
 					$this->contentValue = $value;
 					break;
@@ -241,7 +247,6 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			return;
 		}
 
-
 		$templateType = $this->letter->get('TEMPLATE_TYPE');
 		$templateId = $this->letter->get('TEMPLATE_ID');
 		$message = $this->request->get('CONFIGURATION_MESSAGE');
@@ -252,7 +257,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			return;
 		}
 
-		if ($templateType && $templateType)
+		if ($templateType)
 		{
 			$template = Templates\Selector::create()
 				->withMessageCode($this->letter->getMessage()->getCode())
@@ -307,11 +312,8 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		}
 		$this->letter->mergeData($data);
 
-		// copy template
-		if ($this->errors->isEmpty())
-		{
-			$this->preparePostSaveAsTemplate();
-		}
+		$configuration = $this->letter->getMessage()->getConfiguration();
+		$configuration->set('save_as_template', $this->request->get('save_as_template'));
 
 		// add message
 		if ($this->errors->isEmpty())
@@ -328,6 +330,12 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		{
 			$this->errors->add($this->letter->getErrors());
 			return;
+		}
+
+		// copy template
+		if ($this->errors->isEmpty())
+		{
+			$this->preparePostSaveAsTemplate();
 		}
 
 		// redirect
@@ -606,6 +614,20 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		if ($this->arParams['SHOW_SEGMENTS'])
 		{
 			$this->arParams['SHOW_SEGMENTS'] = $this->needShowSegmentsByMessageCode($this->arResult['MESSAGE_CODE']);
+		}
+
+		$this->arResult['HAS_BOTTOM_TEXTAREA_PANEL'] = false;
+		$userId = Security\User::current()->getId();
+		$this->arResult['AITextContextId'] = 'sender_marketing_sms_message_text_' . $userId;
+
+		$this->arResult['isAITextAvailable'] = Integration\AI\Controller::isAvailable(
+			Integration\AI\Controller::TEXT_CATEGORY,
+			$this->arResult['AITextContextId']
+		);
+
+		if ($this->arResult['isAITextAvailable'])
+		{
+			$this->arResult['HAS_BOTTOM_TEXTAREA_PANEL'] = true;
 		}
 
 		return true;

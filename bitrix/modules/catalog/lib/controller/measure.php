@@ -1,27 +1,30 @@
 <?php
 
-
 namespace Bitrix\Catalog\Controller;
-
 
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\MeasureTable;
-use Bitrix\Main\Engine\Response\DataType\Page;
+use Bitrix\Main\Application;
+use Bitrix\Main\DB\DuplicateEntryException;
+use Bitrix\Main\DB\SqlQueryException;
 use Bitrix\Main\Error;
 use Bitrix\Main\ORM\Data\DataManager;
 use Bitrix\Main\Result;
-use Bitrix\Main\UI\PageNavigation;
 use Bitrix\Rest\Event\EventBindInterface;
 
 final class Measure extends Controller implements EventBindInterface
 {
+	use ListAction; // default listAction realization
+	use GetAction; // default getAction realization
+	use CheckExists; // default implementation of existence check
+
 	//region Actions
 	/**
 	 * @return array
 	 */
 	public function getFieldsAction(): array
 	{
-		return ['MEASURE' => $this->getViewFields()];
+		return [$this->getServiceItemName() => $this->getViewFields()];
 	}
 
 	/**
@@ -34,29 +37,53 @@ final class Measure extends Controller implements EventBindInterface
 	 */
 	public function addAction(array $fields): ?array
 	{
-		$r = $this->existsByFilter([
+		$result = $this->existsByFilter([
 			'=CODE' => $fields['CODE'],
 		]);
-		if ($r->isSuccess() === false)
+		if ($result->isSuccess())
 		{
-			$r = $this->checkDefaultValue($fields);
-			if ($r->isSuccess())
-			{
-				$r = parent::add($fields);
-				if ($r->isSuccess())
-				{
-					return ['MEASURE' => $this->get($r->getPrimary())];
-				}
-			}
-		}
-		else
-		{
-			$r->addError($this->getErrorDublicateFieldCode());
+			$this->addError($this->getErrorDublicateFieldCode());
+
+			return null;
 		}
 
-		$this->addErrors($r->getErrors());
+		$result = $this->checkDefaultValue($fields);
+		if (!$result->isSuccess())
+		{
+			$this->addErrors($result->getErrors());
 
-		return null;
+			return null;
+		}
+
+		$conn = Application::getConnection();
+		$conn->startTransaction();
+		try
+		{
+			$result = parent::add($fields);
+		}
+		catch (DuplicateEntryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('A measure with code \'' . $fields['CODE'] . '\' already exists.'));
+		}
+		catch (SqlQueryException)
+		{
+			$result = new Result();
+			$result->addError(new Error('Internal error adding measure. Try adding again.'));
+		}
+
+		if (!$result->isSuccess())
+		{
+			$conn->rollbackTransaction();
+			$this->addErrors($result->getErrors());
+
+			return null;
+		}
+		$conn->commitTransaction();
+
+		return [
+			$this->getServiceItemName() => $this->get($result->getPrimary())
+		];
 	}
 
 	/**
@@ -78,17 +105,21 @@ final class Measure extends Controller implements EventBindInterface
 			return null;
 		}
 
-		$r = $this->checkMeasureBeforeUpdate($id, $fields);
-		if ($r->isSuccess())
+		$result = $this->checkMeasureBeforeUpdate($id, $fields);
+		if (!$result->isSuccess())
 		{
-			$r = parent::update($id, $fields);
-			if ($r->isSuccess())
-			{
-				return ['MEASURE' => $this->get($id)];
-			}
+			$this->addErrors($result->getErrors());
+
+			return null;
 		}
 
-		$this->addErrors($r->getErrors());
+		$result = parent::update($id, $fields);
+		if ($result->isSuccess())
+		{
+			return [$this->getServiceItemName() => $this->get($id)];
+		}
+
+		$this->addErrors($result->getErrors());
 
 		return null;
 	}
@@ -107,6 +138,7 @@ final class Measure extends Controller implements EventBindInterface
 		if (!$existsResult->isSuccess())
 		{
 			$this->addErrors($existsResult->getErrors());
+
 			return null;
 		}
 
@@ -118,51 +150,20 @@ final class Measure extends Controller implements EventBindInterface
 		else
 		{
 			$this->addErrors($r->getErrors());
+
 			return null;
 		}
 	}
 
 	/**
-	 * @param array $select
-	 * @param array $filter
-	 * @param array $order
-	 * @param PageNavigation $pageNavigation
-	 * @return Page
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\NotImplementedException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
+	 * public function listAction
+	 * @see ListAction::listAction
 	 */
-	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): Page
-	{
-		return new Page(
-			'MEASURES',
-			$this->getList($select, $filter, $order, $pageNavigation),
-			$this->count($filter)
-		);
-	}
 
 	/**
-	 * @param $id
-	 * @return array|null
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\NotImplementedException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
+	 * public function getAction
+	 * @see GetAction::getAction
 	 */
-	public function getAction($id)
-	{
-		$r = $this->exists($id);
-		if($r->isSuccess())
-		{
-			return ['MEASURE' => $this->get($id)];
-		}
-		else
-		{
-			$this->addErrors($r->getErrors());
-			return null;
-		}
-	}
 	//endregion
 
 	protected function checkDefaultValue(array $fields): Result
@@ -183,7 +184,7 @@ final class Measure extends Controller implements EventBindInterface
 			]);
 			if ($exist->isSuccess())
 			{
-				$r->addError(new Error('default value can be set once [isDefault]'));
+				$r->addError(new Error('default value can be set once [isDefault]', 200600000010));
 			}
 		}
 
@@ -199,9 +200,15 @@ final class Measure extends Controller implements EventBindInterface
 	{
 		$r = new Result();
 
-		if (!$this->accessController->check(ActionDictionary::ACTION_STORE_VIEW))
+		if (
+			!(
+				$this->accessController->check(ActionDictionary::ACTION_CATALOG_READ)
+				|| $this->accessController->check(ActionDictionary::ACTION_STORE_VIEW)
+			)
+			|| !$this->accessController->check(ActionDictionary::ACTION_MEASURE_EDIT)
+		)
 		{
-			$r->addError(new Error('Access Denied', 200040300020));
+			$r->addError($this->getErrorModifyAccessDenied());
 		}
 
 		return $r;
@@ -218,7 +225,7 @@ final class Measure extends Controller implements EventBindInterface
 			)
 		)
 		{
-			$r->addError(new Error('Access Denied', 200040300010));
+			$r->addError($this->getErrorReadAccessDenied());
 		}
 		return $r;
 	}
@@ -245,6 +252,11 @@ final class Measure extends Controller implements EventBindInterface
 
 	private function getErrorDublicateFieldCode(): Error
 	{
-		return new Error('Duplicate entry for key [code]');
+		return new Error('Duplicate entry for key [code]', 200600000000);
+	}
+
+	protected function getErrorCodeEntityNotExists(): string
+	{
+		return ErrorCode::MEASURE_ENTITY_NOT_EXISTS;
 	}
 }

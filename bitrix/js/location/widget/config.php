@@ -4,6 +4,7 @@ use Bitrix\Location\Service;
 use Bitrix\Location\Infrastructure\UserLocation;
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\Loader;
+use Bitrix\Main\SystemException;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
@@ -22,18 +23,18 @@ return [
 		'ui.entity-editor',
 		'ui.common',
 		'ui.viewer',
-		'ui.vue',
 		'location.core',
 		'location.google',
 		'location.osm',
-		'ls'
+		'ls',
+		'location.source',
 	],
 	'skip_core' => false,
 	'oninit' => static function()
 	{
 		if (!Loader::includeModule('location'))
 		{
-			throw new \Bitrix\Main\SystemException('Module Location have not been installed');
+			throw new SystemException('Module Location have not been installed');
 		}
 
 		$sourceCode = '';

@@ -1,12 +1,4 @@
 <?php
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2002-2016 Bitrix             #
-# http://www.bitrix.ru                       #
-# mailto:admin@bitrix.ru                     #
-##############################################
-*/
 
 /**
  * @global CUser $USER
@@ -18,6 +10,7 @@ use Bitrix\Main\Web\Json;
 
 const NOT_CHECK_PERMISSIONS = true;
 const STOP_STATISTICS = true;
+const ADMIN_AJAX_MODE = true;
 
 $publicMode = defined('SELF_FOLDER_URL');
 
@@ -96,7 +89,7 @@ else
 		$_REQUEST['strName'] ?? ''
 	);
 ?>
-<script type="text/javascript">
+<script>
 if (window.parent.document.getElementById("div_<?=$strName?>"))
 {
 	window.parent.document.getElementById("div_<?=$strName?>").innerHTML = '<?=CUtil::JSEscape($res)?>';

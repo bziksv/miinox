@@ -1,5 +1,6 @@
 <?php
 
+use Bitrix\Catalog\Config\State;
 use Bitrix\Main\Loader;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
@@ -59,12 +60,10 @@ return [
 		'ui.common',
 		'ui.alerts',
 		'catalog.product-selector',
-		'ui.entity-selector',
 		'catalog.product-model',
 		'ui.vue.vuex',
 		'main.popup',
 		'main.loader',
-		'ui.label',
 		'ui.messagecard',
 		'ui.vue.components.hint',
 		'ui.notification',
@@ -72,8 +71,8 @@ return [
 		'main.qrcode',
 		'clipboard',
 		'helper',
-		'catalog.store-use',
 		'ui.hint',
+		'ui.dialogs.messagebox',
 		'ui.vue',
 		'main.core',
 		'main.core.events',
@@ -81,7 +80,7 @@ return [
 		'catalog.product-calculator',
 	],
 	'settings' => [
-		'warehouseOption' => \Bitrix\Catalog\Component\UseStore::isUsed(),
+		'warehouseOption' => State::isUsedInventoryManagement(),
 		'showDiscountBlock' => \CUserOptions::GetOption('catalog.product-form', 'showDiscountBlock', 'Y'),
 		'showTaxBlock' => 'N',
 		'taxIncluded' => 'N',
@@ -96,8 +95,8 @@ return [
 		'isCatalogPriceSaveEnabled' => $isCatalogPriceSaveEnabled,
 		'isCatalogSettingAccess' => $isCatalogSettingAccess,
 		'isCatalogAccess' => $isCatalogAccess,
+		'isCatalogHidden' => \Bitrix\Catalog\Config\State::isExternalCatalog(),
 		'fieldHints' => [],
-		'hiddenCompilationInfoMessage' => \CUserOptions::GetOption('catalog.product-form', 'hiddenCompilationInfoMessage') === 'Y',
 	],
 	'skip_core' => false,
 ];

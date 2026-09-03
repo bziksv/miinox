@@ -1,4 +1,4 @@
-<?
+<?php
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 ?>
@@ -227,7 +227,7 @@ function Form_Filter_Click_<?=$arResult["filter_id"]?>()
 if ($arParams["can_delete_some"])
 {
 ?>
-<SCRIPT LANGUAGE="JavaScript">
+<SCRIPT>
 <!--
 function OnDelete_<?=$arResult["filter_id"]?>()
 {

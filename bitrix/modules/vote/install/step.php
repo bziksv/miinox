@@ -4,14 +4,14 @@ if ($GLOBALS["install_step"] == 2):
 	if(!check_bitrix_sessid()) 
 		return;
 	if($ex = $APPLICATION->GetException())
-		echo CAdminMessage::ShowMessage(Array(
+		CAdminMessage::ShowMessage(Array(
 			"TYPE" => "ERROR",
 			"MESSAGE" => GetMessage("MOD_INST_ERR"),
 			"DETAILS" => $ex->GetString(),
 			"HTML" => true,
 		));
 	else
-		echo CAdminMessage::ShowNote(GetMessage("MOD_INST_OK"));
+		CAdminMessage::ShowNote(GetMessage("MOD_INST_OK"));
 	
 	if ($public_dir <> '') :
 	?>
@@ -52,7 +52,7 @@ endif;
 <input type="hidden" name="id" value="vote" />
 <input type="hidden" name="install" value="Y" />
 <input type="hidden" name="step" value="2" />
-<script language="JavaScript">
+<script>
 <!--
 function ChangeInstallPublic(val)
 {
@@ -87,7 +87,7 @@ function ChangeInstallPublic(val)
 <style>
 	p.vote-install-fields table, p.vote-install-fields td,  p.vote-install-fields label{font-size:100%;}
 </style>
-<script language="JavaScript">
+<script>
 <!--
 ChangeInstallPublic(false);
 //-->

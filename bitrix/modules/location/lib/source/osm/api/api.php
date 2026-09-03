@@ -5,7 +5,6 @@ namespace Bitrix\Location\Source\Osm\Api;
 use Bitrix\Location\Exception\RuntimeException;
 use Bitrix\Location\Source\Osm\OsmSource;
 use Bitrix\Main\ArgumentException;
-use Bitrix\Main\Text\Encoding;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\Json;
 
@@ -23,6 +22,7 @@ final class Api
 	private const HTTP_VERSION = HttpClient::HTTP_1_1;
 	private const HTTP_SOCKET_TIMEOUT = 10;
 	private const HTTP_STREAM_TIMEOUT = 10;
+	private const HTTP_BATCH_TIMEOUT = 60;
 
 	/**
 	 * Method related constants
@@ -43,11 +43,6 @@ final class Api
 		$this->source = $source;
 	}
 
-	/**
-	 * @param array $options
-	 * @return array
-	 * @throws RuntimeException
-	 */
 	public function search(array $options): array
 	{
 		$client = $this->makeHttpClient();
@@ -58,7 +53,7 @@ final class Api
 				'search',
 				$this->wrapQueryData(
 					[
-						'q' =>  Encoding::convertEncoding($options['q'], SITE_CHARSET, 'UTF-8'),
+						'q' =>  $options['q'],
 						'addressdetails' => isset($options['addressdetails']) ? (int)$options['addressdetails'] : 0,
 						'limit' => isset($options['limit']) ? (int)$options['limit'] : self::API_SEARCH_LIMIT,
 						'accept-language' => $options['accept-language'] ?? '',
@@ -71,16 +66,12 @@ final class Api
 		return $this->getResponse($client, $body);
 	}
 
-	/**
-	 * @param array $options
-	 * @return array
-	 */
 	public function autocomplete(array $options): array
 	{
 		$client = $this->makeHttpClient();
 
 		$queryData = [
-			'q' =>  Encoding::convertEncoding($options['q'], SITE_CHARSET, 'UTF-8'),
+			'q' =>  $options['q'],
 			'limit' => isset($options['limit']) ? (int)$options['limit'] : self::API_AUTOCOMPLETE_LIMIT,
 			'lang' => $options['lang'] ?? '',
 			'version' => 2,
@@ -104,11 +95,6 @@ final class Api
 		return $this->getResponse($client, $body);
 	}
 
-	/**
-	 * @param array $options
-	 * @return array
-	 * @throws RuntimeException
-	 */
 	public function lookup(array $options): array
 	{
 		$client = $this->makeHttpClient();
@@ -131,11 +117,6 @@ final class Api
 		return $this->getResponse($client, $body);
 	}
 
-	/**
-	 * @param array $options
-	 * @return array
-	 * @throws RuntimeException
-	 */
 	public function details(array $options): array
 	{
 		$client = $this->makeHttpClient();
@@ -161,32 +142,148 @@ final class Api
 		return $this->getResponse($client, $body);
 	}
 
-	/**
-	 * @param HttpClient $client
-	 * @param string $body
-	 * @return array
-	 * @throws RuntimeException
-	 */
+	public function reverse(array $options): array
+	{
+		$client = $this->makeHttpClient();
+
+		$body = $client->get(
+			$this->buildUrl(
+				'location',
+				'reverse',
+				$this->wrapQueryData(
+					[
+						'lat' => isset($options['lat']) ? (float)$options['lat'] : null,
+						'lon' => isset($options['lng']) ? (float)$options['lng'] : null,
+						'zoom' => isset($options['zoom']) ? (int)$options['zoom'] : null,
+						'format' => 'json',
+						'addressdetails' => isset($options['addressdetails']) ? (int)$options['addressdetails'] : 0,
+						'accept-language' => $options['accept-language'] ?? '',
+					]
+				)
+			)
+		);
+
+		return $this->getResponse($client, $body);
+	}
+
+	public function reverseBatch(array $options): array
+	{
+		$coords = [];
+		foreach ($options['coords'] as $idx => $coord)
+		{
+			$coords[$idx] = [
+				'lat' => (float)$coord['lat'],
+				'lon' => (float)$coord['lng'],
+			];
+		}
+
+		$queryData = [
+			'coords' => $coords,
+			'zoom' => isset($options['zoom']) ? (int)$options['zoom'] : null,
+			'addressdetails' => isset($options['addressdetails']) ? (int)$options['addressdetails'] : 0,
+			'accept-language' => $options['accept-language'] ?? '',
+			'format' => 'json',
+		];
+
+		$serviceUrl = $this->source->getOsmApiUrl();
+		if (!$serviceUrl)
+		{
+			throw new RuntimeException('Service url is not specified');
+		}
+
+		$url = sprintf(
+			'%s/?%s',
+			$serviceUrl,
+			http_build_query(['action' => 'osmgateway.location.reverseBatch'])
+		);
+
+		$client = $this->makeHttpClientWithTimeout(self::HTTP_BATCH_TIMEOUT, self::HTTP_BATCH_TIMEOUT);
+		$body = $client->post($url, $this->wrapQueryData($queryData));
+
+		return $this->getResponse($client, $body);
+	}
+
+	public function detailsBatch(array $options): array
+	{
+		$items = [];
+		foreach ($options['items'] as $idx => $item)
+		{
+			$items[$idx] = [
+				'osmtype' => $item['osmtype'] ?? '',
+				'osmid' => isset($item['osmid']) ? (int)$item['osmid'] : null,
+			];
+		}
+
+		$queryData = [
+			'items' => $items,
+			'addressdetails' => isset($options['addressdetails']) ? (int)$options['addressdetails'] : 1,
+			'linkedplaces' => isset($options['linkedplaces']) ? (int)$options['linkedplaces'] : 0,
+			'hierarchy' => isset($options['hierarchy']) ? (int)$options['hierarchy'] : 0,
+			'accept-language' => $options['accept-language'] ?? '',
+			'format' => 'json',
+		];
+
+		$serviceUrl = $this->source->getOsmApiUrl();
+		if (!$serviceUrl)
+		{
+			throw new RuntimeException('Service url is not specified');
+		}
+
+		$url = sprintf(
+			'%s/?%s',
+			$serviceUrl,
+			http_build_query(['action' => 'osmgateway.location.detailsBatch'])
+		);
+
+		$client = $this->makeHttpClientWithTimeout(self::HTTP_BATCH_TIMEOUT, self::HTTP_BATCH_TIMEOUT);
+		$body = $client->post($url, $this->wrapQueryData($queryData));
+
+		return $this->getResponse($client, $body);
+	}
+
+	public function getStaticMap(
+		float $latitude,
+		float $longitude,
+		int $zoom,
+		int $width,
+		int $height,
+	): array
+	{
+		$client = $this->makeHttpClient();
+
+		$body = $client->get(
+			$this->buildUrl(
+				'staticmap',
+				'get',
+				[
+					'latitude' => $latitude,
+					'longitude' => $longitude,
+					'zoom' => $zoom,
+					'width' => $width,
+					'height' => $height,
+				],
+			)
+		);
+
+		$response = $this->getResponse($client, $body);
+
+		$response['data'] = isset($response['data']) ? base64_decode($response['data']) : null;
+
+		return $response;
+	}
+
 	private function getResponse(HttpClient $client, string $body): array
 	{
 		$status = $client->getStatus();
 
 		if ($body === false)
 		{
-			$errors = $client->getError();
-
-			throw new RuntimeException(
-				implode('; ', array_map(
-					function ($v, $k) { return sprintf("%s=%s", $k, $v); },
-					$errors,
-					array_keys($errors)
-				))
-			);
+			return [];
 		}
 
 		if ($status != 200)
 		{
-			throw new RuntimeException(sprintf('Unexpected status code - %s', $status));
+			return [];
 		}
 
 		try
@@ -195,32 +292,26 @@ final class Api
 		}
 		catch (ArgumentException $e)
 		{
-			throw new RuntimeException('JSON decode error');
+			return [];
 		}
 
-		if (!is_array($response))
-		{
-			throw new RuntimeException('Response format error');
-		}
-
-		return $response;
+		return is_array($response) ? $response : [];
 	}
 
-	/**
-	 * @return HttpClient
-	 * @throws ArgumentException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
-	 */
 	private function makeHttpClient(): HttpClient
+	{
+		return $this->makeHttpClientWithTimeout(self::HTTP_SOCKET_TIMEOUT, self::HTTP_STREAM_TIMEOUT);
+	}
+
+	private function makeHttpClientWithTimeout(int $socketTimeout, int $streamTimeout): HttpClient
 	{
 		$token = $this->source->getOsmToken();
 
 		$result = new HttpClient(
 			[
 				'version' => self::HTTP_VERSION,
-				'socketTimeout' => self::HTTP_SOCKET_TIMEOUT,
-				'streamTimeout' => self::HTTP_STREAM_TIMEOUT,
+				'socketTimeout' => $socketTimeout,
+				'streamTimeout' => $streamTimeout,
 			]
 		);
 
@@ -234,12 +325,6 @@ final class Api
 		return $result;
 	}
 
-	/**
-	 * @param string $controller
-	 * @param string $action
-	 * @param array $queryData
-	 * @return string
-	 */
 	private function buildUrl(string $controller, string $action, array $queryData): string
 	{
 		$serviceUrl = $this->source->getOsmApiUrl();
@@ -263,10 +348,6 @@ final class Api
 		);
 	}
 
-	/**
-	 * @param array $queryData
-	 * @return array[]
-	 */
 	private function wrapQueryData(array $queryData): array
 	{
 		return [

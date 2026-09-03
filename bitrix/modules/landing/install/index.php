@@ -1,8 +1,7 @@
 <?php
+
 use \Bitrix\Landing\Template;
 use \Bitrix\Landing\Landing as LandingCore;
-use \Bitrix\Landing\Internals\BlockTable;
-use \Bitrix\Landing\Internals\LandingTable;
 use \Bitrix\Landing\Site;
 use \Bitrix\Landing\Domain;
 use \Bitrix\Main\Localization\Loc;
@@ -26,55 +25,6 @@ class Landing extends \CModule
 	public $MODULE_DESCRIPTION;
 
 	public $docRoot = '';
-	public $eventsData = [
-		'ai' => [
-			'onTuningLoad' => ['\Bitrix\Landing\Connector\Ai', 'onTuningLoad'],
-			'onBeforeCompletions' => ['\Bitrix\Landing\Connector\Ai', 'onBeforeCompletions'],
-		],
-		'crm' => [
-			'onAfterCrmCompanyAdd' => ['\Bitrix\Landing\Connector\Crm', 'onAfterCompanyChange'],
-			'onAfterCrmCompanyUpdate' => ['\Bitrix\Landing\Connector\Crm', 'onAfterCompanyChange']
-		],
-		'iblock' => [
-			'onAfterIBlockSectionDelete' => ['\Bitrix\Landing\Connector\Iblock', 'onAfterIBlockSectionDelete']
-		],
-		'intranet' => [
-			'onBuildBindingMenu' => ['\Bitrix\Landing\Connector\Intranet', 'onBuildBindingMenu']
-		],
-		'landing' => [
-			'onBuildSourceList' => ['\Bitrix\Landing\Connector\Landing', 'onSourceBuildHandler']
-		],
-		'main' => [
-			'onBeforeSiteDelete' => ['\Bitrix\Landing\Site', 'onBeforeMainSiteDelete'],
-			'onSiteDelete' => ['\Bitrix\Landing\Site', 'onMainSiteDelete'],
-			'onUserConsentProviderList' => ['\Bitrix\Landing\Site\Cookies', 'onUserConsentProviderList'],
-			'OnAfterFileDeleteDuplicate' => ['\Bitrix\Landing\Update\Block\DuplicateImages', 'onAfterFileDeleteDuplicate'],
-		],
-		'mobile' => [
-			'onMobileMenuStructureBuilt' => ['\Bitrix\Landing\Connector\Mobile', 'onMobileMenuStructureBuilt']
-		],
-		'rest' => [
-			'onRestServiceBuildDescription' => ['\Bitrix\Landing\Publicaction', 'restBase'],
-			'onBeforeApplicationUninstall' => ['\Bitrix\Landing\Publicaction', 'beforeRestApplicationDelete'],
-			'onRestAppDelete' => ['\Bitrix\Landing\Publicaction', 'restApplicationDelete'],
-			// sites transfer
-			'onRestApplicationConfigurationGetManifest' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'getManifestList'],
-			'onRestApplicationConfigurationExport' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'onEventExportController'],
-			'onRestApplicationConfigurationGetManifestSetting' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'onInitManifest'],
-			'onRestApplicationConfigurationEntity' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'getEntityList'],
-			'onRestApplicationConfigurationImport' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'onEventImportController'],
-			'onRestApplicationConfigurationFinish' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'onFinish']
-		],
-		'seo' => [
-			'onExtensionInstall' => ['\Bitrix\Landing\Hook\Page\PixelFb', 'changeBusinessPixel'],
-		],
-		'socialnetwork' => [
-			'onFillSocNetFeaturesList' => ['\Bitrix\Landing\Connector\SocialNetwork', 'onFillSocNetFeaturesList'],
-			'onFillSocNetMenu' => ['\Bitrix\Landing\Connector\SocialNetwork', 'onFillSocNetMenu'],
-			'onSocNetGroupDelete' => ['\Bitrix\Landing\Connector\SocialNetwork', 'onSocNetGroupDelete'],
-			'onSocNetFeaturesUpdate' => ['\Bitrix\Landing\Connector\SocialNetwork', 'onSocNetFeaturesUpdate'],
-		],
-	];
 	public $installDirs = array(
 		'admin' => 'admin',
 		'js' => 'landing',
@@ -163,71 +113,18 @@ class Landing extends \CModule
 	 */
 	public function installDB()
 	{
-		global $DB, $APPLICATION;
-
-		// db
-		$errors = $DB->runSQLBatch(
-			$this->docRoot.'/bitrix/modules/landing/install/db/mysql/install.sql'
-		);
-		if ($errors !== false)
-		{
-			$APPLICATION->throwException(implode('', $errors));
-			return false;
-		}
+		global $APPLICATION;
 
 		// module
 		registerModule($this->MODULE_ID);
 
-		// full text
-		$errors = $DB->runSQLBatch(
-			$this->docRoot.'/bitrix/modules/landing/install/db/mysql/install_ft.sql'
-		);
-		if ($errors === false)
+		// db, events, agents
+		$result = $this->installMigrations();
+		if (!$result->isSuccess())
 		{
-			if (\Bitrix\Main\Loader::includeModule('landing'))
-			{
-				BlockTable::getEntity()->enableFullTextIndex('SEARCH_CONTENT');
-				LandingTable::getEntity()->enableFullTextIndex('SEARCH_CONTENT');
-			}
+			$APPLICATION->throwException(implode('', $result->getErrorMessages()));
+			return false;
 		}
-
-		// install event handlers
-		$eventManager = Bitrix\Main\EventManager::getInstance();
-		foreach ($this->eventsData as $module => $events)
-		{
-			foreach ($events as $eventCode => $callback)
-			{
-				$eventManager->registerEventHandler(
-					$module,
-					$eventCode,
-					$this->MODULE_ID,
-					$callback[0],
-					$callback[1]
-				);
-			}
-		}
-
-		// agents
-		\CAgent::addAgent(
-			'Bitrix\Landing\Agent::clearRecycle();',
-			$this->MODULE_ID,
-			'N',
-			7200
-		);
-		\CAgent::addAgent(
-			'Bitrix\Landing\Agent::clearFiles();',
-			$this->MODULE_ID,
-			'N',
-			3600
-		);
-		\CAgent::addAgent(
-			'Bitrix\Landing\Agent::sendRestStatistic();',
-			$this->MODULE_ID
-		);
-		\CAgent::addAgent(
-			'Bitrix\Landing\Agent::clearTempFiles();',
-			$this->MODULE_ID
-		);
 
 		// rights
 		$this->InstallTasks();
@@ -235,6 +132,7 @@ class Landing extends \CModule
 		// templates
 		if (\Bitrix\Main\Loader::includeModule($this->MODULE_ID))
 		{
+			\Bitrix\Landing\Integration\AiAssistant\Trigger\AiSiteChatTriggerRegistrar::register();
 			$this->installTemplates();
 			$this->setOptions();
 		}
@@ -274,7 +172,6 @@ class Landing extends \CModule
 	 */
 	public function setSiteTemplates($install = true)
 	{
-		$clearCache = false;
 		$tplFields = array(
 			'TEMPLATE' => Option::get('landing', 'site_template_id')
 		);
@@ -285,7 +182,6 @@ class Landing extends \CModule
 		));
 		while ($rowCheck = $resCheck->fetch())
 		{
-			$clearCache = true;
 			\Bitrix\Main\SiteTemplateTable::delete(
 				$rowCheck['ID']
 			);
@@ -307,7 +203,6 @@ class Landing extends \CModule
 				// only for b24
 				if (ModuleManager::isModuleInstalled('bitrix24'))
 				{
-					$clearCache = true;
 					\Bitrix\Main\SiteTemplateTable::add(
 						$tplFields + array(
 							'SITE_ID' => $row['LID'],
@@ -333,7 +228,6 @@ class Landing extends \CModule
 			ModuleManager::isModuleInstalled('intranet')
 		)
 		{
-			$clearCache = true;
 			\Bitrix\Main\SiteTemplateTable::add(
 				$tplFields + array(
 					'SITE_ID' => 's1',//@todo
@@ -342,11 +236,6 @@ class Landing extends \CModule
 								   '$GLOBALS[\'APPLICATION\']->GetCurPage(0))'
 				)
 			);
-		}
-
-		if ($clearCache)
-		{
-			$GLOBALS['CACHE_MANAGER']->clean('b_site_template');
 		}
 	}
 
@@ -548,42 +437,20 @@ class Landing extends \CModule
 	 */
 	public function uninstallDB($arParams = array())
 	{
-		global $APPLICATION, $DB;
+		global $APPLICATION;
 
-		$errors = false;
+		$dropTables = isset($arParams['savedata']) && !$arParams['savedata'];
 
-		// delete DB
-		if (isset($arParams['savedata']) && !$arParams['savedata'])
+		// db and events
+		$result = $this->uninstallMigrations($dropTables);
+		if (!$result->isSuccess())
 		{
-			$errors = $DB->runSQLBatch(
-				$this->docRoot.'/bitrix/modules/landing/install/db/mysql/uninstall.sql'
-			);
-		}
-		if ($errors !== false)
-		{
-			$APPLICATION->throwException(implode('', $errors));
+			$APPLICATION->throwException(implode('', $result->getErrorMessages()));
 			return false;
 		}
 
-		// agents and rights
-		\CAgent::removeModuleAgents($this->MODULE_ID);
+		// rights
 		$this->UnInstallTasks();
-
-		// uninstall event handlers
-		$eventManager = Bitrix\Main\EventManager::getInstance();
-		foreach ($this->eventsData as $module => $events)
-		{
-			foreach ($events as $eventCode => $callback)
-			{
-				$eventManager->unregisterEventHandler(
-					$module,
-					$eventCode,
-					$this->MODULE_ID,
-					$callback[0],
-					$callback[1]
-				);
-			}
-		}
 
 		// module
 		unregisterModule($this->MODULE_ID);
@@ -697,51 +564,5 @@ class Landing extends \CModule
 				)
 			)
 		);
-	}
-
-	/**
-	 * Method for migrate from cloud version.
-	 * @return void
-	 */
-	public function migrateToBox()
-	{
-		// delete some cloud options
-		$keyForDelete = [
-			'shops_limit_count',
-			'site_limit_count',
-			'shops_limit_count_publication',
-			'site_limit_count_publication',
-			'pages_limit_count_publication',
-			'permissions_available',
-			'google_images_key'
-		];
-		foreach ($keyForDelete as $key)
-		{
-			Option::delete(
-				'landing',
-				['name' => $key]
-			);
-		}
-
-		if (\Bitrix\Main\Loader::includeModule('landing'))
-		{
-			// clear all providers in domains
-			$res = Domain::getList([
-				'select' => [
-					'ID'
-				],
-				'filter' => [
-					'!=PROVIDER' => null
-				]
-			]);
-			while ($row = $res->fetch())
-			{
-				Domain::update($row['ID'], [
-					'PROVIDER' => null
-				]);
-			}
-		}
-
-		unset($keyForDelete, $key);
 	}
 }

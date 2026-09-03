@@ -1,12 +1,8 @@
 <?php
-$MESS["DOCUMENT_LIST_ACTION_CANCEL_TEXT"] = "Verarbeitung abbrechen";
-$MESS["DOCUMENT_LIST_ACTION_CANCEL_TITLE"] = "Verarbeitung abbrechen";
-$MESS["DOCUMENT_LIST_ACTION_CONDUCT_TEXT"] = "Verarbeiten";
-$MESS["DOCUMENT_LIST_ACTION_CONDUCT_TITLE"] = "Verarbeiten";
+$MESS["DOCUMENT_LIST_ACTION_CANCEL_TEXT_2"] = "Verarbeitung abbrechen";
+$MESS["DOCUMENT_LIST_ACTION_CONDUCT_TEXT_2"] = "Verarbeiten";
 $MESS["DOCUMENT_LIST_ACTION_DELETE_TEXT"] = "Löschen";
-$MESS["DOCUMENT_LIST_ACTION_DELETE_TITLE"] = "Löschen";
 $MESS["DOCUMENT_LIST_ACTION_OPEN_TEXT"] = "Öffnen";
-$MESS["DOCUMENT_LIST_ACTION_OPEN_TITLE"] = "Öffnen";
 $MESS["DOCUMENT_LIST_ADD_DOCUMENT_BUTTON_2"] = "Erstellen";
 $MESS["DOCUMENT_LIST_ADD_DOCUMENT_BUTTON_DISABLE_HINT"] = "Sie haben nicht genügend Rechte, um das Dokument zu erstellen.";
 $MESS["DOCUMENT_LIST_CANCEL_GROUP_ACTION"] = "Verarbeitung abbrechen";
@@ -21,6 +17,7 @@ $MESS["DOCUMENT_LIST_EMPTY_STORE_TITLE"] = "<Ohne Namen>";
 $MESS["DOCUMENT_LIST_ERR_ACCESS_DENIED"] = "Sie haben nicht genügend Rechte, um den Bereich \"#DOCUMENT_TYPE_NAME#\" anzuzeigen.";
 $MESS["DOCUMENT_LIST_ERR_ACCESS_DENIED_BOX"] = "Sie haben nicht genügend Rechte, um auf die Bestandsverwaltung zuzugreifen. Bitte wenden Sie sich an Ihren Bitrix24 Administrator, um den Zugriff zu bekommen. <a href=\"https://training.bitrix24.com/support/training/course/index.php?COURSE_ID=178&LESSON_ID=25118\" target=\"_blank\">Mehr</a>";
 $MESS["DOCUMENT_LIST_ERR_ACCESS_DENIED_CLOUD"] = "Sie haben nicht genügend Rechte, um auf die Bestandsverwaltung zuzugreifen. Bitte wenden Sie sich an Ihren Bitrix24 Administrator, um den Zugriff zu bekommen. Der Administrator wird Ihnen die Manager-Rolle in den CRM-Einstellungen zuweisen müssen. <a onclick=\"top.BX.Helper.show('redirect=detail&code=15955386')\" style=\"cursor: pointer; \">Mehr</a>";
+$MESS["DOCUMENT_LIST_FIELDS_SETTINGS"] = "Einstellungen der benutzerdefinierten Felder";
 $MESS["DOCUMENT_LIST_NO_VIEW_RIGHTS_ERROR"] = "Sie haben nicht genügend Rechte, um die Elementliste anzuzeigen.";
 $MESS["DOCUMENT_LIST_SELECT_GROUP_ACTION"] = "Aktion auswählen";
 $MESS["DOCUMENT_LIST_STATUS_CANCELLED"] = "Abgebrochen";
@@ -38,7 +35,7 @@ $MESS["DOCUMENT_LIST_STUB_LINK_QUICKSTART"] = "So fangen Sie mit der Produktverw
 $MESS["DOCUMENT_LIST_STUB_LINK_SHIPMENT"] = "So funktionieren die Bestellungen";
 $MESS["DOCUMENT_LIST_STUB_MIGRATION_LINK"] = "Migrieren";
 $MESS["DOCUMENT_LIST_STUB_MIGRATION_MORE"] = "und andere";
-$MESS["DOCUMENT_LIST_STUB_MIGRATION_TITLE"] = "Migrieren Sie Ihre Dokumente aus den Systemen der Dritt-Anbieter ins Bitrix24";
+$MESS["DOCUMENT_LIST_STUB_MIGRATION_TITLE_MSGVER_1"] = "Migrieren Sie Ihre Daten aus einem Drittsystem ins Bitrix24";
 $MESS["DOCUMENT_LIST_STUB_NO_DATA_DESCRIPTION"] = "Sie können den Filter zurücksetzen oder die Suchphrase ändern.";
 $MESS["DOCUMENT_LIST_STUB_NO_DATA_TITLE"] = "Ihre Suchanfrage brachte keine Ergebnisse.";
 $MESS["DOCUMENT_LIST_STUB_TITLE_ARRIVAL"] = "Erstellen Sie Ihren ersten Wareneingang";

@@ -6,13 +6,19 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Web\Json;
+use Bitrix\UI\Toolbar\Facade\Toolbar;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 $containerId = 'bx-sender-contact-import';
+
+if (isset($_REQUEST['IFRAME']) && $_REQUEST['IFRAME'] === 'Y')
+{
+	Toolbar::deleteFavoriteStar();
+}
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Sender.ContactImport.init(<?=Json::encode(array(
 			'containerId' => $containerId,
@@ -59,7 +65,7 @@ $containerId = 'bx-sender-contact-import';
 		</div>
 		*/?>
 		</div>
-		
+
 	</div>
 
 	<div>

@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["IBSEC_A_DELERR_REFERERS"] = "Возможно есть ссылающиеся объекты.";
 $MESS["IBSEC_A_DELERR"] = "Ошибка удаления записи #ID#:";
 $MESS["IBSEC_A_UPDERR"] = "Ошибка изменения записи:";
@@ -6,7 +6,7 @@ $MESS["IBSEC_A_NAME"] = "Название";
 $MESS["IBSEC_A_ACTIVE"] = "Активность";
 $MESS["IBSEC_A_SORT"] = "Сортировка";
 $MESS["IBSEC_A_CODE"] = "Символьный код";
-$MESS["IBSEC_A_XML_ID"] = "Внешний код";
+$MESS["IBSEC_A_XML_ID_MSGVER_1"] = "Внешний код";
 $MESS["IBSEC_A_ELEMENT_CNT"] = "Элементов";
 $MESS["IBSEC_A_SECTION_CNT"] = "Подразделов";
 $MESS["IBSEC_A_TIMESTAMP"] = "Дата изменения";
@@ -52,4 +52,3 @@ $MESS["IBSEC_A_CODE_TRANSLIT_SECTION_TITLE"] = "Создать символьн�
 $MESS["IBSEC_A_CODE_TRANSLIT_SECTION_CONFIRM"] = "Вы уверены, что хотите изменить символьный код раздела? Это может повлиять на ссылку, по которой на сайте отображаются раздел и его элементы";
 $MESS["IBSEC_A_CODE_TRANSLIT_SECTION_CONFIRM_MULTI"] = "Вы уверены, что хотите изменить символьный код выбранных разделов? Это может повлиять на ссылку, по которой на сайте отображаются разделы и их элементы";
 $MESS["IBSEC_A_ERR_BUILDER_ADSENT"] = "Не найден генератор ссылок.";
-?>

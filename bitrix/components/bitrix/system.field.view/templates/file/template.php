@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * Bitrix Framework
  * @package bitrix
@@ -8,9 +8,11 @@
 
 /**
  * Bitrix vars
- * @param array $arParams
- * @param array $arResult
+ * @var array $arParams
+ * @var array $arResult
  */
+
+use Bitrix\Main\Web\Uri;
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
@@ -23,11 +25,11 @@ foreach(GetModuleEvents("main", "system.field.view.file", true) as $arEvent)
 $first = true;
 foreach ($arResult["VALUE"] as $res):
 	if (!$first):
-		?><span class="bx-br-separator"><br /></span><?
+		?><span class="bx-br-separator"><br /></span><?php
 	else:
 		$first = false;
 	endif;
-?><span class="fields files"><?
+?><span class="fields files"><?php
 $arFile = CFile::GetFileArray($res);
 if($arFile)
 {
@@ -45,11 +47,10 @@ if($arFile)
 		{
 			$src = $arFile["SRC"];
 		}
-		$src = \Bitrix\Main\Web\Uri::urnEncode($src, "UTF-8");
+		$src = Uri::urnEncode($src);
 		echo '<a href="'.htmlspecialcharsbx($src).'">'.htmlspecialcharsbx($arFile["FILE_NAME"]).'</a> ('.CFile::FormatSize($arFile["FILE_SIZE"]).')';
 	}
 }
 
-?></span><?
+?></span><?php
 endforeach;
-?>

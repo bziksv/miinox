@@ -176,23 +176,13 @@ class CsvFile
 	}
 
 	/**
-	 * Measures byte length of the string.
-	 * @param string $data
-	 * @return int
-	 */
-	protected function getStringByteLength(string $data): int
-	{
-		return \mb_strlen($data, '8bit');
-	}
-
-	/**
 	 * Check UTF-8 Byte-Order Mark
 	 * @return bool
 	 */
 	public function checkUtf8Bom(): bool
 	{
 		$this->seek(0);
-		$bom = $this->read($this->getStringByteLength($this->bomMark));
+		$bom = $this->read(strlen($this->bomMark));
 		if($bom === $this->bomMark)
 		{
 			$this->hasBom = true;
@@ -200,7 +190,7 @@ class CsvFile
 
 		if ($this->hasBom)
 		{
-			$this->seek($this->getStringByteLength($this->bomMark));
+			$this->seek(strlen($this->bomMark));
 		}
 		else
 		{
@@ -326,7 +316,7 @@ class CsvFile
 						continue;
 					}
 
-					$result[] = $str;
+					$result[] = trim($str);
 
 					return $result;
 				}
@@ -351,7 +341,7 @@ class CsvFile
 			{
 				if (!$isInside)
 				{
-					$result[] = $str;
+					$result[] = trim($str);
 					$str = '';
 					$this->incrementCurrentPosition();
 					continue;
@@ -364,7 +354,7 @@ class CsvFile
 			if ($this->bufferPosition >= $this->bufferSize)
 			{
 				$this->buffer = $this->read(1024 * 1024);
-				$this->bufferSize = $this->getStringByteLength($this->buffer);
+				$this->bufferSize = strlen($this->buffer);
 				$this->bufferPosition = 0;
 			}
 
@@ -373,7 +363,7 @@ class CsvFile
 
 		if ($str !== '')
 		{
-			$result[] = $str;
+			$result[] = trim($str);
 		}
 
 		if ($result === [])
@@ -439,7 +429,7 @@ class CsvFile
 			if($this->bufferPosition >= $this->bufferSize)
 			{
 				$this->buffer = $this->read( 1024 * 1024);
-				$this->bufferSize = $this->getStringByteLength($this->buffer);
+				$this->bufferSize = strlen($this->buffer);
 				$this->bufferPosition = 0;
 			}
 
@@ -497,7 +487,7 @@ class CsvFile
 		if ($this->bufferPosition >= $this->bufferSize)
 		{
 			$this->buffer = $this->read( 1024 * 1024);
-			$this->bufferSize = $this->getStringByteLength($this->buffer);
+			$this->bufferSize = strlen($this->buffer);
 			$this->bufferPosition = 0;
 		}
 	}
@@ -549,7 +539,7 @@ class CsvFile
 
 		$this->buffer = $this->read(1024 * 1024);
 
-		$this->bufferSize = $this->getStringByteLength($this->buffer);
+		$this->bufferSize = strlen($this->buffer);
 		$this->bufferPosition = 0;
 	}
 
@@ -582,7 +572,7 @@ class CsvFile
 				{
 					$fields[$i] = '';
 				}
-				elseif (\preg_match("#[\"\n\r]+#".\BX_UTF_PCRE_MODIFIER, $fields[$i]))
+				elseif (\preg_match("#[\"\n\r]+#u", $fields[$i]))
 				{
 					$fields[$i] = \str_replace("\"", "\"\"", $fields[$i]);
 					//$fields[$i] = str_replace("\\", "\\\\", $fields[$i]);
@@ -592,7 +582,7 @@ class CsvFile
 				$content .= "\"";
 
 				// ms excel las limitation with total number of characters that a cell can contain 32767 characters
-				if ($throw32KWarning !== true && $this->getStringByteLength($fields[$i]) > 32767)
+				if ($throw32KWarning !== true && strlen($fields[$i]) > 32767)
 				{
 					$throw32KWarning = true;
 				}

@@ -1,8 +1,16 @@
 <?php
 
+use Bitrix\Main\Application;
+use Bitrix\Main\UserTable;
+use Bitrix\Main\Result;
 use Bitrix\Main\Security\Sign;
-
-IncludeModuleLangFile(__FILE__);
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Web\HttpClient;
+use Bitrix\Main\Web\Uri;
+use Bitrix\Pull\Config;
+use Bitrix\Pull\JsonRpcTransport;
+use Bitrix\Pull\ProtobufTransport;
+use Bitrix\Pull\Model\ChannelTable;
 
 class CPullChannel
 {
@@ -12,6 +20,9 @@ class CPullChannel
 	const CHANNEL_TTL = 43205;
 
 	private const CACHE_TABLE = "b_pull_channel";
+
+	// cache key is calculated with the `getLockKey` method
+	private static array $staticCache = [];
 
 	public static function GetNewChannelId($suffix = '')
 	{
@@ -40,134 +51,264 @@ class CPullChannel
 		return self::Get($userId, $cache, $reOpen, $channelType);
 	}
 
-	public static function Get($userId, $cache = true, $reOpen = false, $channelType = self::TYPE_PRIVATE)
+	public static function Get(int $userId, $cache = true, $reOpen = false, $channelType = self::TYPE_PRIVATE)
 	{
-		global $DB, $CACHE_MANAGER;
-
-		$nginxStatus = CPullOptions::GetQueueServerStatus();
-
-		$arResult = false;
-		$userId = intval($userId);
-		$cache_id="b_pchc_".$userId.'_'.$channelType;
-
-		if ($nginxStatus && $cache)
+		if (!CPullOptions::GetQueueServerStatus())
 		{
-			$res = $CACHE_MANAGER->Read(self::CHANNEL_TTL, $cache_id, self::CACHE_TABLE);
-			if ($res)
-			{
-				$arResult = $CACHE_MANAGER->Get($cache_id);
-			}
+			return false;
 		}
-		if(!is_array($arResult) || !isset($arResult['CHANNEL_ID']) || ($userId > 0 && !isset($arResult['CHANNEL_PUBLIC_ID'])))
+		if ($userId && !self::isUserActive($userId))
 		{
-			CTimeZone::Disable();
-			$strSql = "
-					SELECT C.CHANNEL_ID, C.CHANNEL_PUBLIC_ID, C.CHANNEL_TYPE, ".$DB->DatetimeToTimestampFunction('C.DATE_CREATE')." DATE_CREATE, C.LAST_ID
-					FROM b_pull_channel C
-					WHERE C.USER_ID = ".$userId." AND C.CHANNEL_TYPE = '".$DB->ForSQL($channelType)."'
-			";
-			CTimeZone::Enable();
-			$res = $DB->Query($strSql);
-			$arResult = $res->Fetch();
-			if ($arResult && $nginxStatus && $cache)
-			{
-				self::SaveToCache($cache_id, $arResult);
-			}
+			return false;
 		}
-		if (empty($arResult) || intval($arResult['DATE_CREATE'])+ self::CHANNEL_TTL < time() || ($userId > 0 && $arResult['CHANNEL_PUBLIC_ID'] == ''))
+
+		$channelType = (string)$channelType ?: self::TYPE_PRIVATE;
+		$lockId = self::getLockKey($userId, $channelType);
+
+		$cached = self::$staticCache[$lockId] ?? null;
+		if ($cached && !self::isExpired($cached['CHANNEL_DT']))
 		{
-			$arChannel = [
-				'CHANNEL_ID' => self::GetNewChannelId(),
-				'CHANNEL_PUBLIC_ID' => $userId>0? self::GetNewChannelId('public'): '',
-				'CHANNEL_TYPE' => $channelType,
-				'DATE_CREATE' => time(),
-				'LAST_ID' => 0,
-			];
-			self::SaveToCache($cache_id, $arChannel);
-
-			if (isset($arResult['CHANNEL_ID']))
-			{
-				$DB->Query("DELETE FROM b_pull_channel WHERE CHANNEL_ID = '".$DB->ForSQL($arResult['CHANNEL_ID'])."'");
-				$DB->Query("DELETE FROM b_pull_channel WHERE CHANNEL_PUBLIC_ID = '".$DB->ForSQL($arResult['CHANNEL_PUBLIC_ID'])."'");
-			}
-
-			$arChannelData = self::Add($userId, $arChannel['CHANNEL_ID'], $arChannel['CHANNEL_PUBLIC_ID'], $arChannel['CHANNEL_TYPE']);
-			if (!$arChannelData)
-			{
-				return false;
-			}
-
-			$channelId = $arChannelData['CHANNEL_ID'];
-			$publicChannelId = $arChannelData['CHANNEL_PUBLIC_ID'];
-			if (!is_string($channelId) || $channelId === '')
-			{
-				return false;
-			}
-
-			if (isset($arResult['CHANNEL_ID']) && $channelId != $arResult['CHANNEL_ID'])
-			{
-				$params = [
-					'action' => $channelType != self::TYPE_PRIVATE? 'reconnect': 'get_config',
-					'channel' => [
-						'id' => self::SignChannel($arResult['CHANNEL_ID']),
-						'type' => $channelType,
-					],
-				];
-				if ($userId == 0)
-				{
-					$params['new_channel'] = [
-						'id' => self::SignChannel($channelId),
-						'start' => date('c', time()),
-						'end' => date('c', time()+ self::CHANNEL_TTL),
-						'type' => $channelType,
-					];
-				}
-				$arMessage = [
-					'module_id' => 'pull',
-					'command' => 'channel_expire',
-					'params' => $params
-				];
-				CPullStack::AddByChannel($arResult['CHANNEL_ID'], $arMessage);
-			}
-
-			return [
-				'CHANNEL_ID' => $channelId,
-				'CHANNEL_PUBLIC_ID' => $publicChannelId,
-				'CHANNEL_TYPE' => $channelType,
-				'CHANNEL_DT' => time(),
-				'LAST_ID' => 0,
-			];
+			return $cached;
 		}
-		else
+
+		$arResult = static::getInternal($userId, $channelType);
+		if ($arResult && !self::isExpired($arResult['DATE_CREATE']))
 		{
-			if ($nginxStatus && $reOpen && CPullOptions::GetQueueServerVersion() < 3  && !CPullOptions::IsServerShared())
-			{
-				self::Send($arResult['CHANNEL_ID'], \Bitrix\Pull\Common::jsonEncode(Array(
-					'module_id' => 'pull',
-					'command' => 'reopen',
-					'expiry' => 1,
-					'params' => Array(),
-					'extra' => Array(
-						'server_time' => date('c'),
-						'server_name' => COption::GetOptionString('main', 'server_name', $_SERVER['SERVER_NAME']),
-						'revision_web' => PULL_REVISION_WEB,
-						'revision_mobile' => PULL_REVISION_MOBILE,
-					),
-				)));
-			}
-			return [
+			$result = [
 				'CHANNEL_ID' => $arResult['CHANNEL_ID'],
 				'CHANNEL_PUBLIC_ID' => $arResult['CHANNEL_PUBLIC_ID'],
 				'CHANNEL_TYPE' => $arResult['CHANNEL_TYPE'],
 				'CHANNEL_DT' => $arResult['DATE_CREATE'],
 				'LAST_ID' => $arResult['LAST_ID'],
 			];
+			self::$staticCache[$lockId] = $result;
+
+			return $result;
 		}
+
+		$connection = Application::getConnection();
+		if (!$connection->lock($lockId, 2))
+		{
+			trigger_error("Could not get lock for creating a new channel", E_USER_WARNING);
+
+			return false;
+		}
+
+		// try reading once again, because DB state could be changed in a concurrent process
+		$arResult = static::getInternal($userId, $channelType);
+		if ($arResult && !self::isExpired($arResult['DATE_CREATE']))
+		{
+			$connection->unlock($lockId);
+			$result = [
+				'CHANNEL_ID' => $arResult['CHANNEL_ID'],
+				'CHANNEL_PUBLIC_ID' => $arResult['CHANNEL_PUBLIC_ID'],
+				'CHANNEL_TYPE' => $arResult['CHANNEL_TYPE'],
+				'CHANNEL_DT' => $arResult['DATE_CREATE'],
+				'LAST_ID' => $arResult['LAST_ID'],
+			];
+			self::$staticCache[$lockId] = $result;
+
+			return $result;
+		}
+
+		$channelId = self::GetNewChannelId();
+		$publicChannelId = $userId>0? self::GetNewChannelId('public'): '';
+
+		if ($arResult)
+		{
+			$result = self::Update($userId, $arResult['CHANNEL_ID'], $channelId, $publicChannelId, $channelType);
+		}
+		else
+		{
+			$result = self::Add($userId, $channelId, $publicChannelId, $channelType);
+		}
+
+		$connection->unlock($lockId);
+		if (!$result->isSuccess())
+		{
+			return false;
+		}
+
+		if (isset($arResult['CHANNEL_ID']))
+		{
+			self::sendChannelExpired($userId, $channelType, $arResult['CHANNEL_ID'], $channelId);
+		}
+
+		$result = [
+			'CHANNEL_ID' => $channelId,
+			'CHANNEL_PUBLIC_ID' => $publicChannelId,
+			'CHANNEL_TYPE' => $channelType,
+			'CHANNEL_DT' => time(),
+			'LAST_ID' => 0,
+		];
+		self::$staticCache[$lockId] = $result;
+
+		return $result;
+	}
+
+	/**
+	 * Batched counterpart of {@see self::Get()} for hot fan-out paths (e.g. Pull\Event::getChannelIds for multi recipients).
+	 *
+	 * Resolves N userIds in one SELECT against b_pull_channel (joined to b_user for ACTIVE filter)
+	 * and warms self::$staticCache with the results so subsequent per-user Get() calls in the same request are cache-hits.
+	 *
+	 * @param int[] $userIds
+	 * @param string|null $channelType
+	 * @return array<int, array{CHANNEL_ID: string, CHANNEL_PUBLIC_ID: ?string, CHANNEL_TYPE: string, CHANNEL_DT: int, LAST_ID: int}>
+	 */
+	public static function getMany(array $userIds, ?string $channelType = self::TYPE_PRIVATE): array
+	{
+		if (!CPullOptions::GetQueueServerStatus())
+		{
+			return [];
+		}
+
+		$channelType = $channelType ?: self::TYPE_PRIVATE;
+		$userIds = array_values(array_unique(array_map('intval', $userIds)));
+		if ($userIds === [])
+		{
+			return [];
+		}
+
+		$result = [];
+		$missing = [];
+		foreach ($userIds as $userId)
+		{
+			$lockId = self::getLockKey($userId, $channelType);
+			$cached = self::$staticCache[$lockId] ?? null;
+			if ($cached && !self::isExpired((int)$cached['CHANNEL_DT']))
+			{
+				$result[$userId] = $cached;
+				continue;
+			}
+			$missing[] = $userId;
+		}
+
+		if ($missing === [])
+		{
+			return $result;
+		}
+
+		// USER_ID=0 is the shared channel — there is no matching b_user row, so
+		// the INNER JOIN below would silently drop it. Skip zeros from the
+		// batched SELECT; the foreach fallback at the end routes them through
+		// per-user Get(), which knows how to issue/renew shared channels.
+		$realUsers = array_values(array_filter($missing, static fn (int $uid): bool => $uid > 0));
+
+		$rows = $realUsers === [] ? [] : ChannelTable::getList([
+			'select' => [
+				'USER_ID',
+				'CHANNEL_ID',
+				'CHANNEL_PUBLIC_ID',
+				'CHANNEL_TYPE',
+				'DATE_CREATE',
+				'LAST_ID',
+				'USER_ACTIVE' => 'USER.ACTIVE',
+			],
+			'filter' => [
+				'=USER_ID' => $realUsers,
+				'=CHANNEL_TYPE' => $channelType,
+			],
+		])->fetchAll();
+
+		$resolved = [];
+		foreach ($rows as $row)
+		{
+			$userId = (int)$row['USER_ID'];
+			if ($userId > 0 && ($row['USER_ACTIVE'] ?? 'Y') !== 'Y')
+			{
+				// Inactive user: per-user Get returns false, mirror that here.
+				$resolved[$userId] = true;
+				continue;
+			}
+			$ts = $row['DATE_CREATE'] instanceof \Bitrix\Main\Type\DateTime
+				? $row['DATE_CREATE']->getTimestamp()
+				: (int)$row['DATE_CREATE'];
+			if (self::isExpired($ts))
+			{
+				// TTL passed — per-user Get must renew under its own lock.
+				continue;
+			}
+			$entry = [
+				'CHANNEL_ID' => $row['CHANNEL_ID'],
+				'CHANNEL_PUBLIC_ID' => $row['CHANNEL_PUBLIC_ID'],
+				'CHANNEL_TYPE' => $row['CHANNEL_TYPE'],
+				'CHANNEL_DT' => $ts,
+				'LAST_ID' => (int)$row['LAST_ID'],
+			];
+			$lockId = self::getLockKey($userId, $channelType);
+			self::$staticCache[$lockId] = $entry;
+			$result[$userId] = $entry;
+			$resolved[$userId] = true;
+		}
+
+		// Fallback only for the rare branch: no row, expired row, or active user with a never-issued channel. Uses the existing per-user lock.
+		foreach ($missing as $userId)
+		{
+			if (isset($resolved[$userId]))
+			{
+				continue;
+			}
+			$entry = self::Get($userId, true, false, $channelType);
+			if ($entry)
+			{
+				$result[$userId] = $entry;
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Drops the in-process channel cache. Intended for bench/test harnesses.
+	 * @internal
+	 */
+	public static function clearCache(): void
+	{
+		self::$staticCache = [];
+	}
+
+	private static function getInternal(int $userId, $channelType = self::TYPE_PRIVATE)
+	{
+		global $DB;
+
+		$arResult = false;
+
+		if(!is_array($arResult) || !isset($arResult['CHANNEL_ID']) || ($userId > 0 && !isset($arResult['CHANNEL_PUBLIC_ID'])))
+		{
+			CTimeZone::Disable();
+			$strSql = "
+					SELECT C.CHANNEL_ID, C.CHANNEL_PUBLIC_ID, C.CHANNEL_TYPE, ".$DB->DatetimeToTimestampFunction('C.DATE_CREATE')." AS DATE_CREATE, C.LAST_ID
+					FROM b_pull_channel C
+					WHERE C.USER_ID = ".$userId." AND C.CHANNEL_TYPE = '".$DB->ForSQL($channelType)."'
+			";
+			CTimeZone::Enable();
+			$res = $DB->Query($strSql);
+			$arResult = $res->Fetch();
+		}
+
+		return $arResult;
+	}
+
+	private static function isUserActive(int $userId): bool
+	{
+		$userData = UserTable::query()
+			->setSelect(['ACTIVE'])
+			->where('ID', $userId)
+			->fetch()
+		;
+
+		return $userData && $userData['ACTIVE'] === 'Y';
+	}
+
+	private static function isExpired(int $timestamp): bool
+	{
+		return $timestamp + self::CHANNEL_TTL <= time();
 	}
 
 	public static function SignChannel($channelId)
 	{
-		$signatureKey = \Bitrix\Pull\Config::getSignatureKey();
+		$signatureKey = Config::getSignatureKey();
 		if (!is_string($channelId))
 		{
 			trigger_error("Channel ID must be the string", E_USER_WARNING);
@@ -184,7 +325,7 @@ class CPullChannel
 
 	public static function SignPublicChannel($channelId)
 	{
-		$signatureKey = \Bitrix\Pull\Config::getSignatureKey();
+		$signatureKey = Config::getSignatureKey();
 		if ($signatureKey === "" || !is_string($channelId))
 		{
 			return "";
@@ -202,7 +343,7 @@ class CPullChannel
 	{
 		if(!$signatureKey)
 		{
-			$signatureKey = \Bitrix\Pull\Config::getSignatureKey();
+			$signatureKey = Config::getSignatureKey();
 		}
 		$signatureAlgo = \CPullOptions::GetSignatureAlgorithm();
 		$hmac = new Sign\HmacAlgorithm();
@@ -214,31 +355,12 @@ class CPullChannel
 	}
 
 	// create a channel for the user
-	public static function Add($userId, $channelId = null, $publicChannelId = null, $channelType = self::TYPE_PRIVATE)
+	public static function Add(int $userId, string $channelId, string $publicChannelId, string $channelType = self::TYPE_PRIVATE): Result
 	{
-		global $DB;
-
-		$userId = intval($userId);
-		$cache_id="b_pchc_".$userId."_".$channelType;
-
-		if ($userId)
-		{
-			$user = \Bitrix\Main\UserTable::getById($userId)->fetch();
-			if ($user['ACTIVE'] == 'N')
-			{
-				return false;
-			}
-		}
-
-		$userId = intval($userId);
-		$channelId = is_null($channelId)? self::GetNewChannelId(): $channelId;
-		if (is_null($publicChannelId))
-		{
-			$publicChannelId = $userId > 0? self::GetNewChannelId(): '';
-		}
+		$result = new Result();
 
 		$channelFields = [
-			'USER_ID' => (int)$userId,
+			'USER_ID' => $userId,
 			'CHANNEL_ID' => $channelId,
 			'CHANNEL_PUBLIC_ID' => $publicChannelId,
 			'CHANNEL_TYPE' => $channelType,
@@ -246,114 +368,55 @@ class CPullChannel
 			'DATE_CREATE' => new \Bitrix\Main\Type\DateTime(),
 		];
 
-		$isChannelAdded = false;
-		try
+		$insertResult = \Bitrix\Pull\ChannelTable::add($channelFields);
+		if (!$insertResult->isSuccess())
 		{
-			$result = \Bitrix\Pull\ChannelTable::add($channelFields);
-			if (!$result->isSuccess())
-			{
-				foreach ($result->getErrors() as $error)
-				{
-					$exception = new \Bitrix\Main\SystemException($error->getMessage());
-					\Bitrix\Main\Application::getInstance()->getExceptionHandler()->writeToLog($exception);
-				}
-
-				return false;
-			}
-
-			$isChannelAdded = true;
-		}
-		catch (\Throwable $exception)
-		{
-			if (!mb_strpos($exception->getMessage(), '1062'))
-			{
-				\Bitrix\Main\Application::getInstance()->getExceptionHandler()->writeToLog($exception);
-
-				return false;
-			}
+			$result->addErrors($insertResult->getErrors());
 		}
 
-		if ($isChannelAdded)
-		{
-			$arChannel = Array(
+		return $result;
+	}
+
+	private static function Update(int $userId, string $prevChannelId, string $channelId, string $publicChannelId, string $channelType = self::TYPE_PRIVATE) : Result
+	{
+		$result = new Result();
+		$updateResult = \Bitrix\Pull\ChannelTable::updateByFilter(
+			[
+				'=USER_ID' => $userId,
+				'=CHANNEL_ID' => $prevChannelId,
+				'=CHANNEL_TYPE' => $channelType,
+			],
+			[
 				'CHANNEL_ID' => $channelId,
 				'CHANNEL_PUBLIC_ID' => $publicChannelId,
-				'CHANNEL_TYPE' => $channelType,
-				'DATE_CREATE' => time(),
-				'LAST_ID' => 0,
-			);
-			self::SaveToCache($cache_id, $arChannel);
+				'DATE_CREATE' => new \Bitrix\Main\Type\DateTime(),
+			]
+		);
 
-			if (CPullOptions::GetQueueServerStatus() && CPullOptions::GetQueueServerVersion() < 3 && !CPullOptions::IsServerShared())
-			{
-				self::Send($channelId, \Bitrix\Pull\Common::jsonEncode(Array(
-					'module_id' => 'pull',
-					'command' => 'open',
-					'expiry' => 1,
-					'params' => Array(),
-					'extra' => Array(
-						'server_time' => date('c'),
-						'server_time_unix' => microtime(true),
-						'server_name' => COption::GetOptionString('main', 'server_name', $_SERVER['SERVER_NAME']),
-						'revision_web' => PULL_REVISION_WEB,
-						'revision_mobile' => PULL_REVISION_MOBILE,
-					),
-				)));
-			}
-		}
-		else
+		if (!$updateResult->isSuccess())
 		{
-			CTimeZone::Disable();
-			$strSql = "
-					SELECT CHANNEL_ID, CHANNEL_PUBLIC_ID, ".$DB->DatetimeToTimestampFunction('DATE_CREATE')." DATE_CREATE, LAST_ID
-					FROM b_pull_channel
-					WHERE USER_ID = ".$userId." AND CHANNEL_TYPE = '".$DB->ForSQL($channelType)."'
-			";
-			CTimeZone::Enable();
-			$res = $DB->Query($strSql);
-			$arChannel = $res->Fetch();
-			if (!$arChannel)
-			{
-				return false;
-			}
-			$channelId = $arChannel['CHANNEL_ID'];
-			self::SaveToCache($cache_id, $arChannel);
-
-			if (CPullOptions::GetQueueServerStatus() && CPullOptions::GetQueueServerVersion() < 3 && !CPullOptions::IsServerShared())
-			{
-				self::Send($channelId, \Bitrix\Pull\Common::jsonEncode(Array(
-					'module_id' => 'pull',
-					'command' => 'open_exists',
-					'expiry' => 1,
-					'params' => Array(),
-					'extra' => Array(
-						'server_time' => date('c'),
-						'server_time_unix' => microtime(true),
-						'server_name' => COption::GetOptionString('main', 'server_name', $_SERVER['SERVER_NAME']),
-						'revision_web' => PULL_REVISION_WEB,
-						'revision_mobile' => PULL_REVISION_MOBILE,
-					),
-				)));
-			}
+			$result->addErrors($updateResult->getErrors());
+		}
+		else if ($updateResult->getAffectedRowsCount() != 1)
+		{
+			$result->addError(new \Bitrix\Main\Error("Expected to update 1 row; updated {$updateResult->getAffectedRowsCount()} rows"));
 		}
 
-		return $arChannel;
+		return $result;
 	}
 
 	// remove channel by identifier
 	// before removing need to send a message to change channel
 	public static function Delete($channelId)
 	{
-		global $DB, $CACHE_MANAGER;
+		global $DB;
 
 		$strSql = "SELECT ID, USER_ID, CHANNEL_TYPE FROM b_pull_channel WHERE CHANNEL_ID = '".$DB->ForSQL($channelId)."'";
 		$res = $DB->Query($strSql);
 		if ($arRes = $res->Fetch())
 		{
 			$strSql = "DELETE FROM b_pull_channel WHERE USER_ID = ".$arRes['USER_ID']." AND CHANNEL_TYPE = '".$DB->ForSql($arRes['CHANNEL_TYPE'])."'";
-			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-
-			$CACHE_MANAGER->Clean("b_pchc_".$arRes['USER_ID']."_".$arRes['CHANNEL_TYPE'], self::CACHE_TABLE);
+			$DB->Query($strSql);
 
 			$channelType = $arRes['CHANNEL_TYPE'];
 
@@ -391,7 +454,7 @@ class CPullChannel
 
 	public static function DeleteByUser($userId, $channelId = null, $channelType = self::TYPE_PRIVATE)
 	{
-		global $DB, $CACHE_MANAGER;
+		global $DB;
 
 		$userId = intval($userId);
 		if ($userId == 0 && $channelType == self::TYPE_PRIVATE)
@@ -416,9 +479,7 @@ class CPullChannel
 			$channelTypeSql = "CHANNEL_TYPE = '".$DB->ForSQL($channelType)."'";
 
 		$strSql = "DELETE FROM b_pull_channel WHERE USER_ID = ".$userId." AND ".$channelTypeSql;
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-
-		$CACHE_MANAGER->Clean("b_pchc_".$userId."_".$channelType, self::CACHE_TABLE);
+		$DB->Query($strSql);
 
 		$params = Array(
 			'action' => $channelType != self::TYPE_PRIVATE? 'reconnect': 'get_config',
@@ -450,6 +511,46 @@ class CPullChannel
 		CPullStack::AddByChannel($channelId, $arMessage);
 
 		return true;
+	}
+
+	/**
+	 * Terminates the users' channels in bulk: one chunked DELETE, no per-user `channel_expire`
+	 * (that command accompanies rotation, not termination). Delivery stops with the rows;
+	 * callers must notify clients BEFORE calling if they need an immediate reaction.
+	 *
+	 * User channels only: USER_ID=0 (shared channel) is skipped — a shared channel needs a
+	 * replacement on removal, use {@see self::DeleteByUser()} for it. An empty $channelType
+	 * matches legacy ''/NULL rows, mirroring DeleteByUser().
+	 *
+	 * @param int[] $userIds
+	 */
+	public static function DeleteByUsers(array $userIds, string $channelType = self::TYPE_PRIVATE): void
+	{
+		$userIds = array_values(array_unique(array_filter(
+			array_map('intval', $userIds),
+			static fn (int $userId): bool => $userId > 0,
+		)));
+		if ($userIds === [])
+		{
+			return;
+		}
+
+		$connection = Application::getConnection();
+		$channelTypeSql = $channelType === ''
+			? "(CHANNEL_TYPE = '' OR CHANNEL_TYPE IS NULL)"
+			: "CHANNEL_TYPE = '" . $connection->getSqlHelper()->forSql($channelType) . "'";
+		foreach (array_chunk($userIds, 500) as $chunk)
+		{
+			$ids = implode(',', $chunk);
+			$connection->queryExecute(
+				"DELETE FROM b_pull_channel WHERE USER_ID IN ({$ids}) AND {$channelTypeSql}"
+			);
+		}
+
+		foreach ($userIds as $userId)
+		{
+			unset(self::$staticCache[self::getLockKey($userId, $channelType)]);
+		}
 	}
 
 	public static function Send($channelId, $message, $options = array())
@@ -549,7 +650,7 @@ class CPullChannel
 			else if ($nginx_error['count'] >= 10)
 			{
 				$ar = Array(
-					"MESSAGE" => GetMessage('PULL_ERROR_SEND'),
+					"MESSAGE" => Loc::getMessage('PULL_ERROR_SEND'),
 					"TAG" => "PULL_ERROR_SEND",
 					"MODULE_ID" => "pull",
 				);
@@ -558,27 +659,25 @@ class CPullChannel
 			}
 		}
 
-		$postdata = CHTTP::PrepareData($message);
-
-		$httpClient = new \Bitrix\Main\Web\HttpClient([
+		$httpClient = new HttpClient([
 			"socketTimeout" => (int)$options["timeout"],
 			"streamTimeout" => (int)$options["timeout"],
 			"waitResponse" => !$options["dont_wait_answer"]
 		]);
-		if ((int)$options["expiry"])
+		if (isset($options["expiry"]) && (int)$options["expiry"])
 		{
 			$httpClient->setHeader("Message-Expiry", (int)$options["expiry"]);
 		}
-		$url = \Bitrix\Pull\Config::getPublishUrl($channelId);
+		$url = Config::getPublishUrl($channelId);
 		if(CPullOptions::IsServerShared())
 		{
-			$signature = static::GetSignature($postdata);
-			$url = \CHTTP::urlAddParams($url, ["signature" => $signature]);
+			$signature = static::GetSignature($message);
+			$url = (string)(new Uri($url))->addParams(["signature" => $signature]);
 		}
 
 		$httpClient->disableSslVerification();//todo: remove
 
-		$sendResult = $httpClient->query($options["method"], $url, $postdata);
+		$sendResult = $httpClient->query($options["method"], $url, $message);
 
 		if ($sendResult)
 		{
@@ -620,7 +719,7 @@ class CPullChannel
 		global $DB;
 
 		$strSql = "UPDATE b_pull_channel SET LAST_ID = ".intval($lastId)." WHERE CHANNEL_ID = '".$DB->ForSQL($channelId)."'";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 
 		return true;
 	}
@@ -629,149 +728,68 @@ class CPullChannel
 	public static function CheckExpireAgent()
 	{
 		global $DB;
-		$sqlDateFunction = null;
 
-		if ($DB->type == "MYSQL")
-			$sqlDateFunction = "DATE_SUB(NOW(), INTERVAL 13 HOUR)";
-		elseif ($DB->type == "MSSQL")
-			$sqlDateFunction = "dateadd(HOUR, -13, getdate())";
-		elseif ($DB->type == "ORACLE")
-			$sqlDateFunction = "SYSDATE-1/13";
+		$connection = Application::getConnection();
+		$sqlHelper = $connection->getSqlHelper();
+		$sqlDateFunction = $sqlHelper->addSecondsToDateTime(-13 * 3600);
 
-		if (!is_null($sqlDateFunction))
+		$strSql = "
+			SELECT USER_ID, CHANNEL_ID, CHANNEL_TYPE
+			FROM b_pull_channel
+			WHERE DATE_CREATE < {$sqlDateFunction}
+		";
+		$dbRes = $DB->Query($strSql);
+		while ($arRes = $dbRes->Fetch())
 		{
-			$strSql = "
-					SELECT USER_ID, CHANNEL_ID, CHANNEL_TYPE
-					FROM b_pull_channel
-					WHERE DATE_CREATE < ".$sqlDateFunction;
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-			while ($arRes = $dbRes->Fetch())
+			$lockId = self::getLockKey((int)$arRes['USER_ID'], $arRes['CHANNEL_TYPE']);
+
+			if ($connection->lock($lockId))
 			{
 				self::DeleteByUser($arRes['USER_ID'], $arRes['CHANNEL_ID'], $arRes['CHANNEL_TYPE']);
+				$connection->unlock($lockId);
 			}
 		}
 
-		return "CPullChannel::CheckExpireAgent();";
+		return __METHOD__. '();';
 	}
 
 	public static function CheckOnlineChannel()
 	{
 		if (!CPullOptions::GetQueueServerStatus())
+		{
 			return "CPullChannel::CheckOnlineChannel();";
+		}
 
-		$users = Array();
 		$channels = Array();
 
-		$isImInstalled = CModule::IncludeModule('im');
-		if ($isImInstalled)
-		{
-			$orm = \Bitrix\Main\UserTable::getList(array(
-				'select' => Array(
-					'USER_ID' => 'ID',
-					'CHANNEL_ID' =>	'CHANNEL.CHANNEL_ID',
-					'STATUS' =>	'ST.STATUS',
-					'COLOR' =>	'ST.COLOR',
-					'IDLE' => 'ST.IDLE',
-					'MOBILE_LAST_DATE' => 'ST.MOBILE_LAST_DATE',
-					'DESKTOP_LAST_DATE' => 'ST.DESKTOP_LAST_DATE',
-				 ),
-				'runtime' => Array(
-					new \Bitrix\Main\Entity\ReferenceField(
-						'CHANNEL',
-						'\Bitrix\Pull\Model\ChannelTable',
-						array(
-							"=ref.USER_ID" => "this.ID",
-							"=ref.CHANNEL_TYPE" => new \Bitrix\Main\DB\SqlExpression('?s', 'private'),
-						),
-						array("join_type"=>"INNER")
-					),
-					new \Bitrix\Main\Entity\ReferenceField(
-						'ST',
-						'\Bitrix\Im\Model\StatusTable',
-						array("=ref.USER_ID" => "this.ID"),
-						array("join_type"=>"LEFT")
-					),
-				),
-				'filter' => Array(
-					'=IS_ONLINE' => 'Y',
-					'=IS_REAL_USER' => 'Y'
-				)
-			));
-		}
-		else
-		{
-			$orm = \Bitrix\Pull\ChannelTable::getList([
-				'select' => [
-					'USER_ID',
-					'CHANNEL_ID'
-				],
-				'filter' => [
-					'=CHANNEL_TYPE' => 'private',
-					'=USER.IS_ONLINE' => 'Y',
-					'=USER.IS_REAL_USER' => 'Y',
-				]
-			]);
-		}
+		$orm = \Bitrix\Pull\ChannelTable::getList([
+			'select' => [
+				'USER_ID',
+				'CHANNEL_ID'
+			],
+			'filter' => [
+				'=CHANNEL_TYPE' => 'private',
+				'=USER.IS_ONLINE' => 'Y',
+				'=USER.IS_REAL_USER' => 'Y',
+			]
+		]);
 
 		while ($res = $orm->fetch())
 		{
 			$channels[$res['CHANNEL_ID']] = $res['USER_ID'];
-			$users[$res['USER_ID']] = $isImInstalled? CIMStatus::prepareLastDate($res): $res;
 		}
 
-		if (count($users) == 0)
+		if (count($channels) == 0)
 		{
 			return "CPullChannel::CheckOnlineChannel();";
 		}
 
 		$arOnline = static::getOnlineUsers($channels);
-
 		if (count($arOnline) > 0)
 		{
 			ksort($arOnline);
 			CUser::SetLastActivityDateByArray($arOnline);
 		}
-
-			$arSend = Array();
-			if ($isImInstalled)
-			{
-				foreach ($arOnline as $userId)
-				{
-					$arSend[$userId] = Array(
-						'id' => $userId,
-						'status' => $users[$userId]['STATUS'],
-						'color' => $users[$userId]['COLOR']? \Bitrix\Im\Color::getColor($users[$userId]['COLOR']): \Bitrix\Im\Color::getColorByNumber($userId),
-						'idle' => $users[$userId]['IDLE'],
-						'mobile_last_date' => $users[$userId]['MOBILE_LAST_DATE'],
-						'desktop_last_date' => $users[$userId]['DESKTOP_LAST_DATE'],
-						'last_activity_date' => new \Bitrix\Main\Type\DateTime(),
-					);
-				}
-			}
-			else
-			{
-				foreach ($arOnline as $userId)
-				{
-					$arSend[$userId] = Array(
-						'id' => $userId,
-						'status' => 'online',
-						'color' => '#556574',
-						'idle' => false,
-						'mobile_last_date' => false,
-						'desktop_last_date' => false,
-						'last_activity_date' => new \Bitrix\Main\Type\DateTime(),
-					);
-				}
-			}
-
-		CPullStack::AddShared(Array(
-			'module_id' => 'online',
-			'command' => 'list',
-			'expiry' => 240,
-			'params' => Array(
-				'users' => $arSend
-			),
-		));
 
 		return "CPullChannel::CheckOnlineChannel();";
 	}
@@ -792,10 +810,10 @@ class CPullChannel
 			$arOnline[$agentUserId] = $agentUserId;
 		}
 
-		if (\Bitrix\Pull\Config::isJsonRpcUsed())
+		if (Config::isJsonRpcUsed())
 		{
 			$userList = array_map("intval", array_values($channels));
-			$result = \Bitrix\Pull\JsonRpcTransport::getUsersLastSeen($userList);
+			$result = (new JsonRpcTransport())->getUsersLastSeen($userList);
 			if (!$result->isSuccess())
 			{
 				return [];
@@ -810,9 +828,9 @@ class CPullChannel
 		}
 		else
 		{
-			if (\Bitrix\Pull\Config::isProtobufUsed())
+			if (Config::isProtobufUsed())
 			{
-				$channelsStatus = \Bitrix\Pull\ProtobufTransport::getOnlineChannels(array_keys($channels));
+				$channelsStatus = ProtobufTransport::getOnlineChannels(array_keys($channels));
 			}
 			else
 			{
@@ -842,7 +860,7 @@ class CPullChannel
 	 * Deprecated method, use \Bitrix\Pull\Config::get() insted.
 	 *
 	 * @deprecated
-	 * @see \Bitrix\Pull\Config::get()
+	 * @see Config::get
 	 */
 	public static function GetConfig($userId, $cache = true, $reopen = false, $mobile = false)
 	{
@@ -948,5 +966,36 @@ class CPullChannel
 
 		return $result;
 	}
+
+	private static function getLockKey(int $userId, $channelType): string
+	{
+		return "b_pchc_{$userId}_{$channelType}";
+	}
+
+	public static function sendChannelExpired(int $userId, string $channelType, string $oldChannelId, string $newChannelId): void
+	{
+		$params = [
+			'action' => $channelType === self::TYPE_SHARED ? 'reconnect' : 'get_config',
+			'channel' => [
+				'id' => self::SignChannel($oldChannelId),
+				'type' => $channelType,
+			],
+		];
+		if ($userId == 0)
+		{
+			$params['new_channel'] = [
+				'id' => self::SignChannel($newChannelId),
+				'start' => date('c', time()),
+				'end' => date('c', time() + self::CHANNEL_TTL),
+				'type' => $channelType,
+			];
+		}
+		$arMessage = [
+			'module_id' => 'pull',
+			'command' => 'channel_expire',
+			'params' => $params
+		];
+
+		CPullStack::AddByChannel($oldChannelId, $arMessage);
+	}
 }
-?>

@@ -6,6 +6,7 @@ use Bitrix\Main\ArgumentException;
 use Bitrix\Main;
 use \Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ORM\Data\Result;
+use Bitrix\Main\ORM\EntityError;
 use Bitrix\Main\ORM\Event;
 use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Fields\IntegerField;
@@ -23,9 +24,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Filter_Query query()
- * @method static EO_Filter_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Filter_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Filter_Result getById($id)
- * @method static EO_Filter_Result getList(array $parameters = array())
+ * @method static EO_Filter_Result getList(array $parameters = [])
  * @method static EO_Filter_Entity getEntity()
  * @method static \Bitrix\Forum\BadWords\EO_Filter createObject($setDefaultValues = true)
  * @method static \Bitrix\Forum\BadWords\EO_Filter_Collection createCollection()
@@ -172,14 +173,14 @@ class Filter implements \ArrayAccess
 
 		if (isset($fields["WORDS"]) && $fields["WORDS"] == '')
 		{
-			$result->addError(new Main\Orm\EntityError(
+			$result->addError(new EntityError(
 				Loc::getMessage("FLT_ERR_DICT_PATT_MISSED"),
 				"emptyData"
 			));
 		}
 		else if (isset($fields["DICTIONARY_ID"]) && intval($fields["DICTIONARY_ID"]) <= 0)
 		{
-			$result->addError(new Main\Orm\EntityError(
+			$result->addError(new EntityError(
 				Loc::getMessage("FLT_ERR_DICTIONARY_MISSED"),
 				"emptyDictionaryId"
 			));
@@ -201,7 +202,7 @@ class Filter implements \ArrayAccess
 					]
 				])->fetch()) && !empty($wordEqual))
 			{
-				$result->addError(new Main\Orm\EntityError(
+				$result->addError(new EntityError(
 					Loc::getMessage("FLT_ALREADY_EXIST"),
 					"alreadyExists"
 				));
@@ -257,14 +258,14 @@ class Filter implements \ArrayAccess
 		$result = new Main\Result();
 		if (!isset($fields["WORDS"]) || $fields["WORDS"] == '')
 		{
-			$result->addError(new Main\Orm\EntityError(
+			$result->addError(new EntityError(
 				Loc::getMessage("FLT_ERR_DICT_PATT_MISSED"),
 				"emptyData"
 			));
 		}
 		else if (intval($fields["DICTIONARY_ID"]) <= 0)
 		{
-			$result->addError(new Main\Orm\EntityError(
+			$result->addError(new EntityError(
 				Loc::getMessage("FLT_ERR_DICTIONARY_MISSED"),
 				"emptyDictionaryId"
 			));
@@ -277,7 +278,7 @@ class Filter implements \ArrayAccess
 				]
 			])->fetch()) && !empty($wordEqual))
 		{
-			$result->addError(new Main\Orm\EntityError(
+			$result->addError(new EntityError(
 				Loc::getMessage("FLT_ALREADY_EXIST"),
 				"alreadyExists"
 			));

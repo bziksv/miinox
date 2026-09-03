@@ -7,6 +7,9 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Landing\Restriction;
 use Bitrix\Main\Security\Random;
 
+// renderer is included from other components templates, its phrases are not loaded automatically
+Loc::loadMessages(__DIR__ . '/template.php');
+
 class Template
 {
 	/**
@@ -78,10 +81,12 @@ class Template
 	{
 		$type = $field->getType();
 		$code = $field->getCode();
+		$fieldId = $this->getFieldId($code);
 		$additional = $params['additional'] ?? '';
 		$disabled = $params['disabled'] ?? false;
 		$readonly = $params['readonly'] ?? false;
 		$needWrapper = $params['needWrapper'] ?? false;
+		$buttons = $params['buttons'] ?? [];
 
 		$isTitle = (bool)($params['title'] ?? null);
 		$title = $field->getLabel();
@@ -91,9 +96,22 @@ class Template
 		}
 
 		$fieldWrapperTag = ($isTitle && $type === 'checkbox') ? 'label' : 'div';
+		$fieldWrapperFor = $fieldWrapperTag === 'label' ? ' for="' . $fieldId . '"' : '';
 		$help = $field->getHelpValue();
 		$htmlHelp = $field->isHtmlHelp();
 		$isHelpLink = $help && strpos($help, '<a href=') !== false;
+		// checkbox without title is the only branch printing no hint node at all
+		$hasHintNode = $help && !$isHelpLink && ($isTitle || $type !== 'checkbox');
+		$hintId = $fieldId . '-hint';
+
+		if (!$isTitle && trim((string)$title) !== '')
+		{
+			$additional .= ' aria-label="' . \htmlspecialcharsbx($title) . '"';
+		}
+		if ($hasHintNode)
+		{
+			$additional .= ' aria-describedby="' . $hintId . '"';
+		}
 
 		?>
 		<?php if ($needWrapper): ?>
@@ -101,35 +119,35 @@ class Template
 		<?php endif; ?>
  		<?php if ($isTitle && $type !== 'checkbox'): ?>
 			<div class="ui-form-label">
-				<label class="ui-ctl-label-text" for="<?=$this->getFieldId($code)?>"><?=$title?></label>
-				<?php if ($help && !$isHelpLink): ?>
+				<label class="ui-ctl-label-text" for="<?=$fieldId?>"><?=$title?></label>
+				<?php if ($hasHintNode): ?>
 					<?php if ($htmlHelp): ?>
-						<span data-hint="<?= $help ?>" data-hint-html class="ui-hint">
+						<span id="<?= $hintId ?>" data-hint="<?= $help ?>" data-hint-html class="ui-hint">
 							<span class="ui-hint-icon"></span>
 						</span>
 					<?php else:?>
-						<span data-hint="<?= $help ?>" class="ui-hint">
+						<span id="<?= $hintId ?>" data-hint="<?= $help ?>" class="ui-hint">
 							<span class="ui-hint-icon"></span>
 						</span>
 					<?php endif; ?>
 				<?php endif; ?>
 			</div>
 		<?php elseif (!$isTitle  && $type !== 'checkbox'): ?>
-			<?php if ($help && !$isHelpLink): ?>
-				<div class="landing-form-control-label-help"><?= $help ?></div>
+			<?php if ($hasHintNode): ?>
+				<div id="<?= $hintId ?>" class="landing-form-control-label-help"><?= $help ?></div>
 			<?php endif; ?>
 		<?php endif; ?>
 
-		<<?= $fieldWrapperTag ?> class="<?= self::getCssByType($type) ?>">
+		<<?= $fieldWrapperTag ?> class="<?= self::getCssByType($type) ?>"<?= $fieldWrapperFor ?>>
 			<?php if (
 				$code === 'THEMEFONTS_CODE'
 				|| $code === 'THEMEFONTS_CODE_H'
 				|| ($type === 'select' && !$field->isMulti())
 			): ?>
-				<div class="ui-ctl-after ui-ctl-icon-angle "></div>
+				<div class="ui-ctl-after ui-ctl-icon-angle " aria-hidden="true"></div>
 			<?php endif; ?>
 			<?=$field->viewForm([
-				'id' => $this->getFieldId($code),
+				'id' => $fieldId,
 				'additional' => $additional,
 				'class' => 'ui-ctl-element ui-field-'.strtolower($code),
 				'disabled' => $disabled,
@@ -137,12 +155,21 @@ class Template
 				'name_format' => 'fields[ADDITIONAL_FIELDS][#field_code#]'
 			])?>
 			<?php if ($isTitle && $type === 'checkbox'): ?>
-				<div class="ui-ctl-label-text" for="<?=$this->getFieldId($code)?>"><?=$title?></div>
-				<?php if ($help && !$isHelpLink): ?>
-					<span data-hint="<?= $help ?>" class="ui-hint">
+				<div class="ui-ctl-label-text"><?=$title?></div>
+				<?php if ($hasHintNode): ?>
+					<span id="<?= $hintId ?>" data-hint="<?= $help ?>" class="ui-hint">
 						<span class="ui-hint-icon"></span>
 					</span>
 				<?php endif; ?>
+			<?php endif; ?>
+			<?php if (in_array('copilot', $buttons, true)): ?>
+				<div class="landing-editable-field-buttons">
+					<button
+						type="button"
+						class="landing-editable-field-button --copilot"
+						aria-label="<?= \htmlspecialcharsbx(Loc::getMessage('LANDING_TPL_FIELD_COPILOT')) ?>"
+					></button>
+				</div>
 			<?php endif; ?>
 		</<?= $fieldWrapperTag ?>>
 		<?php if ($help && $isHelpLink) : ?>
@@ -243,11 +270,11 @@ class Template
 	{
 		$imgId = $field->getValue();
 		$code = mb_strtolower($field->getCode());
-		// $code = preg_replace('/[^a-z]+/', '', $code);
 		$codeWrapper = $code . '_form';
-		$codeEdit = (isset($params['imgEdit']) && $params['imgEdit']) ? $code . '_edit' : null;
+		$codeHoverEdit = (isset($params['imgEdit']) && $params['imgEdit']) ? $code . '_edit' : null;
+		$codeHoverEditWrapper = $codeHoverEdit ? ($codeHoverEdit . '_wrapper') : null;
 		?>
-		<script type="text/javascript">
+		<script>
 			BX.ready(function()
 			{
 				const imageFieldWrapper = BX('<?= $this->getFieldId($codeWrapper) ?>');
@@ -257,31 +284,35 @@ class Template
 				{
 					const imageField = new BX.Landing.UI.Field.Image({
 						id: '<?= $this->getFieldId($code, true) ?>',
+						contextType: BX.Landing.UI.Field.Image.CONTEXT_TYPE_SETTINGS,
 						disableLink: true,
                         disableAltField: true,
-						compactMode: true,
-                        allowClear: true
+						compactMode: <?= $codeHoverEdit ? 'false' : 'true' ?>,
+                        allowClear: true,
+						isAiImageAvailable: <?= \CUtil::PhpToJSObject($this->result['AI_IMAGE_AVAILABLE']) ?>,
+						isAiImageActive: <?= \CUtil::PhpToJSObject($this->result['AI_IMAGE_ACTIVE']) ?>,
+						aiUnactiveInfoCode: <?= \CUtil::PhpToJSObject($this->result['AI_UNACTIVE_INFO_CODE']) ?>,
 						<?php if ($imgId):?>
-						,content: {
-							src: '<?= \CUtil::jsEscape(str_replace(' ', '%20', \htmlspecialcharsbx((int) $imgId > 0 ? File::getFilePath($imgId) : $imgId))) ?>',
-							id : <?= (int)$imgId ?>,
-							alt : ''
-						}
+							content: {
+								src: '<?= \CUtil::jsEscape(str_replace(' ', '%20', \htmlspecialcharsbx((int) $imgId > 0 ? File::getFilePath($imgId) : $imgId))) ?>',
+								id : <?= (int)$imgId ?>,
+								alt : ''
+							},
 						<?php else:?>
-						,content: {
-							src: '<?= \CUtil::jsEscape(str_replace(' ', '%20', \htmlspecialcharsbx($imgPath))) ?>',
-							id : -1,
-							alt : ''
-						}
+							content: {
+								src: '<?= \CUtil::jsEscape(str_replace(' ', '%20', \htmlspecialcharsbx($imgPath))) ?>',
+								id : -1,
+								alt : ''
+							},
 						<?php endif;?>
 						<?if (isset($params['width'], $params['height'])):?>
-						,dimensions: {
-							maxWidth: <?= (int)$params['width']?>,
-							maxHeight: <?= (int)$params['height']?>
-						}
+							dimensions: {
+								maxWidth: <?= (int)$params['width']?>,
+								maxHeight: <?= (int)$params['height']?>
+							},
 						<?php endif;?>
 						<?php if (isset($params['uploadParams']) && !empty($params['uploadParams'])):?>
-						,uploadParams: <?= \CUtil::phpToJsObject($params['uploadParams']) ?>
+							uploadParams: <?= \CUtil::phpToJsObject($params['uploadParams']) ?>,
 						<?php endif;?>
 					});
 
@@ -294,15 +325,23 @@ class Template
 							{
 								const img = imageField.getValue();
 								imageFieldInput.value = parseInt(img.id) > 0
-													? img.id
-													: img.src;
+									? img.id
+									: img.src;
 								BX.onCustomEvent('BX.Landing.UI.Field.Image:onChangeImage');
 							});
 						}
-						<?php if ($codeEdit):?>
-							BX.bind(BX('<?= $this->getFieldId($codeEdit) ?>'), 'click', function (event) {
+
+						<?php if ($codeHoverEdit && $codeHoverEditWrapper):?>
+							BX.bind(BX('<?= $this->getFieldId($codeHoverEdit) ?>'), 'click', function (event) {
 								imageField.onUploadClick(event);
 							});
+
+							const hoverWrapper = BX('<?= $this->getFieldId($codeHoverEditWrapper) ?>');
+							const aiImageButton = imageField.getAiButton();
+							if (hoverWrapper && aiImageButton)
+							{
+								hoverWrapper.appendChild(aiImageButton.layout);
+							}
 						<?php endif;?>
 					}
 					this.image = imageField;
@@ -311,12 +350,21 @@ class Template
 		</script>
 		<div
 			id="<?= $this->getFieldId($codeWrapper) ?>"
-			class="<?= $this->getFieldClass($codeWrapper) ?> ui-ctl-w100">
+			class="<?= $this->getFieldClass($codeWrapper) ?> ui-ctl-w100"
+		>
 		</div>
-		<?php if ($codeEdit):?>
+		<?php if ($codeHoverEdit && $codeHoverEditWrapper):?>
 			<div
-				id="<?= $this->getFieldId($codeEdit) ?>"
-				class="landing-form-social-img-edit">
+				id="<?= $this->getFieldId($codeHoverEditWrapper) ?>"
+				class="landing-form-social-img-hover-edit"
+			>
+				<button
+					type="button"
+					id="<?= $this->getFieldId($codeHoverEdit) ?>"
+					class="landing-form-social-img-edit"
+					aria-label="<?= \htmlspecialcharsbx(Loc::getMessage('LANDING_TPL_FIELD_PICTURE_EDIT')) ?>"
+				>
+				</button>
 			</div>
 		<?php endif; ?>
 		<?php
@@ -344,7 +392,7 @@ class Template
 			}
 			case 'text':
 			{
-				$css = 'ui-ctl ui-ctl-textbox ui-ctl-w100';
+				$css = 'ui-ctl ui-ctl-textbox ui-ctl-w100 ui-ctl-row';
 				break;
 			}
 			case 'checkbox':
@@ -354,7 +402,7 @@ class Template
 			}
 			case 'textarea':
 			{
-				$css = 'ui-ctl ui-ctl-textarea ui-ctl-resize-x';
+				$css = 'ui-ctl ui-ctl-textarea ui-ctl-resize-x ui-ctl-row';
 				break;
 			}
 		}

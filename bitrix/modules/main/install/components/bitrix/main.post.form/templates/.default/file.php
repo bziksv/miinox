@@ -1,7 +1,8 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 /**
  * @deprecated
+ * @global CMain $APPLICATION
  * @var array $arParams
  * @var array $arResult
  */
@@ -67,13 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_REQUEST['mfi_mode']) && ($_R
 ob_start();
 foreach ($arParams["UPLOADS"] as $v)
 {
-	if (in_array($v["USER_TYPE_ID"], array("file", "webdav_element", "disk_file")))
+	if (isset($v["USER_TYPE_ID"]) && in_array($v["USER_TYPE_ID"], array("file", "webdav_element", "disk_file")))
 	{
 		$additionalParameters = [
 			'arUserField' => $v,
 			'DISABLE_CREATING_FILE_BY_CLOUD' => $arParams['DISABLE_CREATING_FILE_BY_CLOUD'] ?? ($v['DISABLE_CREATING_FILE_BY_CLOUD'] ?? null),
 			'DISABLE_LOCAL_EDIT' => $arParams['DISABLE_LOCAL_EDIT'] ?? $v['DISABLE_LOCAL_EDIT'] ?? '',
 			'HIDE_CHECKBOX_ALLOW_EDIT' => $arParams['HIDE_CHECKBOX_ALLOW_EDIT'] ?? $v['HIDE_CHECKBOX_ALLOW_EDIT'] ?? '',
+			'HIDE_CHECKBOX_PHOTO_TEMPLATE' => $arParams['HIDE_CHECKBOX_PHOTO_TEMPLATE'] ?? $v['HIDE_CHECKBOX_PHOTO_TEMPLATE'] ?? '',
+			'MAIN_POST_FORM' => true,
+			'MAIN_POST_FORM_ID' => $arParams['FORM_ID'] ?? '',
 		];
 		if ($v['USER_TYPE_ID'] === 'disk_file'
 			&& isset($v['USER_TYPE'])
@@ -133,7 +137,7 @@ foreach ($arParams["UPLOADS"] as $v)
 				'MODULE_ID' => $v["MODULE_ID"],
 				'ALLOW_UPLOAD' => $v["ALLOW_UPLOAD"],
 				'ALLOW_UPLOAD_EXT' => $v["ALLOW_UPLOAD_EXT"],
-				'INPUT_CAPTION' => $v["INPUT_CAPTION"]
+				'INPUT_CAPTION' => $v["INPUT_CAPTION"] ?? '',
 			),
 			null,
 			array("HIDE_ICONS" => true)
@@ -142,7 +146,7 @@ foreach ($arParams["UPLOADS"] as $v)
 		$arParams["UPLOADS_CID"][$cid] = array(
 			"storage" => "bfile",
 			"parser" => 'file',
-			"postfix" => $v["POSTFIX"]
+			"postfix" => $v["POSTFIX"] ?? '',
 		);
 	}
 }

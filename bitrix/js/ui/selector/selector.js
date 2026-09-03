@@ -248,8 +248,12 @@ BX.UI.Selector.prototype.openDialogPromiseFulfilled = function(result)
 	}
 	else
 	{
+		const id = `bx-selector-dialog-${this.id}`;
+		const popup = BX.Main.PopupManager.getPopupById(id);
+		popup?.destroy();
+
 		this.popups.main = new BX.PopupWindow({
-			id: 'bx-selector-dialog-' + this.id,
+			id,
 			bindElement: popupBind,
 			autoHide: (this.getOption('popupAutoHide') != 'N'),
 			zIndex: this.getPopupZIndex(),
@@ -259,6 +263,7 @@ BX.UI.Selector.prototype.openDialogPromiseFulfilled = function(result)
 			bindOptions: this.bindOptions,
 			cacheable: false,
 			closeByEsc: true,
+			focusTrap: false,
 			closeIcon: (
 				this.getOption('showCloseIcon') == 'Y'
 					? {
@@ -364,6 +369,7 @@ BX.UI.Selector.prototype.openContainer = function()
 		bindOptions: this.bindOptions,
 		cacheable: false,
 		closeByEsc: true,
+		focusTrap: false,
 		closeIcon: (
 			this.getOption('showCloseIcon') == 'Y'
 				? {
@@ -482,6 +488,7 @@ BX.UI.Selector.prototype.openSearch = function(params)
 			closeByEsc: true,
 			closeIcon: false,
 			lightShadow: true,
+			focusTrap: false,
 			events: {
 				onPopupShow: function() {
 					if (

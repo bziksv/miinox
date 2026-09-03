@@ -20,6 +20,9 @@ class CashboxRobokassa extends CashboxPaySystem
 	private const CODE_VAT_0 = 'vat0';
 	private const CODE_VAT_10 = 'vat10';
 	private const CODE_VAT_20 = 'vat20';
+	private const CODE_VAT_5 = 'vat5';
+	private const CODE_VAT_7 = 'vat7';
+	private const CODE_VAT_22 = 'vat22';
 
 	private const CHECK_PAYMENT_TYPE = 2;
 
@@ -63,6 +66,9 @@ class CashboxRobokassa extends CashboxPaySystem
 		$request = Main\Application::getInstance()->getContext()->getRequest();
 		$protocol = $request->isHttps() ? 'https://' : 'http://';
 
+		$currency = $checkData['currency'] ?? '';
+		$roundedTotal = $this->roundMoney((float)$checkData['total_sum'], $currency);
+
 		$fields = [
 			'merchantId' => $this->getPaySystemSetting($payment, 'ROBOXCHANGE_SHOPLOGIN'),
 			'id' => $checkData['unique_id'],
@@ -70,7 +76,7 @@ class CashboxRobokassa extends CashboxPaySystem
 			'operation' => SellCheck::getType(),
 			'sno' => $this->getValueFromSettings('TAX', 'SNO'),
 			'url' => \urlencode($protocol . $request->getHttpHost()),
-			'total' => (string)Sale\PriceMaths::roundPrecision($checkData['total_sum']),
+			'total' => (string)$roundedTotal,
 			'client' => [
 				'email' => $checkData['client_email'],
 				'phone' => $checkData['client_phone'],
@@ -84,14 +90,23 @@ class CashboxRobokassa extends CashboxPaySystem
 		{
 			$fields['payments'][] = [
 				'type' => self::CHECK_PAYMENT_TYPE,
-				'sum' => (string)Sale\PriceMaths::roundPrecision($paymentItem['sum']),
+				'sum' => (string)$this->roundMoney((float)$paymentItem['sum'], $currency),
 			];
 		}
 
 		$checkTypeMap = $this->getCheckTypeMap();
 		$paymentMethod = $checkTypeMap[$check::getType()];
 		$paymentObjectMap = $this->getPaymentObjectMap();
+
+		$items = [];
 		foreach ($checkData['items'] as $item)
+		{
+			array_push($items, ...$this->splitItemForPriceQuantityApi($item));
+		}
+
+		$receiptItems = [];
+		$vatItems = [];
+		foreach ($items as $item)
 		{
 			$vat = $this->getValueFromSettings('VAT', $item['vat']);
 			$tax = $vat ?? $this->getValueFromSettings('VAT', 'NOT_VAT');
@@ -99,10 +114,11 @@ class CashboxRobokassa extends CashboxPaySystem
 			$receiptItem = [
 				'name' => mb_substr($item['name'], 0, self::MAX_NAME_LENGTH),
 				'quantity' => (string)$item['quantity'],
-				'sum' => (string)Sale\PriceMaths::roundPrecision($item['sum']),
+				'sum' => (string)$this->roundMoney((float)$item['sum'], $currency),
 				'tax' => $tax,
 				'payment_method' => $paymentMethod,
 				'payment_object' => $paymentObjectMap[$item['payment_object']],
+				'raw_sum' => (float)$item['price'] * (float)$item['quantity'],
 			];
 
 			if (!empty($item['marking_code']))
@@ -110,13 +126,38 @@ class CashboxRobokassa extends CashboxPaySystem
 				$receiptItem['nomenclature_code'] = $item['marking_code'];
 			}
 
-			$fields['items'][] = $receiptItem;
+			$receiptItems[] = $receiptItem;
 
-			$fields['vats'][] = [
+			$vatItems[] = [
 				'type' => $tax,
-				'sum' => (string)Sale\PriceMaths::roundPrecision($item['vat_sum']),
+				'sum' => (string)$this->roundMoney((float)$item['vat_sum'], $currency),
 			];
 		}
+
+		// Robokassa uses string sums — convert to float for adjustment, then back
+		foreach ($receiptItems as &$receiptItem)
+		{
+			$receiptItem['sum'] = (float)$receiptItem['sum'];
+		}
+		unset($receiptItem);
+
+		$receiptItems = static::adjustItemsSumToTotal(
+			$receiptItems,
+			'sum',
+			$roundedTotal,
+			$currency,
+			'raw_sum'
+		);
+
+		foreach ($receiptItems as &$receiptItem)
+		{
+			$receiptItem['sum'] = (string)$receiptItem['sum'];
+			unset($receiptItem['raw_sum']);
+		}
+		unset($receiptItem);
+
+		$fields['items'] = $receiptItems;
+		$fields['vats'] = $vatItems;
 
 		return $fields;
 	}
@@ -292,6 +333,7 @@ class CashboxRobokassa extends CashboxPaySystem
 	 * @param string $url
 	 * @param Sale\Payment $payment
 	 * @param array $fields
+	 * @param string $method
 	 * @return Sale\Result
 	 * @throws \Bitrix\Main\ArgumentException
 	 * @throws \Bitrix\Main\ArgumentNullException
@@ -299,7 +341,7 @@ class CashboxRobokassa extends CashboxPaySystem
 	 * @throws \Bitrix\Main\ArgumentTypeException
 	 * @throws \Bitrix\Main\ObjectException
 	 */
-	protected function send(string $url, Sale\Payment $payment, array $fields): Sale\Result
+	protected function send(string $url, Sale\Payment $payment, array $fields, string $method = self::SEND_METHOD_HTTP_POST): Sale\Result
 	{
 		$result = new Sale\Result();
 
@@ -443,12 +485,15 @@ class CashboxRobokassa extends CashboxPaySystem
 				$defaultVatList = [
 					0 => self::CODE_VAT_0,
 					10 => self::CODE_VAT_10,
-					20 => self::CODE_VAT_20
+					20 => self::CODE_VAT_20,
+					5 => self::CODE_VAT_5,
+					7 => self::CODE_VAT_7,
+					22 => self::CODE_VAT_22,
 				];
 
 				foreach ($vatList as $vat)
 				{
-					$value = '';
+					$value = null;
 					if (isset($defaultVatList[(int)$vat['RATE']]))
 					{
 						$value = $defaultVatList[(int)$vat['RATE']];
@@ -489,44 +534,6 @@ class CashboxRobokassa extends CashboxPaySystem
 	public static function getPaySystemCodeForKkm(): string
 	{
 		return 'ROBOXCHANGE_SHOPLOGIN';
-	}
-
-	/**
-	 * @return array
-	 */
-	public static function getSupportedKkmModels()
-	{
-		$paySystemCodeForKkm = static::getPaySystemCodeForKkm();
-		$supportedKkmModels = [];
-
-		$paySystemIterator = Sale\PaySystem\Manager::getList([
-			'filter' => [
-				'=ACTIVE' => 'Y',
-			]
-		]);
-		while ($paySystemItem = $paySystemIterator->fetch())
-		{
-			$paySystemService = new Sale\PaySystem\Service($paySystemItem);
-			if (
-				$paySystemService->isSupportPrintCheck()
-				&& $paySystemService->getCashboxClass() === '\\'.static::class
-			)
-			{
-				$supportedKkmModels[] = Sale\BusinessValue::getValuesByCode($paySystemService->getConsumerName(), $paySystemCodeForKkm);
-			}
-		}
-
-		$supportedKkmModels = array_unique(array_merge(...$supportedKkmModels));
-
-		$result = [];
-		foreach ($supportedKkmModels as $supportedKkm)
-		{
-			$result[$supportedKkm] = [
-				'NAME' => $supportedKkm
-			];
-		}
-
-		return $result;
 	}
 
 	/**

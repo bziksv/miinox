@@ -2,8 +2,8 @@
 namespace Bitrix\Rest;
 
 use Bitrix\Main;
-use Bitrix\Main\ArgumentTypeException;
 use Bitrix\Main\Data\Cache;
+use Bitrix\Rest\Exceptions\ArgumentTypeException;
 
 /**
  * Class EventOfflineTable
@@ -26,9 +26,9 @@ use Bitrix\Main\Data\Cache;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_EventOffline_Query query()
- * @method static EO_EventOffline_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_EventOffline_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_EventOffline_Result getById($id)
- * @method static EO_EventOffline_Result getList(array $parameters = array())
+ * @method static EO_EventOffline_Result getList(array $parameters = [])
  * @method static EO_EventOffline_Entity getEntity()
  * @method static \Bitrix\Rest\EO_EventOffline createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_EventOffline_Collection createCollection()
@@ -112,87 +112,57 @@ class EventOfflineTable extends Main\Entity\DataManager
 		$tableName = static::getTableName();
 		$dateTime = $connection->getSqlHelper()->addSecondsToDateTime('-' . static::PROCESS_ID_LIFETIME);
 
-		$sql = "DELETE FROM {$tableName} WHERE PROCESS_ID<>'' AND TIMESTAMP_X<{$dateTime}";
+		$sql = "DELETE FROM {$tableName} WHERE TIMESTAMP_X<{$dateTime}";
 
 		$connection->query($sql);
 
 		return "\\Bitrix\\Rest\\EventOfflineTable::cleanProcessAgent();";
 	}
 
-	public static function callEvent(array $fields): void
+	public static function callEvent($fields)
 	{
-		if (!isset($fields['CONNECTOR_ID']))
+		if(!isset($fields['CONNECTOR_ID']))
 		{
 			$fields['CONNECTOR_ID'] = '';
 		}
 
-		if (!isset($fields['PROCESS_ID']))
-		{
-			$fields['PROCESS_ID'] = '';
-		}
-
-		if (!isset($fields['MESSAGE_ID']))
-		{
-			$fields['MESSAGE_ID'] = static::getMessageId($fields);
-		}
-
-		$addFields = [
+		$addFields = array(
 			'TIMESTAMP_X' => new Main\Type\DateTime(),
 			'MESSAGE_ID' => static::getMessageId($fields),
 			'APP_ID' => $fields['APP_ID'],
 			'EVENT_NAME' => $fields['EVENT_NAME'],
-			'EVENT_DATA' => $fields['EVENT_DATA'],
-			'EVENT_ADDITIONAL' => $fields['EVENT_ADDITIONAL'],
+			'EVENT_DATA' => serialize($fields['EVENT_DATA']),
+			'EVENT_ADDITIONAL' => serialize($fields['EVENT_ADDITIONAL']),
 			'CONNECTOR_ID' => $fields['CONNECTOR_ID'],
-		];
+		);
 
-		$updateFields = [
+		$updateFields = array(
 			'TIMESTAMP_X' => new Main\Type\DateTime(),
-			'EVENT_DATA' => $fields['EVENT_DATA'],
-			'EVENT_ADDITIONAL' => $fields['EVENT_ADDITIONAL'],
-		];
+			'EVENT_DATA' => serialize($fields['EVENT_DATA']),
+			'EVENT_ADDITIONAL' => serialize($fields['EVENT_ADDITIONAL']),
+		);
 
 		if(array_key_exists('ERROR', $fields))
 		{
-			$addFields['ERROR'] = (int)$fields['ERROR'] > 0 ? 1 : 0;
-			$updateFields['ERROR'] = (int)$fields['ERROR'] > 0 ? 1 : 0;
+			$addFields['ERROR'] = intval($fields['ERROR']) > 0 ? 1 : 0;
+			$updateFields['ERROR'] = intval($fields['ERROR']) > 0 ? 1 : 0;
 		}
 
-		$filter = [
-			'=APP_ID' => $fields['APP_ID'],
-			'=MESSAGE_ID' => $fields['MESSAGE_ID']
-		];
-		if ($fields['CONNECTOR_ID'] !== '')
-		{
-			$filter['=CONNECTOR_ID'] = $fields['CONNECTOR_ID'];
-		}
+		$connection = Main\Application::getConnection();
+		$queries = $connection->getSqlHelper()->prepareMerge(
+			static::getTableName(),
+			array('MESSAGE_ID', 'APP_ID', 'CONNECTOR_ID', 'PROCESS_ID'),
+			$addFields,
+			$updateFields
+		);
 
-		if ($fields['PROCESS_ID'] !== '')
+		foreach($queries as $query)
 		{
-			$filter['=PROCESS_ID'] = $fields['PROCESS_ID'];
-		}
-
-		$dbResult = static::getList([
-			'select' => ['ID'],
-			'filter' => $filter,
-			'limit' => 1,
-		]);
-
-		$eventOffline = $dbResult->fetch();
-		if ($eventOffline)
-		{
-			static::update(
-				$eventOffline['ID'],
-				$updateFields
-			);
-		}
-		else
-		{
-			static::add($addFields);
+			$connection->queryExecute($query);
 		}
 	}
 
-	public static function markEvents($filter, $order, $limit)
+	public static function markEvents($filter, $order, $limit): string
 	{
 		$processId = static::getProcessId();
 
@@ -243,9 +213,7 @@ class EventOfflineTable extends Main\Entity\DataManager
 			}
 		}
 
-		$sql = $query->getMarkQuery($processId);
-
-		Main\Application::getConnection()->query($sql);
+		$query->mark($processId);
 
 		return $processId;
 	}
@@ -307,11 +275,11 @@ class EventOfflineTable extends Main\Entity\DataManager
 				$listIds[$key] = $helper->forSql($id);
 			}
 
-			$queryWhere = array(
+			$queryWhere = [
+				"MESSAGE_ID IN ('".implode("', '", $listIds)."')",
 				"APP_ID='".intval($appId)."'",
 				"CONNECTOR_ID='".$helper->forSql($connectorId)."'",
-				"MESSAGE_ID IN ('".implode("', '", $listIds)."')",
-			);
+			];
 
 			$sqlTable = static::getTableName();
 			$sqlWhere = implode(" AND ", $queryWhere);
@@ -319,7 +287,16 @@ class EventOfflineTable extends Main\Entity\DataManager
 
 			$sql = array();
 			$sql[] = "DELETE FROM {$sqlTable} WHERE {$sqlWhere} AND ERROR=0 AND PROCESS_ID <> '{$sqlProcessId}'";
-			$sql[] = "UPDATE {$sqlTable} SET ERROR=1, PROCESS_ID=IF(PROCESS_ID='{$sqlProcessId}', '', 'fake_process_id') WHERE {$sqlWhere} AND ERROR=0 ORDER BY PROCESS_ID ASC";
+			$orderBy = $connection->getType() === 'mysql' ? ' ORDER BY PROCESS_ID ASC' : '';
+			$sql[] = "UPDATE {$sqlTable} 
+						SET 
+							ERROR = 1, 
+							PROCESS_ID = CASE 
+								WHEN PROCESS_ID = '{$sqlProcessId}' THEN '' 
+								ELSE 'fake_process_id' 
+							END
+						WHERE {$sqlWhere} AND ERROR = 0 
+			" . $orderBy;
 			$sql[] = "DELETE FROM {$sqlTable} WHERE {$sqlWhere} AND PROCESS_ID='fake_process_id'";
 
 			foreach($sql as $query)
@@ -383,5 +360,19 @@ class EventOfflineTable extends Main\Entity\DataManager
 		}
 
 		return null;
+	}
+
+	/**
+	 * Removes all application offline event handlers.
+	 *
+	 * @param int $appId Application ID.
+	 *
+	 * @return Main\DB\Result
+	 */
+	public static function deleteByApp(mixed $appId): Main\DB\Result
+	{
+		$connection = Main\Application::getConnection();
+
+		return $connection->query("DELETE FROM ".static::getTableName()." WHERE APP_ID='".$appId."'");
 	}
 }

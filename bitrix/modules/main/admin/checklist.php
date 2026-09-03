@@ -1,9 +1,10 @@
-<?
+<?php
+
 /**
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2013 Bitrix
+ * @copyright 2001-2025 Bitrix
  */
 
 /**
@@ -13,17 +14,15 @@
  */
 
 use Bitrix\Main\Application;
+use Bitrix\Main\Web\Json;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 
-if(!defined('NOT_CHECK_PERMISSIONS') || NOT_CHECK_PERMISSIONS !== true)
+if (!$USER->CanDoOperation('view_other_settings'))
 {
-	if (!$USER->CanDoOperation('view_other_settings'))
-		$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 }
 
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/checklist.php");
 IncludeModuleLangFile(__FILE__);
 
 $APPLICATION->SetAdditionalCSS("/bitrix/themes/.default/check-list-style.css");
@@ -34,81 +33,96 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admi
 CUtil::InitJSCore(Array('ajax','window','popup','fx'));
 $arStates = array();
 
-$showHiddenReports =  CUserOptions::GetOption("checklist","show_hidden","N",false);
-if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) || (isset($_POST["bx_start_test"]) && $_POST["bx_start_test"] == "Y") || !empty($_REQUEST["ACTION"])) && check_bitrix_sessid())
+$showHiddenReports = CUserOptions::GetOption("checklist", "show_hidden", "N", false);
+$testStarted = (bool)CCheckListResult::GetList([], ["REPORT" => "N"])->Fetch();
+
+if (($testStarted || (isset($_POST["bx_start_test"]) && $_POST["bx_start_test"] == "Y") || !empty($_REQUEST["ACTION"])) && check_bitrix_sessid())
 {
-	?><div class="checklist-body-1024"><?
+	?><div class="checklist-body-1024"><?php
 
 	if (isset($_REQUEST['report_id']))
 	{
 		$checklist = new CCheckList($_REQUEST['report_id']);
 	}
 	else
+	{
 		$checklist = new CCheckList();
+	}
 
 	$isFisrtTime = CUserOptions::GetOption("checklist","autotest_start","N",false);
 	CUserOptions::SetOption("checklist","autotest_start","Y");
 
 	$arStructure = $checklist->GetStructure();
 	$arPoints = $checklist->GetPoints();
+
 	if (isset($_POST["ACTION"]) && $_POST["ACTION"] == "update")
 	{
-		$arTestID = $_POST["TEST_ID"];
-		if (isset($_POST["autotest"]) && $_POST["autotest"]=="Y")//start autotest
+		$testId = $_POST["TEST_ID"];
+		if (isset($_POST["autotest"]) && $_POST["autotest"]=="Y")
 		{
-			$arStep = intval($_POST["STEP"]);
-			$arResult = $checklist->AutoCheck($arTestID,Array("STEP"=>$arStep));
+			//start autotest
+			$step = intval($_POST["STEP"]);
+			$arResult = $checklist->AutoCheck($testId, ["STEP" => $step]);
 		}
 		else
 		{
 			$arPointFields = array();
-			if (isset($_POST["COMMENTS"]) && $_POST["COMMENTS"] == "Y")//update only comments
+			if (isset($_POST["COMMENTS"]) && $_POST["COMMENTS"] == "Y")
 			{
-				$arPointFields["COMMENTS"] = $arPoints[$arTestID]["STATE"]["COMMENTS"] ?? [];
+				//update only comments
+				$arPointFields["COMMENTS"] = $arPoints[$testId]["STATE"]["COMMENTS"] ?? [];
 				if (!empty($_POST["perfomer_comment"]) && mb_strlen(trim($_POST["perfomer_comment"])) > 1)
-				$arPointFields["COMMENTS"]["PERFOMER"] = $_POST["perfomer_comment"];
-				else
-					unset($arPointFields["COMMENTS"]["PERFOMER"]);
-				if (!empty($_POST["custom_comment"]) && mb_strlen(trim($_POST["custom_comment"])) > 1)
-					$arPointFields["COMMENTS"]["CUSTOMER"] = $_POST["custom_comment"];
-				else
-					unset($arPointFields["COMMENTS"]["CUSTOMER"]);
-
-				if (strtoupper(SITE_CHARSET) != "UTF-8" && !empty($arPointFields["COMMENTS"]))
 				{
-					if (!empty($arPointFields["COMMENTS"]["PERFOMER"]))
-						$arPointFields["COMMENTS"]["PERFOMER"] = \Bitrix\Main\Text\Encoding::convertEncoding($arPointFields["COMMENTS"]["PERFOMER"],"UTF-8",SITE_CHARSET);
-					if(!empty($arPointFields["COMMENTS"]["CUSTOMER"]))
-						$arPointFields["COMMENTS"]["CUSTOMER"] = \Bitrix\Main\Text\Encoding::convertEncoding($arPointFields["COMMENTS"]["CUSTOMER"],"UTF-8",SITE_CHARSET);
+					$arPointFields["COMMENTS"]["PERFOMER"] = $_POST["perfomer_comment"];
+				}
+				else
+				{
+					unset($arPointFields["COMMENTS"]["PERFOMER"]);
 				}
 
-				$arPointFields["STATUS"] = $arPoints[$arTestID]["STATE"]["STATUS"];
-			}
-			if (!empty($_POST["STATUS"]))//update only status
-				$arPointFields["STATUS"] = $_POST["STATUS"];
+				if (!empty($_POST["custom_comment"]) && mb_strlen(trim($_POST["custom_comment"])) > 1)
+				{
+					$arPointFields["COMMENTS"]["CUSTOMER"] = $_POST["custom_comment"];
+				}
+				else
+				{
+					unset($arPointFields["COMMENTS"]["CUSTOMER"]);
+				}
 
-			$checklist->PointUpdate($arTestID, $arPointFields);
+				$arPointFields["STATUS"] = $arPoints[$testId]["STATE"]["STATUS"];
+			}
+			if (!empty($_POST["STATUS"]))
+			{
+				//update only status
+				$arPointFields["STATUS"] = $_POST["STATUS"];
+			}
+
+			$checklist->PointUpdate($testId, $arPointFields);
 			if ($checklist->Save())
 			{
 				$arResult = Array(
 					"STATUS"=>$arPointFields["STATUS"],
-					"IS_REQUIRE"=> $arPoints[$arTestID]["REQUIRE"] ?? null,
+					"IS_REQUIRE"=> $arPoints[$testId]["REQUIRE"] ?? null,
 					"COMMENTS_COUNT" => (isset($arPointFields["COMMENTS"]) && is_array($arPointFields["COMMENTS"])? count($arPointFields["COMMENTS"]) : 0),
 				);
 			}
 			else
+			{
 				$arResult = Array("RESULT"=>"ERROR");
+			}
 		}
 
 		$arTotal = $checklist->GetSectionStat();
-		$arCode = $checklist->checklist["CATEGORIES"][$arPoints[$arTestID]["PARENT"]]["PARENT"] ?? null;
+		$arCode = $checklist->checklist["CATEGORIES"][$arPoints[$testId]["PARENT"]]["PARENT"] ?? null;
 		if ($arCode)
 		{
 			$arParentCode = $arCode;
-			$arSubParentCode = $arPoints[$arTestID]["PARENT"];
+			$arSubParentCode = $arPoints[$testId]["PARENT"];
 		}
 		else
-			$arParentCode = $arSubParentCode = $arPoints[$arTestID]["PARENT"];
+		{
+			$arParentCode = $arSubParentCode = $arPoints[$testId]["PARENT"];
+		}
 
 		$arSubParentStat = $checklist->GetSectionStat($arSubParentCode);
 		$arParentStat = $checklist->GetSectionStat($arParentCode);
@@ -121,7 +135,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 		$arResultAdditional = Array(
 				"PARENT"=>$arParentStat,
 				"SUB_PARENT"=>$arSubParentStat,
-				"TEST_ID"=>$arTestID,
+				"TEST_ID"=>$testId,
 				"CAN_CLOSE_PROJECT"=> empty($_POST["CAN_SHOW_CP_MESSAGE"]) ? "N" : $arTotal["CHECKED"],
 				"TOTAL"=>$arTotal["TOTAL"],
 				"FAILED"=>$arTotal["FAILED"],
@@ -142,8 +156,8 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 		$arResult = array_merge($arResultAdditional,$arResult);
 		$APPLICATION->RestartBuffer();
 		header("Content-Type: application/x-javascript; charset=".LANG_CHARSET);
-		echo CUtil::PhpToJsObject($arResult);
-		die();
+		echo Json::encode($arResult);
+		CMain::FinalActions();
 	}
 	elseif (isset($_REQUEST["ACTION"]) && $_REQUEST["ACTION"] == "SHOWHIDEELEMENTS")
 	{
@@ -153,7 +167,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			CCheckListResult::Update($report_id, array('HIDDEN' => $_REQUEST['report_action'] == 'hide' ? 'Y' : 'N'));
 		}
 
-		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANG,true);
+		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANGUAGE_ID,true);
 	}
 	elseif (isset($_REQUEST["ACTION"]) && $_REQUEST["ACTION"] == "CHANGELISTPROP")
 	{
@@ -163,7 +177,8 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			$showHiddenReports = "N";
 
 		CUserOptions::SetOption("checklist","show_hidden", $showHiddenReports);
-		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANG,true);
+
+		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANGUAGE_ID,true);
 	}
 	elseif (isset($_REQUEST["ACTION"]) && $_REQUEST["ACTION"] == "RESETBITRIXSTATUS")
 	{
@@ -172,7 +187,8 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 		{
 			CCheckListResult::Update($arReport['ID'], array('SENDED_TO_BITRIX' => 'N'));
 		}
-		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANG,true);
+
+		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANGUAGE_ID,true);
 	}
 	elseif (isset($_REQUEST["ACTION"]) && $_REQUEST["ACTION"] == "ADDREPORT")//add report
 	{
@@ -183,9 +199,10 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			$arFields["COMPANY_NAME"] = $_POST["COMPANY_NAME"];
 		if (!empty($_POST["EMAIL"]))
 			$arFields["EMAIL"] = $_POST["EMAIL"];
+
 		$report_id = $checklist->AddReport($arFields);
-//		CCheckListResult::Update($report_id, $arFields);
-		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANG,true);
+
+		LocalRedirect($APPLICATION->GetCurPage()."?lang=".LANGUAGE_ID,true);
 	}
 	elseif (isset($_REQUEST["ACTION"]) && $_REQUEST["ACTION"] == "ADDSENDREPORT")//add report and send to bitrix
 	{
@@ -221,7 +238,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 
 				CCheckListResult::Update($report_id, array('SENDED_TO_BITRIX' => 'Y'));
 
-				$res = $checklist->AddReport($arFields);
+				$checklist->AddReport($arFields);
 
 				$arFields['STATE'] = base64_encode(serialize($checklist->current_result));
 				$arFields['CHECKLIST'] = base64_encode(serialize($checklist->checklist));
@@ -277,17 +294,13 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			"FAILED"=>  $arStats["FAILED"]
 		);
 	}
-	$arStates = CUtil::PhpToJsObject($arStates);
+	$arStates = Json::encode($arStates);
 /////////////////////////////////////////////////////////
 //////////////////////END_PREPARE////////////////////////
 /////////////////////////////////////////////////////////
 ?>
 	<div class="checklist-wrapper">
 		<div class="checklist-top-info">
-
-
-
-
 			<div class="checklist-top-info-right-wrap">
 				<span class="checklist-top-info-left">
 					<span class="checklist-top-info-left-item"><?=GetMessage("CL_TEST_TOTAL");?>:</span><br/>
@@ -304,7 +317,6 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 				</span>
 			</div>
 
-
 			<div class="checklist-top-info-left-wrap">
 				<div class="checklist-top-info-right">
 					<span><?=GetMessage("CL_CHECK_PROGRESS");?>:</span>
@@ -320,8 +332,6 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 				</div>
 			</div>
 
-
-
 			<div class="checklist-clear"></div>
 			<a id="bx_start_button" class="adm-btn adm-btn-green adm-btn" onClick="StartAutoCheck()" style="margin-top: -121px">
 				<span class="checklist-button-cont"><?=GetMessage("CL_BEGIN_AUTOTEST");?></span>
@@ -332,13 +342,13 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			</a>
 		</div>
 	<ul class="checklist-testlist">
-	<?foreach($arStructure["STRUCTURE"] as $rkey=>$rFields):?>
+	<?php foreach($arStructure["STRUCTURE"] as $rkey=>$rFields):?>
 		<li class="checklist-testlist-level1">
 			<div class="checklist-testlist-text" id="<?=$rkey;?>_name"><?=$rFields["NAME"];?><span id="<?=$rkey;?>_stat" class="checklist-testlist-amount-test"></span>
 			<span class="checklist-testlist-marker-list"></span>
 			</div>
 			<ul class="checklist-testlist-level2-wrap">
-				<?
+				<?php
 				$num = 1;
 				foreach($rFields["POINTS"] as $pkey=>$pFields):?>
 				<li id="<?=$pkey;?>" class="checklist-testlist-level3">
@@ -351,14 +361,14 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 					</span>
 					<span id="mark_<?=$pkey;?>"></span>
 				</li>
-				<?endforeach;?>
-				<?foreach($rFields["CATEGORIES"] as $skey=>$sFields): $num = 1;?>
+				<?php endforeach;?>
+				<?php foreach($rFields["CATEGORIES"] as $skey=>$sFields): $num = 1;?>
 					<li class="checklist-testlist-level2">
 						<div class="checklist-testlist-text" id="<?=$skey;?>_name" ><?=$sFields["NAME"];?><span id="<?=$skey;?>_stat" class="checklist-testlist-amount-test"></span>
 							<span class="checklist-testlist-marker-list"></span>
 						</div>
 						<ul class="checklist-testlist-level3-wrap">
-							<?foreach($sFields["POINTS"] as $pkey=>$pFields):?>
+							<?php foreach($sFields["POINTS"] as $pkey=>$pFields):?>
 								<li id="<?=$pkey;?>" class="checklist-testlist-level3">
 									<span class="checklist-testlist-level3-cont">
 										<span class="checklist-testlist-level3-cont-nom"><?=$num++.". ";?></span>
@@ -369,16 +379,16 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 									</span>
 									<span id="mark_<?=$pkey;?>"></span>
 								</li>
-							<?endforeach;?>
+							<?php endforeach;?>
 						</ul>
 					</li>
-				<?endforeach;?>
+				<?php endforeach;?>
 			</ul>
 		</li>
-	<?endforeach;?>
+	<?php endforeach;?>
 	</ul>
 
-	<script type="text/javascript">
+	<script>
 		function ShowHint (el)
 		{
 			el.BXHINT = new BX.CHint({
@@ -394,7 +404,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			el.BXHINT.Show();
 		}
 
-		var arStates = eval(<?=$arStates;?>);
+		var arStates = <?=$arStates;?>;
 		var DetailWindow = false;
 		var arMainStat ={
 			"REQUIRE":<?=$arStat["REQUIRE"];?>,
@@ -503,7 +513,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 				{
 					title: head_name+" - "+testID,
 					head: "",
-					content_url: "/bitrix/admin/checklist_detail.php?TEST_ID="+testID+"&lang=<?=LANG;?>&bxpublic=Y",
+					content_url: "/bitrix/admin/checklist_detail.php?TEST_ID="+testID+"&lang=<?=LANGUAGE_ID;?>&bxpublic=Y",
 					icon: "head-block",
 					resizable: false,
 					draggable: true,
@@ -786,7 +796,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 					break;
 				}
 			}
-			BX.ajax.post("/bitrix/admin/checklist.php"+"?lang=<?=LANG;?>&bxpublic=Y&<?=bitrix_sessid_get()?>",data,callback);
+			BX.ajax.post("/bitrix/admin/checklist.php"+"?lang=<?=LANGUAGE_ID;?>&bxpublic=Y&<?=bitrix_sessid_get()?>",data,callback);
 		}
 
 		function checkError()
@@ -826,7 +836,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			result += '<br><?=GetMessageJS("CL_TEST_REQUIRE");?>: '+arMainStat.REQUIRE_CHECK;
 			result += '<br><br><b><?=GetMessageJS("CL_MANUAL_MINI_2");?></b>';
 			result += "<br><br>" +
-					"<form id='about_tester' method='POST' action='checklist.php?lang=<?=LANG?>'>" +
+					"<form id='about_tester' method='POST' action='checklist.php?lang=<?=LANGUAGE_ID?>'>" +
 					'<?=bitrix_sessid_post()?>' +
 					"<input type='hidden' name='ACTION' value='ADDREPORT'>" +
 						"<table border=0>" +
@@ -955,34 +965,35 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			showHiddenReports = 'N';
 		else
 				showHiddenReports = 'Y';
-		window.location = 'checklist.php?lang=<?=LANG?>&ACTION=CHANGELISTPROP&showHiddenReports='+showHiddenReports+'&<?=bitrix_sessid_get()?>';
+		window.location = 'checklist.php?lang=<?=LANGUAGE_ID?>&ACTION=CHANGELISTPROP&showHiddenReports='+showHiddenReports+'&<?=bitrix_sessid_get()?>';
 	}
 
 
 	</script>
-	<?}
-	else
+<?php
+}
+else
+{
+	$allowedDomains = array($_SERVER['HTTP_HOST'] ?? '');
+	$langs = CLang::GetList('', '', Array());
+	while ($arLang = $langs->Fetch())
 	{
-		$allowedDomains = array($_SERVER['HTTP_HOST'] ?? '');
-		$langs = CLang::GetList('', '', Array());
-		while ($arLang = $langs->Fetch())
-		{
-			$domains = trim($arLang['DOMAINS']);
-			$domains = explode("\n", $domains);
-			$domains = array_map('trim', $domains);
-			$allowedDomains = array_merge($allowedDomains, $domains);
-		}
-		$allowedDomains = array_unique($allowedDomains);
-	?>
+		$domains = trim($arLang['DOMAINS']);
+		$domains = explode("\n", $domains);
+		$domains = array_map('trim', $domains);
+		$allowedDomains = array_merge($allowedDomains, $domains);
+	}
+	$allowedDomains = array_unique($allowedDomains);
+?>
 	<div class="checklist-body">
 	<script>
 		var showHiddenReports = "<?=$showHiddenReports?>";
 		var allowedDomains = [];
-		<?foreach ($allowedDomains as $allowedDomain)
+		<?php foreach ($allowedDomains as $allowedDomain)
 		{
 			$allowedDomain = explode(':', $allowedDomain);
 			$allowedDomain = $allowedDomain[0];
-			?>allowedDomains.push('<?=CUtil::JSEscape($allowedDomain)?>');<?
+			?>allowedDomains.push('<?=CUtil::JSEscape($allowedDomain)?>');<?php
 		}
 		?>
 		function ShowHideReports ()
@@ -991,7 +1002,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 				showHiddenReports = 'N';
 			else
 				showHiddenReports = 'Y';
-			window.location = 'checklist.php?lang=<?=LANG?>&ACTION=CHANGELISTPROP&showHiddenReports='+showHiddenReports+'&<?=bitrix_sessid_get()?>';
+			window.location = 'checklist.php?lang=<?=LANGUAGE_ID?>&ACTION=CHANGELISTPROP&showHiddenReports='+showHiddenReports+'&<?=bitrix_sessid_get()?>';
 		}
 		function RefreshReportStatuses ()
 		{
@@ -999,7 +1010,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 				var json_data=eval("(" +data+")");
 				if (json_data.ERROR !== undefined)
 				{
-					window.location = 'checklist.php?lang=<?=LANG?>&ACTION=RESETBITRIXSTATUS'+'&<?=bitrix_sessid_get()?>';
+					window.location = 'checklist.php?lang=<?=LANGUAGE_ID?>&ACTION=RESETBITRIXSTATUS'+'&<?=bitrix_sessid_get()?>';
 				}
 			});
 		}
@@ -1076,36 +1087,38 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 
 		function hideReport (report_id)
 		{
-			window.location = 'checklist.php?lang=<?=LANG?>&ACTION=SHOWHIDEELEMENTS&report_id='+report_id+'&report_action=hide&<?=bitrix_sessid_get()?>';
+			window.location = 'checklist.php?lang=<?=LANGUAGE_ID?>&ACTION=SHOWHIDEELEMENTS&report_id='+report_id+'&report_action=hide&<?=bitrix_sessid_get()?>';
 		}
 
 		function showReport (report_id)
 		{
-			window.location = 'checklist.php?lang=<?=LANG?>&ACTION=SHOWHIDEELEMENTS&report_id='+report_id+'&report_action=show&<?=bitrix_sessid_get()?>';
+			window.location = 'checklist.php?lang=<?=LANGUAGE_ID?>&ACTION=SHOWHIDEELEMENTS&report_id='+report_id+'&report_action=show&<?=bitrix_sessid_get()?>';
 		}
 	</script>
 		<div id='checklist_manual'>
-			<?echo BeginNote();?>
+			<?= BeginNote();?>
 			<?=GetMessage("CL_MANUAL");?>
-			<?echo EndNote();?>
+			<?= EndNote();?>
 		</div>
 		<div id='checklist_manual2' style="display: none">
-			<?echo BeginNote();?>
+			<?= BeginNote();?>
 			<?=GetMessage("CL_MANUAL2");?>
-			<?echo EndNote();?>
+			<?= EndNote();?>
 		</div>
-		<form id="bx_start_test" action="?lang=<?=LANG;?>" method="POST">
+		<form id="bx_start_test" action="?lang=<?=LANGUAGE_ID;?>" method="POST">
 			<?=bitrix_sessid_post()?>
 			<input type="hidden" name = "bx_start_test"  value="Y">
 		</form>
 		<a id="bx_start_button" class="adm-btn adm-btn-green adm-btn-add" onclick="BX('bx_start_test').submit();"><?=GetMessage("CL_BEGIN");?></a>
-		<?ShowReportList();?>
-		<?echo BeginNote();?>
+		<?php ShowReportList();?>
+		<?= BeginNote();?>
 		<?=GetMessage("CL_MANUAL_TEST");?>
-		<?echo EndNote();?>
-	<?}?>
+		<?= EndNote();?>
+<?php
+}
+?>
 </div>
-<?
+<?php
 function ShowReportList()
 {
 	global $showHiddenReports;
@@ -1214,7 +1227,7 @@ function ShowReportList()
 
 	</form>
 
-	<?
+	<?php
 	$exists_sended_to_bitrix = CCheckListResult::GetList(Array(),Array("SENDED_TO_BITRIX"=>"Y"))->Fetch();
 	if(!empty($arReports)) {?>
 		<div class="checklist-archive-rept">
@@ -1230,18 +1243,18 @@ function ShowReportList()
 					<td>&nbsp;</td>
 					<td>&nbsp;</td>
 				</tr>
-				<?foreach ($arReports as $k=>$arReport):?>
+				<?php foreach ($arReports as $k=>$arReport):?>
 					<tr class="">
 						<td><?=$arReport["DATE_CREATE"]?></td>
 						<td><?=$arReport["TESTER"]?> (<?=$arReport["COMPANY_NAME"]?>)</td>
 						<td><?=$arReport["TOTAL"]?></td>
 						<td><?=$arReport["SUCCESS"]?></td>
 						<td><?=$arReport["FAILED"]?></td>
-						<td><a class="checklist-archive-table-detail" href="/bitrix/admin/checklist_report.php?ID=<?=$arReport["ID"];?>&lang=<?=LANG;?>"><?=GetMessage("CL_REPORT_TABLE_DETAIL");?></a></td>
+						<td><a class="checklist-archive-table-detail" href="/bitrix/admin/checklist_report.php?ID=<?=$arReport["ID"];?>&lang=<?=LANGUAGE_ID;?>"><?=GetMessage("CL_REPORT_TABLE_DETAIL");?></a></td>
 						<td>
-							<?if ($arReport["SENDED_TO_BITRIX"] == 'N' && $k == 0) {?>
-								<?if(!$exists_sended_to_bitrix) {?>
-									<?if ((time() - MakeTimeStamp($arReport["DATE_CREATE"], FORMAT_DATETIME)) > 60*60*24*30) {?>
+							<?php if ($arReport["SENDED_TO_BITRIX"] == 'N' && $k == 0) {?>
+								<?php if(!$exists_sended_to_bitrix) {?>
+									<?php if ((time() - MakeTimeStamp($arReport["DATE_CREATE"], FORMAT_DATETIME)) > 60*60*24*30) {?>
 										<?=GetMessage("CL_REPORT_OLD");?>
 									<?} else {?>
 										<a href="" onmouseover="ShowHint(this)" onclick="showProjectForm(<?=$arReport["ID"]?>); return false;"><?=GetMessage("CL_SAVE_SEND_REPORT_CUT");?></a>
@@ -1254,14 +1267,14 @@ function ShowReportList()
 							<?}?>
 						</td>
 						<td>
-							<?if ($arReport["HIDDEN"] == 'N') {?>
+							<?php if ($arReport["HIDDEN"] == 'N') {?>
 							<a href="" onclick="hideReport(<?=$arReport["ID"]?>); return false;"><?=GetMessage('CL_HIDE_REPORT')?></a>
 							<?} else {?>
 							<a href="" onclick="showReport(<?=$arReport["ID"]?>); return false;"><?=GetMessage('CL_SHOW_REPORT')?></a>
 							<?}?>
 						</td>
 					</tr>
-				<?endforeach;?>
+				<?php endforeach;?>
 			</table>
 			<br>
 		</div>
@@ -1273,7 +1286,7 @@ function ShowReportList()
 			<input type="checkbox" id="sh_chk" onClick="ShowHideReports()" <?=($showHiddenReports=='Y' ? 'checked' : '')?>><label for="sh_chk"> <?=GetMessage('CL_SHOW_HIDDEN')?></label>
 		</div>
 		<div>
-			<?if($exists_sended_to_bitrix && !empty($arReports)) {?>
+			<?php if($exists_sended_to_bitrix && !empty($arReports)) {?>
 				<a class="adm-btn adm-btn-green " onclick="RefreshReportStatuses();"><?=GetMessage("CL_REFRESH_REPORT_STATUSES");?></a>
 			<?} else {?>
 				<br><br>
@@ -1297,7 +1310,7 @@ function SendReportToBitrix ($arFields)
 	<?=GetMessage('CL_SENDING_QC_REPORT')?>
 	<form id="bx_project_tests_send" style="display:none;" action="https://partners.1c-bitrix.ru/personal/send_quality_control.php" method="POST">
 		<input type="hidden" name="charset" value="<?=htmlspecialcharsbx(LANG_CHARSET)?>" />
-		<?foreach ($arFields as $key=>$val)
+		<?php foreach ($arFields as $key=>$val)
 		{
 			if (is_array($val))
 			{
@@ -1312,7 +1325,7 @@ function SendReportToBitrix ($arFields)
 	<script>
 		document.getElementById('bx_project_tests_send').submit();
 	</script>
-<?
+<?php
 	die;
 }
 require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin.php");?>

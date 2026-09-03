@@ -1,10 +1,12 @@
-<?
-#############################################
-# Bitrix Site Manager Forum					#
-# Copyright (c) 2002-2009 Bitrix			#
-# http://www.bitrixsoft.com					#
-# mailto:admin@bitrixsoft.com				#
-#############################################
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage vote
+ * @copyright 2001-2025 Bitrix
+ */
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 $sTableID = "tbl_vote_votes";
 $oSort = new CAdminSorting($sTableID, "ID", "desc");
@@ -124,7 +126,10 @@ if ($lAdmin->EditAction() && $VOTE_RIGHT>="W" && check_bitrix_sessid())
 			$lAdmin->AddUpdateError(GetMessage("SAVE_ERROR").$ID.": ".GetMessage("VOTE_SAVE_ERROR"), $ID);
 			$DB->Rollback();
 		}
-		$DB->Commit();
+		else
+		{
+			$DB->Commit();
+		}
 	}
 }
 // Groups action
@@ -237,7 +242,7 @@ require_once ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_adm
 ?>
 <a name="tb"></a>
 
-<?echo ShowError($strError);?>
+<? ShowError($strError);?>
 <form name="form1" method="GET" action="<?=$APPLICATION->GetCurPage()?>?">
 <?
 $oFilter = new CAdminFilter(

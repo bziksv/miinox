@@ -1,11 +1,13 @@
 import { Popup } from 'main.popup';
 import { Type } from 'main.core';
+
 import type { UploaderError } from 'ui.uploader.core';
+import type { BitrixVueComponentProps } from 'ui.vue3';
 
 /**
  * @memberof BX.UI.Uploader
  */
-export const ErrorPopup = {
+export const ErrorPopup: BitrixVueComponentProps = {
 	props: {
 		error: {
 			type: [Object, String],
@@ -16,15 +18,15 @@ export const ErrorPopup = {
 		},
 		popupOptions: {
 			type: Object,
-			default()
+			default(): {}
 			{
 				return {};
-			}
+			},
 		},
 	},
 	emits: ['onDestroy'],
 	watch: {
-		error(newValue)
+		error(newValue): void
 		{
 			if (this.errorPopup)
 			{
@@ -33,13 +35,13 @@ export const ErrorPopup = {
 
 			this.errorPopup = this.createPopup(newValue);
 			this.errorPopup.show();
-		}
+		},
 	},
-	created()
+	created(): void
 	{
 		this.errorPopup = null;
 	},
-	mounted()
+	mounted(): void
 	{
 		if (this.error)
 		{
@@ -47,7 +49,7 @@ export const ErrorPopup = {
 			this.errorPopup.show();
 		}
 	},
-	beforeUnmount()
+	beforeUnmount(): void
 	{
 		if (this.errorPopup)
 		{
@@ -56,7 +58,7 @@ export const ErrorPopup = {
 		}
 	},
 	methods: {
-		createContent(error: UploaderError | string)
+		createContent(error: UploaderError | string): string
 		{
 			if (Type.isStringFilled(error))
 			{
@@ -70,7 +72,7 @@ export const ErrorPopup = {
 			return '';
 		},
 
-		createPopup(error: UploaderError | string)
+		createPopup(error: UploaderError | string): Popup
 		{
 			const content = this.createContent(error);
 			let defaultOptions;
@@ -99,8 +101,8 @@ export const ErrorPopup = {
 
 							popup.setAngle({ offset: popupWidth / 2 - angleShift });
 							popup.setOffset({ offsetLeft: offsetLeft + Popup.getOption('angleLeftOffset') });
-						}
-					}
+						},
+					},
 				};
 			}
 			else
@@ -121,7 +123,7 @@ export const ErrorPopup = {
 			const options = Object.assign({}, defaultOptions, this.popupOptions);
 
 			return new Popup(options);
-		}
+		},
 	},
 	template: '<span></span>',
 };

@@ -2,24 +2,17 @@
 
 class CForm extends CAllForm
 {
-	public static function err_mess()
-	{
-		$module_id = "form";
-		@include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$module_id."/install/version.php");
-		return "<br>Module: ".$module_id." (".$arModuleVersion["VERSION"].")<br>Class: CForm<br>File: ".__FILE__;
-	}
-
 	public static function GetList($by = 's_sort', $order = 'asc', $arFilter = [], $is_filtered = null, $min_permission = 10)
 	{
-		$err_mess = (CForm::err_mess())."<br>Function: GetList<br>Line: ";
 		global $DB, $USER, $strError;
 		$min_permission = intval($min_permission);
 
 		$arSqlSearch = Array();
+		$left_join = '';
 		if (is_array($arFilter))
 		{
-			if ($arFilter["SID"] <> '') $arFilter["VARNAME"] = $arFilter["SID"];
-			elseif ($arFilter["VARNAME"] <> '') $arFilter["SID"] = $arFilter["VARNAME"];
+			if (!empty($arFilter["SID"])) $arFilter["VARNAME"] = $arFilter["SID"];
+			elseif (!empty($arFilter["VARNAME"])) $arFilter["SID"] = $arFilter["VARNAME"];
 
 			$filter_keys = array_keys($arFilter);
 			$keyCount = count($filter_keys);
@@ -43,17 +36,17 @@ class CForm extends CAllForm
 				{
 					case "ID":
 					case "SID":
-						$match = ($arFilter[$key."_EXACT_MATCH"]=="N" && $match_value_set) ? "Y" : "N";
+						$match = (isset($arFilter[$key."_EXACT_MATCH"]) && $arFilter[$key."_EXACT_MATCH"]=="N" && $match_value_set) ? "Y" : "N";
 						$arSqlSearch[] = GetFilterQuery("F.".$key, $val, $match);
 						break;
 					case "NAME":
 					case "DESCRIPTION":
-						$match = ($arFilter[$key."_EXACT_MATCH"]=="Y" && $match_value_set) ? "N" : "Y";
+						$match = (isset($arFilter[$key."_EXACT_MATCH"]) && $arFilter[$key."_EXACT_MATCH"]=="Y" && $match_value_set) ? "N" : "Y";
 						$arSqlSearch[] = GetFilterQuery("F.".$key, $val, $match);
 						break;
 					case "SITE":
 						if (is_array($val)) $val = implode(" | ", $val);
-						$match = ($arFilter[$key."_EXACT_MATCH"]=="N" && $match_value_set) ? "Y" : "N";
+						$match = (isset($arFilter[$key."_EXACT_MATCH"]) && $arFilter[$key."_EXACT_MATCH"]=="N" && $match_value_set) ? "Y" : "N";
 						$arSqlSearch[] = GetFilterQuery("FS.SITE_ID", $val, $match);
 						$left_join = "LEFT JOIN b_form_2_site FS ON (F.ID = FS.FORM_ID)";
 						break;
@@ -145,15 +138,15 @@ class CForm extends CAllForm
 				";
 		}
 
-		$res = $DB->Query($strSql, false, $err_mess.__LINE__);
+		$res = $DB->Query($strSql);
 
 		return $res;
 	}
 
 	public static function GetByID($ID, $GET_BY_SID="N")
 	{
-		$err_mess = (CForm::err_mess())."<br>Function: GetByID<br>Line: ";
 		global $DB, $strError;
+
 		$where = ($GET_BY_SID=="N") ? " F.ID = '".intval($ID)."' " : " F.SID='".$DB->ForSql($ID,50)."' ";
 		$strSql = "
 			SELECT
@@ -176,13 +169,12 @@ class CForm extends CAllForm
 				F.ID
 			";
 
-		$res = $DB->Query($strSql, false, $err_mess.__LINE__);
+		$res = $DB->Query($strSql);
 		return $res;
 	}
 
 	public static function GetFormTemplateByID($ID, $GET_BY_SID="N")
 	{
-		$err_mess = (CForm::err_mess())."<br>Function: GetFormTemplateByID<br>Line: ";
 		global $DB, $strError;
 		$where = ($GET_BY_SID=="N") ? " F.ID = '".intval($ID)."' " : " F.SID='".$DB->ForSql($ID,50)."' ";
 		$strSql = "
@@ -193,7 +185,7 @@ class CForm extends CAllForm
 				$where
 			";
 
-		$res = $DB->Query($strSql, false, $err_mess.__LINE__);
+		$res = $DB->Query($strSql);
 		if ($arRes = $res->Fetch()) return $arRes["FT"];
 		else return "";
 	}

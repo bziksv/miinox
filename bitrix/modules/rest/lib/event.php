@@ -2,6 +2,7 @@
 namespace Bitrix\Rest;
 
 use Bitrix\Main;
+use Bitrix\Main\ORM\Data\Internal\MergeTrait;
 use Bitrix\Rest\Preset\EventController;
 use Bitrix\Main\ORM\Fields\ArrayField;
 
@@ -24,9 +25,9 @@ use Bitrix\Main\ORM\Fields\ArrayField;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Event_Query query()
- * @method static EO_Event_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Event_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Event_Result getById($id)
- * @method static EO_Event_Result getList(array $parameters = array())
+ * @method static EO_Event_Result getList(array $parameters = [])
  * @method static EO_Event_Entity getEntity()
  * @method static \Bitrix\Rest\EO_Event createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_Event_Collection createCollection()
@@ -35,6 +36,8 @@ use Bitrix\Main\ORM\Fields\ArrayField;
  */
 class EventTable extends Main\Entity\DataManager
 {
+	use MergeTrait;
+
 	const ERROR_EVENT_NOT_FOUND = 'ERROR_EVENT_NOT_FOUND';
 
 	const TYPE_ONLINE = 'online';
@@ -163,10 +166,7 @@ class EventTable extends Main\Entity\DataManager
 		$restDescription = $provider->getDescription();
 		foreach($restDescription as $scope => $scopeDescription)
 		{
-			if(
-				is_array($scopeDescription[\CRestUtil::EVENTS])
-				&& array_key_exists($eventName, $scopeDescription[\CRestUtil::EVENTS])
-			)
+			if (!empty($scopeDescription[\CRestUtil::EVENTS][$eventName]))
 			{
 				\Bitrix\Rest\Event\Sender::bind(
 					$scopeDescription[\CRestUtil::EVENTS][$eventName][0],
@@ -210,8 +210,8 @@ class EventTable extends Main\Entity\DataManager
 				'=APP_ID' => $data['APP_ID'],
 				'=EVENT_NAME' => $data['EVENT_NAME'],
 				'=EVENT_HANDLER' => $data['EVENT_HANDLER'],
-				'=USER_ID' => $data['USER_ID'],
-				'=CONNECTOR_ID' => $data['CONNECTOR_ID'],
+				'=USER_ID' => $data['USER_ID'] ?? 0,
+				'=CONNECTOR_ID' => $data['CONNECTOR_ID'] ?? '',
 			),
 			'select' => array('ID')
 		));

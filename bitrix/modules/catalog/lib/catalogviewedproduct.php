@@ -1,14 +1,14 @@
 <?php
+
 namespace Bitrix\Catalog;
 
-use Bitrix\Main,
-	Bitrix\Main\Application,
-	Bitrix\Main\Config\Option,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Iblock,
-	Bitrix\Catalog;
-
-Loc::loadMessages(__FILE__);
+use Bitrix\Main;
+use Bitrix\Main\Application;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
+use Bitrix\Iblock;
+use Bitrix\Catalog;
 
 /**
  * Class CatalogViewedProductTable
@@ -26,14 +26,14 @@ Loc::loadMessages(__FILE__);
  * @method static \Bitrix\Catalog\EO_CatalogViewedProduct wakeUpObject($row)
  * @method static \Bitrix\Catalog\EO_CatalogViewedProduct_Collection wakeUpCollection($rows)
  */
-class CatalogViewedProductTable extends Main\Entity\DataManager
+class CatalogViewedProductTable extends DataManager
 {
 	/**
 	 * Returns DB table name for entity.
 	 *
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_catalog_viewed_product';
 	}
@@ -43,7 +43,7 @@ class CatalogViewedProductTable extends Main\Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
 		return array(
 			'ID' => new Main\Entity\IntegerField('ID', array(
@@ -438,24 +438,31 @@ class CatalogViewedProductTable extends Main\Entity\DataManager
 	/**
 	 * Clear old records.
 	 *
-	 * @param int $liveTime			Live time (in days).
+	 * @param int $liveTime Live time (in days).
 	 * @return void
 	 */
 	public static function clear($liveTime = 10)
 	{
 		$liveTime = (int)$liveTime;
 		if ($liveTime <= 0)
+		{
 			return;
+		}
+
+		$date = new Main\Type\Date();
+		$date->add('- ' . $liveTime . ' days');
 
 		$connection = Application::getConnection();
 		$helper = $connection->getSqlHelper();
-		$liveTo = $helper->addSecondsToDateTime($liveTime * 86400, $helper->quote('DATE_VISIT'));
 
 		$connection->query(
-			'delete from '.$helper->quote(self::getTableName()).
-			' where '.$liveTo.' < '.$helper->getCurrentDateTimeFunction()
+			'delete from ' . $helper->quote(self::getTableName())
+			. ' where ' .$helper->quote('DATE_VISIT') . ' < ' . $helper->convertToDbDate($date)
 		);
-		unset($liveTo, $helper, $connection);
+		unset(
+			$helper,
+			$connection,
+		);
 	}
 
 	/**

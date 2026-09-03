@@ -1,4 +1,5 @@
-<?
+<?php
+
 IncludeModuleLangFile(__FILE__);
 
 class CSocServDescription
@@ -79,7 +80,7 @@ class CSocServDescription
 			array(
 				"ID" => "Twitter",
 				"CLASS" => "CSocServTwitter",
-				"NAME" => "Twitter",
+				"NAME" => "X",
 				"ICON" => "twitter",
 				"DISABLED" => $tw_disabled,
 			),
@@ -146,5 +147,3 @@ class CSocServDescription
 		);
 	}
 }
-
-AddEventHandler("socialservices", "OnAuthServicesBuildList", array("CSocServDescription", "GetDescription"));

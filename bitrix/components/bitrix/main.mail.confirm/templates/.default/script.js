@@ -9,11 +9,19 @@
 	var mailboxes = [];
 	var listParams = {};
 	var action;
+	let senderSelector = null;
+	let canCheckSmtp = false;
 	var BXMainMailConfirm = {
 		init: function(params)
 		{
 			mailboxes = params.mailboxes;
 			action = params.action;
+			canCheckSmtp = params.canCheckSmtp ?? false;
+			senderSelector = new BX.UI.Mail.SenderSelector({
+				mailboxes,
+				isSenderAvailable: canCheckSmtp ?? false,
+			});
+
 			delete params.mailboxes;
 
 			options = params;
@@ -44,8 +52,32 @@
 			params.popupSettings.offsetLeft = 40;
 			params.popupSettings.angle = true;
 			params.popupSettings.closeByEsc = true;
+			params.popupSettings.events = {
+				onFirstShow: function(data) {
+					if (data && data.target && data.target.contentContainer)
+					{
+						BX.UI.Hint.init(data.target.contentContainer);
+					}
+				},
+			};
+
+			const showNewSelector = !id.includes('crm_mail_template_edit_form');
+			if (BX.UI.Mail?.SenderSelector && senderSelector === null && showNewSelector)
+			{
+				senderSelector = new BX.UI.Mail.SenderSelector({
+					mailboxes,
+					isSenderAvailable: canCheckSmtp ?? false,
+				});
+			}
 
 			listParams[id] = params;
+			if (senderSelector && showNewSelector)
+			{
+				senderSelector.selectCallback = listParams[id].callback;
+				senderSelector.showDialog(bind);
+
+				return;
+			}
 
 			var items = [];
 
@@ -76,7 +108,7 @@
 								return item.id !== value.id
 							});
 							item.menuWindow.removeMenuItem(item.id);
-							if (listParams[id].selected == item.title)
+							if (listParams[id].selected === item.formated)
 							{
 								listParams[id].callback('', listParams[id].placeholder);
 							}
@@ -85,11 +117,29 @@
 				}
 				else if ('edit' === action)
 				{
-					BXMainMailConfirm.showEditForm(item.id);
+					BXMainMailConfirm.showEditForm(item.id, function(mailbox, formated)
+					{
+						var menuItemHtml = BX.util.htmlspecialchars(formated);
+						if (item.options && item.options.mailbox)
+						{
+							item.options.mailbox.name = mailbox.name;
+							item.options.mailbox.formated = formated;
+							if (item.options.mailbox.can_delete && item.options.mailbox.id > 0)
+							{
+								menuItemHtml += BXMainMailConfirm.getItemIconsHtml();
+							}
+						}
+						item.text = BX.util.htmlspecialchars(formated);
+						item.name = mailbox.name;
+						item.formated = formated;
+						item.layout.text.innerHTML = menuItemHtml;
+						item.options.title = formated;
+						listParams[id].callback(formated, BX.util.htmlspecialchars(formated));
+					});
 				}
 				else
 				{
-					listParams[id].callback(item.title, item.text);
+					listParams[id].callback(item.formated, item.text);
 					item.menuWindow.close();
 				}
 			};
@@ -98,7 +148,7 @@
 			{
 				items.push({
 					text: BX.util.htmlspecialchars(params.placeholder),
-					title: '',
+					formated: '',
 					onclick: handler
 				});
 				items.push({ delimiter: true });
@@ -112,23 +162,26 @@
 				{
 					itemClass = 'menu-popup-no-icon';
 					itemText = BX.util.htmlspecialchars(mailboxes[i].formated);
-					if (mailboxes[i]['can_delete'] && mailboxes[i].id > 0)
-					{
-						itemText += '<span class="main-mail-confirm-menu-delete-icon popup-window-close-icon popup-window-titlebar-close-icon"\
-								title="' + BX.util.htmlspecialchars(BX.message('MAIN_MAIL_CONFIRM_DELETE')) + '"></span>';
-						itemClass = 'menu-popup-no-icon menu-popup-right-icon';
-						itemText += '<span data-role="sender-hint"  class="sender-hint main-mail-edit-icon"\
-								title="' + BX.util.htmlspecialchars(BX.message('MAIN_MAIL_CONFIRM_EDIT')) + '"></span>';
-						itemClass = 'menu-popup-no-icon menu-popup-right-icon';
-					}
+					// if (mailboxes[i]['can_delete'] && mailboxes[i].id > 0)
+					// {
+					// 	itemText += this.getItemIconsHtml();
+					// 	itemClass = 'menu-popup-no-icon menu-popup-right-icon';
+					// }
+					// else if (mailboxes[i].showEditHint)
+					// {
+					// 	itemText += '<span class="main-mail-confirm-menu-hint-container" data-hint="'
+					// 		+ BX.util.htmlspecialchars(BX.message('MAIN_MAIL_CONFIRM_SMTP_SENDER_NO_EDIT_HINT'))
+					// 		+ '"></span>';
+					// 	itemClass = 'menu-popup-no-icon menu-popup-right-hint-icon';
+					// }
 
 					items.push({
 						html: itemText,
-						title: mailboxes[i].formated,
 						mailbox: mailboxes[i],
+						formated: mailboxes[i].formated,
 						onclick: handler,
 						className: itemClass,
-						id: mailboxes[i].id
+						id: 0,
 					});
 				}
 
@@ -140,14 +193,15 @@
 				onclick: function(event, item)
 				{
 					item.menuWindow.close();
-					BXMainMailConfirm.showForm(function(mailbox, formated)
+					BXMainMailConfirm.showForm(function(mailbox)
 					{
+						const formated = `${mailbox.name} <${mailbox.email}>`
 						mailboxes.push({
 							email: mailbox.email,
 							name: mailbox.name,
-							id: mailbox.id,
-							formated: formated,
-							can_delete: true
+							id: 0,
+							formated,
+							can_delete: false,
 						});
 
 						listParams[id].callback(formated, BX.util.htmlspecialchars(formated));
@@ -169,6 +223,13 @@
 		},
 		showForm: function(callback, params)
 		{
+			if (senderSelector)
+			{
+				senderSelector.showProviderShowcase(callback);
+
+				return;
+			}
+
 			window.step = 'email';
 			var senderId;
 
@@ -326,8 +387,7 @@
 				BX.bind(
 					smtpLink,
 					'click',
-					function(event)
-					{
+					(event) => {
 						var emailBlock = BX.findChildByClassName(dlg.contentContainer, 'new-from-email-dialog-email-block', true);
 
 						emailBlock.style.height = '';
@@ -360,6 +420,8 @@
 				dlg.setOverlay(true);
 			}
 
+			BX.UI.Hint.init(dlg.contentContainer);
+
 			dlg.show();
 
 			var emailBlock = BX.findChildByClassName(dlg.contentContainer, 'new-from-email-dialog-email-block', true);
@@ -377,10 +439,11 @@
 			}
 		},
 
-		showEditForm: function(senderId)
+		showEditForm: function(senderId, callback)
 		{
 			window.step = 'email';
 			window.mode = 'edit';
+			var form = this;
 			var dlg = new BX.PopupWindow('edit_from_email', null, {
 				titleBar: BX.message('MAIN_MAIL_CONFIRM_EDIT_TITLE'),
 				draggable: true,
@@ -405,6 +468,7 @@
 
 								var smtpLink = BX.findChildByClassName(dlg.contentContainer, 'new-from-email-dialog-smtp-link', true);
 								var useLimitCheckbox = BX.findChildByClassName(dlg.contentContainer, 'new-from-email-smtp-use-limit', true);
+								var publicField = BX.findChild(dlg.contentContainer, { attr: { 'data-name': 'public' } }, true);
 
 								var nameField = BX.findChild(emailBlock, { attr: { 'data-name': 'name' } }, true);
 								var emailField = BX.findChild(emailBlock, { attr: { 'data-name': 'email' } }, true);
@@ -421,6 +485,11 @@
 								smtpPortField.value = BX.util.htmlspecialchars(data.port || '');
 								smtpLoginField.value = BX.util.htmlspecialchars(data.login || '');
 
+								if (data.isPublic > 0)
+								{
+									publicField.checked = true;
+								}
+
 								var hasNoLimit = typeof data.limit === 'undefined' || data.limit === null;
 								smtpLimitField.value = hasNoLimit ? smtpLimitField.value : data.limit;
 
@@ -435,6 +504,13 @@
 									smtpSslField.checked = true;
 								}
 
+								if (data.isOauth) {
+									form.disableSmtpFields(dlg.contentContainer);
+									dlg.setTitleBar(BX.Loc.getMessage('MAIN_MAIL_CONFIRM_EDIT_TITLE_EMAIL', {
+										'#EMAIL#': BX.util.htmlspecialchars(data.email),
+									}));
+								}
+
 								if (data.server)
 								{
 									BX.fireEvent(smtpLink, 'click');
@@ -447,7 +523,7 @@
 						})
 					}
 				},
-				buttons: this.prepareDialogButtons(senderId, 'edit')
+				buttons: this.prepareDialogButtons(senderId, 'edit', null, callback)
 			});
 
 			this.prepareDialog(dlg);
@@ -778,7 +854,70 @@
 					messageBox.close();
 				}
 			});
-		}
+		},
+
+		disableSmtpFields: function(el)
+		{
+			var emailBlock = BX.findChildByClassName(el, 'new-from-email-dialog-email-block', true);
+
+			var emailField = BX.findChild(emailBlock, { attr: { 'data-name': 'email' } }, true);
+			this.disableAndHide(emailField);
+
+			var smtpServerField = BX.findChild(emailBlock, { attr: { 'data-name': 'smtp-server' } }, true);
+			this.disableAndHide(smtpServerField);
+
+			var smtpPortField = BX.findChild(emailBlock, { attr: { 'data-name': 'smtp-port' } }, true);
+			this.disableAndHide(smtpPortField);
+			var smtpSslField = BX.findChild(emailBlock, { attr: { 'data-name': 'smtp-ssl' } }, true);
+			this.disableAndHide(smtpSslField);
+			var smtpLoginField = BX.findChild(emailBlock, { attr: { 'data-name': 'smtp-login' } }, true);
+			this.disableAndHide(smtpLoginField);
+
+			var smtpPasswordField = BX.findChild(emailBlock, { attr: { 'data-name': 'smtp-password' } }, true);
+			this.disableAndHide(smtpPasswordField);
+
+			var smtpWarning = BX.findChild(emailBlock, { class: 'new-from-email-dialog-smtp-warning' }, true);
+			this.hideParentDialogRow(smtpWarning);
+
+			var message = BX.findChild(emailBlock, { class: 'new-from-email-dialog-block-content-message'}, true);
+			if (message) {
+				BX.hide(message);
+			}
+		},
+
+		hideParentDialogRow: function(el)
+		{
+			if (el)
+			{
+				var parent = el.closest('.new-from-email-dialog-row');
+				if (parent)
+				{
+					BX.hide(parent);
+				}
+			}
+		},
+
+		disableAndHide: function(el)
+		{
+			this.hideParentDialogRow(el);
+			this.safeDisable(el);
+		},
+
+		safeDisable: function(el)
+		{
+			if (el)
+			{
+				el.setAttribute('disabled', 'disabled');
+			}
+		},
+
+		getItemIconsHtml: function()
+		{
+			return '<span class="main-mail-confirm-menu-delete-icon popup-window-close-icon popup-window-titlebar-close-icon"\
+								title="' + BX.util.htmlspecialchars(BX.message('MAIN_MAIL_CONFIRM_DELETE')) + '"></span>\
+			';
+		},
+
 	};
 	window.BXMainMailConfirm = BXMainMailConfirm;
 

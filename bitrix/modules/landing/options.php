@@ -147,13 +147,13 @@ if ($postRight >= 'R'):
 		'header',
 		Loc::getMessage('LANDING_OPT_OTHER')
 	);
-	$allOptions[] = array(
-		'google_images_key',
-		Loc::getMessage('LANDING_OPT_GOOGLE_IMAGES_KEY') . ':',
-		array('text', 32)
-	);
 	if (Manager::isB24())
 	{
+		$allOptions[] = array(
+			'google_images_key',
+			Loc::getMessage('LANDING_OPT_GOOGLE_IMAGES_KEY') . ':',
+			array('text', 32),
+		);
 		$allOptions[] = array(
 			'portal_url',
 			Loc::getMessage('LANDING_OPT_PORTAL_URL') . ' (host[:port]):',
@@ -165,6 +165,11 @@ if ($postRight >= 'R'):
 		Loc::getMessage('LANDING_OPT_DELETED_LIFETIME_DAYS') . ':',
 		array('text', 4)
 	);
+	$allOptions[] = [
+		'history_lifetime_days',
+		Loc::getMessage('LANDING_OPT_HISTORY_LIFETIME') . ':',
+		['text', 4]
+	];
 	if (Manager::isB24())
 	{
 		$allOptions[] = array(
@@ -214,7 +219,6 @@ if ($postRight >= 'R'):
 		\check_bitrix_sessid()
 	)
 	{
-		$clearTmplCache = false;
 		foreach ($allOptions as $arOption)
 		{
 			if ($arOption[0] == 'header')
@@ -287,7 +291,6 @@ if ($postRight >= 'R'):
 					));
 					while ($row = $res->fetch())
 					{
-						$clearTmplCache = true;
 						SiteTemplateTable::update($row['ID'], [
 								'TEMPLATE' => $val
 							]
@@ -316,7 +319,6 @@ if ($postRight >= 'R'):
  					));
 					while ($row = $res->fetch())
 					{
-						$clearTmplCache = true;
 						SiteTemplateTable::update($row['ID'], [
 								'TEMPLATE' => $val ? $val : $valDefault
 							]
@@ -333,10 +335,6 @@ if ($postRight >= 'R'):
 		}
 
 		$Update = $Update . $Apply;
-		if ($clearTmplCache)
-		{
-			Manager::getCacheManager()->clean('b_site_template');
-		}
 
 		// access settings save
 		ob_start();

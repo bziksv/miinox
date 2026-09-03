@@ -10,9 +10,6 @@ $crmMode = (defined("BX_PUBLIC_MODE") && BX_PUBLIC_MODE && isset($_REQUEST["CRM_
 
 if ($crmMode)
 {
-	CUtil::DecodeUriComponent($_REQUEST);
-	CUtil::DecodeUriComponent($_POST);
-
 	echo '<link rel="stylesheet" type="text/css" href="/bitrix/themes/.default/sale.css" />';
 }
 
@@ -118,7 +115,6 @@ $bUserCanDeleteOrder = CSaleOrder::CanUserDeleteOrder($ID, $arUserGroups, $intUs
 
 if (isset($_REQUEST["ORDER_AJAX"]) AND $_REQUEST["ORDER_AJAX"] == "Y" AND check_bitrix_sessid())
 {
-	CUtil::DecodeUriComponent($_REQUEST);
 	$type = $_REQUEST["type"];
 
 	$order = CSaleOrder::getById($ID);
@@ -239,7 +235,6 @@ if (isset($_REQUEST["ORDER_AJAX"]) AND $_REQUEST["ORDER_AJAX"] == "Y" AND check_
 
 		if (isset($change) && $change == "Y" && $bUserCanEditOrder && !CSaleOrder::IsLocked($ID, $lockedBY, $dateLock))
 		{
-			CUtil::DecodeUriComponent($comment);
 			CSaleOrder::CommentsOrder($ID, $comment);
 		}
 		$arResult = array('message' => 'ok');
@@ -261,7 +256,6 @@ if (isset($_REQUEST["ORDER_AJAX"]) AND $_REQUEST["ORDER_AJAX"] == "Y" AND check_
 
 		if (isset($change) && $change == "Y" && $bUserCanEditOrder && !CSaleOrder::IsLocked($ID, $lockedBY, $dateLock))
 		{
-			CUtil::DecodeUriComponent($tracking_number);
 			CSaleOrder::Update($ID, array("TRACKING_NUMBER" => $tracking_number));
 		}
 		$arResult = array('message' => 'ok');
@@ -826,21 +820,42 @@ elseif ($saleModulePermissions >= "U" && check_bitrix_sessid() && !array_key_exi
 
 			$arPaySys = CSalePaySystem::GetByID($arOrder["PAY_SYSTEM_ID"], $arOrder["PERSON_TYPE_ID"]);
 
-			$psActionPath = $_SERVER["DOCUMENT_ROOT"].$arPaySys["PSA_ACTION_FILE"];
-			$psActionPath = str_replace("\\", "/", $psActionPath);
-			while (mb_substr($psActionPath, mb_strlen($psActionPath) - 1, 1) == "/")
-				$psActionPath = mb_substr($psActionPath, 0, mb_strlen($psActionPath) - 1);
-
-			if (file_exists($psActionPath) && is_dir($psActionPath))
+			try
 			{
-				if (file_exists($psActionPath."/result.php") && is_file($psActionPath."/result.php"))
-					$psResultFile = $psActionPath."/result.php";
+				$handlerFolder = \Bitrix\Sale\PaySystem\Manager::getPathToHandlerFolder($arPaySys["PSA_ACTION_FILE"]);
+			}
+			catch (\Bitrix\Main\IO\InvalidPathException $e)
+			{
+				$handlerFolder = null;
+			}
+			if ($handlerFolder !== null)
+			{
+				$psActionPath = $_SERVER["DOCUMENT_ROOT"] . $handlerFolder;
+				if (file_exists($psActionPath . "/result.php") && is_file($psActionPath . "/result.php"))
+				{
+					$psResultFile = $psActionPath . "/result.php";
+				}
 			}
 			elseif ($arPaySys["PSA_RESULT_FILE"] <> '')
 			{
-				if (file_exists($_SERVER["DOCUMENT_ROOT"].$arPaySys["PSA_RESULT_FILE"])
-					&& is_file($_SERVER["DOCUMENT_ROOT"].$arPaySys["PSA_RESULT_FILE"]))
-					$psResultFile = $_SERVER["DOCUMENT_ROOT"].$arPaySys["PSA_RESULT_FILE"];
+				$resultFile = $arPaySys["PSA_RESULT_FILE"];
+				try
+				{
+					$resultFolder = \Bitrix\Sale\PaySystem\Manager::getPathToHandlerFolder(
+						\Bitrix\Main\IO\Path::getDirectory($resultFile)
+					);
+					if ($resultFolder !== null)
+					{
+						$candidate = $_SERVER["DOCUMENT_ROOT"] . $resultFolder . '/' . \Bitrix\Main\IO\Path::getName($resultFile);
+						if (\Bitrix\Main\IO\File::isFileExists($candidate))
+						{
+							$psResultFile = $candidate;
+						}
+					}
+				}
+				catch (\Bitrix\Main\IO\InvalidPathException $e)
+				{
+				}
 			}
 
 			if ($psResultFile == '')
@@ -1172,7 +1187,7 @@ if ($bUseOldHistory)
 	foreach ($arHistoryData as $index => $arHistoryRecord)
 		$arIds[$index]  = $arHistoryRecord["ID"];
 
-	array_multisort($arData, constant("SORT_".ToUpper($order)), $arIds, constant("SORT_".ToUpper($order)), $arHistoryData);
+	array_multisort($arData, constant("SORT_".mb_strtoupper($order)), $arIds, constant("SORT_".mb_strtoupper($order)), $arHistoryData);
 }
 
 $dbRes = new CDBResult;
@@ -1587,7 +1602,7 @@ else
 										}
 										?>
 										&nbsp;<span id="change_status_err" style="display: none;"></span>
-										<script type="text/javascript">
+										<script>
 											function fChangeStatus()
 											{
 												var obStatusErr = BX('change_status_err');
@@ -1725,7 +1740,7 @@ else
 									</tr>
 								</table>
 							</div>
-							<script type="text/javascript">
+							<script>
 								function fCancelCancelOrder()
 								{
 									BX.showWait();
@@ -2265,7 +2280,7 @@ else
 									</tr>
 								</table>
 							</div>
-							<script type="text/javascript">
+							<script>
 								function fChangeOrderStatus()
 								{
 									BX('change_status').value='Y';
@@ -2547,7 +2562,7 @@ else
 							?>
 							<input type="hidden" name="change_tracking_number" id="id_change_tracking_number_hidden" value="N">
 
-							<script type="text/javascript">
+							<script>
 								function fChangeTrackingNumber(el)
 								{
 									BX(el).style.display = 'none';
@@ -2672,7 +2687,7 @@ else
 						endforeach;
 					endif;
 					?>
-					<script type="text/javascript">
+					<script>
 						function fToggleDeliveryInfo()
 						{
 							var elements = document.getElementsByClassName('hidden-delivery-info');
@@ -2827,7 +2842,7 @@ else
 									</tr>
 								</table>
 							</div>
-							<script type="text/javascript">
+							<script>
 								function fPayChangeOrderStatus()
 								{
 									BX('change_status').value='Y';
@@ -3191,7 +3206,7 @@ else
 								</table>
 							</div>
 
-							<script type="text/javascript">
+							<script>
 								function fCancelMarkOrder()
 								{
 									BX.showWait();
@@ -3338,7 +3353,7 @@ else
 						?>
 						<input type="hidden" name="change_comments" id="id_change_comments_hidden" value="N">
 
-						<script type="text/javascript">
+						<script>
 							function fShowComment(el)
 							{
 								BX(el).style.display = 'none';
@@ -3435,7 +3450,7 @@ else
 									</tr>
 								</table>
 							</div>
-							<script type="text/javascript">
+							<script>
 								function fUndoDeductOrderResult(res)
 								{
 									BX.closeWait();
@@ -3548,7 +3563,7 @@ else
 						<table  id="BASKET_TABLE" cellpadding="3" cellspacing="1" border="0" width="100%" class="internal">
 
 						<tr class="heading">
-							<?=getColumnsHeaders($arUserColumns, "detail", false);?>
+							<? getColumnsHeaders($arUserColumns, "detail", false); ?>
 						</tr>
 						<?
 						$bXmlId = COption::GetOptionString("sale", "show_order_product_xml_id", "N");
@@ -3862,7 +3877,7 @@ else
 						</table>
 					</td>
 				</tr>
-				<script type="text/javascript">
+				<script>
 					function fToggleSetItems(setParentId)
 					{
 						var elements = document.getElementsByClassName('set_item_' + setParentId);
@@ -4040,7 +4055,7 @@ else
 									?>
 									</div>
 								</div>
-								<script type="text/javascript">
+								<script>
 								function fTabsSelect(tabText, el)
 								{
 									BX('tab_1').className = "tabs";
@@ -4121,7 +4136,7 @@ else
 						</tr>
 						</table>
 
-						<script type="text/javascript">
+						<script>
 								/*
 								* click on recommendet More
 								*/
@@ -4334,7 +4349,7 @@ else
 	<input type="hidden" value="" name="popup-params-product" id="popup-params-product" >
 </div>
 
-	<script type="text/javascript">
+	<script>
 			var wind = new BX.PopupWindow('popup_sku', this, {
 				offsetTop : 10,
 				offsetLeft : 0,

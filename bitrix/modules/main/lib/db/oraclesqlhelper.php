@@ -1,7 +1,7 @@
 <?php
+
 namespace Bitrix\Main\DB;
 
-use Bitrix\Main;
 use Bitrix\Main\Type;
 use Bitrix\Main\ORM;
 use Bitrix\Main\ORM\Fields\ScalarField;
@@ -9,9 +9,7 @@ use Bitrix\Main\ORM\Fields\ScalarField;
 class OracleSqlHelper extends SqlHelper
 {
 	/**
-	 * Returns an identificator escaping left character.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getLeftQuote()
 	{
@@ -19,9 +17,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns an identificator escaping right character.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getRightQuote()
 	{
@@ -29,9 +25,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns maximum length of an alias in a select statement
-	 *
-	 * @return integer
+	 * @inheritdoc
 	 */
 	public function getAliasLength()
 	{
@@ -39,12 +33,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns quoted identifier.
-	 *
-	 * @param string $identifier Table or Column name.
-	 *
-	 * @return string
-	 * @see \Bitrix\Main\DB\SqlHelper::quote
+	 * @inheritdoc
 	 */
 	public function quote($identifier)
 	{
@@ -52,9 +41,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns database specific query delimiter for batch processing.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getQueryDelimiter()
 	{
@@ -62,47 +49,43 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Escapes special characters in a string for use in an SQL statement.
-	 *
-	 * @param string $value Value to be escaped.
-	 * @param integer $maxLength Limits string length if set.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	function forSql($value, $maxLength = 0)
 	{
 		if ($maxLength <= 0 || $maxLength > 2000)
+		{
 			$maxLength = 2000;
+		}
 
 		$value = mb_substr($value, 0, $maxLength);
 
-		if (\Bitrix\Main\Application::isUtfMode())
+		// From http://w3.org/International/questions/qa-forms-utf-8.html
+		// This one can crash php with segmentation fault on large input data (over 20K)
+		// https://bugs.php.net/bug.php?id=60423
+		if (preg_match_all('%(
+			[\x00-\x7E]                        # ASCII
+			|[\xC2-\xDF][\x80-\xBF]            # non-overlong 2-byte
+			|\xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
+			|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2} # straight 3-byte
+			|\xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
+			|\xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
+			|[\xF1-\xF3][\x80-\xBF]{3}         # planes 4-15
+			|\xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
+		)+%x', $value, $match))
 		{
-			// From http://w3.org/International/questions/qa-forms-utf-8.html
-			// This one can crash php with segmentation fault on large input data (over 20K)
-			// https://bugs.php.net/bug.php?id=60423
-			if (preg_match_all('%(
-				[\x00-\x7E]                        # ASCII
-				|[\xC2-\xDF][\x80-\xBF]            # non-overlong 2-byte
-				|\xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
-				|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2} # straight 3-byte
-				|\xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
-				|\xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
-				|[\xF1-\xF3][\x80-\xBF]{3}         # planes 4-15
-				|\xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
-			)+%x', $value, $match))
-				$value = implode(' ', $match[0]);
-			else
-				return ''; //There is no valid utf at all
+			$value = implode(' ', $match[0]);
 		}
+		else
+		{
+			return '';
+		} //There is no valid utf at all
 
 		return str_replace("'", "''", $value);
 	}
 
 	/**
-	 * Returns function for getting current time.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getCurrentDateTimeFunction()
 	{
@@ -110,9 +93,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns function for getting current date without time part.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getCurrentDateFunction()
 	{
@@ -120,16 +101,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns function for adding seconds time interval to $from.
-	 * <p>
-	 * If $from is null or omitted, then current time is used.
-	 * <p>
-	 * $seconds and $from parameters are SQL unsafe.
-	 *
-	 * @param integer $seconds How many seconds to add.
-	 * @param integer $from Datetime database field of expression.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function addSecondsToDateTime($seconds, $from = null)
 	{
@@ -138,54 +110,26 @@ class OracleSqlHelper extends SqlHelper
 			$from = static::getCurrentDateTimeFunction();
 		}
 
-		return '('.$from.'+'.$seconds.'/86400)';
+		return '(' . $from . '+' . $seconds . '/86400)';
 	}
 
 	/**
-	 * Returns function cast $value to datetime database type.
-	 * <p>
-	 * $value parameter is SQL unsafe.
-	 *
-	 * @param string $value Database field or expression to cast.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getDatetimeToDateFunction($value)
 	{
-		return 'TRUNC('.$value.')';
+		return 'TRUNC(' . $value . ')';
 	}
 
 	/**
-	 * Returns database expression for converting $field value according the $format.
-	 * <p>
-	 * Following format parts converted:
-	 * - YYYY   A full numeric representation of a year, 4 digits
-	 * - MMMM   A full textual representation of a month, such as January or March
-	 * - MM     Numeric representation of a month, with leading zeros
-	 * - MI     Minutes with leading zeros
-	 * - M      A short textual representation of a month, three letters
-	 * - DD     Day of the month, 2 digits with leading zeros
-	 * - HH     24-hour format of an hour with leading zeros
-	 * - H      24-hour format of an hour without leading zeros
-	 * - GG     12-hour format of an hour with leading zeros
-	 * - G      12-hour format of an hour without leading zeros
-	 * - SS     Seconds with leading zeros
-	 * - TT     AM or PM
-	 * - T      AM or PM
-	 * <p>
-	 * $field parameter is SQL unsafe.
-	 *
-	 * @param string $format Format string.
-	 * @param string $field Database field or expression.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function formatDate($format, $field = null)
 	{
 		$format = str_replace("HH", "HH24", $format);
 		$format = str_replace("GG", "HH24", $format);
 
-		if (strpos($format, 'HH24') === false)
+		if (!str_contains($format, 'HH24'))
 		{
 			$format = str_replace("H", "HH", $format);
 		}
@@ -194,11 +138,11 @@ class OracleSqlHelper extends SqlHelper
 
 		$format = str_replace("MI", "II", $format);
 
-		if (strpos($format, 'MMMM') !== false)
+		if (str_contains($format, 'MMMM'))
 		{
 			$format = str_replace("MMMM", "MONTH", $format);
 		}
-		elseif (strpos($format, 'MM') === false)
+		elseif (!str_contains($format, 'MM'))
 		{
 			$format = str_replace("M", "MON", $format);
 		}
@@ -214,18 +158,12 @@ class OracleSqlHelper extends SqlHelper
 		}
 		else
 		{
-			return "TO_CHAR(".$field.", '".$format."')";
+			return "TO_CHAR(" . $field . ", '" . $this->forSql($format) . "')";
 		}
 	}
 
 	/**
-	 * Returns function for concatenating database fields or expressions.
-	 * <p>
-	 * All parameters are SQL unsafe.
-	 *
-	 * @param string $field,... Database fields or expressions.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getConcatFunction()
 	{
@@ -233,85 +171,49 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns function for testing database field or expressions
-	 * against NULL value. When it is NULL then $result will be returned.
-	 * <p>
-	 * All parameters are SQL unsafe.
-	 *
-	 * @param string $expression Database field or expression for NULL test.
-	 * @param string $result Database field or expression to return when $expression is NULL.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getIsNullFunction($expression, $result)
 	{
-		return "NVL(".$expression.", ".$result.")";
+		return "NVL(" . $expression . ", " . $result . ")";
 	}
 
 	/**
-	 * Returns function for getting length of database field or expression.
-	 * <p>
-	 * $field parameter is SQL unsafe.
-	 *
-	 * @param string $field Database field or expression.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getLengthFunction($field)
 	{
-		return "LENGTH(".$field.")";
+		return "LENGTH(" . $field . ")";
 	}
 
 	/**
-	 * Returns function for converting string value into datetime.
-	 * $value must be in YYYY-MM-DD HH:MI:SS format.
-	 * <p>
-	 * $value parameter is SQL unsafe.
-	 *
-	 * @param string $value String in YYYY-MM-DD HH:MI:SS format.
-	 *
-	 * @return string
-	 * @see \Bitrix\Main\DB\MssqlSqlHelper::formatDate
+	 * @inheritdoc
 	 */
 	public function getCharToDateFunction($value)
 	{
-		return "TO_DATE('".$value."', 'YYYY-MM-DD HH24:MI:SS')";
+		return "TO_DATE('" . $value . "', 'YYYY-MM-DD HH24:MI:SS')";
 	}
 
 	/**
-	 * Returns function for converting database field or expression into string.
-	 * <p>
-	 * Result string will be in YYYY-MM-DD HH:MI:SS format.
-	 * <p>
-	 * $fieldName parameter is SQL unsafe.
-	 *
-	 * @param string $fieldName Database field or expression.
-	 *
-	 * @return string
-	 * @see \Bitrix\Main\DB\MssqlSqlHelper::formatDate
+	 * @inheritdoc
 	 */
 	public function getDateToCharFunction($fieldName)
 	{
-		return "TO_CHAR(".$fieldName.", 'YYYY-MM-DD HH24:MI:SS')";
+		return "TO_CHAR(" . $fieldName . ", 'YYYY-MM-DD HH24:MI:SS')";
 	}
 
 	/**
-	 * Performs additional processing of CLOB fields.
-	 *
-	 * @param ScalarField[] $tableFields Table fields.
-	 * @param array         $fields      Data fields.
-	 *
-	 * @return array
+	 * @inheritdoc
 	 */
 	protected function prepareBinds(array $tableFields, array $fields)
 	{
-		$binds = array();
+		$binds = [];
 
 		foreach ($tableFields as $columnName => $tableField)
 		{
 			if (isset($fields[$columnName]) && !($fields[$columnName] instanceof SqlExpression))
 			{
-				if ($tableField instanceof ORM\Fields\TextField && $fields[$columnName] <> '')
+				if ($tableField instanceof ORM\Fields\TextField && $fields[$columnName] != '')
 				{
 					$binds[$columnName] = $fields[$columnName];
 				}
@@ -322,26 +224,21 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns callback to be called for a field value on fetch.
-	 * Used for soft conversion. For strict results @see ORM\Query\Result::setStrictValueConverters()
-	 *
-	 * @param ScalarField $field Type "source".
-	 *
-	 * @return false|callback
+	 * @inheritdoc
 	 */
 	public function getConverter(ScalarField $field)
 	{
 		if ($field instanceof ORM\Fields\DatetimeField)
 		{
-			return array($this, "convertFromDbDateTime");
+			return [$this, "convertFromDbDateTime"];
 		}
 		elseif ($field instanceof ORM\Fields\TextField)
 		{
-			return array($this, "convertFromDbText");
+			return [$this, "convertFromDbText"];
 		}
 		elseif ($field instanceof ORM\Fields\StringField)
 		{
-			return array($this, "convertFromDbString");
+			return [$this, "convertFromDbString"];
 		}
 		else
 		{
@@ -350,26 +247,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * @deprecated
-	 * Converts string into \Bitrix\Main\Type\DateTime object.
-	 * <p>
-	 * Helper function.
-	 *
-	 * @param string $value Value fetched.
-	 *
-	 * @return null|\Bitrix\Main\Type\DateTime
-	 * @see \Bitrix\Main\Db\OracleSqlHelper::getConverter
-	 */
-	public function convertDatetimeField($value)
-	{
-		return $this->convertFromDbDateTime($value);
-	}
-
-	/**
-	 * @param $value
-	 *
-	 * @return Type\DateTime
-	 * @throws Main\ObjectException
+	 * @inheritdoc
 	 */
 	public function convertFromDbDateTime($value)
 	{
@@ -383,7 +261,7 @@ class OracleSqlHelper extends SqlHelper
 			else
 			{
 				//default Oracle date format: 03-MAR-14
-				$value = new Type\DateTime($value." 00:00:00", "d-M-y H:i:s");
+				$value = new Type\DateTime($value . " 00:00:00", "d-M-y H:i:s");
 			}
 		}
 
@@ -391,35 +269,14 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * @deprecated
-	 * Converts lob object into string.
-	 * <p>
-	 * Helper function.
-	 *
-	 * @param string $value Value fetched.
-	 *
-	 * @return null|string
-	 * @see \Bitrix\Main\Db\OracleSqlHelper::getConverter
-	 */
-	public function convertTextField($value)
-	{
-		return $this->convertFromDbText($value);
-	}
-
-	/**
-	 * @param $value
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function convertFromDbText($value)
 	{
-		if ($value !== null)
+		if (is_object($value))
 		{
-			if (is_object($value))
-			{
-				/** @var \OCI_Lob $value */
-				$value = $value->load();
-			}
+			/** @var \OCI_Lob $value */
+			$value = $value->load();
 		}
 
 		return $value;
@@ -434,27 +291,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * @deprecated
-	 * Converts string into \Bitrix\Main\Type\Date object if string has datetime specific format..
-	 * <p>
-	 * Helper function.
-	 *
-	 * @param string $value Value fetched.
-	 *
-	 * @return null|\Bitrix\Main\Type\DateTime
-	 * @see \Bitrix\Main\Db\OracleSqlHelper::getConverter
-	 */
-	public function convertStringField($value)
-	{
-		return $this->convertFromDbString($value);
-	}
-
-	/**
-	 * @param string $value
-	 * @param null   $length
-	 *
-	 * @return Type\DateTime|string
-	 * @throws Main\ObjectException
+	 * @inheritdoc
 	 */
 	public function convertFromDbString($value, $length = null)
 	{
@@ -470,35 +307,23 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * {@inheritDoc}
-	 *
-	 * @param string $fieldName
-	 *
-	 * return string
+	 * @inheritdoc
 	 */
 	public function castToChar($fieldName)
 	{
-		return 'TO_CHAR('.$fieldName.')';
+		return 'TO_CHAR(' . $fieldName . ')';
 	}
 
 	/**
-	 * {@inheritDoc}
-	 *
-	 * @param string $fieldName
-	 *
-	 * return string
+	 * @inheritdoc
 	 */
 	public function softCastTextToChar($fieldName)
 	{
-		return 'dbms_lob.substr('.$fieldName.', 4000, 1)';
+		return 'dbms_lob.substr(' . $fieldName . ', 4000, 1)';
 	}
 
 	/**
-	 * Returns a column type according to ScalarField object.
-	 *
-	 * @param ScalarField $field Type "source".
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getColumnTypeByField(ScalarField $field)
 	{
@@ -509,7 +334,7 @@ class OracleSqlHelper extends SqlHelper
 		elseif ($field instanceof ORM\Fields\FloatField)
 		{
 			$scale = $field->getScale();
-			return 'number'.($scale !== null? "(*,".$scale.")": "");
+			return 'number' . ($scale !== null ? "(*," . $scale . ")" : "");
 		}
 		elseif ($field instanceof ORM\Fields\DatetimeField)
 		{
@@ -533,12 +358,18 @@ class OracleSqlHelper extends SqlHelper
 			}
 			else
 			{
-				return 'varchar2('.max(mb_strlen($values[0]), mb_strlen($values[1])).' char)';
+				$falseLen = mb_strlen($values[0]);
+				$trueLen = mb_strlen($values[1]);
+				if ($falseLen === 1 && $trueLen === 1)
+				{
+					return 'char(1 char)';
+				}
+				return 'varchar2(' . max($falseLen, $trueLen) . ' char)';
 			}
 		}
 		elseif ($field instanceof ORM\Fields\EnumField)
 		{
-			return 'varchar2('.max(array_map('strlen', $field->getValues())).' char)';
+			return 'varchar2(' . max(array_map('mb_strlen', $field->getValues())) . ' char)';
 		}
 		else
 		{
@@ -554,51 +385,44 @@ class OracleSqlHelper extends SqlHelper
 					}
 				}
 			}
-			return 'varchar2('.($defaultLength > 0? $defaultLength: 255).' char)';
+			return 'varchar2(' . ($defaultLength > 0 ? $defaultLength : 255) . ' char)';
 		}
 	}
 
 	/**
-	 * Returns instance of a descendant from Entity\ScalarField
-	 * that matches database type.
-	 *
-	 * @param string $name Database column name.
-	 * @param mixed $type Database specific type.
-	 * @param array $parameters Additional information.
-	 *
-	 * @return ScalarField
+	 * @inheritdoc
 	 */
-	public function getFieldByColumnType($name, $type, array $parameters = null)
+	public function getFieldByColumnType($name, $type, ?array $parameters = null)
 	{
 		switch ($type)
 		{
-		case "DATE":
-			return new ORM\Fields\DatetimeField($name);
+			case "DATE":
+				return new ORM\Fields\DatetimeField($name);
 
-		case "NCLOB":
-		case "CLOB":
-		case "BLOB":
-			return new ORM\Fields\TextField($name);
+			case "NCLOB":
+			case "CLOB":
+			case "BLOB":
+				return new ORM\Fields\TextField($name);
 
-		case "FLOAT":
-		case "BINARY_FLOAT":
-		case "BINARY_DOUBLE":
-			return new ORM\Fields\FloatField($name);
-
-		case "NUMBER":
-			if ($parameters["precision"] == 0 && $parameters["scale"] == -127)
-			{
-				//NUMBER
+			case "FLOAT":
+			case "BINARY_FLOAT":
+			case "BINARY_DOUBLE":
 				return new ORM\Fields\FloatField($name);
-			}
-			if (intval($parameters["scale"]) <= 0)
-			{
-				//NUMBER(18)
-				//NUMBER(18,-2)
-				return new ORM\Fields\IntegerField($name);
-			}
-			//NUMBER(*,2)
-			return new ORM\Fields\FloatField($name, array("scale" => $parameters["scale"]));
+
+			case "NUMBER":
+				if ($parameters["precision"] == 0 && $parameters["scale"] == -127)
+				{
+					//NUMBER
+					return new ORM\Fields\FloatField($name);
+				}
+				if (intval($parameters["scale"]) <= 0)
+				{
+					//NUMBER(18)
+					//NUMBER(18,-2)
+					return new ORM\Fields\IntegerField($name);
+				}
+				//NUMBER(*,2)
+				return new ORM\Fields\FloatField($name, ["scale" => $parameters["scale"]]);
 		}
 		//LONG
 		//VARCHAR2(size [BYTE | CHAR])
@@ -615,20 +439,11 @@ class OracleSqlHelper extends SqlHelper
 		//CHAR [(size [BYTE | CHAR])]
 		//NCHAR[(size)]
 		//BFILE
-		return new ORM\Fields\StringField($name, array("size" => $parameters["size"]));
+		return new ORM\Fields\StringField($name, ["size" => $parameters["size"]]);
 	}
 
 	/**
-	 * Transforms Sql according to $limit and $offset limitations.
-	 * <p>
-	 * You must specify $limit when $offset is set.
-	 *
-	 * @param string $sql Sql text.
-	 * @param integer $limit Maximum number of rows to return.
-	 * @param integer $offset Offset of the first row to return, starting from 0.
-	 *
-	 * @return string
-	 * @throws Main\ArgumentException
+	 * @inheritdoc
 	 */
 	public function getTopSql($sql, $limit, $offset = 0)
 	{
@@ -636,7 +451,9 @@ class OracleSqlHelper extends SqlHelper
 		$limit = intval($limit);
 
 		if ($offset > 0 && $limit <= 0)
+		{
 			throw new \Bitrix\Main\ArgumentException("Limit must be set if offset is set");
+		}
 
 		if ($limit > 0)
 		{
@@ -644,29 +461,27 @@ class OracleSqlHelper extends SqlHelper
 			if ($offset <= 0)
 			{
 				$sql =
-					"SELECT * ".
-					"FROM (".$sql.") ".
-					"WHERE ROWNUM <= ".$limit;
+					"SELECT * " .
+					"FROM (" . $sql . ") " .
+					"WHERE ROWNUM <= " . $limit;
 			}
 			else
 			{
 				$sql =
-					"SELECT * ".
-					"FROM (".
-					"   SELECT rownum_query_alias.*, ROWNUM rownum_alias ".
-					"   FROM (".$sql.") rownum_query_alias ".
-					"   WHERE ROWNUM <= ".($offset + $limit)." ".
-					") ".
-					"WHERE rownum_alias >= ".($offset + 1);
+					"SELECT * " .
+					"FROM (" .
+					"   SELECT rownum_query_alias.*, ROWNUM rownum_alias " .
+					"   FROM (" . $sql . ") rownum_query_alias " .
+					"   WHERE ROWNUM <= " . ($offset + $limit) . " " .
+					") " .
+					"WHERE rownum_alias >= " . ($offset + 1);
 			}
 		}
 		return $sql;
 	}
 
 	/**
-	 * Returns ascending order specifier for ORDER BY clause.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getAscendingOrder()
 	{
@@ -674,9 +489,7 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Returns descending order specifier for ORDER BY clause.
-	 *
-	 * @return string
+	 * @inheritdoc
 	 */
 	public function getDescendingOrder()
 	{
@@ -684,43 +497,36 @@ class OracleSqlHelper extends SqlHelper
 	}
 
 	/**
-	 * Builds the strings for the SQL MERGE command for the given table.
-	 *
-	 * @param string $tableName A table name.
-	 * @param array $primaryFields Array("column")[] Primary key columns list.
-	 * @param array $insertFields Array("column" => $value)[] What to insert.
-	 * @param array $updateFields Array("column" => $value)[] How to update.
-	 *
-	 * @return array (merge)
+	 * @inheritdoc
 	 */
 	public function prepareMerge($tableName, array $primaryFields, array $insertFields, array $updateFields)
 	{
 		$insert = $this->prepareInsert($tableName, $insertFields);
 
-		$updateColumns = array();
-		$sourceSelectColumns = array();
-		$targetConnectColumns = array();
+		$updateColumns = [];
+		$sourceSelectColumns = [];
+		$targetConnectColumns = [];
 		$tableFields = $this->connection->getTableFields($tableName);
-		foreach($tableFields as $columnName => $tableField)
+		foreach ($tableFields as $columnName => $tableField)
 		{
 			$quotedName = $this->quote($columnName);
 			if (in_array($columnName, $primaryFields))
 			{
-				$sourceSelectColumns[] = $this->convertToDb($insertFields[$columnName], $tableField)." AS ".$quotedName;
-				if($insertFields[$columnName] === null)
+				$sourceSelectColumns[] = $this->convertToDb($insertFields[$columnName], $tableField) . " AS " . $quotedName;
+				if ($insertFields[$columnName] === null)
 				{
 					//can't just compare NULLs
-					$targetConnectColumns[] = "(source.".$quotedName." IS NULL AND target.".$quotedName." IS NULL)";
+					$targetConnectColumns[] = "(source." . $quotedName . " IS NULL AND target." . $quotedName . " IS NULL)";
 				}
 				else
 				{
-					$targetConnectColumns[] = "(source.".$quotedName." = target.".$quotedName.")";
+					$targetConnectColumns[] = "(source." . $quotedName . " = target." . $quotedName . ")";
 				}
 			}
 
 			if (isset($updateFields[$columnName]) || array_key_exists($columnName, $updateFields))
 			{
-				$updateColumns[] = "target.".$quotedName.' = '.$this->convertToDb($updateFields[$columnName], $tableField);
+				$updateColumns[] = "target." . $quotedName . ' = ' . $this->convertToDb($updateFields[$columnName], $tableField);
 			}
 		}
 
@@ -731,18 +537,18 @@ class OracleSqlHelper extends SqlHelper
 		)
 		{
 			$sql = "
-				MERGE INTO ".$this->quote($tableName)." target USING (
-					SELECT ".implode(", ", $sourceSelectColumns)." FROM dual
+				MERGE INTO " . $this->quote($tableName) . " target USING (
+					SELECT " . implode(", ", $sourceSelectColumns) . " FROM dual
 				)
 				source ON
 				(
-					".implode(" AND ", $targetConnectColumns)."
+					" . implode(" AND ", $targetConnectColumns) . "
 				)
 				WHEN MATCHED THEN
-					UPDATE SET ".implode(", ", $updateColumns)."
+					UPDATE SET " . implode(", ", $updateColumns) . "
 				WHEN NOT MATCHED THEN
-					INSERT (".$insert[0].")
-					VALUES (".$insert[1].")
+					INSERT (" . $insert[0] . ")
+					VALUES (" . $insert[1] . ")
 			";
 		}
 		else
@@ -750,8 +556,8 @@ class OracleSqlHelper extends SqlHelper
 			$sql = "";
 		}
 
-		return array(
-			$sql
-		);
+		return [
+			$sql,
+		];
 	}
 }

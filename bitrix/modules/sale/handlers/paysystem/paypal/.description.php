@@ -1,10 +1,22 @@
 <?php
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
 	die();
+}
 
-use \Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Application;
+use Bitrix\Main\Loader;
 
 Loc::loadMessages(__FILE__);
+$isBitrixSiteManagementOnly = !Loader::includeModule('bitrix24') && !Loader::includeModule('intranet');
+$region = Application::getInstance()->getLicense()->getRegion() ?: 'ru';
+$isAvailable =
+	!$isBitrixSiteManagementOnly
+	&& $region === 'ru'
+		? Bitrix\Sale\PaySystem\Manager::HANDLER_AVAILABLE_FALSE
+		: Bitrix\Sale\PaySystem\Manager::HANDLER_AVAILABLE_TRUE
+;
 
 $description = [
 	'RETURN' => Loc::getMessage('SALE_HPS_PAYPAL_DESC_RETURN'),
@@ -14,7 +26,10 @@ $description = [
 
 $data = [
 	'NAME' => Loc::getMessage('SALE_HPS_PAYPAL_NAME'),
+	'DESCRIPTION' => Loc::getMessage('SALE_HPS_PAYPAL_DESCRIPTION'),
+	'PUBLIC_DESCRIPTION' => Loc::getMessage('SALE_HPS_PAYPAL_PUBLIC_DESCRIPTION'),
 	'SORT' => 1000,
+	'IS_AVAILABLE' => $isAvailable,
 	'CODES' => [
 		'PAYPAL_USER'  => [
 			'NAME' => Loc::getMessage('SALE_HPS_PAYPAL_USER'),

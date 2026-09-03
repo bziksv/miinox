@@ -13,9 +13,9 @@ Loc::loadMessages(__FILE__);
 
 class B24button extends \Bitrix\Landing\Hook\Page
 {
-	protected const COLOR_TYPE_BUTTON = 'button';
-	protected const COLOR_TYPE_SITE = 'site';
-	protected const COLOR_TYPE_CUSTOM = 'custom';
+	public const COLOR_TYPE_BUTTON = 'button';
+	public const COLOR_TYPE_SITE = 'site';
+	public const COLOR_TYPE_CUSTOM = 'custom';
 	protected const COLOR_DEFAULT = '#03c1fe';
 
 	/**
@@ -284,15 +284,25 @@ class B24button extends \Bitrix\Landing\Hook\Page
 					? Theme::prepareColor($this->fields['COLOR_VALUE']->getValue())
 					: 'var(--primary)';
 
-				Page\Asset::getInstance()->addString(
-					"<style type=\"text/css\">
+					Page\Asset::getInstance()->addString(
+						"<style type=\"text/css\">
 							:root {
 								--theme-color-b24button: {$color};
 							}
+							.landing-b24button-use-style .b24-widget-button-popup,
+							.landing-b24button-use-style .b24-widget-button-popup-triangle,
+							.landing-b24button-use-style .b24-widget-button-pulse {
+								border-color: var(--theme-color-b24button) !important;
+							}
+							.landing-b24button-use-style .b24-widget-button-inner-block,
+							.landing-b24button-use-style .b24-widget-button-inner-mask,
+							.landing-b24button-use-style .b24-widget-button-social-item {
+								background-color: var(--theme-color-b24button) !important;
+							}
 						</style>",
-					false,
-					Page\AssetLocation::BEFORE_CSS
-				);
+						false,
+						Page\AssetLocation::BEFORE_CSS
+					);
 			}
 		}
 	}

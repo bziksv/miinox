@@ -1,198 +1,248 @@
 <?php
 
-class CAllPerfomanceTable
+class CPerfomanceTableList extends CDBResult
 {
-	public $TABLE_NAME = "";
+	protected $dbName = '';
 
-	function GetList($arSelect, $arFilter, $arOrder = array(), $arNavParams = false)
+	public static function GetList($bFull = true, $connection = null)
 	{
-		global $DB;
+		$connection ??= \Bitrix\Main\Application::getConnection();
+
+		return \Bitrix\Perfmon\BaseDatabase::createFromConnection($connection)->getTables($bFull);
+	}
+}
+
+class CPerfomanceTable
+{
+	public $TABLE_NAME = '';
+	protected $connection = null;
+	protected $database = null;
+
+	public function Init($TABLE_NAME, $connection = null)
+	{
+		$this->connection = $connection ?? \Bitrix\Main\Application::getConnection();
+		$this->database = \Bitrix\Perfmon\BaseDatabase::createFromConnection($this->connection);
+		$this->TABLE_NAME = trim($TABLE_NAME, '`');
+	}
+
+	public function IsExists($TABLE_NAME = false)
+	{
+		if ($TABLE_NAME === false)
+		{
+			$TABLE_NAME = $this->TABLE_NAME;
+		}
+
+		$TABLE_NAME = trim($TABLE_NAME, '`');
+		if ($TABLE_NAME === '')
+		{
+			return false;
+		}
+
+		return $this->connection->isTableExists($TABLE_NAME);
+	}
+
+	public function GetIndexes($TABLE_NAME = false)
+	{
+		if ($TABLE_NAME === false)
+		{
+			$TABLE_NAME = $this->TABLE_NAME;
+		}
+
+		$TABLE_NAME = trim($TABLE_NAME, '`');
+		if ($TABLE_NAME === '')
+		{
+			return [];
+		}
+
+		return $this->database->getIndexes($TABLE_NAME);
+	}
+
+	public function GetUniqueIndexes($TABLE_NAME = false)
+	{
+		if ($TABLE_NAME === false)
+		{
+			$TABLE_NAME = $this->TABLE_NAME;
+		}
+
+		$TABLE_NAME = trim($TABLE_NAME, '`');
+		if ($TABLE_NAME === '')
+		{
+			return [];
+		}
+
+		return $this->database->getUniqueIndexes($TABLE_NAME);
+	}
+
+	public function GetFullTextIndexes($TABLE_NAME = false)
+	{
+		if ($TABLE_NAME === false)
+		{
+			$TABLE_NAME = $this->TABLE_NAME;
+		}
+
+		$TABLE_NAME = trim($TABLE_NAME, '`');
+		if ($TABLE_NAME === '')
+		{
+			return [];
+		}
+
+		return $this->database->getFullTextIndexes($TABLE_NAME);
+	}
+
+	public function GetList($arSelect, $arFilter, $arOrder = [], $arNavParams = false)
+	{
+		$context = \Bitrix\Main\Context::getCurrent();
+		$culture = $context->getCulture();
+		$sqlHelper = $this->connection->getSqlHelper();
 
 		$arFields = $this->GetTableFields();
 
 		if (!is_array($arSelect))
-			$arSelect = array();
+		{
+			$arSelect = [];
+		}
 		if (count($arSelect) < 1)
+		{
 			$arSelect = array_keys($arFields);
+		}
 
 		if (!is_array($arOrder))
-			$arOrder = array();
+		{
+			$arOrder = [];
+		}
 
-		$arQueryOrder = array();
+		$arQueryOrder = [];
 		foreach ($arOrder as $strColumn => $strDirection)
 		{
-			$strDirection = mb_strtoupper($strDirection) == "ASC"? "ASC": "DESC";
+			$strDirection = mb_strtoupper($strDirection) === 'ASC' ? 'ASC' : 'DESC';
 			if (array_key_exists($strColumn, $arFields))
 			{
 				$arSelect[] = $strColumn;
-				if ($arFields[$strColumn] == "datetime" || $arFields[$strColumn] == "date")
-					$arQueryOrder[$strColumn] = $this->escapeColumn("TMP_".$strColumn)." ".$strDirection;
+				if ($arFields[$strColumn] === 'datetime' || $arFields[$strColumn] === 'date')
+				{
+					$arQueryOrder[$strColumn] = $sqlHelper->quote('TMP_' . $strColumn) . ' ' . $strDirection;
+				}
 				else
-					$arQueryOrder[$strColumn] = $this->escapeColumn($strColumn)." ".$strDirection;
+				{
+					$arQueryOrder[$strColumn] = $sqlHelper->quote($strColumn) . ' ' . $strDirection;
+				}
 			}
 		}
 
-		$arQuerySelect = array();
+		$arQuerySelect = [];
 		foreach ($arSelect as $strColumn)
 		{
 			if (array_key_exists($strColumn, $arFields))
 			{
-				if ($arFields[$strColumn] == "datetime" || $arFields[$strColumn] == "date")
+				if ($arFields[$strColumn] === 'datetime' || $arFields[$strColumn] === 'date')
 				{
-					$arQuerySelect["TMP_".$strColumn] = "t.".$this->escapeColumn($strColumn)." TMP_".$strColumn;
-					$arQuerySelect[$strColumn] = $DB->DateToCharFunction("t.".$this->escapeColumn($strColumn), "SHORT")." ".$this->escapeColumn($strColumn);
-					$arQuerySelect["FULL_".$strColumn] = $DB->DateToCharFunction("t.".$this->escapeColumn($strColumn), "FULL")." FULL_".$strColumn;
-					$arQuerySelect["SHORT_".$strColumn] = $DB->DateToCharFunction("t.".$this->escapeColumn($strColumn), "SHORT")." SHORT_".$strColumn;
+					$arQuerySelect['TMP_' . $strColumn] = 't.' . $sqlHelper->quote($strColumn) . ' TMP_' . $strColumn;
+					$arQuerySelect[$strColumn] = $sqlHelper->formatDate($culture->getFormatDate(), 't.' . $sqlHelper->quote($strColumn)) . ' ' . $sqlHelper->quote($strColumn);
+					$arQuerySelect['FULL_' . $strColumn] = $sqlHelper->formatDate($culture->getFormatDatetime(), 't.' . $sqlHelper->quote($strColumn)) . ' FULL_' . $strColumn;
+					$arQuerySelect['SHORT_' . $strColumn] = $sqlHelper->formatDate($culture->getFormatDate(), 't.' . $sqlHelper->quote($strColumn)) . ' SHORT_' . $strColumn;
 				}
 				else
 				{
-					$arQuerySelect[$strColumn] = "t.".$this->escapeColumn($strColumn);
+					$arQuerySelect[$strColumn] = 't.' . $sqlHelper->quote($strColumn);
 				}
 			}
 		}
 
 		foreach ($arFields as $FIELD_NAME => $FIELD_TYPE)
 		{
-			$arFields[$FIELD_NAME] = array(
-				"TABLE_ALIAS" => "t",
-				"FIELD_NAME" => "t.".$this->escapeColumn($FIELD_NAME),
-				"FIELD_TYPE" => $FIELD_TYPE,
-				"JOIN" => false,
+			$arFields[$FIELD_NAME] = [
+				'TABLE_ALIAS' => 't',
+				'FIELD_NAME' => 't.' . $sqlHelper->quote($FIELD_NAME),
+				'FIELD_TYPE' => $FIELD_TYPE,
+				'JOIN' => false,
 				//"LEFT_JOIN" => "lt",
-			);
+			];
 		}
 		$obQueryWhere = new CSQLWhere;
 		$obQueryWhere->SetFields($arFields);
 
 		if (count($arQuerySelect) < 1)
-			$arQuerySelect = array("*" => "t.*");
-
-		if (is_array($arNavParams))
 		{
-			return $this->NavQuery($arNavParams, $arQuerySelect, $this->TABLE_NAME, $obQueryWhere->GetQuery($arFilter), $arQueryOrder);
+			$arQuerySelect = ['*' => 't.*'];
+		}
+
+		$strSelect = 'SELECT ' . implode(', ', $arQuerySelect) . "\n";
+
+		$strSql = 'FROM ' /*. $sqlHelper->quote($this->connection->getDatabase()) . '.'*/ . $sqlHelper->quote($this->TABLE_NAME) . " t\n";
+		$strQueryWhere = $obQueryWhere->GetQuery($arFilter);
+		if ($strQueryWhere)
+		{
+			$strSql .= 'WHERE ' . $strQueryWhere . "\n";
+		}
+		$strOrder = $arQueryOrder ? 'ORDER BY ' . implode(', ', $arQueryOrder) : '';
+
+		if (!is_array($arNavParams))
+		{
+			$dbr = $this->connection->query($strSelect . $strSql . $strOrder);
+		}
+		elseif (isset($arNavParams['bOnlyCount']) && $arNavParams['bOnlyCount'] === true)
+		{
+			$res_cnt = $this->connection->query("SELECT count('x') CNT " . $strSql);
+			$ar_cnt = $res_cnt->fetch();
+
+			return $ar_cnt['CNT'];
+		}
+		elseif ($arNavParams['nTopCount'] > 0)
+		{
+			$strSql = $sqlHelper->getTopSql($strSelect . $strSql . $strOrder, $arNavParams['nTopCount'], $arNavParams['nOffset']);
+			$dbr = $this->connection->query($strSql);
 		}
 		else
 		{
-			$strSql = "
-				SELECT
-				".implode(", ", $arQuerySelect)."
-				FROM
-					".$this->escapeTable($this->TABLE_NAME)." t
-			";
-			if ($strQueryWhere = $obQueryWhere->GetQuery($arFilter))
-			{
-				$strSql .= "
-					WHERE
-					".$strQueryWhere."
-				";
-			}
-			if (count($arQueryOrder) > 0)
-			{
-				$strSql .= "
-					ORDER BY
-					".implode(", ", $arQueryOrder)."
-				";
-			}
-
-			return $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbr = $this->connection->query($strSelect . $strSql . $strOrder);
 		}
+
+		$dbr->is_filtered = ($strQueryWhere !== '');
+
+		return $dbr;
 	}
 
-	function NavQuery($arNavParams, $arQuerySelect, $strTableName, $strQueryWhere, $arQueryOrder)
+	public function GetTableFields($TABLE_NAME = false, $bExtended = false)
 	{
-		global $DB;
-		if (intval($arNavParams["nTopCount"]) <= 0)
+		static $cache = [];
+
+		if ($TABLE_NAME === false)
 		{
-			$strSql = "
-				SELECT
-					count(1) C
-				FROM
-					".$this->escapeTable($strTableName)." t
-			";
-			if ($strQueryWhere)
-			{
-				$strSql .= "
-					WHERE
-					".$strQueryWhere."
-				";
-			}
-			$res_cnt = $DB->Query($strSql);
-			$res_cnt = $res_cnt->Fetch();
-			$cnt = $res_cnt["C"];
+			$TABLE_NAME = $this->TABLE_NAME;
+		}
 
-			$strSql = "
-				SELECT
-				".implode(", ", $arQuerySelect)."
-				FROM
-					".$this->escapeTable($strTableName)." t
-			";
-			if ($strQueryWhere)
-			{
-				$strSql .= "
-					WHERE
-					".$strQueryWhere."
-				";
-			}
-			if (count($arQueryOrder) > 0)
-			{
-				$strSql .= "
-					ORDER BY
-					".implode(", ", $arQueryOrder)."
-				";
-			}
+		$TABLE_NAME = trim($TABLE_NAME, '`');
+		if ($TABLE_NAME === '')
+		{
+			return false;
+		}
 
-			$res = new CDBResult();
-			$res->NavQuery($strSql, $cnt, $arNavParams);
+		if (!array_key_exists($TABLE_NAME, $cache))
+		{
+			$cache[$TABLE_NAME] = $this->database->getTableFields($TABLE_NAME);
+		}
 
-			return $res;
+		if ($bExtended)
+		{
+			return $cache[$TABLE_NAME][1];
 		}
 		else
 		{
-			$strSql = "
-				SELECT
-				".implode(", ", $arQuerySelect)."
-				FROM
-					".$this->escapeTable($strTableName)." t
-			";
-			if ($strQueryWhere)
-			{
-				$strSql .= "
-					WHERE
-					".$strQueryWhere."
-				";
-			}
-			if (count($arQueryOrder) > 0)
-			{
-				$strSql .= "
-					ORDER BY
-					".implode(", ", $arQueryOrder)."
-				";
-			}
-
-			return $DB->Query($DB->TopSql($strSql, intval($arNavParams["nTopCount"])));
+			return $cache[$TABLE_NAME][0];
 		}
 	}
 
-	public static function escapeColumn($column)
+	public function getCreateIndexDDL($TABLE_NAME, $INDEX_NAME, $INDEX_COLUMNS)
 	{
-		return $column;
-	}
+		$tableFields = $this->GetTableFields($TABLE_NAME, true);
+		foreach ($INDEX_COLUMNS as $i => $field)
+		{
+			if ($tableFields[trim($field, '`[]"')]['orm_type'] === 'text')
+			{
+				$INDEX_COLUMNS[$i] = $field . '(100)';
+			}
+		}
 
-	public static function escapeTable($tableName)
-	{
-		return $tableName;
-	}
-
-	function GetTableFields($TABLE_NAME = false, $bExtended = false)
-	{
-		if ($TABLE_NAME && $bExtended)
-			return array();
-		else
-			return array();
-	}
-
-	function getCreateIndexDDL($TABLE_NAME, $INDEX_NAME, $INDEX_COLUMNS)
-	{
-		return "CREATE INDEX ".$INDEX_NAME." ON ".$TABLE_NAME." (".implode(", ", $INDEX_COLUMNS).")";
+		return 'CREATE INDEX ' . $INDEX_NAME . ' ON ' . $TABLE_NAME . ' (' . implode(', ', $INDEX_COLUMNS) . ')';
 	}
 }

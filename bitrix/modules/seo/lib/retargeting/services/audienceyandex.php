@@ -4,8 +4,8 @@ namespace Bitrix\Seo\Retargeting\Services;
 
 use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\NotImplementedException;
 use Bitrix\Main\Result;
+use Bitrix\Main\SystemException;
 use \Bitrix\Seo\Retargeting\Audience;
 use Bitrix\Seo\Retargeting\Response;
 
@@ -21,18 +21,26 @@ class AudienceYandex extends Audience
 	const NEW_AUDIENCE_FAKE_ID = -1;
 	const UPDATE_AUDIENCE_TIMEOUT = 60;
 
-	protected static $listRowMap = array(
+	protected static $listRowMap = [
 		'ID' => 'ID',
 		'NAME' => 'NAME',
 		'COUNT_VALID' => 'VALID_UNIQUE_QUANTITY',
 		'COUNT_MATCHED' => 'MATCHED_QUANTITY',
 		'HASHED' => 'HASHED',
+		'USED_HASHING_ALG' => 'USED_HASHING_ALG',
 		'STATUS' => 'STATUS',
-		'SUPPORTED_CONTACT_TYPES' => array(
+		'SUPPORTED_CONTACT_TYPES' => [
 			self::ENUM_CONTACT_TYPE_PHONE,
-			self::ENUM_CONTACT_TYPE_EMAIL
-		),
-	);
+			self::ENUM_CONTACT_TYPE_EMAIL,
+		],
+	];
+
+	public static function normalizePhone($phone): string
+	{
+		$normalized = parent::normalizePhone($phone);
+
+		return preg_replace("/\D/", '', $normalized);
+	}
 
 	public static function normalizeListRow(array $row)
 	{
@@ -80,20 +88,19 @@ class AudienceYandex extends Audience
 
 	/**
 	 * @param array $data Data.
-	 * @return \Bitrix\Seo\Retargeting\Response
-	 * @deprecated Not supported by Yandex
-	 * @throws NotImplementedException
+	 * @return Response
+	 * @throws SystemException
 	 */
-	public function add(array $data)
+	public function add(array $data): Response
 	{
-		$response = $this->request->send(array(
+		$response = $this->request->send([
 			'methodName' => 'retargeting.audience.add',
-			'parameters' => array(
+			'parameters' => [
 				'name' => $data['NAME'],
 				'hashed' => 0,
 				'contacts' => $this->prepareContacts(["email" => [self::EXAMPLE_MAIL]]),
-			),
-		));
+			],
+		]);
 
 		$responseData = $response->getData();
 		if (isset($responseData['id']))
@@ -101,8 +108,7 @@ class AudienceYandex extends Audience
 			$response->setId($responseData['id']);
 		}
 
-		return $response
-			;
+		return $response;
 	}
 
 	/**
@@ -110,15 +116,21 @@ class AudienceYandex extends Audience
 	 * @param array $contacts Contacts.
 	 * @param bool $hashed Should result be hashed.
 	 * @param string $type Type (email|phone).
+	 * @param ?string $usedHashingAlg Used hashing algorithm.
 	 * @return string
 	 */
-	protected function prepareContacts(array $contacts = array(), $hashed = false, $type = '')
+	protected function prepareContacts(
+		array $contacts = [],
+		bool $hashed = false,
+		string $type = '',
+		?string $usedHashingAlg = null,
+	): string
 	{
 		// filter by type
 		if ($type)
 		{
 			$contacts = [
-				$type => isset($contacts[$type]) ? $contacts[$type] : []
+				$type => $contacts[$type] ?? [],
 			];
 		}
 
@@ -128,11 +140,12 @@ class AudienceYandex extends Audience
 		$types = array_keys($contacts);
 		$typeCount = count($types);
 		$result = implode($separator, $types);
+		$hashingCallback = $hashed ? $this->getHashingCallback(mb_strtoupper($usedHashingAlg)) : null;
 		foreach ($types as $index => $contactType)
 		{
 			foreach ($contacts[$contactType] as $contact)
 			{
-				$contact = $hashed ? md5($contact) : $contact;
+				$contact = $hashed ? $hashingCallback($contact) : $contact;
 				$data = array_fill(0, $typeCount, "");
 				$data[$index] = $contact;
 				$result .= $eol . implode($separator, $data);
@@ -146,7 +159,7 @@ class AudienceYandex extends Audience
 	 * @param string $audienceId Audience id.
 	 * @param array $contacts Contacts.
 	 * @param array $options Options.
-	 * @return Result|\Bitrix\Seo\Retargeting\Response
+	 * @return Result|Response
 	 * @throws \Bitrix\Main\SystemException
 	 */
 	public function importContacts($audienceId, array $contacts, array $options)
@@ -156,36 +169,38 @@ class AudienceYandex extends Audience
 		if (!$audienceData)
 		{
 			$result = new Result();
-			$result->addError(new Error('Audience '.$audienceId.' not found'));
+			$result->addError(new Error('Audience ' . $audienceId . ' not found'));
 			return $result;
 		}
 
 		$hashed = (bool)$audienceData['HASHED'];
-		$payload = $this->prepareContacts($contacts, $hashed, $options['type']);
+		$usedHashingAlg = $audienceData['USED_HASHING_ALG'];
+		$payload = $this->prepareContacts($contacts, $hashed, $options['type'], $usedHashingAlg);
 
 		if ($createNewAudience)
 		{
 			$name = $options['audienceName'] ?: Loc::getMessage('SEO_RETARGETING_SERVICE_AUDIENCE_NAME_TEMPLATE', ['#DATE#' => FormatDate('j F')]);
-			$response = $this->getRequest()->send(array(
+			$response = $this->getRequest()->send([
 				'methodName' => 'retargeting.audience.add',
-				'parameters' => array(
+				'parameters' => [
 					'name' => $name,
 					'hashed' => $hashed ? 1 : 0,
-					'contacts' => $payload
-				),
-				'timeout' => static::UPDATE_AUDIENCE_TIMEOUT
-			));
+					'usedHashingAlg' => $usedHashingAlg,
+					'contacts' => $payload,
+				],
+				'timeout' => static::UPDATE_AUDIENCE_TIMEOUT,
+			]);
 		}
 		else
 		{
-			$response = $this->getRequest()->send(array(
+			$response = $this->getRequest()->send([
 				'methodName' => 'retargeting.audience.contacts.rewrite',
-				'parameters' => array(
+				'parameters' => [
 					'audienceId' => $audienceId,
-					'contacts' => $payload
-				),
-				'timeout' => static::UPDATE_AUDIENCE_TIMEOUT
-			));
+					'contacts' => $payload,
+				],
+				'timeout' => static::UPDATE_AUDIENCE_TIMEOUT,
+			]);
 		}
 
 		return $response;
@@ -297,5 +312,14 @@ class AudienceYandex extends Audience
 		}
 
 		return $result;
+	}
+
+	protected function getHashingCallback(string $hashingType = 'SHA256'): ?\Closure
+	{
+		return match ($hashingType) {
+			'SHA256' => static fn(string $value) => hash('sha256', $value),
+			'MD5'    => static fn(string $value) => md5($value),
+			default  => throw new \InvalidArgumentException("Unsupported hashing type: $hashingType"),
+		};
 	}
 }

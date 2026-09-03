@@ -5,7 +5,7 @@
 
 Loc::loadMessages(__FILE__);
 	if (array_key_exists('PAYMENT_SHOULD_PAY', $params))
-		$params['PAYMENT_SHOULD_PAY'] = PriceMaths::roundPrecision($params['PAYMENT_SHOULD_PAY']);
+		$params['PAYMENT_SHOULD_PAY'] = PriceMaths::roundByFormatCurrency($params['PAYMENT_SHOULD_PAY'], $params['PAYMENT_CURRENCY']);
 ?>
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();?><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
@@ -112,7 +112,7 @@ body {font-size: 10pt;}
 					if($params["BUYER_PERSON_CITY"] != '')
 					{
 						$g = mb_substr($params["BUYER_PERSON_CITY"], 0, 2);
-						$sAddrFact[] = '<nobr>'.($g<>Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR') && $g<>ToUpper(Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR'))? Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR')." ":"").htmlspecialcharsbx($params["BUYER_PERSON_CITY"]).'</nobr>';
+						$sAddrFact[] = '<nobr>'.($g<>Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR') && $g<>mb_strtoupper(Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR'))? Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR')." ":"").htmlspecialcharsbx($params["BUYER_PERSON_CITY"]).'</nobr>';
 					}
 
 					if($params["BUYER_PERSON_VILLAGE"] != '')
@@ -256,7 +256,7 @@ body {font-size: 10pt;}
 					if($params["BUYER_PERSON_CITY"] != '')
 					{
 						$g = mb_substr($params["BUYER_PERSON_CITY"], 0, 2);
-						$sAddrFact[] = '<nobr>'.($g<>Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR') && $g<>ToUpper(Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR'))? Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR')." ":"").htmlspecialcharsbx($params["BUYER_PERSON_CITY"]).'</nobr>';
+						$sAddrFact[] = '<nobr>'.($g<>Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR') && $g<>mb_strtoupper(Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR'))? Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_SBERBANK_SHORT_YEAR')." ":"").htmlspecialcharsbx($params["BUYER_PERSON_CITY"]).'</nobr>';
 					}
 
 					if($params["BUYER_PERSON_VILLAGE"] != '')

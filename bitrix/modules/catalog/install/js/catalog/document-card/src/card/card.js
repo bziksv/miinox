@@ -1,14 +1,17 @@
-import {Loc, Reflection, Type} from "main.core";
-import {BaseCard} from "catalog.entity-card";
-import {EventEmitter} from "main.core.events";
-import {Dialog} from 'ui.entity-selector';
-import ControllersFactory from "../controllers-factory";
-import ModelFactory from "../model/model-factory";
-import FieldsFactory from "../editor-fields/fields-factory";
-import {MenuManager} from "main.popup";
-import {Text} from "main.core";
-import ProductListController from "../product-list/controller";
-import {Slider} from 'catalog.store-use'
+import { BaseCard } from 'catalog.entity-card';
+import { AnalyticsContextList, EnableWizardOpener } from 'catalog.store-enable-wizard';
+import { Dom, Event, Loc, Reflection, Tag, Text, Type } from 'main.core';
+import { type BaseEvent, EventEmitter } from 'main.core.events';
+import { MenuManager, Popup } from 'main.popup';
+import { Button } from 'ui.buttons';
+import { Dialog } from 'ui.entity-selector';
+import { Label, LabelOptions, LabelSize } from 'ui.label';
+import LabelColor from '../../../../../../../ui/install/js/ui/label/src/label-color';
+import StoreDocumentFieldConfigurationManager from '../configurator/store-document-field-configurator-manager';
+import ControllersFactory from '../controllers-factory';
+import FieldsFactory from '../editor-fields/fields-factory';
+import ModelFactory from '../model/model-factory';
+import ProductListController from '../product-list/controller';
 
 class DocumentCard extends BaseCard
 {
@@ -27,11 +30,20 @@ class DocumentCard extends BaseCard
 		this.signedParameters = settings.signedParameters;
 		this.isConductLocked = settings.isConductLocked;
 		this.masterSliderUrl = settings.masterSliderUrl;
+		this.isInventoryManagementDisabled = settings.isInventoryManagementDisabled;
+		this.inventoryManagementFeatureCode = settings.inventoryManagementFeatureCode;
 		this.editorName = settings.includeCrmEntityEditor ? 'BX.Crm.EntityEditor' : 'BX.UI.EntityEditor';
 		this.inventoryManagementSource = settings.inventoryManagementSource;
+		this.lockedCancellation = settings.lockedCancellation || false;
 		this.activeTabId = 'main';
+		this.insidePageTitleConfig = settings.insidePageTitleConfig || {};
 
 		this.isTabAnalyticsSent = false;
+
+		if (Type.isPlainObject(this.insidePageTitleConfig))
+		{
+			this.appendInsidePageTitle(this.insidePageTitleConfig);
+		}
 
 		this.setSliderText();
 		this.addCopyLinkPopup();
@@ -46,7 +58,7 @@ class DocumentCard extends BaseCard
 
 		// setting this to true so that we can decide
 		// whether to close the slider or not on the fly on backend (closeOnSave=Y)
-		BX.UI.SidePanel.Wrapper.setParam("closeAfterSave", true);
+		BX.UI.SidePanel.Wrapper.setParam('closeAfterSave', true);
 		this.showNotificationOnClose = false;
 	}
 
@@ -55,39 +67,96 @@ class DocumentCard extends BaseCard
 		return DocumentCard.#instance;
 	}
 
+	appendInsidePageTitle(config: Object): void
+	{
+		const toolbar = BX.UI?.ToolbarManager?.getDefaultToolbar();
+		const titleContainer = toolbar?.titleContainer.querySelector('.ui-toolbar-title-item-box');
+
+		if (!titleContainer)
+		{
+			return;
+		}
+
+		let editButton = null;
+		let pageLink = null;
+		if (config.enableEditTitle)
+		{
+			editButton = Tag.render`
+				<span id="pagetitle_edit" class="pagetitle-edit-button"></span>
+			`;
+		}
+		if (config.enablePageLink)
+		{
+			pageLink = Tag.render`
+				<span id="${this.settings.copyLinkButtonId}" class="page-link-btn"></span>
+			`;
+		}
+		if (editButton || pageLink)
+		{
+			const buttonContainer = Tag.render`
+				<span id="pagetitle_btn_wrapper" class="pagetitile-button-container"></span>
+			`;
+			if (editButton)
+			{
+				Dom.append(editButton, buttonContainer);
+			}
+			if (pageLink)
+			{
+				Dom.append(pageLink, buttonContainer);
+			}
+			Dom.append(buttonContainer, titleContainer);
+		}
+
+		if (config.enableStatusLabel)
+		{
+			const labelOptions: LabelOptions = {
+				text: config.statusLabel.text,
+				color: config.statusLabel.color,
+				size: LabelSize.LG,
+				link: '',
+				fill: true,
+				customClass: 'document-status-label',
+			};
+
+			const label = new Label(labelOptions);
+
+			Dom.append(label.render(), titleContainer);
+		}
+	}
+
 	initDocumentTypeSelector()
 	{
-		let documentTypeSelector = this.settings.documentTypeSelector;
-		let documentTypeSelectorTypes = this.settings.documentTypeSelectorTypes;
+		const documentTypeSelector = this.settings.documentTypeSelector;
+		const documentTypeSelectorTypes = this.settings.documentTypeSelectorTypes;
 		if (!documentTypeSelector || !documentTypeSelectorTypes)
 		{
 			return;
 		}
 
-		let menuItems = [];
+		const menuItems = [];
 		documentTypeSelectorTypes.forEach((type) => {
 			menuItems.push({
-				text: Loc.getMessage('DOC_TYPE_SHORT_' + type),
+				text: Loc.getMessage(`DOC_TYPE_SHORT_${type}`),
 				onclick: (e) => {
-					let slider = BX.SidePanel.Instance.getTopSlider();
+					const slider = BX.SidePanel.Instance.getTopSlider();
 					if (slider)
 					{
-						slider.url = BX.Uri.addParam(slider.getUrl(), {DOCUMENT_TYPE: type});
+						slider.url = BX.Uri.addParam(slider.getUrl(), { DOCUMENT_TYPE: type });
 						slider.url = BX.Uri.removeParam(slider.url, ['firstTime', 'focusedTab']);
 
 						if (this.activeTabId !== 'main')
 						{
-							slider.url = BX.Uri.addParam(slider.getUrl(), {focusedTab: this.activeTabId});
+							slider.url = BX.Uri.addParam(slider.getUrl(), { focusedTab: this.activeTabId });
 						}
 
 						if (type === 'A' || type === 'S')
 						{
 							slider.requestMethod = 'post';
 							slider.requestParams = {
-								'preloadedFields': {
-									'DOCUMENT_FIELDS': this.getDocumentFieldsForTypeSwitching(),
-									'PRODUCTS': this.getProductsForTypeSwitching(),
-								}
+								preloadedFields: {
+									DOCUMENT_FIELDS: this.getDocumentFieldsForTypeSwitching(),
+									PRODUCTS: this.getProductsForTypeSwitching(),
+								},
 							};
 						}
 
@@ -96,13 +165,13 @@ class DocumentCard extends BaseCard
 				},
 			});
 		});
-		let popupMenu = MenuManager.create({
+		const popupMenu = MenuManager.create({
 			id: 'document-type-selector',
 			bindElement: documentTypeSelector,
 			items: menuItems,
 		});
 
-		documentTypeSelector.addEventListener('click', e => {
+		documentTypeSelector.addEventListener('click', (e) => {
 			e.preventDefault();
 			popupMenu.show();
 		});
@@ -137,9 +206,9 @@ class DocumentCard extends BaseCard
 			return products;
 		}
 
-		const productFields = ['ID', 'STORE_TO', {'ELEMENT_ID': 'SKU_ID'}, 'AMOUNT', 'PURCHASING_PRICE', 'BASE_PRICE', 'BASE_PRICE_EXTRA', 'BASE_PRICE_EXTRA_RATE'];
+		const productFields = ['ID', 'STORE_TO', { ELEMENT_ID: 'SKU_ID' }, 'AMOUNT', 'PURCHASING_PRICE', 'BASE_PRICE', 'BASE_PRICE_EXTRA', 'BASE_PRICE_EXTRA_RATE'];
 		BX.Catalog.Store.ProductList.Instance.getProductsFields().forEach((productRow) => {
-			let product = {};
+			const product = {};
 			productFields.forEach((field) => {
 				if (Type.isObject(field))
 				{
@@ -160,17 +229,20 @@ class DocumentCard extends BaseCard
 
 	openMasterSlider()
 	{
-		let card = this;
+		const card = this;
 
-		new Slider().open(
+		new EnableWizardOpener().open(
 			this.masterSliderUrl,
 			{
+				urlParams: {
+					analyticsContextSection: AnalyticsContextList.DOCUMENT_CARD,
+				},
 				data: {
 					openGridOnDone: false,
 				},
 				events: {
 					onCloseComplete: function(event) {
-						let slider = event.getSlider();
+						const slider = event.getSlider();
 						if (!slider)
 						{
 							return;
@@ -188,20 +260,18 @@ class DocumentCard extends BaseCard
 								}
 							});
 						}
-					}
-				}
-			}
+					},
+				},
+			},
 		);
 	}
 
 	adjustToolPanel()
-	{
-		return;
-	}
+	{}
 
 	focusOnTab(tabId)
 	{
-		EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onOpenTab', {tabId: tabId});
+		EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onOpenTab', { tabId: tabId });
 	}
 
 	// deprecated
@@ -236,6 +306,40 @@ class DocumentCard extends BaseCard
 		this.subscribeToDirectActionEvent();
 		this.subscribeToEntityCreateEvent();
 		this.subscribeToBeforeEntityRedirectEvent();
+		this.subscribeToCreateUserFieldEvent();
+		this.subscribeToFieldConfiguratorEvent();
+	}
+
+	subscribeToFieldConfiguratorEvent()
+	{
+		EventEmitter.subscribe('BX.UI.EntityConfigurationManager:onInitialize', this.onConfigurationManagerInit.bind(this));
+	}
+
+	onConfigurationManagerInit(event: BaseEvent)
+	{
+		const [, eventArgs] = event.getCompatData();
+
+		if (!eventArgs.type || eventArgs.type === 'editor')
+		{
+			eventArgs.configurationFieldManager = StoreDocumentFieldConfigurationManager.create(this.id, eventArgs);
+		}
+
+		event.stopImmediatePropagation();
+	}
+
+	subscribeToCreateUserFieldEvent()
+	{
+		EventEmitter.subscribe('BX.UI.EntityConfigurationManager:onCreateClick', ((e) => {
+			e.data.isCanceled = true;
+
+			const editor = this.getEditorInstance();
+			const createUrl = editor.getConfigurationFieldManager().getCreationPageUrl('custom');
+
+			if (createUrl)
+			{
+				top.BX.SidePanel.Instance.open(createUrl);
+			}
+		}));
 	}
 
 	subscribeToUserSelectorEvent()
@@ -246,7 +350,7 @@ class DocumentCard extends BaseCard
 		}
 
 		EventEmitter.subscribe('BX.UI.EntityEditorUser:openSelector', (event) => {
-			let eventData = event.data[1];
+			const eventData = event.data[1];
 			const dialog = new Dialog({
 				targetNode: eventData.anchor,
 				enableSearch: true,
@@ -262,9 +366,9 @@ class DocumentCard extends BaseCard
 				],
 				events: {
 					'Item:onSelect': (onSelectEvent) => {
-						let fieldId = eventData.id;
-						let selectedItem = onSelectEvent.data.item;
-						let userData = {
+						const fieldId = eventData.id;
+						const selectedItem = onSelectEvent.data.item;
+						const userData = {
 							entityId: selectedItem.id,
 							avatar: selectedItem.avatar,
 							name: Text.encode(selectedItem.title.text),
@@ -272,7 +376,7 @@ class DocumentCard extends BaseCard
 
 						if (this.entityId > 0)
 						{
-							let fields = {};
+							const fields = {};
 							fields[fieldId] = selectedItem.id;
 							BX.ajax.runComponentAction(
 								this.componentName,
@@ -282,8 +386,8 @@ class DocumentCard extends BaseCard
 									signedParameters: this.signedParameters,
 									data: {
 										fields: fields,
-									}
-								}
+									},
+								},
 							).then((result) => {
 								eventData.callback(dialog, userData);
 							});
@@ -292,7 +396,7 @@ class DocumentCard extends BaseCard
 						{
 							eventData.callback(dialog, userData);
 						}
-					}
+					},
 				},
 			});
 			dialog.show();
@@ -301,22 +405,31 @@ class DocumentCard extends BaseCard
 
 	subscribeToValidationFailedEvent()
 	{
-		EventEmitter.subscribe(this.editorName + ':onFailedValidation', (event) => {
-			EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onOpenTab', {tabId: 'main'});
+		EventEmitter.subscribe(`${this.editorName}:onFailedValidation`, (event) => {
+			EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onOpenTab', { tabId: 'main' });
 		});
 		EventEmitter.subscribe('onProductsCheckFailed', (event) => {
-			EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onOpenTab', {tabId: 'tab_products'});
+			EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onOpenTab', { tabId: 'tab_products' });
 		});
 	}
 
 	subscribeToOnSaveEvent()
 	{
-		EventEmitter.subscribe(this.editorName + ':onSave', (event) => {
+		EventEmitter.subscribe(`${this.editorName}:onSave`, (event) => {
 			const eventEditor = event.data[0];
 			const action = event.data[1]?.actionId;
 			if (eventEditor && eventEditor._ajaxForm)
 			{
 				eventEditor._toolPanel?.clearErrors();
+
+				if (this.isInventoryManagementDisabled && this.inventoryManagementFeatureCode)
+				{
+					event.data[1].cancel = true;
+					event.data[0]._toolPanel?.setLocked(false);
+					top.BX.UI.InfoHelper.show(this.inventoryManagementFeatureCode);
+
+					return;
+				}
 
 				if (action === 'SAVE_AND_CONDUCT')
 				{
@@ -325,6 +438,7 @@ class DocumentCard extends BaseCard
 						event.data[1].cancel = true;
 						event.data[0]._toolPanel?.setLocked(false);
 						this.openMasterSlider();
+
 						return;
 					}
 
@@ -332,6 +446,7 @@ class DocumentCard extends BaseCard
 					{
 						event.data[1].cancel = true;
 						eventEditor._toolPanel?.setLocked(false);
+
 						return;
 					}
 
@@ -341,7 +456,7 @@ class DocumentCard extends BaseCard
 					}
 				}
 
-				let form = eventEditor._ajaxForms[action];
+				const form = eventEditor._ajaxForms[action];
 				if (form)
 				{
 					form.addUrlParams({
@@ -378,9 +493,17 @@ class DocumentCard extends BaseCard
 
 	subscribeToDirectActionEvent()
 	{
-		EventEmitter.subscribe(this.editorName + ':onDirectAction', (event) => {
-
+		EventEmitter.subscribe(`${this.editorName}:onDirectAction`, (event) => {
 			const eventEditor = event.data[0];
+
+			if (this.isInventoryManagementDisabled && this.inventoryManagementFeatureCode)
+			{
+				event.data[1].cancel = true;
+				event.data[0]._toolPanel?.setLocked(false);
+				top.BX.UI.InfoHelper.show(this.inventoryManagementFeatureCode);
+
+				return;
+			}
 
 			if (event.data[1]?.actionId === 'CONDUCT')
 			{
@@ -391,6 +514,7 @@ class DocumentCard extends BaseCard
 					event.data[1].cancel = true;
 					event.data[0]._toolPanel?.setLocked(false);
 					this.openMasterSlider();
+
 					return;
 				}
 
@@ -398,10 +522,11 @@ class DocumentCard extends BaseCard
 				{
 					event.data[1].cancel = true;
 					eventEditor._toolPanel?.setLocked(false);
+
 					return;
 				}
 
-				event.data[0]._ajaxForms['CONDUCT'].addUrlParams({
+				event.data[0]._ajaxForms.CONDUCT.addUrlParams({
 					documentType: this.documentType,
 					inventoryManagementSource: this.inventoryManagementSource,
 				});
@@ -409,7 +534,16 @@ class DocumentCard extends BaseCard
 
 			if (event.data[1]?.actionId === 'CANCEL_CONDUCT')
 			{
-				event.data[0]._ajaxForms['CANCEL_CONDUCT'].addUrlParams({
+				if (this.isLockedCancellation())
+				{
+					this.showCancellationInfo();
+					event.data[1].cancel = true;
+					event.data[0]._toolPanel?.setLocked(false);
+
+					return;
+				}
+
+				event.data[0]._ajaxForms.CANCEL_CONDUCT.addUrlParams({
 					documentType: this.documentType,
 					inventoryManagementSource: this.inventoryManagementSource,
 				});
@@ -428,7 +562,7 @@ class DocumentCard extends BaseCard
 				}
 			});
 
-			let editor = event?.data[0]?.sender;
+			const editor = event?.data[0]?.sender;
 			if (editor)
 			{
 				editor._toolPanel.disableSaveButton();
@@ -444,7 +578,7 @@ class DocumentCard extends BaseCard
 			BX.SidePanel.Instance.getOpenSliders().forEach((slider) => {
 				slider.getWindow().BX.onCustomEvent('DocumentCard:onBeforeEntityRedirect');
 			});
-			let editor = event?.data[0]?.sender;
+			const editor = event?.data[0]?.sender;
 			if (editor)
 			{
 				editor._toolPanel.disableSaveButton();
@@ -470,9 +604,9 @@ class DocumentCard extends BaseCard
 								events: {
 									click: function(event, balloon, action) {
 										balloon.close();
-									}
-								}
-							}
+									},
+								},
+							},
 						],
 					});
 				}
@@ -483,15 +617,12 @@ class DocumentCard extends BaseCard
 	validateControllers(controllers)
 	{
 		let validateResult = true;
-		if (controllers instanceof Array)
+		if (Array.isArray(controllers))
 		{
 			controllers.forEach((controller) => {
-				if (controller instanceof ProductListController)
+				if (controller instanceof ProductListController && !controller.validateProductList())
 				{
-					if (!controller.validateProductList())
-					{
-						validateResult = false;
-					}
+					validateResult = false;
 				}
 			});
 		}
@@ -509,13 +640,13 @@ class DocumentCard extends BaseCard
 			'catalog.analytics.sendAnalyticsLabel',
 			{
 				analyticsLabel: data,
-			}
+			},
 		);
 	}
 
 	addCopyLinkPopup()
 	{
-		let copyLinkButton = document.getElementById(this.settings.copyLinkButtonId);
+		const copyLinkButton = document.getElementById(this.settings.copyLinkButtonId);
 		if (!copyLinkButton)
 		{
 			return;
@@ -523,13 +654,13 @@ class DocumentCard extends BaseCard
 
 		copyLinkButton.onclick = () => {
 			this.copyDocumentLinkToClipboard();
-		}
+		};
 	}
 
 	copyDocumentLinkToClipboard()
 	{
-		let url = BX.util.remove_url_param(window.location.href, ["IFRAME", "IFRAME_TYPE"]);
-		if(!BX.clipboard.copy(url))
+		const url = BX.util.remove_url_param(window.location.href, ['IFRAME', 'IFRAME_TYPE']);
+		if (!BX.clipboard.copy(url))
 		{
 			return;
 		}
@@ -543,12 +674,12 @@ class DocumentCard extends BaseCard
 				autoHide: true,
 				zIndex: 1000,
 				angle: true,
-				bindOptions: { position: "top" }
-			}
+				bindOptions: { position: 'top' },
+			},
 		);
 		popup.show();
 
-		setTimeout(function(){ popup.close(); }, 1500);
+		setTimeout(() => { popup.close(); }, 1500);
 	}
 
 	static registerFieldFactory()
@@ -568,16 +699,16 @@ class DocumentCard extends BaseCard
 
 	setSliderText()
 	{
-		let slider = BX.SidePanel.Instance.getTopSlider();
+		const slider = BX.SidePanel.Instance.getTopSlider();
 		if (slider)
 		{
-			slider.getLabel().setText(Loc.getMessage('SLIDER_LABEL_' + this.documentType));
+			slider.getLabel().setText(Loc.getMessage(`SLIDER_LABEL_${this.documentType}`));
 		}
 	}
 
 	disableSaveAndConductButton()
 	{
-		if(!this.conductAndSaveButton)
+		if (!this.conductAndSaveButton)
 		{
 			return;
 		}
@@ -588,13 +719,77 @@ class DocumentCard extends BaseCard
 
 	enableSaveAndConductButton()
 	{
-		if(!this.conductAndSaveButton)
+		if (!this.conductAndSaveButton)
 		{
 			return;
 		}
 
 		this.conductAndSaveButton.disabled = false;
 		BX.removeClass(this.conductAndSaveButton, 'ui-btn-disabled');
+	}
+
+	isLockedCancellation(): boolean
+	{
+		return this.lockedCancellation;
+	}
+
+	showCancellationInfo(): void
+	{
+		const popup = new Popup(null, null, {
+			events: {
+				onPopupClose: () => {
+					popup.destroy();
+				},
+			},
+			content: this.getCancellationPopupContent(),
+			overlay: true,
+			buttons: [
+				new Button({
+					text: Loc.getMessage('CANCEL_CONDUCT_CANCELLATION_POPUP_YES'),
+					color: Button.Color.PRIMARY,
+					onclick: () => {
+						this.lockedCancellation = false;
+
+						this.getEditorInstance()?.performAction('CANCEL_CONDUCT');
+
+						popup.close();
+					},
+				}),
+				new BX.UI.Button({
+					text: Loc.getMessage('CANCEL_CONDUCT_CANCELLATION_POPUP_NO'),
+					color: BX.UI.Button.Color.LINK,
+					onclick: () => {
+						popup.close();
+					},
+				}),
+			],
+		});
+
+		popup.show();
+	}
+
+	getCancellationPopupContent(): HTMLElement
+	{
+		const moreLink = Tag.render`<a href="#" class="ui-form-link">${Loc.getMessage('CANCEL_CONDUCT_CANCELLATION_POPUP_LINK')}</a>`;
+
+		Event.bind(moreLink, 'click', () => {
+			const articleId = 17858278;
+			top.BX.Helper.show(`redirect=detail&code=${articleId}`);
+		});
+
+		const descriptionHtml = Tag.render`
+			<div>${Loc.getMessage('CANCEL_CONDUCT_CANCELLATION_POPUP_HINT', {'#HELP_LINK#': '<help-link></help-link>'})}</div>
+		`;
+
+		Dom.replace(descriptionHtml.querySelector('help-link'), moreLink);
+
+		return Tag.render`
+			<div>
+				<h3>${Loc.getMessage('CANCEL_CONDUCT_CANCELLATION_POPUP_TITLE')}</h3>
+				<div>${Text.encode(Loc.getMessage('CANCEL_CONDUCT_CANCELLATION_POPUP_QUESTION'))}
+				<br>${descriptionHtml}<div>
+			</div>
+		`;
 	}
 }
 

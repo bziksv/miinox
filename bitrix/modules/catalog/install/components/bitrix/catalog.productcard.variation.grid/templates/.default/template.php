@@ -31,11 +31,12 @@ $createPropertyId = $containerId.'_create_property';
 $createPropertyHintId = $createPropertyId.'_hint';
 
 $isProduct = $arParams['VARIATION_ID_LIST'] === null;
+$isCatalogHidden = $arResult['IS_CATALOG_HIDDEN'];
 ?>
 <div class="catalog-variation-grid" id="<?=$containerId?>">
 	<div class="catalog-variation-grid-content">
 		<?php
-		if ($isProduct)
+		if ($isProduct && !$isCatalogHidden)
 		{
 			$disabledClass = $arResult['CAN_HAVE_SKU'] ? '' : ' ui-btn-disabled';
 			?>
@@ -43,7 +44,7 @@ $isProduct = $arParams['VARIATION_ID_LIST'] === null;
 				<a class="ui-btn ui-btn-sm ui-btn-light catalog-variation-grid-add-btn<?=$disabledClass?>"
 						data-role="catalog-productcard-variation-add-row"
 						tabindex="-1">
-					<?=Loc::getMessage('C_PVG_CREATE_VARIATION')?>
+					<?=Loc::getMessage('C_PVG_CREATE_VARIATION_MSGVER_1')?>
 				</a>
 			</div>
 			<?php
@@ -92,6 +93,7 @@ $isProduct = $arParams['VARIATION_ID_LIST'] === null;
 				'ACTION_PANEL' => $isProduct ? $arResult['GRID']['ACTION_PANEL'] : false,
 				'HANDLE_RESPONSE_ERRORS' => true,
 				'ENABLE_FIELDS_SEARCH' => $arResult['GRID']['ENABLE_FIELDS_SEARCH'],
+				'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => $arResult['GRID']['USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP'],
 			],
 			$component
 		);
@@ -103,7 +105,7 @@ $isProduct = $arParams['VARIATION_ID_LIST'] === null;
 		?>
 		<div class="catalog-variation-grid-link">
 			<a class="ui-link ui-link-secondary ui-link-dashed" id="<?=$createPropertyId?>"
-			><?=Loc::getMessage('C_PVG_CREATE_VARIATION_PROPERTY')?></a>
+			><?=Loc::getMessage('C_PVG_CREATE_VARIATION_PROPERTY_MSGVER_1')?></a>
 			<a href="<?=Util::getArticleUrlByCode('13274510')?>"
 					class="ui-hint-icon"
 					id="<?=$createPropertyHintId?>"></a>

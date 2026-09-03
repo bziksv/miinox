@@ -1,12 +1,12 @@
-<?
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2004 Bitrix                  #
-# http://www.bitrix.ru                       #
-# mailto:admin@bitrix.ru                     #
-##############################################
-*/
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage form
+ * @copyright 2001-2025 Bitrix
+ */
+
 ob_start();
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/form/prolog.php");
@@ -36,8 +36,8 @@ $bSimple = (COption::GetOptionString("form", "SIMPLE", "Y") == "Y") ? true : fal
 // Wow.... It was funny....
 // if (intval($WEB_FORM_ID)>0 && intval($WEB_FORM_ID)<=0) $WEB_FORM_ID = intval($WEB_FORM_ID);
 
-$WEB_FORM_ID = intval($WEB_FORM_ID);
-$RESULT_ID = intval($RESULT_ID);
+$WEB_FORM_ID = intval($_REQUEST['WEB_FORM_ID'] ?? 0);
+$RESULT_ID = intval($_REQUEST['RESULT_ID'] ?? 0);
 
 if ($RESULT_ID > 0)
 {
@@ -334,7 +334,7 @@ if ($can_edit) :
 
 	$arUser = null;
 	$rsUser = null;
-	if (intval($arrVALUES['USER_ID'] <= 0))
+	if (intval($arrVALUES['USER_ID'] ?? 0) <= 0)
 	{
 		if ($RESULT_ID > 0)
 		{

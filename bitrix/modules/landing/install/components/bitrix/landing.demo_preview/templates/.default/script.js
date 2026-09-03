@@ -3,7 +3,6 @@
 
 	BX.namespace("BX.Landing");
 
-	var slice = BX.Landing.Utils.slice;
 	var proxy = BX.Landing.Utils.proxy;
 	var bind = BX.Landing.Utils.bind;
 	var addClass = BX.Landing.Utils.addClass;
@@ -19,32 +18,36 @@
 	 */
 	BX.Landing.TemplatePreview = function(params)
 	{
+		this.previewContainer = document.querySelector(".landing-template-preview");
 		this.closeButton = document.querySelector(".landing-template-preview-close");
 		this.createButton = document.querySelector(".landing-template-preview-create");
-		this.createByImportButton = document.querySelector(".landing-template-preview-create-by-import");
+		this.headerTitle = document.querySelector(".landing-template-demo-preview-header-title");
 		this.title = document.querySelector(".landing-template-preview-input-title");
 		this.description = document.querySelector(".landing-template-preview-input-description");
-		this.themesPalette = document.querySelector(".landing-template-preview-themes");
-		this.themesSiteColorNode = document.querySelector(".landing-template-preview-site-color");
-		this.themesSiteCustomColorNode = document.querySelector(".landing-demo-preview-custom-color");
 		this.imageContainer = document.querySelector(".preview-desktop-body-image");
 		this.loaderContainer = document.querySelector(".preview-desktop-body-loader-container");
 		this.previewFrame = document.querySelector(".preview-desktop-body-preview-frame");
 		this.baseUrlNode = document.querySelector(".landing-template-preview-base-url");
-		this.siteGroupPalette = document.querySelector(".landing-template-preview-site-group");
 		this.loader = new BX.Loader({});
 		this.messages = params.messages || {};
+		this.tool = params.tool || null;
 		this.loaderText = null;
 		this.progressBar = null;
 		this.IsLoadedFrame = false;
 		this.baseUrl = '';
-		this.color = null;
 		this.ajaxUrl = '';
 		this.ajaxParams = {};
 
 		this.createStore = BX.type.isBoolean(params.createStore)
 						? params.createStore
 						: false;
+		this.createVibe = BX.type.isBoolean(params.createVibe)
+			? params.createVibe
+			: false;
+		this.isVibeExists = BX.type.isBoolean(params.isVibeExists)
+			? params.isVibeExists
+			: false;
+
 		this.disableStoreRedirect = BX.type.isBoolean(params.disableStoreRedirect)
 						? params.disableStoreRedirect
 						: false;
@@ -57,21 +60,26 @@
 		this.zipInstallPath = params.zipInstallPath
 						? params.zipInstallPath
 						: null;
+		this.appCode = params.appCode || null;
 		this.siteId = params.siteId || 0;
 		this.langId = BX.type.isString(params.langId)
 						? params.langId
 						: '';
 		this.folderId = params.folderId || 0;
+		this.replaceLid = params.replaceLid || 0;
+		this.replaceSiteId = params.replaceSiteId || 0;
+		this.isCrmForm = (params.isCrmForm || 'N') === 'Y';
+		this.isKnowledgeBase = (params.isKnowledgeBase || 'N') === 'Y';
 		this.urlPreview = params.urlPreview || '';
 
 		this.onCreateButtonClick = proxy(this.onCreateButtonClick, this);
 		this.onCancelButtonClick = proxy(this.onCancelButtonClick, this);
-		this.onColorPickerThemeSelect = proxy(this.onColorPickerThemeSelect, this);
 		this.onFrameLoad = proxy(this.onFrameLoad, this);
 
-		BX.addCustomEvent('BX.Landing.ColorPickerTheme:onSelectColor', this.onColorPickerThemeSelect);
-
 		this.init();
+
+		this.metrika = new BX.Landing.Metrika(true, this.tool);
+		this.metrika.sendData(this.getMetrikaParams('preview_template', 'success'));
 
 		return this;
 	};
@@ -92,27 +100,8 @@
 		/**
 		 * Initializes template preview elements
 		 */
-		init: function()
+		init: function ()
 		{
-			// themes
-			var colorItems = slice(this.themesPalette.children);
-			if(this.themesSiteColorNode)
-			{
-				colorItems = colorItems.concat(slice(this.themesSiteColorNode.children));
-			}
-			if(this.themesSiteCustomColorNode)
-			{
-				colorItems = colorItems.concat(slice(this.themesSiteCustomColorNode.children));
-			}
-			colorItems.forEach(this.initSelectableItem, this);
-
-			// site group
-			if(this.siteGroupPalette )
-			{
-				var siteGroupItems = slice(this.siteGroupPalette.children);
-				siteGroupItems.forEach(this.initSelectableItem, this);
-			}
-
 			bind(this.previewFrame, "load", this.onFrameLoad);
 			bind(this.closeButton, "click", this.onCancelButtonClick);
 
@@ -122,17 +111,17 @@
 			}
 
 			this.setBaseUrl();
-			this.setDefaultColor();
-			this.showPreview();
+			this.showPreview().then(() => this.focusHeaderTitle());
 			this.buildHeader();
 
-			if (BX.SidePanel.Instance.isReload === true)
+			if (top.BX.SidePanel.Instance.isReload === true)
 			{
 				this.createButton.click();
 			}
 		},
 
-		setBaseUrl: function(url) {
+		setBaseUrl: function (url)
+		{
 			if (url === undefined)
 			{
 				this.baseUrl = data(this.baseUrlNode, "data-base-url");
@@ -143,75 +132,24 @@
 			}
 		},
 
-		setColor: function(theme) {
-			if (theme !== undefined)
-			{
-				this.color = theme;
-			}
-		},
-
-		setDefaultColor: function()
+		createPreviewUrl: function ()
 		{
-			if (this.getActiveColorNode())
-			{
-				this.color = data(this.getActiveColorNode(), "data-value");
-			}
-		},
-
-		getColor: function()
-		{
-			return this.color;
-		},
-
-		createPreviewUrl: function() {
 			var queryParams = {};
 			if (!this.baseUrl)
 			{
 				this.setBaseUrl();
 			}
 
-			if (this.getColor())
-			{
-				queryParams = {color: this.getColor()};
-			}
-
 			return addQueryParams(this.baseUrl, queryParams);
 		},
 
-		onFrameLoad: function() {
+		onFrameLoad: function ()
+		{
 			if (this.createStore)
 			{
-				new BX.Landing.SaveBtn(document.querySelector(".landing-template-preview-create"));
+				new BX.Landing.SaveBtn(this.createButton);
 			}
 			this.IsLoadedFrame = true;
-		},
-
-		/**
-		 *
-		 * @returns {HTMLElement|null}
-		 */
-		getActiveColorNode: function()
-		{
-			var active = this.themesPalette.querySelector(".active");
-			if (!active && this.themesSiteColorNode)
-			{
-				active = this.themesSiteColorNode.querySelector(".active");
-			}
-			if (!active && this.themesSiteCustomColorNode)
-			{
-				active = this.themesSiteCustomColorNode.querySelector(".active");
-			}
-
-			return active;
-		},
-
-		/**
-		 *
-		 * @returns {HTMLElement}
-		 */
-		getActiveSiteGroupItem: function()
-		{
-			return this.siteGroupPalette.querySelector(".active");
 		},
 
 		/**
@@ -219,9 +157,9 @@
 		 * @param {?string} src
 		 * @return {Promise<T>}
 		 */
-		showPreview: function(src)
+		showPreview: function (src)
 		{
-			if(src === undefined)
+			if (src === undefined)
 			{
 				src = this.createPreviewUrl();
 			}
@@ -232,7 +170,8 @@
 				.then(this.hideLoader());
 		},
 
-		buildHeader: function() {
+		buildHeader: function ()
+		{
 			var qrContainer = BX.create('div');
 			new QRCode(qrContainer, {
 				text: this.urlPreview,
@@ -244,47 +183,55 @@
 			this.showPopupButton = document.querySelector(".mobile-view");
 			if (this.showPopupButton)
 			{
+				const popupContent = BX.create('div', {
+					props: {className: 'landing-popup-preview-content'},
+					attrs: {tabindex: '-1', 'data-testid': 'landing-demo-preview-qr-popup'},
+					children: [
+						BX.create('div', {
+							props: {className: 'landing-popup-preview-title'},
+							text: this.messages.LANDING_TPL_POPUP_TITLE
+						}),
+						BX.create('div', {
+							props: {className: 'landing-popup-preview-qr'},
+							children: [
+								qrContainer
+							],
+						}),
+						BX.create('div', {
+							props: {className: 'landing-popup-preview-text'},
+							text: this.messages.LANDING_TPL_POPUP_TEXT
+						}),
+					]
+				});
+
 				var popupPreview = BX.PopupWindowManager.create(
 					'landing-popup-preview',
 					this.showPopupButton,
 					{
-					content: BX.create('div', {
-						props: { className: 'landing-popup-preview-content' },
-						children: [
-							BX.create('div', {
-								props: { className: 'landing-popup-preview-title' },
-								text: this.messages.LANDING_TPL_POPUP_TITLE
-							}),
-							BX.create('div', {
-								props: { className: 'landing-popup-preview-qr' },
-								children: [
-									qrContainer
-								],
-							}),
-							BX.create('div', {
-								props: { className: 'landing-popup-preview-text' },
-								text: this.messages.LANDING_TPL_POPUP_TEXT
-							}),
-						]
-					}),
-					closeIcon : true,
-					closeByEsc : true,
-					noAllPaddings : true,
-					autoHide: true,
-					animation: 'fading-slide',
-					angle: {
-						position: "top",
-						offset: 75
-					},
-					minWidth: 375,
-					maxWidth: 375,
-					contentBackground: "transparent",
-				}
+						content: popupContent,
+						closeIcon: true,
+						closeByEsc: true,
+						noAllPaddings: true,
+						autoHide: true,
+						animation: 'fading-slide',
+						angle: {
+							position: "top",
+							offset: 75
+						},
+						minWidth: 375,
+						maxWidth: 375,
+						contentBackground: "transparent",
+						ariaLabel: this.messages.LANDING_TPL_POPUP_TITLE,
+						events: {
+							onPopupShow: () => this.onPopupPreviewShow(popupContent),
+							onPopupClose: () => this.onPopupPreviewClose(popupContent),
+						},
+					}
 				);
 
 				this.showPopupButton.addEventListener(
 					'click',
-					function()
+					function ()
 					{
 						popupPreview.toggle();
 					});
@@ -292,20 +239,60 @@
 		},
 
 		/**
+		 * Moves the focus onto the heading of the shown template.
+		 * The slider claims the focus for its own container while the frame is loading, so the heading
+		 * is only taken once the preview is ready and while nothing here has been focused yet.
+		 */
+		focusHeaderTitle: function ()
+		{
+			const active = document.activeElement;
+			if (this.headerTitle && (active === null || active === document.body))
+			{
+				this.headerTitle.focus({preventScroll: true});
+			}
+		},
+
+		/**
+		 * @param {HTMLElement} popupContent
+		 */
+		onPopupPreviewShow: function (popupContent)
+		{
+			popupContent.focus({preventScroll: true});
+		},
+
+		/**
+		 * @param {HTMLElement} popupContent
+		 */
+		onPopupPreviewClose: function (popupContent)
+		{
+			// the popup also closes on a click elsewhere: the focus is only taken back when it was inside
+			if (popupContent.contains(document.activeElement))
+			{
+				this.showPopupButton.focus();
+			}
+		},
+
+		/**
 		 * Creates frame if needed
 		 * @return {Function}
 		 */
-		createFrameIfNeeded: function()
+		createFrameIfNeeded: function ()
 		{
-			return function()
+			return function ()
 			{
-				return new Promise(function(resolve) {
-					var createFrame = function() {
+				return new Promise(function (resolve)
+				{
+					var createFrame = function ()
+					{
 						if (!this.previewFrame)
 						{
 							this.previewFrame = BX.create('iframe', {
 								props: {
 									className: 'preview-desktop-body-preview-frame'
+								},
+								attrs: {
+									title: this.messages.LANDING_TPL_PREVIEW_FRAME_TITLE,
+									'data-testid': 'landing-demo-preview-frame'
 								}
 							});
 
@@ -315,9 +302,18 @@
 
 						if (!this.previewFrame.style.width)
 						{
+							let previewFrameHeaderHeight = '69';
+							if (this.previewContainer)
+							{
+								const mainpagePreview = this.previewContainer.querySelector('.--main-page');
+								if (mainpagePreview)
+								{
+									previewFrameHeaderHeight = '132';
+								}
+							}
 							void style(this.previewFrame, {
 								"width": "100%",
-								"height": "calc(100vh - 69px)",
+								"height": `calc(100vh - ${previewFrameHeaderHeight}px)`,
 								"border": "none"
 							});
 						}
@@ -342,15 +338,17 @@
 		 * @param {string} src
 		 * @return {Function}
 		 */
-		loadPreview: function(src)
+		loadPreview: function (src)
 		{
-			return function()
+			return function ()
 			{
-				return new Promise(function(resolve) {
+				return new Promise(function (resolve)
+				{
 					if (this.previewFrame.src !== src)
 					{
 						this.previewFrame.src = src;
-						this.previewFrame.onload = function() {
+						this.previewFrame.onload = function ()
+						{
 							resolve(this.previewFrame);
 						}.bind(this);
 						return;
@@ -365,9 +363,10 @@
 		 * Shows preview loader
 		 * @return {Promise}
 		 */
-		showLoader: function()
+		showLoader: function ()
 		{
-			return new Promise(function(resolve) {
+			return new Promise(function (resolve)
+			{
 				void this.loader.show(this.loaderContainer);
 				addClass(this.imageContainer, "landing-template-preview-overlay");
 				resolve();
@@ -378,11 +377,12 @@
 		 * Hides loader
 		 * @return {Function}
 		 */
-		hideLoader: function()
+		hideLoader: function ()
 		{
-			return function(iframe)
+			return function (iframe)
 			{
-				return new Promise(function(resolve) {
+				return new Promise(function (resolve)
+				{
 					void this.loader.hide();
 					removeClass(this.imageContainer, "landing-template-preview-overlay");
 					resolve(iframe);
@@ -395,13 +395,14 @@
 		 * @param delay
 		 * @return {Function}
 		 */
-		delay: function(delay)
+		delay: function (delay)
 		{
 			delay = isNumber(delay) ? delay : 0;
 
-			return function(image)
+			return function (image)
 			{
-				return new Promise(function(resolve) {
+				return new Promise(function (resolve)
+				{
 					setTimeout(resolve.bind(null, image), delay);
 				});
 			}
@@ -411,26 +412,10 @@
 		 * Gets value
 		 * @return {Object}
 		 */
-		getValue: function()
+		getValue: function ()
 		{
 			var result = {};
 
-			if (this.getActiveColorNode())
-			{
-				if (this.themesSiteColorNode && this.getActiveColorNode().parentElement === this.themesSiteColorNode)
-				{
-					result[this.themesSiteColorNode.dataset.name] = this.getActiveColorNode().dataset.value;
-				}
-				if (this.siteGroupPalette)
-				{
-					result[this.siteGroupPalette.dataset.name] = this.getActiveSiteGroupItem().dataset.value;
-				}
-				result[this.themesPalette.dataset.name] = this.getActiveColorNode().dataset.value;
-				if (this.themesSiteCustomColorNode)
-				{
-					result[this.themesPalette.dataset.name] = this.getActiveColorNode().dataset.value;
-				}
-			}
 			result[this.title.dataset.name] = this.title.value.replaceAll('&', '').replaceAll('?', '');
 			result[this.description.dataset.name] = this.description.value;
 
@@ -441,16 +426,24 @@
 		 * Makes create url
 		 * @return {string}
 		 */
-		getCreateUrl: function()
+		getCreateUrl: function ()
 		{
-			return addQueryParams(this.createButton.getAttribute("href"), this.getValue());
+			const values = this.getValue();
+			values.newLanding = 'Y';
+
+			// the store branch is a button: it carries its target in data-href instead of href
+			const url = this.createButton.getAttribute("href")
+				|| this.createButton.getAttribute("data-href")
+				|| '';
+
+			return addQueryParams(url, values);
 		},
 
 		/**
 		 * Handles click event on close button
 		 * @param {MouseEvent} event
 		 */
-		onCancelButtonClick: function(event)
+		onCancelButtonClick: function (event)
 		{
 			event.preventDefault();
 			top.BX.SidePanel.Instance.close();
@@ -460,45 +453,50 @@
 		 * Handles click event on create button
 		 * @param {MouseEvent} event
 		 */
-		onCreateButtonClick: function(event)
+		onCreateButtonClick: function (event)
 		{
 			event.preventDefault();
 
-			if (BX.Dom.hasClass(this.createButton.parentNode, 'needed-market-subscription'))
+			if (this.messageBox && this.messageBox.popupWindow.isShown())
 			{
-				top.BX.UI.InfoHelper.show('limit_subscription_market_templates');
-				const promise = new Promise(function(resolve) {
-					setInterval(
-						() => {
-							if (BX.Dom.hasClass(this.createButton, 'ui-btn-clock'))
-							{
-								resolve();
-							}
-						},
-						500
-					);
-				}.bind(this));
-				promise.then(() => {
-					BX.Dom.removeClass(this.createButton, 'ui-btn-clock');
-					BX.Dom.attr(this.createButton, 'style', '');
-				});
 				return;
 			}
 
-			const metrika = new BX.Landing.Metrika(true);
-			metrika.sendLabel(
-				null,
-				'createTemplate',
-				event.target.href
-			);
+			if (BX.Dom.hasClass(this.createButton.parentNode, 'needed-market-subscription'))
+			{
+				const metrikaParams = this.getMetrikaParams(this.getMetrikaCreateEvent(), 'error_market');
+				metrikaParams.p5 = ['errorType', 'need_market_subscription'];
+				this.metrika.sendData(metrikaParams);
+
+				top.BX.UI.InfoHelper.show('limit_subscription_market_access_buy_marketplus');
+				new Promise(resolve => {
+					const timerId = setInterval(() => {
+						if (BX.Dom.hasClass(this.createButton, 'ui-btn-clock'))
+			 			{
+							clearInterval(timerId);
+							resolve();
+						}
+					}, 500);
+				})
+				.then(() => {
+					BX.Dom.removeClass(this.createButton, 'ui-btn-clock');
+					BX.Dom.attr(this.createButton, 'style', '');
+				});
+
+				return;
+			}
 
 			if (this.isStore() && this.IsLoadedFrame)
 			{
-				this.loaderText = BX.create("div", { props: { className: "landing-template-preview-loader-text"},
-					text: this.messages.LANDING_LOADER_WAIT});
+				this.loaderText = BX.create('div', {
+					props: {
+						className: 'landing-template-preview-loader-text',
+					},
+					text: this.messages.LANDING_LOADER_WAIT,
+				});
 
 				this.progressBar = new BX.UI.ProgressBar({
-					column: true
+					column: true,
 				});
 
 				this.progressBar.getContainer().classList.add("ui-progressbar-landing-preview");
@@ -511,7 +509,8 @@
 			{
 				if (this.IsLoadedFrame)
 				{
-					this.showLoader().then(() => {
+					this.showLoader().then(() =>
+					{
 						this.initCatalogParams();
 						this.createCatalog();
 					});
@@ -519,20 +518,153 @@
 			}
 			else if (this.zipInstallPath)
 			{
-				this.finalRedirectAjax(
-					this.getCreateUrl()
-				);
+				if (
+					this.isVibe()
+					&& this.isVibeExists
+				)
+				{
+					let isClickOnButtonOk = false;
+					BX.Runtime.loadExtension('ui.dialogs.messagebox').then(() => {
+						this.messageBox = new BX.UI.Dialogs.MessageBox({
+							message: this.messages.LANDING_PREVIEW_MAINPAGE_MESSAGE,
+							title: this.messages.LANDING_PREVIEW_MAINPAGE_TITLE,
+							buttons: BX.UI.Dialogs.MessageBoxButtons.OK_CANCEL,
+							okCaption: this.messages.LANDING_PREVIEW_MAINPAGE_BUTTON_OK_TEXT,
+							cancelCaption: this.messages.LANDING_PREVIEW_MAINPAGE_BUTTON_CANCEL_TEXT,
+							useAirDesign: true,
+							onOk: () => {
+								isClickOnButtonOk = true;
+								this.finalRedirectAjax(this.getCreateUrl());
+
+								return true;
+							},
+							onCancel: () => {
+								BX.Dom.removeClass(this.createButton, 'ui-btn-clock');
+								BX.Dom.attr(this.createButton, 'style', '');
+
+								return true;
+							},
+							popupOptions: {
+								bindElement: BX('popup-window-titlebar-close-icon'),
+								offsetLeft: 20,
+								closeIcon: true,
+								events: {
+									onPopupClose: () => {
+										if (!isClickOnButtonOk)
+										{
+											BX.Dom.removeClass(this.createButton, 'ui-btn-clock');
+											BX.Dom.attr(this.createButton, 'style', '');
+										}
+
+										return true;
+									},
+								},
+							},
+						});
+						this.messageBox.show();
+						if (this.messageBox.popupWindow && this.messageBox.popupWindow.popupContainer)
+						{
+							this.messageBox.popupWindow.popupContainer.classList.add('landing-template-preview-create-popup');
+						}
+					});
+				}
+				else
+				{
+					this.finalRedirectAjax(this.getCreateUrl());
+				}
 			}
 			else
 			{
 				this.showLoader()
 					.then(this.delay(200))
-					.then(function() {
-						this.finalRedirectAjax(
-							this.getCreateUrl()
-						);
-					}.bind(this));
+					.then(() => {
+						this.finalRedirectAjax(this.getCreateUrl());
+					});
 			}
+		},
+
+		/**
+		 * @param {string} event - analytic event param
+		 * @param {'success'|'attempt'|'error'} status
+		 * @return {{
+		 *  [category]: string,
+		 * 	[event]: string,
+		 * 	[c_section]: string|null,
+		 * 	[c_sub_section]: string|null,
+		 *  [c_element]: string|null,
+		 *  [params]: {object},
+		 * }}
+		 */
+		getMetrikaParams: function (event, status)
+		{
+			/**
+			 * @see \Bitrix\Landing\Metrika\Tools
+			 */
+			let tool = 'site';
+			if (this.tool === null)
+			{
+				if (this.isCrmForm)
+				{
+					tool = 'crm_forms';
+				}
+				else if (this.isStore())
+				{
+					tool = 'shop';
+				}
+				else if (this.isKnowledgeBase)
+				{
+					tool = 'kb';
+				}
+			else if (this.isVibe())
+				{
+					tool = 'vibe';
+				}
+			}
+			else
+			{
+				tool = this.tool;
+			}
+
+			const category = tool;
+
+			const metrikaParams = {
+				tool,
+				category,
+				event,
+				type: 'template',
+				status,
+			};
+
+			if (this.appCode)
+			{
+				metrikaParams.p1 = [
+					'appCode', this.appCode,
+				];
+			}
+
+			if (this.isVibe())
+			{
+				delete metrikaParams.type;
+			}
+			else
+			{
+				metrikaParams.c_section = 'site';
+				if (this.siteId !== 0)
+				{
+					metrikaParams.c_section = 'page';
+				}
+			}
+
+			return metrikaParams;
+		},
+
+		/**
+		 * Create event name for template creating
+		 * @returns {string}
+		 */
+		getMetrikaCreateEvent: function()
+		{
+			return this.isCrmForm ? 'replace_template' : 'create_template';
 		},
 
 		/**
@@ -564,7 +696,9 @@
 				'dataType': 'json',
 				'url': this.ajaxUrl,
 				'data':  BX.ajax.prepareData(this.ajaxParams),
-				'onsuccess': BX.proxy(this.createCatalogResult, this)
+				'onsuccess': (result) => {
+					this.createCatalogResult(result);
+				},
 			})
 		},
 
@@ -595,15 +729,42 @@
 		{
 			if (this.zipInstallPath)
 			{
-				let add = [];
+				let add = {};
 				const value = this.getValue();
 				for (let name in value)
 				{
 					add['additional[' + name + ']'] = value[name];
 				}
 
-				add['additional[siteId]'] = this.siteId;
-				add['additional[folderId]'] = this.folderId;
+				add['additional[appCode]'] = this.appCode;
+
+				[
+					'siteId',
+					'replaceLid',
+					'replaceSiteId',
+					'folderId',
+				].forEach((param) => {
+					if (this[param] > 0)
+					{
+						add[`additional[${param}]`] = this[param];
+					}
+				});
+
+				const metrikaParams = this.getMetrikaParams(this.getMetrikaCreateEvent(), 'success');
+
+				add['additional[st_tool]'] = metrikaParams.tool;
+				add['additional[st_category]'] = metrikaParams.category;
+				add['additional[st_event]'] = metrikaParams.event;
+				if (metrikaParams.c_section)
+				{
+					add['additional[st_section]'] = metrikaParams.c_section;
+				}
+				if (metrikaParams.c_element)
+				{
+					add['additional[st_element]'] = metrikaParams.c_element;
+				}
+
+				// 'form' is for analytic
 				add['from'] = this.createParamsStrFromUrl(url);
 
 				if (this.adminSection && this.langId !== '')
@@ -621,63 +782,49 @@
 						this.loader.show(popupImportLoaderContainer);
 						BX.Dom.addClass(previewFrame, 'landing-import-start');
 					}
-					add['inSlider'] = 'N';
+					add['IFRAME'] = 'Y';
 					if (this.siteId !== 0)
 					{
 						add['createType'] = 'PAGE';
 					}
-					let interval;
-					BX.ajax({
-						method: 'POST',
-						dataType: 'html',
-						url: addQueryParams(this.zipInstallPath, add),
-						onsuccess: data => {
-							const promise = new Promise((resolve, reject) => {
-								const result = BX.Dom.create('div', {html: data});
-								BX.Dom.style(result, 'display', 'none');
-								popupImport.append(result);
-								let restImportElement;
-								let count = 0;
-								interval = setInterval(
-									() => {
-										if (count > 100)
-										{
-											reject(new Error('Time is up'));
-										}
-										restImportElement = result.querySelector('.rest-configuration-wrapper');
-										if (restImportElement !== null)
-										{
-											resolve(restImportElement);
-										}
-										count++;
-									},
-									300
-								);
-							});
-							promise.then(
-								result => {
-									clearInterval(interval);
-									if (BX.Dom.hasClass(result, 'rest-configuration-wrapper'))
-									{
-										const importTitle = result.querySelector('.rest-configuration-title');
-										const importIconContainer = result.querySelector('.rest-configuration-start-icon-main-container');
-										if (importTitle && importIconContainer)
-										{
-											BX.Dom.remove(importTitle);
-											BX.Dom.insertBefore(importTitle, importIconContainer.nextSibling);
-										}
-										this.loader.hide();
-										BX.Dom.append(result, popupImport);
-										BX.Dom.style(popupImportLoaderContainer, 'display', 'none');
-									}
-								},
-								error => {
-									clearInterval(interval);
-									this.addRepeatCreateButton();
+					BX.ajax.get(
+						addQueryParams(this.zipInstallPath, add),
+						(data) => {
+							const resultNode = BX.Dom.create('div', {html: data});
+
+							const restNode = resultNode.querySelector('.rest-configuration-wrapper');
+							if (restNode)
+							{
+								const importTitle = restNode.querySelector('.rest-configuration-title');
+								const importIconContainer = restNode.querySelector(
+									'.rest-configuration-start-icon-main-container');
+								if (importTitle && importIconContainer)
+								{
+									BX.Dom.remove(importTitle);
+									BX.Dom.insertBefore(importTitle, importIconContainer.nextSibling);
 								}
-							);
-						}
-					});
+
+								popupImport.append(restNode);
+							}
+
+							const toolbarNode = resultNode.querySelector('.ui-toolbar');
+							if (toolbarNode)
+							{
+								toolbarNode.hidden = true;
+								popupImport.append(toolbarNode);
+							}
+
+							if (restNode)
+							{
+								BX.Dom.style(popupImportLoaderContainer, 'display', 'none');
+								this.loader.hide();
+							}
+							else
+							{
+								this.addRepeatCreateButton();
+							}
+						},
+					);
 				}
 			}
 			else if (this.disableStoreRedirect)
@@ -725,53 +872,9 @@
 			{
 				BX.Dom.addClass(popupImportError, 'hide');
 			}
-			const createButton = document.querySelector(".landing-template-preview-create");
-			if (createButton)
+			if (this.createButton)
 			{
-				createButton.click();
-			}
-		},
-
-		/**
-		 * Initializes selectable items
-		 * @param {HTMLElement} item
-		 */
-		initSelectableItem: function(item)
-		{
-			bind(item, "click", proxy(this.onSelectableItemClick, this));
-		},
-
-		/**
-		 * Handles click on selectable item
-		 * @param event
-		 */
-		onSelectableItemClick: function(event)
-		{
-			event.preventDefault();
-
-			// themes
-			if (
-				event.currentTarget.parentElement === this.themesPalette ||
-				(this.themesSiteColorNode && event.currentTarget.parentElement === this.themesSiteColorNode)
-			)
-			{
-				if (this.getActiveColorNode())
-				{
-					this.getActiveColorNode().classList.remove("active");
-				}
-				addClass(event.currentTarget, "active");
-
-				this.setColor(data(event.currentTarget, 'data-value'));
-				this.showPreview();
-			}
-
-			// site group
-			if (event.currentTarget.parentElement === this.siteGroupPalette)
-			{
-				removeClass(this.getActiveSiteGroupItem(), "active");
-				addClass(event.currentTarget, "active");
-				this.setBaseUrl(data(event.currentTarget, 'data-base-url'));
-				this.showPreview();
+				this.createButton.click();
 			}
 		},
 
@@ -780,43 +883,9 @@
 			return this.createStore;
 		},
 
-		onColorPickerThemeSelect: function(params)
+		isVibe: function()
 		{
-			[
-				this.themesPalette,
-				this.themesSiteCustomColorNode,
-				this.themesSiteColorNode
-			].forEach(function(control) {
-				if (control)
-				{
-					BX.removeClass(control.querySelector('.active'), 'active');
-				}
-			});
-			params.data.node.classList.add("active");
-
-
-			var loader = new BX.Loader({});
-			var loaderContainer = document.querySelector(".preview-desktop-body-loader-container");
-			loader.show(loaderContainer);
-			var imageContainer = document.querySelector(".preview-desktop-body-image");
-			addClass(imageContainer, "landing-template-preview-overlay");
-
-			var frame = document.querySelector('.preview-desktop-body-preview-frame');
-			if (frame)
-			{
-				var url = new URL(frame.getAttribute('src'));
-				var search = new URLSearchParams(url.search);
-				search.set('color', params.data.color.substr(1));
-				url.search = search.toString();
-
-				frame.setAttribute('src', url.toString());
-				setTimeout(hideFrameLoader, 1600);
-			}
-
-			function hideFrameLoader() {
-				loader.hide();
-				removeClass(imageContainer, "landing-template-preview-overlay");
-			}
+			return this.createVibe;
 		},
 
 		createParamsStrFromUrl(url)

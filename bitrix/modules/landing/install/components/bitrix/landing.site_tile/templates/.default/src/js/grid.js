@@ -1,9 +1,16 @@
-import { Tag } from 'main.core';
+import { Tag, Runtime } from 'main.core';
 import 'ui.design-tokens';
 import Item from './item';
 import ItemMarketing from './itemMarketing';
 import Scroller from './scroller';
+import PopupCopilot, { DEFAULT_AI_URL } from './popupCopilot';
+import { LandingSitesAiInput } from './input';
+import { LandingSitesAiSlider } from './slider';
+import { LandingSitesAiFirstVisitTooltip } from './ai-first-visit-tooltip';
 import '../css/landing.site.tile.css';
+import { Metrika } from 'landing.metrika';
+
+export { LandingSitesAiInput, LandingSitesAiSlider, LandingSitesAiFirstVisitTooltip };
 
 export class SiteTile
 {
@@ -16,6 +23,42 @@ export class SiteTile
 		this.siteTileItems = [];
 		this.$container = null;
 		this.scroller = null;
+		this.createByCopilotText = options.createByCopilotText || null;
+		this.copilotGeneratedText = options.copilotGeneratedText || null;
+		this.copilotPopupAiUrl = options.copilotPopupAiUrl || DEFAULT_AI_URL;
+		let videoSrc = '/bitrix/components/bitrix/landing.site_tile/templates/.default/video/en/siteWithCopilot.webm';
+		this.zone = options.zone || null;
+		if (options.lang === 'ru')
+		{
+			videoSrc = '/bitrix/components/bitrix/landing.site_tile/templates/.default/video/ru/siteWithCopilot.webm';
+		}
+
+		if (options.isNeedCreateCopilotPopup)
+		{
+			Runtime.loadExtension(['ui.banner-dispatcher'])
+				.then((exports) => {
+					const { BannerDispatcher } = exports;
+					BannerDispatcher.high.toQueue((onDone) => {
+						const metrika = new Metrika(true);
+						metrika.sendData({
+							category: 'site',
+							event: 'creating_scenario_hint_show',
+							type: 'preset',
+						});
+
+						this.popupCopilot = new PopupCopilot({
+							id: 'popupCopilot',
+							videoSrc,
+							zone: this.zone,
+							aiUrl: this.copilotPopupAiUrl,
+						});
+						this.popupCopilot.showPopup(1000);
+						this.popupCopilot.getPopup().subscribe('onAfterClose', () => {
+							onDone();
+						});
+					});
+				}).catch(() => {});
+		}
 		this.setData(this.items);
 		this.init();
 	}
@@ -62,8 +105,13 @@ export class SiteTile
 				menuBottomItems: item.menuBottomItems || null,
 				notPublishedText: this.notPublishedText || null,
 				access: item.access || {},
+				error: item.error || {},
 				articles: item.articles || null,
 				grid: this,
+				copilotProcess: item.copilotProcess,
+				isCreatedByAiScenario: item.isCreatedByAiScenario === true,
+				createByCopilotText: this.createByCopilotText,
+				copilotGeneratedText: this.copilotGeneratedText,
 			});
 		});
 
@@ -74,7 +122,9 @@ export class SiteTile
 	{
 		if (!this.$container)
 		{
-			this.$container = Tag.render`<div class="landing-sites__grid landing-sites__scope"></div>`;
+			this.$container = Tag.render`
+				<div class="landing-sites__grid landing-sites__scope" role="list"></div>
+			`;
 
 			for (let i = 0; i < this.siteTileItems.length; i++)
 			{

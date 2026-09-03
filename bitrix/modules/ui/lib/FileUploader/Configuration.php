@@ -3,8 +3,9 @@
 namespace Bitrix\UI\FileUploader;
 
 use Bitrix\Main\Config\Ini;
+use Bitrix\Main\Result;
 
-class Configuration
+class Configuration implements \JsonSerializable
 {
 	protected ?int $maxFileSize = 256 * 1024 * 1024;
 	protected int $minFileSize = 0;
@@ -17,7 +18,145 @@ class Configuration
 	protected int $imageMaxHeight = 7000;
 	protected ?int $imageMaxFileSize = 48 * 1024 * 1024;
 	protected int $imageMinFileSize = 0;
+	protected bool $treatOversizeImageAsFile = false;
 	protected bool $ignoreUnknownImageTypes = false;
+
+	private static ?array $globalSettings = null;
+	private static ?int $phpMaxUploadSize = null;
+	private static ?int $chunkMinSize = null;
+	private static ?int $chunkMaxSize = null;
+	private static ?int $defaultChunkSize = null;
+	private static int $megabyte = 1024 * 1024;
+
+	public static function isCloud(): bool
+	{
+		return \Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24') && defined('BX24_HOST_NAME');
+	}
+
+	public static function getPhpMaxUploadSize(): int
+	{
+		if (static::$phpMaxUploadSize === null)
+		{
+			static::$phpMaxUploadSize = min(Ini::getInt('post_max_size'), Ini::getInt('upload_max_filesize'));
+		}
+
+		return static::$phpMaxUploadSize;
+	}
+
+	public static function getChunkMinSize(): int
+	{
+		if (static::$chunkMinSize === null)
+		{
+			$settings = static::getGlobalSettings();
+			$chunkMinSize = static::isCloud() ? 5 * static::$megabyte : static::$megabyte;
+			$chunkMinSize = isset($settings['chunkMinSize']) ? Ini::unformatInt($settings['chunkMinSize']) : $chunkMinSize;
+			$chunkMinSize = min($chunkMinSize, static::getChunkMaxSize());
+
+			static::$chunkMinSize = $chunkMinSize;
+		}
+
+		return static::$chunkMinSize;
+	}
+
+	public static function getChunkMaxSize(): int
+	{
+		if (static::$chunkMaxSize === null)
+		{
+			$settings = static::getGlobalSettings();
+			$chunkMaxSize = static::isCloud() ? 100 * static::$megabyte : static::getPhpMaxUploadSize();
+			$chunkMaxSize = isset($settings['chunkMaxSize']) ? Ini::unformatInt($settings['chunkMaxSize']) : $chunkMaxSize;
+			$chunkMaxSize = min($chunkMaxSize, static::getPhpMaxUploadSize());
+
+			static::$chunkMaxSize = $chunkMaxSize;
+		}
+
+		return static::$chunkMaxSize;
+	}
+
+	public static function getDefaultChunkSize(): int
+	{
+		if (static::$defaultChunkSize === null)
+		{
+			$settings = static::getGlobalSettings();
+			$defaultChunkSize = 10 * static::$megabyte;
+			$defaultChunkSize = isset($settings['defaultChunkSize']) ? Ini::unformatInt($settings['defaultChunkSize']) : $defaultChunkSize;
+			$defaultChunkSize = min(max(static::getChunkMinSize(), $defaultChunkSize), static::getChunkMaxSize());
+
+			static::$defaultChunkSize = $defaultChunkSize;
+		}
+
+		return static::$defaultChunkSize;
+	}
+
+	public static function isParallelChunkUploadEnabled(): bool
+	{
+		if (strncasecmp(PHP_OS, 'WIN', 3) === 0)
+		{
+			return false;
+		}
+
+		$settings = static::getGlobalSettings();
+
+		return isset($settings['parallelChunkUpload']) && (bool)$settings['parallelChunkUpload'];
+	}
+
+	public static function getMaxParallelChunks(): int
+	{
+		$settings = static::getGlobalSettings();
+		$value = isset($settings['maxParallelChunks']) ? (int)$settings['maxParallelChunks'] : 2;
+
+		return max(1, $value);
+	}
+
+	public static function isPresignedChunkUploadEnabled(): bool
+	{
+		if (!\Bitrix\Main\ModuleManager::isModuleInstalled('clouds'))
+		{
+			return false;
+		}
+
+		$settings = static::getGlobalSettings();
+
+		return isset($settings['presignedChunkUpload']) && (bool)$settings['presignedChunkUpload'];
+	}
+
+	public static function getPresignedThreshold(): ?int
+	{
+		$settings = static::getGlobalSettings();
+		if (!isset($settings['presignedThreshold']))
+		{
+			return null;
+		}
+
+		$value = Ini::unformatInt($settings['presignedThreshold']);
+
+		return $value > 0 ? $value : null;
+	}
+
+	public static function getPresignedUrlTtl(): int
+	{
+		$settings = static::getGlobalSettings();
+		$value = isset($settings['presignedUrlTtl']) ? (int)$settings['presignedUrlTtl'] : 1800;
+
+		// AWS allows up to 7 days for SigV4-signed URLs; cap to a sane range.
+		return max(60, min($value, 7 * 24 * 3600));
+	}
+
+	public static function getPresignedUrlBatchLimit(): int
+	{
+		$settings = static::getGlobalSettings();
+		$value = isset($settings['presignedUrlBatchLimit']) ? (int)$settings['presignedUrlBatchLimit'] : 100;
+
+		return max(1, $value);
+	}
+
+	public static function getPresignedRegisterInterval(): int
+	{
+		$settings = static::getGlobalSettings();
+		$value = isset($settings['presignedRegisterInterval']) ? (int)$settings['presignedRegisterInterval'] : 15000;
+
+		return max(0, $value);
+	}
 
 	public function __construct(array $options = [])
 	{
@@ -60,18 +199,107 @@ class Configuration
 		{
 			$this->setIgnoreUnknownImageTypes($options['ignoreUnknownImageTypes']);
 		}
+
+		if (isset($options['treatOversizeImageAsFile']) && is_bool($options['treatOversizeImageAsFile']))
+		{
+			$this->setTreatOversizeImageAsFile($options['treatOversizeImageAsFile']);
+		}
 	}
 
 	public static function getGlobalSettings(): array
 	{
-		$settings = [];
-		$configuration = \Bitrix\Main\Config\Configuration::getValue('ui');
-		if (isset($configuration['uploader']['settings']) && is_array($configuration['uploader']['settings']))
+		if (static::$globalSettings === null)
 		{
-			$settings = $configuration['uploader']['settings'];
+			static::$globalSettings = [];
+			$configuration = \Bitrix\Main\Config\Configuration::getValue('ui');
+			if (isset($configuration['uploader']['settings']) && is_array($configuration['uploader']['settings']))
+			{
+				static::$globalSettings = $configuration['uploader']['settings'];
+			}
 		}
 
-		return $settings;
+		return static::$globalSettings;
+	}
+
+	public function shouldTreatImageAsFile(FileData | array $fileData): bool
+	{
+		if (!$this->shouldTreatOversizeImageAsFile())
+		{
+			return false;
+		}
+
+		if (!$fileData->isImage())
+		{
+			return true;
+		}
+
+		$result = $this->validateImage($fileData);
+
+		return !$result->isSuccess();
+	}
+
+	public function validateImage(FileData $fileData): Result
+	{
+		$result = new Result();
+
+		if (($fileData->getWidth() === 0 || $fileData->getHeight() === 0) && !$this->getIgnoreUnknownImageTypes())
+		{
+			return $result->addError(new UploaderError(UploaderError::IMAGE_TYPE_NOT_SUPPORTED));
+		}
+
+		if ($this->getImageMaxFileSize() !== null && $fileData->getSize() > $this->getImageMaxFileSize())
+		{
+			return $result->addError(
+				new UploaderError(
+					UploaderError::IMAGE_MAX_FILE_SIZE_EXCEEDED,
+					[
+						'imageMaxFileSize' => \CFile::formatSize($this->getImageMaxFileSize()),
+						'imageMaxFileSizeInBytes' => $this->getImageMaxFileSize(),
+					]
+				)
+			);
+		}
+
+		if ($fileData->getSize() < $this->getImageMinFileSize())
+		{
+			return $result->addError(
+				new UploaderError(
+					UploaderError::IMAGE_MIN_FILE_SIZE_EXCEEDED,
+					[
+						'imageMinFileSize' => \CFile::formatSize($this->getImageMinFileSize()),
+						'imageMinFileSizeInBytes' => $this->getImageMinFileSize(),
+					]
+				)
+			);
+		}
+
+		if ($fileData->getWidth() < $this->getImageMinWidth() || $fileData->getHeight() < $this->getImageMinHeight())
+		{
+			return $result->addError(
+				new UploaderError(
+					UploaderError::IMAGE_IS_TOO_SMALL,
+					[
+						'minWidth' => $this->getImageMinWidth(),
+						'minHeight' => $this->getImageMinHeight(),
+					]
+				)
+			);
+		}
+
+		if ($fileData->getWidth() > $this->getImageMaxWidth() || $fileData->getHeight() > $this->getImageMaxHeight())
+		{
+			return $result->addError(
+				new UploaderError(
+					UploaderError::IMAGE_IS_TOO_BIG,
+					[
+						'maxWidth' => $this->getImageMaxWidth(),
+						'maxHeight' => $this->getImageMaxHeight(),
+					]
+				)
+			);
+		}
+
+		return $result;
 	}
 
 	public function getMaxFileSize(): ?int
@@ -111,31 +339,66 @@ class Configuration
 	public function setAcceptedFileTypes(array $acceptedFileTypes): self
 	{
 		$this->acceptedFileTypes = $acceptedFileTypes;
+		$this->acceptOnlyImages = false;
 
 		return $this;
 	}
 
 	public function setAcceptOnlyImages(bool $flag = true): self
 	{
-		return $this->acceptOnlyImages($flag);
-	}
-
-	public function acceptOnlyImages(bool $flag = true): self
-	{
-		$imageExtensions = $flag ? static::getImageExtensions() : [];
 		$this->acceptOnlyImages = $flag;
-		$this->setAcceptedFileTypes($imageExtensions);
+
+		if ($flag)
+		{
+			$this->acceptOnlyImages();
+		}
 
 		return $this;
 	}
 
-	public static function getImageExtensions(): array
+	public function acceptOnlyImages(): self
+	{
+		$imageExtensions = static::getImageExtensions();
+		$this->setAcceptedFileTypes($imageExtensions);
+		$this->acceptOnlyImages = true;
+
+		return $this;
+	}
+
+	public static function getImageExtensions(bool $withDot = true): array
 	{
 		$imageExtensions = explode(',', \CFile::getImageExtensions());
 
-		return array_map(function($extension) {
-			return '.' . ltrim($extension);
+		return array_map(function($extension) use($withDot) {
+			return ($withDot ? '.' : '') . trim($extension);
 		}, $imageExtensions);
+	}
+
+	public static function getVideoExtensions(bool $withDot = true): array
+	{
+		$extensions = [
+			'avi',
+			'wmv',
+			'mp4',
+			'mov',
+			'webm',
+			'flv',
+			'm4v',
+			'mkv',
+			'vob',
+			'3gp',
+			'ogv',
+			'h264',
+		];
+
+		if ($withDot)
+		{
+			return array_map(function($extension) {
+				return '.' . $extension;
+			}, $extensions);
+		}
+
+		return $extensions;
 	}
 
 	public function getIgnoredFileNames(): array
@@ -239,5 +502,36 @@ class Configuration
 		$this->ignoreUnknownImageTypes = $flag;
 
 		return $this;
+	}
+
+	public function shouldTreatOversizeImageAsFile(): bool
+	{
+		return $this->treatOversizeImageAsFile;
+	}
+
+	public function setTreatOversizeImageAsFile(bool $flag): self
+	{
+		$this->treatOversizeImageAsFile = $flag;
+
+		return $this;
+	}
+
+	public function jsonSerialize(): array
+	{
+		return [
+			'maxFileSize' => $this->getMaxFileSize(),
+			'minFileSize' => $this->getMinFileSize(),
+			'imageMinWidth' => $this->getImageMinWidth(),
+			'imageMinHeight' => $this->getImageMinHeight(),
+			'imageMaxWidth' => $this->getImageMaxWidth(),
+			'imageMaxHeight' => $this->getImageMaxHeight(),
+			'imageMaxFileSize' => $this->getImageMaxFileSize(),
+			'imageMinFileSize' => $this->getImageMinFileSize(),
+			'acceptOnlyImages' => $this->shouldAcceptOnlyImages(),
+			'acceptedFileTypes' => empty($this->getAcceptedFileTypes()) ? null : $this->getAcceptedFileTypes(),
+			'ignoredFileNames' => $this->getIgnoredFileNames(),
+			'ignoreUnknownImageTypes' => $this->getIgnoreUnknownImageTypes(),
+			'treatOversizeImageAsFile' => $this->shouldTreatOversizeImageAsFile(),
+		];
 	}
 }

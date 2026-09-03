@@ -1,0 +1,7 @@
+<?php
+$MESS["UI_FIELD_RICH_TEXT_ADD"] = "Қосу";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_DEFAULT_VALUE"] = "Әдепкі мән";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_MAX_LENGTH"] = "Максималды ұзындығы";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_MIN_LENGTH"] = "Минималды ұзындығы";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_ROWS"] = "Жолдар саны";
+$MESS["UI_FIELD_RICH_TEXT_SETTINGS_SIZE"] = "Өрістің ені";

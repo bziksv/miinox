@@ -4,6 +4,9 @@ namespace Bitrix\Catalog;
 
 use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
+use Bitrix\Main\ORM\Event;
+use Bitrix\Main\ORM\EventResult;
 use Bitrix\Main\UserTable;
 
 /**
@@ -51,14 +54,14 @@ use Bitrix\Main\UserTable;
  * @method static \Bitrix\Catalog\EO_Store wakeUpObject($row)
  * @method static \Bitrix\Catalog\EO_Store_Collection wakeUpCollection($rows)
  */
-class StoreTable extends Main\Entity\DataManager
+class StoreTable extends DataManager
 {
 	/**
 	 * Returns DB table name for entity.
 	 *
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_catalog_store';
 	}
@@ -68,7 +71,7 @@ class StoreTable extends Main\Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
 		return [
 			'ID' => new Main\Entity\IntegerField(
@@ -260,7 +263,7 @@ class StoreTable extends Main\Entity\DataManager
 	 *
 	 * @return string
 	 */
-	public static function getUfId()
+	public static function getUfId(): string
 	{
 		return 'CAT_STORE';
 	}
@@ -411,5 +414,59 @@ class StoreTable extends Main\Entity\DataManager
 		$defaultStoreId = (int)($row['ID'] ?? 0);
 
 		return ($defaultStoreId > 0 ? $defaultStoreId : null);
+	}
+
+	public static function getStoreCreatorId(int $storeId): ?int
+	{
+		$row = self::getRowById($storeId, ['select' => ['USER_ID']]);
+		$creatorId = (int)($row['USER_ID'] ?? 0);
+
+		return ($creatorId > 0 ? $creatorId : null);
+	}
+
+	/**
+	 * Default onBeforeAdd handler. Absolutely necessary.
+	 *
+	 * @param Event $event Current data for add.
+	 * @return EventResult
+	 */
+	public static function onBeforeAdd(Event $event): EventResult
+	{
+		$result = new EventResult;
+		$data = $event->getParameter('fields');
+		if (!array_key_exists('DATE_MODIFY', $data))
+		{
+			$result->modifyFields([
+				'DATE_MODIFY' => new Main\Type\DateTime(),
+			]);
+		}
+		if (!array_key_exists('DATE_CREATE', $data))
+		{
+			$result->modifyFields([
+				'DATE_CREATE' => new Main\Type\DateTime(),
+			]);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Default onBeforeUpdate handler. Absolutely necessary.
+	 *
+	 * @param Event $event Current data for update.
+	 * @return EventResult
+	 */
+	public static function onBeforeUpdate(Event $event): EventResult
+	{
+		$result = new EventResult;
+		$data = $event->getParameter('fields');
+		if (!array_key_exists('DATE_MODIFY', $data))
+		{
+			$result->modifyFields([
+				'DATE_MODIFY' => new Main\Type\DateTime(),
+			]);
+		}
+
+		return $result;
 	}
 }

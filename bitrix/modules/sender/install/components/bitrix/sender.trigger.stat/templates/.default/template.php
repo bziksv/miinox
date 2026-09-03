@@ -7,14 +7,14 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Web\Json;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
 
 ?>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		var params = <?=Json::encode(array(
 			'mailingId' => $arParams['MAILING_ID'],
@@ -143,7 +143,7 @@ use Bitrix\Main\Web\Json;
 				<div class="bx-sender-block">
 
 					<div id="chartdiv" class="sender-stat-reiterate-graph" style="height: 400px;"></div>
-					<script type="text/javascript">
+					<script>
 						BX.ready(function(){
 							var chart = AmCharts.makeChart("chartdiv", {
 								"theme": "dark",
@@ -200,7 +200,7 @@ use Bitrix\Main\Web\Json;
 	);
 	?>
 
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 			BX.Sender.Letter.Stat.init();
 		});

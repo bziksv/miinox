@@ -1,6 +1,12 @@
 <?php
 
+/**
+ * @global CDatabase $DB
+ * @global CUser $USER
+ */
+
 use Bitrix\Main\Web\Uri;
+use Bitrix\Main\Web\Json;
 
 define("NO_KEEP_STATISTIC", true);
 define("NO_AGENT_STATISTIC", true);
@@ -12,8 +18,6 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_bef
 
 if($USER->IsAuthorized() && check_bitrix_sessid())
 {
-	CUtil::JSPostUnescape();
-
 	$res = false;
 	$uid = $USER->GetID();
 	$now = $DB->GetNowFunction();
@@ -101,7 +105,7 @@ if($USER->IsAuthorized() && check_bitrix_sessid())
 					$res[] = array("NAME" => $arFav["NAME"], "URL" => $arFav["URL"], "LANGUAGE_ID" => $arFav["LANGUAGE_ID"]);
 
 			if($res)
-				$res = CUtil::PhpToJSObject($res);
+				$res = Json::encode($res);
 
 			break;
 
@@ -118,4 +122,3 @@ if($USER->IsAuthorized() && check_bitrix_sessid())
 }
 
 require($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_admin_after.php");
-?>

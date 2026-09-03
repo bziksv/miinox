@@ -30,10 +30,6 @@ $listUrl = $adminSidePanelHelper->editUrlToPublicPage($listUrl);
 $currentUser = CurrentUser::get();
 
 $request = Context::getCurrent()->getRequest();
-if ($request->isAjaxRequest())
-{
-	$request->addFilter(new Web\PostDecodeFilter());
-}
 
 $id = (int)($request->get('ID') ?? 0);
 if ($id < 0)
@@ -43,7 +39,6 @@ if ($id < 0)
 
 
 Loader::includeModule("catalog");
-/** @var AccessController $accessController */
 $accessController = AccessController::getCurrent();
 if (
 	!(

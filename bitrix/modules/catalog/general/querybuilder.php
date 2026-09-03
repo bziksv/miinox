@@ -1,5 +1,6 @@
 <?php
 
+use Bitrix\Booking\Internals\Model\ResourceSkuTable;
 use Bitrix\Main;
 use Bitrix\Catalog\GroupAccessTable;
 use Bitrix\Catalog\GroupTable;
@@ -20,6 +21,7 @@ final class CProductQueryBuilder
 	public const ENTITY_OLD_STORE = 'OLD_STORE';
 	private const ENTITY_CATALOG_IBLOCK = 'CATALOG_IBLOCK';
 	private const ENTITY_VAT = 'VAT';
+	private const ENTITY_BOOKING = 'BOOKING';
 
 	public const FIELD_ALLOWED_SELECT = 0x0001;
 	public const FIELD_ALLOWED_FILTER = 0x0002;
@@ -33,6 +35,7 @@ final class CProductQueryBuilder
 	private const FIELD_PATTERN_FLAT_ENTITY = '/^([A-Z][A-Z_]+)$/';
 	private const FIELD_PATTERN_SEPARATE_ENTITY = '/^([A-Z][A-Z_]+)_([1-9][0-9]*)$/';
 	private const FIELD_PATTERN_PRODUCT_USER_FIELD = '/^PRODUCT_(UF_[A-Z0-9_]+)$/';
+	private const FIELD_PATTERN_BOOKING = '/^BOOKING_([A-Z][A-Z_]+)$/';
 
 	private const ENTITY_TYPE_FLAT = 0x0001;
 	private const ENTITY_TYPE_SEPARATE = 0x0002;
@@ -105,6 +108,10 @@ final class CProductQueryBuilder
 
 		$prepared = [];
 
+		if (preg_match(self::FIELD_PATTERN_BOOKING, $field, $prepared))
+		{
+			return true;
+		}
 		if (preg_match(self::FIELD_PATTERN_OLD_STORE, $field, $prepared))
 		{
 			return true;
@@ -556,7 +563,7 @@ final class CProductQueryBuilder
 	/**
 	 * @return void
 	 */
-	private static function initEntityDescription()
+	private static function initEntityDescription(): void
 	{
 		if (!empty(self::$entityDescription))
 		{
@@ -571,7 +578,7 @@ final class CProductQueryBuilder
 			],
 			self::ENTITY_PRODUCT_USER_FIELD => [
 				'EXTERNAL' => true,
-				'HANDLER' => [__CLASS__, 'haldleProductUserFields'],
+				'HANDLER' => [__CLASS__, 'handleProductUserFields'],
 			],
 			self::ENTITY_PRICE => [
 				'NAME' => 'b_catalog_price',
@@ -621,16 +628,24 @@ final class CProductQueryBuilder
 			self::ENTITY_VAT => [
 				'NAME' => 'b_catalog_vat',
 				'ALIAS' => 'CAT_VAT',
-				'JOIN' => 'left join #NAME# as #ALIAS# on (#ALIAS#.ID = IF((CAT_PR.VAT_ID IS NULL OR CAT_PR.VAT_ID = 0), CAT_IB.VAT_ID, CAT_PR.VAT_ID))',
+				'JOIN' => 'left join #NAME# as #ALIAS# on (#ALIAS#.ID = CASE WHEN (CAT_PR.VAT_ID IS NULL OR CAT_PR.VAT_ID = 0) THEN CAT_IB.VAT_ID ELSE CAT_PR.VAT_ID END)',
 				'RELATION' => [self::ENTITY_CATALOG_IBLOCK]
 			],
 		];
+
+		if (Main\Loader::includeModule('booking'))
+		{
+			self::$entityDescription[self::ENTITY_BOOKING] = [
+				'EXTERNAL' => true,
+				'HANDLER' => [__CLASS__, 'handleBookingFields'],
+			];
+		}
 	}
 
 	/**
 	 * @return void
 	 */
-	private static function initEntityFields()
+	private static function initEntityFields(): void
 	{
 		if (!empty(self::$entityFields))
 		{
@@ -650,6 +665,11 @@ final class CProductQueryBuilder
 			self::ENTITY_OLD_STORE => self::getOldStoreFields(),
 			self::ENTITY_VAT => self::getVatFields(),
 		];
+
+		if (Main\Loader::includeModule('booking'))
+		{
+			self::$entityFields[self::ENTITY_BOOKING] = self::getBookingFields();
+		}
 	}
 
 	/**
@@ -826,9 +846,6 @@ final class CProductQueryBuilder
 
 	/**
 	 * @return array[]
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 */
 	private static function getProductUserFields(): array
 	{
@@ -850,7 +867,10 @@ final class CProductQueryBuilder
 			'order' => [
 				'SORT' => 'ASC',
 				'ID' => 'ASC',
-			]
+			],
+			'cache' => [
+				'ttl' => 86400,
+			],
 		]);
 		while ($row = $iterator->fetch())
 		{
@@ -866,7 +886,10 @@ final class CProductQueryBuilder
 
 			$result[$row['FIELD_NAME']] = $item;
 		}
-		unset($row, $iterator);
+		unset(
+			$row,
+			$iterator,
+		);
 
 		return $result;
 	}
@@ -1414,6 +1437,19 @@ final class CProductQueryBuilder
 		];
 	}
 
+	private static function getBookingFields(): array
+	{
+		return [
+			'SERVICES_ONLY' => [
+				'NAME' => 'ENTITY_TYPE',
+				'ALIAS' => 'BOO_RLE',
+				'TYPE' => self::FIELD_TYPE_CHAR,
+				'ALLOWED' => self::FIELD_ALLOWED_FILTER,
+				'FILTER_PREPARE_VALUE_EXPRESSION' => [__CLASS__, 'prepareFilterBooking'],
+			],
+		];
+	}
+
 	/**
 	 * @param array $userField
 	 * @return bool
@@ -1478,7 +1514,13 @@ final class CProductQueryBuilder
 		$compatible = false;
 		$checked = false;
 
-		if (preg_match(self::FIELD_PATTERN_OLD_STORE, $field, $prepared))
+		if (preg_match(self::FIELD_PATTERN_BOOKING, $field, $prepared))
+		{
+			$entity = self::ENTITY_BOOKING;
+			$field = $prepared[1];
+			$checked = true;
+		}
+		elseif (preg_match(self::FIELD_PATTERN_OLD_STORE, $field, $prepared))
 		{
 			$compatible = true;
 			$entity = self::ENTITY_OLD_STORE;
@@ -1862,21 +1904,12 @@ final class CProductQueryBuilder
 	 */
 	private static function getFilterType(string $fieldType): string
 	{
-		switch ($fieldType)
+		return match ($fieldType)
 		{
-			case self::FIELD_TYPE_INT:
-			case self::FIELD_TYPE_FLOAT:
-				$result = 'number';
-				break;
-			case self::FIELD_TYPE_CHAR:
-				$result = 'string_equal';
-				break;
-			default:
-				$result = 'string';
-				break;
-		}
-
-		return $result;
+			self::FIELD_TYPE_INT, self::FIELD_TYPE_FLOAT => 'number',
+			self::FIELD_TYPE_CHAR => 'string_equal',
+			default => 'string',
+		};
 	}
 
 	/**
@@ -1898,6 +1931,7 @@ final class CProductQueryBuilder
 				&& $field['ENTITY'] != self::ENTITY_FLAT_WAREHNOUSE
 				&& $field['ENTITY'] != self::ENTITY_FLAT_BARCODE
 				&& $field['ENTITY'] != self::ENTITY_OLD_PRODUCT
+				&& $field['ENTITY'] != self::ENTITY_BOOKING
 			)
 			{
 				return false;
@@ -1924,7 +1958,7 @@ final class CProductQueryBuilder
 	 * @param array &$parameters
 	 * @return void
 	 */
-	private static function prepareSelectedCompatibleFields(array &$parameters)
+	private static function prepareSelectedCompatibleFields(array &$parameters): void
 	{
 		if ($parameters['compatible_mode'] && !empty($parameters['compatible_entities']))
 		{
@@ -1954,7 +1988,7 @@ final class CProductQueryBuilder
 	 * @param array $field
 	 * @return void
 	 */
-	private static function fillCompatibleEntities(array &$result, array $field)
+	private static function fillCompatibleEntities(array &$result, array $field): void
 	{
 		if (!$field['COMPATIBLE'])
 			return;
@@ -2091,7 +2125,7 @@ final class CProductQueryBuilder
 	/**
 	 * @return void
 	 */
-	private static function clearOptions()
+	private static function clearOptions(): void
 	{
 		self::$options = [];
 	}
@@ -2100,7 +2134,7 @@ final class CProductQueryBuilder
 	 * @param array $options
 	 * @return void
 	 */
-	private static function setOptions(array $options)
+	private static function setOptions(array $options): void
 	{
 		global $USER;
 
@@ -2134,7 +2168,7 @@ final class CProductQueryBuilder
 	 * @param string $index
 	 * @return mixed|null
 	 */
-	private static function getOption(string $index)
+	private static function getOption(string $index): mixed
 	{
 		if (!isset(self::$options[$index]))
 			return null;
@@ -2199,7 +2233,7 @@ final class CProductQueryBuilder
 	 * @param array $list
 	 * @return void
 	 */
-	private static function buildSelect(array &$result, array $list)
+	private static function buildSelect(array &$result, array $list): void
 	{
 		foreach ($list as $item)
 		{
@@ -2221,7 +2255,7 @@ final class CProductQueryBuilder
 	 * @param array $list
 	 * @return void
 	 */
-	private static function buildFilter(array &$result, array $list)
+	private static function buildFilter(array &$result, array $list): void
 	{
 		self::filterModify($list);
 
@@ -2236,7 +2270,7 @@ final class CProductQueryBuilder
 	 * @param array $list
 	 * @return void
 	 */
-	private static function buildOrder(array &$result, array $list)
+	private static function buildOrder(array &$result, array $list): void
 	{
 		foreach ($list as $item)
 		{
@@ -2257,7 +2291,7 @@ final class CProductQueryBuilder
 	 * @param array &$result
 	 * @return void
 	 */
-	private static function buildJoin(array &$result)
+	private static function buildJoin(array &$result): void
 	{
 		foreach (array_keys($result['join']) as $index)
 		{
@@ -2364,7 +2398,7 @@ final class CProductQueryBuilder
 	 * @param array $entity
 	 * @return void
 	 */
-	private static function addJoin(array &$result, array $entity)
+	private static function addJoin(array &$result, array $entity): void
 	{
 		$index = self::getEntityIndex($entity);
 		$description = $entity['ENTITY_DESCRIPTION'];
@@ -2432,7 +2466,7 @@ final class CProductQueryBuilder
 	 * @param array &$item
 	 * @return void
 	 */
-	private static function orderTransformField(array &$item)
+	private static function orderTransformField(array &$item): void
 	{
 		$field = self::getFieldDescription($item['ENTITY'], $item['FIELD']);
 		if (empty($field))
@@ -2449,10 +2483,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectQuantityTrace(array &$parameters, array &$entity, array &$field)
+	private static function selectQuantityTrace(array &$parameters, array &$entity, array &$field): void
 	{
 		$field['SELECT'] = self::getReplaceSqlFunction(Main\Config\Option::get('catalog', 'default_quantity_trace'));
 	}
@@ -2464,10 +2496,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectCanBuyZero(array &$parameters, array &$entity, array &$field)
+	private static function selectCanBuyZero(array &$parameters, array &$entity, array &$field): void
 	{
 		$field['SELECT'] = self::getReplaceSqlFunction(Main\Config\Option::get('catalog', 'default_can_buy_zero'));
 	}
@@ -2479,10 +2509,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectNegativeAmountTrace(array &$parameters, array &$entity, array &$field)
+	private static function selectNegativeAmountTrace(array &$parameters, array &$entity, array &$field): void
 	{
 		$field['SELECT'] = self::getReplaceSqlFunction(Main\Config\Option::get('catalog', 'allow_negative_amount'));
 	}
@@ -2494,10 +2522,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectSubscribe(array &$parameters, array &$entity, array &$field)
+	private static function selectSubscribe(array &$parameters, array &$entity, array &$field): void
 	{
 		$field['SELECT'] = self::getReplaceSqlFunction(Main\Config\Option::get('catalog', 'default_subscribe'));
 	}
@@ -2510,7 +2536,7 @@ final class CProductQueryBuilder
 	 */
 	private static function getReplaceSqlFunction(string $defaultValue): string
 	{
-		return 'IF (#FULL_NAME# = \''.ProductTable::STATUS_DEFAULT.'\', \''.$defaultValue.'\', #FULL_NAME#)';
+		return 'CASE WHEN #FULL_NAME# = \'' . ProductTable::STATUS_DEFAULT . '\' THEN \'' . $defaultValue . '\' ELSE #FULL_NAME# END';
 	}
 
 	/**
@@ -2518,10 +2544,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectPriceTypeName(array &$parameters, array &$entity, array &$field)
+	private static function selectPriceTypeName(array &$parameters, array &$entity, array &$field): void
 	{
 		$result = '';
 		$id = $parameters['ENTITY_ID'];
@@ -2544,10 +2568,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectPriceTypeAllowedView(array &$parameters, array &$entity, array &$field)
+	private static function selectPriceTypeAllowedView(array &$parameters, array &$entity, array &$field): void
 	{
 		$parameters['ACCESS'] = GroupAccessTable::ACCESS_VIEW;
 		$field['SELECT'] = self::getPriceTypeAccess($parameters);
@@ -2558,10 +2580,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function selectPriceTypeAllowedBuy(array &$parameters, array &$entity, array &$field)
+	private static function selectPriceTypeAllowedBuy(array &$parameters, array &$entity, array &$field): void
 	{
 		$parameters['ACCESS'] = GroupAccessTable::ACCESS_BUY;
 		$field['SELECT'] = self::getPriceTypeAccess($parameters);
@@ -2604,10 +2624,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function prepareFilterQuantityTrace(array &$parameters, array &$entity, array &$field)
+	private static function prepareFilterQuantityTrace(array &$parameters, array &$entity, array &$field): void
 	{
 		$parameters['VALUES'] = self::addDefaultValue(
 			$parameters['VALUES'],
@@ -2620,10 +2638,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function prepareFilterCanBuyZero(array &$parameters, array &$entity, array &$field)
+	private static function prepareFilterCanBuyZero(array &$parameters, array &$entity, array &$field): void
 	{
 		$parameters['VALUES'] = self::addDefaultValue(
 			$parameters['VALUES'],
@@ -2636,10 +2652,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function prepareFilterSubscribe(array &$parameters, array &$entity, array &$field)
+	private static function prepareFilterSubscribe(array &$parameters, array &$entity, array &$field): void
 	{
 		$parameters['VALUES'] = self::addDefaultValue(
 			$parameters['VALUES'],
@@ -2654,7 +2668,7 @@ final class CProductQueryBuilder
 	 * @param string $defaultValue
 	 * @return mixed
 	 */
-	private static function addDefaultValue($values, string $defaultValue)
+	private static function addDefaultValue(mixed $values, string $defaultValue): mixed
 	{
 		if (!is_array($values))
 		{
@@ -2679,10 +2693,8 @@ final class CProductQueryBuilder
 	 * @param array &$entity
 	 * @param array &$field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function priceParametersFilter(array &$parameters, array &$entity, array &$field)
+	private static function priceParametersFilter(array &$parameters, array &$entity, array &$field): void
 	{
 		if (empty($parameters['VALUES']))
 			return;
@@ -2703,10 +2715,8 @@ final class CProductQueryBuilder
 	 * @param array $entity
 	 * @param array $field
 	 * @return void
-	 *
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	private static function filterModifierCurrencyScale(array &$filter, $filterKey, array $entity, array $field): void
+	private static function filterModifierCurrencyScale(array &$filter, int|string $filterKey, array $entity, array $field): void
 	{
 		$activeItem = $filter[$filterKey];
 
@@ -2796,7 +2806,7 @@ final class CProductQueryBuilder
 	 * @param array $entity
 	 * @param array $data
 	 */
-	private static function haldleProductUserFields(array &$result, array $entity, array $data): void
+	private static function handleProductUserFields(array &$result, array $entity, array $data): void
 	{
 		if (empty($data['filter']))
 		{
@@ -2835,5 +2845,37 @@ final class CProductQueryBuilder
 		}
 
 		unset($userFieldManager);
+	}
+
+	private static function handleBookingFields(array &$result, array $entity, array $data): void
+	{
+		if (empty($data['filter']))
+		{
+			return;
+		}
+		$aliases = self::getOption('ALIASES');
+		if (empty($aliases['#ELEMENT_JOIN#']))
+		{
+			return;
+		}
+
+		foreach ($data['filter'] as $entityIndex => $rows)
+		{
+			if (!str_starts_with($entityIndex, self::ENTITY_BOOKING . ':'))
+			{
+				continue;
+			}
+			foreach ($rows as $row)
+			{
+				if ($row['FIELD'] === 'SERVICES_ONLY' && $row['VALUES'] === 'Y')
+				{
+					$result['filter'][] = ' exists ('
+						. 'select 1 from ' . ResourceSkuTable::getTableName() . ' as BOO_RLE'
+						. ' where BOO_RLE.SKU_ID = ' . $aliases['#ELEMENT_JOIN#']
+						. ')'
+					;
+				}
+			}
+		}
 	}
 }

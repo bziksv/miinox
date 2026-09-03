@@ -1,4 +1,4 @@
-<?
+<?php
 IncludeModuleLangFile(__FILE__);
 
 class CClock
@@ -43,7 +43,7 @@ class CClock
 			case 'label':
 				?>
 				<input type="hidden" id="<?=$inputId?>" name="<?=$inputName?>" value="<?=$initTime?>">
-				<div class="bx-clock-label" onmouseover="this.className='bx-clock-label-over';" onmouseout="this.className='bx-clock-label';" onclick=""><? echo ($arParams['initTime']? $initTime : 'Time'); ?></div><?
+				<div class="bx-clock-label" onmouseover="this.className='bx-clock-label-over';" onmouseout="this.className='bx-clock-label';" onclick=""><?= ($arParams['initTime']? $initTime : 'Time'); ?></div><?
 				break;
 			case 'select':
 				?>
@@ -63,7 +63,7 @@ class CClock
 				?>
 				<input type="hidden" id="<?=$inputId?>" name="<?=$inputName?>"  value="<?=$initTime?>" />
 				<div id="<?=$inputId?>_clock"></div>
-				<script type="text/javascript">
+				<script>
 					if (!window.bxClockLoaders)
 					{
 						window.bxClockLoaders = [];
@@ -92,12 +92,12 @@ class CClock
 		?><script>
 		function bxLoadClock_<?=$jsInputId?>(callback)
 		{
-			<?if(!isset($arParams['view']) || $arParams['view'] != 'inline'):?>
+			<?php if(!isset($arParams['view']) || $arParams['view'] != 'inline'):?>
 			if (!window.JCClock && !window.jsUtils)
 			{
 				return setTimeout(function(){bxLoadClock_<?=$jsInputId?>(callback);}, 50);
 			}
-			<?endif;?>
+			<?php endif;?>
 
 			if (!window.JCClock)
 			{
@@ -113,11 +113,27 @@ class CClock
 							'<?=CUtil::GetAdditionalFileURL("/bitrix/js/main/clock.js")?>',
 							'<?=CUtil::GetAdditionalFileURL("/bitrix/themes/.default/clock.css")?>'
 						],
-						function() {bxLoadClock_<?=$jsInputId?>(callback)}
+						function() {
+							BX.Runtime.loadExtension(['intranet.old-interface.clock', 'date'])
+								.then((exports) => {
+									(new BX.Intranet.Bitrix24.Clock()).init();
+									continueClockInitialization_<?=$jsInputId?>(callback);
+								})
+								.catch(() => {
+									continueClockInitialization_<?=$jsInputId?>(callback);
+								});
+						}
 					);
 				}
 			}
-
+			else
+			{
+				continueClockInitialization_<?=$jsInputId?>(callback);
+			}
+		}
+		
+		function continueClockInitialization_<?=$jsInputId?>(callback)
+		{
 			window.bClockLoading = false;
 
 			var obId = 'bxClock_<?=$jsInputId?>';

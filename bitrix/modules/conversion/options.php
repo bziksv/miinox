@@ -26,7 +26,7 @@ if (! (Loader::includeModule('currency') && ($currencies = CurrencyManager::getC
 
 if ($MOD_RIGHT >= 'W' && check_bitrix_sessid())
 {
-	if ($REQUEST_METHOD == 'POST' && $Update.$Apply.$RestoreDefaults <> '')
+	if ($_SERVER['REQUEST_METHOD'] == 'POST' && $Update.$Apply.$RestoreDefaults <> '')
 	{
 		if ($RestoreDefaults <> '')
 		{
@@ -66,6 +66,13 @@ $tabControl = new CAdminTabControl('tabControl', array(
 ));
 
 $tabControl->Begin();
+
+// If saved currency in 'conversion' module, not exist in currency list, then show empty currency.
+if (!isset($currencies[$currency]))
+{
+	$currency = '';
+	$currencies = ['' => Loc::getMessage('CONVERSION_CURRENCY_NOT_SELECTED')] + $currencies;
+}
 
 ?>
 <form method="post" action="<?=$APPLICATION->GetCurPage()?>?mid=<?=urlencode($mid)?>&amp;lang=<?echo LANGUAGE_ID?>">

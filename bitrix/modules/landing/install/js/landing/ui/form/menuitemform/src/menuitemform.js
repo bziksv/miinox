@@ -1,4 +1,5 @@
 import {Dom, Text, Type, Tag, Cache, Event} from 'main.core';
+import {Loc} from 'landing.loc';
 import {BaseForm} from 'landing.ui.form.baseform';
 import 'ui.fonts.opensans';
 import './css/style.css';
@@ -84,14 +85,20 @@ export class MenuItemForm extends BaseForm
 
 	isFormShown(): boolean
 	{
-		return Dom.style(this.body, 'display') !== 'none';
+		return this.layout.classList.contains('landing-ui-form-menuitem-open');
 	}
 
 	getDragButton(): HTMLDivElement
 	{
 		return this.cache.remember('dragButton', () => {
 			return Tag.render`
-				<div class="landing-ui-form-header-drag-button landing-ui-drag"></div>
+				<div
+					class="landing-ui-form-header-drag-button landing-ui-drag"
+					role="button"
+					tabindex="0"
+					aria-label="${Loc.getMessage('LANDING_MENUITEM_DRAG_HANDLE_LABEL')}"
+					aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+				></div>
 			`;
 		});
 	}

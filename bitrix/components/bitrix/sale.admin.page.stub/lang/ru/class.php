@@ -1,7 +1,6 @@
 <?php
 $MESS["SAPS_SALE_PAY_SYSTEM"] = "Теперь платежные системы настраиваются в Битрикс24";
 $MESS["SAPS_SALE_ORDER"] = "Теперь все заказы обрабатываются в Битрикс24";
-$MESS["SAPS_SALE_CASHBOX"] = "Подключение ККМ";
 $MESS["SAPS_SALE_CASHBOX_LIST"] = "Теперь список касс доступен в Битрикс24";
 $MESS["SAPS_SALE_CASHBOX_CHECK"] = "Теперь список чеков доступен в Битрикс24";
 $MESS["SAPS_SALE_BUYERS"] = "Теперь работа с покупателями выполняется в Битрикс24";
@@ -10,7 +9,7 @@ $MESS["SAPS_SALE_ACCOUNT_ADMIN"] = "Теперь работа с внутрен�
 $MESS["SAPS_SALE_TRANSACT_ADMIN"] = "Теперь транзакции доступны в Битрикс24";
 $MESS["SAPS_CAT_SUBSCRIPTION_LIST"] = "Теперь список подписок доступен в Битрикс24";
 $MESS["SAPS_CAT_STORE_LIST"] = "Теперь работа со складами выполняется в Битрикс24";
-$MESS["SAPS_CAT_STORE_DOCUMENT_LIST"] = "Теперь документы доступны в Битрикс24";
+$MESS["SAPS_CAT_STORE_DOCUMENT_LIST_MSGVER_1"] = "Теперь документы доступны в Битрикс24";
 $MESS["SAPS_CAT_CONTRACTOR_LIST"] = "Теперь список поставщиков доступен в Битрикс24";
 $MESS["SAPS_SALE_DISCOUNT"] = "Теперь управление правилами работы с корзиной выполняется в Битрикс24";
 $MESS["SAPS_SALE_DISCOUNT_COUPONS"] = "Теперь купоны правил корзины доступны в Битрикс24";

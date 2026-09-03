@@ -25,11 +25,9 @@
 						resolve(event);
 					});
 
-				requestAnimationFrame(function() {
-					element.hidden = false;
-					element.classList.remove("landing-ui-hide");
-					element.classList.add("landing-ui-show");
-				});
+				element.hidden = false;
+				element.classList.remove("landing-ui-hide");
+				element.classList.add("landing-ui-show");
 			}
 			else
 			{
@@ -68,10 +66,8 @@
 						resolve(event);
 					});
 
-				requestAnimationFrame(function() {
-					element.classList.remove("landing-ui-show");
-					element.classList.add("landing-ui-hide");
-				});
+				element.classList.remove("landing-ui-show");
+				element.classList.add("landing-ui-hide");
 			}
 			else
 			{
@@ -280,7 +276,15 @@
 		vine: new RegExp("vine.co\\/v\\/([a-zA-Z0-9\\?\\=\\-]+)"),
 		instagram: new RegExp("(instagr\\.am|instagram\\.com)\\/p\\/([a-zA-Z0-9_\\-]+)\\/?"),
 		rutube: new RegExp("rutube\\.ru\\/video\\/(private\\/)?([a-zA-Z0-9]+)\\/?"),
-		vk: new RegExp("vk\\.(com|ru)\\/.*(video|clip)(-?\\d+_\\d+)\\/?"),
+
+		// Examples:
+		// https://vkvideo.ru/video-123456789_123456789
+		// https://vk.com/video-123456789_123456789
+		// https://vk.ru/video-123456789_123456789
+		// https://vkvideo.ru/clip-123456789_123456789
+		// https://vk.com/clip-123456789_123456789
+		// https://vk.ru/clip-123456789_123456789
+		vk: new RegExp("(vk\\.com|vk\\.ru|vkvideo\\.ru)\\/.*(video|clip)(-?\\d+_\\d+)\\/?"),
 
 		// Examples:
 		// https://www.google.com/maps/search/Bitrix24+office/
@@ -1655,7 +1659,13 @@
 	BX.Landing.Utils.rename2x = function(path)
 	{
 		path = path.replace(/@2x/, "");
-		return !!path ? path.replace(/\.[^\.]+$/, "@2x." + BX.util.getExtension(path)) : path;
+		let extension = BX.util.getExtension(path);
+		if (extension.length > 4)
+		{
+			extension = extension.split('_').pop();
+		}
+
+		return !!path ? path.replace(/\.[^\.]+$/, "@2x." + extension) : path;
 	};
 
 	/**

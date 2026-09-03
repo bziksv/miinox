@@ -1,13 +1,13 @@
-<?
+<?php
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
-define('STOP_STATISTICS', true);
-define('PUBLIC_AJAX_MODE', true);
+const STOP_STATISTICS = true;
+const PUBLIC_AJAX_MODE = true;
 
-use Bitrix\Main,
-	Bitrix\Main\Loader,
-	Bitrix\Iblock,
-	Bitrix\Highloadblock\HighloadBlockTable;
+use Bitrix\Highloadblock\HighloadBlockTable;
+use Bitrix\Iblock;
+use Bitrix\Main;
+use Bitrix\Main\Loader;
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_before.php');
 
@@ -78,11 +78,17 @@ if (check_bitrix_sessid() && $request->isPost() && Loader::includeModule('iblock
 			}
 			elseif ($property['PROPERTY_TYPE'] === Iblock\PropertyTable::TYPE_LIST)
 			{
-				$iterator = Iblock\PropertyEnumerationTable::getList(array(
-					'select' => array('*'),
-					'filter' => array('=PROPERTY_ID' => $propertyId),
-					'order' => array('DEF' => 'DESC', 'SORT' => 'ASC')
-				));
+				$iterator = Iblock\PropertyEnumerationTable::getList([
+					'select' => ['*'],
+					'filter' => [
+						'=PROPERTY_ID' => $propertyId,
+					],
+					'order' => [
+						'DEF' => 'DESC',
+						'SORT' => 'ASC',
+						'VALUE' => 'ASC',
+					]
+				]);
 				while ($row = $iterator->fetch())
 				{
 					$result[] = array(
@@ -101,4 +107,3 @@ $APPLICATION->RestartBuffer();
 header('Content-Type: application/json');
 echo Bitrix\Main\Web\Json::encode($result);
 require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_admin_after.php');
-die();

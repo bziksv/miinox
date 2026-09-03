@@ -3,7 +3,6 @@ $MESS["SENDER_CONTACT_CONSENT_APPLY"] = "Kontakt hat Einwilligung bestätigt, Ne
 $MESS["SENDER_CONTACT_CONSENT_REJECT"] = "Kontakt hat keine Einwilligung gegeben";
 $MESS["SENDER_CONTACT_CONSENT_WAIT"] = "Einwilligung gesendet";
 $MESS["SENDER_CONTACT_DELETED"] = "Kontakt gelöscht";
-$MESS["SENDER_LETTER_CONTACT_LIST_ITEM_DELETED"] = "Empfänger gelöscht";
 $MESS["SENDER_LETTER_RCP_LIST_TITLE"] = "Empfänger";
 $MESS["SENDER_LETTER_RCP_LIST_TITLE_CONTACT"] = "Newsletters senden";
 $MESS["SENDER_LETTER_RCP_UI_COLUMN_CLICK"] = "Geklickt";

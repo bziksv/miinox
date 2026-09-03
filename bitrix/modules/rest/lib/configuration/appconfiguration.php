@@ -48,7 +48,7 @@ class AppConfiguration
 		$result = null;
 		$code = $event->getParameter('CODE');
 		if (
-			!static::$entityList[$code]
+			!isset(static::$entityList[$code])
 			|| !Manifest::isEntityAvailable($code, $event->getParameters(), static::$accessManifest)
 		)
 		{
@@ -72,25 +72,6 @@ class AppConfiguration
 
 	public static function onEventClearController(Event $event)
 	{
-		$result = null;
-		if (!static::checkAccessImport($event))
-		{
-			return $result;
-		}
-
-		$code = $event->getParameter('CODE');
-		if (static::checkRequiredParams($code))
-		{
-			$option = $event->getParameters();
-			switch ($code)
-			{
-				case 'REST_APPLICATION':
-					$result = static::clearApp($option);
-					break;
-			}
-		}
-
-		return $result;
 	}
 
 	public static function onEventImportController(Event $event)
@@ -198,6 +179,31 @@ class AppConfiguration
 						if ($res->isSuccess())
 						{
 							Sender::bind('rest', 'OnRestAppInstall');
+						}
+
+						$eventList = EventTable::getList(
+							[
+								'filter' => [
+									"APP_ID" => $app['ID'],
+									"EVENT_NAME" => "ONAPPUSERREADY",
+									"EVENT_HANDLER" => $app["URL_INSTALL"],
+								],
+								'limit' => 1
+							]
+						);
+						if (!$eventList->fetch())
+						{
+							$bindUserReady = EventTable::add(
+								[
+									'APP_ID' => $app['ID'],
+									'EVENT_NAME' => 'ONAPPUSERREADY',
+									'EVENT_HANDLER' => $app['URL_INSTALL'],
+								]
+							);
+							if ($bindUserReady->isSuccess())
+							{
+								Sender::bind('rest', 'OnRestAppUserReady');
+							}
 						}
 
 						AppTable::setSkipRemoteUpdate(true);

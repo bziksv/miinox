@@ -12,9 +12,9 @@ use Bitrix\Main;
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_CompanyGroup_Query query()
- * @method static EO_CompanyGroup_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_CompanyGroup_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_CompanyGroup_Result getById($id)
- * @method static EO_CompanyGroup_Result getList(array $parameters = array())
+ * @method static EO_CompanyGroup_Result getList(array $parameters = [])
  * @method static EO_CompanyGroup_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_CompanyGroup createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_CompanyGroup_Collection createCollection()
@@ -30,34 +30,39 @@ class CompanyGroupTable extends Main\Entity\DataManager
 
 	public static function getMap()
 	{
-		return array(
-			'ID' => array(
+		return [
+			'ID' => [
 				'data_type' => 'integer',
-				'primary' => true
-			),
-			'COMPANY_ID' => array(
+				'primary' => true,
+				'autocomplete' => true,
+			],
+			'COMPANY_ID' => [
 				'data_type' => 'integer',
-			),
-			'GROUP_ID' => array(
+			],
+			'GROUP_ID' => [
 				'data_type' => 'integer',
-				'required'   => true
-			),
-		);
+				'required' => true,
+			],
+		];
 	}
 
 	public static function deleteByCompanyId($id)
 	{
 		$id = intval($id);
 		if ($id <= 0)
-			throw new Main\ArgumentNullException("id");
+		{
+			throw new Main\ArgumentNullException('id');
+		}
 
 		$itemsList = static::getList(
-			array(
-				"filter" => array("COMPANY_ID" => $id),
-				"select" => array("ID")
-			)
+			[
+				'filter' => ['COMPANY_ID' => $id],
+				'select' => ['ID'],
+			]
 		);
 		while ($item = $itemsList->fetch())
-			static::delete($item["ID"]);
+		{
+			static::delete($item['ID']);
+		}
 	}
 }

@@ -5,6 +5,8 @@
 use Bitrix\Main,
 	Bitrix\Currency,
 	Bitrix\Iblock;
+use Bitrix\Main\Text\Encoding;
+use Bitrix\Main\Web\Uri;
 
 IncludeModuleLangFile($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/catalog/export_setup_templ.php');
 set_time_limit(0);
@@ -38,8 +40,6 @@ function yandex_replace_special($arg)
 
 function yandex_text2xml($text, $bHSC = false, $bDblQuote = false)
 {
-	global $APPLICATION;
-
 	$bHSC = (true == $bHSC ? true : false);
 	$bDblQuote = (true == $bDblQuote ? true: false);
 
@@ -51,7 +51,7 @@ function yandex_text2xml($text, $bHSC = false, $bDblQuote = false)
 	}
 	$text = preg_replace('/[\x01-\x08\x0B-\x0C\x0E-\x1F]/', "", $text);
 	$text = str_replace("'", "&apos;", $text);
-	$text = $APPLICATION->ConvertCharset($text, LANG_CHARSET, 'windows-1251');
+	$text = Encoding::convertEncoding($text, LANG_CHARSET, 'windows-1251');
 	return $text;
 }
 
@@ -87,29 +87,31 @@ if ($strExportErrorMessage == '')
 	}
 	else
 	{
-		if (!@fwrite($fp, '<?if (!isset($_GET["referer1"]) || $_GET["referer1"] == "") $_GET["referer1"] = "yandext"?>'))
+		if (!@fwrite($fp, '<?php' . "\n"))
 		{
 			$strExportErrorMessage .= str_replace('#FILE#',$_SERVER["DOCUMENT_ROOT"].$SETUP_FILE_NAME, GetMessage('CET_YAND_RUN_ERR_SETUP_FILE_WRITE'))."\n";
 			@fclose($fp);
 		}
 		else
 		{
-			fwrite($fp, '<? $strReferer1 = htmlspecialchars($_GET["referer1"]); ?>');
-			fwrite($fp, '<?if (!isset($_GET["referer2"]) || $_GET["referer2"] == "") $_GET["referer2"] = "";?>');
-			fwrite($fp, '<? $strReferer2 = htmlspecialchars($_GET["referer2"]); ?>');
+			fwrite($fp, 'if (!isset($_GET["referer1"]) || $_GET["referer1"] == "") $_GET["referer1"] = "yandext";' . "\n");
+			fwrite($fp, '$strReferer1 = htmlspecialchars($_GET["referer1"]);' . "\n");
+			fwrite($fp, 'if (!isset($_GET["referer2"]) || $_GET["referer2"] == "") $_GET["referer2"] = "";' . "\n");
+			fwrite($fp, '$strReferer2 = htmlspecialchars($_GET["referer2"]);' . "\n");
 		}
 	}
 }
 
 if ($strExportErrorMessage == '')
 {
-	fwrite($fp, '<? header("Content-Type: text/xml; charset=windows-1251");?>');
-	fwrite($fp, '<? echo "<"."?xml version=\"1.0\" encoding=\"windows-1251\"?".">"?>');
-	fwrite($fp, "\n<!DOCTYPE yml_catalog SYSTEM \"shops.dtd\">\n");
+	fwrite($fp, 'header("Content-Type: text/xml; charset=windows-1251");' . "\n");
+	fwrite($fp, '?>' . "\n");
+	fwrite($fp, '<?= \'<?xml version="1.0" encoding="windows-1251"?>\'; ?>' . "\n");
+	fwrite($fp, "<!DOCTYPE yml_catalog SYSTEM \"shops.dtd\">\n");
 	fwrite($fp, "<yml_catalog date=\"".date("Y-m-d H:i")."\">\n");
 	fwrite($fp, "<shop>\n");
-	fwrite($fp, "<name>".$APPLICATION->ConvertCharset(htmlspecialcharsbx(COption::GetOptionString("main", "site_name", "")), LANG_CHARSET, 'windows-1251')."</name>\n");
-	fwrite($fp, "<company>".$APPLICATION->ConvertCharset(htmlspecialcharsbx(COption::GetOptionString("main", "site_name", "")), LANG_CHARSET, 'windows-1251')."</company>\n");
+	fwrite($fp, "<name>".Encoding::convertEncoding(htmlspecialcharsbx(COption::GetOptionString("main", "site_name", "")), LANG_CHARSET, 'windows-1251')."</name>\n");
+	fwrite($fp, "<company>".Encoding::convertEncoding(htmlspecialcharsbx(COption::GetOptionString("main", "site_name", "")), LANG_CHARSET, 'windows-1251')."</company>\n");
 	fwrite($fp, "<url>".$usedProtocol.htmlspecialcharsbx($SETUP_SERVER_NAME <> '' ? $SETUP_SERVER_NAME : COption::GetOptionString("main", "server_name", ""))."</url>\n");
 	fwrite($fp, "<platform>1C-Bitrix</platform>\n");
 
@@ -330,7 +332,7 @@ if ($strExportErrorMessage == '')
 					if (is_array($arPictInfo))
 					{
 						if(mb_substr($arPictInfo["SRC"], 0, 1) == "/")
-							$strFile = $usedProtocol.$arAcc['SERVER_NAME'].CHTTP::urnEncode($arPictInfo["SRC"], 'utf-8');
+							$strFile = $usedProtocol.$arAcc['SERVER_NAME'] . Uri::urnEncode($arPictInfo["SRC"]);
 						else
 							$strFile = $arPictInfo["SRC"];
 						$strTmpOff.="<picture>".$strFile."</picture>\n";

@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["TRANS_PATH"] = "Pfad:";
 $MESS["TRANS_PATH_SEARCH"] = "Pfad + Suche";
 $MESS["TR_ADD_UPDATE_LANG_FILES"] = "neue Übersetzungen hinzufügen, Nachrichten in der CSV-Datei aktualisieren";
@@ -21,14 +21,19 @@ $MESS["TR_EXPORT_CSV_DLG_CANCELED"] = "Export wurde abgebrochen.";
 $MESS["TR_EXPORT_CSV_DLG_COMPLETED"] = "Nachrichten wurden exportiert.";
 $MESS["TR_EXPORT_CSV_DLG_SUMMARY"] = "Lokalisierungsnachrichten werden in eine CSV-Datei exportiert. Das kann einige Zeit in Anspruch nehmen.";
 $MESS["TR_EXPORT_CSV_DLG_TITLE"] = "Nachrichten nach CSV exportieren";
+$MESS["TR_EXPORT_CSV_PARAM_APPEND_SAMPLES"] = "Existierende Nachrichten in der Übersetzungsdatenbank finden";
 $MESS["TR_EXPORT_CSV_PARAM_CONVERT_UTF8"] = "In UTF-8 konvertieren";
 $MESS["TR_EXPORT_CSV_PARAM_FILE_LIST"] = "Nachrichten nur für Dateien und Ordner exportieren";
 $MESS["TR_EXPORT_CSV_PARAM_LANGUAGES"] = "Exportsprache auswählen";
 $MESS["TR_EXPORT_CSV_PARAM_LANGUAGES_ALL"] = "Alle";
+$MESS["TR_EXPORT_CSV_PARAM_SAMPLES_COUNT"] = "Maximum an gefundenen Übersetzungen pro Nachricht";
+$MESS["TR_EXPORT_CSV_PARAM_SAMPLES_RESTRICTION"] = "Existierende Übersetzungen nur in den ausgewählten Ordnern suchen";
 $MESS["TR_EXPORT_CSV_PARAM_UNTRANSLATED"] = "Nur nicht übersetzte Nachrichten exportieren";
 $MESS["TR_EXPORT_CSV_PROGRESS"] = "Ordner verarbeitet";
 $MESS["TR_EXPORT_DLG_CLEAR"] = "Exportdatei löschen";
+$MESS["TR_EXPORT_DLG_CLEAR_MULTI"] = "Exportierte Dateien löschen";
 $MESS["TR_EXPORT_DLG_DOWNLOAD"] = "Exportdatei herunterladen";
+$MESS["TR_EXPORT_DLG_DOWNLOAD_MULTI"] = "Exportierte Dateien herunterladen";
 $MESS["TR_IMPORT_ACTION_UPLOAD"] = "Schritt #NUM#/#LEN#: Datei auf den Server hochladen";
 $MESS["TR_IMPORT_ACTION_UPLOAD_PROGRESS"] = "Hochgeladen";
 $MESS["TR_IMPORT_CSV_DLG_BTN_MORE"] = "Mehr importieren";
@@ -64,4 +69,3 @@ $MESS["TR_STARTING_PATH"] = "Ordner für die Übersetzung auswählen";
 $MESS["TR_UPDATE_LANG_FILES"] = "Existierende Nachrichten aktualisieren";
 $MESS["TR_UPLOAD_CSV_FILE"] = "CSV-Datei:";
 $MESS["TR_UPLOAD_CSV_FILE_EMPTY_ERROR"] = "Geben Sie die Datei zum Hochladen an";
-?>

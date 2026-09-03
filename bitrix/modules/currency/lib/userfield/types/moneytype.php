@@ -3,12 +3,11 @@
 namespace Bitrix\Currency\UserField\Types;
 
 use Bitrix\Currency\CurrencyManager;
+use Bitrix\Currency\Helpers\Editor;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\UserField\Types\BaseType;
 use CUserTypeManager;
-
-Loc::loadLanguageFile(__FILE__);
 
 class MoneyType extends BaseType
 {
@@ -137,12 +136,19 @@ class MoneyType extends BaseType
 	}
 
 	/**
-	 * @param array $userField
+	 * Returns normalized user field parameters.
+	 *
+	 * @param array $userField User field parameters.
 	 * @return array
 	 */
 	public static function prepareSettings(array $userField): array
 	{
-		[$value, $currency] = static::unFormatFromDb($userField['SETTINGS']['DEFAULT_VALUE']);
+		$defaultValue = $userField['SETTINGS']['DEFAULT_VALUE'] ?? null;
+		if (!is_string($defaultValue))
+		{
+			$defaultValue = null;
+		}
+		[$value, $currency] = static::unFormatFromDb($defaultValue);
 		if ($value !== '')
 		{
 			if($currency === '')
@@ -158,29 +164,36 @@ class MoneyType extends BaseType
 	}
 
 	/**
-	 * @param string $value
-	 * @param string|null $currency
+	 * Returns assembled value for database.
+	 *
+	 * @param string $value Property value.
+	 * @param string|null $currency Property currency.
 	 * @return string
 	 */
 	public static function formatToDb(string $value, ?string $currency): string
 	{
-		if($value === '')
+		$value = trim($value);
+		if ($value === '')
 		{
 			return '';
 		}
 
-		$value = (string)((float)$value);
+		$value = (string)Editor::prepareValue($value);
 
-		return $value . static::DB_SEPARATOR . trim($currency);
+		$currency = trim((string)$currency);
+
+		return $value . static::DB_SEPARATOR . $currency;
 	}
 
 	/**
-	 * @param string|null $value
+	 * Returns parsed money value.
+	 *
+	 * @param string|null $value Raw value from database.
 	 * @return array
 	 */
 	public static function unFormatFromDb(?string $value): array
 	{
-		if ($value === null)
+		if ($value === null || $value === '')
 		{
 			return [
 				'',
@@ -188,7 +201,13 @@ class MoneyType extends BaseType
 			];
 		}
 
-		return explode(static::DB_SEPARATOR, $value);
+		$result = explode(static::DB_SEPARATOR, $value);
+		if (count($result) === 1)
+		{
+			$result[] = '';
+		}
+
+		return $result;
 	}
 
 	private static function checkValueFormat(array $userField, $value): bool

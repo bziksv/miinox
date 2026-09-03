@@ -46,13 +46,13 @@ class PlatonHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	/**
 	 * @inheritDoc
 	 */
-	public function initiatePay(Payment $payment, Request $request = null)
+	public function initiatePay(Payment $payment, ?Request $request = null)
 	{
 		$result = new PaySystem\ServiceResult();
 
 		$params = [
-			'CURRENCY' => $payment->getField('CURRENCY'),
-			'SUM' => PriceMaths::roundPrecision($payment->getSum()),
+			'CURRENCY' => $payment->getCurrency(),
+			'SUM' => PriceMaths::roundByFormatCurrency($payment->getSum(), $payment->getCurrency()),
 			'FORM_ACTION_URL' => $this->getUrl($payment, "formActionUrl"),
 			'FORM_DATA' => $this->getFormData($payment),
 		];
@@ -167,17 +167,10 @@ class PlatonHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 */
 	private function getFormattedPaymentSum(Payment $payment)
 	{
-		$paymentSum = PriceMaths::roundPrecision($payment->getSum());
-		return $this->formatPaymentSum($paymentSum);
-	}
+		$paymentSum = $payment->getSum();
+		$currency = $payment->getCurrency();
 
-	/**
-	 * @param $paymentSum
-	 * @return string
-	 */
-	private function formatPaymentSum($paymentSum): string
-	{
-		return number_format($paymentSum, 2, '.', '');
+		return (string)PriceMaths::roundByFormatCurrency($paymentSum, $currency);
 	}
 
 	/**
@@ -369,8 +362,9 @@ class PlatonHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 */
 	private function checkPaymentSum(Payment $payment, $requestSum): bool
 	{
-		$roundedRequestSum = PriceMaths::roundPrecision($requestSum);
-		$roundedPaymentSum = PriceMaths::roundPrecision($payment->getSum());
+		$currency = $payment->getCurrency();
+		$roundedRequestSum = PriceMaths::roundByFormatCurrency($requestSum, $currency);
+		$roundedPaymentSum = PriceMaths::roundByFormatCurrency($payment->getSum(), $currency);
 		Logger::addDebugInfo(__CLASS__ . ": request sum: $roundedRequestSum, payment sum: $roundedPaymentSum");
 
 		return $roundedRequestSum === $roundedPaymentSum;
@@ -546,11 +540,6 @@ class PlatonHandler extends PaySystem\ServiceHandler implements PaySystem\IRefun
 	 */
 	public static function getHandlerModeList(): array
 	{
-		return [
-			self::PS_MODE_BANK_CARD => Loc::getMessage('SALE_HPS_PLATON_MODE_CARD'),
-			self::PS_MODE_GOOGLE_PAY => Loc::getMessage('SALE_HPS_PLATON_MODE_GOOGLE_PAY'),
-			self::PS_MODE_APPLE_PAY => Loc::getMessage('SALE_HPS_PLATON_MODE_APPLE_PAY'),
-			self::PS_MODE_PRIVAT24 => Loc::getMessage('SALE_HPS_PLATON_MODE_PRIVAT24'),
-		];
+		return PaySystem\Manager::getHandlerDescription('Platon')['HANDLER_MODE_LIST'];
 	}
 }

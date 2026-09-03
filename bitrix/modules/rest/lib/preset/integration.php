@@ -5,6 +5,8 @@ namespace Bitrix\Rest\Preset;
 use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Entity\ReferenceField;
+use Bitrix\Main\ORM\Query\Join;
+use Bitrix\Rest\APAuth\PasswordTable;
 
 Loc::loadMessages(__FILE__);
 
@@ -36,9 +38,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_Integration_Query query()
- * @method static EO_Integration_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Integration_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_Integration_Result getById($id)
- * @method static EO_Integration_Result getList(array $parameters = array())
+ * @method static EO_Integration_Result getList(array $parameters = [])
  * @method static EO_Integration_Entity getEntity()
  * @method static \Bitrix\Rest\Preset\EO_Integration createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\Preset\EO_Integration_Collection createCollection()
@@ -99,55 +101,28 @@ class IntegrationTable extends Main\Entity\DataManager
 				'validation' => array(__CLASS__, 'validateApp'),
 				'title' => Loc::getMessage('INTEGRATION_ENTITY_APP_ID_FIELD'),
 			),
-			'SCOPE' => array(
-				'data_type' => 'text',
-				'save_data_modification' => function()
-				{
-					return array(
-						function($value)
-						{
-							return is_array($value) ? implode(',', $value) : '';
-						}
-					);
-				},
-				'fetch_data_modification' => function()
-				{
-					return array(
-						function($value)
-						{
-							return explode(',', $value);
-						}
-					);
-				},
-				'title' => Loc::getMessage('INTEGRATION_ENTITY_SCOPE_FIELD'),
-			),
-			'QUERY' => array(
-				'data_type' => 'text',
-				'serialized' => true,
-				'title' => Loc::getMessage('INTEGRATION_ENTITY_QUERY_FIELD'),
-			),
-			'OUTGOING_EVENTS' => array(
-				'data_type' => 'text',
-				'save_data_modification' => function()
-				{
-					return array(
-						function($value)
-						{
-							return is_array($value) ? implode(',', $value) : '';
-						}
-					);
-				},
-				'fetch_data_modification' => function()
-				{
-					return array(
-						function($value)
-						{
-							return explode(',', $value);
-						}
-					);
-				},
-				'title' => Loc::getMessage('INTEGRATION_ENTITY_OUTGOING_EVENTS_FIELD'),
-			),
+			'SCOPE' => (new Main\ORM\Fields\ArrayField('SCOPE'))
+				->configureTitle(Loc::getMessage('INTEGRATION_ENTITY_SCOPE_FIELD'))
+				->configureSerializeCallback(
+					static fn(mixed $value): string => is_array($value) ? implode(',', $value) : '',
+				)
+				->configureUnserializeCallback(
+					static fn(mixed $value): array => is_string($value) ? explode(',', $value) : [],
+				),
+			'QUERY' => (new Main\ORM\Fields\ArrayField('QUERY'))
+				->configureNullable()
+				->configureSerializationPhp()
+				->configureTitle(Loc::getMessage('INTEGRATION_ENTITY_QUERY_FIELD'))
+			,
+			'OUTGOING_EVENTS' => (new Main\ORM\Fields\ArrayField('OUTGOING_EVENTS'))
+				->configureTitle(Loc::getMessage('INTEGRATION_ENTITY_OUTGOING_EVENTS_FIELD'))
+				->configureSerializeCallback(
+					static fn(mixed $value): string => is_array($value) ? implode(',', $value) : '',
+				)
+				->configureUnserializeCallback(
+					static fn(mixed $value): array => is_string($value) ? explode(',', $value) : [],
+				)
+			,
 			'OUTGOING_NEEDED' => array(
 				'data_type' => 'string',
 				'validation' => array(__CLASS__, 'validateOutgoingQueryNeeded'),
@@ -168,28 +143,15 @@ class IntegrationTable extends Main\Entity\DataManager
 				'validation' => array(__CLASS__, 'validateWidgetHandlerUrl'),
 				'title' => Loc::getMessage('INTEGRATION_ENTITY_WIDGET_HANDLER_URL_FIELD'),
 			),
-			'WIDGET_LIST' => array(
-				'data_type' => 'text',
-				'save_data_modification' => function()
-				{
-					return array(
-						function($value)
-						{
-							return is_array($value) ? implode(',', $value) : '';
-						}
-					);
-				},
-				'fetch_data_modification' => function()
-				{
-					return array(
-						function($value)
-						{
-							return explode(',', $value);
-						}
-					);
-				},
-				'title' => Loc::getMessage('INTEGRATION_ENTITY_WIDGET_LIST_FIELD'),
-			),
+			'WIDGET_LIST' => (new Main\ORM\Fields\ArrayField('WIDGET_LIST'))
+				->configureTitle(Loc::getMessage('INTEGRATION_ENTITY_WIDGET_LIST_FIELD'))
+				->configureSerializeCallback(
+					static fn(mixed $value): string => is_array($value) ? implode(',', $value) : '',
+				)
+				->configureUnserializeCallback(
+					static fn(mixed $value): array => is_string($value) ? explode(',', $value) : [],
+				)
+			,
 			'APPLICATION_TOKEN' => array(
 				'data_type' => 'string',
 				'validation' => array(__CLASS__, 'validateApplicationToken'),
@@ -219,6 +181,10 @@ class IntegrationTable extends Main\Entity\DataManager
 				'\Bitrix\Main\UserTable',
 				array('=this.USER_ID' => 'ref.ID')
 			),
+			'PASSWORD' => new ReferenceField('PASSWORD',
+				PasswordTable::class,
+				Join::on('this.PASSWORD_ID', 'ref.ID')
+			)
 		);
 	}
 
@@ -374,5 +340,20 @@ class IntegrationTable extends Main\Entity\DataManager
 		return array(
 			new Main\Entity\Validator\Length(null, 2048),
 		);
+	}
+
+	public static function onAfterUpdate(Main\Entity\Event $event): void
+	{
+		Main\Application::getInstance()->getCache()->cleanDir('rest/market_subscription');
+	}
+
+	public static function onAfterDelete(Main\Entity\Event $event): void
+	{
+		Main\Application::getInstance()->getCache()->cleanDir('rest/market_subscription');
+	}
+
+	public static function onAfterAdd(Main\Entity\Event $event): void
+	{
+		Main\Application::getInstance()->getCache()->cleanDir('rest/market_subscription');
 	}
 }

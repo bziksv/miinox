@@ -4,12 +4,13 @@ namespace Bitrix\Landing\History\Action;
 
 use Bitrix\Landing\Block;
 use Bitrix\Landing\Node;
+use Bitrix\Main\Web\Json;
 
 class EditImgAction extends BaseAction
 {
 	protected const JS_COMMAND = 'editImage';
 
-	public function execute(bool $undo = true): bool
+	protected function doExecute(bool $undo = true): bool
 	{
 		$block = new Block((int)$this->params['block']);
 		$selector = $this->params['selector'] ?: '';
@@ -37,10 +38,11 @@ class EditImgAction extends BaseAction
 
 	public static function enrichParams(array $params): array
 	{
-		/**
-		 * @var $block Block
-		 */
-		$block = $params['block'];
+		$block = $params['block'] ?? null;
+		if (!$block instanceof Block)
+		{
+			return [];
+		}
 
 		unset($params['valueAfter']['type']);
 		if (!$params['src2x'])
@@ -81,7 +83,12 @@ class EditImgAction extends BaseAction
 		$params['params']['value'] =
 			$undo
 				? $params['params']['valueBefore']
-				: $params['params']['valueAfter'];
+				: $params['params']['valueAfter']
+		;
+		if (isset($params['params']['value']['url']))
+		{
+			$params['params']['value']['url'] = Json::decode($params['params']['value']['url']);
+		}
 
 		unset(
 			$params['params']['valueAfter'],

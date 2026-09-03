@@ -1,63 +1,40 @@
 <?php
 
-
 namespace Bitrix\Catalog\Controller;
-
 
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\PriceTable;
-use Bitrix\Main\Engine\Response\DataType\Page;
 use Bitrix\Main\Error;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Result;
-use Bitrix\Main\UI\PageNavigation;
 use Bitrix\Rest\Event\EventBindInterface;
 use Bitrix\Catalog\GroupTable;
 use Bitrix\Catalog\Config\Feature;
 
 final class Price extends Controller implements EventBindInterface
 {
+	use ListAction; // default listAction realization
+	use GetAction; // default getAction realization
+	use CheckExists; // default implementation of existence check
+
 	//region Actions
 	/**
 	 * @return array
 	 */
 	public function getFieldsAction(): array
 	{
-		return ['PRICE' => $this->getViewFields()];
+		return [$this->getServiceItemName() => $this->getViewFields()];
 	}
 
 	/**
-	 * @param array $select
-	 * @param array $filter
-	 * @param array $order
-	 * @param PageNavigation|null $pageNavigation
-	 * @return Page
+	 * public function listAction
+	 * @see ListAction::listAction
 	 */
-	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): Page
-	{
-		return new Page(
-			'PRICES',
-			$this->getList($select, $filter, $order, $pageNavigation),
-			$this->count($filter)
-		);
-	}
 
 	/**
-	 * @param int $id
-	 * @return array|null
+	 * public function getAction
+	 * @see GetAction::getAction
 	 */
-	public function getAction(int $id): ?array
-	{
-		$r = $this->exists($id);
-		if (!$r->isSuccess())
-		{
-			$this->addErrors($r->getErrors());
-
-			return null;
-		}
-
-		return ['PRICE' => $this->get($id)];
-	}
 
 	/**
 	 * Update all product prices.
@@ -207,7 +184,7 @@ final class Price extends Controller implements EventBindInterface
 		$ids = $r->getData()[0];
 
 		return [
-			'PRICE'=>$this->get($ids[0])
+			$this->getServiceItemName() => $this->get($ids[0])
 		];
 	}
 
@@ -511,15 +488,6 @@ final class Price extends Controller implements EventBindInterface
 		return new PriceTable();
 	}
 
-	protected function exists($id)
-	{
-		$r = new Result();
-		if(isset($this->get($id)['ID']) == false)
-			$r->addError(new Error('Price is not exists'));
-
-		return $r;
-	}
-
 	protected function deleteValidate($id)
 	{
 		return new Result();
@@ -548,7 +516,7 @@ final class Price extends Controller implements EventBindInterface
 		{
 			if (!$this->accessController->check(ActionDictionary::ACTION_PRICE_EDIT))
 			{
-				$r->addError(new Error('Access Denied', 200040300020));
+				$r->addError($this->getErrorModifyAccessDenied());
 			}
 		}
 
@@ -564,7 +532,7 @@ final class Price extends Controller implements EventBindInterface
 			&& !$this->accessController->check(ActionDictionary::ACTION_PRICE_EDIT)
 		)
 		{
-			$r->addError(new Error('Access Denied', 200040300010));
+			$r->addError($this->getErrorReadAccessDenied());
 		}
 		return $r;
 	}

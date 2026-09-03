@@ -9,7 +9,9 @@ class Entity implements \JsonSerializable
 	protected $searchable = true;
 	protected $dynamicLoad = false;
 	protected $dynamicSearch = false;
+	protected $fillRecentItems = true;
 	protected $provider;
+	protected $substituteEntityId;
 	protected $filters = [];
 
 	public function __construct(array $options)
@@ -38,12 +40,22 @@ class Entity implements \JsonSerializable
 		{
 			$this->setDynamicLoad($options['dynamicLoad']);
 		}
+
+		if (isset($options['substituteEntityId']) && is_string($options['substituteEntityId']))
+		{
+			$this->substituteEntityId = $options['substituteEntityId'];
+		}
+
+		if (isset($options['fillRecentItems']) && is_bool($options['fillRecentItems']))
+		{
+			$this->fillRecentItems = $options['fillRecentItems'];
+		}
 	}
 
 	public static function create(array $entityOptions): ?Entity
 	{
 		$entity = new Entity($entityOptions);
-		$provider = Configuration::getProvider($entity->getId(), $entity->getOptions());
+		$provider = Configuration::getProvider($entity);
 		if ($provider && $provider->isAvailable())
 		{
 			$entity->setProvider($provider);
@@ -73,7 +85,7 @@ class Entity implements \JsonSerializable
 		return null;
 	}
 
-	public function getId(): string
+	public function getId(): ?string
 	{
 		return $this->id;
 	}
@@ -93,6 +105,11 @@ class Entity implements \JsonSerializable
 		$this->provider = $provider;
 
 		return $this;
+	}
+
+	public function getSubstituteEntityId(): ?string
+	{
+		return $this->substituteEntityId;
 	}
 
 	public function getFilters(): array
@@ -141,6 +158,11 @@ class Entity implements \JsonSerializable
 		$this->dynamicLoad = $flag;
 
 		return $this;
+	}
+
+	public function shouldFillRecentItems(): bool
+	{
+		return $this->fillRecentItems;
 	}
 
 	public function jsonSerialize(): array

@@ -2,16 +2,28 @@
 namespace Bitrix\Rest;
 
 use Bitrix\Main;
+use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Data\Cache;
+use Bitrix\Main\Engine\CurrentUser;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventManager;
 use Bitrix\Main\EventResult;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Rest\Engine\Access;
+use Bitrix\Main\ObjectPropertyException;
+use Bitrix\Main\SystemException;
+use Bitrix\Main\Web\HttpClient;
+use Bitrix\Main\Web\Uri;
+use Bitrix\Rest\Internal\Model\AppAttributeTable;
+use Bitrix\Rest\Event\Sender;
+use Bitrix\Rest\FormConfig\EventType;
+use Bitrix\Rest\Internals\FreeAppTable;
 use Bitrix\Rest\Marketplace\Client;
+use Bitrix\Rest\Public\Command\Application\CreateSystemUserCommand;
 use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Fields\Relations\OneToMany;
 use Bitrix\Rest\Preset\EventController;
+use Bitrix\Rest\Public\Command\Application\DeactivateSystemUserCommand;
+use Bitrix\Rest\Public\Event\Application\AppUserReadyEvent;
 
 Loc::loadMessages(__FILE__);
 
@@ -46,16 +58,16 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_App_Query query()
- * @method static EO_App_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_App_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_App_Result getById($id)
- * @method static EO_App_Result getList(array $parameters = array())
+ * @method static EO_App_Result getList(array $parameters = [])
  * @method static EO_App_Entity getEntity()
  * @method static \Bitrix\Rest\EO_App createObject($setDefaultValues = true)
  * @method static \Bitrix\Rest\EO_App_Collection createCollection()
  * @method static \Bitrix\Rest\EO_App wakeUpObject($row)
  * @method static \Bitrix\Rest\EO_App_Collection wakeUpCollection($rows)
  */
-class AppTable extends Main\Entity\DataManager
+class AppTable extends Internal\Model\AppTable
 {
 	const ACTIVE = 'Y';
 	const INACTIVE = 'N';
@@ -68,6 +80,7 @@ class AppTable extends Main\Entity\DataManager
 	const TYPE_ONLY_API = 'A';
 	const TYPE_CONFIGURATION = 'C';
 	const TYPE_SMART_ROBOTS = 'R';
+	const TYPE_BIC_DASHBOARD = 'B';
 
 	const MODE_SITE = 'S';
 
@@ -95,139 +108,55 @@ class AppTable extends Main\Entity\DataManager
 	);
 
 	/**
-	 * Returns DB table name for entity.
-	 *
-	 * @return string
-	 */
-	public static function getTableName()
-	{
-		return 'b_rest_app';
-	}
-
-	/**
 	 * Returns entity map definition.
 	 *
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
-		return array(
-			'ID' => array(
-				'data_type' => 'integer',
-				'primary' => true,
-				'autocomplete' => true,
-			),
-			'CLIENT_ID' => array(
-				'data_type' => 'string',
-				'required' => true,
-				'validation' => array(__CLASS__, 'validateClientId'),
-			),
-			'CODE' => array(
-				'data_type' => 'string',
-				'required' => true,
-				'validation' => array(__CLASS__, 'validateCode'),
-			),
-			'ACTIVE' => array(
-				'data_type' => 'boolean',
-				'values' => array(static::INACTIVE, static::ACTIVE),
-			),
-			'INSTALLED' => array(
-				'data_type' => 'boolean',
-				'values' => array(static::NOT_INSTALLED, static::INSTALLED),
-			),
-			'URL' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateUrl'),
-			),
-			'URL_DEMO' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateUrlDemo'),
-			),
-			'URL_INSTALL' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateUrlInstall'),
-			),
-			'VERSION' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateVersion'),
-			),
-			'SCOPE' => array(
-				'data_type' => 'string',
-				'required' => true,
-				'validation' => array(__CLASS__, 'validateScope'),
-			),
-			'STATUS' => array(
-				'data_type' => 'enum',
-				'required' => true,
-				'values' => array(
-					static::STATUS_LOCAL,
-					static::STATUS_FREE,
-					static::STATUS_PAID,
-					static::STATUS_DEMO,
-					static::STATUS_TRIAL,
-					static::STATUS_SUBSCRIPTION,
-				),
-			),
-			'DATE_FINISH' => array(
-				'data_type' => 'date',
-			),
-			'IS_TRIALED' => array(
-				'data_type' => 'boolean',
-				'values' => array(static::NOT_TRIALED, static::TRIALED),
-			),
-			'SHARED_KEY' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateSharedKey'),
-			),
-			'CLIENT_SECRET' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateClientSecret'),
-			),
-			'APP_NAME' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateAppName'),
-			),
-			'ACCESS' => array(
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, 'validateAccess'),
-			),
-			'APPLICATION_TOKEN' => array(
-				'data_type' => 'string',
-			),
-			'MOBILE' => array(
-				'data_type' => 'boolean',
-				'values' => array(static::INACTIVE, static::ACTIVE),
-			),
-			'USER_INSTALL' => array(
-				'data_type' => 'boolean',
-				'values' => array(static::INACTIVE, static::ACTIVE),
-			),
-			'LANG' => array(
-				'data_type' => 'Bitrix\Rest\AppLangTable',
-				'reference' => array(
-					'=this.ID' => 'ref.APP_ID',
-					'=ref.LANGUAGE_ID' => new Main\DB\SqlExpression('?s', LANGUAGE_ID),
-				),
-			),
-			'LANG_DEFAULT' => array(
-				'data_type' => 'Bitrix\Rest\AppLangTable',
-				'reference' => array(
-					'=this.ID' => 'ref.APP_ID',
-					'=ref.LANGUAGE_ID' => new Main\DB\SqlExpression('?s', Loc::getDefaultLang(LANGUAGE_ID)),
-				),
-			),
-			'LANG_LICENSE' => array(
-				'data_type' => 'Bitrix\Rest\AppLangTable',
-				'reference' => array(
-					'=this.ID' => 'ref.APP_ID',
-					'=ref.LANGUAGE_ID' => new Main\DB\SqlExpression('?s', static::getLicenseLanguage()),
-				),
-			),
-			(new OneToMany('LANG_ALL', AppLangTable::class, 'APP'))
-				->configureJoinType('left')
-		);
+		return array_merge(parent::getMap(), static::getReferenceMap());
 	}
 
+	private static function getReferenceMap(): array
+	{
+		return [
+			(new Main\ORM\Fields\Relations\Reference(
+				'LANG',
+				AppLangTable::class,
+				Main\ORM\Query\Join::on('this.ID', 'ref.APP_ID')
+					->where('ref.LANGUAGE_ID', LANGUAGE_ID),
+			)),
+
+			(new Main\ORM\Fields\Relations\Reference(
+				'LANG_DEFAULT',
+				AppLangTable::class,
+				Main\ORM\Query\Join::on('this.ID', 'ref.APP_ID')
+					->where('ref.LANGUAGE_ID', Loc::getDefaultLang(LANGUAGE_ID)),
+			)),
+
+			(new Main\ORM\Fields\Relations\Reference(
+				'LANG_LICENSE',
+				AppLangTable::class,
+				Main\ORM\Query\Join::on('this.ID', 'ref.APP_ID')
+					->where('ref.LANGUAGE_ID', static::getLicenseLanguage()),
+			)),
+
+			(new OneToMany('LANG_ALL', AppLangTable::class, 'APP'))
+				->configureJoinType(Main\ORM\Query\Join::TYPE_LEFT),
+
+			(new Main\ORM\Fields\Relations\Reference(
+				'FREE_APP',
+				FreeAppTable::class,
+				Main\ORM\Query\Join::on('this.CODE', 'ref.APP_CODE'),
+			)),
+
+			(new Main\ORM\Fields\ExpressionField(
+				name: 'IS_FREE',
+				expression: 'CASE WHEN %s IS NOT NULL THEN 1 ELSE 0 END',
+				buildFrom: ['FREE_APP.APP_CODE'],
+			)),
+		];
+	}
 	/**
 	 * Holds sending changed data to oauth.
 	 *
@@ -274,6 +203,7 @@ class AppTable extends Main\Entity\DataManager
 	 */
 	public static function onAfterAdd(Main\Entity\Event $event)
 	{
+		Main\Application::getInstance()->getCache()->cleanDir('rest/market_subscription');
 		EventController::onAddApp($event);
 		$data = $event->getParameters();
 		if(!static::$skipRemoteUpdate)
@@ -360,6 +290,7 @@ class AppTable extends Main\Entity\DataManager
 	 */
 	public static function onAfterUpdate(Main\Entity\Event $event)
 	{
+		Main\Application::getInstance()->getCache()->cleanDir('rest/market_subscription');
 		$data = $event->getParameters();
 		static::clearClientCache($data['primary']['ID']);
 
@@ -421,7 +352,7 @@ class AppTable extends Main\Entity\DataManager
 			$data = $event->getParameters();
 			$app = static::getByClientId($data['primary']['ID']);
 
-			if($app['STATUS'] == AppTable::STATUS_LOCAL)
+			if($app['STATUS'] == static::STATUS_LOCAL)
 			{
 				if(OAuthService::getEngine()->isRegistered())
 				{
@@ -450,10 +381,23 @@ class AppTable extends Main\Entity\DataManager
 	 */
 	public static function onAfterDelete(Main\Entity\Event $event)
 	{
+		Main\Application::getInstance()->getCache()->cleanDir('rest/market_subscription');
 		$data = $event->getParameters();
 
 		static::clearClientCache($data['primary']['ID']);
 		AppLangTable::deleteByApp($data['primary']['ID']);
+		AppAttributeTable::deleteByAppId((int)$data['primary']['ID']);
+	}
+
+	public static function isInstalled(int $appId): bool
+	{
+		$row = self::getRowById($appId);
+		if (!$row)
+		{
+			return false;
+		}
+
+		return $row['INSTALLED'] === self::INSTALLED;
 	}
 
 	public static function install($appId)
@@ -499,7 +443,22 @@ class AppTable extends Main\Entity\DataManager
 
 			foreach(GetModuleEvents("rest", "OnRestAppInstall", true) as $eventHandler)
 			{
-				ExecuteModuleEventEx($eventHandler, array($eventFields));
+				ExecuteModuleEventEx($eventHandler, array(&$eventFields));
+			}
+
+			if (
+				$appInfo['ACTIVE'] === self::ACTIVE
+				&& $appInfo['INSTALLED'] === self::INSTALLED
+				&& Main\Config\Option::get('rest', 'allow_create_sys_user', 'N') === 'Y'
+			)
+			{
+				$userId = (int)(\Bitrix\Rest\Marketplace\Application::getContextUserId() ?? CurrentUser::get()->getId());
+				$systemUserResult = (new CreateSystemUserCommand((int)$appInfo['ID'], $userId))->run();
+				if ($systemUserResult->isSuccess())
+				{
+					$systemUserData = $systemUserResult->getData()['systemUserData'];
+					(new AppUserReadyEvent($systemUserData))->send();
+				}
 			}
 		}
 	}
@@ -515,6 +474,7 @@ class AppTable extends Main\Entity\DataManager
 		$appInfo = static::getByClientId($appId);
 		if($appInfo)
 		{
+			(new DeactivateSystemUserCommand((int)$appInfo['ID']))->run();
 			\CRestUtil::cleanApp($appId, $clean);
 
 			if($appInfo['STATUS'] !== static::STATUS_LOCAL)
@@ -572,7 +532,7 @@ class AppTable extends Main\Entity\DataManager
 	{
 		$appList = OAuthService::getEngine()->getClient()->getApplicationList();
 
-		if(is_array($appList) && is_array($appList['result']))
+		if (!empty($appList['result']) && is_array($appList['result']))
 		{
 			$dbApps = static::getList(array(
 				'filter' => array(
@@ -714,7 +674,7 @@ class AppTable extends Main\Entity\DataManager
 				else
 				{
 					$dateFinish = \Bitrix\Rest\Marketplace\Client::getSubscriptionFinalDate();
-					if ($dateFinish !== false)
+					if (!is_null($dateFinish))
 					{
 						$res['DAYS_LEFT'] = floor(($dateFinish->getTimestamp() - \CTimeZone::getOffset() - time()) / 86400);
 						if($res['DAYS_LEFT'] < 0)
@@ -1002,7 +962,7 @@ class AppTable extends Main\Entity\DataManager
 			}
 		}
 
-		return static::$applicationCache[$clientId];
+		return static::$applicationCache[$clientId] ?? null;
 	}
 
 	protected static function clearClientCache($clientId)
@@ -1049,56 +1009,6 @@ class AppTable extends Main\Entity\DataManager
 
 
 	/**
-	 * Returns validators for CLIENT_ID field.
-	 *
-	 * @return array
-	 */
-	public static function validateClientId()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 128),
-			new Main\Entity\Validator\Unique(),
-		);
-	}
-
-	/**
-	 * Returns validators for CODE field.
-	 *
-	 * @return array
-	 */
-	public static function validateCode()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 128),
-			new Main\Entity\Validator\Unique(),
-		);
-	}
-
-	/**
-	 * Returns validators for URL field.
-	 *
-	 * @return array
-	 */
-	public static function validateUrl()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 1000),
-		);
-	}
-
-	/**
-	 * Returns validators for URL_DEMO field.
-	 *
-	 * @return array
-	 */
-	public static function validateUrlDemo()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 1000),
-		);
-	}
-
-	/**
 	 * Returns validators for URL_INSTALL field.
 	 *
 	 * @return array
@@ -1133,78 +1043,6 @@ class AppTable extends Main\Entity\DataManager
 
 				return true;
 			}
-		);
-	}
-
-	/**
-	 * Returns validators for VERSION field.
-	 *
-	 * @return array
-	 */
-	public static function validateVersion()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 4),
-		);
-	}
-
-	/**
-	 * Returns validators for SCOPE field.
-	 *
-	 * @return array
-	 */
-	public static function validateScope()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 2000),
-		);
-	}
-
-	/**
-	 * Returns validators for SHARED_KEY field.
-	 *
-	 * @return array
-	 */
-	public static function validateSharedKey()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 32),
-		);
-	}
-
-	/**
-	 * Returns validators for APP_SECRET_ID field.
-	 *
-	 * @return array
-	 */
-	public static function validateClientSecret()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 100),
-		);
-	}
-
-	/**
-	 * Returns validators for APP_NAME field.
-	 *
-	 * @return array
-	 */
-	public static function validateAppName()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 1000),
-		);
-	}
-
-	/**
-	 * Returns validators for ACCESS field.
-	 *
-	 * @return array
-	 */
-	public static function validateAccess()
-	{
-		return array(
-			new Main\Entity\Validator\Length(null, 2000),
 		);
 	}
 
@@ -1268,5 +1106,44 @@ class AppTable extends Main\Entity\DataManager
 		}
 
 		return $result;
+	}
+}
+
+class App
+{
+	public function __construct(
+		private string $clientId
+	)
+	{
+	}
+
+	/**
+	 * @throws ObjectPropertyException
+	 * @throws SystemException
+	 * @throws ArgumentException
+	 */
+	public function fetchAppFormConfig(array $formData, EventType $type): string
+	{
+		$appData = AppTable::getByClientId($this->clientId);
+		if (empty($appData['URL_SETTINGS']))
+		{
+			throw new ArgumentException('Property "URL_SETTINGS" is empty', 'URL_SETTINGS');
+		}
+		$uri = new Uri($appData['URL_SETTINGS']);
+		$httpClient = new HttpClient();
+		$params = Sender::getDefaultEventParams();
+		$params['sendRefreshToken'] = true;
+		$event = [
+			'event' => $type->value,
+			'data' => $formData,
+			'auth' => Sender::getAuth(
+				$this->clientId,
+				CurrentUser::get()->getId() ?? 0,
+				[],
+				$params
+			)
+		];
+
+		return $httpClient->post($uri, $event);
 	}
 }

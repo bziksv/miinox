@@ -9,6 +9,7 @@ use Bitrix\Main\ORM\EntityError;
 use Bitrix\Main\ORM\Event;
 use Bitrix\Main\ORM\Fields\FieldError;
 use Bitrix\Main\Result;
+use Bitrix\Main\ORM\Data\AddStrategy;
 use Bitrix\Main\Type\DateTime;
 
 
@@ -48,17 +49,18 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_User_Query query()
- * @method static EO_User_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_User_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_User_Result getById($id)
- * @method static EO_User_Result getList(array $parameters = array())
+ * @method static EO_User_Result getList(array $parameters = [])
  * @method static EO_User_Entity getEntity()
  * @method static \Bitrix\Forum\EO_User createObject($setDefaultValues = true)
  * @method static \Bitrix\Forum\EO_User_Collection createCollection()
  * @method static \Bitrix\Forum\EO_User wakeUpObject($row)
  * @method static \Bitrix\Forum\EO_User_Collection wakeUpCollection($rows)
  */
-class UserTable extends Main\Entity\DataManager
+class UserTable extends Main\ORM\Data\DataManager
 {
+	use AddStrategy\Trait\MergeByDefaultTrait;
 	/**
 	 * Returns DB table name for entity
 	 *
@@ -84,7 +86,8 @@ class UserTable extends Main\Entity\DataManager
 			),
 			'USER_ID' => array(
 				'data_type' => 'integer',
-				'required' => true
+				'required' => true,
+				'unique' => true,
 			),
 			'USER' => array(
 				'data_type' => 'Bitrix\Main\UserTable',
@@ -283,56 +286,54 @@ class User implements \ArrayAccess {
 	protected function __construct($id)
 	{
 		$this->data = [
-			"VISIBLE_NAME"=> "Guest"
+			'VISIBLE_NAME' => 'Guest',
+			'ALLOW_POST' => 'Y',
+			'SHOW_NAME' => 'Y',
 		];
 		if ($id > 0)
 		{
-			$user = UserTable::getList(array(
-				"select" => array(
-					"*",
-					"ACTIVE" => "USER.ACTIVE",
-					"NAME" => "USER.NAME",
-					"SECOND_NAME" => "USER.SECOND_NAME",
-					"LAST_NAME" => "USER.LAST_NAME",
-					"LOGIN" => "USER.LOGIN"
-				),
-				"filter" => array("USER_ID" => (int)$id),
-				"limit" => 1,
-			))->fetch();
+			$user = UserTable::getList([
+				'select' => [
+					'ID', 'USER_ID', 'POINTS', 'NUM_POSTS', 'LAST_POST', 'ALLOW_POST', 'SHOW_NAME',
+					'ACTIVE' => 'USER.ACTIVE',
+					'NAME' => 'USER.NAME',
+					'SECOND_NAME' => 'USER.SECOND_NAME',
+					'LAST_NAME' => 'USER.LAST_NAME',
+					'LOGIN' => 'USER.LOGIN'
+				],
+				'filter' => ['USER_ID' => (int)$id],
+				'limit' => 1,
+			])->fetch();
 			if ($user)
 			{
-				$this->forumUserId = $user["ID"];
-				$this->id = $user["USER_ID"];
-				$this->locked = ($user["ACTIVE"] !== "Y" || $user["ALLOW_POST"] !== "Y");
+				$this->forumUserId = $user['ID'];
+				$this->id = $user['USER_ID'];
+				$this->locked = ($user['ACTIVE'] !== 'Y' || $user['ALLOW_POST'] !== 'Y');
 			}
-			elseif ($user = Main\UserTable::getList(array(
-				'select' => array('*'),
-				'filter' => array('ID' => (int)$id),
+			elseif ($user = Main\UserTable::getList([
+				'select' => ['ID', 'ACTIVE', 'NAME', 'SECOND_NAME', 'LAST_NAME', 'LOGIN'],
+				'filter' => ['ID' => (int)$id],
 				'limit' => 1,
-			))->fetch())
+			])->fetch())
 			{
-				$this->id = $user["ID"];
-				$this->locked = ($user["ACTIVE"] !== "Y");
+				$this->id = $user['ID'];
+				$this->locked = ($user['ACTIVE'] !== 'Y');
 
-				$this->data["ALLOW_POST"] = "Y";
-				$this->data["SHOW_NAME"] = (\COption::GetOptionString("forum", "USER_SHOW_NAME", "Y") == "Y" ? "Y" : "N");
+				$user['ALLOW_POST'] = 'Y';
+				$user['SHOW_NAME'] = (\COption::GetOptionString('forum', 'USER_SHOW_NAME', 'Y') == 'Y' ? 'Y' : 'N');
 			}
 			else
 			{
-				throw new Main\ObjectNotFoundException("User was not found.");
+				throw new Main\ObjectNotFoundException('User was not found.');
 			}
 			$this->data = $user;
-			$this->data["NAME"] = $user["NAME"];
-			$this->data["SECOND_NAME"] = $user["SECOND_NAME"];
-			$this->data["LAST_NAME"] = $user["LAST_NAME"];
-			$this->data["LOGIN"] = $user["LOGIN"];
-			$this->data["ALLOW_POST"] = ($this->data["ALLOW_POST"] === "N" ? "N" : "Y");
-			if ($this->data["SHOW_NAME"] !== "Y" && $this->data["SHOW_NAME"] !== "N")
-				$this->data["SHOW_NAME"] = (\COption::GetOptionString("forum", "USER_SHOW_NAME", "Y") == "Y" ? "Y" : "N");
-			$this->data["VISIBLE_NAME"] = ($this->data["SHOW_NAME"] === "Y" ?  \CUser::FormatName(\CSite::getNameFormat(false), $user, true, false) : $this->data["LOGIN"]);
-			$this->editOwn = (\COption::GetOptionString("forum", "USER_EDIT_OWN_POST", "Y") == "Y");
+			$this->data['ALLOW_POST'] = (($this->data['ALLOW_POST'] ?? 'Y') === 'N' ? 'N' : 'Y');
+			if (empty($this->data['SHOW_NAME']))
+				$this->data['SHOW_NAME'] = \COption::GetOptionString('forum', 'USER_SHOW_NAME', 'Y');
+			$this->data['SHOW_NAME'] = $this->data['SHOW_NAME'] == 'N' ? 'N' : 'Y';
+			$this->data['VISIBLE_NAME'] = ($this->data['SHOW_NAME'] === 'Y' ?  \CUser::FormatName(\CSite::getNameFormat(false), $user, true, false) : $this->data['LOGIN']);
+			$this->editOwn = (\COption::GetOptionString('forum', 'USER_EDIT_OWN_POST', 'Y') == 'Y');
 		}
-
 	}
 	/**
 	 * @return string
@@ -342,11 +343,11 @@ class User implements \ArrayAccess {
 		return $this->data["VISIBLE_NAME"];
 	}
 
-	public function setLastVisit()
+	public function setLastVisit(): static
 	{
 		if ($this->getId() <= 0)
 		{
-			return;
+			return $this;
 		}
 
 		$connection = Main\Application::getConnection();
@@ -380,9 +381,11 @@ class User implements \ArrayAccess {
 
 		unset($GLOBALS['FORUM_CACHE']['USER']);
 		unset($GLOBALS['FORUM_CACHE']['USER_ID']);
+
+		return $this;
 	}
 
-	public function setLocation(int $forumId = 0, int $topicId = 0)
+	public function setLocation(int $forumId = 0, int $topicId = 0): void
 	{
 		global $USER;
 		if (!($USER instanceof \CUser && $this->getId() === $USER->GetID()))
@@ -390,14 +393,11 @@ class User implements \ArrayAccess {
 			return;
 		}
 
-		$connection = Main\Application::getConnection();
-		$helper = $connection->getSqlHelper();
+		$helper = Main\Application::getConnection()->getSqlHelper();
 
-		$primaryFields = [
-			'USER_ID' => $this->getId(),
-			'PHPSESSID' => $this->getSessId()
-		];
 		$fields = [
+			'USER_ID' => $this->getId(),
+			'PHPSESSID' => $this->getSessId(),
 			'SHOW_NAME' => $this->getName(),
 			'IP_ADDRESS' => Main\Service\GeoIp\Manager::getRealIp(),
 			'LAST_VISIT' => new Main\DB\SqlExpression($helper->getCurrentDateTimeFunction()),
@@ -406,22 +406,7 @@ class User implements \ArrayAccess {
 			'TOPIC_ID' => $topicId,
 		];
 
-		if ($this->getId() > 0)
-		{
-			$fields['PHPSESSID'] = $primaryFields['PHPSESSID'];
-			unset($primaryFields['PHPSESSID']);
-		}
-
-		$merge = $helper->prepareMerge(
-			'b_forum_stat',
-			array_keys($primaryFields),
-			$primaryFields + $fields,
-			$fields
-		);
-		if ($merge[0] != '')
-		{
-			$connection->query($merge[0]);
-		}
+		ForumStatTable::upsert($fields);
 	}
 
 	public function isLocked()
@@ -493,7 +478,7 @@ class User implements \ArrayAccess {
 		];
 		if ($res = MessageTable::getList([
 			"select" => ["CNT", "LAST_MESSAGE_ID"],
-			"filter" => ["AUTHOR_ID" => $this->getId(), "APPROVED" => "Y"],
+			"filter" => ["AUTHOR_ID" => $this->getId(), "=APPROVED" => "Y"],
 			"runtime" => [
 				new Main\Entity\ExpressionField("CNT", "COUNT(*)"),
 				new Main\Entity\ExpressionField("LAST_MESSAGE_ID", "MAX(%s)", ["ID"])
@@ -516,7 +501,7 @@ class User implements \ArrayAccess {
 			return;
 		}
 
-		$this->data["NUM_POSTS"]++;
+		$this->data["NUM_POSTS"] = empty($this->data["NUM_POSTS"]) ? 1 : $this->data["NUM_POSTS"] + 1;
 		$this->data["POINTS"] = \CForumUser::GetUserPoints($this->getId(), array("INCREMENT" => $this->data["NUM_POSTS"]));
 		$this->data["LAST_POST"] = $message["ID"];
 		$this->save([
@@ -565,11 +550,9 @@ class User implements \ArrayAccess {
 			return null;
 		}
 
-		try
-		{
-			$topic = Topic::getById($topicId);
-		}
-		catch (Main\ObjectNotFoundException $e)
+		$topic = Topic::getById($topicId);
+
+		if (empty($topic))
 		{
 			return null;
 		}
@@ -577,7 +560,7 @@ class User implements \ArrayAccess {
 		$query = MessageTable::query()
 			->setSelect(['ID'])
 			->where('TOPIC_ID', $topic->getId())
-			->registerRuntimeField('FORCED_INT_ID', new Main\Entity\ExpressionField('FORCED_ID', '%s + ""', ['ID']))
+			->registerRuntimeField('FORCED_INT_ID', new Main\Entity\ExpressionField('FORCED_ID', '%s', ['ID']))
 			->setOrder(['FORCED_INT_ID' => 'ASC'])
 			->setLimit(1);
 		if ($this->isAuthorized())
@@ -786,7 +769,7 @@ class User implements \ArrayAccess {
 		}
 	}
 
-	private function save(array $fields)
+	private function save(array $fields): Main\Result
 	{
 		$result = new Result();
 
@@ -797,13 +780,18 @@ class User implements \ArrayAccess {
 
 		if ($this->forumUserId > 0)
 		{
-			$result = User::update($this->forumUserId, $fields);
+			$result = static::update($this->forumUserId, $fields);
 		}
 		else
 		{
-			$fields = ['USER_ID' => $this->getId()] + $fields + $this->data;
-			unset($fields['ID']);
-			$result = User::add($fields);
+			if (Main\Application::getConnection()->getType() === 'pgsql')
+			{
+				$fields['NUM_POSTS'] = 1;
+			}
+			$data = ['USER_ID' => $this->getId()] + $fields + $this->data;
+			unset($data['ID']);
+
+			$result = static::add($data);
 			if ($result->isSuccess())
 			{
 				$res = $result->getPrimary();
@@ -814,6 +802,7 @@ class User implements \ArrayAccess {
 				$this->forumUserId = $res;
 			}
 		}
+
 		return $result;
 	}
 

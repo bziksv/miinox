@@ -15,6 +15,7 @@ ShowMessage($arResult['ERROR_MESSAGE']);
 
 		<input type="hidden" name="AUTH_FORM" value="Y" />
 		<input type="hidden" name="TYPE" value="AUTH" />
+		<?= bitrix_sessid_post(); ?>
 		<?if ($arResult["BACKURL"] <> ''):?>
 		<input type="hidden" name="backurl" value="<?=$arResult["BACKURL"]?>" />
 		<?endif?>
@@ -39,7 +40,7 @@ ShowMessage($arResult['ERROR_MESSAGE']);
 					<div class="bx-auth-secure-icon bx-auth-secure-unlock"></div>
 				</span>
 				</noscript>
-<script type="text/javascript">
+<script>
 document.getElementById('bx_auth_secure').style.display = 'inline-block';
 </script>
 <?endif?>
@@ -76,7 +77,7 @@ document.getElementById('bx_auth_secure').style.display = 'inline-block';
 		</noindex>
 <?endif?>
 
-<?if($arParams["NOT_SHOW_LINKS"] != "Y" && $arResult["NEW_USER_REGISTRATION"] == "Y" && $arParams["AUTHORIZE_REGISTRATION"] != "Y"):?>
+<?if($arParams["NOT_SHOW_LINKS"] != "Y" && $arResult["NEW_USER_REGISTRATION"] == "Y"):?>
 		<noindex>
 			<p>
 				<a href="<?=$arResult["AUTH_REGISTER_URL"]?>" rel="nofollow"><?=GetMessage("AUTH_REGISTER")?></a><br />
@@ -88,7 +89,7 @@ document.getElementById('bx_auth_secure').style.display = 'inline-block';
 	</form>
 </div>
 
-<script type="text/javascript">
+<script>
 <?if ($arResult["LAST_LOGIN"] <> ''):?>
 try{document.form_auth.USER_PASSWORD.focus();}catch(e){}
 <?else:?>

@@ -186,7 +186,7 @@ class CAllBlogComment
 				"	C.PUBLISH_STATUS, C.PATH, C.SHARE_DEST ".
 				"FROM b_blog_comment C ".
 				"WHERE C.ID = ".$ID."";
-			$dbResult = $DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbResult = $DB->Query($strSql);
 			if ($arResult = $dbResult->Fetch())
 			{
 				$GLOBALS["BLOG_COMMENT"]["BLOG_COMMENT_CACHE_".$ID] = $arResult;
@@ -555,7 +555,13 @@ class CAllBlogComment
 			return;
 		}
 
-		$AuthorName = CBlogUser::GetUserName($arBlogUser["~ALIAS"], $arUser["~NAME"], $arUser["~LAST_NAME"], $arUser["~LOGIN"], $arUser["~SECOND_NAME"]);
+		$AuthorName = CBlogUser::GetUserName(
+			$arBlogUser["~ALIAS"] ?? null,
+			$arUser["~NAME"] ?? null,
+			$arUser["~LAST_NAME"] ?? null,
+			$arUser["~LOGIN"] ?? null,
+			$arUser["~SECOND_NAME"] ?? null
+		);
 		$parserBlog = new blogTextParser(false, $arParams["PATH_TO_SMILE"]);
 
 		$arAllow = array("HTML" => "N", "ANCHOR" => "N", "BIU" => "N", "IMG" => "N", "QUOTE" => "N", "CODE" => "N", "FONT" => "N", "LIST" => "N", "SMILES" => "N", "NL2BR" => "N", "VIDEO" => "N");
@@ -617,7 +623,7 @@ class CAllBlogComment
 
 		return $DB->Query("SELECT C.ID, C.POST_ID
 							FROM b_blog_comment C
-							INNER JOIN b_blog_socnet_rights SR ON (C.POST_ID = SR.POST_ID AND SR.ENTITY_TYPE='".$type."' AND SR.ENTITY_ID=".$entity_id." AND SR.ENTITY = '".$type2.$entity_id."')", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+							INNER JOIN b_blog_socnet_rights SR ON (C.POST_ID = SR.POST_ID AND SR.ENTITY_TYPE='".$type."' AND SR.ENTITY_ID=".$entity_id." AND SR.ENTITY = '".$type2.$entity_id."')");
 	}
 
 	public static function GetSocNetCommentPerms($postID = 0)
@@ -663,7 +669,7 @@ class CAllBlogComment
 		return self::GetSocNetUserPermsNew($postId, $authorId, $userId, $permsBySG);
 	}
 
-	public static function GetSocNetUserPermsNew($postId = 0, $authorId = 0, $userId = 0, &$permsBySG)
+	public static function GetSocNetUserPermsNew($postId = 0, $authorId = 0, $userId = 0, &$permsBySG = null)
 	{
 		global $APPLICATION, $USER, $AR_BLOG_PERMS;
 
@@ -885,7 +891,7 @@ class CAllBlogComment
 
 		if (isset($arFields["POST_TEXT"]))
 		{
-			preg_match_all("/\[user\s*=\s*([^\]]*)\](.+?)\[\/user\]/is".BX_UTF_PCRE_MODIFIER, $arFields["POST_TEXT"], $arMention);
+			preg_match_all("/\[user\s*=\s*([^\]]*)\](.+?)\[\/user\]/isu", $arFields["POST_TEXT"], $arMention);
 			if (!empty($arMention))
 			{
 				$arMentionedUserID = array_merge($arMentionedUserID, $arMention[1]);
@@ -915,13 +921,19 @@ class CAllBlogComment
 			global $DB, $APPLICATION;
 
 			$arParams["DATE_TIME_FORMAT"] = (isset($arParams["DATE_TIME_FORMAT"]) ? $arParams["DATE_TIME_FORMAT"] : $DB->DateFormatToPHP(CSite::GetDateFormat("FULL")));
-			$arParams["SHOW_RATING"] = ($arParams["SHOW_RATING"] == "N" ? "N" : "Y");
+			$arParams["SHOW_RATING"] = (($arParams["SHOW_RATING"] ?? null) == "N" ? "N" : "Y");
 
 			$arParams["PATH_TO_USER"] = (isset($arParams["PATH_TO_USER"]) ? $arParams["PATH_TO_USER"] : '');
 			$arParams["PATH_TO_POST"] = (isset($arParams["PATH_TO_POST"]) ? $arParams["PATH_TO_POST"] : '');
-			$arParams["AVATAR_SIZE_COMMENT"] = ($arParams["AVATAR_SIZE_COMMENT"] > 0 ? $arParams["AVATAR_SIZE_COMMENT"] : ($arParams["AVATAR_SIZE"] > $arParams["AVATAR_SIZE"] ? $arParams["AVATAR_SIZE"] : 100));
+
+			$arParams["AVATAR_SIZE_COMMENT"] = ($arParams["AVATAR_SIZE_COMMENT"] ?? 0) > 0 ? $arParams["AVATAR_SIZE_COMMENT"] : 0;
+			if ($arParams["AVATAR_SIZE_COMMENT"] === 0)
+			{
+				$arParams["AVATAR_SIZE_COMMENT"] = (($arParams["AVATAR_SIZE"] ?? null) > 0 ? $arParams["AVATAR_SIZE"] : 100);
+			}
+
 			$arParams["NAME_TEMPLATE"] = isset($arParams["NAME_TEMPLATE"]) ? $arParams["NAME_TEMPLATE"] : CSite::GetNameFormat();
-			$arParams["SHOW_LOGIN"] = ($arParams["SHOW_LOGIN"] == "N" ? "N" : "Y");
+			$arParams["SHOW_LOGIN"] = (($arParams["SHOW_LOGIN"] ?? null) == "N" ? "N" : "Y");
 
 			$comment["DateFormated"] = FormatDateFromDB($comment["DATE_CREATE"], $arParams["DATE_TIME_FORMAT"], true);
 			$timestamp = MakeTimeStamp($comment["DATE_CREATE"]);
@@ -931,7 +943,7 @@ class CAllBlogComment
 				&& strcasecmp(LANGUAGE_ID, 'DE') !== 0
 			)
 			{
-				$comment["DateFormated"] = ToLower($comment["DateFormated"]);
+				$comment["DateFormated"] = mb_strtolower($comment["DateFormated"]);
 			}
 
 			$comment["UF"] = $USER_FIELD_MANAGER->GetUserFields("BLOG_COMMENT", $commentId, LANGUAGE_ID);
@@ -1031,12 +1043,12 @@ class CAllBlogComment
 						$commentId => array(
 							"ID" => $comment["ID"],
 							"RATING_VOTE_ID" => 'BLOG_COMMENT_'.$comment["ID"].'-'.(time()+rand(0, 1000)),
-							"NEW" => ($arParams["FOLLOW"] != "N" && $comment["NEW"] == "Y" ? "Y" : "N"),
+							"NEW" => (($arParams["FOLLOW"] ?? null) != "N" && ($comment["NEW"] ?? null) == "Y" ? "Y" : "N"),
 							"AUX" => (!empty($arParams["AUX"]) ? $arParams["AUX"] : ''),
 							"AUX_LIVE_PARAMS" => (!empty($arParams["AUX_LIVE_PARAMS"]) ? $arParams["AUX_LIVE_PARAMS"] : ''),
 							"APPROVED" => ($comment["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_PUBLISH ? "Y" : "N"),
 							"POST_TIMESTAMP" => $timestamp,
-							"POST_TIME" => $comment["DATE_CREATE_TIME"],
+							"POST_TIME" => $comment["DATE_CREATE_TIME"] ?? null,
 							"POST_DATE" => $comment["DateFormated"],
 							"AUTHOR" => array(
 								"ID" => $arAuthor["ID"],
@@ -1045,7 +1057,7 @@ class CAllBlogComment
 								"SECOND_NAME" => $arAuthor["~SECOND_NAME"],
 								"LOGIN" => $arAuthor["~LOGIN"],
 								"PERSONAL_GENDER" => $arAuthor["~PERSONAL_GENDER"],
-								"AVATAR" => $arAuthor["PERSONAL_PHOTO_resized"]["src"],
+								"AVATAR" => $arAuthor["PERSONAL_PHOTO_resized"]["src"] ?? null,
 								"EXTERNAL_AUTH_ID" => (isset($arAuthor["EXTERNAL_AUTH_ID"]) ? $arAuthor["EXTERNAL_AUTH_ID"] : ''),
 								"TYPE" => $authorType
 							),
@@ -1053,7 +1065,7 @@ class CAllBlogComment
 							"UF" => $comment["UF"],
 							"~POST_MESSAGE_TEXT" => $comment["POST_TEXT"],
 							"WEB" => array(
-								"POST_TIME" => $comment["DATE_CREATE_TIME"],
+								"POST_TIME" => $comment["DATE_CREATE_TIME"] ?? null,
 								"POST_DATE" => $comment["DateFormated"],
 								"CLASSNAME" => "",
 								"POST_MESSAGE_TEXT" => $comment["TextFormated"],
@@ -1062,7 +1074,7 @@ class CAllBlogComment
 HTML
 							),
 							"MOBILE" => array(
-								"POST_TIME" => $comment["DATE_CREATE_TIME"],
+								"POST_TIME" => $comment["DATE_CREATE_TIME"] ?? null,
 								"POST_DATE" => $comment["DateFormated"],
 								"CLASSNAME" => "",
 								"POST_MESSAGE_TEXT" => $comment["TextFormatedMobile"]

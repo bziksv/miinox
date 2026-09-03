@@ -1,11 +1,11 @@
-<?
+<?php
 
 use Bitrix\Main\Loader;
-use Bitrix\Main\UI\Filter\Type;
-use Bitrix\Main\UI\Filter\FieldAdapter;
-use Bitrix\Main\UI\Filter\DateType;
-use Bitrix\Main\UI\Filter\Theme;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Filter\DateType;
+use Bitrix\Main\UI\Filter\FieldAdapter;
+use Bitrix\Main\UI\Filter\Theme;
+use Bitrix\Main\UI\Filter\Type;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
@@ -14,28 +14,37 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 Loc::loadMessages(__FILE__);
 
-
 class CMainUiFilter extends CBitrixComponent
 {
 	protected $defaultViewSort = 500;
 	protected $options;
 	protected $themesFolder = "/themes/";
 	protected $configName = "config.json";
-	protected $commonOptions;
 	protected $theme;
-	protected $themeInstance;
 	protected $defaultHeaderSectionId = '';
-	protected function prepareResult()
+	protected ?array $presets = null;
+	protected ?array $sourcePresets = null;
+	protected ?array $defaultPresets = null;
+	protected ?array $commonPresets = null;
+	protected ?array $currentPreset = null;
+	protected ?array $filterRows = null;
+	protected ?array $commonOptions = null;
+
+	protected static string $DEFAULT_PRESET_ID = "default_filter";
+	protected static string $TMP_PRESET_ID = "tmp_filter";
+
+	protected function prepareResult(): void
 	{
 		$this->arResult["FILTER_ID"] = $this->arParams["FILTER_ID"] ?? '';
 		$this->arResult["GRID_ID"] = $this->arParams["GRID_ID"] ?? '';
 		$this->arResult["FIELDS"] = $this->prepareFields();
-		$this->arResult["PRESETS"] = $this->preparePresets();
+		$this->arResult["PRESETS"] = array_values($this->getPresets());
+		$this->arResult["DEFAULT_PRESETS"] = array_values($this->getDefaultPresets());
 		$this->arResult["TARGET_VIEW_ID"] = $this->getViewId();
 		$this->arResult["TARGET_VIEW_SORT"] = $this->getViewSort();
 		$this->arResult["SETTINGS_URL"] = $this->prepareSettingsUrl();
-		$this->arResult["FILTER_ROWS"] = $this->prepareFilterRows();
-		$this->arResult["CURRENT_PRESET"] = $this->prepareDefaultPreset();
+		$this->arResult["FILTER_ROWS"] = $this->getFilterRows();
+		$this->arResult["CURRENT_PRESET"] = $this->getCurrentPreset();
 		$this->arResult["ENABLE_LABEL"] = $this->prepareEnableLabel();
 		$this->arResult["ENABLE_LIVE_SEARCH"] = $this->prepareEnableLiveSearch();
 		$this->arResult["DISABLE_SEARCH"] = $this->prepareDisableSearch();
@@ -76,11 +85,13 @@ class CMainUiFilter extends CBitrixComponent
 		$this->arResult["THEME"] = $this->getTheme();
 		$this->arResult["RESET_TO_DEFAULT_MODE"] = $this->prepareResetToDefaultMode();
 		$this->arResult["COMMON_PRESETS_ID"] = $this->arParams["COMMON_PRESETS_ID"] ?? null;
-		$this->arResult["IS_AUTHORIZED"] = $this->prepareIsAuthorized();
+		$this->arResult["IS_AUTHORIZED"] = $this->getUser()->isAuthorized();
 		$this->arResult["LAZY_LOAD"] = $this->arParams["LAZY_LOAD"] ?? null;
 		$this->arResult["VALUE_REQUIRED"] = $this->arParams["VALUE_REQUIRED"] ?? null;
 		$this->arResult["FIELDS_STUBS"] = static::getFieldsStubs();
 		$this->arResult["INITIAL_FILTER"] = $this->getFilter();
+		$this->arResult["USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP"] = (bool)($this->arParams["USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP"] ?? false);
+		$this->arResult["RESTRICTED_FIELDS"] = ($this->arParams["RESTRICTED_FIELDS"] ?? []);
 		$this->arResult["ENABLE_ADDITIONAL_FILTERS"] = $this->arParams["ENABLE_ADDITIONAL_FILTERS"] ?? null;
 		$this->arResult['ENABLE_FIELDS_SEARCH'] = (
 			isset($this->arParams['ENABLE_FIELDS_SEARCH'])
@@ -100,7 +111,7 @@ class CMainUiFilter extends CBitrixComponent
 			foreach ($this->arParams["MESSAGES"] as $key => $message)
 			{
 				if (
-					strpos($key, "MAIN_UI_FILTER__") !== false
+					str_contains($key, "MAIN_UI_FILTER__")
 					&& isset($this->arResult[$key])
 				)
 				{
@@ -138,12 +149,6 @@ class CMainUiFilter extends CBitrixComponent
 		}
 
 		return $result;
-	}
-
-	protected static function prepareIsAuthorized()
-	{
-		global $USER;
-		return $USER->isAuthorized();
 	}
 
 	protected function prepareResetToDefaultMode()
@@ -275,48 +280,9 @@ class CMainUiFilter extends CBitrixComponent
 		return $this->getUserOptions()->getFilter($this->arParams["FILTER"] ?? []);
 	}
 
-	protected function prepareParams()
+	protected static function prepareSelectValue(array $items = array(), $value = "", $strictMode = false)
 	{
-		$options = $this->getUserOptions();
-		$presets = $this->arParams["FILTER_PRESETS"];
-
-		foreach ($presets as $key => $preset)
-		{
-			if ($options->isDeletedPreset($key))
-			{
-				unset($this->arParams["FILTER_PRESETS"][$key]);
-			}
-		}
-
-		$this->arParams["FILTER_ROWS"] = $this->prepareFilterRowsParam();
-	}
-
-	protected function prepareFilterRowsParam()
-	{
-		if (!isset($this->arParams["FILTER_ROWS"]) || !is_array($this->arParams["FILTER_ROWS"]))
-		{
-			$this->arParams["FILTER_ROWS"] = array();
-
-			if (isset($this->arParams["FILTER"]) &&
-				!empty($this->arParams["FILTER"]) &&
-				is_array($this->arParams["FILTER"]))
-			{
-				foreach ($this->arParams["FILTER"] as $key => $field)
-				{
-					if (!empty($field["default"]))
-					{
-						$this->arParams["FILTER_ROWS"][$field["id"]] = true;
-					}
-				}
-			}
-		}
-
-		return $this->arParams["FILTER_ROWS"];
-	}
-
-	protected static function prepareSelectValue(Array $items = array(), $value = "", $strictMode = false)
-	{
-		foreach ($items as $key => $item)
+		foreach ($items as $item)
 		{
 			if (
 				(!$strictMode && $item["VALUE"] == $value) ||
@@ -330,12 +296,12 @@ class CMainUiFilter extends CBitrixComponent
 		return array();
 	}
 
-	protected static function prepareMultiselectValue(Array $items = array(), Array $value = array(), $isStrict = false)
+	protected static function prepareMultiselectValue(array $items = array(), array $value = array(), $isStrict = false)
 	{
 		$result = array();
 		$values = array_values($value);
 
-		foreach ($items as $key => $item)
+		foreach ($items as $item)
 		{
 			if (in_array($item["VALUE"], $values, $isStrict))
 			{
@@ -346,13 +312,13 @@ class CMainUiFilter extends CBitrixComponent
 		return $result;
 	}
 
-	protected static function prepareValue(Array $field, Array $presetFields = array(), $prefix)
+	protected static function prepareValue(array $field, array $presetFields, $prefix)
 	{
 		$fieldValuesKeys = array_keys($field["VALUES"]);
 		$fieldName = mb_strpos($field["NAME"], $prefix) !== false ? str_replace($prefix, "", $field["NAME"]) : $field["NAME"];
 		$result = array();
 
-		foreach ($fieldValuesKeys as $key => $keyName)
+		foreach ($fieldValuesKeys as $keyName)
 		{
 			$currentFieldName = $fieldName.$keyName;
 			$result[$keyName] = "";
@@ -366,7 +332,7 @@ class CMainUiFilter extends CBitrixComponent
 		return $result;
 	}
 
-	protected static function prepareSubtype(Array $field, Array $presetFields = array(), $prefix)
+	protected static function prepareSubtype(array $field, array $presetFields, $prefix)
 	{
 		$subTypes = $field["SUB_TYPES"];
 		$dateselName = mb_strpos($field["NAME"], $prefix) === false ? $field["NAME"].$prefix : $field["NAME"];
@@ -374,7 +340,7 @@ class CMainUiFilter extends CBitrixComponent
 
 		if (array_key_exists($dateselName, $presetFields))
 		{
-			foreach ($subTypes as $key => $subType)
+			foreach ($subTypes as $subType)
 			{
 				if ($subType["VALUE"] === $presetFields[$dateselName])
 				{
@@ -386,7 +352,7 @@ class CMainUiFilter extends CBitrixComponent
 		return $result;
 	}
 
-	protected static function extractValueFromPreset(Array $field, Array $presetFields = []): array
+	protected static function extractValueFromPreset(array $field, array $presetFields = []): array
 	{
 		$fieldName = $field["NAME"];
 		$fieldNameLabel = $fieldName . "_label";
@@ -422,7 +388,7 @@ class CMainUiFilter extends CBitrixComponent
 		return $result;
 	}
 
-	protected static function prepareCustomEntityValue(Array $field, Array $presetFields = [])
+	protected static function prepareCustomEntityValue(array $field, array $presetFields = [])
 	{
 		$result = self::extractValueFromPreset($field, $presetFields);
 
@@ -439,12 +405,12 @@ class CMainUiFilter extends CBitrixComponent
 		return $result;
 	}
 
-	protected static function prepareCustomValue(Array $field, Array $presetFields = array())
+	protected static function prepareCustomValue(array $field, array $presetFields = array())
 	{
 		return array_key_exists($field["NAME"], $presetFields) ? $presetFields[$field["NAME"]] : "";
 	}
 
-	protected static function prepareDestSelectorValue(Array $field, Array $presetFields = array(), Array $params = array())
+	protected static function prepareDestSelectorValue(array $field, array $presetFields = array(), array $params = array())
 	{
 		$result = self::extractValueFromPreset($field, $presetFields);
 
@@ -522,7 +488,7 @@ class CMainUiFilter extends CBitrixComponent
 		return self::replaceEmptyLabelsWithIds($result);
 	}
 
-	protected static function prepareEntitySelectorValue(Array $field, Array $presetFields = [])
+	protected static function prepareEntitySelectorValue(array $field, array $presetFields = [])
 	{
 		$result = self::extractValueFromPreset($field, $presetFields);
 		if (!empty($result['_label']))
@@ -587,7 +553,7 @@ class CMainUiFilter extends CBitrixComponent
 
 		if (is_array($presetRows) && is_array($presetFields))
 		{
-			foreach ($presetRows as $rowKey => $rowName)
+			foreach ($presetRows as $rowName)
 			{
 				$field = $this->getField($rowName);
 
@@ -636,11 +602,10 @@ class CMainUiFilter extends CBitrixComponent
 							{
 								$field["YEARS_SWITCHER"]["VALUE"] = self::prepareSelectValue(
 									$field["YEARS_SWITCHER"]["ITEMS"],
-									$presetFields[$field["NAME"]."_allow_year"],
+									$presetFields[$field["NAME"]."_allow_year"] ?? null,
 									$field["STRICT"]
 								);
 							}
-
 							break;
 						}
 
@@ -672,6 +637,7 @@ class CMainUiFilter extends CBitrixComponent
 								"months" => $months,
 								"years" => $years
 							);
+							break;
 						}
 
 						case Type::NUMBER :
@@ -721,200 +687,134 @@ class CMainUiFilter extends CBitrixComponent
 		return $result;
 	}
 
-	protected function applyOptions()
+	protected function getAdditionalPresetFields($presetId): array
 	{
-		$options = $this->getUserOptions();
-		$arOptions = $options->getOptions();
-		$optionsPresets = $arOptions["filters"];
-		$defaultPresets = $this->preparePresets();
-		$arFilter = $options->getFilter($this->arParams["FILTER"] ?? []);
+		$userOptions = $this->getUserOptions();
+		$additionalFields = $userOptions->getAdditionalPresetFields($presetId);
 
-		if (!empty($optionsPresets) && is_array($optionsPresets))
+		if (is_array($additionalFields))
 		{
-			$index = 0;
+			$additionalRows = \Bitrix\Main\UI\Filter\Options::getRowsFromFields($additionalFields);
 
-			foreach ($optionsPresets as $presetId => $presetFields)
-			{
-				$rows = array();
-				if (isset($presetFields["filter_rows"]))
-				{
-					$rows = explode(",", $presetFields["filter_rows"]);
-				}
-				elseif(isset($presetFields["fields"]) && is_array($presetFields["fields"]))
-				{
-					$rows = array_keys($presetFields["fields"]);
-				}
-
-				$fields = isset($presetFields["fields"]) && is_array($presetFields["fields"])
-					? $presetFields["fields"] : array();
-
-				$disallowForAll = $this->arParams["FILTER_PRESETS"][$presetId]["disallow_for_all"] ?? false;
-				$forAll = $presetFields["for_all"] ?? !$disallowForAll;
-
-				$preset = array(
-					"ID" => $presetId,
-					"SORT" => $presetFields["sort"] ?? $index,
-					"TITLE" => $presetFields["name"] ?? '',
-					"FIELDS" => $this->preparePresetFields($rows, $fields),
-					"FOR_ALL" => $forAll,
-					"IS_PINNED" => false,
-					"IS_SET_OUTSIDE" => $options->isSetOutside(),
-				);
-
-				$additionalFields = $options->getAdditionalPresetFields($presetId);
-
-				if (is_array($additionalFields))
-				{
-					$additionalRows = \Bitrix\Main\UI\Filter\Options::getRowsFromFields($additionalFields);
-					$preset["ADDITIONAL"] = $this->preparePresetFields($additionalRows, $additionalFields);
-				}
-
-				if ($arOptions["default"] === $presetId)
-				{
-					$preset["IS_PINNED"] = true;
-				}
-
-				if ($preset["ID"] === "default_filter")
-				{
-					$preset["FIELDS_COUNT"] = $this->prepareFieldsCount();
-				}
-
-				if ($preset["ID"] === "tmp_filter")
-				{
-					$preset["FIELDS_COUNT"] = $this->prepareFieldsCount();
-				}
-
-				$isReplace = array_key_exists($presetId, $this->arParams["FILTER_PRESETS"]);
-				if ($isReplace || $preset["ID"] === "default_filter")
-				{
-					foreach ($defaultPresets as $defKey => $defaultPreset)
-					{
-						if ($defaultPreset["ID"] === $preset["ID"])
-						{
-							if (!isset($presetFields["fields"]) && !isset($presetFields["filter_rows"]))
-							{
-								$preset["FIELDS"] = $this->arResult["PRESETS"][$defKey]["FIELDS"];
-							}
-
-							$this->arResult["PRESETS"][$defKey] = $preset;
-						}
-					}
-				}
-				else
-				{
-					$this->arResult["PRESETS"][] = $preset;
-				}
-
-				$index++;
-			}
-
-			if (isset($arFilter["PRESET_ID"]))
-			{
-				foreach ($this->arResult["PRESETS"] as $key => $preset)
-				{
-					if ($arFilter["PRESET_ID"] === $preset["ID"])
-					{
-						$this->arResult["CURRENT_PRESET"] = $preset;
-						$this->arResult["CURRENT_PRESET"]["FIND"] = $arFilter["FIND"];
-					}
-				}
-			}
+			return $this->preparePresetFields($additionalRows, $additionalFields);
 		}
 
-		\Bitrix\Main\Type\Collection::sortByColumn(
-			$this->arResult["PRESETS"],
-			array("SORT" => array(SORT_NUMERIC, SORT_ASC)),
-			'',
-			1000
+		return [];
+	}
+
+	protected function isDeletedPreset($presetId): bool
+	{
+		$userOptions = $this->getUserOptions();
+		$commonOptions = $this->getCommonOptions();
+		$deletedCommonPresets = $commonOptions['deleted_presets'] ?? [];
+
+		return (
+			$userOptions->isDeletedPreset($presetId)
+			|| (
+				!$this->getUser()->canDoOperation("edit_other_settings")
+				&& array_key_exists($presetId, $deletedCommonPresets)
+			)
 		);
 	}
 
-	protected function prepareDefaultPreset()
+	protected function getPresets(): array
 	{
-		global $USER;
-
-		if (
-			(!isset($this->arResult["CURRENT_PRESET"]) || !is_array($this->arResult["CURRENT_PRESET"]))
-			&& $USER->CanDoOperation("edit_other_settings")
-		)
+		if ($this->presets === null)
 		{
-			$this->arResult["CURRENT_PRESET"] = array(
-				"ID" => "default_filter",
-				"TITLE" => Loc::getMessage("MAIN_UI_FILTER__DEFAULT_FILTER_TITLE"),
-				"FIELDS" => $this->prepareFilterRows(),
-				"FIELDS_COUNT" => $this->prepareFieldsCount(),
-				"FOR_ALL" => true
+			$this->presets = [];
+			$userOptions = $this->getUserOptions();
+
+			$userPresets = $userOptions->getOptions()["filters"] ?? null;
+			if (is_array($userPresets))
+			{
+				foreach ($userPresets as $presetId => $preset)
+				{
+					if (!$this->isDeletedPreset($presetId))
+					{
+						$this->presets[$presetId] = array_merge(
+							$this->preparePreset($presetId, $preset, (int)($preset["sort"] ?? 0)),
+							[
+								"ADDITIONAL" => $this->getAdditionalPresetFields($presetId),
+								"IS_PINNED" => $userOptions->isPinned($presetId),
+							],
+						);
+					}
+				}
+
+				if (!$this->getUser()->canDoOperation("edit_other_settings"))
+				{
+					$commonPresets = $this->getCommonPresets();
+					if (is_array($commonPresets))
+					{
+						$this->presets = array_merge($this->presets, $commonPresets);
+					}
+				}
+
+				if (!array_key_exists(static::$DEFAULT_PRESET_ID, $userPresets))
+				{
+					$this->presets[static::$DEFAULT_PRESET_ID] = $this->createDefaultPreset();
+				}
+			}
+			else
+			{
+				$this->presets = $this->getDefaultPresets();
+			}
+
+			\Bitrix\Main\Type\Collection::sortByColumn(
+				$this->presets,
+				array("SORT" => array(SORT_NUMERIC, SORT_ASC)),
+				'',
+				1000
 			);
 		}
 
-		return $this->arResult["CURRENT_PRESET"] ?? [];
+		return $this->presets;
 	}
 
-	protected function prepareFieldsCount()
+	protected function getCurrentPreset(): array
 	{
-		$options = $this->getUserOptions();
-		$filter = $options->getFilter($this->arParams["FILTER"] ?? []);
-		$arOptions = $options->getOptions();
-		$count = 0;
-
-		if (!empty($filter) && array_key_exists($filter["PRESET_ID"], $arOptions["filters"]))
+		if ($this->currentPreset === null)
 		{
-			$preset = $arOptions["filters"][$filter["PRESET_ID"]];
-			$fields = $preset["fields"];
-			$rows = explode(",", $preset["filter_rows"] ?? '');
+			$userOptions = $this->getUserOptions();
+			$currentPresetId = $userOptions->getCurrentFilterId();
+			$this->currentPreset = $this->getPresetById($currentPresetId);
 
-			foreach ($rows as $key => $row)
+			if (is_array($this->currentPreset))
 			{
-				if (array_key_exists($row, $fields) && !empty($fields[$row]))
-				{
-					$count++;
-				}
-				else
-				{
-					$dataRow = $row."_datesel";
-					$numRow = $row."_numsel";
-					$from = $row."_from";
-					$to = $row."_to";
-					$days = $row."_days";
+				$this->currentPreset["FIND"] = $userOptions->getSearchString();
+			}
+		}
 
-					if ((array_key_exists($dataRow, $fields) || array_key_exists($numRow, $fields)) && (
-							(array_key_exists($from, $fields) && !empty($fields[$from])) ||
-							(array_key_exists($to, $fields) && !empty($fields[$to])) ||
-							(array_key_exists($days, $fields) && !empty($fields[$days]))
-						)
-					)
-					{
-						$count++;
-					}
+		return $this->currentPreset ?? [];
+	}
+
+	protected function getPresetById($presetId): ?array
+	{
+		foreach ($this->getPresets() as $preset)
+		{
+			if ($preset["ID"] === $presetId)
+			{
+				return $preset;
+			}
+		}
+
+		return null;
+	}
+
+	protected function getFilterRows(): array
+	{
+		if ($this->filterRows === null)
+		{
+			foreach ($this->arParams["FILTER"] as $field)
+			{
+				if (!empty($field["default"]))
+				{
+					$this->filterRows[] = $this->getField($field["id"]);
 				}
 			}
 		}
 
-		return $count;
-	}
-
-	protected function prepareFilterRows()
-	{
-		if (!isset($this->arResult["FILTER_ROWS"]) || !is_array($this->arResult["FILTER_ROWS"]))
-		{
-			$this->arResult["FILTER_ROWS"] = array();
-
-			if (isset($this->arParams["FILTER_ROWS"]) &&
-				!empty($this->arParams["FILTER_ROWS"]) &&
-				is_array($this->arParams["FILTER_ROWS"]))
-			{
-				foreach ($this->arParams["FILTER_ROWS"] as $rowId => $isEnabled)
-				{
-					if ($isEnabled)
-					{
-						$field = $this->getField($rowId);
-						$this->arResult["FILTER_ROWS"][] = $field;
-					}
-				}
-			}
-		}
-
-		return $this->arResult["FILTER_ROWS"];
+		return $this->filterRows ?? [];
 	}
 
 	protected function getViewId()
@@ -944,80 +844,123 @@ class CMainUiFilter extends CBitrixComponent
 		return $viewSort;
 	}
 
-	protected function prepareSourcePresets()
+	protected function getUser(): \CUser
 	{
-		$sourcePresets = $this->arParams["FILTER_PRESETS"];
-		$presets = array();
-		$sort = 0;
+		global $USER;
+		return $USER;
+	}
 
-		if (!empty($sourcePresets) && is_array($sourcePresets))
+	protected function getCommonPresets(): ?array
+	{
+		if ($this->commonPresets === null)
 		{
-			$preset = array();
-
-			foreach ($sourcePresets as $presetId => $presetFields)
+			$sourceCommonPresets = $this->getCommonOptions()["filters"] ?? null;
+			if (is_array($sourceCommonPresets))
 			{
-				if ($presetId !== "default_filter")
+				$sort = 0;
+				foreach ($sourceCommonPresets as $presetId => $preset)
 				{
-					$rows = is_array($presetFields["fields"]) ? array_keys($presetFields["fields"]) : array();
-					$preset["ID"] = $presetId;
-					$preset["TITLE"] = $presetFields["name"];
-					$preset["SORT"] = $sort;
-					$preset["FIELDS"] = $this->preparePresetFields($rows, $presetFields["fields"]);
-					$preset["IS_DEFAULT"] = true;
-					$preset["FOR_ALL"] = !isset($presetFields["disallow_for_all"]) || !$presetFields["disallow_for_all"];
-					$preset["IS_PINNED"] = isset($presetFields["default"]) && $presetFields["default"] == true;
-
-					$presets[] = $preset;
-					$sort++;
+					if (
+						($preset["for_all"] ?? false)
+						&& !in_array($presetId, [static::$DEFAULT_PRESET_ID, static::$TMP_PRESET_ID])
+					)
+					{
+						$this->commonPresets[$presetId] = array_merge(
+							$this->preparePreset($presetId, $preset, $sort),
+							[
+								"COMMON_PRESET" => true,
+							],
+						);
+						$sort++;
+					}
 				}
 			}
 		}
 
-		global $USER;
-		if (!$USER->CanDoOperation("edit_other_settings"))
-		{
-			$commonOptions = $this->getCommonOptions();
-
-			if (!empty($commonOptions) &&
-				is_array($commonOptions) &&
-				isset($commonOptions["filters"]) &&
-				is_array($commonOptions["filters"]) &&
-				isset($commonOptions["filters"]["default_filter"]))
-			{
-				$rows = explode(",", $commonOptions["filters"]["default_filter"]["filter_rows"]);
-			}
-			else
-			{
-				$rows = array_keys($this->prepareFilterRowsParam());
-			}
-		}
-		else
-		{
-			$rows = array_keys($this->prepareFilterRowsParam());
-		}
-
-		$sort++;
-
-		$presets[] = array(
-			"ID" => "default_filter",
-			"TITLE" => Loc::getMessage("MAIN_UI_FILTER__DEFAULT_FILTER_TITLE"),
-			"SORT" => $sort,
-			"FIELDS" => $this->preparePresetFields($rows, $rows),
-			"IS_DEFAULT" => true,
-			"FOR_ALL" => true
-		);
-
-		return $presets;
+		return $this->commonPresets;
 	}
 
-	protected function preparePresets()
+	protected function getSourcePresets(): array
 	{
-		if (!isset($this->arResult["PRESETS"]) || !is_array($this->arResult["PRESETS"]))
+		if ($this->sourcePresets === null)
 		{
-			$this->arResult["PRESETS"] = $this->prepareSourcePresets();
+			$this->sourcePresets = [];
+
+			if (is_array($this->arParams["FILTER_PRESETS"] ?? null))
+			{
+				$sort = 0;
+				foreach ($this->arParams["FILTER_PRESETS"] as $presetId => $preset)
+				{
+					if (!in_array($presetId, [static::$DEFAULT_PRESET_ID, static::$TMP_PRESET_ID]))
+					{
+						$this->sourcePresets[] = $this->preparePreset($presetId, $preset, $sort);
+						$sort++;
+					}
+				}
+			}
 		}
 
-		return $this->arResult["PRESETS"];
+		return $this->sourcePresets;
+	}
+
+	protected function getDefaultPresets(): array
+	{
+		if ($this->defaultPresets === null)
+		{
+			$this->defaultPresets = $this->getSourcePresets();
+
+			if (!$this->getUser()->canDoOperation('edit_other_settings'))
+			{
+				$commonPresets = $this->getCommonPresets();
+				if ($commonPresets)
+				{
+					$this->defaultPresets = $commonPresets;
+				}
+			}
+
+			if (!array_key_exists(static::$DEFAULT_PRESET_ID, $this->defaultPresets))
+			{
+				$this->defaultPresets[static::$DEFAULT_PRESET_ID] = $this->createDefaultPreset();
+			}
+		}
+
+		return $this->defaultPresets;
+	}
+
+	protected function createDefaultPreset(): array
+	{
+		return [
+			"ID" => static::$DEFAULT_PRESET_ID,
+			"TITLE" => Loc::getMessage("MAIN_UI_FILTER__DEFAULT_FILTER_TITLE"),
+			"SORT" => 0,
+			"FIELDS" => $this->getFilterRows(),
+			"IS_DEFAULT" => true,
+			"FOR_ALL" => true
+		];
+	}
+
+	protected function preparePreset(string $presetId, array $sourcePreset = [], int $sort = 0): array
+	{
+		$sourceFields = $sourcePreset["fields"] ?? [];
+		$rows = [];
+		if (is_string($sourcePreset["filter_rows"] ?? null))
+		{
+			$rows = explode(",", $sourcePreset["filter_rows"]);
+		}
+		elseif(is_array($sourcePreset["fields"] ?? null))
+		{
+			$rows = \Bitrix\Main\UI\Filter\Options::getRowsFromFields($sourcePreset["fields"]);
+		}
+
+		return [
+			"ID" => $presetId,
+			"TITLE" => $sourcePreset["name"] ?? '',
+			"SORT" => $sort,
+			"FIELDS" => $this->preparePresetFields($rows, $sourceFields),
+			"IS_PINNED" => $sourcePreset["default"] ?? false,
+			"FOR_ALL" => !($this->arParams["FILTER_PRESETS"][$presetId]["disallow_for_all"] ?? false),
+			"IS_DEFAULT" => array_key_exists($presetId, $this->arParams["FILTER_PRESETS"]),
+		];
 	}
 
 	protected function getField($fieldId)
@@ -1027,7 +970,7 @@ class CMainUiFilter extends CBitrixComponent
 
 		if (!empty($fields) && is_array($fields))
 		{
-			foreach ($fields as $fieldKey => $fieldFields)
+			foreach ($fields as $fieldFields)
 			{
 				if ($fieldFields["NAME"] === $fieldId ||
 					$fieldFields["NAME"]."_datesel" === $fieldId ||
@@ -1102,7 +1045,7 @@ class CMainUiFilter extends CBitrixComponent
 
 			if (is_array($sourceFields) && !empty($sourceFields))
 			{
-				foreach ($sourceFields as $sourceFieldKey => $sourceField)
+				foreach ($sourceFields as $sourceField)
 				{
 					$this->arResult["FIELDS"][] = static::prepareField($sourceField, $this->arParams['FILTER_ID']);
 				}
@@ -1129,12 +1072,12 @@ class CMainUiFilter extends CBitrixComponent
 			$errors->add(array(new \Bitrix\Main\Error(Loc::getMessage("MAIN_UI_FILTER__FILTER_ID_NOT_SET"))));
 		}
 
-		foreach ($errors->toArray() as $key => $error)
+		foreach ($errors->toArray() as $error)
 		{
 			ShowError($error);
 		}
 
-		return $errors->count() === 0;
+		return $errors->isEmpty();
 	}
 
 	protected function includeScripts($folder)
@@ -1153,7 +1096,7 @@ class CMainUiFilter extends CBitrixComponent
 				{
 					$ext = getFileExtension($file);
 
-					if ($ext === 'js' && !(strpos($file, 'map.js') !== false || strpos($file, 'min.js') !== false))
+					if ($ext === 'js' && !(str_contains($file, 'map.js') || str_contains($file, 'min.js')))
 					{
 						$tmpl->addExternalJs($relPath.$file);
 					}
@@ -1180,7 +1123,7 @@ class CMainUiFilter extends CBitrixComponent
 				{
 					$ext = getFileExtension($file);
 
-					if ($ext === 'css' && !(strpos($file, 'map.css') !== false || strpos($file, 'min.css') !== false))
+					if ($ext === 'css' && !(str_contains($file, 'map.css') || str_contains($file, 'min.css')))
 					{
 						$tmpl->addExternalCss($relPath.$file);
 					}
@@ -1188,6 +1131,15 @@ class CMainUiFilter extends CBitrixComponent
 
 				closedir($dir);
 			}
+		}
+	}
+
+	protected function initOptions(): void
+	{
+		$hasOptions = \Bitrix\Main\UI\Filter\Options::hasOptions($this->arParams["FILTER_ID"]);
+		if (!$hasOptions)
+		{
+			$this->getUserOptions()->save();
 		}
 	}
 
@@ -1203,16 +1155,11 @@ class CMainUiFilter extends CBitrixComponent
 		}
 	}
 
-	protected function prepareDefaultPresets()
-	{
-		$this->arResult["DEFAULT_PRESETS"] = $this->prepareSourcePresets();
-	}
-
 	protected function getCommonOptions()
 	{
 		if (!$this->commonOptions)
 		{
-			$this->commonOptions = \CUserOptions::getOption("main.ui.filter.common", $this->arParams["FILTER_ID"], array());
+			$this->commonOptions = CUserOptions::getOption("main.ui.filter.common", $this->arParams["FILTER_ID"], array());
 		}
 
 		return $this->commonOptions;
@@ -1220,19 +1167,6 @@ class CMainUiFilter extends CBitrixComponent
 
 	protected function initParams()
 	{
-		global $USER;
-		if (!$USER->CanDoOperation("edit_other_settings"))
-		{
-			$commonOptions = $this->getCommonOptions();
-			$filters = $commonOptions["filters"] ?? [];
-
-			if (!empty($filters) && is_array($filters))
-			{
-				unset($filters["tmp_filter"]);
-				$this->arParams["FILTER_PRESETS"] = $filters;
-			}
-		}
-
 		if (!isset($this->arParams["FILTER_PRESETS"]) || !is_array($this->arParams["FILTER_PRESETS"]))
 		{
 			$this->arParams["FILTER_PRESETS"] = array();
@@ -1247,7 +1181,7 @@ class CMainUiFilter extends CBitrixComponent
 		{
 			$allowValueRequiredParam = false;
 
-			foreach ($this->arParams["FILTER"] as $key => $field)
+			foreach ($this->arParams["FILTER"] as $field)
 			{
 				if (!$allowValueRequiredParam && isset($field["required"]) && $field["required"] === true)
 				{
@@ -1335,11 +1269,9 @@ class CMainUiFilter extends CBitrixComponent
 		if ($this->checkRequiredParams())
 		{
 			$this->initParams();
-			$this->prepareDefaultPresets();
+			$this->initOptions();
 			$this->saveOptions();
-			$this->prepareParams();
 			$this->prepareResult();
-			$this->applyOptions();
 			$this->includeComponentTemplate();
 			$this->includeTheme();
 		}

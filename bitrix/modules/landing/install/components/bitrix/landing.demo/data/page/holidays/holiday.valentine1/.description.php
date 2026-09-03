@@ -66,7 +66,7 @@ return [
 
 				<!-- Responsive Toggle Button -->
 				<button class="navbar-toggler btn g-line-height-1 g-brd-none g-pa-0 ml-auto g-flex-centered-item--center" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navBar" data-toggle="collapse" data-target="#navBar">
-                <span class="hamburger hamburger--slider">
+                <span class="hamburger hamburger--slider hamburger--md">
                   <span class="hamburger-box">
                     <span class="hamburger-inner"></span>
                   </span>
@@ -545,7 +545,7 @@ return [
 			[
 				'CODE' => '33.3.form_1_transparent_black_no_text',
 				'SORT' => '5000',
-				'CONTENT' => '<section class="landing-block landing-block-node-bgimg landing-semantic-color-overlay g-bg-primary-dark-v1 g-pos-rel g-pt-120 g-pb-120 g-bg-size-cover g-bg-img-hero g-bg-cover g-bg-black-opacity-0_7--after"
+				'CONTENT' => '<section class="landing-block landing-block-node-bgimg g-bg-primary-dark-v1 g-pos-rel g-pt-120 g-pb-120 g-bg-size-cover g-bg-img-hero g-bg-cover g-bg-black-opacity-0_7--after"
 		style="background-image: url(https://cdn.bitrix24.site/bitrix/images/landing/business/1920x1280/img30.jpg);">
 
 	<div class="container g-z-index-1 g-pos-rel">

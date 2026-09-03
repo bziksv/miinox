@@ -29,17 +29,13 @@ class rest extends CModule
 
 	function InstallDB($arParams = array())
 	{
-		global $DB, $APPLICATION;
-
+		global $APPLICATION;
 		$this->errors = false;
 
-		if(!$DB->Query("SELECT 'x' FROM b_rest_app WHERE 1=0", true))
+		$migrationResult = $this->installMigrations();
+		if (!$migrationResult->isSuccess())
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/rest/install/db/mysql/install.sql");
-		}
-
-		if($this->errors !== false)
-		{
+			$this->errors = $migrationResult->getErrorMessages();
 			$APPLICATION->ThrowException(implode("<br>", $this->errors));
 			return false;
 		}
@@ -48,26 +44,6 @@ class rest extends CModule
 
 		COption::SetOptionString("rest", "server_path", "/rest");
 
-		$eventManager = \Bitrix\Main\EventManager::getInstance();
-
-		$eventManager->registerEventHandler("main", "OnBeforeProlog", "rest", "CRestEventHandlers", "OnBeforeProlog", 49);
-
-		$eventManager->registerEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', 'CBitrixRestEntity', 'OnRestServiceBuildDescription');
-		$eventManager->registerEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\User', 'onRestServiceBuildDescription');
-		$eventManager->registerEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\Placement', 'onRestServiceBuildDescription');
-		$eventManager->registerEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\Event', 'onRestServiceBuildDescription');
-		$eventManager->registerEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\UserFieldType', 'onRestServiceBuildDescription');
-		$eventManager->registerEventHandler("rest","onFindMethodDescription", "rest","\\Bitrix\\Rest\\Engine\\RestManager","onFindMethodDescription");
-		$eventManager->registerEventHandler("main", "OnApplicationsBuildList", "main", '\Bitrix\Rest\APAuth\Application', "onApplicationsBuildList", 100, "modules/rest/lib/apauth/application.php");
-		$eventManager->registerEventHandler("im", "OnAfterConfirmNotify", "rest", "\\Bitrix\\Rest\\NotifyIm", "receive");
-		$eventManager->registerEventHandler("rest", "\\Bitrix\\Rest\\APAuth\\Password::OnDelete", "rest", "\\Bitrix\\Rest\\APAuth\\PermissionTable", "onPasswordDelete");
-		$eventManager->registerEventHandler("perfmon", "OnGetTableSchema", "rest", "rest", "OnGetTableSchema");
-		$eventManager->registerEventHandler('rest', 'OnRestApplicationConfigurationImport', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'onEventImportController');
-		$eventManager->registerEventHandler('rest', 'OnRestApplicationConfigurationExport', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'onEventExportController');
-		$eventManager->registerEventHandler('rest', 'OnRestApplicationConfigurationClear', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'onEventClearController');
-		$eventManager->registerEventHandler('rest', 'OnRestApplicationConfigurationEntity', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'getEntityList');
-		$eventManager->registerEventHandler('rest', 'OnRestApplicationConfigurationGetManifest', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'getManifestList');
-		$eventManager->registerEventHandler('main', 'OnAfterSetOption_~mp24_paid_date', 'rest', '\Bitrix\Rest\Marketplace\Client', 'onChangeSubscriptionDate');
 		if(CModule::IncludeModule('iblock'))
 		{
 			COption::SetOptionString("rest", "entity_iblock_type", "rest_entity");
@@ -94,127 +70,36 @@ class rest extends CModule
 			}
 		}
 
-		if(!\Bitrix\Main\ModuleManager::isModuleInstalled("oauth"))
-		{
-			$eventManager->registerEventHandler("rest", "onRestCheckAuth", "rest", "\\Bitrix\\Rest\\OAuth\\Auth", "onRestCheckAuth");
-		}
-
-		$eventManager->registerEventHandler("rest", "onRestCheckAuth", "rest", "\\Bitrix\\Rest\\APAuth\\Auth", "onRestCheckAuth");
-		$eventManager->registerEventHandler("rest", "onRestCheckAuth", "rest", "\\Bitrix\\Rest\\SessionAuth\\Auth", "onRestCheckAuth");
-		$eventManager->registerEventHandler(
-			'main',
-			'OnAfterRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Engine\ScopeManager',
-			'onChangeRegisterModule'
-		);
-		$eventManager->registerEventHandler(
-			'main',
-			'OnAfterUnRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Engine\ScopeManager',
-			'onChangeRegisterModule'
-		);
-		$eventManager->registerEventHandler(
-			'main',
-			'OnAfterRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Marketplace\TagTable',
-			'onAfterRegisterModule'
-		);
-		$eventManager->registerEventHandler(
-			'main',
-			'OnAfterUnRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Marketplace\TagTable',
-			'onAfterUnRegisterModule'
-		);
-
-		\CAgent::AddAgent("Bitrix\\Rest\\Marketplace\\Client::getNumUpdates();", "rest", "N", 86400);
-		\CAgent::AddAgent("Bitrix\\Rest\\EventOfflineTable::cleanProcessAgent();", "rest", "N", 86400);
-		\CAgent::AddAgent("Bitrix\\Rest\\LogTable::cleanUpAgent();", "rest", "N", 86400);
-		\CAgent::AddAgent('\Bitrix\Rest\Configuration\Helper::sendStatisticAgent();', "rest", "N",86400);
-		\CAgent::AddAgent('\\Bitrix\\Rest\\UsageStatTable::sendAgent();', "rest", "N", 3600);
-		\CAgent::AddAgent('\\Bitrix\\Rest\\UsageStatTable::cleanUpAgent();', "rest", "N", 3600);
-		\CAgent::AddAgent('\Bitrix\Rest\Marketplace\Notification::checkAgent();', "rest", "N", 86400);
-		\CAgent::AddAgent('\Bitrix\Rest\Marketplace\Immune::load();', "rest", "N", 86400);
-		\CAgent::AddAgent('\Bitrix\Rest\Configuration\Structure::clearContentAgent();', 'rest', 'N', 86400);
-		\CAgent::AddAgent('\Bitrix\Rest\Helper::recoveryAgents();','rest','N',604800);
+		\Bitrix\Rest\Internal\Model\AccessPermissionTable::addInsertIgnoreMulti([
+			[
+				'ENTITY_TYPE' => \Bitrix\Rest\Internal\Entity\Access\EntityType::IncomingWebhook->value,
+				'ACCESS_CODE' => 'UA',
+				'PERMISSION' => \Bitrix\Rest\Internal\Entity\Access\PermissionType::CreateOwn->value,
+			],
+			[
+				'ENTITY_TYPE' => \Bitrix\Rest\Internal\Entity\Access\EntityType::IncomingWebhook->value,
+				'ACCESS_CODE' => 'UA',
+				'PERMISSION' => \Bitrix\Rest\Internal\Entity\Access\PermissionType::ManageOwn->value,
+			],
+		], true);
 
 		return true;
 	}
 
 	function UnInstallDB($arParams = array())
 	{
-		global $DB, $APPLICATION;
-
+		global $APPLICATION;
 		$this->errors = false;
 
-		if(!array_key_exists("savedata", $arParams) || $arParams["savedata"] != "Y")
-		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/rest/install/db/mysql/uninstall.sql");
-		}
+		$dropTables = !array_key_exists("savedata", $arParams) || $arParams["savedata"] != "Y";
 
-		if($this->errors !== false)
+		$migrationResult = $this->uninstallMigrations($dropTables);
+		if (!$migrationResult->isSuccess())
 		{
+			$this->errors = $migrationResult->getErrorMessages();
 			$APPLICATION->ThrowException(implode("<br>", $this->errors));
 			return false;
 		}
-
-		$eventManager = \Bitrix\Main\EventManager::getInstance();
-
-		$eventManager->unRegisterEventHandler("main", "OnBeforeProlog", "rest", "CRestEventHandlers", "OnBeforeProlog");
-
-		$eventManager->unRegisterEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', 'CBitrixRestEntity', 'OnRestServiceBuildDescription');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\User', 'onRestServiceBuildDescription');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\Placement', 'onRestServiceBuildDescription');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\Event', 'onRestServiceBuildDescription');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestServiceBuildDescription', 'rest', '\Bitrix\Rest\Api\UserFieldType', 'onRestServiceBuildDescription');
-		$eventManager->unRegisterEventHandler("rest","onFindMethodDescription", "rest","\\Bitrix\\Rest\\Engine\\RestManager","onFindMethodDescription");
-		$eventManager->unRegisterEventHandler("rest", "onRestCheckAuth", "rest", "\\Bitrix\\Rest\\OAuth\\Auth", "onRestCheckAuth");
-		$eventManager->unRegisterEventHandler("rest", "onRestCheckAuth", "rest", "\\Bitrix\\Rest\\APAuth\\Auth", "onRestCheckAuth");
-		$eventManager->unRegisterEventHandler("rest", "onRestCheckAuth", "rest", "\\Bitrix\\Rest\\SessionAuth\\Auth", "onRestCheckAuth");
-		$eventManager->unRegisterEventHandler("main", "OnApplicationsBuildList", "main", '\Bitrix\Rest\APAuth\Application', "onApplicationsBuildList", "modules/rest/lib/apauth/application.php");
-		$eventManager->unRegisterEventHandler("im", "OnAfterConfirmNotify", "rest", "\\Bitrix\\Rest\\NotifyIm", "receive");
-		$eventManager->unRegisterEventHandler("rest", "\\Bitrix\\Rest\\APAuth\\Password::OnDelete", "rest", "\\Bitrix\\Rest\\APAuth\\PermissionTable", "onPasswordDelete");
-		$eventManager->unRegisterEventHandler("rest", "OnRestServiceBuildDescription", "rest", "\\Bitrix\\Rest\\Engine\\RestManager", "OnRestServiceBuildDescription");
-		$eventManager->unRegisterEventHandler("perfmon", "OnGetTableSchema", "rest", "rest", "OnGetTableSchema");
-		$eventManager->unRegisterEventHandler('rest', 'OnRestApplicationConfigurationImport', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'onEventImportController');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestApplicationConfigurationExport', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'onEventExportController');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestApplicationConfigurationClear', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'onEventClearController');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestApplicationConfigurationEntity', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'getEntityList');
-		$eventManager->unRegisterEventHandler('rest', 'OnRestApplicationConfigurationGetManifest', 'rest', '\Bitrix\Rest\Configuration\AppConfiguration', 'getManifestList');
-		$eventManager->unRegisterEventHandler('main', 'OnAfterSetOption_~mp24_paid_date', 'rest', '\Bitrix\Rest\Marketplace\Client', 'onChangeSubscriptionDate');
-		$eventManager->unRegisterEventHandler(
-			'main',
-			'OnAfterRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Engine\ScopeManager',
-			'onChangeRegisterModule'
-		);
-		$eventManager->unRegisterEventHandler(
-			'main',
-			'OnAfterUnRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Engine\ScopeManager',
-			'onChangeRegisterModule'
-		);
-		$eventManager->unRegisterEventHandler(
-			'main',
-			'OnAfterRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Marketplace\TagTable',
-			'onAfterRegisterModule'
-		);
-		$eventManager->unRegisterEventHandler(
-			'main',
-			'OnAfterUnRegisterModule',
-			'rest',
-			'\Bitrix\Rest\Marketplace\TagTable',
-			'onAfterUnRegisterModule'
-		);
-
-		CAgent::RemoveModuleAgents("rest");
 
 		UnRegisterModule("rest");
 
@@ -263,13 +148,6 @@ class rest extends CModule
 				"RULE" => "",
 				"ID" => "bitrix:rest.marketplace",
 				"PATH" => "/marketplace/index.php",
-			));
-
-			\Bitrix\Main\UrlRewriter::add($siteId, array(
-				"CONDITION" => "#^/marketplace/local/#",
-				"RULE" => "",
-				"ID" => "bitrix:rest.marketplace.localapp",
-				"PATH" => "/marketplace/local/index.php",
 			));
 
 			\Bitrix\Main\UrlRewriter::add($siteId, array(
@@ -371,6 +249,11 @@ class rest extends CModule
 					"CODE" => array(
 						"b_rest_stat_app" => "APP_CODE",
 					)
+				),
+				"b_rest_event" => array(
+					"ID" => array(
+						"b_rest_log" => "EVENT_ID",
+					),
 				),
 				"b_rest_ap" => array(
 					"ID" => array(

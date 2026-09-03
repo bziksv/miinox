@@ -24,11 +24,6 @@ Class blog extends CModule
 			$this->MODULE_VERSION = $arModuleVersion["VERSION"];
 			$this->MODULE_VERSION_DATE = $arModuleVersion["VERSION_DATE"];
 		}
-		else
-		{
-			$this->MODULE_VERSION = BLOG_VERSION;
-			$this->MODULE_VERSION_DATE = BLOG_VERSION_DATE;
-		}
 
 		$this->MODULE_NAME = GetMessage("BLOG_INSTALL_NAME");
 		$this->MODULE_DESCRIPTION = GetMessage("BLOG_INSTALL_DESCRIPTION");
@@ -271,10 +266,12 @@ Class blog extends CModule
 	function InstallDB($install_wizard = true)
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
+		$errors = null;
 
-		if (!$DB->Query("SELECT 'x' FROM b_blog_user_group", true))
+		if (!$DB->TableExists('b_blog_user_group'))
 		{
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/mysql/install.sql");
+			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/blog/install/' . $connection->getType() . '/install.sql');
 			COption::SetOptionString("blog", "socNetNewPerms", "Y");
 		}
 
@@ -285,7 +282,11 @@ Class blog extends CModule
 
 		if (!empty($errors))
 		{
-			$APPLICATION->ThrowException(implode("", $errors));
+			if (is_array($errors))
+			{
+				$errors = implode("", $errors);
+			}
+			$APPLICATION->ThrowException($errors);
 			return false;
 		}
 
@@ -336,6 +337,8 @@ Class blog extends CModule
 	function UnInstallDB($arParams = Array())
 	{
 		global $DB, $APPLICATION;
+		$connection = \Bitrix\Main\Application::getConnection();
+
 		if(array_key_exists("savedata", $arParams) && $arParams["savedata"] != "Y")
 		{
 			if ($DB->TableExists("b_blog_smile") || $DB->TableExists("B_BLOG_SMILE"))
@@ -344,7 +347,7 @@ Class blog extends CModule
 				$DB->Query("DROP TABLE b_blog_smile");
 				$DB->Query("DROP TABLE b_blog_smile_lang");
 			}
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/mysql/uninstall.sql");
+			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/blog/install/' . $connection->getType() . '/uninstall.sql');
 
 			if (!empty($errors))
 			{
@@ -449,7 +452,7 @@ Class blog extends CModule
 
 		global $DB;
 		$sIn = "'NEW_BLOG_COMMENT', 'NEW_BLOG_COMMENT2COMMENT', 'NEW_BLOG_MESSAGE'";
-		$rs = $DB->Query("SELECT count(*) C FROM b_event_type WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$rs = $DB->Query("SELECT count(*) C FROM b_event_type WHERE EVENT_NAME IN (".$sIn.") ");
 		$ar = $rs->Fetch();
 		if($ar["C"] <= 0)
 		{
@@ -468,14 +471,12 @@ Class blog extends CModule
 	function InstallFiles()
 	{
 		global $install_public, $public_rewrite, $public_dir;
-		if($_ENV["COMPUTERNAME"]!='BX')
-		{
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin", true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/images",  $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/blog", true, True);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/themes", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/public/templates", $_SERVER["DOCUMENT_ROOT"]."/bitrix/templates", true, true);
-		}
+
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin", true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/images",  $_SERVER["DOCUMENT_ROOT"]."/bitrix/images/blog", true, True);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/themes", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/components", $_SERVER["DOCUMENT_ROOT"]."/bitrix/components", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/public/templates", $_SERVER["DOCUMENT_ROOT"]."/bitrix/templates", true, true);
 
 		$install_public = (($install_public == "Y") ? "Y" : "N");
 		$errors = false;
@@ -553,13 +554,10 @@ Class blog extends CModule
 
 	function UnInstallFiles()
 	{
-		if($_ENV["COMPUTERNAME"]!='BX')
-		{
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
-			DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/themes/.default/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes/.default");//css
-			DeleteDirFilesEx("/bitrix/themes/.default/icons/blog/");//icons
-			DeleteDirFilesEx("/bitrix/images/blog/");//images
-		}
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/admin", $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin");
+		DeleteDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/themes/.default/", $_SERVER["DOCUMENT_ROOT"]."/bitrix/themes/.default");//css
+		DeleteDirFilesEx("/bitrix/themes/.default/icons/blog/");//icons
+		DeleteDirFilesEx("/bitrix/images/blog/");//images
 
 		return true;
 	}

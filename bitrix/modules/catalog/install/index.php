@@ -57,26 +57,23 @@ class catalog extends CModule
 
 	function InstallFiles()
 	{
-		if ($_ENV["COMPUTERNAME"]!='BX')
-		{
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/admin", $_SERVER['DOCUMENT_ROOT']."/bitrix/admin");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/components", $_SERVER['DOCUMENT_ROOT']."/bitrix/components", true, true);
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/images", $_SERVER['DOCUMENT_ROOT']."/bitrix/images/catalog", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/install/js", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js", true, true);
-			CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/install/panel", $_SERVER["DOCUMENT_ROOT"]."/bitrix/panel", true, true);
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/themes", $_SERVER['DOCUMENT_ROOT']."/bitrix/themes", true, true);
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/tools", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools", true, true);
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/admin", $_SERVER['DOCUMENT_ROOT']."/bitrix/admin");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/components", $_SERVER['DOCUMENT_ROOT']."/bitrix/components", true, true);
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/images", $_SERVER['DOCUMENT_ROOT']."/bitrix/images/catalog", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/install/js", $_SERVER["DOCUMENT_ROOT"]."/bitrix/js", true, true);
+		CopyDirFiles($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/install/panel", $_SERVER["DOCUMENT_ROOT"]."/bitrix/panel", true, true);
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/themes", $_SERVER['DOCUMENT_ROOT']."/bitrix/themes", true, true);
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/tools", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools", true, true);
 
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_import", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_import");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/load_import/cron_frame.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_import/cron_frame.php");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_export");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/load/cron_frame.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_export/cron_frame.php");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/froogle_util.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/froogle_util.php");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/yandex_util.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/yandex_util.php");
-			CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/yandex_detail.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/yandex_detail.php");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_import", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_import");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/load_import/cron_frame.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_import/cron_frame.php");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_export");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/load/cron_frame.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/php_interface/include/catalog_export/cron_frame.php");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/froogle_util.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/froogle_util.php");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/yandex_util.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/yandex_util.php");
+		CopyDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/public/catalog_export/yandex_detail.php", $_SERVER['DOCUMENT_ROOT']."/bitrix/tools/catalog_export/yandex_detail.php");
 
-			CheckDirPath($_SERVER['DOCUMENT_ROOT']."/bitrix/catalog_export/");
-		}
+		CheckDirPath($_SERVER['DOCUMENT_ROOT']."/bitrix/catalog_export/");
 
 		return true;
 	}
@@ -85,10 +82,14 @@ class catalog extends CModule
 	{
 		global $APPLICATION;
 		global $DB;
-		global $errors;
+		$connection = \Bitrix\Main\Application::getConnection();
 
-		if(!$DB->Query("SELECT 'x' FROM b_catalog_group", true))
-			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/db/mysql/install.sql");
+		$errors = null;
+
+		if (!$DB->TableExists('b_catalog_group'))
+		{
+			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/catalog/install/db/' . $connection->getType() . '/install.sql');
+		}
 
 		if (!empty($errors))
 		{
@@ -206,11 +207,59 @@ class catalog extends CModule
 		);
 
 		$eventManager->registerEventHandler(
-			'seo',
-			'OnCatalogWebhook',
+			'sale',
+			'OnSaleCheckPrepareData',
 			'catalog',
-			'\Bitrix\Catalog\v2\Integration\Seo\Facebook\FacebookFacade',
-			'onCatalogWebhookHandler'
+			'\Bitrix\Catalog\Integration\Sale\Cashbox\EventHandlers\Check',
+			'onSaleCheckPrepareData'
+		);
+
+		$eventManager->registerEventHandlerCompatible(
+			'iblock',
+			'OnBeforeIBlockElementDelete',
+			'catalog',
+			'\Bitrix\Catalog\v2\AgentContract\EventHandlers\IblockElement',
+			'onBeforeIBlockElementDelete'
+		);
+
+		$eventManager->registerEventHandlerCompatible(
+			'rest',
+			'OnRestServiceBuildDescription',
+			'catalog',
+			'\Bitrix\Catalog\EventDispatcher\EventDispatcher',
+			'onRestServiceBuildDescription'
+		);
+
+		$eventManager->registerEventHandlerCompatible(
+			'rest',
+			'OnRestAppInstall',
+			'catalog',
+			'\Bitrix\Catalog\Store\EnableWizard\OnecAppManager',
+			'onRestAppInstall'
+		);
+
+		$eventManager->registerEventHandler(
+			'ai',
+			'onTuningLoad',
+			'catalog',
+			'\Bitrix\Catalog\Integration\AI\Settings',
+			'onTuningLoad',
+		);
+
+		$eventManager->registerEventHandler(
+			'crm',
+			'OnCrmDealRecoverFromRecycleBin',
+			'catalog',
+			'\Bitrix\Catalog\Integration\Crm\EventsHandler',
+			'OnCrmDealRecoverFromRecycleBin'
+		);
+
+		$eventManager->registerEventHandler(
+			'crm',
+			'OnCrmDealEraseFromRecycleBin',
+			'catalog',
+			'\Bitrix\Catalog\Integration\Crm\EventsHandler',
+			'OnCrmDealEraseFromRecycleBin'
 		);
 
 		if ($this->bitrix24mode)
@@ -326,15 +375,13 @@ class catalog extends CModule
 
 	function UnInstallFiles()
 	{
-		if ($_ENV["COMPUTERNAME"]!='BX')
-		{
-			DeleteDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/admin", $_SERVER['DOCUMENT_ROOT']."/bitrix/admin");
-			DeleteDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/themes/.default/", $_SERVER['DOCUMENT_ROOT']."/bitrix/themes/.default");//css
-			DeleteDirFilesEx("/bitrix/themes/.default/icons/catalog/");//icons
-			DeleteDirFilesEx("/bitrix/tools/catalog/"); // scripts
-			DeleteDirFilesEx("/bitrix/js/catalog/");//javascript
-			DeleteDirFilesEx("/bitrix/panel/catalog/");//panel
-		}
+		DeleteDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/admin", $_SERVER['DOCUMENT_ROOT']."/bitrix/admin");
+		DeleteDirFiles($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/themes/.default/", $_SERVER['DOCUMENT_ROOT']."/bitrix/themes/.default");//css
+		DeleteDirFilesEx("/bitrix/themes/.default/icons/catalog/");//icons
+		DeleteDirFilesEx("/bitrix/tools/catalog/"); // scripts
+		DeleteDirFilesEx("/bitrix/js/catalog/");//javascript
+		DeleteDirFilesEx("/bitrix/panel/catalog/");//panel
+
 		return true;
 	}
 
@@ -342,6 +389,7 @@ class catalog extends CModule
 	{
 		global $APPLICATION, $DB, $errors;
 		global $USER_FIELD_MANAGER;
+		$connection = \Bitrix\Main\Application::getConnection();
 
 		if (!defined('BX_CATALOG_UNINSTALLED'))
 			define('BX_CATALOG_UNINSTALLED', true);
@@ -349,7 +397,7 @@ class catalog extends CModule
 		$enableDeprecatedEvents = Main\Config\Option::get('catalog', 'enable_processing_deprecated_events') === 'Y';
 		if (!isset($arParams["savedata"]) || $arParams["savedata"] != "Y")
 		{
-			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/db/mysql/uninstall.sql");
+			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/db/".$connection->getType()."/uninstall.sql");
 			if (!empty($errors))
 			{
 				$APPLICATION->ThrowException(implode("", $errors));
@@ -462,6 +510,30 @@ class catalog extends CModule
 			'onGetDependentModule'
 		);
 
+		$eventManager->unRegisterEventHandler(
+			'ai',
+			'onTuningLoad',
+			'catalog',
+			'\Bitrix\Catalog\Integration\AI\Settings',
+			'onTuningLoad',
+		);
+
+		$eventManager->unregisterEventHandler(
+			'crm',
+			'OnCrmDealRecoverFromRecycleBin',
+			'catalog',
+			'\Bitrix\Catalog\Integration\Crm\EventsHandler',
+			'OnCrmDealRecoverFromRecycleBin'
+		);
+
+		$eventManager->unregisterEventHandler(
+			'crm',
+			'OnCrmDealEraseFromRecycleBin',
+			'catalog',
+			'\Bitrix\Catalog\Integration\Crm\EventsHandler',
+			'OnCrmDealEraseFromRecycleBin'
+		);
+
 		$eventManager->unRegisterEventHandler('report', 'onAnalyticPageBatchCollect', 'catalog', '\Bitrix\Catalog\Integration\Report\EventHandler', 'onAnalyticPageBatchCollect');
 		$eventManager->unRegisterEventHandler('report', 'onAnalyticPageCollect', 'catalog', '\Bitrix\Catalog\Integration\Report\EventHandler', 'onAnalyticPageCollect');
 		$eventManager->unRegisterEventHandler('report', 'onDefaultBoardsCollect', 'catalog', '\Bitrix\Catalog\Integration\Report\EventHandler', 'onDefaultBoardsCollect');
@@ -469,11 +541,35 @@ class catalog extends CModule
 		$eventManager->unRegisterEventHandler('report', 'onReportViewCollect', 'catalog', '\Bitrix\Catalog\Integration\Report\EventHandler', 'onViewsCollect');
 
 		$eventManager->unRegisterEventHandler(
-			'seo',
-			'OnCatalogWebhook',
+			'sale',
+			'OnSaleCheckPrepareData',
 			'catalog',
-			'\Bitrix\Catalog\v2\Integration\Seo\Facebook\FacebookFacade',
-			'onCatalogWebhookHandler'
+			'\Bitrix\Catalog\Integration\Sale\Cashbox\EventHandlers\Check',
+			'onSaleCheckPrepareData'
+		);
+
+		$eventManager->unRegisterEventHandler(
+			'iblock',
+			'OnBeforeIBlockElementDelete',
+			'catalog',
+			'\Bitrix\Catalog\v2\AgentContract\EventHandlers\IblockElement',
+			'onBeforeIBlockElementDelete'
+		);
+
+		$eventManager->unRegisterEventHandler(
+			'rest',
+			'OnRestServiceBuildDescription',
+			'catalog',
+			'\Bitrix\Catalog\EventDispatcher\EventDispatcher',
+			'onRestServiceBuildDescription'
+		);
+
+		$eventManager->unRegisterEventHandler(
+			'rest',
+			'OnRestAppInstall',
+			'catalog',
+			'\Bitrix\Catalog\Store\EnableWizard\OnecAppManager',
+			'onRestAppInstall'
 		);
 
 		if (Main\Loader::includeModule('catalog'))

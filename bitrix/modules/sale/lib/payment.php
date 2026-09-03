@@ -55,6 +55,22 @@ class Payment extends Internals\CollectableEntity implements IBusinessValueProvi
 		return $this->payableItemCollection;
 	}
 
+	public function getBasketItemQuantity(BasketItem $basketItem) : float
+	{
+		$quantity = 0;
+
+		/** @var PayableBasketItem $payableBasketItem */
+		foreach ($this->getPayableItemCollection()->getBasketItems() as $payableBasketItem)
+		{
+			if ($payableBasketItem->getEntityObject()->getBasketCode() === $basketItem->getBasketCode())
+			{
+				$quantity += $payableBasketItem->getQuantity();
+			}
+		}
+
+		return $quantity;
+	}
+
 	/**
 	 * @param array $values
 	 * @return array
@@ -173,7 +189,7 @@ class Payment extends Internals\CollectableEntity implements IBusinessValueProvi
 	 * @throws Main\NotImplementedException
 	 * @throws Main\ObjectException
 	 */
-	public static function create(PaymentCollection $collection, Sale\PaySystem\Service $paySystem = null)
+	public static function create(PaymentCollection $collection, ?Sale\PaySystem\Service $paySystem = null)
 	{
 		$fields = [
 			'DATE_BILL' => new Main\Type\DateTime(),
@@ -874,6 +890,14 @@ class Payment extends Internals\CollectableEntity implements IBusinessValueProvi
 	public function getSum()
 	{
 		return floatval($this->getField('SUM'));
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getCurrency(): string
+	{
+		return (string)$this->getField('CURRENCY');
 	}
 
 	/**

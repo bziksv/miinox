@@ -3,7 +3,6 @@
 namespace Bitrix\Pull\Push\Message;
 
 use Bitrix\Main\ArgumentException;
-use Bitrix\Main\Text\Encoding;
 use Bitrix\Pull\Push\Service\BaseService;
 
 abstract class BaseMessage
@@ -140,17 +139,17 @@ abstract class BaseMessage
 	{
 		if (is_string($messageArray["TITLE"]) && $messageArray["TITLE"] != "")
 		{
-			$title = Encoding::convertEncoding($messageArray["TITLE"], SITE_CHARSET, "utf-8");
+			$title = $messageArray["TITLE"];
 			$this->setTitle($title);
 		}
 
 		$this->setSound('');
 		if (is_string($messageArray["MESSAGE"]) && $messageArray["MESSAGE"] != "")
 		{
-			$text = Encoding::convertEncoding($messageArray["MESSAGE"], SITE_CHARSET, "utf-8");
+			$text = $messageArray["MESSAGE"];
 			$this->setText($text);
 
-			if (is_string($messageArray["SOUND"]) && $messageArray["SOUND"] != "")
+			if (!empty($messageArray["SOUND"]) && is_string($messageArray["SOUND"]))
 			{
 				$this->setSound($messageArray["SOUND"]);
 			}
@@ -175,9 +174,8 @@ abstract class BaseMessage
 			);
 		}
 
-		if (is_array($messageArray["ADVANCED_PARAMS"]))
+		if (isset($messageArray["ADVANCED_PARAMS"]) && is_array($messageArray["ADVANCED_PARAMS"]))
 		{
-			$messageArray["ADVANCED_PARAMS"] = Encoding::convertEncoding($messageArray["ADVANCED_PARAMS"], SITE_CHARSET, "utf-8");
 			if (array_key_exists("senderMessage", $messageArray["ADVANCED_PARAMS"]))
 			{
 				$this->setText("");

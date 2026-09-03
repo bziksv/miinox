@@ -1,18 +1,18 @@
 <?php
+
 namespace Bitrix\Catalog;
 
-use Bitrix\Main\Entity,
-	Bitrix\Main\Type\DateTime,
-	Bitrix\Main\Application,
-	Bitrix\Main\Event,
-	Bitrix\Main\EventManager,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Sale,
-	Bitrix\Main\Config\Option,
-	Bitrix\Main\Loader,
-	Bitrix\Landing\Connector\Iblock as IblockConnector;
-
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\Entity;
+use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\Application;
+use Bitrix\Main\Event;
+use Bitrix\Main\EventManager;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
+use Bitrix\Sale;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Loader;
+use Bitrix\Landing\Connector\Iblock as IblockConnector;
 
 /**
  * Class SubscribeTable
@@ -49,7 +49,7 @@ Loc::loadMessages(__FILE__);
  * @method static \Bitrix\Catalog\EO_Subscribe wakeUpObject($row)
  * @method static \Bitrix\Catalog\EO_Subscribe_Collection wakeUpCollection($rows)
  */
-class SubscribeTable extends Entity\DataManager
+class SubscribeTable extends DataManager
 {
 	const EVENT_ADD_CONTACT_TYPE = 'onAddContactType';
 
@@ -67,7 +67,7 @@ class SubscribeTable extends Entity\DataManager
 	 *
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_catalog_subscribe';
 	}
@@ -77,7 +77,7 @@ class SubscribeTable extends Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
 		return array(
 			'ID' => array(
@@ -88,7 +88,7 @@ class SubscribeTable extends Entity\DataManager
 			'DATE_FROM' => array(
 				'data_type' => 'datetime',
 				'required' => true,
-				'default_value' => new DateTime(),
+				'default_value' => fn() => new DateTime(),
 			),
 			'DATE_TO' => array(
 				'data_type' => 'datetime',
@@ -163,29 +163,30 @@ class SubscribeTable extends Entity\DataManager
 	/**
 	 * Handler onUserDelete for change subscription data when removing a user.
 	 *
-	 * @param integer $userId Id user.
-	 * @return bool
+	 * @param int $userId Id user.
+	 * @return void
 	 */
-	public static function onUserDelete($userId)
+	public static function onUserDelete($userId): void
 	{
 		$userId = (int)$userId;
 		if ($userId <= 0)
-			return false;
+		{
+			return;
+		}
 
 		$connection = Application::getConnection();
 		$helper = $connection->getSqlHelper();
-		$connection->queryExecute('update '.$helper->quote(static::getTableName()).' set '
-			.$helper->quote('DATE_TO').' = '.$helper->getCurrentDateTimeFunction().', '
-			.$helper->quote('USER_ID').' = \'NULL\' where '.$helper->quote('USER_ID').' = '.$userId
+		$connection->queryExecute(
+			'delete from ' . $helper->quote(static::getTableName())
+			. ' where ' . $helper->quote('USER_ID') . ' = ' . $userId
 		);
-
-		return true;
+		unset($helper, $connection);
 	}
 
 	/**
 	 * Handler onIblockElementDelete for delete the data on the subscription in case of removal of product.
 	 *
-	 * @param integer $productId Id product.
+	 * @param integer $productId Product identifier.
 	 * @return bool
 	 */
 	public static function onIblockElementDelete($productId)
@@ -320,7 +321,7 @@ class SubscribeTable extends Entity\DataManager
 	 * @deprecated deprecated since catalog 17.6.0
 	 * Method for send a notification to subscribers about positive change available.
 	 *
-	 * @param integer $productId Id product.
+	 * @param integer $productId Product identifier.
 	 * @param array $fields An array of event data.
 	 * @return bool
 	 */
@@ -332,7 +333,7 @@ class SubscribeTable extends Entity\DataManager
 	/**
 	 * Method OnProductSetAvailableUpdate for send a notification to subscribers about positive change available.
 	 *
-	 * @param integer $productId Id product.
+	 * @param integer $productId Product identifier.
 	 * @param array $fields An array of event data.
 	 * @return bool
 	 */
@@ -344,7 +345,7 @@ class SubscribeTable extends Entity\DataManager
 	/**
 	 * The method runs the agent to send notifications to subscribers.
 	 *
-	 * @param integer $productId Id product.
+	 * @param integer $productId Product identifier.
 	 * @return bool
 	 */
 	public static function runAgentToSendNotice($productId)
@@ -385,7 +386,7 @@ class SubscribeTable extends Entity\DataManager
 	/**
 	 * The method runs the agent to send repeated notifications to subscribers.
 	 *
-	 * @param integer $productId Id product.
+	 * @param integer $productId Product identifier.
 	 * @return bool
 	 */
 	public static function runAgentToSendRepeatedNotice($productId)
@@ -535,7 +536,7 @@ class SubscribeTable extends Entity\DataManager
 	/**
 	 * The method checks the old and new product availability.
 	 *
-	 * @param integer $productId Id product.
+	 * @param integer $productId Product identifier.
 	 * @param array $fields An array of event data.
 	 * @return bool
 	 */
@@ -608,8 +609,10 @@ class SubscribeTable extends Entity\DataManager
 			$listSiteId = array();
 			foreach($notify as $siteId => $data)
 			{
-				if($data['use'] != 'Y')
+				if (($data['use'] ?? 'N') !== 'Y')
+				{
 					$listSiteId[] = $siteId;
+				}
 			}
 			if($listSiteId)
 				$filter['!=SITE_ID'] = $listSiteId;

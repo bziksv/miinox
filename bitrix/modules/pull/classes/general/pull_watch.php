@@ -1,10 +1,12 @@
-<?
+<?php
+
 class CAllPullWatch
 {
 	const bucket_size = 100;
 
 	private static $arUpdate = Array();
 	private static $arInsert = Array();
+	private static array $tagCache = [];
 
 	public static function Add($userId, $tag, $immediate = false)
 	{
@@ -22,18 +24,18 @@ class CAllPullWatch
 		{
 			CTimeZone::Disable();
 			$strSql = "
-					SELECT ID, USER_ID, TAG, ".$DB->DatetimeToTimestampFunction("DATE_CREATE")." DATE_CREATE
+					SELECT ID, USER_ID, TAG, ".$DB->DatetimeToTimestampFunction("DATE_CREATE")." AS DATE_CREATE
 					FROM b_pull_watch
 					WHERE USER_ID = ".intval($userId)."
 			";
 			CTimeZone::Enable();
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			while ($arRes = $dbRes->Fetch())
 				$arResult[$arRes["TAG"]] = $arRes;
 
 			$CACHE_MANAGER->Set($cache_id, $arResult);
 		}
-		if ($arResult && $arResult[$tag])
+		if (!empty($arResult[$tag]))
 		{
 			if ($arResult[$tag]['DATE_CREATE']+1860 > time())
 			{
@@ -54,6 +56,8 @@ class CAllPullWatch
 		{
 			self::DeferredSql($userId);
 		}
+
+		self::cleanCacheByTag((string)$tag);
 
 		return true;
 	}
@@ -141,9 +145,18 @@ class CAllPullWatch
 		global $DB, $CACHE_MANAGER;
 
 		$strSql = "DELETE FROM b_pull_watch WHERE USER_ID = ".intval($userId).(!is_null($tag)? " AND TAG = '".$DB->ForSQL($tag)."'": "");
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 
 		$CACHE_MANAGER->Clean("b_pw_".$userId, "b_pull_watch");
+
+		if ($tag === null)
+		{
+			self::cleanCacheByUserId((int)$userId);
+		}
+		else
+		{
+			self::cleanCacheByTag((string)$tag);
+		}
 
 		return true;
 	}
@@ -189,7 +202,7 @@ class CAllPullWatch
 
 		$updateIds = Array();
 		$strSql = "SELECT ID, TAG FROM b_pull_watch WHERE USER_ID = ".intval($userId)." AND TAG IN ('".implode("', '", $tags)."')";
-		$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$dbRes = $DB->Query($strSql);
 		while ($arRes = $dbRes->Fetch())
 		{
 			$updateIds[] = $arRes['ID'];
@@ -220,42 +233,109 @@ class CAllPullWatch
 			return false;
 		}
 
-		$query = \Bitrix\Pull\Model\WatchTable::query();
-		$query->addSelect('USER_ID');
-		if (is_array($tag))
+		if (!is_array($tag))
 		{
-			$query->whereIn('TAG', $tag);
-		}
-		else
-		{
-			$query->where('TAG', $tag);
+			$tag = [$tag];
 		}
 
-		if (isset($parameters['skip_users']) && !empty($parameters['skip_users']) && is_array($parameters['skip_users']))
-		{
-			$query->whereNotIn('USER_ID', $parameters['skip_users']);
-		}
-		$users = array_column($query->fetchAll(), 'USER_ID');
+		$userIds = array_unique(array_merge(...self::getUsersByTags($tag)));
 
-		if (!empty($users))
+			if (isset($parameters['skip_users']) && !empty($parameters['skip_users']) && is_array($parameters['skip_users']))
 		{
-			\Bitrix\Pull\Event::add($users, $parameters, $channelType);
+			$userIds = array_diff($userIds, $parameters['skip_users']);
+		}
+
+		if (!empty($userIds))
+		{
+			\Bitrix\Pull\Event::add($userIds, $parameters, $channelType);
 		}
 
 		return true;
 	}
 
+	protected static function getUsersByTags(array $tags): array
+	{
+		$userIds = $nonCachedTags = [];
+
+		foreach ($tags as $tag)
+		{
+			if (array_key_exists($tag, self::$tagCache))
+			{
+				if (is_array(self::$tagCache[$tag]))
+				{
+					$userIds[] = self::$tagCache[$tag];
+				}
+
+				continue;
+			}
+
+			$nonCachedTags[] = $tag;
+		}
+
+		if (!empty($nonCachedTags))
+		{
+			$userIds[] = self::getUsersByTagsInternal($nonCachedTags);
+		}
+
+		return $userIds;
+	}
+
+	public static function getUsersByTag(string $tag): array
+	{
+		self::getUsersByTags([$tag]);
+
+		return self::$tagCache[$tag] ?? [];
+	}
+
+	private static function getUsersByTagsInternal(array $tags): array
+	{
+		$result = \Bitrix\Pull\Model\WatchTable::query()
+			->setSelect(['USER_ID', 'TAG'])
+			->whereIn('TAG', $tags)
+			->fetchAll()
+		;
+
+		$usersByTag = $users = [];
+		foreach ($result as $data)
+		{
+			$userId = (int)$data['USER_ID'];
+			$usersByTag[$data['TAG']][$userId] = $userId;
+			$users[$userId] = $userId;
+		}
+
+		foreach ($tags as $tag)
+		{
+			self::$tagCache[$tag] = $usersByTag[$tag] ?? null;
+		}
+
+		return $users;
+	}
+
 	public static function GetUserList($tag)
 	{
-		global $DB;
+		$userIds = \CPullWatch::getUsersByTag($tag);
 
-		$arUsers = Array();
-		$strSql = "SELECT USER_ID FROM b_pull_watch WHERE TAG = '".$DB->ForSQL($tag)."'";
-		$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		while ($arRes = $dbRes->Fetch())
-			$arUsers[$arRes['USER_ID']] = $arRes['USER_ID'];
+		return array_map('strval', $userIds);
+	}
 
-		return $arUsers;
+	public static function cleanCache(): void
+	{
+		self::$tagCache = [];
+	}
+
+	private static function cleanCacheByTag(string $tag): void
+	{
+		unset(self::$tagCache[$tag]);
+	}
+
+	private static function cleanCacheByUserId(int $userId): void
+	{
+		foreach (self::$tagCache as $tag => $userIds)
+		{
+			if (is_array($userIds) && in_array($userId, $userIds, true))
+			{
+				unset(self::$tagCache[$tag]);
+			}
+		}
 	}
 }
-?>

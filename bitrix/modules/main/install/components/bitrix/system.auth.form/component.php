@@ -53,10 +53,7 @@ if(!$USER->IsAuthorized())
 	$arResult["STORE_PASSWORD"] = COption::GetOptionString("main", "store_password", "Y") == "Y" ? "Y" : "N";
 	$arResult["NEW_USER_REGISTRATION"] = COption::GetOptionString("main", "new_user_registration", "N") == "Y" ? "Y" : "N";
 
-	if(defined("AUTH_404"))
-		$arResult["AUTH_URL"] = htmlspecialcharsback(POST_FORM_ACTION_URI);
-	else
-		$arResult["AUTH_URL"] = $APPLICATION->GetCurPageParam("login=yes", array_merge($arParamsToDelete, array("logout_butt", "backurl")));
+	$arResult["AUTH_URL"] = $APPLICATION->GetCurPageParam("login=yes", array_merge($arParamsToDelete, array("logout_butt", "backurl")));
 
 	$arParams["REGISTER_URL"] = ($arParams["REGISTER_URL"] <> ''? $arParams["REGISTER_URL"] : $currentUrl);
 	$arParams["FORGOT_PASSWORD_URL"] = ($arParams["FORGOT_PASSWORD_URL"] <> ''? $arParams["FORGOT_PASSWORD_URL"] : $arParams["REGISTER_URL"]);
@@ -64,8 +61,8 @@ if(!$USER->IsAuthorized())
 	$url = urlencode($APPLICATION->GetCurPageParam("", array_merge($arParamsToDelete, array("backurl"))));
 
 	$custom_reg_page = COption::GetOptionString('main', 'custom_register_page');
-	$arResult["AUTH_REGISTER_URL"] = ($custom_reg_page <> ''? $custom_reg_page : $arParams["REGISTER_URL"].(strpos($arParams["REGISTER_URL"], "?") !== false? "&" : "?")."register=yes&backurl=".$url);
-	$arResult["AUTH_FORGOT_PASSWORD_URL"] = $arParams["FORGOT_PASSWORD_URL"].(strpos($arParams["FORGOT_PASSWORD_URL"], "?") !== false? "&" : "?")."forgot_password=yes&backurl=".$url;
+	$arResult["AUTH_REGISTER_URL"] = ($custom_reg_page <> ''? $custom_reg_page : $arParams["REGISTER_URL"].(str_contains($arParams["REGISTER_URL"], "?") ? "&" : "?")."register=yes&backurl=".$url);
+	$arResult["AUTH_FORGOT_PASSWORD_URL"] = $arParams["FORGOT_PASSWORD_URL"].(str_contains($arParams["FORGOT_PASSWORD_URL"], "?") ? "&" : "?")."forgot_password=yes&backurl=".$url;
 	$arResult["AUTH_LOGIN_URL"] = $APPLICATION->GetCurPageParam("login_form=yes", $arParamsToDelete);
 
 	$arRes = array();
@@ -96,7 +93,7 @@ if(!$USER->IsAuthorized())
 	{
 		$arResult["FORM_TYPE"] = "login";
 
-		$arVarExcl = array("USER_LOGIN"=>1, "USER_PASSWORD"=>1, "backurl"=>1, "auth_service_id"=>1, "TYPE"=>1, "AUTH_FORM"=>1);
+		$arVarExcl = array("USER_LOGIN"=>1, "USER_PASSWORD"=>1, "backurl"=>1, "auth_service_id"=>1, "TYPE"=>1, "AUTH_FORM"=>1, 'sessid' => 1);
 		$arResult["GET"] = array();
 		$arResult["POST"] = array();
 		foreach($_POST as $vname=>$vvalue)
@@ -144,7 +141,7 @@ if(!$USER->IsAuthorized())
 			if(!empty($arServices))
 			{
 				$arResult["AUTH_SERVICES"] = $arServices;
-				if(isset($_REQUEST["auth_service_id"]) && $_REQUEST["auth_service_id"] <> '' && isset($arResult["AUTH_SERVICES"][$_REQUEST["auth_service_id"]]))
+				if (!empty($_REQUEST["auth_service_id"]) && is_string($_REQUEST["auth_service_id"]) && isset($arResult["AUTH_SERVICES"][$_REQUEST["auth_service_id"]]))
 				{
 					$arResult["CURRENT_SERVICE"] = $_REQUEST["auth_service_id"];
 					if(isset($_REQUEST["auth_service_error"]) && $_REQUEST["auth_service_error"] <> '')
@@ -190,7 +187,7 @@ else
 	$arResult["FORM_TYPE"] = "logout";
 
 	$arResult["AUTH_URL"] = $currentUrl;
-	$arResult["PROFILE_URL"] = $arParams["PROFILE_URL"].(strpos($arParams["PROFILE_URL"], "?") !== false? "&" : "?")."backurl=".urlencode($currentUrl);
+	$arResult["PROFILE_URL"] = $arParams["PROFILE_URL"].(str_contains($arParams["PROFILE_URL"], "?") ? "&" : "?")."backurl=".urlencode($currentUrl);
 
 	$arRes = array();
 	foreach($arResult as $key=>$value)

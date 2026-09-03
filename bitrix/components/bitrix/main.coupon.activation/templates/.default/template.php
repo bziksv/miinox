@@ -6,6 +6,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
+use Bitrix\Main\Web\Json;
 
 /**
  * @var array $arResult;
@@ -28,7 +29,7 @@ use Bitrix\Main\UI\Extension;
 	<title><?=Loc::getMessage('MAIN_COUPON_ACTIVATION_HEADER_TITLE')?></title>
 </head>
 <body id="workarea-content">
-	<div class="logo-container main-logo-<?if (LANGUAGE_ID === "ru"):?>ru<?elseif(LANGUAGE_ID === "ua"):?>ua<?else:?>en<?endif?>"></div>
+	<div class="logo-container main-logo-<?php if (LANGUAGE_ID === "ru"):?>ru<?php elseif(LANGUAGE_ID === "ua"):?>ua<?php else:?>en<?php endif?>"></div>
 	<div class="copyright"><?= Loc::getMessage('MAIN_COUPON_ACTIVATION_COPYRIGHT', ['#YEAR#' => (new \Bitrix\Main\Type\Date(null))->format('Y')]) ?></div>
 <script>
 	BX.ready(() => {
@@ -39,14 +40,11 @@ use Bitrix\Main\UI\Extension;
 			() => { window.dispatchEvent(new Event('resize')); }
 		);
 
-		BX.message(<?= \Bitrix\Main\Web\Json::encode(Loc::loadLanguageFile(__FILE__)) ?>);
-		const parameters = <?= \CUtil::PhpToJSObject($arResult); ?>;
+		BX.message(<?= Json::encode(Loc::loadLanguageFile(__FILE__)) ?>);
+		const parameters = <?= Json::encode($arResult) ?>;
 		const popup = BX.Main.LicensePopup.createExpiredLicensePopup(parameters);
 		popup.init();
 	});
 </script>
 </body>
 </html>
-
-
-

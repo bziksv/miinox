@@ -1,8 +1,8 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-/** @var \CAllMain $APPLICATION*/
-/** @var \CBitrixComponentTemplate $this*/
+/** @var CMain $APPLICATION*/
+/** @var CBitrixComponentTemplate $this*/
 /** @var array $arResult*/
 /** @var array $arParams*/
 
@@ -24,10 +24,9 @@ $APPLICATION->IncludeComponent(
 			'PATH_TO_GRID' => $arResult['PATH_TO_GRID'] ?? null
 		],
 		'USE_PADDING' => true,
-		'EDITABLE_TITLE_SELECTOR'=>'#integrationEditTitle',
+		'USE_UI_TOOLBAR' => 'Y',
 		'PAGE_MODE' => false,
-		"USE_UI_TOOLBAR" => "N",
 		'PAGE_MODE_OFF_BACK_URL' =>	$arResult['PATH_TO_LIST'],
-		"POPUP_COMPONENT_PARENT" => $this->getComponent()
+		'POPUP_COMPONENT_PARENT' => $this->getComponent(),
 	)
 );

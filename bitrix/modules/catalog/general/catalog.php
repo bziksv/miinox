@@ -299,7 +299,7 @@ class CAllCatalog
 					LEFT JOIN b_catalog_iblock OFFERS ON CI.IBLOCK_ID = OFFERS.PRODUCT_IBLOCK_ID
 				WHERE
 					CI.IBLOCK_ID = ".$ID;
-			$db_res = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$db_res = $DB->Query($strSql);
 			if ($res = $db_res->Fetch())
 			{
 				$res["OFFERS"] = $res["PRODUCT_IBLOCK_ID"] ? "Y": "N";
@@ -1216,7 +1216,7 @@ class CAllCatalog
 		$arInsert = $DB->PrepareInsert("b_catalog_iblock", $arFields);
 
 		$strSql = "INSERT INTO b_catalog_iblock(".$arInsert[0].") VALUES(".$arInsert[1].")";
-		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query($strSql);
 
 		CCatalogSku::ClearCache();
 		Catalog\CatalogIblockTable::cleanCache();
@@ -1236,7 +1236,7 @@ class CAllCatalog
 		if (!empty($strUpdate))
 		{
 			$strSql = "UPDATE b_catalog_iblock SET ".$strUpdate." WHERE IBLOCK_ID = ".$ID;
-			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$DB->Query($strSql);
 
 			if (isset(self::$arCatalogCache[$ID]))
 			{
@@ -1511,23 +1511,6 @@ class CAllCatalog
 				}
 				unset($row);
 			}
-			if (self::isCrmCatalogBrandProperty($id))
-			{
-				$property = \CIBlockProperty::GetByID($id)->Fetch();
-
-				if (isset($fields['NAME']) && $fields['NAME'] !== $property['NAME'])
-				{
-					$messages[] = Loc::getMessage('BT_MOD_CATALOG_ERR_CANNOT_CHANGE_BRAND_PROPERTY_NAME');
-				}
-				elseif (isset($fields['CODE']) && $fields['CODE'] !== 'BRAND_FOR_FACEBOOK')
-				{
-					$messages[] = Loc::getMessage('BT_MOD_CATALOG_ERR_CANNOT_CHANGE_BRAND_PROPERTY_CODE');
-				}
-				elseif (isset($fields['MULTIPLE']) && $fields['MULTIPLE'] !== 'Y')
-				{
-					$messages[] = Loc::getMessage('BT_MOD_CATALOG_ERR_CANNOT_CHANGE_BRAND_PROPERTY_MULTIPLE');
-				}
-			}
 			unset($id);
 		}
 
@@ -1570,30 +1553,9 @@ class CAllCatalog
 			));
 			$result = false;
 		}
-		elseif (self::isCrmCatalogBrandProperty($intPropertyID))
-		{
-			$APPLICATION->throwException(GetMessage("BT_MOD_CATALOG_ERR_CANNOT_DELETE_BRAND_PROPERTY"));
-			$result = false;
-		}
 		unset($property);
 
 		return $result;
-	}
-
-	private static function isCrmCatalogBrandProperty($propertyId): bool
-	{
-		if (
-			!Loader::includeModule('crm')
-			|| !Loader::includeModule('bitrix24')
-		)
-		{
-			return false;
-		}
-
-		$crmCatalogId = \CCrmCatalog::GetDefaultID();
-		$property = \CIBlockProperty::GetByID($propertyId)->Fetch();
-
-		return $property['CODE'] === 'BRAND_FOR_FACEBOOK' && (int)$property['IBLOCK_ID'] === $crmCatalogId;
 	}
 
 	public static function OnIBlockModuleUnInstall(): bool

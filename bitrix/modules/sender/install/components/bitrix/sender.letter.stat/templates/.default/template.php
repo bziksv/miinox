@@ -7,17 +7,23 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
+use Bitrix\UI\Toolbar\Facade\Toolbar;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
 Extension::load('ui.hint');
 $containerId = 'BX_SENDER_STATISTICS';
 $containerId = htmlspecialcharsbx($containerId);
+
+if (isset($_REQUEST['IFRAME']) && $_REQUEST['IFRAME'] === 'Y')
+{
+	Toolbar::deleteFavoriteStar();
+}
 ?>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		var params = <?=Json::encode(array(
 			'mailingId' => $arParams['MAILING_ID'],
@@ -308,7 +314,7 @@ $containerId = htmlspecialcharsbx($containerId);
 	);
 	?>
 
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 			BX.Sender.Letter.Stat.init(<?=Json::encode([
 				'containerId' => $containerId,

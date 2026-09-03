@@ -46,7 +46,7 @@ $arParams["LHE"]["lazyLoad"] = (
 );
 
 $arParams["PARSER"] = array_unique(is_array($arParams["PARSER"]) ? array_values($arParams["PARSER"]) : []);
-$arParams["BUTTONS"] = is_array($arParams["BUTTONS"]) ? $arParams["BUTTONS"] : array();
+$arParams["BUTTONS"] = isset($arParams["BUTTONS"]) && is_array($arParams["BUTTONS"]) ? $arParams["BUTTONS"] : array();
 $arParams["BUTTONS"] = (
 	in_array("MentionUser", $arParams["BUTTONS"])
 	&& !ModuleManager::isModuleInstalled("socialnetwork")
@@ -56,7 +56,7 @@ $arParams["BUTTONS"] = (
 $arParams["BUTTONS"] = array_values($arParams["BUTTONS"]);
 $arParams["BUTTONS_HTML"] = isset($arParams["BUTTONS_HTML"]) && is_array($arParams["BUTTONS_HTML"]) ? $arParams["BUTTONS_HTML"] : array();
 
-$arParams["TEXT"] = (is_array($arParams["~TEXT"]) ? $arParams["~TEXT"] : array());
+$arParams["TEXT"] = (isset($arParams["~TEXT"]) && is_array($arParams["~TEXT"]) ? $arParams["~TEXT"] : array());
 $arParams["TEXT"]["ID"] = (!empty($arParams["TEXT"]["ID"]) ? $arParams["TEXT"]["ID"] : "POST_MESSAGE");
 $arParams["TEXT"]["NAME"] = (!empty($arParams["TEXT"]["NAME"]) ? $arParams["TEXT"]["NAME"] : "POST_MESSAGE");
 $arParams["TEXT"]["TABINDEX"] = intval(($arParams["TEXT"]["TABINDEX"] ?? 0) <= 0 ? 10 : $arParams["TEXT"]["TABINDEX"]);
@@ -72,7 +72,7 @@ if (is_array($arParams["ADDITIONAL"]))
 {
 	if (!empty($arParams["ADDITIONAL"]))
 	{
-		if (mb_substr(trim(reset($arParams["ADDITIONAL"])), 0, 1) !== "<")
+		if (!str_starts_with(trim(reset($arParams["ADDITIONAL"])), "<"))
 		{
 			$arParams["ADDITIONAL_TYPE"] =  'popup';
 		}
@@ -83,8 +83,8 @@ if (is_array($arParams["ADDITIONAL"]))
 		{
 			array_unshift(
 				$arParams["ADDITIONAL"],
-				"<span class='feed-add-post-form-editor-btn' data-bx-role='button-show-panel-editor' ".
-				"title=\"".GetMessage("MPF_EDITOR")."\"></span>");
+				"<button type='button' class='feed-add-post-form-editor-btn' data-bx-role='button-show-panel-editor' ".
+				"title=\"".GetMessage("MPF_EDITOR")."\" aria-label=\"".GetMessage("MPF_EDITOR")."\" aria-pressed=\"false\"></button>");
 		}
 		else
 		{
@@ -123,7 +123,7 @@ if (!empty($arParams["DEST_SORT"]))
 elseif (
 	$arResult["SELECTOR_VERSION"] < 2
 	&& Loader::includeModule("socialnetwork")
-	&& $USER->IsAuthorized()
+	&& $USER?->IsAuthorized()
 )
 {
 	$arResult["DEST_SORT"] = CSocNetLogDestination::GetDestinationSort(array(
@@ -308,7 +308,7 @@ if ($arParams["DESTINATION_SHOW"] === "Y")
 
 
 	$arResult['DESTINATION'] = [
-		'ENTITIES_PRESELECTED' => EntitySelector\Converter::sortEntities(EntitySelector\Converter::convertFromFinderCodes(is_array($arParams["DESTINATION"]["SELECTED"]) ? array_keys($arParams["DESTINATION"]["SELECTED"]) : []))
+		'ENTITIES_PRESELECTED' => EntitySelector\Converter::sortEntities(EntitySelector\Converter::convertFromFinderCodes(isset($arParams["DESTINATION"]["SELECTED"]) && is_array($arParams["DESTINATION"]["SELECTED"]) ? array_keys($arParams["DESTINATION"]["SELECTED"]) : []))
 	];
 }
 

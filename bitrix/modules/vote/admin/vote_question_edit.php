@@ -1,16 +1,18 @@
-<?
-/*
-##############################################
-# Bitrix: SiteManager						#
-# Copyright (c) 2004 - 2009 Bitrix			#
-# http://www.bitrix.ru						#
-# mailto:admin@bitrix.ru					#
-##############################################
-*//**
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage vote
+ * @copyright 2001-2025 Bitrix
+ */
+
+/**
  * @global CMain $APPLICATION
  * @global CUser $USER
  * @param integer $ID
  */
+
 use \Bitrix\Main\Localization\Loc;
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/vote/prolog.php");
@@ -279,7 +281,7 @@ $t_COL = array("00", "33", "66", "99", "CC", "FF");
 			<td width=50%><input id="t_COL" size=10 style="width:100%;border:1px solid black"></td>
 		</tr>
 	</table></div>
-<SCRIPT LANGUAGE="JavaScript">
+<SCRIPT>
 	<!--
 	jsUtils.addEvent(document, "mousedown", function(e){hidePicker();});
 	jsUtils.addEvent(document, "keypress", function(e){hidePicker();});
@@ -321,7 +323,7 @@ $t_COL = array("00", "33", "66", "99", "CC", "FF");
 /************** Table of colors/************************************/
 ?>
 <form name="form1" method="POST" action="" enctype="multipart/form-data">
-	<script type="text/javascript">
+	<script>
 		<!--
 		function FIELD_TYPE_CHANGE(i)
 		{
@@ -391,7 +393,7 @@ $t_COL = array("00", "33", "66", "99", "CC", "FF");
 	<tr>
 		<td><?=GetMessage("VOTE_DIAGRAM_TYPE")?>:</td>
 		<td><?echo SelectBoxFromArray("DIAGRAM_TYPE", GetVoteDiagramList(), $arQuestion["DIAGRAM_TYPE"]);?>
-			<script type="text/javascript">OnDiagramFlagChange();</script>
+			<script>OnDiagramFlagChange();</script>
 		</td>
 	</tr>
 	<?if (COption::GetOptionString("vote", "VOTE_COMPATIBLE_OLD_TEMPLATE", "N") == "Y"):?>
@@ -436,7 +438,7 @@ $t_COL = array("00", "33", "66", "99", "CC", "FF");
 			<td align="center" colspan="2"><?=InputType("radio","QUESTION_TYPE","text",$arQuestion["QUESTION_TYPE"],false)?>Text &nbsp;/&nbsp;<?=InputType("radio","QUESTION_TYPE","html",$arQuestion["QUESTION_TYPE"],false)?>HTML</td>
 		</tr>
 		<tr>
-			<td align="center" colspan="2"><textarea name="QUESTION" style="width:100%" rows="23"><?=$arQuestion["QUESTION"]?></textarea></td>
+			<td align="center" colspan="2"><textarea name="QUESTION" style="width:100%" rows="23"><?=htmlspecialcharsbx($arQuestion["QUESTION"])?></textarea></td>
 		</tr>
 	<?endif;?>
 
@@ -448,7 +450,7 @@ $t_COL = array("00", "33", "66", "99", "CC", "FF");
 	?>
 	<tr class="adm-detail-required-field">
 		<td colspan="2">
-			<script type='text/javascript'>
+			<script>
 
 				function addQuestionRow(tthis)
 				{

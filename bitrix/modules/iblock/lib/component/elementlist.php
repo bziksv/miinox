@@ -71,6 +71,12 @@ abstract class ElementList extends Base
 		return (bool)$this->paginationMode;
 	}
 
+	/**
+	 * Returns validated component parameters.
+	 *
+	 * @param mixed $params Raw component parameters.
+	 * @return array
+	 */
 	public function onPrepareComponentParams($params)
 	{
 		if (!is_array($params))
@@ -664,17 +670,24 @@ abstract class ElementList extends Base
 	}
 
 	// some logic of \CComponentAjax to execute in component_epilog
+
+	/**
+	 * Internal method for component ajax - modify urls.
+	 *
+	 * @param array $data Link list.
+	 * @return void
+	 */
 	public function prepareLinks(&$data)
 	{
 		$addParam = \CAjax::GetSessionParam($this->arParams['AJAX_ID']);
 
-		$regexpLinks = '/(<a\s[^>]*?>.*?<\/a>)/is'.BX_UTF_PCRE_MODIFIER;
-		$regexpParams = '/([\w\-]+)\s*=\s*([\"\'])(.*?)\2/is'.BX_UTF_PCRE_MODIFIER;
+		$regexpLinks = '/(<a\s[^>]*?>.*?<\/a>)/isu';
+		$regexpParams = '/([\w\-]+)\s*=\s*([\"\'])(.*?)\2/isu';
 
 		$this->checkPcreLimit($data);
-		$arData = preg_split($regexpLinks, $data, -1, PREG_SPLIT_DELIM_CAPTURE);
+		$preparedData = preg_split($regexpLinks, $data, -1, PREG_SPLIT_DELIM_CAPTURE);
 
-		$dataCount = count($arData);
+		$dataCount = count($preparedData);
 		if ($dataCount < 2)
 			return;
 
@@ -692,7 +705,7 @@ abstract class ElementList extends Base
 
 		for ($i = 1; $i < $dataCount; $i += 2)
 		{
-			if (!preg_match('/^<a\s([^>]*?)>(.*?)<\/a>$/is'.BX_UTF_PCRE_MODIFIER, $arData[$i], $match))
+			if (!preg_match('/^<a\s([^>]*?)>(.*?)<\/a>$/isu', $preparedData[$i], $match))
 				continue;
 
 			$params = $match[1];
@@ -744,7 +757,7 @@ abstract class ElementList extends Base
 					$realUrl .= mb_strpos($url, '?') === false ? '?' : '&';
 					$realUrl .= $addParam;
 
-					$arData[$i] = \CAjax::GetLinkEx($realUrl, $url, $match[2], 'comp_'.$this->arParams['AJAX_ID'], $strAdditional);
+					$preparedData[$i] = \CAjax::GetLinkEx($realUrl, $url, $match[2], 'comp_'.$this->arParams['AJAX_ID'], $strAdditional);
 
 					$dataChanged = true;
 				}
@@ -753,14 +766,14 @@ abstract class ElementList extends Base
 
 		if ($dataChanged)
 		{
-			$data = implode('', $arData);
+			$data = implode('', $preparedData);
 		}
 	}
 
 	private function checkPcreLimit($data)
 	{
 		$pcreBacktrackLimit = (int)ini_get('pcre.backtrack_limit');
-		$textLen = function_exists('mb_strlen')? mb_strlen($data, 'latin1') : mb_strlen($data);
+		$textLen = strlen($data);
 		$textLen++;
 
 		if ($pcreBacktrackLimit > 0 && $pcreBacktrackLimit < $textLen)
@@ -1324,6 +1337,11 @@ abstract class ElementList extends Base
 		$this->arResult['ELEMENTS'] = array_keys($this->elementLinks);
 	}
 
+	/**
+	 * Load component data with use page navigation.
+	 *
+	 * @return void
+	 */
 	public function loadData()
 	{
 		$this->initNavParams();
@@ -1741,7 +1759,7 @@ abstract class ElementList extends Base
 				$this->arResult['NAV_PARAM']['TEMPLATE_THEME'] = $this->arParams['TEMPLATE_THEME'];
 			}
 
-			if (!empty($this->arResult['NAV_RESULT']))
+			if (!empty($this->arResult['NAV_RESULT']) && empty($this->arResult['NAV_STRING']))
 			{
 				/** @var \CBitrixComponent $navComponentObject */
 				$this->arResult['NAV_STRING'] = $this->arResult['NAV_RESULT']->GetPageNavStringEx(
@@ -1861,10 +1879,19 @@ abstract class ElementList extends Base
 					}
 				}
 
+				$variantKey = false;
+				if (isset($variantParam['VARIANT']) && is_scalar($variantParam['VARIANT']))
+				{
+					$variantKey = $variantParam['VARIANT'];
+					if (!is_string($variantKey) && !is_int($variantKey))
+					{
+						$variantKey = false;
+					}
+				}
 				if (
-					$variantParam === false
-					|| !isset($variantsMap[$variantParam['VARIANT']])
-					|| ($variantsMap[$variantParam['VARIANT']]['SHOW_ONLY_FULL'] && $variantsMap[$variantParam['VARIANT']]['COUNT'] > $itemsRemaining)
+					$variantKey === false
+					|| !isset($variantsMap[$variantKey])
+					|| ($variantsMap[$variantKey]['SHOW_ONLY_FULL'] && $variantsMap[$variantKey]['COUNT'] > $itemsRemaining)
 				)
 				{
 					// default variant
@@ -1927,9 +1954,16 @@ abstract class ElementList extends Base
 	 */
 	protected function getBigDataInfo()
 	{
-		$rows = array();
+		if (!Main\Analytics\Catalog::isOn())
+		{
+			return [
+				'enabled' => false,
+			];
+		}
+
+		$rows = [];
 		$count = 0;
-		$rowsRange = array();
+		$rowsRange = [];
 		$variantsMap = static::getTemplateVariantsMap();
 
 		if (!empty($this->arParams['PRODUCT_ROW_VARIANTS']))
@@ -1950,7 +1984,7 @@ abstract class ElementList extends Base
 			}
 		}
 
-		$shownIds = array();
+		$shownIds = [];
 		if (!empty($this->elements))
 		{
 			foreach ($this->elements as $element)
@@ -1959,19 +1993,19 @@ abstract class ElementList extends Base
 			}
 		}
 
-		return array(
+		return [
 			'enabled' => $count > 0,
 			'rows' => $rows,
 			'count' => $count,
 			'rowsRange' => $rowsRange,
 			'shownIds' => $shownIds,
-			'js' => array(
+			'js' => [
 				'cookiePrefix' => \COption::GetOptionString('main', 'cookie_name', 'BITRIX_SM'),
 				'cookieDomain' => Main\Web\Cookie::getCookieDomain(),
 				'serverTime' => $count > 0 ? time() : 0,
-			),
+			],
 			'params' => $this->getBigDataServiceRequestParams(($this->arParams['RCM_TYPE'] ?? ''))
-		);
+		];
 	}
 
 	// getting positions of enlarged elements

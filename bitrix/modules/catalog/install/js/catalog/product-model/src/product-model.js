@@ -41,6 +41,11 @@ class ProductModel
 		const settings = Extension.getSettings('catalog.product-model');
 		this.#productRights = settings.get('catalogProductRights');
 
+		if (settings.get('isExternalCatalog'))
+		{
+			this.setOption('isSaveable', false);
+		}
+
 		if (Type.isObject(options.fields))
 		{
 			this.initFields(options.fields, false);
@@ -70,8 +75,8 @@ class ProductModel
 
 		this.#calculator = new ProductCalculator(this.#getDefaultCalculationFields(), {
 			currencyId: this.options.currency,
-			pricePrecision: this.options.pricePrecision || 2,
-			commonPrecision: this.options.pricePrecision || 2,
+			pricePrecision: this.options.pricePrecision || ProductCalculator.DEFAULT_PRECISION,
+			commonPrecision: this.options.pricePrecision || ProductCalculator.DEFAULT_PRECISION,
 		});
 		this.#calculator.setCalculationStrategy(new TaxForPriceStrategy(this.#calculator));
 

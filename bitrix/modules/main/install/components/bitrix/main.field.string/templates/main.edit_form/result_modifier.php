@@ -2,10 +2,9 @@
 
 if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
-use Bitrix\Main\Text\HtmlFilter;
-
 /**
  * @var $component StringUfComponent
+ * @var array $arResult
  */
 
 $component = $this->getComponent();

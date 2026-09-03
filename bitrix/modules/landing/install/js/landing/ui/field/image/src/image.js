@@ -1,13 +1,14 @@
-import {Dom, Type, Runtime} from 'main.core';
-import {Loc} from 'landing.loc';
-import {Main} from 'landing.main'
-import {TextField} from 'landing.ui.field.textfield';
-import {ImageUploader} from 'landing.imageuploader';
-import {BaseButton} from 'landing.ui.button.basebutton';
-import {AiImageButton} from 'landing.ui.button.aiimagebutton';
-import {PageObject} from 'landing.pageobject';
-import {Env} from 'landing.env';
-import {Picker} from 'ai.picker';
+import { Dom, Type, Runtime, Event, Text } from 'main.core';
+import { Loc } from 'landing.loc';
+import { Main } from 'landing.main';
+import { Metrika } from 'landing.metrika';
+import { StylePanel } from 'landing.ui.panel.stylepanel';
+import { TextField } from 'landing.ui.field.textfield';
+import { ImageUploader } from 'landing.imageuploader';
+import { BaseButton } from 'landing.ui.button.basebutton';
+import { AiImageButton } from 'landing.ui.button.aiimagebutton';
+import { Env } from 'landing.env';
+import type { Copilot as CopilotType } from 'ai.copilot';
 
 import 'ui.fonts.opensans';
 // todo: remove most likely
@@ -16,20 +17,34 @@ import './css/style.css';
 
 export class Image extends TextField
 {
+	imageCopilot: CopilotType;
+	copilotBindElement: ?HTMLElement = null;
+	aiButton = null;
+	copilotContext = null;
+	copilotCategory = null;
+	useCopilotInIframe = false;
+	copilotFinishInitPromise = new Promise(() => {});
+	isEditorSaved = false;
+
 	static CONTEXT_TYPE_CONTENT = 'content';
 	static CONTEXT_TYPE_STYLE = 'style';
+	static CONTEXT_TYPE_SETTINGS = 'settings';
 
 	constructor(data)
 	{
 		super(data);
 
-		this.dimensions = typeof data.dimensions === "object" ? data.dimensions : null;
+		this.dimensions = typeof data.dimensions === 'object' ? data.dimensions : null;
 		this.create2xByDefault = data.create2xByDefault !== false;
-		this.uploadParams = typeof data.uploadParams === "object" ? data.uploadParams : {};
+		this.uploadParams = typeof data.uploadParams === 'object' ? data.uploadParams : {};
 		this.onValueChangeHandler = data.onValueChange ? data.onValueChange : (() => {});
-		this.type = this.content.type || "image";
+		this.type = this.content.type || 'image';
 		this.contextType = data.contextType || Image.CONTEXT_TYPE_CONTENT;
 		this.allowClear = data.allowClear;
+		this.isAiImageAvailable = Type.isBoolean(data.isAiImageAvailable) ? data.isAiImageAvailable : false;
+		this.isAiImageActive = Type.isBoolean(data.isAiImageActive) ? data.isAiImageActive : false;
+		this.aiUnactiveInfoCode = Type.isString(data.aiUnactiveInfoCode) ? data.aiUnactiveInfoCode : null;
+
 		this.input.innerText = this.content.src;
 		this.input.hidden = true;
 		this.input2x = this.createInput();
@@ -37,6 +52,7 @@ export class Image extends TextField
 		this.input2x.hidden = true;
 
 		this.layout.classList.add("landing-ui-field-image");
+		Dom.attr(this.layout, "data-testid", "landing-field-image");
 		this.compactMode = data.compactMode === true;
 		if (this.compactMode)
 		{
@@ -62,6 +78,7 @@ export class Image extends TextField
 		this.dropzone.addEventListener("dragover", this.onDragOver);
 		this.dropzone.addEventListener("dragleave", this.onDragLeave);
 		this.dropzone.addEventListener("drop", this.onDrop);
+		Event.bind(this.dropzone, "keydown", this.onDropzoneKeydown.bind(this));
 
 		this.clearButton = Image.createClearButton();
 		this.clearButton.on("click", this.onClearClick.bind(this));
@@ -108,24 +125,66 @@ export class Image extends TextField
 		this.left.appendChild(this.altField.layout);
 		this.left.appendChild(this.linkInput.layout);
 
-		this.aiButton = Image.createAiButton(this.compactMode);
-		this.aiButton.on("click", this.onAiClick.bind(this));
-		this.aiPicker = null;
-
 		this.uploadButton = Image.createUploadButton(this.compactMode);
-		this.uploadButton.on("click", this.onUploadClick.bind(this));
+		this.uploadButton.on('click', this.onUploadClick.bind(this));
 
 		this.editButton = Image.createEditButton();
-		this.editButton.on("click", this.onEditClick.bind(this));
+		this.editButton.on('click', this.onEditClick.bind(this));
+		this.onEditorClose = Runtime.debounce(this.onEditorClose, 1000, this);
 
 		this.right = Image.createRightLayout();
+
+		// ai images
 		if (
-			Env.getInstance().getOptions()['allow_ai_image']
+			this.isAiImageAvailable
 			&& (this.type === "background" || this.type === "image")
 		)
 		{
+			this.useCopilotInIframe = this.uploadParams.action === 'Landing::uploadFile';
+			this.defineCopilotCategory();
+			const copilotOptions = {
+				moduleId: 'landing',
+				contextId: this.getAiContext(),
+				category: this.copilotCategory,
+				useText: false,
+				useImage: true,
+				autoHide: true,
+			};
+
+			this.copilotContext = this.useCopilotInIframe ? BX : top.BX;
+			this.stylePanel = StylePanel.getInstance().layout;
+			this.stylePanelContent = StylePanel.getInstance().content;
+			this.copilotContext.Runtime.loadExtension('ai.copilot').then(({ Copilot, CopilotEvents}) => {
+				this.imageCopilot = new Copilot(copilotOptions);
+
+				this.imageCopilot.subscribe(CopilotEvents.FINISH_INIT, this.imageCopilotFinishInitHandler.bind(this));
+				this.imageCopilot.subscribe(CopilotEvents.IMAGE_COMPLETION_RESULT, this.imageCopilotImageResultHandler.bind(this));
+				this.imageCopilot.subscribe(CopilotEvents.IMAGE_SAVE, this.imageCopilotSaveImageHandler.bind(this));
+				this.imageCopilot.subscribe(CopilotEvents.IMAGE_CANCEL, this.imageCopilotCancelImageHandler.bind(this));
+
+				Event.bind(this.stylePanelContent, 'scroll', this.onScrollContentPanel.bind(this));
+				Event.bind(this.stylePanel, 'click', this.onClickStylePanel.bind(this));
+				Event.EventEmitter.subscribe('BX.Landing.UI.Panel.ContentEdit:onClick', this.onClickContentPanel.bind(this));
+				Event.EventEmitter.subscribe('BX.Landing.UI.Panel.BasePanel:onHide', this.closeCopilot.bind(this));
+				Event.EventEmitter.subscribe('BX.Landing.UI.Panel.BasePanel:onClick', this.onClickContentPanel.bind(this));
+				Event.EventEmitter.subscribe('BX.Landing.UI.Panel.BasePanel:onScroll', this.onScrollContentPanel.bind(this));
+				this.imageCopilot.init();
+			});
+
+			this.aiButton = Image.createAiButton(this.compactMode);
+			BX.bind(this.aiButton.layout, 'click', () => {
+				if (this.isAiImageActive)
+				{
+					this.onAiClick();
+				}
+				else if (this.aiUnactiveInfoCode && this.aiUnactiveInfoCode.length > 0)
+				{
+					BX.UI.InfoHelper.show(this.aiUnactiveInfoCode);
+				}
+			});
 			this.right.appendChild(this.aiButton.layout);
 		}
+
 		this.right.appendChild(this.uploadButton.layout);
 		this.right.appendChild(this.editButton.layout);
 		this.form = Image.createForm();
@@ -214,6 +273,8 @@ export class Image extends TextField
 		});
 
 		this.adjustEditButtonState();
+
+		this.metrika = new Metrika(true);
 	}
 
 	/**
@@ -222,9 +283,13 @@ export class Image extends TextField
 	 */
 	static createFileInput(id)
 	{
-		return Dom.create("input", {
-			props: {className: "landing-ui-field-image-dropzone-input"},
-			attrs: {accept: "image/*", type: "file", id: "file_" + id, name: "picture"},
+		return Dom.create('input', {
+			props: {
+				className: 'landing-ui-field-image-dropzone-input',
+			},
+			attrs: {
+				accept: 'image/*', type: 'file', id: `file_${id}`, name: 'picture',
+			},
 		});
 	}
 
@@ -240,6 +305,8 @@ export class Image extends TextField
 		});
 		field.enableTextOnly();
 		field.layout.hidden = true;
+		Dom.attr(field.layout, "data-testid", "landing-field-image-link");
+		Dom.attr(field.input, "data-testid", "landing-field-image-link-input");
 		return field;
 	}
 
@@ -263,7 +330,7 @@ export class Image extends TextField
 					),
 				}),
 			],
-			attrs: {"for": "file_" + id},
+			attrs: {"for": "file_" + id, "role": "button", "tabindex": "0", "data-testid": "landing-field-image-dropzone"},
 		});
 	}
 
@@ -275,6 +342,7 @@ export class Image extends TextField
 	{
 		return new BaseButton("clear", {
 			className: "landing-ui-field-image-action-button-clear",
+			attrs: {"aria-label": Loc.getMessage("LANDING_FIELD_IMAGE_CLEAR"), "data-testid": "landing-field-image-clear-btn"},
 		});
 	}
 
@@ -286,6 +354,7 @@ export class Image extends TextField
 	{
 		return Dom.create("div", {
 			props: {className: "landing-ui-field-image-preview-inner"},
+			attrs: {"data-testid": "landing-field-image-preview"},
 		});
 	}
 
@@ -322,6 +391,9 @@ export class Image extends TextField
 			className: "landing-ui-field-image-alt",
 			textOnly: true,
 		});
+		Dom.attr(field.layout, "data-testid", "landing-field-image-alt");
+		// the editable element is a contenteditable div, not an <input>
+		Dom.attr(field.input, "data-testid", "landing-field-image-alt-input");
 		return field;
 	}
 
@@ -343,10 +415,9 @@ export class Image extends TextField
 	static createAiButton(compactMode: boolean = false)
 	{
 		return new AiImageButton("ai", {
-			text: Loc.getMessage(
-				"LANDING_FIELD_IMAGE_AI_BUTTON" + (compactMode ? '_COMPACT' : '')
-			),
+			text: BX.Landing.Main.getInstance()["options"]["copilot_name"],
 			className: "landing-ui-field-image-ai-button" + (compactMode ? ' --compact' : ''),
+			attrs: {"data-testid": "landing-field-image-ai-btn"},
 		});
 	}
 
@@ -359,6 +430,7 @@ export class Image extends TextField
 		return new BaseButton("upload", {
 			text: Loc.getMessage("LANDING_FIELD_IMAGE_UPLOAD_BUTTON"),
 			className: "landing-ui-field-image-action-button",
+			attrs: {"data-testid": "landing-field-image-upload-btn"},
 		});
 	}
 
@@ -371,6 +443,7 @@ export class Image extends TextField
 		var field = new BaseButton("edit", {
 			text: Loc.getMessage("LANDING_FIELD_IMAGE_EDIT_BUTTON"),
 			className: "landing-ui-field-image-action-button",
+			attrs: {"data-testid": "landing-field-image-edit-btn"},
 		});
 
 		return field;
@@ -451,12 +524,22 @@ export class Image extends TextField
 		this.imageHidden = false;
 	}
 
+	onDropzoneKeydown(event)
+	{
+		// <label role="button"> is not natively focusable/clickable, activate manually
+		if (event.key === "Enter" || event.key === " ")
+		{
+			event.preventDefault();
+			this.fileInput.click();
+		}
+	}
+
 	onFileChange(file)
 	{
 		this.showLoader();
 
 		this.upload(file)
-			.then(this.setValue.bind(this))
+			.then(this.applyUploadResult.bind(this))
 			.then(this.hideLoader.bind(this))
 			.catch(function (err)
 			{
@@ -470,51 +553,156 @@ export class Image extends TextField
 		this.onFileChange(event.currentTarget.files[0]);
 	}
 
-	onAiClick()
+	async onAiClick()
 	{
-		this.getAiPicker().image()
+		await this.copilotFinishInitPromise;
+		this.showCopilot();
 	}
 
-	getAiPicker(): Picker
+	/**
+	 * Return AI image button, if exists (if allow)
+	 */
+	getAiButton(): ?BaseButton
 	{
-		if (!this.aiPicker)
-		{
-			const demoPrompt =
-				this.contextType === Image.CONTEXT_TYPE_CONTENT
-					? 'large, heart shaped bouquet of red roses on a white background'
-					: 'background, smooth, blue color'
-			;
-			this.aiPicker = new Picker({
-				startMessage: demoPrompt,
-				moduleId: 'landing',
-				contextId: this.getAiContext(),
-				analyticLabel: 'landing_image',
-				history: true,
-				popupContainer: PageObject.getRootWindow().document.body,
-				onSelect: (url: string) => {
-					const proxyUrl = BX.util.add_url_param("/bitrix/tools/landing/proxy.php", {
-						"sessid": BX.bitrix_sessid(),
-						"url": url
-					});
-					BX.Landing.Utils.urlToBlob(proxyUrl)
-						.then(blob => {
-							blob.lastModifiedDate = new Date();
-							blob.name = url.slice(url.lastIndexOf('/') + 1);
+		return this.aiButton;
+	}
 
-							return blob;
-						})
-						.then(this.upload.bind(this))
-						.then(this.setValue.bind(this))
-						.then(this.hideLoader.bind(this))
-				},
-				onTariffRestriction: () => {
-					BX.UI.InfoHelper.show('limit_sites_ImageAssistant_AI');
-				},
+	showCopilot()
+	{
+		this.copilotBindElement = this.aiButton.layout;
+		const offsetY = 3;
+		const copilotBindElementPosition = this.copilotBindElement.getBoundingClientRect();
+
+		this.imageCopilot.show({
+			width: 500,
+			bindElement: {
+				top: copilotBindElementPosition.bottom + offsetY,
+				left: copilotBindElementPosition.left,
+			},
+		});
+		this.imageCopilot.adjustPosition({});
+	}
+
+	imageCopilotFinishInitHandler()
+	{
+		this.copilotFinishInitPromise = Promise.resolve();
+	}
+
+	imageCopilotImageResultHandler(e)
+	{
+		const data = e.getData();
+		this.imageCopilotUrl = encodeURI(data.imageUrl);
+		if (this.copilotBindElement === this.dropzone)
+		{
+			this.showPreview();
+		}
+		Dom.addClass(this.preview, '--shown');
+		Dom.style(this.preview, 'background-image', `url("${this.imageCopilotUrl}")`);
+		Dom.style(this.preview, 'background-size', 'contain');
+
+		this.showPreview();
+	}
+
+	imageCopilotSaveImageHandler()
+	{
+		const url = new URL(this.imageCopilotUrl);
+		const name = url.searchParams.get('hashId') ?? Text.getRandom(8);
+
+		BX.Landing.Utils.urlToBlob(url.href)
+			.then(blob => {
+
+				const ext = blob.type === 'image/png' ? '.png' : '.jpg';
+				blob.lastModifiedDate = new Date();
+				blob.name = `${name}.${ext}`;
+
+				return blob;
+			})
+			.then(this.upload.bind(this))
+			.then(this.applyUploadResult.bind(this))
+			.then(this.hideLoader.bind(this))
+			.then(() => {
+				Dom.removeClass(this.preview, '--shown');
 			});
-			this.aiPicker.setLangSpace('image');
+
+		this.closeCopilot();
+	}
+
+	imageCopilotCancelImageHandler()
+	{
+		if (this.copilotBindElement === this.dropzone)
+		{
+			this.showDropzone();
+		}
+		else
+		{
+			Dom.removeClass(this.preview, '--shown');
+			Dom.style(this.preview, 'background-image', `url("${this.input.innerText.trim()}")`);
+		}
+	}
+
+	closeCopilot()
+	{
+		if (this.imageCopilot.isShown())
+		{
+			this.imageCopilot.hide();
+			Event.EventEmitter.unsubscribe('BX.Landing.UI.Panel.BasePanel:onHide', this.closeCopilot.bind(this));
+			Event.unbind(this.stylePanel, 'click', this.onClickStylePanel.bind(this));
+		}
+	}
+
+	onClickStylePanel(event)
+	{
+		if (!this.aiButton.layout.contains(event.target))
+		{
+			this.closeCopilot();
+		}
+	}
+
+	onClickContentPanel(event)
+	{
+		const target = event.getData().event.target;
+		if (!this.aiButton.layout.contains(target))
+		{
+			this.closeCopilot();
+		}
+	}
+
+	onScrollContentPanel()
+	{
+		if (Boolean(this.imageCopilot?.isShown()) === false)
+		{
+			return;
 		}
 
-		return this.aiPicker;
+		this.copilotBindElement = this.aiButton.layout;
+		const offsetY = 3;
+		const copilotBindElementPosition = this.copilotBindElement.getBoundingClientRect();
+		const imageCopilotPosition = {
+			top: copilotBindElementPosition.bottom + offsetY,
+			left: copilotBindElementPosition.left,
+		};
+
+		if (this.imageCopilot.getPosition().inputField.top < 133)
+		{
+			this.imageCopilot.adjust({
+				hide: true,
+				position: imageCopilotPosition,
+			});
+		}
+		else
+		{
+			this.imageCopilot.adjust({
+				hide: false,
+				position: imageCopilotPosition,
+			});
+		}
+	}
+
+	defineCopilotCategory()
+	{
+		this.copilotCategory = this.contextType === 'style' ? 'landing_designer'
+			: (this.useCopilotInIframe ? 'landing_setting'
+				: 'landing_editor');
 	}
 
 	getAiContext(): string
@@ -540,11 +728,19 @@ export class Image extends TextField
 					{
 						text: Loc.getMessage("LANDING_IMAGE_UPLOAD_MENU_UNSPLASH"),
 						onclick: this.onUnsplashShow.bind(this),
+						attrs: {"data-testid": "landing-field-image-menu-unsplash"},
 					},
-					{
-						text: Loc.getMessage("LANDING_IMAGE_UPLOAD_MENU_GOOGLE"),
-						onclick: this.onGoogleShow.bind(this),
-					},
+					...(
+						Env.getInstance().getOptions()['google_images_available']
+							? [
+								{
+									text: Loc.getMessage("LANDING_IMAGE_UPLOAD_MENU_GOOGLE"),
+									onclick: this.onGoogleShow.bind(this),
+									attrs: {"data-testid": "landing-field-image-menu-google"},
+								},
+							]
+							: []
+					),
 					// {
 					// 	text: Loc.getMessage("LANDING_IMAGE_UPLOAD_MENU_PARTNER"),
 					// 	className: "landing-ui-disabled"
@@ -552,10 +748,12 @@ export class Image extends TextField
 					{
 						text: Loc.getMessage("LANDING_IMAGE_UPLOAD_MENU_UPLOAD"),
 						onclick: this.onUploadShow.bind(this),
+						attrs: {"data-testid": "landing-field-image-menu-upload"},
 					},
 					{
 						text: Loc.getMessage("LANDING_IMAGE_UPLOAD_MENU_LINK"),
 						onclick: this.onLinkShow.bind(this),
+						attrs: {"data-testid": "landing-field-image-menu-link"},
 					},
 				],
 				events: {
@@ -597,7 +795,7 @@ export class Image extends TextField
 		BX.Landing.UI.Panel.Image.getInstance()
 			.show("unsplash", this.dimensions, this.loader, this.uploadParams)
 			.then(this.upload.bind(this))
-			.then(this.setValue.bind(this))
+			.then(this.applyUploadResult.bind(this))
 			.then(this.hideLoader.bind(this))
 			.catch(function (err)
 			{
@@ -613,7 +811,7 @@ export class Image extends TextField
 		BX.Landing.UI.Panel.Image.getInstance()
 			.show("google", this.dimensions, this.loader, this.uploadParams)
 			.then(this.upload.bind(this))
-			.then(this.setValue.bind(this))
+			.then(this.applyUploadResult.bind(this))
 			.then(this.hideLoader.bind(this))
 			.catch(function (err)
 			{
@@ -642,16 +840,47 @@ export class Image extends TextField
 
 	onEditClick(event)
 	{
+		this.sendAnalytic('open');
+		parent.BX.addCustomEvent('BX.Main.ImageEditor:close', this.onEditorClose);
+
 		event.preventDefault();
 		this.edit({src: this.hiddenImage.src});
+	}
+
+	onEditorClose()
+	{
+		this.sendAnalytic(this.isEditorSaved ? 'save' : 'close');
+		parent.BX.removeCustomEvent('BX.Main.ImageEditor:close', this.onEditorClose);
 	}
 
 	onClearClick(event)
 	{
 		event.preventDefault();
+		// The alt described the image being removed: it must not stay behind
+		// and get saved on an empty node.
+		this.altField.setValue("");
 		this.setValue({src: ""});
 		this.fileInput.value = "";
 		this.showDropzone();
+	}
+
+	/**
+	 * @param {string} event - name of event (not event-object)
+	 */
+	sendAnalytic(event: string)
+	{
+		const contexts = {
+			[Image.CONTEXT_TYPE_CONTENT]: 'sites_editor',
+			[Image.CONTEXT_TYPE_STYLE]: 'sites_designer',
+			[Image.CONTEXT_TYPE_SETTINGS]: 'sites_settings',
+		};
+		const contextSection = contexts[this.contextType] || 'sites_editor';
+
+		this.metrika.sendData({
+			category: 'external_picture_editor',
+			event,
+			c_section: contextSection,
+		});
 	}
 
 	showDropzone()
@@ -684,7 +913,9 @@ export class Image extends TextField
 		tmpImage.src = value;
 		tmpImage.onload = () => {
 			this.showPreview();
-			this.setValue({src: value, src2x: value});
+			// Pasting an image url replaces the file just like an upload does,
+			// so it goes through the same interceptor and drops the stale alt.
+			this.applyUploadResult({src: value, src2x: value});
 		};
 	}
 
@@ -859,6 +1090,25 @@ export class Image extends TextField
 	}
 
 	/**
+	 * Applies an upload result: routes every "user replaced the image file"
+	 * path (local upload and drag&drop, Copilot image saved from the panel,
+	 * Unsplash, Google, pasted url) through a single point so the inherited alt
+	 * gets reset. The previous alt described the previous file and must not
+	 * survive when the user picks a new image;
+	 * if the user wants an alt for the new file, they type it in the alt
+	 * field again. Explicitly cleared here in addition to alt: "" in the
+	 * setValue payload because setValue only refreshes the alt UI field
+	 * when value.type === "image", and upload results carry no type.
+	 * @param {{src: string, id: number}} value
+	 */
+	applyUploadResult(value)
+	{
+		this.altField.setValue("");
+
+		return this.setValue({...value, alt: ""});
+	}
+
+	/**
 	 * Gets field value
 	 * @return {{src, [alt]: string, [title]: string, [url]: string, [type]: string}}
 	 */
@@ -913,19 +1163,28 @@ export class Image extends TextField
 
 	edit(data)
 	{
+		this.isEditorSaved = false;
 		parent.BX.Landing.ImageEditor
 			.edit({
 				image: data.src,
 				dimensions: this.dimensions,
 			})
-			.then(function (file)
-			{
+			.then((file) => {
+				let ext = file.name.split('.').pop();
+				if (!file.name.includes('.') || ext.length > 4)
+				{
+					ext = `.${file.name.split('_').pop()}`;
+					file.name = file.name + ext;
+				}
+
 				return this.upload(file, {context: "imageEditor"});
-			}.bind(this))
-			.then(function (result)
-			{
+			})
+			.then((result) => {
+				this.isEditorSaved = true;
+				this.onEditorClose();
+
 				this.setValue(result);
-			}.bind(this));
+			});
 
 		// Analytics hack
 		const tmpImage = document.createElement('img');

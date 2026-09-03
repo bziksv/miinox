@@ -81,22 +81,26 @@ if (
 }
 
 //USER INFO
-$userFIO = "";
+$userFIO = '';
 $dbUser = CUser::GetByID($ID);
-if($arUser = $dbUser->ExtractFields("u_"))
+$arUser = $dbUser->ExtractFields("u_");
+if ($arUser)
 {
-	if (strval(trim($u_LAST_NAME)) != '')
+	$u_LAST_NAME = trim((string)($u_LAST_NAME ?? ''));
+	if ($u_LAST_NAME !== '')
 	{
-		$userFIO .= (strval($userFIO) != '' ? " " : "") . $u_LAST_NAME;
+		$userFIO .= ($userFIO !== '' ? " " : "") . $u_LAST_NAME;
 	}
-	if (strval(trim($u_NAME)) != '')
+	$u_NAME = trim((string)($u_NAME ?? ''));
+	if ($u_NAME !== '')
 	{
-		$userFIO .= (strval($userFIO) != '' ? " " : "") . $u_NAME;
+		$userFIO .= ($userFIO !== '' ? " " : "") . $u_NAME;
 	}
 
-	if (strval(trim($u_SECOND_NAME)) != '')
+	$u_SECOND_NAME = trim((string)$u_SECOND_NAME ?? '');
+	if ($u_SECOND_NAME !== '')
 	{
-		$userFIO .= (strval($userFIO) != '' ? " " : "") . $u_SECOND_NAME;
+		$userFIO .= ($userFIO !== '' ? " " : "") . $u_SECOND_NAME;
 	}
 }
 
@@ -341,10 +345,14 @@ if (isset($_REQUEST['apply']) && isset($_REQUEST['action']) && $saleModulePermis
 			if ($filter_basket_lid <> '')
 				$arBasketActionFilter["LID"] = trim($filter_basket_lid);
 
-			$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList(array(
-				                                                            'filter' => $arBasketActionFilter,
-				                                                            'select' => array('ID', 'PRODUCT_ID', 'LID')
-			                                                            ));
+			$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList([
+				'filter' => $arBasketActionFilter,
+				'select' => [
+					'ID',
+					'PRODUCT_ID',
+					'LID',
+				],
+			]);
 			while($arBasketEl = $dbBasketEl->Fetch())
 				$arID[$arBasketEl["LID"]][] = $arBasketEl["PRODUCT_ID"];
 		}
@@ -364,7 +372,7 @@ if (isset($_REQUEST['apply']) && isset($_REQUEST['action']) && $saleModulePermis
 			}
 		}
 
-		if ($basketError == '' && $basketError == '')
+		if ($basketError == '')
 		{
 			switch ($_REQUEST['action'])
 			{
@@ -378,15 +386,21 @@ if (isset($_REQUEST['apply']) && isset($_REQUEST['action']) && $saleModulePermis
 							$arIDProd[] = $PRODUCT_ID;
 						}
 
-						$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList(array(
-							                                                          'filter' => array(
-								                                                          "LID" => $LID,
-								                                                          "FUSER_ID" => $arFields["FUSER_ID"],
-								                                                          "PRODUCT_ID" => $arIDProd,
-								                                                          "ORDER_ID" => "NULL"
-							                                                          ),
-							                                                          'select' => array('CAN_BUY', "SUBSCRIBE", "DELAY", "PRODUCT_ID", "QUANTITY")
-						                                                          ));
+						$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList([
+							'filter' => [
+								'LID' => $LID,
+								'FUSER_ID' => $arFields['FUSER_ID'],
+								'PRODUCT_ID' => $arIDProd,
+								'ORDER_ID' => 'NULL',
+							],
+							'select' => [
+								'CAN_BUY',
+								'SUBSCRIBE',
+								'DELAY',
+								'PRODUCT_ID',
+								'QUANTITY',
+							],
+						]);
 						while($arBasketEl = $dbBasketEl->fetch())
 						{
 							$urlProduct .= "&product[".$arBasketEl["PRODUCT_ID"]."]=".$arBasketEl["QUANTITY"];
@@ -401,14 +415,14 @@ if (isset($_REQUEST['apply']) && isset($_REQUEST['action']) && $saleModulePermis
 						{
 							if ($adminSidePanelHelper->isPublicSidePanel())
 							{
-								echo "<script language=\"JavaScript\">";
+								echo "<script>";
 								echo "top.window.parent.location.href = '/shop/orders/details/0/?USER_ID=".CUtil::JSEscape($ID)."&lang=" . LANGUAGE_ID . "&SITE_ID=".CUtil::JSEscape($LID).CUtil::JSEscape($urlProduct)."';";
 								echo "</script>";
 								exit;
 							}
 							else
 							{
-								echo "<script language=\"JavaScript\">";
+								echo "<script>";
 								echo "window.parent.location.href = '".$selfFolderUrl."sale_order_create.php?USER_ID=".CUtil::JSEscape($ID)."&lang=" . LANGUAGE_ID . "&SITE_ID=".CUtil::JSEscape($LID).CUtil::JSEscape($urlProduct)."';";
 								echo "</script>";
 								exit;
@@ -429,15 +443,15 @@ if (isset($_REQUEST['apply']) && isset($_REQUEST['action']) && $saleModulePermis
 					{
 						foreach ($arID[$LID] as $PRODUCT_ID)
 						{
-							$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList(array(
-								                                                          'filter' => array(
-									                                                          "LID" => $LID,
-									                                                          "FUSER_ID" => $arFields["FUSER_ID"],
-									                                                          "PRODUCT_ID" => $PRODUCT_ID,
-									                                                          "ORDER_ID" => "NULL"
-								                                                          ),
-								                                                          'select' => array('ID')
-							                                                          ));
+							$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList([
+								'filter' => [
+									'LID' => $LID,
+									'FUSER_ID' => $arFields['FUSER_ID'],
+									'PRODUCT_ID' => $PRODUCT_ID,
+									'ORDER_ID' => 'NULL',
+								],
+								'select' => ['ID'],
+							]);
 							$arBasketEl = $dbBasketEl->fetch();
 
 							if (!CSaleBasket::Update($arBasketEl["ID"], $arFields))
@@ -452,15 +466,15 @@ if (isset($_REQUEST['apply']) && isset($_REQUEST['action']) && $saleModulePermis
 					{
 						foreach ($arID[$LID] as $PRODUCT_ID)
 						{
-							$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList(array(
-								                                                          'filter' => array(
-									                                                          "LID" => $LID,
-									                                                          "FUSER_ID" => $arFields["FUSER_ID"],
-									                                                          "PRODUCT_ID" => $PRODUCT_ID,
-									                                                          "ORDER_ID" => "NULL"
-								                                                          ),
-								                                                          'select' => array('ID')
-							                                                          ));
+							$dbBasketEl = \Bitrix\Sale\Internals\BasketTable::getList([
+								'filter' => [
+									'LID' => $LID,
+									'FUSER_ID' => $arFields['FUSER_ID'],
+									'PRODUCT_ID' => $PRODUCT_ID,
+									'ORDER_ID' => 'NULL',
+								],
+								'select' => ['ID'],
+							]);
 							$arBasketEl = $dbBasketEl->fetch();
 
 							CSaleBasket::Delete($arBasketEl["ID"]);
@@ -528,11 +542,11 @@ if(!empty($arUser))
 		$row->AddField("ID", $orderLink);
 
 		$basketCount = 0;
-		$dbBasketCount = \Bitrix\Sale\Internals\BasketTable::getList(array(
-			                                                          'filter' => array(
-				                                                          "ORDER_ID" => $arOrderMain["ID"]
-			                                                          ),
-		                                                          ));
+		$dbBasketCount = \Bitrix\Sale\Internals\BasketTable::getList([
+			'filter' => [
+				'ORDER_ID' => $arOrderMain['ID'],
+			],
+		]);
 		while ($arBasket = $dbBasketCount->fetch())
 		{
 			if (!CSaleBasketHelper::isSetItem($arBasket))
@@ -564,7 +578,6 @@ if(!empty($arUser))
 	}
 	//END MAIN INFO
 
-
 	//BUYERS PROFILE
 	$sTableID_tab2 = "tbl_sale_buyers_profile_tab2";
 	$oSort_tab2 = new CAdminSorting($sTableID_tab2);
@@ -581,11 +594,11 @@ if(!empty($arUser))
 		$arProfSort[$by] = $order;
 
 	$dbProfileList = CSaleOrderUserProps::GetList(
-				$arProfSort,
-				array("USER_ID" => $ID),
-				false,
-				false,
-				array("ID", "NAME", "PERSON_TYPE_ID", "DATE_UPDATE")
+		$arProfSort,
+		array("USER_ID" => $ID),
+		false,
+		false,
+		array("ID", "NAME", "PERSON_TYPE_ID", "DATE_UPDATE")
 	);
 
 	$dbProfileList = new CAdminResult($dbProfileList, $sTableID_tab2);
@@ -608,12 +621,16 @@ if(!empty($arUser))
 		$row->AddField("NAME", "[".$arProfList["ID"]."] <a target=\"_top\" href=\"".$profileEditUrl."\">".$arProfList["NAME"]."</a>");
 		$row->AddField("PERSON_TYPE_ID", htmlspecialcharsbx($arPErsonTypes[$arProfList["PERSON_TYPE_ID"]]["NAME"]));
 
-		if (count($arSites) > 1)
-			$row->AddField("LID", "[".$arProfList["LID"]."] ".htmlspecialcharsbx($arSites[$arProfList["LID"]]["NAME"])."");
+		if (count($arSites) > 1 && isset($arProfList["LID"]))
+		{
+			$row->AddField("LID", "[" . $arProfList["LID"] . "] " . htmlspecialcharsbx($arSites[$arProfList["LID"]]["NAME"]) . "");
+		}
 	}
 
-	if($_REQUEST["table_id"]==$sTableID_tab2)
+	if (($_REQUEST["table_id"] ?? null) == $sTableID_tab2)
+	{
 		$lAdmin_tab2->CheckListMode();
+	}
 	//END BUYERS PROFILE
 
 
@@ -640,12 +657,18 @@ if(!empty($arUser))
 	$lAdmin_tab3->InitFilter($arFilterFields);
 
 	if (!isset($_REQUEST["by"]) || !in_array($by, $orderClass::getAvailableFields()))
-		$arOrderSort = array("DATE_INSERT" => "DESC");
+	{
+		$arOrderSort = ["DATE_INSERT" => "DESC"];
+	}
 	else
+	{
 		$arOrderSort[$by] = $order;
 
-	if ($by == "PAYED")
-		$arOrderSort["DATE_PAYED"] = $order;
+		if ($by == "PAYED")
+		{
+			$arOrderSort["DATE_PAYED"] = $order;
+		}
+	}
 
 	$arOrderFilter = array("USER_ID" => $ID);
 
@@ -695,7 +718,7 @@ if(!empty($arUser))
 			$filter_date_order_to = "";
 	}
 
-	if(trim($filter_date_order_from_DAYS_TO_BACK) <> '')
+	if(trim((string)($filter_date_order_from_DAYS_TO_BACK ?? '')) <> '')
 	{
 		$dateBack = intval($filter_date_order_from_DAYS_TO_BACK);
 		$arOrderFilter["DATE_FROM"] = ConvertTimeStamp(AddToTimeStamp(array("DD" => "-".$dateBack), mktime(0, 0, 0, date("n"), date("j"), date("Y"))), "SHORT");
@@ -760,7 +783,7 @@ if(!empty($arUser))
 
 	$usePageNavigation = true;
 
-	$navyParams = CDBResult::GetNavParams(CAdminResult::GetNavSize($sTableID));
+	$navyParams = CDBResult::GetNavParams(CAdminResult::GetNavSize($sTableID_tab3));
 	if ($navyParams['SHOW_ALL'])
 	{
 		$usePageNavigation = false;
@@ -858,11 +881,11 @@ if(!empty($arUser))
 
 		$payed = "";
 		$res = \Bitrix\Sale\Internals\PaymentTable::getList(array(
-			                                                    'order' => array('ID' => 'ASC'),
-			                                                    'filter' => array(
-				                                                    'ORDER_ID' => $arOrder['ID']
-			                                                    )
-		                                                    ));
+			'order' => array('ID' => 'ASC'),
+			'filter' => array(
+				'ORDER_ID' => $arOrder['ID']
+			)
+		));
 		while($payment = $res->fetch())
 		{
 			if (strval($payed) != "")
@@ -877,33 +900,38 @@ if(!empty($arUser))
 				htmlspecialcharsbx($payment["PAY_SYSTEM_NAME"]).", ".
 				($payment["PAID"] == "Y" ? \Bitrix\Main\Localization\Loc::getMessage("SOB_PAYMENTS_PAID") :  \Bitrix\Main\Localization\Loc::getMessage("SOB_PAYMENTS_UNPAID")).", ".
 				($payment["PS_STATUS"] <> '' ? \Bitrix\Main\Localization\Loc::getMessage("SOB_PAYMENTS_STATUS").": ".htmlspecialcharsbx($payment["PS_STATUS"]).", " : "").
-				'<span style="white-space:nowrap;">'.htmlspecialcharsex(SaleFormatCurrency($payment["SUM"], $payment["CURRENCY"])).'<span>';
-
+				'<span style="white-space:nowrap;">'.htmlspecialcharsex(SaleFormatCurrency($payment["SUM"], $payment["CURRENCY"])).'<span>'
+			;
 		}
 
 		$row->AddField("PAYED", $payed);
 
-
-
 		$shipmentStatuses = array();
 
-		$dbRes = \Bitrix\Sale\Internals\StatusTable::getList(array(
-			                              'select' => array('ID', 'NAME' => 'Bitrix\Sale\Internals\StatusLangTable:STATUS.NAME'),
-			                              'filter' => array(
-				                              '=Bitrix\Sale\Internals\StatusLangTable:STATUS.LID' => LANGUAGE_ID,
-				                              '=TYPE' => 'D'
-			                              ),
-		                              ));
+		$dbRes = \Bitrix\Sale\Internals\StatusTable::getList([
+			'select' => [
+				'ID',
+				'NAME' => 'Bitrix\Sale\Internals\StatusLangTable:STATUS.NAME',
+			],
+			'filter' => [
+				'=Bitrix\Sale\Internals\StatusLangTable:STATUS.LID' => LANGUAGE_ID,
+				'=TYPE' => 'D',
+			],
+		]);
 
 		while ($shipmentStatus = $dbRes->fetch())
 			$shipmentStatuses[$shipmentStatus["ID"]] = $shipmentStatus["NAME"] . " [" . $shipmentStatus["ID"] . "]";
 
-
 		$allowDelivery = "";
-		$res = \Bitrix\Sale\Internals\ShipmentTable::getList(array(
-			                                                     'order' => array('ID' => 'ASC'),
-			                                                     'filter' => array('ORDER_ID' => $arOrder['ID'], '!=SYSTEM' => 'Y')
-		                                                     ));
+		$res = \Bitrix\Sale\Internals\ShipmentTable::getList([
+			'order' => [
+				'ID' => 'ASC',
+			],
+			'filter' => [
+				'ORDER_ID' => $arOrder['ID'],
+				'!=SYSTEM' => 'Y',
+			],
+		]);
 
 		while($shipment = $res->fetch())
 		{
@@ -913,7 +941,6 @@ if(!empty($arUser))
 				$shipmentLinkUrl = "/shop/orders/shipment/details/".$shipment["ID"]."/";
 			}
 			$shipment["ID_LINKED"] = '[<a target="_top" href="'.$shipmentLinkUrl.'">'.$shipment["ID"].'</a>]';
-
 
 			if (strval($allowDelivery) != "")
 				$allowDelivery .= "<hr>";
@@ -939,10 +966,14 @@ if(!empty($arUser))
 
 		$orderProduct = "";
 		$arBasketItems = array();
-		$dbItemsList = \Bitrix\Sale\Internals\BasketTable::getList(array(
-			                                                           'order' => array("ID" => "ASC", "SET_PARENT_ID" => "DESC", "TYPE" => "DESC"),
-			                                                           'filter' => array("ORDER_ID" => $arOrder["ID"])
-		                                                           ));
+		$dbItemsList = \Bitrix\Sale\Internals\BasketTable::getList([
+			'order' => [
+				'ID' => 'ASC',
+				'SET_PARENT_ID' => 'DESC',
+				'TYPE' => 'DESC'
+			],
+			'filter' => ['ORDER_ID' => $arOrder['ID']],
+		]);
 
 		while ($arItem = $dbItemsList->fetch())
 			$arBasketItems[] = $arItem;
@@ -1025,8 +1056,10 @@ if(!empty($arUser))
 		$row->AddActions($arActions);
 	}
 
-	if($_REQUEST["table_id"]==$sTableID_tab3)
+	if (($_REQUEST["table_id"] ?? '') == $sTableID_tab3)
+	{
 		$lAdmin_tab3->CheckListMode();
+	}
 	//END BUYERS ORDER
 
 	if (!$adminSidePanelHelper->isPublicSidePanel())
@@ -1324,8 +1357,10 @@ if(!empty($arUser))
 			$row->AddActions($arActions);
 		}
 
-		if($_REQUEST["table_id"]==$sTableID_tab7)
+		if (($_REQUEST["table_id"] ?? '') == $sTableID_tab7)
+		{
 			$lAdmin_tab7->CheckListMode();
+			}
 		//END BUYERS ORDER
 	}
 
@@ -1355,7 +1390,7 @@ if(!empty($arUser))
 	if ($filter_basket_lid <> '')
 		$arBasketFilter["LID"] = trim($filter_basket_lid);
 
-	if (trim($basket_name_product) <> '')
+	if (trim((string)($basket_name_product ?? '')) <> '')
 		$arBasketFilter["%NAME"] = $basket_name_product;
 
 	CAdminMessage::ShowNote($basketMessage);
@@ -1366,11 +1401,14 @@ if(!empty($arUser))
 	$arUpdateFilter = $arBasketFilter;
 	$arUpdateFilter["!CALLBACK_FUNC"] = '';
 
-	$dbBasketList = \Bitrix\Sale\Internals\BasketTable::getList(array(
-		                                                            'order' => $arBasketSort,
-		                                                            'filter' => $arUpdateFilter,
-		                                                            'select' => array('FUSER_ID', 'LID')
-	                                                            ));
+	$dbBasketList = \Bitrix\Sale\Internals\BasketTable::getList([
+		'order' => $arBasketSort,
+		'filter' => $arUpdateFilter,
+		'select' => [
+			'FUSER_ID',
+			'LID',
+		],
+	]);
 	while ($arBasket = $dbBasketList->fetch())
 	{
 		if (!in_array($arBasket["FUSER_ID"], $arCacheFuser))
@@ -1380,14 +1418,16 @@ if(!empty($arUser))
 		}
 	}
 
-	$dbBasketList = \Bitrix\Sale\Internals\BasketTable::getList(array(
-		                                                            'order' => array_merge(
-			                                                            array(
-				                                                            "SET_PARENT_ID" => "DESC",
-				                                                            "TYPE" => "DESC"),
-			                                                            $arBasketSort),
-		                                                            'filter' => $arBasketFilter,
-	                                                            ));
+	$dbBasketList = \Bitrix\Sale\Internals\BasketTable::getList([
+		'order' => array_merge(
+			[
+				'SET_PARENT_ID' => 'DESC',
+				'TYPE' => 'DESC',
+			],
+			$arBasketSort
+		),
+		'filter' => $arBasketFilter,
+	]);
 
 	$dbBasketList = new CAdminResult($dbBasketList, $sTableID_tab4);
 	$dbBasketList->NavStart();
@@ -1473,8 +1513,10 @@ if(!empty($arUser))
 		);
 	}
 
-	if($_REQUEST["table_id"]==$sTableID_tab4)
+	if (($_REQUEST["table_id"] ?? '') == $sTableID_tab4)
+	{
 		$lAdmin_tab4->CheckListMode();
+	}
 	//END BUYERS BASKET
 
 
@@ -1502,16 +1544,16 @@ if(!empty($arUser))
 
 	$arFilter = array();
 	$arFuserItems = CSaleUser::GetList(array("USER_ID" => $ID));
-	$arFilter["FUSER_ID"] = $arFuserItems["ID"];
+	$arFilter["FUSER_ID"] = $arFuserItems["ID"] ?? null;
 
 	if ($filter_viewed_lid <> '')
 		$arFilter["LID"] = trim($filter_viewed_lid);
 
-	if(trim($filter_date_visit_from) <> '')
+	if (trim((string)($filter_date_visit_from ?? '')) <> '')
 	{
 		$arFilter["DATE_FROM"] = FmtDate($filter_date_visit_from,"D.M.Y");
 	}
-	if(trim($filter_date_visit_to) <> '')
+	if (trim((string)($filter_date_visit_to ?? '')) <> '')
 	{
 		if ($arDate = ParseDateTime($filter_date_visit_to, CSite::GetDateFormat("FULL", SITE_ID)))
 		{
@@ -1531,7 +1573,7 @@ if(!empty($arUser))
 		}
 	}
 
-	if(trim($filter_date_visit_from_DAYS_TO_BACK) <> '')
+	if (trim((string)($filter_date_visit_from_DAYS_TO_BACK ?? '')) <> '')
 	{
 		$dateBack = intval($filter_date_visit_from_DAYS_TO_BACK);
 		$arFilter["DATE_FROM"] = ConvertTimeStamp(AddToTimeStamp(array("DD" => "-".$dateBack), mktime(0, 0, 0, date("n"), date("j"), date("Y"))), "SHORT");
@@ -1752,8 +1794,10 @@ if(!empty($arUser))
 			$row->AddActions($arActions);
 	}
 
-	if($_REQUEST["table_id"]==$sTableID_tab5)
+	if (($_REQUEST["table_id"] ?? '') == $sTableID_tab5)
+	{
 		$lAdmin_tab5->CheckListMode();
+	}
 
 	//END VIEWED
 
@@ -1988,8 +2032,10 @@ if(!empty($arUser))
 			'deactivate' => Loc::getMessage('CS_ACTION_DEACTIVATE'),
 		));
 
-		if($_REQUEST["table_id"] == $sTableID_tab6)
+		if (($_REQUEST["table_id"] ?? '') == $sTableID_tab6)
+		{
 			$lAdmin_tab6->checkListMode();
+		}
 	}
 	//END SUBSCRIPTION PRODUCTS
 
@@ -2478,7 +2524,6 @@ if(!empty($arUser))
 						<tr>
 							<td><?echo GetMessage("BUYER_F_NAME_PRODUCT")?>:</td>
 							<td>
-								<? CUtil::DecodeUriComponent($filter_order_prod_name);?>
 								<input type="text" name="filter_order_prod_name" value="<?=htmlspecialcharsbx($filter_order_prod_name)?>" size="42">
 							</td>
 						</tr>
@@ -2583,7 +2628,6 @@ if(!empty($arUser))
 						<tr>
 							<td><?echo GetMessage("BUYER_F_NAME_PRODUCT")?>:</td>
 							<td>
-								<? CUtil::DecodeUriComponent($filter_order_prod_name);?>
 								<input type="text" name="filter_order_prod_name" value="<?=htmlspecialcharsbx($filter_order_prod_name)?>" size="42">
 							</td>
 						</tr>
@@ -2649,7 +2693,6 @@ if(!empty($arUser))
 					<tr>
 						<td><?=GetMessage('BUYER_BASKET_F_NAME')?>:</td>
 						<td>
-							<? CUtil::DecodeUriComponent($basket_name_product);?>
 							<input type="text" name="basket_name_product" size="48" value="<?=htmlspecialcharsbx($basket_name_product)?>" >
 						</td>
 					</tr>
@@ -2978,7 +3021,7 @@ if(!empty($arUser))
 		<tr>
 			<td colspan="2">
 				<form method="GET" name="find_subscribe_form" id="find_subscribe_form"
-				      action="<?=$APPLICATION->getCurPage()?>">
+					action="<?=$APPLICATION->getCurPage()?>">
 					<?
 						$findFields = array(
 							Loc::getMessage('CS_FILTER_ID'),

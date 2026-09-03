@@ -1,4 +1,4 @@
-import {Type, Reflection, Event, Dom} from 'main.core';
+import { Dom, Event, Reflection, Type } from 'main.core';
 
 export class Step extends Event.EventEmitter
 {
@@ -7,9 +7,9 @@ export class Step extends Event.EventEmitter
 		super(options);
 		this.target = null;
 		if (
-			Type.isString(options.target) && options.target !== '' ||
-			Type.isFunction(options.target) ||
-			Type.isDomNode(options.target)
+			Type.isString(options.target) && options.target !== ''
+			|| Type.isFunction(options.target)
+			|| Type.isDomNode(options.target)
 		)
 		{
 			this.target = options.target;
@@ -18,10 +18,14 @@ export class Step extends Event.EventEmitter
 		this.id = options.id || null;
 		this.text = options.text;
 		this.areaPadding = options.areaPadding;
-		this.link = options.link || "";
+		this.link = options.link || '';
+		this.linkTitle = options.linkTitle || null;
 		this.rounded = options.rounded || false;
 		this.title = options.title || null;
+		this.iconSrc = options.iconSrc || null;
 		this.article = options.article || null;
+		this.articleAnchor = options.articleAnchor || null;
+		this.infoHelperCode = options.infoHelperCode || null;
 		this.position = options.position || null;
 		this.cursorMode = options.cursorMode || false;
 		this.targetEvent = options.targetEvent || null;
@@ -30,13 +34,13 @@ export class Step extends Event.EventEmitter
 
 		const events = Type.isPlainObject(options.events) ? options.events : {};
 
-		for (let eventName in events)
+		for (const eventName in events)
 		{
 			const callback = Type.isFunction(events[eventName]) ? events[eventName] : Reflection.getClass(events[eventName]);
 			if (callback)
 			{
-				this.subscribe(this.constructor.getFullEventName(eventName), () => {
-					callback();
+				this.subscribe(this.constructor.getFullEventName(eventName), (...args) => {
+					callback(...args);
 				});
 			}
 		}
@@ -100,9 +104,19 @@ export class Step extends Event.EventEmitter
 		return this.link;
 	}
 
+	getLinkTitle(): ?string
+	{
+		return this.linkTitle;
+	}
+
 	getTitle()
 	{
 		return this.title;
+	}
+
+	getIconSrc(): ?string
+	{
+		return this.iconSrc;
 	}
 
 	getPosition()
@@ -110,9 +124,19 @@ export class Step extends Event.EventEmitter
 		return this.position;
 	}
 
-	getArticle()
+	getArticle(): string
 	{
 		return this.article;
+	}
+
+	getArticleAnchor(): string
+	{
+		return this.articleAnchor;
+	}
+
+	getInfoHelperCode(): ?string
+	{
+		return this.infoHelperCode;
 	}
 
 	getCursorMode()
@@ -127,7 +151,7 @@ export class Step extends Event.EventEmitter
 
 	static getFullEventName(shortName)
 	{
-		return "Step:" + shortName;
+		return `Step:${shortName}`;
 	}
 
 	setTarget(target)
@@ -137,12 +161,13 @@ export class Step extends Event.EventEmitter
 
 	initTargetEvent()
 	{
-		if(Type.isFunction(this.targetEvent))
+		if (Type.isFunction(this.targetEvent))
 		{
 			this.targetEvent();
+
 			return;
 		}
 
-		this.getTarget().dispatchEvent(new MouseEvent(this.targetEvent))
+		this.getTarget().dispatchEvent(new MouseEvent(this.targetEvent));
 	}
 }

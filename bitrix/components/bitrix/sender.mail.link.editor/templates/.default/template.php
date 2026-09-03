@@ -1,9 +1,9 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @var array $arParams */
 /** @var array $arResult */
-/** @global CAllMain $APPLICATION */
-/** @global CAllUser $USER */
-/** @global CAllDatabase $DB */
+/** @global CMain $APPLICATION */
+/** @global CUser $USER */
+/** @global CDatabase $DB */
 /** @var CBitrixComponentTemplate $this */
 /** @var string $templateName */
 /** @var string $templateFile */
@@ -16,7 +16,7 @@ use Bitrix\Main\Localization\Loc;
 
 $containerId = 'bx-sender-mail-link-editor';
 ?>
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		BX.Sender.Mail.LinkEditor.init(<?=Json::encode(array(
 			'containerId' => $containerId,

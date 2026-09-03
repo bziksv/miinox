@@ -1,9 +1,17 @@
-<?
+<?php
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
+
+/**
+ * @global CMain $APPLICATION
+ * @global CUser $USER
+ */
 
 IncludeModuleLangFile(__FILE__);
 
-$popupWindow = new CJSPopup(GetMessage('FOLDER_EDIT_WINDOW_TITLE'), array("SUFFIX"=>($_GET['subdialog'] == 'Y'? 'subdialog':'')));
+$popupWindow = new CJSPopup(
+	GetMessage('FOLDER_EDIT_WINDOW_TITLE'),
+	["SUFFIX" => (isset($_GET['subdialog']) && $_GET['subdialog'] === 'Y' ? 'subdialog' : '')]
+);
 
 if (IsModuleInstalled("fileman"))
 {
@@ -65,13 +73,10 @@ $strWarning = "";
 //Save folder settings
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !check_bitrix_sessid())
 {
-	CUtil::JSPostUnescape();
 	$strWarning = GetMessage("MAIN_SESSION_EXPIRED");
 }
 elseif ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_REQUEST["save"]))
 {
-	CUtil::JSPostUnescape();
-
 	$bNeedSectionFile = false;
 	$strSectionName = "";
 	if (isset($_POST["sSectionName"]) && $_POST["sSectionName"] <> '')
@@ -120,17 +125,9 @@ elseif ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_REQUEST["save"]))
 	{
 		$APPLICATION->SaveFileContent($absolutePath."/.section.php", "<"."?\n".$strSectionName.$strDirProperties."?".">");
 
-		$module_id = "fileman";
-		if(COption::GetOptionString($module_id, "log_page", "Y")=="Y")
+		if(COption::GetOptionString("fileman", "log_page", "Y")=="Y")
 		{
-			$res_log['path'] = mb_substr($path, 1);
-			CEventLog::Log(
-				"content",
-				"SECTION_EDIT",
-				"main",
-				"",
-				serialize($res_log)
-			);
+			CEventLog::Log("content", "SECTION_EDIT", "fileman", $path);
 		}
 	}
 	else
@@ -209,11 +206,11 @@ if($strWarning != "")
 
 	<p><b><?=GetMessage("FOLDER_EDIT_WINDOW_TITLE");?> <?=htmlspecialcharsbx($path);?></b></p>
 
-	<?if (IsModuleInstalled("fileman")):?>
+	<?php if (IsModuleInstalled("fileman")):?>
 		<p><a href="/bitrix/admin/fileman_folder.php?lang=<?=urlencode($lang)?>&site=<?=urlencode($site)?>&path=<?=urlencode($path)?>&back_url=<?=urlencode($back_url)?>"><?=GetMessage("FOLDER_EDIT_IN_ADMIN_SECTION")?></a></p>
-	<?endif?>
+	<?php endif?>
 
-<?
+<?php
 $popupWindow->EndDescription();
 $popupWindow->StartContent();
 ?>
@@ -240,7 +237,7 @@ $popupWindow->StartContent();
 		<td colspan="2"><div class="empty"></div></td>
 	</tr>
 
-<?if (!empty($arGlobalProperties) || !empty($arDirProperties) || !empty($arInheritProperties)):?>
+<?php if (!empty($arGlobalProperties) || !empty($arDirProperties) || !empty($arInheritProperties)):?>
 
 	<tr class="section">
 		<td colspan="2">
@@ -253,14 +250,14 @@ $popupWindow->StartContent();
 		</td>
 	</tr>
 
-<?endif?>
+<?php endif?>
 
-
-<?
+<?php
 $propertyIndex = 0;
 $jsInheritPropIds = "var jsInheritProps = [";
 
-foreach ($arGlobalProperties as $propertyCode => $propertyValue):?>
+foreach ($arGlobalProperties as $propertyCode => $propertyValue):
+?>
 
 	<tr style="height:30px;">
 		<td class="bx-popup-label bx-width30"><?=(
@@ -270,9 +267,9 @@ foreach ($arGlobalProperties as $propertyCode => $propertyValue):?>
 		?>:</td>
 		<td>
 
-		<?$inheritValue = $APPLICATION->GetDirProperty($propertyCode, Array($site, $path));?>
+		<?php $inheritValue = $APPLICATION->GetDirProperty($propertyCode, Array($site, $path));?>
 
-		<?if ($inheritValue <> '' && $propertyValue == ''):
+		<?php if ($inheritValue <> '' && $propertyValue == ''):
 			$jsInheritPropIds .= ",".$propertyIndex;
 		?>
 
@@ -282,22 +279,22 @@ foreach ($arGlobalProperties as $propertyCode => $propertyValue):?>
 
 			<div id="bx_edit_property_<?=$propertyIndex?>" style="display:none;"></div>
 
-		<?else:?>
+		<?php else:?>
 
 			<input type="text" name="PROPERTY[<?=$propertyIndex?>][VALUE]" value="<?=htmlspecialcharsEx($propertyValue)?>" style="width:90%;"><input type="hidden" name="PROPERTY[<?=$propertyIndex?>][CODE]" value="<?=htmlspecialcharsEx($propertyCode)?>" />
 
-		<?endif?>
+		<?php endif?>
 		</td>
 	</tr>
 
-<?
+<?php
 	$propertyIndex++;
-	endforeach;
+endforeach;
 ?>
 
-<?
+<?php
 	foreach ($arInheritProperties as $propertyCode => $propertyValue):
-	$jsInheritPropIds .= ",".$propertyIndex;
+		$jsInheritPropIds .= ",".$propertyIndex;
 ?>
 
 	<tr style="height:30px;">
@@ -313,26 +310,26 @@ foreach ($arGlobalProperties as $propertyCode => $propertyValue):?>
 		</td>
 	</tr>
 
-<?
-	$propertyIndex++;
+<?php
+		$propertyIndex++;
 	endforeach;
 	$jsInheritPropIds .= "];";
 ?>
 
-<?foreach ($arDirProperties as $propertyCode => $propertyValue):?>
+<?php foreach ($arDirProperties as $propertyCode => $propertyValue):?>
 
 		<tr id="bx_user_property_<?=$propertyIndex?>">
 			<td class="bx-popup-label bx-width30"><?=htmlspecialcharsEx(mb_strtoupper($propertyCode))?><input type="hidden" name="PROPERTY[<?=$propertyIndex?>][CODE]" value="<?=htmlspecialcharsEx(mb_strtoupper($propertyCode))?>" />:</td>
 			<td><input type="text" name="PROPERTY[<?=$propertyIndex?>][VALUE]" value="<?=htmlspecialcharsEx($propertyValue)?>" style="width:90%;"></td>
 		</tr>
 
-<?
+<?php
 	$propertyIndex++;
-	endforeach;
+endforeach;
 ?>
 </table>
 <input type="hidden" name="save" value="Y" />
-<?
+<?php
 $popupWindow->EndContent();
 $popupWindow->ShowStandardButtons();
 ?>
@@ -441,4 +438,5 @@ window.BXFolderEditHint();
 
 </script>
 
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");?>
+<?php
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");

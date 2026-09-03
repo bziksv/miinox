@@ -1,4 +1,5 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?><?
+<?php
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?><?
 
 if (CModule::IncludeModule("form"))
 {
@@ -399,11 +400,11 @@ if (CModule::IncludeModule("form"))
 	}
 	else
 	{
-		echo ShowError(GetMessage($arResult["ERROR"]));
+		ShowError(GetMessage($arResult["ERROR"]));
 	}
 }
 else
 {
-	echo ShowError(GetMessage("FORM_MODULE_NOT_INSTALLED"));
+	ShowError(GetMessage("FORM_MODULE_NOT_INSTALLED"));
 }
 ?>

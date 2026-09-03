@@ -1,6 +1,9 @@
-<? if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die(); ?>
-<? \Bitrix\Main\UI\Extension::load([
+<?php if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die(); ?>
+<?php
+\Bitrix\Main\UI\Extension::load([
 	'ui.notification',
+	'ui.hint',
+	'ui.mail.sender-selector',
 ]);
 
 ?>
@@ -9,7 +12,7 @@
 	<div class="new-from-email-dialog-content">
 		<div class="new-from-email-dialog-block new-from-email-dialog-email-block">
 			<div class="new-from-email-dialog-block-content">
-				<div style="padding-bottom: 8px; "><?=getMessage(
+				<div class="new-from-email-dialog-block-content-message" style="padding-bottom: 8px; "><?=getMessage(
 					empty($arParams['IS_SMTP_AVAILABLE'])
 						? 'MAIN_MAIL_CONFIRM_EMAIL_HINT'
 						: 'MAIN_MAIL_CONFIRM_EMAIL_HINT_SMTP_2'
@@ -19,19 +22,30 @@
 						<div class="new-from-email-dialog-row">
 							<div class="new-from-email-dialog-text new-from-email-dialog-cell">
 								<span class="new-from-email-dialog-text-spacer"></span>
-								<span><?=getMessage('MAIN_MAIL_CONFIRM_NAME') ?>:</span>
+								<span>
+									<?=getMessage('MAIN_MAIL_CONFIRM_NAME_MSGVER_1') ?>
+									<span data-hint="
+									<?=htmlspecialcharsbx(getMessage('MAIN_MAIL_CONFIRM_NAME_HINT_GENERAL'))?><br>
+									<?=htmlspecialcharsbx(getMessage('MAIN_MAIL_CONFIRM_NAME_HINT_VARIANTS'))?><br>
+									<ul style='margin: 0; padding-left: 1em'>
+										<li><?=htmlspecialcharsbx(getMessage('MAIN_MAIL_CONFIRM_NAME_HINT_VARIANT_COMPANY'))?></li>
+										<li><?=htmlspecialcharsbx(getMessage('MAIN_MAIL_CONFIRM_NAME_HINT_VARIANT_COMPANY_SENDER'))?></li>
+										<li><?=htmlspecialcharsbx(getMessage('MAIN_MAIL_CONFIRM_NAME_HINT_VARIANT_NAME'))?></li>
+										<li><?=htmlspecialcharsbx(getMessage('MAIN_MAIL_CONFIRM_NAME_HINT_VARIANT_COMPANY_CATEGORY'))?></li>
+									</ul>" data-hint-html></span>
+								</span>
 							</div>
 							<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell">
 								<div class="new-from-email-dialog-string-block">
 									<input tabindex="1" type="text" class="new-from-email-dialog-square-string" data-name="name"
-										<? if (!empty($arParams['USER_FULL_NAME'])): ?> value="<?=htmlspecialcharsbx($arParams['USER_FULL_NAME']) ?>"<? endif ?>>
+										<?php if (!empty($arParams['USER_FULL_NAME'])): ?> value="<?=htmlspecialcharsbx($arParams['USER_FULL_NAME']) ?>"<?php endif ?>>
 								</div>
 							</div>
 						</div>
 						<div class="new-from-email-dialog-row">
 							<div class="new-from-email-dialog-text new-from-email-dialog-cell">
 								<span class="new-from-email-dialog-text-spacer"></span>
-								<span><?=getMessage('MAIN_MAIL_CONFIRM_EMAIL') ?>:</span>
+								<span><?=getMessage('MAIN_MAIL_CONFIRM_EMAIL') ?></span>
 							</div>
 							<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell">
 								<div class="new-from-email-dialog-string-block">
@@ -40,20 +54,19 @@
 								</div>
 							</div>
 						</div>
-						<div class="new-from-email-dialog-row" <? if (!$arParams['IS_ADMIN']): ?> style="display: none; "<? endif ?>>
+						<div class="new-from-email-dialog-row" <?php if (!$arParams['IS_ADMIN']): ?> style="display: none; "<?php endif ?>>
 							<div class="new-from-email-dialog-text new-from-email-dialog-cell"></div>
 							<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell">
 								<label>
 									<input tabindex="3" type="checkbox" data-name="public" value="Y"
 										style="vertical-align: middle; ">
 									<?=getMessage('MAIN_MAIL_CONFIRM_PUBLIC') ?>
-									<span class="new-from-email-dialog-hint-icon"
-										title="<?=getMessage('MAIN_MAIL_CONFIRM_PUBLIC_HINT1') ?>">?</span>
+									<span data-hint="<?=getMessage('MAIN_MAIL_CONFIRM_PUBLIC_HINT1') ?>"></span>
 								</label>
 							</div>
 						</div>
 					</div>
-					<? if (!empty($arParams['IS_SMTP_AVAILABLE'])): ?>
+					<?php if (!empty($arParams['IS_SMTP_AVAILABLE'])): ?>
 						<div class="new-from-email-dialog-row-group new-from-email-dialog-smtp-block" style="display: none; ">
 							<div class="new-from-email-dialog-row">
 								<div class="new-from-email-dialog-cell"></div>
@@ -66,7 +79,7 @@
 							<div class="new-from-email-dialog-row">
 								<div class="new-from-email-dialog-text new-from-email-dialog-cell">
 									<span class="new-from-email-dialog-text-spacer"></span>
-									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_SERVER') ?>:</span>
+									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_SERVER') ?></span>
 								</div>
 								<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell">
 									<div class="new-from-email-dialog-string-block new-from-email-dialog-smtp-server-block">
@@ -78,7 +91,7 @@
 							<div class="new-from-email-dialog-row">
 								<div class="new-from-email-dialog-text new-from-email-dialog-cell">
 									<span class="new-from-email-dialog-text-spacer"></span>
-									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_PORT') ?>:</span>
+									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_PORT') ?></span>
 								</div>
 								<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell"
 									style="overflow: hidden; text-overflow: ellipsis; ">
@@ -97,7 +110,7 @@
 							<div class="new-from-email-dialog-row">
 								<div class="new-from-email-dialog-text new-from-email-dialog-cell">
 									<span class="new-from-email-dialog-text-spacer"></span>
-									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_LIMIT') ?>:</span>
+									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_LIMIT') ?></span>
 								</div>
 								<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell"
 									style="overflow: hidden; text-overflow: ellipsis; ">
@@ -129,7 +142,7 @@
 							<div class="new-from-email-dialog-row">
 								<div class="new-from-email-dialog-text new-from-email-dialog-cell">
 									<span class="new-from-email-dialog-text-spacer"></span>
-									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_PASSWORD') ?>:</span>
+									<span><?=getMessage('MAIN_MAIL_CONFIRM_SMTP_PASSWORD') ?></span>
 								</div>
 								<div class="new-from-email-dialog-cell new-from-email-dialog-full-width-cell">
 									<div class="new-from-email-dialog-string-block">
@@ -139,7 +152,7 @@
 								</div>
 							</div>
 						</div>
-					<? endif ?>
+					<?php endif ?>
 				</div>
 			</div>
 		</div>
@@ -162,7 +175,7 @@
 </div>
 
 
-<script type="text/javascript">
+<script>
 
 	BX.message({
 		MAIN_MAIL_CONFIRM_USER_FULL_NAME: '<?=\CUtil::jsEscape($arParams['USER_FULL_NAME']) ?>',
@@ -170,6 +183,7 @@
 		MAIN_MAIL_CONFIRM_MENU: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_MENU')) ?>',
 		MAIN_MAIL_CONFIRM_TITLE: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_TITLE')) ?>',
 		MAIN_MAIL_CONFIRM_EDIT_TITLE: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_EDIT_TITLE')) ?>',
+		MAIN_MAIL_CONFIRM_EDIT_TITLE_EMAIL: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_EDIT_TITLE_EMAIL')) ?>',
 		MAIN_MAIL_CONFIRM_GET_CODE: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_GET_CODE')) ?>',
 		MAIN_MAIL_CONFIRM_SAVE: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_SAVE')) ?>',
 		MAIN_MAIL_CONFIRM_CANCEL: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_CANCEL')) ?>',
@@ -192,7 +206,8 @@
 		MAIN_MAIL_CONFIRM_DELETE_SENDER_CONFIRM: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_DELETE_SENDER_CONFIRM')) ?>',
 		MAIN_MAIL_DELETE_SENDER_ERROR: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_DELETE_SENDER_ERROR')) ?>',
 		MAIN_MAIL_CONFIRM_MENU_PLACEHOLDER: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_MENU_PLACEHOLDER')) ?>',
-		MAIN_MAIL_CONFIRM_MENU_UNKNOWN: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_MENU_UNKNOWN')) ?>'
+		MAIN_MAIL_CONFIRM_MENU_UNKNOWN: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_MENU_UNKNOWN')) ?>',
+		MAIN_MAIL_CONFIRM_SMTP_SENDER_NO_EDIT_HINT: '<?=\CUtil::jsEscape(getMessage('MAIN_MAIL_CONFIRM_SMTP_SENDER_NO_EDIT_HINT')) ?>',
 	});
 
 	BX.ready(function ()

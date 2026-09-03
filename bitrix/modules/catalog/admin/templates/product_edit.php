@@ -26,6 +26,10 @@ $publicMode = defined("SELF_FOLDER_URL");
 
 $isCloud = Loader::includeModule('bitrix24');
 
+\Bitrix\Main\UI\Extension::load('catalog.admin-money-field');
+
+$request = Main\Context::getCurrent()->getRequest();
+
 $MENU_SECTION_ID = (int)$MENU_SECTION_ID;
 $PRODUCT_ID = ($ID > 0 ? CIBlockElement::GetRealElement($ID) : 0);
 
@@ -233,7 +237,7 @@ while ($l_res = $l->Fetch())
 		echo ' ' . GetMessage("IBLOCK_TREADONLY");
 	}
 	?>
-<script type="text/javascript">
+<script>
 var allowPriceEdit = <?= ($allowEditPrices ? 'true' : 'false'); ?>;
 var allowEdit = <?= ($allowEdit ? 'true' : 'false'); ?>;
 
@@ -621,7 +625,7 @@ else
 				);
 				?>
 				<span id="hint_CAT_VAT_ID"></span>
-				<script type="text/javascript">
+				<script>
 					BX.hint_replace(BX('hint_CAT_VAT_ID'), '<?= \CUtil::JSEscape($hintMessage); ?>');
 				</script>&nbsp;<?php
 			}
@@ -667,13 +671,19 @@ else
 				);
 			?></td>
 			<td width="60%"><?php
-				$isDisabled = (!$allowEdit || $bUseStoreControl)
-					? ' disabled'
-					: ''
-				;
+				$disablePurchasingPrice = !$allowEdit || $bUseStoreControl;
+				$isDisabled = $disablePurchasingPrice ? ' disabled' : '';
 				?>
 				<input type="hidden" id="CAT_PURCHASING_PRICE_hidden" name="CAT_PURCHASING_PRICE" value="<?= htmlspecialcharsbx($str_CAT_PURCHASING_PRICE) ?>">
-				<input type="text"<?= $isDisabled; ?> id="CAT_PURCHASING_PRICE" name="CAT_PURCHASING_PRICE" value="<?= htmlspecialcharsbx($str_CAT_PURCHASING_PRICE) ?>" size="30">
+				<?= CCatalogAdminTools::renderMoneyEditField([
+						'NAME' => 'CAT_PURCHASING_PRICE',
+						'ID' => 'CAT_PURCHASING_PRICE',
+						'VALUE' => $str_CAT_PURCHASING_PRICE,
+						'CURRENCY' => $arBaseProduct['PURCHASING_CURRENCY'],
+						'CURRENCY_CONTROL_ID' => 'CAT_PURCHASING_CURRENCY',
+						'DISABLED' => $disablePurchasingPrice,
+						'SIZE' => 30,
+					]); ?>
 				<input type="hidden" id="CAT_PURCHASING_CURRENCY_hidden" name="CAT_PURCHASING_CURRENCY" value="<?= htmlspecialcharsbx($arBaseProduct['PURCHASING_CURRENCY']) ?>"><?php
 				echo CCurrency::SelectBox("CAT_PURCHASING_CURRENCY", $arBaseProduct['PURCHASING_CURRENCY'], "", true, "", "id='CAT_PURCHASING_CURRENCY' $isDisabled");?></td>
 			</td>
@@ -694,7 +704,7 @@ else
 	echo GetMessage("BASE_PRICE")?> (<?= GetMessage('C2IT_PRICE_TYPE'); ?> "<?= htmlspecialcharsbx(!empty($arBaseGroup['NAME_LANG']) ? $arBaseGroup['NAME_LANG'] : $arBaseGroup["NAME"]); ?>"):
 		</td>
 		<td width="60%">
-<script type="text/javascript">
+<script>
 var arExtra = [], arExtraPrc = [];
 	<?php
 	$db_extras = CExtra::GetList(($by3="NAME"), ($order3="ASC"));
@@ -951,14 +961,32 @@ function OnChangePriceExist()
 	}
 	if ($bVarsFromForm)
 	{
-		$str_CAT_BASE_PRICE = $CAT_BASE_PRICE;
+		$str_CAT_BASE_PRICE = (string)$request->get('CAT_BASE_PRICE');
 	}
 	if (trim($str_CAT_BASE_PRICE) != '' && doubleval($str_CAT_BASE_PRICE) >= 0)
 	{
 		$boolBaseExistPrice = true;
 	}
+	$str_CAT_BASE_CURRENCY_view = '';
+	if ($arBasePrice)
+	{
+		$str_CAT_BASE_CURRENCY_view = $arBasePrice["CURRENCY"];
+	}
+	if ($bVarsFromForm)
+	{
+		$str_CAT_BASE_CURRENCY_view = (string)$request->get('CAT_BASE_CURRENCY');
+	}
+	echo CCatalogAdminTools::renderMoneyEditField([
+		'NAME' => 'CAT_BASE_PRICE',
+		'ID' => 'CAT_BASE_PRICE',
+		'VALUE' => $str_CAT_BASE_PRICE,
+		'CURRENCY' => $str_CAT_BASE_CURRENCY_view,
+		'CURRENCY_CONTROL_ID' => 'CAT_BASE_CURRENCY',
+		'DISABLED' => !$allowEditPrices,
+		'SIZE' => 30,
+		'ATTRIBUTES' => 'OnChange="ChangeBasePrice(this)"',
+	]);
 	?>
-			<input type="text"<?= $disablePrice; ?> id="CAT_BASE_PRICE" name="CAT_BASE_PRICE" value="<?= htmlspecialcharsbx($str_CAT_BASE_PRICE) ?>" size="30">
 		</td>
 	</tr>
 	<tr id="tr_BASE_CURRENCY" style="display: <?= ($bUseExtendedPrice ? 'none' : 'table-row'); ?>;">
@@ -974,7 +1002,7 @@ function OnChangePriceExist()
 		}
 		if ($bVarsFromForm)
 		{
-			$str_CAT_BASE_CURRENCY = $CAT_BASE_CURRENCY;
+			$str_CAT_BASE_CURRENCY = (string)$request->get('CAT_BASE_CURRENCY');
 		}
 
 		?>
@@ -990,7 +1018,7 @@ function OnChangePriceExist()
 		</td>
 	</tr>
 </table>
-<script type="text/javascript">
+<script>
 	SetFieldsStyle('catalog_vat_table');
 </script>
 	<?php
@@ -1052,9 +1080,9 @@ function OnChangePriceExist()
 			}
 			if ($bVarsFromForm)
 			{
-				$str_CAT_EXTRA = ${"CAT_EXTRA_".$arCatalogGroup["ID"]};
-				$str_CAT_PRICE = ${"CAT_PRICE_".$arCatalogGroup["ID"]};
-				$str_CAT_CURRENCY = ${"CAT_CURRENCY_".$arCatalogGroup["ID"]};
+				$str_CAT_EXTRA = $request->getPost("CAT_EXTRA_".$arCatalogGroup["ID"]) ?? '';
+				$str_CAT_PRICE = $request->getPost("CAT_PRICE_".$arCatalogGroup["ID"]) ?? '';
+				$str_CAT_CURRENCY = $request->getPost("CAT_CURRENCY_".$arCatalogGroup["ID"]) ?? '';
 			}
 			if (trim($str_CAT_PRICE) != '' && doubleval($str_CAT_PRICE) >= 0)
 				$boolBaseExistPrice = true;
@@ -1074,13 +1102,22 @@ function OnChangePriceExist()
 					?>
 				</td>
 				<td valign="top" align="center">
-					<input type="text"<?= $disablePrice; ?> id="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>" name="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>" value="<?= htmlspecialcharsbx($str_CAT_PRICE) ?>" size="8" OnChange="ChangePrice(<?= $arCatalogGroup["ID"] ?>)">
+					<?= CCatalogAdminTools::renderMoneyEditField([
+							'NAME' => 'CAT_PRICE_'.$arCatalogGroup["ID"],
+							'ID' => 'CAT_PRICE_'.$arCatalogGroup["ID"],
+							'VALUE' => $str_CAT_PRICE,
+							'CURRENCY' => $str_CAT_CURRENCY,
+							'CURRENCY_CONTROL_ID' => 'CAT_CURRENCY_'.$arCatalogGroup["ID"],
+							'DISABLED' => !$allowEditPrices,
+							'SIZE' => 8,
+							'ATTRIBUTES' => 'OnChange="ChangePrice('.$arCatalogGroup["ID"].')"',
+						]); ?>
 				</td>
 				<td valign="top" align="center">
 					<?php
 					echo CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"], $str_CAT_CURRENCY, GetMessage("VAL_BASE"), true, "ChangeCurrency(".$arCatalogGroup["ID"].")", $disablePrice.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"].'" ')
 					?>
-					<script type="text/javascript">
+					<script>
 						ChangeExtra(<?= $arCatalogGroup["ID"] ?>);
 					</script>
 				</td>
@@ -1096,7 +1133,7 @@ function OnChangePriceExist()
 // extended price form
 	?>
 <div id="prices_ext" style="display: <?=$bUseExtendedPrice ? 'block' : 'none'?>;">
-<script type="text/javascript">
+<script>
 function CloneBasePriceGroup()
 {
 	if (!allowPriceEdit)
@@ -1567,10 +1604,10 @@ function CloneBarcodeField()
 
 					if ($bVarsFromForm)
 					{
-						$str_CAT_BASE_QUANTITY_FROM = ${"CAT_BASE_QUANTITY_FROM_".$ind};
-						$str_CAT_BASE_QUANTITY_TO = ${"CAT_BASE_QUANTITY_TO_".$ind};
-						$str_CAT_BASE_PRICE = ${"CAT_BASE_PRICE_".$ind};
-						$str_CAT_BASE_CURRENCY = ${"CAT_BASE_CURRENCY_".$ind};
+						$str_CAT_BASE_QUANTITY_FROM = $request->getPost("CAT_BASE_QUANTITY_FROM_".$ind) ?? '';
+						$str_CAT_BASE_QUANTITY_TO = $request->getPost("CAT_BASE_QUANTITY_TO_".$ind) ?? '';
+						$str_CAT_BASE_PRICE = $request->getPost("CAT_BASE_PRICE_".$ind) ?? '';
+						$str_CAT_BASE_CURRENCY = $request->getPost("CAT_BASE_CURRENCY_".$ind) ?? '';
 					}
 					if (trim($str_CAT_BASE_PRICE) != '' && doubleval($str_CAT_BASE_PRICE) >= 0)
 						$boolExistPrice = true;
@@ -1578,17 +1615,26 @@ function CloneBarcodeField()
 					?>
 				<tr id="model3">
 					<td valign="top" align="center">
-						<input type="text"<?= $allowEditPrices; ?> name="CAT_BASE_QUANTITY_FROM_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_FROM != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_FROM) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
+						<input type="text"<?= $disablePrice; ?> name="CAT_BASE_QUANTITY_FROM_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_FROM != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_FROM) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
 						<input type="hidden" name="CAT_BASE_ID[<?= $ind ?>]" value="<?= htmlspecialcharsbx($str_CAT_BASE_ID) ?>">
 					</td>
 					<td valign="top" align="center">
-						<input type="text"<?= $allowEditPrices; ?> name="CAT_BASE_QUANTITY_TO_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_TO != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_TO) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
+						<input type="text"<?= $disablePrice; ?> name="CAT_BASE_QUANTITY_TO_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_TO != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_TO) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
 					</td>
 					<td valign="top" align="center">
-						<input type="text"<?= $allowEditPrices; ?> id="CAT_BASE_PRICE_<?= $ind ?>" name="CAT_BASE_PRICE_<?= $ind ?>" value="<?= htmlspecialcharsbx($str_CAT_BASE_PRICE) ?>" size="15" OnBlur="ChangeBasePriceEx(this)">
+						<?= CCatalogAdminTools::renderMoneyEditField([
+							'NAME' => 'CAT_BASE_PRICE_'.$ind,
+							'ID' => 'CAT_BASE_PRICE_'.$ind,
+							'VALUE' => $str_CAT_BASE_PRICE,
+							'CURRENCY' => $str_CAT_BASE_CURRENCY,
+							'CURRENCY_CONTROL_ID' => 'CAT_BASE_CURRENCY_'.$ind,
+							'DISABLED' => !$allowEditPrices,
+							'SIZE' => 15,
+							'ATTRIBUTES' => 'OnBlur="ChangeBasePriceEx(this)"',
+						]); ?>
 					</td>
 					<td valign="top" align="center">
-						<select id="CAT_BASE_CURRENCY_<?= $ind ?>" name="CAT_BASE_CURRENCY_<?= $ind ?>"<?= $allowEditPrices; ?> OnChange="ChangeBaseCurrencyEx(this)">
+						<select id="CAT_BASE_CURRENCY_<?= $ind ?>" name="CAT_BASE_CURRENCY_<?= $ind ?>"<?= $disablePrice; ?> OnChange="ChangeBaseCurrencyEx(this)">
 							<?php
 							foreach ($currencyList as &$currency)
 							{
@@ -1608,27 +1654,36 @@ function CloneBarcodeField()
 					{
 						$boolExistPrice = false;
 						$ind++;
-						$str_CAT_BASE_QUANTITY_FROM = ${"CAT_BASE_QUANTITY_FROM_".$ind};
-						$str_CAT_BASE_QUANTITY_TO = ${"CAT_BASE_QUANTITY_TO_".$ind};
-						$str_CAT_BASE_PRICE = ${"CAT_BASE_PRICE_".$ind};
-						$str_CAT_BASE_CURRENCY = ${"CAT_BASE_CURRENCY_".$ind};
+						$str_CAT_BASE_QUANTITY_FROM = $request->getPost("CAT_BASE_QUANTITY_FROM_".$ind) ?? '';
+						$str_CAT_BASE_QUANTITY_TO = $request->getPost("CAT_BASE_QUANTITY_TO_".$ind) ?? '';
+						$str_CAT_BASE_PRICE = $request->getPost("CAT_BASE_PRICE_".$ind) ?? '';
+						$str_CAT_BASE_CURRENCY = $request->getPost("CAT_BASE_CURRENCY_".$ind) ?? '';
 						if (trim($str_CAT_BASE_PRICE) != '' && doubleval($str_CAT_BASE_PRICE) >= 0)
 							$boolExistPrice = true;
 						$arCatPricesExist[$ind][$arBaseGroup['ID']] = ($boolExistPrice == true ? 'Y' : 'N');
 						?>
 					<tr id="model3">
 						<td valign="top" align="center">
-							<input type="text"<?= $allowEditPrices; ?> name="CAT_BASE_QUANTITY_FROM_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_FROM != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_FROM) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
+							<input type="text"<?= $disablePrice; ?> name="CAT_BASE_QUANTITY_FROM_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_FROM != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_FROM) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
 							<input type="hidden" name="CAT_BASE_ID[<?= $ind ?>]" value="<?= 0 ?>">
 						</td>
 						<td valign="top" align="center">
-							<input type="text"<?= $allowEditPrices; ?> name="CAT_BASE_QUANTITY_TO_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_TO != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_TO) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
+							<input type="text"<?= $disablePrice; ?> name="CAT_BASE_QUANTITY_TO_<?= $ind ?>" value="<?= ($str_CAT_BASE_QUANTITY_TO != 0 ? htmlspecialcharsbx($str_CAT_BASE_QUANTITY_TO) : "") ?>" size="3" OnChange="ChangeBaseQuantityEx(this)">
 						</td>
 						<td valign="top" align="center">
-							<input type="text"<?= $allowEditPrices; ?> id="CAT_BASE_PRICE_<?= $ind ?>" name="CAT_BASE_PRICE_<?= $ind ?>" value="<?= htmlspecialcharsbx($str_CAT_BASE_PRICE) ?>" size="15" OnBlur="ChangeBasePriceEx(this)">
+							<?= CCatalogAdminTools::renderMoneyEditField([
+							'NAME' => 'CAT_BASE_PRICE_'.$ind,
+							'ID' => 'CAT_BASE_PRICE_'.$ind,
+							'VALUE' => $str_CAT_BASE_PRICE,
+							'CURRENCY' => $str_CAT_BASE_CURRENCY,
+							'CURRENCY_CONTROL_ID' => 'CAT_BASE_CURRENCY_'.$ind,
+							'DISABLED' => !$allowEditPrices,
+							'SIZE' => 15,
+							'ATTRIBUTES' => 'OnBlur="ChangeBasePriceEx(this)"',
+						]); ?>
 						</td>
 						<td valign="top" align="center">
-							<select id="CAT_BASE_CURRENCY_<?= $ind ?>" name="CAT_BASE_CURRENCY_<?= $ind ?>"<?= $allowEditPrices; ?> OnChange="ChangeBaseCurrencyEx(this)">
+							<select id="CAT_BASE_CURRENCY_<?= $ind ?>" name="CAT_BASE_CURRENCY_<?= $ind ?>"<?= $disablePrice; ?> OnChange="ChangeBaseCurrencyEx(this)">
 								<?php
 								foreach ($currencyList as &$currency)
 								{
@@ -1648,16 +1703,16 @@ function CloneBarcodeField()
 					?>
 				<tr id="model3">
 					<td valign="top" align="center">
-						<input type="text"<?= $allowEditPrices; ?> name="CAT_BASE_QUANTITY_FROM_<?= $ind ?>" value="" size="3" OnChange="ChangeBaseQuantityEx(this)">
+						<input type="text"<?= $disablePrice; ?> name="CAT_BASE_QUANTITY_FROM_<?= $ind ?>" value="" size="3" OnChange="ChangeBaseQuantityEx(this)">
 					</td>
 					<td valign="top" align="center">
-						<input type="text"<?= $allowEditPrices; ?> name="CAT_BASE_QUANTITY_TO_<?= $ind ?>" value="" size="3" OnChange="ChangeBaseQuantityEx(this)">
+						<input type="text"<?= $disablePrice; ?> name="CAT_BASE_QUANTITY_TO_<?= $ind ?>" value="" size="3" OnChange="ChangeBaseQuantityEx(this)">
 					</td>
 					<td valign="top" align="center">
-						<input type="text"<?= $allowEditPrices; ?> id="CAT_BASE_PRICE_<?= $ind ?>" name="CAT_BASE_PRICE_<?= $ind ?>" value="" size="15" OnBlur="ChangeBasePriceEx(this)">
+						<input type="text"<?= $disablePrice; ?> id="CAT_BASE_PRICE_<?= $ind ?>" name="CAT_BASE_PRICE_<?= $ind ?>" value="" size="15" OnBlur="ChangeBasePriceEx(this)">
 					</td>
 					<td valign="top" align="center">
-						<select id="CAT_BASE_CURRENCY_<?= $ind ?>" name="CAT_BASE_CURRENCY_<?= $ind ?>"<?= $allowEditPrices; ?> OnChange="ChangeBaseCurrencyEx(this)">
+						<select id="CAT_BASE_CURRENCY_<?= $ind ?>" name="CAT_BASE_CURRENCY_<?= $ind ?>"<?= $disablePrice; ?> OnChange="ChangeBaseCurrencyEx(this)">
 							<?php
 							foreach ($currencyList as $currency)
 							{
@@ -1678,7 +1733,7 @@ function CloneBarcodeField()
 		<input type="button" value="<?= htmlspecialcharsbx(GetMessage("C2IT_MORE")); ?>" OnClick="ClonePriceSections()">
 	</td>
 </tr>
-<script type="text/javascript">
+<script>
 	arCatalogGroups = [];
 	catalogGroupsInd = 0;
 </script>
@@ -1694,7 +1749,7 @@ function CloneBarcodeField()
 	while ($arCatalogGroup = $dbCatalogGroups->Fetch())
 	{
 		?>
-	<script type="text/javascript">
+	<script>
 		arCatalogGroups[catalogGroupsInd] = <?= $arCatalogGroup["ID"] ?>;
 		catalogGroupsInd++;
 	</script>
@@ -1748,11 +1803,11 @@ function CloneBarcodeField()
 
 						if ($bVarsFromForm)
 						{
-							$str_CAT_EXTRA = ${"CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind};
-							$str_CAT_PRICE = ${"CAT_PRICE_".$arCatalogGroup["ID"]."_".$ind};
-							$str_CAT_CURRENCY = ${"CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind};
-							$str_CAT_QUANTITY_FROM = ${"CAT_BASE_QUANTITY_FROM_".$ind};
-							$str_CAT_QUANTITY_TO = ${"CAT_BASE_QUANTITY_TO_".$ind};
+							$str_CAT_EXTRA = $request->getPost("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind) ?? '';
+							$str_CAT_PRICE = $request->getPost("CAT_PRICE_".$arCatalogGroup["ID"]."_".$ind) ?? '';
+							$str_CAT_CURRENCY = $request->getPost("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind) ?? '';
+							$str_CAT_QUANTITY_FROM = $request->getPost("CAT_BASE_QUANTITY_FROM_".$ind) ?? '';
+							$str_CAT_QUANTITY_TO = $request->getPost("CAT_BASE_QUANTITY_TO_".$ind) ?? '';
 						}
 						if (trim($str_CAT_PRICE) != '' && doubleval($str_CAT_PRICE) >= 0)
 							$boolExistPrice = true;
@@ -1769,18 +1824,27 @@ function CloneBarcodeField()
 						</td>
 						<td valign="top" align="center">
 							<?php
-							echo CExtra::SelectBox("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_EXTRA, GetMessage("VAL_NOT_SET"), "ChangeExtraEx(this)", $allowEditPrices.' id="'."CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind.'" ');
+							echo CExtra::SelectBox("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_EXTRA, GetMessage("VAL_NOT_SET"), "ChangeExtraEx(this)", $disablePrice.' id="'."CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind.'" ');
 							?>
 
 						</td>
 						<td valign="top" align="center">
-							<input type="text"<?= $allowEditPrices; ?> id="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" name="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" value="<?= htmlspecialcharsbx($str_CAT_PRICE) ?>" size="10" OnChange="ptPriceChangeEx(this)">
+							<?= CCatalogAdminTools::renderMoneyEditField([
+								'NAME' => 'CAT_PRICE_'.$arCatalogGroup["ID"].'_'.$ind,
+								'ID' => 'CAT_PRICE_'.$arCatalogGroup["ID"].'_'.$ind,
+								'VALUE' => $str_CAT_PRICE,
+								'CURRENCY' => $str_CAT_CURRENCY,
+								'CURRENCY_CONTROL_ID' => 'CAT_CURRENCY_'.$arCatalogGroup["ID"].'_'.$ind,
+								'DISABLED' => !$allowEditPrices,
+								'SIZE' => 10,
+								'ATTRIBUTES' => 'OnChange="ptPriceChangeEx(this)"',
+							]); ?>
 
 						</td>
 						<td valign="top" align="center">
 
-							<?= CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_CURRENCY, GetMessage("VAL_BASE"), true, "ChangeCurrencyEx(this)", $allowEditPrices.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind.'" ') ?>
-							<script type="text/javascript">
+							<?= CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_CURRENCY, GetMessage("VAL_BASE"), true, "ChangeCurrencyEx(this)", $disablePrice.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind.'" ') ?>
+							<script>
 								jsUtils.addEvent(window, 'load', function() {ChangeExtraEx(document.getElementById('CAT_EXTRA_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>'));});
 							</script>
 
@@ -1789,17 +1853,17 @@ function CloneBarcodeField()
 						<?php
 					}
 
-					if ($bVarsFromForm && $ind < intval(${"CAT_ROW_COUNTER_".$arCatalogGroup["ID"]}))
+					if ($bVarsFromForm && $ind < intval($request->getPost("CAT_ROW_COUNTER_".$arCatalogGroup["ID"])))
 					{
-						for ($i = $ind + 1; $i <= intval(${"CAT_ROW_COUNTER_".$arCatalogGroup["ID"]}); $i++)
+						for ($i = $ind + 1; $i <= intval($request->getPost("CAT_ROW_COUNTER_".$arCatalogGroup["ID"])); $i++)
 						{
 							$boolExistPrice = false;
 							$ind++;
-							$str_CAT_QUANTITY_FROM = ${"CAT_BASE_QUANTITY_FROM_".$ind};
-							$str_CAT_QUANTITY_TO = ${"CAT_BASE_QUANTITY_TO_".$ind};
-							$str_CAT_EXTRA = ${"CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind};
-							$str_CAT_PRICE = ${"CAT_PRICE_".$arCatalogGroup["ID"]."_".$ind};
-							$str_CAT_CURRENCY = ${"CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind};
+							$str_CAT_QUANTITY_FROM = $request->getPost("CAT_BASE_QUANTITY_FROM_".$ind) ?? '';
+							$str_CAT_QUANTITY_TO = $request->getPost("CAT_BASE_QUANTITY_TO_".$ind) ?? '';
+							$str_CAT_EXTRA = $request->getPost("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind) ?? '';
+							$str_CAT_PRICE = $request->getPost("CAT_PRICE_".$arCatalogGroup["ID"]."_".$ind) ?? '';
+							$str_CAT_CURRENCY = $request->getPost("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind) ?? '';
 							if (trim($str_CAT_PRICE) != '' && doubleval($str_CAT_PRICE) >= 0)
 								$boolExistPrice = true;
 							$arCatPricesExist[$ind][$arCatalogGroup['ID']] = ($boolExistPrice == true ? 'Y' : 'N');
@@ -1815,18 +1879,27 @@ function CloneBarcodeField()
 							</td>
 							<td valign="top" align="center">
 								<?php
-								echo CExtra::SelectBox("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_EXTRA, GetMessage("VAL_NOT_SET"), "ChangeExtraEx(this)", $allowEditPrices.' id="'."CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind.'" ');
+								echo CExtra::SelectBox("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_EXTRA, GetMessage("VAL_NOT_SET"), "ChangeExtraEx(this)", $disablePrice.' id="'."CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind.'" ');
 								?>
 
 							</td>
 							<td valign="top" align="center">
-								<input type="text"<?= $allowEditPrices; ?> id="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" name="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" value="<?= htmlspecialcharsbx($str_CAT_PRICE); ?>" size="10" OnChange="ptPriceChangeEx(this)">
+								<?= CCatalogAdminTools::renderMoneyEditField([
+								'NAME' => 'CAT_PRICE_'.$arCatalogGroup["ID"].'_'.$ind,
+								'ID' => 'CAT_PRICE_'.$arCatalogGroup["ID"].'_'.$ind,
+								'VALUE' => $str_CAT_PRICE,
+								'CURRENCY' => $str_CAT_CURRENCY,
+								'CURRENCY_CONTROL_ID' => 'CAT_CURRENCY_'.$arCatalogGroup["ID"].'_'.$ind,
+								'DISABLED' => !$allowEditPrices,
+								'SIZE' => 10,
+								'ATTRIBUTES' => 'OnChange="ptPriceChangeEx(this)"',
+							]); ?>
 
 							</td>
 							<td valign="top" align="center">
 
-								<?= CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_CURRENCY, GetMessage("VAL_BASE"), true, "ChangeCurrencyEx(this)", $allowEditPrices.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind.'" ') ?>
-								<script type="text/javascript">
+								<?= CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind, $str_CAT_CURRENCY, GetMessage("VAL_BASE"), true, "ChangeCurrencyEx(this)", $disablePrice.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind.'" ') ?>
+								<script>
 									jsUtils.addEvent(window, 'load', function () {ChangeExtraEx(document.getElementById('CAT_EXTRA_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>'));});
 								</script>
 
@@ -1849,17 +1922,17 @@ function CloneBarcodeField()
 						</td>
 						<td valign="top" align="center">
 							<?php
-							echo CExtra::SelectBox("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind, "", GetMessage("VAL_NOT_SET"), "ChangeExtraEx(this)", $allowEditPrices.' id="'."CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind.'" ');
+							echo CExtra::SelectBox("CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind, "", GetMessage("VAL_NOT_SET"), "ChangeExtraEx(this)", $disablePrice.' id="'."CAT_EXTRA_".$arCatalogGroup["ID"]."_".$ind.'" ');
 							?>
 
 						</td>
 						<td valign="top" align="center">
-							<input type="text"<?= $allowEditPrices; ?> id="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" name="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" value="" size="10" OnChange="ptPriceChangeEx(this)">
+							<input type="text"<?= $disablePrice; ?> id="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" name="CAT_PRICE_<?= $arCatalogGroup["ID"] ?>_<?= $ind ?>" value="" size="10" OnChange="ptPriceChangeEx(this)">
 
 						</td>
 						<td valign="top" align="center">
 
-							<?= CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind, "", GetMessage("VAL_BASE"), true, "ChangeCurrencyEx(this)", $allowEditPrices.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind.'" ') ?>
+							<?= CCurrency::SelectBox("CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind, "", GetMessage("VAL_BASE"), true, "ChangeCurrencyEx(this)", $disablePrice.' id="'."CAT_CURRENCY_".$arCatalogGroup["ID"]."_".$ind.'" ') ?>
 
 						</td>
 					</tr>
@@ -2221,7 +2294,7 @@ function CloneBarcodeField()
 	<tr>
 		<td width="40%"><?= GetMessage("C2IT_PAY_TYPE"); ?></td>
 		<td width="60%">
-			<script type="text/javascript">
+			<script>
 			function ChangePriceType()
 			{
 				if (!allowEdit)
@@ -2357,7 +2430,7 @@ function CloneBarcodeField()
 	unset($productUserFieldsHtml);
 	?>
 </table>
-<script type="text/javascript">
+<script>
 	SetFieldsStyle('catalog_properties_table');
 <?php
 if ('Y' == $arMainCatalog['SUBSCRIPTION'])
@@ -2372,7 +2445,7 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION'])
 if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 	$tabControl1->BeginNextTab();
 	?>
-<script type="text/javascript">
+<script>
 	function CatGroupsActivate(obj, id)
 	{
 		if (!allowEdit)
@@ -2428,9 +2501,9 @@ if ('Y' == $arMainCatalog['SUBSCRIPTION']):
 
 		if ($bVarsFromForm)
 		{
-			if (isset(${"CAT_USER_GROUP_ID_".$arGroup["ID"]}) && ${"CAT_USER_GROUP_ID_".$arGroup["ID"]} == "Y")
+			if ($request->getPost("CAT_USER_GROUP_ID_".$arGroup["ID"]) === "Y")
 			{
-				$arCurProductGroups[$arGroup["ID"]] = array(intval(${"CAT_ACCESS_LENGTH_".$arGroup["ID"]}), ${"CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"]});
+				$arCurProductGroups[$arGroup["ID"]] = array((int)($request->getPost("CAT_ACCESS_LENGTH_".$arGroup["ID"])), $request->getPost("CAT_ACCESS_LENGTH_TYPE_".$arGroup["ID"]));
 			}
 			elseif (array_key_exists($arGroup["ID"], $arCurProductGroups))
 			{
@@ -2647,8 +2720,14 @@ endif;
 			{
 				$storeId = (int)$row['STORE_ID'];
 				$row['AMOUNT'] = (string)$row['AMOUNT'];
-				$row['QUANTITY_RESERVED'] = (string)$row['QUANTITY_RESERVED'];
-				if ($row['AMOUNT'] !== '0' || $row['QUANTITY_RESERVED'] !== '0')
+				$row['QUANTITY_RESERVED'] = (string)($row['QUANTITY_RESERVED'] ?? '');
+				if (
+					$row['AMOUNT'] !== '0'
+					|| (
+						$row['QUANTITY_RESERVED'] !== '0'
+						&& $row['QUANTITY_RESERVED'] !== ''
+					)
+				)
 				{
 					$storeLink[$storeId]['PRODUCT_AMOUNT'] = $row['AMOUNT'];
 				}
@@ -2818,7 +2897,7 @@ endif;
 	{
 		$tabControl1->BeginNextTab();
 		?>
-		<script type="text/javascript">
+		<script>
 			function getDataSubscriptions() {
 				BX.ajax({
 					method: 'POST',
@@ -2884,7 +2963,7 @@ endif;
 
 	$tabControl1->End();
 	?>
-<script type="text/javascript">
+<script>
 BX.ready(function(){
 	var basePrice = BX('CAT_BASE_PRICE');
 	if (!!basePrice && !basePrice.disabled)

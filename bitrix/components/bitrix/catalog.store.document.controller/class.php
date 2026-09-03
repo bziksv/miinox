@@ -5,11 +5,12 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+use Bitrix\Catalog\Restriction\ToolAvailabilityManager;
 use Bitrix\Main\Loader;
-use Bitrix\Catalog;
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\v2\Contractor\Provider\Manager;
+use Bitrix\Main\Application;
 
 class CatalogStoreDocumentControllerComponent extends CBitrixComponent
 {
@@ -18,6 +19,7 @@ class CatalogStoreDocumentControllerComponent extends CBitrixComponent
 	private const URL_TEMPLATE_CONTRACTORS_LIST = 'contractors';
 	private const URL_TEMPLATE_CONTRACTORS_CONTACTS = 'contractors_contacts';
 	private const URL_TEMPLATE_DOCUMENT_SHIPMENT = 'sales_order';
+	private const URL_TEMPLATE_UF = 'uf';
 	private const URL_TEMPLATE_ERROR = 'error';
 
 	private $isIframe = false;
@@ -36,24 +38,37 @@ class CatalogStoreDocumentControllerComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		if (Loader::includeModule('catalog'))
+		if (!Loader::includeModule('catalog'))
 		{
-			if (!Catalog\Config\Feature::isInventoryManagementEnabled())
-			{
-				LocalRedirect('/shop/');
-			}
+			ShowError(\Bitrix\Main\Localization\Loc::getMessage('CATALOG_STORE_DOCUMENT_CONTROLLER_MODULE_CATALOG_NOT_INSTALLED'));
 		}
+
+		$availabilityManager = ToolAvailabilityManager::getInstance();
+		if (!$availabilityManager->checkInventoryManagementAvailability())
+		{
+			$this->includeComponentTemplate('tool_disabled');
+
+			return;
+		}
+
 		$this->initConfig();
 
-		if (\Bitrix\Main\Loader::includeModule('crm'))
+		if (Loader::includeModule('crm'))
 		{
 			/** installing demo data for crm used for PresetCrmStoreMenu creation*/
 			\CAllCrmInvoice::installExternalEntities();
 		}
 
-		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_INVENTORY_MANAGEMENT_ACCESS))
+		$context = Application::getInstance()->getContext()->getRequest()->get('context');
+		$ownerTypeId = isset($context['OWNER_TYPE_ID']) ? (int)$context['OWNER_TYPE_ID'] : null;
+		if (
+			Loader::includeModule('crm')
+			&& $ownerTypeId !== \CCrmOwnerType::Deal
+			&& !AccessController::getCurrent()->check(ActionDictionary::ACTION_INVENTORY_MANAGEMENT_ACCESS)
+		)
 		{
 			$this->includeComponentTemplate('access_denied');
+
 			return;
 		}
 
@@ -65,9 +80,22 @@ class CatalogStoreDocumentControllerComponent extends CBitrixComponent
 		{
 			[$template, $variables, $variableAliases] = $this->processSefMode($templateUrls);
 		}
+
+		if (
+			$template !== self::URL_TEMPLATE_DOCUMENT_SHIPMENT
+			&& \Bitrix\Catalog\Store\EnableWizard\Manager::isOnecMode()
+		)
+		{
+			$this->arResult['STUB_REDIRECT'] = Loader::includeModule('crm') ? '/crm/' : '/';
+
+			$this->includeComponentTemplate('1c');
+
+			return;
+		}
+
 		$this->arResult['VARIABLES'] = $variables;
 
-		$this->arResult['IS_CRM_CONTRACTORS_PROVIDER'] = Manager::isActiveProviderByModule('crm');
+		$this->arResult['IS_CRM_CONTRACTORS_PROVIDER'] = Manager::isActiveProviderByModule(Manager::PROVIDER_STORE_DOCUMENT, 'crm');
 		$this->arResult['CONTRACTORS_MIGRATION_PROGRESS'] = Manager::getMigrationProgressHtml();
 
 		$this->includeComponentTemplate($template);
@@ -91,6 +119,7 @@ class CatalogStoreDocumentControllerComponent extends CBitrixComponent
 			self::URL_TEMPLATE_CONTRACTORS_LIST => 'contractors/',
 			self::URL_TEMPLATE_CONTRACTORS_CONTACTS => 'contractors_contacts/',
 			self::URL_TEMPLATE_DOCUMENT_SHIPMENT => 'details/sales_order/#DOCUMENT_ID#/',
+			self::URL_TEMPLATE_UF => 'user-fields/',
 		];
 	}
 
@@ -121,36 +150,9 @@ class CatalogStoreDocumentControllerComponent extends CBitrixComponent
 	private function checkRedirect()
 	{
 		$requestUrl = $this->request->getRequestUri();
-
-		$analyticsSource = $this->request->get('inventoryManagementSource');
-		if ($this->isIframe)
-		{
-			$requestUrl = (new \Bitrix\Main\Web\Uri($requestUrl))->deleteParams(['IFRAME', 'IFRAME_TYPE', 'inventoryManagementSource'])->getUri();
-		}
-
 		$defaultUrl = $this->arParams['SEF_FOLDER'];
-		if ($requestUrl === $defaultUrl)
-		{
-			\CBitrixComponent::includeComponentClass('bitrix:catalog.store.document.list');
-			$redirectUrl = $defaultUrl . \CatalogStoreDocumentListComponent::ARRIVAL_MODE . '/';
-			if ($this->isIframe)
-			{
-				$redirectUrl = (new \Bitrix\Main\Web\Uri($redirectUrl))
-					->addParams([
-						'IFRAME' => 'Y',
-						'IFRAME_TYPE' => 'SIDE_SLIDER'
-					]);
-				if ($analyticsSource)
-				{
-					$redirectUrl->addParams([
-						'inventoryManagementSource' => $analyticsSource,
-					]);
-				}
-				$redirectUrl = $redirectUrl->getUri();
-			}
-			LocalRedirect($redirectUrl);
-		}
-		else if ($requestUrl === $defaultUrl.'inventory/')
+
+		if ($requestUrl === $defaultUrl.'inventory/')
 		{
 			$redirectUrl = (new \Bitrix\Main\Web\Uri($defaultUrl))
 				->addParams([

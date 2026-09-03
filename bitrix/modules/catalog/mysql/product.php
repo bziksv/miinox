@@ -1,4 +1,5 @@
-<?
+<?php
+
 /** @global CMain $APPLICATION */
 use Bitrix\Main,
 	Bitrix\Main\Config\Option,
@@ -34,10 +35,10 @@ class CCatalogProduct extends CAllCatalogProduct
 			$arGroupBy = false;
 		}
 
-		$defaultQuantityTrace = ((string)Option::get('catalog', 'default_quantity_trace') == 'Y' ? 'Y' : 'N');
-		$defaultCanBuyZero = ((string)Option::get('catalog', 'default_can_buy_zero') == 'Y' ? 'Y' : 'N');
-		$defaultNegativeAmount = ((string)Option::get('catalog', 'allow_negative_amount') == 'Y' ? 'Y' : 'N');
-		$defaultSubscribe = ((string)Option::get('catalog', 'default_subscribe') == 'N' ? 'N' : 'Y');
+		$defaultQuantityTrace = Option::get('catalog', 'default_quantity_trace');
+		$defaultCanBuyZero = Option::get('catalog', 'default_can_buy_zero');
+		$defaultNegativeAmount = Option::get('catalog', 'allow_negative_amount');
+		$defaultSubscribe = Option::get('catalog', 'default_subscribe');
 
 		$arFields = array(
 			"ID" => array("FIELD" => "CP.ID", "TYPE" => "int"),
@@ -46,11 +47,23 @@ class CCatalogProduct extends CAllCatalogProduct
 			"QUANTITY_TRACE_ORIG" => array("FIELD" => "CP.QUANTITY_TRACE", "TYPE" => "char"),
 			"CAN_BUY_ZERO_ORIG" => array("FIELD" => "CP.CAN_BUY_ZERO", "TYPE" => "char"),
 			"NEGATIVE_AMOUNT_TRACE_ORIG" => array("FIELD" => "CP.NEGATIVE_AMOUNT_TRACE", "TYPE" => "char"),
-			"QUANTITY_TRACE" => array("FIELD" => "IF (CP.QUANTITY_TRACE = 'D', '".$defaultQuantityTrace."', CP.QUANTITY_TRACE)", "TYPE" => "char"),
-			"CAN_BUY_ZERO" => array("FIELD" => "IF (CP.CAN_BUY_ZERO = 'D', '".$defaultCanBuyZero."', CP.CAN_BUY_ZERO)", "TYPE" => "char"),
-			"NEGATIVE_AMOUNT_TRACE" => array("FIELD" => "IF (CP.NEGATIVE_AMOUNT_TRACE = 'D', '".$defaultNegativeAmount."', CP.NEGATIVE_AMOUNT_TRACE)", "TYPE" => "char"),
+			"QUANTITY_TRACE" => array(
+				"FIELD" => "CASE WHEN CP.QUANTITY_TRACE = 'D' THEN '".$DB->ForSql($defaultQuantityTrace)."' ELSE CP.QUANTITY_TRACE END",
+				"TYPE" => "char",
+			),
+			"CAN_BUY_ZERO" => array(
+				"FIELD" => "CASE WHEN CP.CAN_BUY_ZERO = 'D' THEN '".$DB->ForSql($defaultCanBuyZero)."' ELSE CP.CAN_BUY_ZERO END",
+				"TYPE" => "char",
+			),
+			"NEGATIVE_AMOUNT_TRACE" => array(
+				"FIELD" => "CASE WHEN CP.NEGATIVE_AMOUNT_TRACE = 'D' THEN '".$DB->ForSql($defaultNegativeAmount)."' ELSE CP.NEGATIVE_AMOUNT_TRACE END",
+				"TYPE" => "char",
+			),
 			"SUBSCRIBE_ORIG" => array("FIELD" => "CP.SUBSCRIBE", "TYPE" => "char"),
-			"SUBSCRIBE" => array("FIELD" => "IF (CP.SUBSCRIBE = 'D', '".$defaultSubscribe."', CP.SUBSCRIBE)", "TYPE" => "char"),
+			"SUBSCRIBE" => array(
+				"FIELD" => "CASE WHEN CP.SUBSCRIBE = 'D' THEN '".$DB->ForSql($defaultSubscribe)."' ELSE CP.SUBSCRIBE END",
+				"TYPE" => "char",
+			),
 			"AVAILABLE" => array("FIELD" => "CP.AVAILABLE", "TYPE" => "char"),
 			"BUNDLE" => array("FIELD" => "CP.BUNDLE", "TYPE" => "char"),
 			"WEIGHT" => array("FIELD" => "CP.WEIGHT", "TYPE" => "double"),
@@ -91,7 +104,7 @@ class CCatalogProduct extends CAllCatalogProduct
 			if (!empty($arSqls["GROUPBY"]))
 				$strSql .= " GROUP BY ".$arSqls["GROUPBY"];
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -119,7 +132,7 @@ class CCatalogProduct extends CAllCatalogProduct
 			if (!empty($arSqls["GROUPBY"]))
 				$strSql_tmp .= " GROUP BY ".$arSqls["GROUPBY"];
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if (empty($arSqls["GROUPBY"]))
 			{
@@ -139,7 +152,7 @@ class CCatalogProduct extends CAllCatalogProduct
 			if ($boolNavStartParams && $intTopCount > 0)
 				$strSql .= " LIMIT ".$intTopCount;
 
-			$entityResult->setResult($DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__));
+			$entityResult->setResult($DB->Query($strSql));
 
 			$dbRes = $entityResult;
 		}
@@ -243,7 +256,7 @@ class CCatalogProduct extends CAllCatalogProduct
 	from b_catalog_product CAT_PR
 	left join b_iblock_element BE on (BE.ID = CAT_PR.ID)
 	left join b_catalog_iblock CAT_IB on ((CAT_PR.VAT_ID is null or CAT_PR.VAT_ID = 0) and CAT_IB.IBLOCK_ID = BE.IBLOCK_ID)
-	left join b_catalog_vat CAT_VAT on (CAT_VAT.ID = IF((CAT_PR.VAT_ID is null or CAT_PR.VAT_ID = 0), CAT_IB.VAT_ID, CAT_PR.VAT_ID))
+	left join b_catalog_vat CAT_VAT on (CAT_VAT.ID = CASE WHEN (CAT_PR.VAT_ID is null or CAT_PR.VAT_ID = 0) THEN CAT_IB.VAT_ID ELSE CAT_PR.VAT_ID END)
 	where CAT_PR.ID in (".implode(', ', $ids).")
 	and CAT_VAT.ACTIVE='Y'
 	"

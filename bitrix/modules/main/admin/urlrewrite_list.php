@@ -1,14 +1,12 @@
-<?
+<?php
 /**
- * @global \CUser $USER
- * @global \CMain $APPLICATION
- * @global \CDatabase $DB
+ * @global CUser $USER
+ * @global CMain $APPLICATION
  */
 
 use Bitrix\Main\UrlRewriter;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/urlrewrite_list.php");
 
 if(!$USER->CanDoOperation('edit_php') && !$USER->CanDoOperation('view_other_settings'))
@@ -18,15 +16,15 @@ $isAdmin = $USER->CanDoOperation('edit_php');
 
 IncludeModuleLangFile(__FILE__);
 
-// èäåíòèôèêàòîð òàáëèöû
+// Ð¸Ð´ÐµÐ½Ñ‚Ð¸Ñ„Ð¸ÐºÐ°Ñ‚Ð¾Ñ€ Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹
 $sTableID = "tbl_urlrewrite";
 
-// èíèöèàëèçàöèÿ ñîðòèðîâêè
+// Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ ÑÐ¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ¸
 $oSort = new CAdminSorting($sTableID, "CONDITION", "asc");
-// èíèöèàëèçàöèÿ ñïèñêà
+// Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ ÑÐ¿Ð¸ÑÐºÐ°
 $lAdmin = new CAdminList($sTableID, $oSort);
 
-// èíèöèàëèçàöèÿ ïàðàìåòðîâ ñïèñêà - ôèëüòðû
+// Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ Ð¿Ð°Ñ€Ð°Ð¼ÐµÑ‚Ñ€Ð¾Ð² ÑÐ¿Ð¸ÑÐºÐ° - Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ñ‹
 $arFilterFields = array(
 	"filter_path",
 	"filter_site_id",
@@ -34,31 +32,33 @@ $arFilterFields = array(
 	"filter_id",
 );
 
-$lAdmin->InitFilter($arFilterFields);
+$filter = $lAdmin->InitFilter($arFilterFields);
 
-$siteId = \CSite::getDefSite($filter_site_id);
-
-if ($filter_site_id == '')
-{
-	$set_filter = "Y";
-	$filter_site_id = $siteId;
-	$lAdmin->InitFilter($arFilterFields);
-}
+$siteId = CSite::getDefSite($filter['filter_site_id'] ?? false);
 
 $arFilter = array();
 
-if ($filter_condition <> '') $arFilter["CONDITION"] = $filter_condition;
-if ($filter_id <> '') $arFilter["ID"] = $filter_id;
-if ($filter_path <> '') $arFilter["PATH"] = $filter_path;
+if (!empty($filter['filter_condition']))
+{
+	$arFilter["CONDITION"] = $filter['filter_condition'];
+}
+if (!empty($filter['filter_id']))
+{
+	$arFilter["ID"] = $filter['filter_id'];
+}
+if (!empty($filter['filter_path']))
+{
+	$arFilter["PATH"] = $filter['filter_path'];
+}
 
-// îáðàáîòêà äåéñòâèé ãðóïïîâûõ è îäèíî÷íûõ
+// Ð¾Ð±Ñ€Ð°Ð±Ð¾Ñ‚ÐºÐ° Ð´ÐµÐ¹ÑÑ‚Ð²Ð¸Ð¹ Ð³Ñ€ÑƒÐ¿Ð¿Ð¾Ð²Ñ‹Ñ… Ð¸ Ð¾Ð´Ð¸Ð½Ð¾Ñ‡Ð½Ñ‹Ñ…
 if (($arID = $lAdmin->GroupAction()) && $isAdmin)
 {
 	if (isset($_REQUEST['action_target']) && $_REQUEST['action_target']=='selected')
 	{
 		$arID = Array();
-		$dbResultList = UrlRewriter::getList($siteId, $arFilter);
-		while ($arResult = $dbResultList->Fetch())
+		$arResultList = UrlRewriter::getList($siteId, $arFilter);
+		foreach ($arResultList as $arResult)
 			$arID[] = $arResult["CONDITION"];
 	}
 
@@ -67,17 +67,15 @@ if (($arID = $lAdmin->GroupAction()) && $isAdmin)
 		if ($ID == '')
 			continue;
 
-		switch ($_REQUEST['action'])
+		if ($_REQUEST['action'] == "delete")
 		{
-			case "delete":
-				UrlRewriter::delete($siteId, array("CONDITION" => $ID));
-				break;
+			UrlRewriter::delete($siteId, ["CONDITION" => $ID]);
 		}
 	}
 }
 
-// èíèöèàëèçàöèÿ ñïèñêà - âûáîðêà äàííûõ
-$arResultList = UrlRewriter::getList($siteId, $arFilter, array($by => $order));
+// Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ ÑÐ¿Ð¸ÑÐºÐ° - Ð²Ñ‹Ð±Ð¾Ñ€ÐºÐ° Ð´Ð°Ð½Ð½Ñ‹Ñ…
+$arResultList = UrlRewriter::getList($siteId, $arFilter, array($oSort->getField() => $oSort->getOrder()));
 
 $dbResultList = new CDBResult;
 $dbResultList->InitFromArray($arResultList);
@@ -85,10 +83,10 @@ $dbResultList->InitFromArray($arResultList);
 $dbResultList = new CAdminResult($dbResultList, $sTableID);
 $dbResultList->NavStart();
 
-// óñòàíîâêå ïàðàìåòðîâ ñïèñêà
+// ÑƒÑÑ‚Ð°Ð½Ð¾Ð²ÐºÐµ Ð¿Ð°Ñ€Ð°Ð¼ÐµÑ‚Ñ€Ð¾Ð² ÑÐ¿Ð¸ÑÐºÐ°
 $lAdmin->NavText($dbResultList->GetNavPrint(GetMessage("SAA_NAV")));
 
-// çàãîëîâîê ñïèñêà
+// Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº ÑÐ¿Ð¸ÑÐºÐ°
 $lAdmin->AddHeaders(array(
 	array("id"=>"CONDITION", "content"=>GetMessage("MURL_USL"), "sort"=>"CONDITION", "default"=>true),
 	array("id"=>"ID","content"=>GetMessage("MURL_COMPONENT"), "sort"=>"ID", "default"=>true),
@@ -98,10 +96,10 @@ $lAdmin->AddHeaders(array(
 
 $arVisibleColumns = $lAdmin->GetVisibleHeaderColumns();
 
-// ïîñòðîåíèå ñïèñêà
+// Ð¿Ð¾ÑÑ‚Ñ€Ð¾ÐµÐ½Ð¸Ðµ ÑÐ¿Ð¸ÑÐºÐ°
 while ($arResult = $dbResultList->NavNext(true, "f_"))
 {
-	$row =& $lAdmin->AddRow($f_CONDITION ?? '', $arResult, "urlrewrite_edit.php?CONDITION=".UrlEncode($arResult["CONDITION"])."&lang=".LANG."&site_id=".UrlEncode($filter_site_id), GetMessage("MURL_EDIT"));
+	$row = $lAdmin->AddRow($f_CONDITION ?? '', $arResult, "urlrewrite_edit.php?CONDITION=".UrlEncode($arResult["CONDITION"])."&lang=".LANGUAGE_ID."&site_id=".UrlEncode($siteId), GetMessage("MURL_EDIT"));
 
 	$row->AddField("CONDITION", $f_CONDITION ?? '');
 	$row->AddField("ID", $f_ID ?? '');
@@ -109,14 +107,14 @@ while ($arResult = $dbResultList->NavNext(true, "f_"))
 	$row->AddField("RULE", $f_RULE ?? '');
 
 	$arActions = Array();
-	$arActions[] = array("ICON"=>"edit", "TEXT"=>GetMessage("MURL_EDIT"), "ACTION"=>$lAdmin->ActionRedirect("urlrewrite_edit.php?CONDITION=".UrlEncode($arResult["CONDITION"])."&lang=".LANG."&site_id=".UrlEncode($filter_site_id)), "DEFAULT"=>true);
+	$arActions[] = array("ICON"=>"edit", "TEXT"=>GetMessage("MURL_EDIT"), "ACTION"=>$lAdmin->ActionRedirect("urlrewrite_edit.php?CONDITION=".UrlEncode($arResult["CONDITION"])."&lang=".LANGUAGE_ID."&site_id=".UrlEncode($siteId)), "DEFAULT"=>true);
 	if($isAdmin)
 		$arActions[] = array("ICON"=>"delete", "TEXT"=>GetMessage("MURL_DELETE"), "ACTION"=>"if(confirm('".GetMessage("MURL_DELETE_CONF")."')) ".$lAdmin->ActionDoGroup(UrlEncode($arResult["CONDITION"]), "delete"));
 
 	$row->AddActions($arActions);
 }
 
-// ïîêàç ôîðìû ñ êíîïêàìè äîáàâëåíèÿ, ...
+// Ð¿Ð¾ÐºÐ°Ð· Ñ„Ð¾Ñ€Ð¼Ñ‹ Ñ ÐºÐ½Ð¾Ð¿ÐºÐ°Ð¼Ð¸ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¸Ñ, ...
 $lAdmin->AddGroupActionTable(
 	array(
 		"delete" => true,
@@ -130,7 +128,7 @@ while(($arRes = $dbRes->Fetch()))
 {
 	$arDDMenu[] = array(
 		"TEXT" => htmlspecialcharsbx("[".$arRes["LID"]."] ".$arRes["NAME"]),
-		"ACTION" => "window.location = 'urlrewrite_edit.php?lang=".urlencode(LANG)."&site_id=".urlencode($arRes["LID"])."';"
+		"ACTION" => "window.location = 'urlrewrite_edit.php?lang=".urlencode(LANGUAGE_ID)."&site_id=".urlencode($arRes["LID"])."';"
 	);
 }
 
@@ -144,21 +142,21 @@ $aContext = array(
 	array(
 		"TEXT" => GetMessage("MURL_REINDEX"),
 		"TITLE" => GetMessage("MURL_REINDEX_TITLE"),
-		"LINK" => "urlrewrite_reindex.php?lang=".LANG.""
+		"LINK" => "urlrewrite_reindex.php?lang=".LANGUAGE_ID
 	),
 );
 
 $lAdmin->AddAdminContextMenu($aContext);
 
-// ïðîâåðêà íà âûâîä òîëüêî ñïèñêà (â ñëó÷àå ñïèñêà, ñêðèïò äàëüøå âûïîëíÿòüñÿ íå áóäåò)
+// Ð¿Ñ€Ð¾Ð²ÐµÑ€ÐºÐ° Ð½Ð° Ð²Ñ‹Ð²Ð¾Ð´ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ ÑÐ¿Ð¸ÑÐºÐ° (Ð² ÑÐ»ÑƒÑ‡Ð°Ðµ ÑÐ¿Ð¸ÑÐºÐ°, ÑÐºÑ€Ð¸Ð¿Ñ‚ Ð´Ð°Ð»ÑŒÑˆÐµ Ð²Ñ‹Ð¿Ð¾Ð»Ð½ÑÑ‚ÑŒÑÑ Ð½Ðµ Ð±ÑƒÐ´ÐµÑ‚)
 $lAdmin->CheckListMode();
 
 $APPLICATION->SetTitle(GetMessage("MURL_TITLE"));
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 ?>
-<form name="find_form" method="GET" action="<?echo $APPLICATION->GetCurPage()?>?">
-<?
+<form name="find_form" method="GET" action="<?= $APPLICATION->GetCurPage()?>?">
+<?php
 $oFilter = new CAdminFilter(
 	$sTableID."_filter",
 	array(
@@ -173,28 +171,28 @@ $oFilter->Begin();
 	<tr>
 		<td><?= GetMessage("MURL_FILTER_PATH") ?>:</td>
 		<td align="left" nowrap>
-			<input type="text" name="filter_path" size="50" value="<?= htmlspecialcharsEx($filter_path) ?>">
+			<input type="text" name="filter_path" size="50" value="<?= htmlspecialcharsbx($filter['filter_path']) ?>">
 		</td>
 	</tr>
 	<tr>
 		<td><?= GetMessage("MURL_FILTER_SITE") ?>:</td>
 		<td>
-			<?echo CLang::SelectBox("filter_site_id", $filter_site_id) ?>
+			<?= CLang::SelectBox("filter_site_id", $filter['filter_site_id']) ?>
 		</td>
 	</tr>
 	<tr>
 		<td><?= GetMessage("MURL_USL") ?>:</td>
 		<td>
-			<input type="text" name="filter_condition" size="50" value="<?= htmlspecialcharsEx($filter_condition) ?>">
+			<input type="text" name="filter_condition" size="50" value="<?= htmlspecialcharsbx($filter['filter_condition']) ?>">
 		</td>
 	</tr>
 	<tr>
 		<td><?= GetMessage("MURL_COMPONENT") ?>:</td>
 		<td>
-			<input type="text" name="filter_id" size="50" value="<?= htmlspecialcharsEx($filter_id) ?>">
+			<input type="text" name="filter_id" size="50" value="<?= htmlspecialcharsbx($filter['filter_id']) ?>">
 		</td>
 	</tr>
-<?
+<?php
 $oFilter->Buttons(
 	array(
 		"table_id" => $sTableID,
@@ -205,9 +203,8 @@ $oFilter->Buttons(
 $oFilter->End();
 ?>
 </form>
-<?
-// ìåñòî äëÿ âûâîäà ñïèñêà
+<?php
+// Ð¼ÐµÑÑ‚Ð¾ Ð´Ð»Ñ Ð²Ñ‹Ð²Ð¾Ð´Ð° ÑÐ¿Ð¸ÑÐºÐ°
 $lAdmin->DisplayList();
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
-?>

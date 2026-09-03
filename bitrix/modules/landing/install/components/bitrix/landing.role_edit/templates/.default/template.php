@@ -17,6 +17,22 @@ Manager::setPageTitle(Loc::getMessage('LANDING_TPL_TITLE_EDIT'));
 \Bitrix\Main\UI\Extension::load("ui.hint");
 $this->addExternalCss('/bitrix/css/main/table/style.css');
 
+// show errors
+if ($arResult['ERRORS'])
+{
+	?><div class="landing-message-label error"><?
+	foreach ($arResult['ERRORS'] as $error)
+	{
+		echo \htmlspecialcharsbx($error) . '<br/>';
+	}
+	?></div><?
+}
+// a fatal error leaves the rest of arResult unfilled, so nothing below may be read
+if ($arResult['FATAL'])
+{
+	return;
+}
+
 if ($arResult['EXTENDED'])
 {
 	?>
@@ -39,21 +55,6 @@ $request = $context->getRequest();
 $row = $arResult['ROLE'];
 $reverseDefaultCodes = ['admin'];
 $reverseActionsCodes = ['unexportable', 'knowledge_unexportable'];
-
-// show errors
-if ($arResult['ERRORS'])
-{
-	?><div class="landing-message-label error"><?
-	foreach ($arResult['ERRORS'] as $error)
-	{
-		echo $error . '<br/>';
-	}
-	?></div><?
-}
-if ($arResult['FATAL'])
-{
-	return;
-}
 
 // function for draw one tr (one site)
 $drawTr = function($siteId, array $selectedId = [], $title = '') use($arResult, $arParams)

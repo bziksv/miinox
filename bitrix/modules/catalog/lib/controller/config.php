@@ -1,22 +1,23 @@
 <?php
+
 namespace Bitrix\Catalog\Controller;
 
 use Bitrix\Catalog\Access\AccessController;
 use Bitrix\Catalog\Access\ActionDictionary;
-use Bitrix\Catalog\Component\PresetHandler;
-use Bitrix\Catalog\Component\UseStore;
-use Bitrix\Catalog\StoreDocumentTable;
+use Bitrix\Catalog\Config\State;
+use Bitrix\Catalog\Store\EnableWizard\Manager;
+use Bitrix\Catalog\Store\EnableWizard\ModeList;
+use Bitrix\Catalog\Store\EnableWizard\TariffChecker;
 use Bitrix\Main\Engine\Action;
 use Bitrix\Main\Error;
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\NotImplementedException;
 use Bitrix\Main\Result;
 use Bitrix\Main\SystemException;
+use Bitrix\Catalog\Config\Feature;
 
 final class Config extends \Bitrix\Main\Engine\Controller
 {
-	public const QUANTITY_INCONSISTENCY_EXISTS = 'QUANTITY_INCONSISTENCY_EXISTS';
-	public const CONDUCTED_DOCUMENTS_EXIST = 'CONDUCTED_DOCUMENTS_EXIST';
-
 	/**
 	 * @param Action $action
 	 * @return bool|null
@@ -42,28 +43,19 @@ final class Config extends \Bitrix\Main\Engine\Controller
 	/**
 	 * @throws NotImplementedException
 	 */
-	protected function checkPermission($name, $arguments=[])
+	protected function checkPermission($name, $arguments = [])
 	{
 		$name = strtolower($name);
 
-		if(
-			$name == strtolower('onceInventoryManagementY')
-			|| $name == strtolower('onceInventoryManagementN')
-			|| $name == strtolower('inventoryManagementN')
-			|| $name == strtolower('inventoryManagementY')
-			|| $name == strtolower('inventoryManagementYAndResetQuantity')
-			|| $name == strtolower('inventoryManagementYAndResetQuantityWithDocuments')
-			|| $name == strtolower('inventoryManagementInstallPreset')
-			|| $name == strtolower('unRegisterOnProlog')
+		if (
+			$name === strtolower('inventoryManagementEnable')
+			|| $name === strtolower('inventoryManagementDisable')
+			|| $name === strtolower('unRegisterOnProlog')
 		)
 		{
 			$r = $this->checkModifyPermissionEntity($name, $arguments);
 		}
-		else if(
-			$name == strtolower('isUsedInventoryManagement')
-			|| $name == strtolower('conductedDocumentsExist')
-			|| $name == strtolower('checkEnablingConditions')
-		)
+		else if ($name === strtolower('isUsedInventoryManagement'))
 		{
 			$r = $this->checkReadPermissionEntity($name, $arguments);
 		}
@@ -80,17 +72,17 @@ final class Config extends \Bitrix\Main\Engine\Controller
 	 * @param array $arguments
 	 * @return Result
 	 */
-	protected function checkReadPermissionEntity($name, $arguments=[])
+	protected function checkReadPermissionEntity($name, $arguments = [])
 	{
 		$r = new Result();
 		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ))
 		{
-			$r->addError(new Error('Access denied!', 200040300010));
+			$r->addError(new Error('Access denied!', ErrorCode::READ_PERMISSION_ACCESS_DENIED));
 		}
 		return $r;
 	}
 
-	protected function checkModifyPermissionEntity($name, $arguments=[]): Result
+	protected function checkModifyPermissionEntity($name, $arguments = []): Result
 	{
 		$r = new Result();
 		if (!AccessController::getCurrent()->check(ActionDictionary::ACTION_STORE_VIEW))
@@ -105,122 +97,52 @@ final class Config extends \Bitrix\Main\Engine\Controller
 	 * @param array $arguments
 	 * @throws NotImplementedException
 	 */
-	protected function checkPermissionEntity($name, $arguments=[])
+	protected function checkPermissionEntity($name, $arguments = [])
 	{
 		throw new NotImplementedException('Check permission entity. The method '.$name.' is not implemented.');
 	}
 
-	public function onceInventoryManagementYAction(): bool
+	public function inventoryManagementEnableAction(string $mode, array $options = []): void
 	{
-		return UseStore::enableOnec();
+		if (
+			(
+				$mode === ModeList::B24
+				&& !Feature::isInventoryManagementEnabled()
+			)
+			|| (
+				$mode === ModeList::ONEC
+				&& TariffChecker::isOnecInventoryManagementRestricted()
+			)
+		)
+		{
+			$this->addError(
+				new Error(
+					Loc::getMessage('CATALOG_CONTROLLER_CONFIG_INVENTORY_MANAGEMENT_ENABLE_DEFAULT_ERROR')
+				)
+			);
+
+			return;
+		}
+
+		$enableResult = Manager::enable($mode, $options);
+		if (!$enableResult->isSuccess())
+		{
+			$this->addErrors($enableResult->getErrors());
+		}
 	}
 
-	public function onceInventoryManagementNAction(): bool
+	public function inventoryManagementDisableAction(): void
 	{
-		return UseStore::disableOnec();
+		$disableResult = Manager::disable();
+
+		if (!$disableResult->isSuccess())
+		{
+			$this->addErrors($disableResult->getErrors());
+		}
 	}
 
 	public function isUsedInventoryManagementAction(): bool
 	{
-		return UseStore::isUsed();
-	}
-
-	public function inventoryManagementNAction(): bool
-	{
-		$result = UseStore::disable();
-		UseStore::resetPreset();
-
-		return $result;
-	}
-
-	/**
-	 * Enable and reset store documents.
-	 *
-	 * @param mixed $preset
-	 *
-	 * @return bool
-	 */
-	public function inventoryManagementYAndResetQuantityWithDocumentsAction($preset)
-	{
-		if (UseStore::isPlanRestricted())
-		{
-			return false;
-		}
-
-		if (UseStore::enable())
-		{
-			UseStore::resetDocuments();
-			UseStore::installPreset($preset);
-		}
-
-		return true;
-	}
-
-	/**
-	 * Enable and reset product quantities.
-	 *
-	 * @param mixed $preset
-	 *
-	 * @return bool
-	 */
-	public function inventoryManagementYAndResetQuantityAction($preset): bool
-	{
-		return UseStore::enableWithPreset($preset);
-	}
-
-	/**
-	 * Enable without resetting documents or quantities.
-	 *
-	 * @param mixed $preset
-	 *
-	 * @return bool
-	 */
-	public function inventoryManagementYAction($preset): bool
-	{
-		if (UseStore::isPlanRestricted())
-		{
-			return false;
-		}
-
-		if (UseStore::enableWithoutResetting())
-		{
-			UseStore::installPreset($preset);
-		}
-
-		return true;
-	}
-
-	public function inventoryManagementInstallPresetAction($preset): bool
-	{
-		UseStore::installPreset($preset);
-
-		return true;
-	}
-
-	public function unRegisterOnPrologAction(): bool
-	{
-		return PresetHandler::unRegister();
-	}
-
-	public function conductedDocumentsExistAction(): bool
-	{
-		return UseStore::conductedDocumentsExist();
-	}
-
-	public function checkEnablingConditionsAction(): array
-	{
-		$result = [];
-
-		if (UseStore::isQuantityInconsistent())
-		{
-			$result[] = self::QUANTITY_INCONSISTENCY_EXISTS;
-		}
-
-		if (UseStore::conductedDocumentsExist())
-		{
-			$result[] = self::CONDUCTED_DOCUMENTS_EXIST;
-		}
-
-		return $result;
+		return State::isUsedInventoryManagement();
 	}
 }

@@ -3,6 +3,8 @@
 namespace Bitrix\Ui\EntityForm;
 
 use Bitrix\Main\Entity;
+use Bitrix\Main\ORM\Fields\ArrayField;
+use Bitrix\Main\Text\Emoji;
 
 /**
  * Class EntityFormConfigTable
@@ -32,29 +34,95 @@ class EntityFormConfigTable extends Entity\DataManager
 		return [
 			new Entity\IntegerField('ID', [
 				'autocomplete' => true,
-				'primary' => true
+				'primary' => true,
 			]),
 			new Entity\StringField('CATEGORY', [
 				'required' => true,
-				'size' => 20
+				'size' => 20,
 			]),
 			new Entity\StringField('ENTITY_TYPE_ID', [
 				'required' => true,
-				'size' => 60
+				'size' => 60,
 			]),
 			new Entity\StringField('NAME', [
 				'required' => true,
-				'size' => 100
+				'size' => 100,
 			]),
-			new Entity\TextField('CONFIG', [
-				'serialized' => true,
-				'required' => true
-			]),
+			(new ArrayField('CONFIG'))
+				->configureSerializeCallback(function ($value) {
+					return EntityFormConfigTable::serialize($value);
+				})
+				->configureUnserializeCallback(function ($value) {
+					return EntityFormConfigTable::unserialize($value);
+				}),
 			new Entity\BooleanField('COMMON', [
 				'values' => ['N', 'Y'],
 				'required' => true,
-				'default_value' => 'N'
-			])
+				'default_value' => 'N',
+			]),
+			new Entity\BooleanField('AUTO_APPLY_SCOPE', [
+				'values' => ['N', 'Y'],
+				'required' => true,
+				'default_value' => 'N',
+			]),
+			new Entity\StringField('OPTION_CATEGORY', [
+				'required' => true,
+				'size' => 50,
+			]),
+			new Entity\BooleanField('ON_ADD', [
+				'values' => ['N', 'Y'],
+				'required' => true,
+				'default_value' => 'Y',
+			]),
+			new Entity\BooleanField('ON_UPDATE', [
+				'values' => ['N', 'Y'],
+				'required' => true,
+				'default_value' => 'Y',
+			]),
 		];
+	}
+
+	private static function unserialize(string $fieldValue): array
+	{
+		$unserialized = unserialize($fieldValue, ['allowed_classes' => false]);
+
+		if ($unserialized === false)
+		{
+			return [];
+		}
+
+		if (is_array($unserialized))
+		{
+			array_walk_recursive(
+				$unserialized,
+				function (&$value) {
+					if (is_string($value))
+					{
+						$value = Emoji::decode($value);
+					}
+				},
+			);
+		}
+		elseif (is_string($unserialized))
+		{
+			$unserialized = Emoji::decode($unserialized);
+		}
+
+		return is_array($unserialized) ? $unserialized : [$unserialized];
+	}
+
+	private static function serialize(array $fieldValue): string
+	{
+		array_walk_recursive(
+			$fieldValue,
+			function (&$value) {
+				if (is_string($value))
+				{
+					$value = Emoji::encode($value);
+				}
+			},
+		);
+
+		return serialize($fieldValue);
 	}
 }

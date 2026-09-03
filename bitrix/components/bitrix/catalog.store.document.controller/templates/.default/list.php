@@ -5,6 +5,9 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 }
 
 use Bitrix\Main;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\StoreDocumentTable;
 
 /** @global \CMain $APPLICATION */
 /** @var array $arResult */
@@ -15,9 +18,59 @@ global $APPLICATION;
 
 $documentType = $arResult['VARIABLES']['DOCUMENT_TYPE'] ?? null;
 
+if (!$documentType)
+{
+	$accessController = AccessController::getCurrent();
+	if (
+		$accessController->checkByValue(
+			ActionDictionary::ACTION_STORE_DOCUMENT_VIEW,
+			StoreDocumentTable::TYPE_ARRIVAL
+		)
+		|| $accessController->checkByValue(
+			ActionDictionary::ACTION_STORE_DOCUMENT_VIEW,
+			StoreDocumentTable::TYPE_STORE_ADJUSTMENT
+		)
+	)
+	{
+		$documentType = 'receipt_adjustment';
+	}
+	elseif (
+		$accessController->checkByValue(
+			ActionDictionary::ACTION_STORE_DOCUMENT_VIEW,
+			StoreDocumentTable::TYPE_MOVING
+		)
+	)
+	{
+		$documentType = 'moving';
+	}
+	elseif (
+		$accessController->checkByValue(
+			ActionDictionary::ACTION_STORE_DOCUMENT_VIEW,
+			StoreDocumentTable::TYPE_DEDUCT
+		)
+	)
+	{
+		$documentType = 'deduct';
+	}
+	elseif (
+		$accessController->checkByValue(
+			ActionDictionary::ACTION_STORE_DOCUMENT_VIEW,
+			StoreDocumentTable::TYPE_SALES_ORDERS
+		)
+	)
+	{
+		$documentType = 'sales_order';
+	}
+}
+
 $componentParams = [
 	'MODE' => $documentType,
 	'PATH_TO' => $arResult['PATH_TO'],
+	'USE_CHECKBOX_LIST_FOR_SETTINGS_POPUP' => \Bitrix\Main\ModuleManager::isModuleInstalled('ui'),
+	'ENABLE_FIELDS_SEARCH' => 'Y',
+	'CONFIG' => [
+		'popupWidth' => 800,
+	],
 ];
 
 if ($documentType === 'sales_order')

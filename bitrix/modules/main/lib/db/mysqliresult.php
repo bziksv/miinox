@@ -1,9 +1,10 @@
 <?php
+
 namespace Bitrix\Main\DB;
 
 class MysqliResult extends Result
 {
-	/** @var \mysqli_result */
+	/** @var \mysqli_result|bool */
 	protected $resource;
 
 	/** @var \Bitrix\Main\ORM\Fields\ScalarField[]  */
@@ -11,10 +12,10 @@ class MysqliResult extends Result
 
 	/**
 	 * @param resource $result Database-specific query result.
-	 * @param Connection $dbConnection Connection object.
-	 * @param \Bitrix\Main\Diag\SqlTrackerQuery $trackerQuery Helps to collect debug information.
+	 * @param Connection|null $dbConnection Connection object.
+	 * @param \Bitrix\Main\Diag\SqlTrackerQuery|null $trackerQuery Helps to collect debug information.
 	 */
-	public function __construct($result, Connection $dbConnection = null, \Bitrix\Main\Diag\SqlTrackerQuery $trackerQuery = null)
+	public function __construct($result, ?Connection $dbConnection = null, ?\Bitrix\Main\Diag\SqlTrackerQuery $trackerQuery = null)
 	{
 		parent::__construct($result, $dbConnection, $trackerQuery);
 	}
@@ -26,7 +27,61 @@ class MysqliResult extends Result
 	 */
 	public function getSelectedRowsCount()
 	{
-		return $this->resource->num_rows;
+		if (is_object($this->resource))
+		{
+			return (int)$this->resource->num_rows;
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Returns the number of fields in the result.
+	 * 
+	 * @return int
+	 */
+	public function getFieldsCount(): int
+	{
+		if (is_object($this->resource))
+		{
+			return (int)$this->resource->field_count;
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Returns the size of the last fetched row.
+	 *
+	 * @return int
+	 */
+	public function getLength(): int
+	{
+		return (int) array_sum($this->resource->lengths);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function hasBigFields(): bool
+	{
+		if (is_object($this->resource))
+		{
+			$fields = $this->resource->fetch_fields();
+			if ($fields && $this->connection)
+			{
+				$helper = $this->connection->getSqlHelper();
+				foreach ($fields as $field)
+				{
+					if ($helper->isBigType($field->type))
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -47,7 +102,7 @@ class MysqliResult extends Result
 					$helper = $this->connection->getSqlHelper();
 					foreach ($fields as $field)
 					{
-						$this->resultFields[$field->name] = $helper->getFieldByColumnType($field->name, $field->type);
+						$this->resultFields[$field->name] = $helper->getFieldByColumnType($field->name ?: '(empty)', $field->type);
 					}
 				}
 			}

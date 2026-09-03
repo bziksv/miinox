@@ -6,8 +6,6 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type\Collection;
 
-Loc::loadMessages(__FILE__);
-
 /**
  * Class CurrencyClassifier
  */
@@ -253,7 +251,7 @@ final class CurrencyClassifier
 	}
 
 	/**
-	 * Fill thousand separator description.
+	 * Fill a thousand separator description.
 	 *
 	 * @param array $languageIds
 	 * @return void

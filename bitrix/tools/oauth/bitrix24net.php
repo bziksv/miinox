@@ -13,24 +13,9 @@ The page opens in popup window after user authorized on Bitrix24.Net.
  */
 
 define("NOT_CHECK_PERMISSIONS", true);
+define('SOCSERV_CHECK_STATE_ADMIN_SECTION', true);
 
-$arState = array();
-
-if(isset($_REQUEST["state"]) && is_string($_REQUEST["state"]))
-{
-	parse_str($_REQUEST["state"], $arState);
-
-	if(isset($arState['site_id']) && is_string($arState['site_id']))
-	{
-		$site = mb_substr(preg_replace("/[^a-z0-9_]/i", "", $arState['site_id']), 0, 2);
-		define("SITE_ID", $site);
-	}
-	elseif(isset($arState['admin']))
-	{
-		define('ADMIN_SECTION', true);
-	}
-}
-
+require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/socialservices/include/state_processing.php';
 require_once($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/main/include/prolog_before.php");
 
 if(isset($_REQUEST["update_broadcast"]))
@@ -47,9 +32,10 @@ else
 			{
 				if(\Bitrix\Socialservices\ApManager::receive($USER->GetID(), $_REQUEST['apcode']))
 				{
-					if(isset($arState['backurl']))
+					$arState = \Bitrix\Socialservices\OAuth\StateService::getInstance()->getPayload($state);
+					if(isset($arState['redirect_url']))
 					{
-						LocalRedirect($arState['backurl']);
+						LocalRedirect($arState['redirect_url']);
 					}
 					elseif(defined('ADMIN_SECTION'))
 					{

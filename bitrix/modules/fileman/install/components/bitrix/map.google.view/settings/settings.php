@@ -1,11 +1,11 @@
 <?
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/interface/init_admin.php");
 
 __IncludeLang($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/map.google.view/lang/'.LANGUAGE_ID.'/settings.php');
 
-//if(!$USER->IsAdmin())
-//	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+if(!$USER->IsAdmin())
+	CMain::FinalActions();
 
 $obJSPopup = new CJSPopup('',
 	array(
@@ -18,8 +18,6 @@ $obJSPopup = new CJSPopup('',
 $arData = array();
 if ($_REQUEST['MAP_DATA'])
 {
-	CUtil::JSPostUnescape();
-
 	if (CheckSerializedData($_REQUEST['MAP_DATA']))
 	{
 		$arData = unserialize($_REQUEST['MAP_DATA'], ['allowed_classes' => false]);
@@ -36,11 +34,11 @@ if ($_REQUEST['MAP_DATA'])
 
 $mapId = (string)rand(0, 1000000);
 ?>
-<script type="text/javascript" src="/bitrix/components/bitrix/map.google.view/settings/settings_load.js"></script>
-<script type="text/javascript">
+<script src="/bitrix/components/bitrix/map.google.view/settings/settings_load.js"></script>
+<script>
 BX.loadCSS('/bitrix/components/bitrix/map.google.view/settings/settings.css');
 var arPositionData = <?echo is_array($arData) && count($arData) > 0 ? CUtil::PhpToJsObject($arData) : '{}'?>;
-window._global_BX_UTF = <?echo defined('BX_UTF') && BX_UTF == true ? 'true' : 'false'?>;
+window._global_BX_UTF = true;
 BX.message({
 	google_noname: '<?echo CUtil::JSEscape(GetMessage('MYMV_SET_NONAME'))?>',
 	google_MAP_VIEW_ROADMAP: '<?echo CUtil::JSEscape(GetMessage('MYMS_PARAM_INIT_MAP_TYPE_MAP'))?>',
@@ -95,7 +93,7 @@ $APPLICATION->IncludeComponent('bitrix:map.google.system', '', array(
 		<div id="bx_google_addpoint_message_<?=$mapId?>" style="display: none;"><?echo GetMessage('MYMV_SET_POINTS_ADD_DESCRIPTION')?> <a href="javascript:void(0)" onclick="jsGoogleCE.addPoint(); return false;"><?echo GetMessage('MYMV_SET_POINTS_ADD_FINISH')?></a>.</div>
 	</div>
 </div>
-<script type="text/javascript">
+<script>
 if (null != window.jsGoogleCESearch)
 	jsGoogleCESearch.clear();
 

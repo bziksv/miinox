@@ -1,4 +1,5 @@
 <?php
+
 use Bitrix\Main;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Loader;
@@ -220,6 +221,21 @@ class CIBlockCMLImport
 		return false;
 	}
 
+	public function isTemporaryTablesExist(): bool
+	{
+		return $this->_xml_file->IsExistTemporaryTable();
+	}
+
+	public function isTemporaryTablesStructureCorrect(): bool
+	{
+		return $this->_xml_file->isTableStructureCorrect();
+	}
+
+	public function truncateTemporaryTables(): bool
+	{
+		return $this->_xml_file->truncateTemporaryTables();
+	}
+
 	function DropTemporaryTables()
 	{
 		return $this->_xml_file->DropTemporaryTables();
@@ -228,6 +244,11 @@ class CIBlockCMLImport
 	function CreateTemporaryTables()
 	{
 		return $this->_xml_file->CreateTemporaryTables();
+	}
+
+	function initializeTemporaryTables()
+	{
+		return $this->_xml_file->initializeTemporaryTables();
 	}
 
 	function IndexTemporaryTables()
@@ -275,50 +296,73 @@ class CIBlockCMLImport
 		$this->arTempFiles = array();
 	}
 
-	function MakeFileArray($file, $fields = array())
+	public function MakeFileArray($file, $fields = [])
 	{
-		if(is_array($file))
+		if (is_array($file))
 		{
-			if(
-				array_key_exists($this->mess["IBLOCK_XML2_BX_URL"], $file)
-				&& $file[$this->mess["IBLOCK_XML2_BX_URL"]] <> ''
-			)
+			$url = (string)($file[$this->mess['IBLOCK_XML2_BX_URL']] ?? '');
+			if ($url !== '')
 			{
 				if (Loader::includeModule('clouds'))
 				{
-					$bucket = CCloudStorage::FindBucketByFile($file[$this->mess["IBLOCK_XML2_BX_URL"]]);
-					if(is_object($bucket) && $bucket->READ_ONLY === "Y")
+					$bucket = CCloudStorage::FindBucketByFile($url);
+					if (is_object($bucket) && $bucket->READ_ONLY === 'Y')
 					{
-						return array(
-							"name" => $file[$this->mess["IBLOCK_XML2_BX_ORIGINAL_NAME"]],
-							"description" => $file[$this->mess["IBLOCK_XML2_DESCRIPTION"]],
-							"tmp_name" => $file[$this->mess["IBLOCK_XML2_BX_URL"]],
-							"file_size" => $file[$this->mess["IBLOCK_XML2_BX_FILE_SIZE"]],
-							"width" => $file[$this->mess["IBLOCK_XML2_BX_FILE_WIDTH"]],
-							"height" => $file[$this->mess["IBLOCK_XML2_BX_FILE_HEIGHT"]],
-							"type" => $file[$this->mess["IBLOCK_XML2_BX_FILE_CONTENT_TYPE"]],
-							"content" => "", //Fake field in order to avoid warning
-							"bucket" => $bucket,
-						);
+						return [
+							'name' => $file[$this->mess['IBLOCK_XML2_BX_ORIGINAL_NAME']],
+							'description' => $file[$this->mess['IBLOCK_XML2_DESCRIPTION']],
+							'tmp_name' => $url,
+							'file_size' => $file[$this->mess['IBLOCK_XML2_BX_FILE_SIZE']],
+							'width' => $file[$this->mess['IBLOCK_XML2_BX_FILE_WIDTH']],
+							'height' => $file[$this->mess['IBLOCK_XML2_BX_FILE_HEIGHT']],
+							'type' => $file[$this->mess['IBLOCK_XML2_BX_FILE_CONTENT_TYPE']],
+							'content' => '', //Fake field in order to avoid warning
+							'bucket' => $bucket,
+						];
 					}
 				}
-				return CFile::MakeFileArray($this->URLEncode($file[$this->mess["IBLOCK_XML2_BX_URL"]])); //Download from the cloud
+
+				return CFile::MakeFileArray($this->URLEncode($url)); //Download from the cloud
 			}
 		}
 		else
 		{
-			if ($file <> '')
+			$file = (string)$file;
+			if ($file !== '')
 			{
-				$external_id = md5($file);
-				if (is_file($this->files_dir.$file))
-					return CFile::MakeFileArray($this->files_dir.$file, false, false, $external_id);
-				$fileId = $this->CheckFileByName($external_id, $fields);
-				if ($fileId > 0)
-					return CFile::MakeFileArray($fileId);
+				try
+				{
+					$filePath = Main\IO\Path::normalize($file);
+				}
+				catch (Main\IO\InvalidPathException)
+				{
+					$filePath = '';
+				}
+				if ($filePath === '/')
+				{
+					$filePath = '';
+				}
+				if ($filePath !== '')
+				{
+					$externalId = md5($filePath);
+					$fullPath = Main\IO\Path::combine($this->files_dir, $filePath);
+					if (is_file($fullPath))
+					{
+						return CFile::MakeFileArray($fullPath, false, false, $externalId);
+					}
+					$fileId = (int)$this->CheckFileByName($externalId, $fields);
+					if ($fileId > 0)
+					{
+						return CFile::MakeFileArray($fileId);
+					}
+				}
 			}
 		}
 
-		return array("tmp_name"=>"", "del"=>"Y");
+		return [
+			'tmp_name' => '',
+			'del' => 'Y',
+		];
 	}
 
 	function URLEncode($str)
@@ -403,7 +447,7 @@ class CIBlockCMLImport
 		elseif($secondaryField && ($fileId = $this->CheckFileByName($external_id, array($secondaryField))) > 0)
 		{
 			$storedFile = CFile::MakeFileArray($fileId);
-			if ($storedFile)
+			if (isset($storedFile['tmp_name']))
 			{
 				$tempFile = CTempFile::GetFileName(bx_basename($storedFile["tmp_name"]));
 				CheckDirPath($tempFile);
@@ -1961,9 +2005,39 @@ class CIBlockCMLImport
 				unset($arProperty['SERIALIZED']);
 			}
 
-			$rsProperty = $obProperty->GetList(array(), array("IBLOCK_ID"=>$IBLOCK_ID, "XML_ID"=>$arProperty["XML_ID"]));
-			if($arDBProperty = $rsProperty->Fetch())
+			$rsProperty = $obProperty->GetList(
+				array(),
+				array(
+					"IBLOCK_ID"=>$IBLOCK_ID,
+					"XML_ID"=>$arProperty["XML_ID"],
+				)
+			);
+			$arDBProperty = $rsProperty->Fetch();
+			unset($rsProperty);
+			if ($arDBProperty)
 			{
+				$arDBProperty['FEATURES'] = [];
+				$featuresIterator = Iblock\PropertyFeatureTable::getList([
+					'select' => [
+						'ID',
+						'MODULE_ID',
+						'FEATURE_ID',
+						'IS_ENABLED',
+					],
+					'filter' => [
+						'=PROPERTY_ID' => (int)$arDBProperty['ID'],
+					],
+					'order' => [
+						'ID' => 'ASC',
+					],
+				]);
+				while ($featureRow = $featuresIterator->fetch())
+				{
+					unset($featureRow['ID']);
+					$arDBProperty['FEATURES'][] = $featureRow;
+				}
+				unset($featureRow, $featuresIterator);
+
 				$bChanged = false;
 				foreach($arProperty as $key=>$value)
 				{
@@ -2143,16 +2217,47 @@ class CIBlockCMLImport
 			if (!$hlblock)
 			{
 				$highBlockName = trim($arProperty["CODE"]);
-				$highBlockName = preg_replace("/([^A-Za-z0-9]+)/", "", $highBlockName);
-				if ($highBlockName == "")
-					return GetMessage("IBLOCK_XML2_HBLOCK_NAME_IS_INVALID");
+				$highBlockName = preg_replace('/([^A-Za-z0-9]+)/', '', $highBlockName);
+				$highBlockName = preg_replace('/(^[0-9]+)/', '', $highBlockName);
+				if ($highBlockName === '')
+				{
+					return GetMessage('IBLOCK_XML2_HBLOCK_NAME_IS_INVALID');
+				}
 
-				$highBlockName = strtoupper(substr($highBlockName, 0, 1)).substr($highBlockName, 1);
-				$data = array(
+				$highBlockName = ucfirst($highBlockName);
+				$data = [
 					'NAME' => $highBlockName,
 					'TABLE_NAME' => $tableName,
-				);
+				];
 				$result = Bitrix\Highloadblock\HighloadBlockTable::add($data);
+				if (!$result->isSuccess())
+				{
+					$errors = implode('. ', $result->getErrorMessages());
+					if ($errors === '')
+					{
+						$errors = GetMessage(
+							'IBLOCK_XML2_HBLOCK_CREATE_ERROR_UNKNOWN',
+							[
+								'#ID#' => $arProperty['ID'],
+								'#NAME#' => $arProperty['NAME'],
+							]
+						);
+					}
+					else
+					{
+						$errors = GetMessage(
+							'IBLOCK_XML2_HBLOCK_CREATE_ERROR',
+							[
+								'#ID#' => $arProperty['ID'],
+								'#NAME#' => $arProperty['NAME'],
+								'#ERRORS#' => $errors,
+							]
+						);
+					}
+
+					return $errors;
+				}
+
 				$highBlockID = $result->getId();
 
 				$arFieldsName = array(
@@ -2890,15 +2995,7 @@ class CIBlockCMLImport
 
 	function Unserialize($string)
 	{
-		if(defined("BX_UTF"))
-		{
-			//                                 1      2   3
-			$decoded_string = preg_replace_callback('/(s:\d+:")(.*?)(";)/s', array($this, "__unserialize_callback"), $string);
-		}
-		else
-		{
-			$decoded_string = $string;
-		}
+		$decoded_string = preg_replace_callback('/(s:\d+:")(.*?)(";)/s', array($this, "__unserialize_callback"), $string);
 		return unserialize($decoded_string, ['allowed_classes' => false]);
 	}
 
@@ -3589,8 +3686,10 @@ class CIBlockCMLImport
 			{
 				foreach($arXMLElement[$this->mess["IBLOCK_XML2_PROPERTIES_VALUES"]] as $value)
 				{
-					if(!array_key_exists($this->mess["IBLOCK_XML2_ID"], $value))
+					if (!isset($value[$this->mess['IBLOCK_XML2_ID']]))
+					{
 						continue;
+					}
 
 					$prop_id = $value[$this->mess["IBLOCK_XML2_ID"]];
 					unset($value[$this->mess["IBLOCK_XML2_ID"]]);
@@ -5247,7 +5346,7 @@ class CIBlockCMLImport
 			return $counter;
 
 		$arFilter = array(
-			">ID" => $this->next_step["LAST_ID"],
+			">ID" => $this->next_step["LAST_ID"] ?? 0,
 			"IBLOCK_ID" => $IBLOCK_ID,
 		);
 		if(!$bDelete)
@@ -6791,7 +6890,7 @@ class CIBlockCMLExport
 			$arFilter = array (
 				"IBLOCK_ID"=> $this->arIBlock["ID"],
 				"ACTIVE" => "Y",
-				">ID" => $this->next_step["LAST_ID"],
+				">ID" => $this->next_step["LAST_ID"] ?? 0,
 			);
 			if($arElementFilter === "all")
 				unset($arFilter["ACTIVE"]);

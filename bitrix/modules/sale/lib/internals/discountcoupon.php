@@ -1,9 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\Internals;
 
 use Bitrix\Main;
 use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Data\DataManager;
 use Bitrix\Sale;
 
 Loc::loadMessages(__FILE__);
@@ -40,9 +42,9 @@ Loc::loadMessages(__FILE__);
  *
  * <<< ORMENTITYANNOTATION
  * @method static EO_DiscountCoupon_Query query()
- * @method static EO_DiscountCoupon_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_DiscountCoupon_Result getByPrimary($primary, array $parameters = [])
  * @method static EO_DiscountCoupon_Result getById($id)
- * @method static EO_DiscountCoupon_Result getList(array $parameters = array())
+ * @method static EO_DiscountCoupon_Result getList(array $parameters = [])
  * @method static EO_DiscountCoupon_Entity getEntity()
  * @method static \Bitrix\Sale\Internals\EO_DiscountCoupon createObject($setDefaultValues = true)
  * @method static \Bitrix\Sale\Internals\EO_DiscountCoupon_Collection createCollection()
@@ -50,7 +52,7 @@ Loc::loadMessages(__FILE__);
  * @method static \Bitrix\Sale\Internals\EO_DiscountCoupon_Collection wakeUpCollection($rows)
  */
 
-class DiscountCouponTable extends Main\Entity\DataManager
+class DiscountCouponTable extends DataManager
 {
 	const TYPE_UNKNOWN = 0x0000;
 	const TYPE_BASKET_ROW = 0x0001;
@@ -959,6 +961,10 @@ class DiscountCouponTable extends Main\Entity\DataManager
 		$result = new Main\Entity\Result();
 		if (!empty($fields) && is_array($fields))
 		{
+			if (isset($fields['COUPON']) && is_string($fields['COUPON']))
+			{
+				$fields['COUPON'] = trim($fields['COUPON']);
+			}
 			if (isset($fields['ACTIVE_FROM']) && is_string($fields['ACTIVE_FROM']))
 			{
 				$fields['ACTIVE_FROM'] = trim($fields['ACTIVE_FROM']);

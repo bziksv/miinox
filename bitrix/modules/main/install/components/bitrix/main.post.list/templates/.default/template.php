@@ -6,16 +6,17 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 }
 
 /**
- * @var CMain $APPLICATION
- * @var CUser $USER
- * @global CDatabase $DB
+ * @global CMain $APPLICATION
+ * @global CUser $USER
  * @var array $arParams
  * @var array $arResult
+ * @var MainPostList $component
 */
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Page\Asset;
-use \Bitrix\Main\UI;
+use Bitrix\Main\UI;
+use Bitrix\Main\Web\Json;
 
 UI\Extension::load([
 	'ui.design-tokens',
@@ -25,6 +26,10 @@ UI\Extension::load([
 	'ui.icons.b24',
 	'ui.urlpreview',
 	'socialnetwork.livefeed',
+	'popup',
+	'ui.icon-set.main',
+	'main.core',
+	'ui.avatar'
 ]);
 
 $APPLICATION->SetAdditionalCSS("/bitrix/components/bitrix/socialnetwork.log.ex/templates/.default/style.css");
@@ -69,7 +74,7 @@ ob_start();
 		#BEFORE_RECORD#
 		<div class="feed-com-block blog-comment-user-#AUTHOR_ID# sonet-log-comment-createdby-#AUTHOR_ID# feed-com-block-#APPROVED##CLASSNAME#">
 			#BEFORE_HEADER#
-			<div class="ui-icon ui-icon-common-user feed-com-avatar feed-com-avatar-#AUTHOR_AVATAR_IS#"><i></i><img src="#AUTHOR_AVATAR#" width="<?=$arParams["AVATAR_SIZE"]?>" height="<?=$arParams["AVATAR_SIZE"]?>" /></div>
+			<div class="ui-icon ui-icon-common-user feed-com-avatar #AUTHOR_AVATAR_STYLE# feed-com-avatar-#AUTHOR_AVATAR_IS#"><i></i><img src="#AUTHOR_AVATAR#" width="<?=$arParams["AVATAR_SIZE"]?>" height="<?=$arParams["AVATAR_SIZE"]?>" alt="" /></div>
 			<!--/noindex-->
 			<div class="feed-com-main-content feed-com-block-#NEW#">
 				<span class="feed-com-name #AUTHOR_EXTRANET_STYLE# feed-author-name feed-author-name-#AUTHOR_ID#">#AUTHOR_NAME#</span>
@@ -81,6 +86,7 @@ ob_start();
 					 bx-tooltip-user-id="#AUTHOR_ID#"
 					 bx-tooltip-params="#AUTHOR_TOOLTIP_PARAMS#"
 					 href="<?=($arParams["AUTHOR_URL"] != "" ? "#AUTHOR_URL#" : "javascript:void(0);")?>">#AUTHOR_NAME#</a>
+					#MOBILE_HINTS#
 					<a class="feed-time feed-com-time" href="#VIEW_URL##com#ID#" rel="nofollow" target="_top">#DATE#</a>
 				</div>
 				#AFTER_HEADER#
@@ -115,13 +121,12 @@ ob_start();
 			{
 				?><a href="javascript:void(0);" class="feed-com-reply feed-com-reply-#SHOW_POST_FORM#" <?php
 				?>id="record-#FULL_ID#-actions-reply" <?php
-				?>onclick="BX.onCustomEvent(BX('<?=$eventNodeIdTemplate?>'), 'onReply', [this]);" <?php
+				?>onclick="BX.onCustomEvent(BX('<?=$eventNodeIdTemplate?>'), 'onReply', [this, 'reply_button']);" <?php
 				?>bx-mpl-author-id="#AUTHOR_ID#" <?php
 				?>bx-mpl-author-gender="#AUTHOR_PERSONAL_GENDER#" <?php
 				?>bx-mpl-author-name="#AUTHOR_NAME#" <?php
 				?>data-slider-ignore-autobinding="true"><?= Loc::getMessage('BLOG_C_REPLY') ?></a><?php
 			}
-
 
 			if (!$arParams["bPublicPage"])
 			{
@@ -174,22 +179,25 @@ else
 		{
 			ob_start();
 
-			if ($arParams["PREORDER"] == "Y")
+			if ($arParams["PREORDER"] === "Y")
 			{
 				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?php
 			}
 			?><div class="feed-com-header"><?php
 
-				$navStringCaption = ($arParams["PREORDER"] == "Y" ? Loc::getMessage('BLOG_C_VIEW1') : Loc::getMessage('BLOG_C_VIEW2'));
+				$navStringCaption = $arParams["PREORDER"] === "Y"
+					? Loc::getMessage('BLOG_C_VIEW1_MSGVER_1', ['#COMMENTS_COUNT#' => $arResult["NAV_STRING_COUNT_MORE"]])
+					: Loc::getMessage('BLOG_C_VIEW2_MSGVER_1', ['#COMMENTS_COUNT#' => $arResult["NAV_STRING_COUNT_MORE"]])
+				;
 				?><a class="feed-com-all" href="<?=$arParams["NAV_STRING"]?>"<?php
 					?> id="<?= $prefixNode ?>_page_nav" <?php
 					?> bx-mpl-comments-count="<?= $arResult["NAV_STRING_COUNT_MORE"] ?>"<?php
 					?> data-slider-ignore-autobinding="true"><?php
-					?><?= $navStringCaption ?> <span class="feed-com-all-count"><?= $arResult["NAV_STRING_COUNT_MORE"] ?></span><i></i><?php
+					?><?= $navStringCaption ?><i></i><?php
 				?></a><?php
 				?><span class="feed-com-loader-informer" id="<?= $prefixNode ?>_page_nav_loader" style="display:none;"><?= Loc::getMessage('BLOG_C_LOADING')?></span><?php
 			?></div><?php
-			if ($arParams["PREORDER"] != "Y")
+			if ($arParams["PREORDER"] !== "Y")
 			{
 				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?php
 			}
@@ -201,8 +209,8 @@ else
 		}
 	}
 	$tmp = reset($arParams["RECORDS"]);
-	?><div class="feed-com-corner<?=($arParams["NAV_STRING"] === "" && $tmp["NEW"] == "Y" ? " feed-post-block-yellow-corner" : "")?>"></div><?php
-	if ($arParams["PREORDER"] != "Y")
+	?><div class="feed-com-corner<?=($arParams["NAV_STRING"] === "" && $tmp["NEW"] === "Y" ? " feed-post-block-yellow-corner" : "")?>"></div><?php
+	if ($arParams["PREORDER"] !== "Y")
 	{
 		?><?= $arParams["NAV_STRING"] ?><?php
 	}
@@ -230,13 +238,13 @@ else
 			<label for="collapsed_switcher_<?=$arParams["ENTITY_XML_ID"]?>_<?=$res["ID"]?>"
 				data-bx-collapse-role="show">
 				<a class="feed-com-collapsed-btn">
-					<?= Loc::getMessage('MPL_SHOW_COLLAPSED_COMMENTS')?> (#COLLAPSED_MESSAGES_COUNT#)
+					<?= Loc::getMessage('MPL_SHOW_COLLAPSED_COMMENTS_MSGVER_1')?>
 				</a>
 			</label>
 			<label for="collapsed_switcher_<?=$arParams["ENTITY_XML_ID"]?>_<?=$res["ID"]?>"
 				data-bx-collapse-role="hide">
 				<a class="feed-com-collapsed-btn">
-					<?= Loc::getMessage('MPL_HIDE_COLLAPSED_COMMENTS')?> (#COLLAPSED_MESSAGES_COUNT#)
+					<?= Loc::getMessage('MPL_HIDE_COLLAPSED_COMMENTS_MSGVER_1')?>
 				</a>
 			</label>
 			<div class="feed-com-collapsed-block">
@@ -279,7 +287,7 @@ else
 
 		$res["AUTHOR"] = (is_array($res["AUTHOR"]) ? $res["AUTHOR"] : array());
 		$isMessageBlank = !(array_key_exists("POST_MESSAGE_TEXT", $res) && $res["POST_MESSAGE_TEXT"] !== null);
-		$collapsedMessagesBlockIsCollapsed = ($res["NEW"] == "Y" || $res["ID"] == $arParams["RESULT"] ? false : $collapsedMessagesBlockIsCollapsed);
+		$collapsedMessagesBlockIsCollapsed = ($res["NEW"] === "Y" || $res["ID"] == $arParams["RESULT"] ? false : $collapsedMessagesBlockIsCollapsed);
 		?><div id="record-<?=$arParams["ENTITY_XML_ID"]?>-<?=$res["ID"]?>-cover" <?php
 			?>bx-mpl-xml-id="<?=$arParams["ENTITY_XML_ID"]?>" <?php
 			?>bx-mpl-entity-id="<?=$res["ID"]?>" <?php
@@ -287,7 +295,7 @@ else
 			?>bx-mpl-blank-status="<?=($isMessageBlank ? "blank" : "full")?>" <?php
 			?>bx-mpl-block="main" <?php
 			?>class="feed-com-block-cover"><?php
-				?><?= $this->__component->parseTemplate($res, $arParams, ($isMessageBlank ? $blankTemplate : $template)) ?>
+				?><?= $component->parseTemplate($res, $arParams, ($isMessageBlank ? $blankTemplate : $template)) ?>
 			</div>
 		<?php
 	}
@@ -316,15 +324,15 @@ else
 	}
 }
 $ajaxParams = [];
-if ($this->__component->__parent instanceof \Bitrix\Main\Engine\Contract\Controllerable)
+if ($component->__parent instanceof \Bitrix\Main\Engine\Contract\Controllerable)
 {
 	$ajaxParams = [
-		"componentName" => $this->__component->__parent->getName(),
-		"processComment" => method_exists($this->__component->__parent, "processCommentAction"),
-		"navigateComment" => method_exists($this->__component->__parent, "navigateCommentAction"),
-		"getComment" => method_exists($this->__component->__parent, "getCommentAction"),
-		"readComment" => method_exists($this->__component->__parent, "readCommentAction"),
-		"params" => $this->__component->__parent->getSignedParameters()
+		"componentName" => $component->__parent->getName(),
+		"processComment" => method_exists($component->__parent, "processCommentAction"),
+		"navigateComment" => method_exists($component->__parent, "navigateCommentAction"),
+		"getComment" => method_exists($component->__parent, "getCommentAction"),
+		"readComment" => method_exists($component->__parent, "readCommentAction"),
+		"params" => $component->__parent->getSignedParameters()
 	];
 }
 
@@ -355,7 +363,7 @@ BX.ready(function(){
 				CREATESUBTASK : '<?= ($arParams['RIGHTS']['CREATESUBTASK'] ?? 'N') ?>',
 			},
 		sign : '<?=$arParams["SIGN"]?>',
-		ajax : <?=CUtil::PhpToJSObject($ajaxParams)?>
+		ajax : <?= Json::encode($ajaxParams) ?>
 		},
 		{
 			VIEW_URL : '<?=CUtil::JSEscape($arParams["~VIEW_URL"] ?? '')?>',
@@ -363,7 +371,7 @@ BX.ready(function(){
 			MODERATE_URL : '<?=CUtil::JSEscape($arParams["~MODERATE_URL"] ?? '')?>',
 			DELETE_URL : '<?=CUtil::JSEscape($arParams["~DELETE_URL"] ?? '')?>',
 			AUTHOR_URL : '<?=CUtil::JSEscape($arParams["~AUTHOR_URL"] ?? '')?>',
-			AUTHOR_URL_PARAMS: <?=(isset($arParams["AUTHOR_URL_PARAMS"]) ? CUtil::PhpToJSObject($arParams["AUTHOR_URL_PARAMS"]) : '{}')?>,
+			AUTHOR_URL_PARAMS: <?=(isset($arParams["AUTHOR_URL_PARAMS"]) ? Json::encode($arParams["AUTHOR_URL_PARAMS"]) : '{}') ?>,
 
 			AVATAR_SIZE : '<?=CUtil::JSEscape($arParams["AVATAR_SIZE"])?>',
 			NAME_TEMPLATE : '<?=CUtil::JSEscape($arParams["~NAME_TEMPLATE"])?>',
@@ -397,6 +405,14 @@ BX.ready(function(){
 	?>
 });
 </script>
+
+<script>
+	BX.ready(() => {
+		new BX.Main.PostList.MobileButton({
+			containerId: '<?=CUtil::JSEscape($eventNodeId)?>',
+		});
+	});
+</script>
 <div id="record-<?=$prefixNode?>-new"></div><?php
 if (!empty($arParams["ERROR_MESSAGE"]))
 {
@@ -404,18 +420,86 @@ if (!empty($arParams["ERROR_MESSAGE"]))
 		<b><?= Loc::getMessage('B_B_PC_COM_ERROR') ?></b><br /><?= $arParams["ERROR_MESSAGE"] ?></span></div><?php
 }
 
-include_once(__DIR__ . '/messages.php');
+?>
+<script>
+<?php if (IsModuleInstalled("im")): ?>
+if (window.SPC)
+{
+	SPC.notifyManagerShow();
+}
+<?php endif ?>
+
+<?php if (IsModuleInstalled("socialnetwork") && $USER instanceof CUser): ?>
+if (BX.CommentAux)
+{
+	BX.CommentAux.init({
+		currentUserSonetGroupIdList: <?= Json::encode(\Bitrix\Socialnetwork\ComponentHelper::getUserSonetGroupIdList($USER->GetID(), SITE_ID)) ?>,
+		mobile: false,
+		publicSection: <?=(isset($arParams["bPublicPage"]) && $arParams["bPublicPage"] ? 'true' : 'false')?>,
+		currentExtranetUser: <?=($arResult["currentExtranetUser"] ? 'true' : 'false')?>,
+		availableUsersList: <?= Json::encode($arResult["availableUsersList"]) ?>,
+	});
+}
+<?php endif ?>
+
+BX.message({
+	MPL_HAVE_WRITTEN : '<?=GetMessageJS("MPL_HAVE_WRITTEN_MSGVER_1")?>',
+	MPL_HAVE_WRITTEN_M : '<?=GetMessageJS("MPL_HAVE_WRITTEN_M_MSGVER_1")?>',
+	MPL_HAVE_WRITTEN_F : '<?=GetMessageJS("MPL_HAVE_WRITTEN_F_MSGVER_1")?>',
+	B_B_MS_LINK : '<?=GetMessageJS("B_B_MS_LINK2")?>',
+	MPL_MES_HREF : '<?=GetMessageJS("MPL_MES_HREF")?>',
+	BPC_MES_EDIT : '<?=GetMessageJS("BPC_MES_EDIT")?>',
+	BPC_MES_HIDE : '<?=GetMessageJS("BPC_MES_HIDE")?>',
+	BPC_MES_SHOW : '<?=GetMessageJS("BPC_MES_SHOW")?>',
+	BPC_MES_DELETE : '<?=GetMessageJS("BPC_MES_DELETE")?>',
+	BPC_MES_DELETE_POST_CONFIRM : '<?=GetMessageJS("BPC_MES_DELETE_POST_CONFIRM")?>',
+	BPC_MES_CREATE_TASK_RESULT : '<?=GetMessageJS("BPC_MES_CREATE_TASK_RESULT")?>',
+	BPC_MES_DELETE_TASK_RESULT : '<?=GetMessageJS("BPC_MES_DELETE_TASK_RESULT")?>',
+	BPC_MES_CREATE_TASK : '<?=GetMessageJS("BPC_MES_CREATE_TASK")?>',
+	BPC_MES_CREATE_SUBTASK : '<?=GetMessageJS("BPC_MES_CREATE_SUBTASK")?>',
+	JERROR_NO_MESSAGE : '<?=GetMessageJS("JERROR_NO_MESSAGE")?>',
+	BLOG_C_HIDE : '<?=GetMessageJS("BLOG_C_HIDE")?>',
+	MPL_IS_EXTRANET_SITE: '<?=(CModule::IncludeModule("extranet") && CExtranet::IsExtranetSite() ? 'Y' : 'N')?>',
+	JQOUTE_AUTHOR_WRITES : '<?=GetMessageJS("JQOUTE_AUTHOR_WRITES")?>',
+	FC_ERROR : '<?=GetMessageJS("B_B_PC_COM_ERROR")?>',
+	MPL_SAFE_EDIT : '<?=GetMessageJS('MPL_SAFE_EDIT')?>',
+	MPL_ERROR_OCCURRED : '<?=GetMessageJS('MPL_ERROR_OCCURRED')?>',
+	MPL_CLOSE : '<?=GetMessageJS('MPL_CLOSE')?>',
+	MPL_MOBILE_HINTS : '<?=GetMessageJS('MPL_MOBILE_HINTS')?>',
+	MPL_MOBILE_HINTS_DETAILS : '<?=GetMessageJS('MPL_MOBILE_HINTS_DETAILS')?>',
+	MPL_MOBILE_POPUP_TITLE : '<?=GetMessageJS('MPL_MOBILE_POPUP_TITLE')?>',
+	MPL_MOBILE_POPUP_BOTTOM_TEXT : '<?=GetMessageJS('MPL_MOBILE_POPUP_BOTTOM_TEXT')?>',
+	MPL_LINK_COPIED : '<?=GetMessageJS('MPL_LINK_COPIED')?>'
+	<?php
+		if (IsModuleInstalled("socialnetwork"))
+		{
+			?>
+			, MPL_WORKGROUPS_PATH : '<?=CUtil::JSEscape(COption::GetOptionString("socialnetwork", "workgroups_page", SITE_DIR."workgroups/", SITE_ID))?>'
+	<?php
+		}
+	?>,
+	MPL_QUOTE_COPILOT: '<?= GetMessageJS('MPL_QUOTE_COPILOT')?>',
+	});
+</script>
+<?php
 
 if ($arParams["SHOW_POST_FORM"] == "Y")
 {
-	$AUTHOR_AVATAR = __mpl_get_avatar();
+	$AUTHOR_AVATAR = $component->getAvatar();
 
 	?><div class="feed-com-add-box-outer" id="record-<?= $prefixNode ?>-form-holder">
 
-		<div class="ui-icon ui-icon-common-user feed-com-avatar feed-com-avatar-<?= ($AUTHOR_AVATAR === '/bitrix/images/1.gif' ? "N" : "Y") ?>"><?php
-			?>
+		<div
+			class="
+				ui-icon
+				ui-icon-common-user
+				feed-com-avatar
+				<?= ($arResult['AUTHOR']['IS_COLLABER'] ?? false) ? 'feed-com-avatar-collaber' : '' ?>
+				feed-com-avatar-<?= ($AUTHOR_AVATAR === '/bitrix/images/1.gif' ? "N" : "Y") ?>
+			"
+		>
 			<i></i>
-			<img width="37" height="37" src="<?= \Bitrix\Main\Web\Uri::urnEncode($AUTHOR_AVATAR) ?>">
+			<img width="37" height="37" src="<?= \Bitrix\Main\Web\Uri::urnEncode($AUTHOR_AVATAR) ?>" alt="">
 			<?php
 		?></div>
 

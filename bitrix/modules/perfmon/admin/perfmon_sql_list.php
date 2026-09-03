@@ -1,285 +1,466 @@
-<?
+<?php
+
 use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Extension;
+use Bitrix\Main\UI\Filter\Options;
 
-define("ADMIN_MODULE_NAME", "perfmon");
-define("PERFMON_STOP", true);
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-/** @global CMain $APPLICATION */
-/** @global CDatabase $DB */
-/** @global CUser $USER */
+define('ADMIN_MODULE_NAME', 'perfmon');
+define('PERFMON_STOP', true);
+require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_before.php';
+/** @var CMain $APPLICATION */
 Loader::includeModule('perfmon');
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/perfmon/prolog.php");
+require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/perfmon/prolog.php';
 
-IncludeModuleLangFile(__FILE__);
+$RIGHT = CMain::GetGroupRight('perfmon');
+if (!Bitrix\Main\Engine\CurrentUser::get()->isAdmin() || ($RIGHT === 'D'))
+{
+	$APPLICATION->AuthForm(Loc::getMessage('ACCESS_DENIED'));
+}
 
-$RIGHT = $APPLICATION->GetGroupRight("perfmon");
-if ($RIGHT == "D")
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
+$bCluster = Loader::includeModule('cluster');
 
-$bCluster = CModule::IncludeModule('cluster');
+/** @var \Bitrix\Main\HttpRequest $request */
+$request = \Bitrix\Main\Context::getCurrent()->getRequest();
 
 if (
-	$_SERVER["REQUEST_METHOD"] === "GET"
-	&& isset($_GET["ajax_tooltip"]) && $_GET["ajax_tooltip"] === "y"
-	&& isset($_GET["sql_id"])
+	$request->getRequestMethod() === 'GET'
+	&& $request->get('ajax_tooltip') === 'y'
+	&& $request->get('sql_id') !== null
 	&& check_bitrix_sessid()
 )
 {
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
+	require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_js.php';
 
-	$rsData = CPerfomanceSQL::GetBacktraceList($_GET["sql_id"]);
+	$rsData = CPerfomanceSQL::GetBacktraceList($request->get('sql_id'));
 	$arData = $rsData->Fetch();
 	if ($arData)
 	{
 		?>
-		<table class="list"><?
+		<style>
+			.left-align {
+				text-align: left;
+			}
+			.right-align {
+				text-align: right;
+			}
+		</style>
+		<table class="list"><?php
 		?>
 		<tr>
-		<td align="left"><b><? echo GetMessage("PERFMON_SQL_FILE") ?></b></td>
-		<td align="left"><b><? echo GetMessage("PERFMON_SQL_LINE_NUMBER"); ?></b></td>
-		<td align="left"><b><? echo GetMessage("PERFMON_SQL_FUNCTION"); ?></b></td>
-		</tr><?
+		<td class="left-align"><b><?php echo Loc::getMessage('PERFMON_SQL_FILE') ?></b></td>
+		<td class="left-align"><b><?php echo Loc::getMessage('PERFMON_SQL_LINE_NUMBER'); ?></b></td>
+		<td class="left-align"><b><?php echo Loc::getMessage('PERFMON_SQL_FUNCTION'); ?></b></td>
+		</tr><?php
 		do
 		{
 			?>
 			<tr>
-			<td align="left">&nbsp;<? echo htmlspecialcharsex($arData["FILE_NAME"]) ?></td>
-			<td align="right">&nbsp;<? echo htmlspecialcharsex($arData["LINE_NO"]) ?></td>
-			<?
-			if ($arData["CLASS_NAME"]):?>
-				<td align="left">
-					&nbsp;<? echo htmlspecialcharsex($arData["CLASS_NAME"]."::".$arData["FUNCTION_NAME"]) ?></td>
-			<? else: ?>
-				<td align="left">&nbsp;<? echo htmlspecialcharsex($arData["FUNCTION_NAME"]) ?></td>
-			<?endif; ?>
-			</tr><?
-		} while ($arData = $rsData->Fetch());
-		?></table><?
+			<td class="left-align">&nbsp;<?php echo htmlspecialcharsEx($arData['FILE_NAME']) ?></td>
+			<td class="right-align">&nbsp;<?php echo htmlspecialcharsEx($arData['LINE_NO']) ?></td>
+			<?php
+			if ($arData['CLASS_NAME']):?>
+				<td class="left-align">
+					&nbsp;<?php echo htmlspecialcharsEx($arData['CLASS_NAME'] . '::' . $arData['FUNCTION_NAME']) ?></td>
+			<?php else: ?>
+				<td class="left-align">&nbsp;<?php echo htmlspecialcharsEx($arData['FUNCTION_NAME']) ?></td>
+			<?php endif; ?>
+			</tr><?php
+		}
+		while ($arData = $rsData->Fetch());
+		?></table><?php
 	}
 	else
 	{
-		?>no backtrace found<?
+		?>no backtrace found<?php
 	}
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
+	require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/epilog_admin_js.php';
 }
 
-$sTableID = "tbl_perfmon_sql_list";
-$oSort = new CAdminSorting($sTableID, "NN", "asc");
-$lAdmin = new CAdminList($sTableID, $oSort);
+Extension::load(['sidepanel']);
 
-$FilterArr = array(
-	"find",
-	"find_type",
-	"find_hit_id",
-	"find_component_id",
-	"find_query_time",
-	"find_suggest_id",
-	"find_node_id",
-);
+$adminListTableID = 'tbl_perfmon_sql_list';
+$oSort = new CAdminUiSorting($adminListTableID, 'NN', 'asc');
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
+$lAdmin = new CAdminUiList($adminListTableID, $oSort);
 
-$lAdmin->InitFilter($FilterArr);
+$arHeaders = [
+	[
+		'id' => 'ID',
+		'content' => Loc::getMessage('PERFMON_SQL_ID'),
+		'sort' => 'ID',
+		'align' => 'right',
+		'default' => true,
+	],
+	[
+		'id' => 'HIT_ID',
+		'content' => Loc::getMessage('PERFMON_SQL_HIT_ID'),
+		'sort' => 'HIT_ID',
+		'align' => 'right',
+		'default' => true,
+	],
+	[
+		'id' => 'NN',
+		'content' => Loc::getMessage('PERFMON_SQL_NN'),
+		'sort' => 'NN',
+		'align' => 'right',
+		'default' => true,
+	],
+	[
+		'id' => 'QUERY_TIME',
+		'content' => Loc::getMessage('PERFMON_SQL_QUERY_TIME'),
+		'sort' => 'QUERY_TIME',
+		'align' => 'right',
+		'default' => true,
+	],
+	[
+		'id' => 'MODULE_NAME',
+		'content' => Loc::getMessage('PERFMON_SQL_MODULE_NAME'),
+		'sort' => 'MODULE_NAME',
+	],
+	[
+		'id' => 'COMPONENT_NAME',
+		'content' => Loc::getMessage('PERFMON_SQL_COMPONENT_NAME'),
+		'sort' => 'COMPONENT_NAME',
+	],
+	[
+		'id' => 'QUERY_STAT',
+		'content' => Loc::getMessage('PERFMON_SQL_QUERY_STAT'),
+		'default' => true,
+	],
+	[
+		'id' => 'SQL_TEXT',
+		'content' => Loc::getMessage('PERFMON_SQL_SQL_TEXT'),
+		'default' => true,
+	],
+];
 
-$arFilter = array(
-	"=HIT_ID" => ($find != "" && $find_type == "hit_id"? $find: $find_hit_id),
-	"=COMPONENT_ID" => ($find != "" && $find_type == "component_id"? $find: $find_component_id),
-	">=QUERY_TIME" => floatval($find_query_time),
-	"=SUGGEST_ID" => intval($find_suggest_id),
-);
-foreach ($arFilter as $key => $value)
-{
-	if (!$value)
-		unset($arFilter[$key]);
-}
+$filterFields = [
+	[
+		'id' => 'ID',
+		'name' => 'ID',
+		'field' => '=ID',
+	],
+	[
+		'id' => 'find_hit_id',
+		'name' => Loc::getMessage('PERFMON_SQL_HIT_ID'),
+		'default' => true,
+		'field' => '=HIT_ID',
+	],
+	[
+		'id' => 'find_component_id',
+		'name' => Loc::getMessage('PERFMON_SQL_COMPONENT_NAME'),
+		'field' => '=COMPONENT_ID',
+	],
+	[
+		'id' => 'find_query_time',
+		'name' => Loc::getMessage('PERFMON_SQL_QUERY_TIME'),
+		'field' => '>=QUERY_TIME',
+	],
+	[
+		'id' => 'SELECTED_ROWS',
+		'name' => Loc::getMessage('PERFMON_SQL_FIELD_SELECTED_ROWS'),
+		'field' => '>=SELECTED_ROWS',
+	],
+	[
+		'id' => 'SELECTED_FIELDS',
+		'name' => Loc::getMessage('PERFMON_SQL_FIELD_SELECTED_FIELDS'),
+		'field' => '>=SELECTED_FIELDS',
+	],
+	[
+		'id' => 'FETCHED_ROWS',
+		'name' => Loc::getMessage('PERFMON_SQL_FIELD_FETCHED_ROWS'),
+		'field' => '>=FETCHED_ROWS',
+	],
+	[
+		'id' => 'FETCHED_LENGTH',
+		'name' => Loc::getMessage('PERFMON_SQL_FIELD_FETCHED_LENGTH'),
+		'field' => '>=FETCHED_LENGTH',
+	],
+	[
+		'id' => 'HAS_BIG_FIELDS',
+		'name' => Loc::getMessage('PERFMON_SQL_FIELD_HAS_BIG_FIELDS'),
+		'field' => '=HAS_BIG_FIELDS',
+		'type' => 'list',
+		'items' => [
+			'Y' => Loc::getMessage('PERFMON_SQL_BIG_FIELDS_YES'),
+			'N' => Loc::getMessage('PERFMON_SQL_BIG_FIELDS_NO'),
+		],
+	],
+];
 
-if ($find_node_id != "")
-{
-	if ($find_node_id > 1)
-	{
-		$arFilter["=NODE_ID"] = $find_node_id;
-	}
-	else
-	{
-		$arFilter[] = array(
-			"LOGIC" => "OR",
-			array(
-				"=NODE_ID" => 1,
-			),
-			array(
-				"=NODE_ID" => false,
-			),
-		);
-	}
-}
-
-$arHeaders = array(
-	array(
-		"id" => "ID",
-		"content" => GetMessage("PERFMON_SQL_ID"),
-		"sort" => "ID",
-		"align" => "right",
-		"default" => true,
-	),
-	array(
-		"id" => "HIT_ID",
-		"content" => GetMessage("PERFMON_SQL_HIT_ID"),
-		"sort" => "HIT_ID",
-		"align" => "right",
-		"default" => true,
-	),
-	array(
-		"id" => "NN",
-		"content" => GetMessage("PERFMON_SQL_NN"),
-		"sort" => "NN",
-		"align" => "right",
-		"default" => true,
-	),
-	array(
-		"id" => "QUERY_TIME",
-		"content" => GetMessage("PERFMON_SQL_QUERY_TIME"),
-		"sort" => "QUERY_TIME",
-		"align" => "right",
-		"default" => true,
-	),
-	array(
-		"id" => "MODULE_NAME",
-		"content" => GetMessage("PERFMON_SQL_MODULE_NAME"),
-		"sort" => "MODULE_NAME",
-	),
-	array(
-		"id" => "COMPONENT_NAME",
-		"content" => GetMessage("PERFMON_SQL_COMPONENT_NAME"),
-		"sort" => "COMPONENT_NAME",
-	),
-	array(
-		"id" => "SQL_TEXT",
-		"content" => GetMessage("PERFMON_SQL_SQL_TEXT"),
-		//"sort" => "SQL_TEXT",
-		"default" => true,
-	),
-);
-
-$arClusterNodes = array();
+$arClusterNodes = [];
 if ($bCluster)
 {
-	$arHeaders[] = array(
-		"id" => "NODE_ID",
-		"content" => GetMessage("PERFMON_SQL_NODE_ID"),
-	);
-	$arClusterNodes[""] = GetMessage("MAIN_ALL");
+	$arHeaders[] = [
+		'id' => 'NODE_ID',
+		'content' => Loc::getMessage('PERFMON_SQL_NODE_ID'),
+	];
+	$arClusterNodes[''] = Loc::getMessage('MAIN_ALL');
 	$rsNodes = CClusterDBNode::GetList();
 	while ($node = $rsNodes->fetch())
-		$arClusterNodes[$node["ID"]] = htmlspecialcharsex($node["NAME"]);
+	{
+		$arClusterNodes[$node['ID']] = htmlspecialcharsEx($node['NAME']);
+	}
+
+	$filterFields[] = [
+		'id' => 'find_node_id',
+		'name' => Loc::getMessage('PERFMON_SQL_NODE_ID'),
+		'filterable' => '',
+		'type' => 'list',
+		'items' => $arClusterNodes,
+		'field' => 'NODE_ID',
+	];
 }
 
 $lAdmin->AddHeaders($arHeaders);
 
 $arSelectedFields = $lAdmin->GetVisibleHeaderColumns();
-if (!is_array($arSelectedFields) || (count($arSelectedFields) < 1))
-	$arSelectedFields = array(
-		"ID",
-		"HIT_ID",
-		"NN",
-		"QUERY_TIME",
-		"SQL_TEXT",
-	);
+if (!is_array($arSelectedFields) || (empty($arSelectedFields)))
+{
+	$arSelectedFields = [
+		'ID',
+		'HIT_ID',
+		'NN',
+		'QUERY_TIME',
+		'SQL_TEXT',
+		'SELECTED_ROWS',
+		'SELECTED_FIELDS',
+		'FETCHED_ROWS',
+		'FETCHED_LENGTH',
+		'HAS_BIG_FIELDS',
+	];
+}
 
-$cData = new CPerfomanceSQL;
-$rsData = $cData->GetList($arSelectedFields, $arFilter, array($by => $order), false, array("nPageSize" => CAdminResult::GetNavSize($sTableID)));
+if ($bCluster && !in_array('NODE_ID', $arSelectedFields, true))
+{
+	$arSelectedFields[] = 'NODE_ID';
+}
 
-$rsData = new CAdminResult($rsData, $sTableID);
-$rsData->NavStart();
-$lAdmin->NavText($rsData->GetNavPrint(GetMessage("PERFMON_SQL_PAGE")));
+$statFields = [
+	'SELECTED_ROWS' => [
+		'warnValue' => 20,
+		'dangerValue' => 50,
+	],
+	'SELECTED_FIELDS' => [
+		'warnValue' => 10,
+		'dangerValue' => 25,
+	],
+	'FETCHED_ROWS' => [
+		'warnValue' => 20,
+		'dangerValue' => 50,
+	],
+	'FETCHED_LENGTH' => [
+		'warnValue' => 100000,
+		'dangerValue' => 500000,
+		'size' => true,
+	],
+	'HAS_BIG_FIELDS' => [],
+];
+if (in_array('QUERY_STAT', $arSelectedFields, true))
+{
+	$arSelectedFields = array_merge($arSelectedFields, array_keys($statFields));
+}
+if (!in_array('ID', $arSelectedFields, true))
+{
+	$arSelectedFields[] = 'ID';
+}
 
-while ($arRes = $rsData->NavNext(true, "f_")):
-	$arRes["SQL_TEXT"] = CPerfomanceSQL::Format($arRes["SQL_TEXT"]);
-	$row =& $lAdmin->AddRow($f_NAME, $arRes);
+$currentFilter = $lAdmin->InitFilter(array_column($filterFields, 'id'));
+$filterOption = new \Bitrix\Main\UI\Filter\Options($adminListTableID);
 
-	$row->AddViewField("QUERY_TIME", perfmon_NumberFormat($f_QUERY_TIME, 6));
+if (!empty($currentFilter) && !$request->get('grid_action'))
+{
+	$settings = \Bitrix\Main\UI\Filter\Options::fetchSettingsFromQuery($filterFields, $request);
 
-	if (class_exists("geshi") && $f_SQL_TEXT)
+	if ($settings !== null)
 	{
-		$obGeSHi = new GeSHi(CSqlFormat::reformatSql($arRes["SQL_TEXT"], new CSqlFormatText), 'sql');
-		$html = $obGeSHi->parse_code();
+		$filterOption->setCurrentFilterPresetId(Options::TMP_FILTER);
+		$filterOption->setFilterSettings(Options::TMP_FILTER, $settings, true, false);
+		$filterOption->save();
+	}
+}
+
+$filterData = $filterOption->getFilter($filterFields);
+$filter = [];
+$lAdmin->AddFilter($filterFields, $filter);
+
+foreach ($filterFields as $field)
+{
+	if (isset($filter[$field['id']]) && $field['id'] !== 'find_node_id')
+	{
+		$filter[$field['field']] = $filter[$field['id']];
+
+		unset($filter[$field['id']]);
+	}
+}
+
+if (isset($filter['find_node_id']))
+{
+	if ($filter['find_node_id'] > 1)
+	{
+		$filter['=NODE_ID'] = (int) $filter['find_node_id'];
 	}
 	else
 	{
-		$html = str_replace(
-			array(" ", "\t", "\n"),
-			array(" ", "&nbsp;&nbsp;&nbsp;", "<br>"),
-			htmlspecialcharsbx(CSqlFormat::reformatSql($arRes["SQL_TEXT"]))
-		);
+		$filter['0'] = [
+			'LOGIC' => 'OR',
+			'0' => [
+				'=NODE_ID' => 1,
+			],
+			'1' => [
+				'=NODE_ID' => false,
+			],
+		];
 	}
+	unset($filter['find_node_id']);
+}
 
-	$html = '<span onmouseover="addTimer(this)" onmouseout="removeTimer(this)" id="'.$f_ID.'_sql_backtrace">'.$html.'</span>';
+$nav = $lAdmin->getPageNavigation('nav-perfmon-sql-list');
+$arNavParams = [
+	'nTopCount' => $nav->getLimit(),
+	'nOffset' => $nav->getOffset(),
+];
 
-	$row->AddViewField("SQL_TEXT", $html);
-	$row->AddViewField("HIT_ID", '<a href="perfmon_hit_list.php?lang='.LANGUAGE_ID.'&amp;set_filter=Y&amp;find_id='.$f_HIT_ID.'">'.$f_HIT_ID.'</a>');
-	if ($bCluster && $arRes["NODE_ID"] != "")
+$rsData = CPerfomanceSQL::GetList($arSelectedFields, $filter, [$by => $order], false, $arNavParams);
+$totalCount = CPerfomanceSQL::GetList(['COUNT'], $filter, ['COUNT' => 'ASC'], false)->Fetch();
+
+if ($totalCount)
+{
+	$totalCount = (int) $totalCount['COUNT'];
+}
+
+$queryIterator = new CAdminUiResult($rsData, $adminListTableID);
+
+$nav->setRecordCount($totalCount);
+$lAdmin->setNavigation($nav, GetMessage('MAIN_USER_ADMIN_PAGES'), false);
+
+while ($query = $queryIterator->Fetch())
+{
+	$explainUrl = 'perfmon_explain.php?lang=' . LANG . '&ID=' . $query['ID'];
+	$query['SQL_TEXT'] = CPerfomanceSQL::Format($query['SQL_TEXT']);
+	$row = $lAdmin->AddRow($query['ID'], $query, $explainUrl);
+
+	$row->AddViewField('QUERY_TIME', perfmon_NumberFormat($query['QUERY_TIME'], 6));
+
+	$html = str_replace(
+		[' ', "\t", "\n"],
+		[' ', '&nbsp;&nbsp;&nbsp;', '<br>'],
+		htmlspecialcharsbx(CSqlFormat::reformatSql($query['SQL_TEXT'])),
+	);
+
+	$html = '<span onmouseover="addTimer(this)" onmouseout="removeTimer(this)" id="' . $query['ID'] . '_sql_backtrace">' . $html . '</span>';
+
+	$row->AddViewField('SQL_TEXT', $html);
+	$row->AddViewField('HIT_ID', '<a href="perfmon_hit_list.php?lang=' . LANGUAGE_ID . '&amp;set_filter=Y&amp;find_id=' . $query['HIT_ID'] . '">' . $query['HIT_ID'] . '</a>');
+	if ($bCluster && $query['NODE_ID'] != '')
 	{
-		if ($arRes["NODE_ID"] < 0)
+		if ($query['NODE_ID'] < 0)
+		{
 			$html = '<div class="lamp-red" style="display:inline-block"></div>';
+		}
 		else
+		{
 			$html = '';
-		
-		if ($arRes["NODE_ID"] > 1)
-			$html .= $arClusterNodes[$arRes["NODE_ID"]];
+		}
+
+		if ($query['NODE_ID'] > 1)
+		{
+			$html .= $arClusterNodes[$query['NODE_ID']];
+		}
 		else
+		{
 			$html .= $arClusterNodes[1];
+		}
 
-		$row->AddViewField("NODE_ID", $html);
+		$row->AddViewField('NODE_ID', $html);
 	}
 
-	$arActions = array();
-	if ($DBType == "mysql" || $DBType == "oracle")
+	if (isset($query['SELECTED_ROWS']) && $query['SELECTED_FIELDS'] > 0)
 	{
-		$arActions[] = array(
-			"DEFAULT" => "Y",
-			"TEXT" => GetMessage("PERFMON_SQL_EXPLAIN"),
-			"ACTION" => 'jsUtils.OpenWindow(\'perfmon_explain.php?lang='.LANG.'&ID='.$f_ID.'\', 600, 500);',
-		);
+		$fieldContent = '';
+		foreach ($statFields as $field => $params)
+		{
+			if ($field === 'HAS_BIG_FIELDS')
+			{
+				continue;
+			}
+
+			$color = 'ui-label-tag-light';
+
+			if ($query[$field] > $params['dangerValue'])
+			{
+				$color = 'ui-label-lightred';
+			}
+			elseif ($query[$field] > $params['warnValue'])
+			{
+				$color = 'ui-label-lightorange';
+			}
+
+			if (isset($params['size']) && $params['size'])
+			{
+				$query[$field] = CFile::FormatSize($query[$field]);
+			}
+
+			$text = Loc::getMessage('PERFMON_SQL_FIELD_' . $field) . ': ' . $query[$field];
+
+			$fieldContent .= '<span class="ui-label ' . $color . ' ui-label-fill perf-label">
+				<span class="ui-label-inner">
+					' . $text . '
+				</span>
+			</span>';
+		}
+
+		if (isset($query['HAS_BIG_FIELDS']) && $query['HAS_BIG_FIELDS'] === 'Y')
+		{
+			$text = Loc::getMessage('PERFMON_SQL_FIELD_HAS_BIG_FIELDS');
+			$fieldContent .= '<span class="ui-label ui-label-lightorange ui-label-fill perf-label">
+				<span class="ui-label-inner">
+					' . $text . '
+				</span>
+			</span>';
+		}
+
+		if ($query['SELECTED_FIELDS'] > 0 && $query['SELECTED_ROWS'] > $query['FETCHED_ROWS'])
+		{
+			$text = Loc::getMessage('PERFMON_SQL_WRONG_LIMIT');
+			$fieldContent .= '<span class="ui-label ui-label-danger ui-label-fill perf-label">
+				<span class="ui-label-inner">
+					' . $text . '
+				</span>
+			</span>';
+		}
+
+		$row->AddViewField('QUERY_STAT', $fieldContent);
 	}
-	if (count($arActions))
-		$row->AddActions($arActions);
-endwhile;
 
-$lAdmin->AddFooter(
-	array(
-		array(
-			"title" => GetMessage("MAIN_ADMIN_LIST_SELECTED"),
-			"value" => $rsData->SelectedRowsCount(),
-		),
-	)
-);
+	$arActions = [];
+	$arActions[] = [
+		'DEFAULT' => 'Y',
+		'TEXT' => Loc::getMessage('PERFMON_SQL_EXPLAIN'),
+		'ACTION' => 'BX.adminSidePanel.onOpenPage("' . CUtil::JSEscape($explainUrl) . '");',
+	];
+	$row->AddActions($arActions);
+	$row->setConfig([
+		CAdminUiListRow::DEFAULT_ACTION_TYPE_FIELD => CAdminUiListRow::LINK_TYPE_SLIDER,
+	]);
+}
 
-$aContext = array();
-$lAdmin->AddAdminContextMenu($aContext);
+$APPLICATION->SetTitle(Loc::getMessage('PERFMON_SQL_TITLE'));
 
-$lAdmin->CheckListMode();
+require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_after.php';
 
-$APPLICATION->SetTitle(GetMessage("PERFMON_SQL_TITLE"));
-
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
-
-$arFilter = array(
-	"find_hit_id" => GetMessage("PERFMON_SQL_HIT_ID"),
-	"find_component_id" => GetMessage("PERFMON_SQL_COMPONENT_ID"),
-	"find_query_time" => GetMessage("PERFMON_SQL_QUERY_TIME"),
-);
-if ($bCluster)
-	$arFilter["find_node_id"] = GetMessage("PERFMON_SQL_NODE_ID");
-
-$oFilter = new CAdminFilter($sTableID."_filter", $arFilter);
-
-CJSCore::Init(array("ajax", "popup"));
+CJSCore::Init(['ajax', 'popup']);
 ?>
 	<script>
-		var toolTipCache = new Array;
+		let toolTipCache = [];
 
 		function drawTooltip(result, _this)
 		{
 			if (!_this) _this = this;
 
-			if (result != 'no backtrace found')
+			if (result !== 'no backtrace found')
 			{
 				_this.toolTip = BX.PopupWindowManager.create(
 					'table_tooltip_' + (parseInt(Math.random() * 100000)), _this,
@@ -300,14 +481,20 @@ CJSCore::Init(array("ajax", "popup"));
 		function sendRequest()
 		{
 			if (this.toolTip)
+			{
 				this.toolTip.show();
+			}
 			else if (toolTipCache[this.id])
+			{
 				drawTooltip(toolTipCache[this.id], this);
+			}
 			else
+			{
 				BX.ajax.get(
 					'perfmon_sql_list.php?ajax_tooltip=y' + '&sessid=' + BX.message('bitrix_sessid') + '&sql_id=' + this.id,
 					BX.proxy(drawTooltip, this)
 				);
+			}
 		}
 
 		function addTimer(p_href)
@@ -323,67 +510,99 @@ CJSCore::Init(array("ajax", "popup"));
 				p_href.timerID = null;
 			}
 		}
+
+		BX.ready(() => {
+			let pagination = '';
+
+			BX.addCustomEvent('Grid::beforeRequest', (grid, eventArgs) => {
+				pagination = '';
+				if (eventArgs.data && eventArgs.data.apply_filter === 'Y' && eventArgs.data.clear_nav === 'Y')
+				{
+					let current = new URL(window.location.origin + eventArgs.url);
+					current.searchParams.delete('nav-perfmon-sql-list');
+
+					eventArgs.url = current.href;
+				}
+				else if (BX.type.isNotEmptyString(eventArgs.url) && eventArgs.method === 'GET')
+				{
+					let requestURL;
+					try
+					{
+						requestURL = new URL(eventArgs.url);
+					}
+					catch
+					{
+						return
+					}
+
+					let current = new URL(window.location.href);
+
+					if (requestURL.searchParams.has('nav-perfmon-sql-list'))
+					{
+						const newPage = requestURL.searchParams.get('nav-perfmon-sql-list');
+						const currentPage = current.searchParams.get('nav-perfmon-sql-list');
+
+						if (currentPage !== newPage)
+						{
+							requestURL.searchParams.set('nav-perfmon-sql-list', newPage);
+							eventArgs.url = requestURL.href;
+							pagination = newPage;
+						}
+						else
+						{
+							requestURL.searchParams.delete('nav-perfmon-sql-list');
+							eventArgs.url = requestURL.href;
+						}
+					}
+				}
+			});
+
+			BX.addCustomEvent('BX.Main.Filter:apply', (id,data,ctx) => {
+				const url = new URL(location.href);
+				for (const [field, value] of Object.entries(ctx.getFilterFieldsValues()))
+				{
+					const valuestr = String(value);
+					if (valuestr === '')
+					{
+						url.searchParams.delete(field);
+					}
+					else
+					{
+						url.searchParams.set(field, valuestr);
+					}
+				}
+				url.searchParams.delete('nav-perfmon-sql-list');
+				url.searchParams.set('apply_filter', 'Y');
+				window.history.replaceState(null, null, url.href);
+			});
+
+			BX.addCustomEvent('Grid::updated', () => {
+				const url = new URL(location.href);
+				if (pagination)
+				{
+					url.searchParams.set('nav-perfmon-sql-list', pagination);
+					window.history.replaceState(null, null, url.href);
+				}
+				else
+				{
+					url.searchParams.delete('nav-perfmon-sql-list');
+					window.history.replaceState(null, null, url.href);
+				}
+			});
+		});
+
 	</script>
+	<style>
+		.perf-label {
+			margin-bottom: 7px;
+			--ui-font-size-5xs: 12px;
+		}
+	</style>
 
-	<form name="find_form" method="get" action="<? echo $APPLICATION->GetCurPage(); ?>">
-		<? $oFilter->Begin(); ?>
-		<tr>
-			<td><b><?=GetMessage("PERFMON_SQL_FIND")?>:</b></td>
-			<td>
-				<input type="text" size="25" name="find" value="<? echo htmlspecialcharsbx($find) ?>"
-					title="<?=GetMessage("PERFMON_SQL_FIND")?>">
-				<?
-				$arr = array(
-					"reference" => array(
-						GetMessage("PERFMON_SQL_HIT_ID"),
-						GetMessage("PERFMON_SQL_COMPONENT_ID"),
-					),
-					"reference_id" => array(
-						"hit_id",
-						"component_id",
-					)
-				);
-				echo SelectBoxFromArray("find_type", $arr, $find_type, "", "");
-				?>
-			</td>
-		</tr>
-		<tr>
-			<td><?=GetMessage("PERFMON_SQL_HIT_ID")?></td>
-			<td><input type="text" name="find_hit_id" size="47"
-				value="<? echo htmlspecialcharsbx($find_hit_id) ?>"></td>
-		</tr>
-		<tr>
-			<td><?=GetMessage("PERFMON_SQL_COMPONENT_ID")?></td>
-			<td><input type="text" name="find_component_id" size="47"
-				value="<? echo htmlspecialcharsbx($find_component_id) ?>"></td>
-		</tr>
-		<tr>
-			<td><?=GetMessage("PERFMON_SQL_QUERY_TIME")?></td>
-			<td><input type="text" name="find_query_time" size="7"
-				value="<? echo htmlspecialcharsbx($find_query_time) ?>"></td>
-		</tr>
-		<? if ($bCluster): ?>
-			<tr>
-				<td><?=GetMessage("PERFMON_SQL_NODE_ID")?></td>
-				<td><?
-					$arr = array(
-						"reference" => array_values($arClusterNodes),
-						"reference_id" => array_keys($arClusterNodes),
-					);
-					echo SelectBoxFromArray("find_node_id", $arr, $find_node_id, "", "");
-					?></td>
-			</tr>
-		<? endif; ?>
-		<?
-		$oFilter->Buttons(array(
-			"table_id" => $sTableID,
-			"url" => $APPLICATION->GetCurPage(),
-			"form" => "find_form",
-		));
-		$oFilter->End();
-		?>
-	</form>
+<?php
+$lAdmin->DisplayFilter($filterFields);
+$lAdmin->DisplayList([
+	'ACTION_PANEL' => false,
+]);
 
-<? $lAdmin->DisplayList(); ?>
-
-<? require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php"); ?>
+require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/epilog_admin.php';

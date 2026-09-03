@@ -10,6 +10,7 @@ namespace Bitrix\Sender\Integration;
 
 use Bitrix\Main;
 use Bitrix\Main\Entity as MainEntity;
+use Bitrix\Main\Event;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ModuleManager;
@@ -98,6 +99,12 @@ class EventHandler
 		if (ModuleManager::isModuleInstalled('crm'))
 		{
 			Crm\EventHandler::onAfterPostingSendRecipientMultiple($eventDataArray, $letter);
+		}
+
+		foreach ($eventDataArray as $eventData)
+		{
+			$event = new Event('sender', 'OnAfterPostingSendRecipient', [$eventData, $letter]);
+			$event->send();
 		}
 	}
 
@@ -265,11 +272,10 @@ class EventHandler
 				'Bitrix\Sender\Integration\Seo\Ads\MessageYa',
 				\Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeYandex::class,
 				'Bitrix\Sender\Integration\Seo\Ads\MessageGa',
-				'Bitrix\Sender\Integration\Seo\Ads\MessageVk',
+				\Bitrix\Sender\Integration\Seo\Ads\MessageVk::class,
 				'Bitrix\Sender\Integration\Seo\Ads\MessageFb',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageMarketingFb',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageMarketingInstagram',
-				'Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeVk',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeFb',
 			);
 			foreach ($adsList as $adsClass)
@@ -373,11 +379,17 @@ class EventHandler
 		{
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportYa';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportGa';
-			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportVk';
+			if (Bitrix24\Service::isAdVisibleInRegion(Seo\Ads\MessageBase::CODE_ADS_VK))
+			{
+				$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportVk';
+			}
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportFb';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportMarketingFb';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportMarketingInstagram';
-			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeVk';
+			if (Bitrix24\Service::isAdVisibleInRegion(Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_VK))
+			{
+				$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeVk';
+			}
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeFb';
 			$list[] = \Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeYandex::class;
 		}
@@ -454,7 +466,7 @@ class EventHandler
 				{
 					$result->addError(
 						new MainEntity\EntityError(
-							Bitrix24\Limitation\Rating::getNotifyText('blocked')
+							Bitrix24\Limitation\Rating::getNotifyText('blocked'),
 						)
 					);
 				}

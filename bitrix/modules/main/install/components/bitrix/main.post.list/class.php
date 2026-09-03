@@ -5,11 +5,12 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+use Bitrix\Disk\Uf\Integration\DiskUploaderController;
+use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Security\Sign\Signer;
 use Bitrix\Main\Web\Json;
-use Bitrix\Main\Loader;
-use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Web\Uri;
 
 Loc::loadMessages(__FILE__);
@@ -23,6 +24,7 @@ final class MainPostList extends CBitrixComponent
 	private $sign;
 	static $users = array();
 	public $exemplarId;
+	private $user;
 
 	public function __construct($component = null)
 	{
@@ -74,7 +76,7 @@ final class MainPostList extends CBitrixComponent
 	protected function joinToPull()
 	{
 		$text = "";
-		if ($this->getUser() && $this->getUser()->isAuthorized()
+		if ($this->getUser()?->isAuthorized()
 			&& Loader::includeModule("pull")
 			&& \CPullOptions::GetNginxStatus()
 		)
@@ -295,6 +297,20 @@ HTML;
 		}
 	}
 
+	public static function isCollabUser(int $userId): bool
+	{
+		if (!Loader::includeModule('extranet') || $userId <= 0)
+		{
+			return false;
+		}
+
+		$container = class_exists(\Bitrix\Extranet\Service\ServiceContainer::class)
+			? \Bitrix\Extranet\Service\ServiceContainer::getInstance()
+			: null;
+
+		return $container?->getCollaberService()?->isCollaberById($userId) ?? false;
+	}
+
 	protected function buildUser($id)
 	{
 		static $extranetUserIdList = false;
@@ -344,6 +360,8 @@ HTML;
 		$res["LAST_NAME"] = htmlspecialcharsbx($res["LAST_NAME"]);
 		$res["SECOND_NAME"] = htmlspecialcharsbx($res["SECOND_NAME"]);
 		$res["IS_EXTRANET"] = is_array($extranetUserIdList) && in_array($res["ID"], $extranetUserIdList) ? "Y" : "N";
+		$res["FULL_NAME"] = \CUser::FormatName(\CSite::GetNameFormat(false), $res, false, false);
+
 		if (!isset($res["TYPE"]))
 		{
 			if (!empty($res["UF_USER_CRM_ENTITY"]))
@@ -357,7 +375,11 @@ HTML;
 			{
 				$res["TYPE"] = "EMAIL";
 			}
-			elseif ($res["IS_EXTRANET"] == 'Y')
+			elseif ($res["ID"] > 0 && self::isCollabUser($res["ID"]))
+			{
+				$res["TYPE"] = "COLLABER";
+			}
+			elseif ($res["IS_EXTRANET"] === 'Y')
 			{
 				$res["TYPE"] = "EXTRANET";
 			}
@@ -369,7 +391,7 @@ HTML;
 		return $res;
 	}
 
-	protected function buildComment(&$res)
+	protected function buildComment($res, array $specifiedTemplates = ['WEB', 'MOBILE'])
 	{
 		$arParams = $this->arParams;
 		$templateId = implode('_', array($arParams["TEMPLATE_ID"], 'ID', $res['ID'], ''));
@@ -389,13 +411,15 @@ HTML;
 			"AUTHOR" => $this->buildUser(isset($res["AUTHOR_ID"]) && $res["AUTHOR_ID"] ? $res["AUTHOR_ID"] : $res["AUTHOR"]),
 			"RATING" => array_key_exists("RATING", $res) ? $res["RATING"] : false,
 			"CLASSNAME" => '',
-			"WEB" => array(), // html
-			"MOBILE" => array() // html
+			"SHOW_MOBILE_HINTS" => $res['SHOW_MOBILE_HINTS'] ?? 'N',
 		);
 
-		foreach (array("WEB", "MOBILE") as $key)
+		//region Special data for web and mobile views. General data
+		$specifiedTemplates = array_intersect(['WEB', 'MOBILE'], array_merge($specifiedTemplates, [$this->isWeb() ? 'WEB' : 'MOBILE']));
+		//1. General
+		foreach ($specifiedTemplates as $templateCode)
 		{
-			$val = (isset($res[$key]) && $res[$key] ? $res[$key] : $res);
+			$val = $res[$templateCode] ?? $res;
 
 			$defaultDateTime = \CComponentUtil::getDateTimeFormatted(array(
 				'TIMESTAMP' => $res["POST_TIMESTAMP"],
@@ -415,7 +439,7 @@ HTML;
 				$classNameList[] = 'mpl-comment-aux-'.mb_strtolower($res['AUX']);
 			}
 
-			$result[$key] = array(
+			$result[$templateCode] = array(
 				"POST_TIME" => ($val["POST_TIME"] ?? $defaultDateTime),
 				"POST_DATE" => ($val["POST_DATE"] ?? $defaultDateTime),
 				"POST_DATE_AGO" => FormatDate(array(
@@ -447,7 +471,7 @@ HTML;
 				"LIKE_REACT" => ($val["LIKE_REACT"] ?? '') . $this->getApplication()->GetViewContent($templateId.'LIKE_REACT'),
 			);
 		}
-
+		//2. Rating
 		$userHasVoted = (
 			(
 				isset($res["RATING_USER_HAS_VOTED"])
@@ -475,19 +499,24 @@ HTML;
 
 			$buttonText = \CRatingsComponentsMain::getRatingLikeMessage($emotion);
 
-			ob_start();
-			?><span id="bx-ilike-button-<?=htmlspecialcharsbx($res["RATING_VOTE_ID"])?>" class="feed-inform-ilike feed-new-like"><?
-				?><span class="bx-ilike-left-wrap<?=($userHasVoted ? ' bx-you-like-button' : '')?>"><a href="#like" class="bx-ilike-text"><?=$buttonText?></a></span><?
-			?></span><?
-			$result["WEB"]["BEFORE_ACTIONS"] .= ob_get_clean();
-
-			ob_start();
-			?><span id="bx-ilike-button-<?=htmlspecialcharsbx($res["RATING_VOTE_ID"])?>" class="post-comment-control-item post-comment-control-item-like bx-ilike-text" data-rating-vote-id="<?=htmlspecialcharsbx($res["RATING_VOTE_ID"])?>"><?
-				?><span class="bx-ilike-left-wrap<?=($userHasVoted ? ' bx-you-like-button' : '')?>"><?
-					?><span class="bx-ilike-text"><?=$buttonText?></span><?
+			if (isset($result['WEB']))
+			{
+				ob_start();
+				?><span id="bx-ilike-button-<?=htmlspecialcharsbx($res["RATING_VOTE_ID"])?>" class="feed-inform-ilike feed-new-like">
+					<span class="bx-ilike-left-wrap<?=($userHasVoted ? ' bx-you-like-button' : '')?>"><a href="#like" class="bx-ilike-text"><?=$buttonText?></a></span>
+				</span><?
+				$result["WEB"]["BEFORE_ACTIONS"] .= ob_get_clean();
+			}
+			if (isset($result['MOBILE']))
+			{
+				ob_start();
+				?><span id="bx-ilike-button-<?=htmlspecialcharsbx($res["RATING_VOTE_ID"])?>" class="post-comment-control-item post-comment-control-item-like bx-ilike-text" data-rating-vote-id="<?=htmlspecialcharsbx($res["RATING_VOTE_ID"])?>"><?
+					?><span class="bx-ilike-left-wrap<?=($userHasVoted ? ' bx-you-like-button' : '')?>"><?
+						?><span class="bx-ilike-text"><?=$buttonText?></span><?
+					?></span><?
 				?></span><?
-			?></span><?
-			$result["MOBILE"]["BEFORE_ACTIONS"] .= ob_get_clean();
+				$result["MOBILE"]["BEFORE_ACTIONS"] .= ob_get_clean();
+			}
 		}
 
 		if (
@@ -510,44 +539,50 @@ HTML;
 					: array()
 			);
 
-			ob_start();
-			$result["RATING"] = $result["WEB"]["RATING"] = $this->getApplication()->includeComponent(
-				"bitrix:rating.vote",
-				(!empty($res["RATING_VOTE_ID"]) && ModuleManager::isModuleInstalled('intranet') ? "like_react" : "like"),
-				array(
-					"COMMENT" => "Y",
-					"ENTITY_TYPE_ID" => $this->arParams["RATING_TYPE_ID"],
-					"ENTITY_ID" => $result["ID"],
-					"OWNER_ID" => $result["AUTHOR"]["ID"],
-					"PATH_TO_USER_PROFILE" => $this->arParams["AUTHOR_URL"],
-					"VOTE_ID" => (!empty($res["RATING_VOTE_ID"]) ? $res["RATING_VOTE_ID"] : ""),
-					'CURRENT_USER_ID' => (isset($this->arParams['CURRENT_USER_ID']) ? (int)$this->arParams['CURRENT_USER_ID'] : 0),
-				) + $ratingValues,
-				$this,
-				array("HIDE_ICONS" => "Y")
-			);
+			if (isset($result['WEB']))
+			{
+				ob_start();
+				$result["WEB"]["RATING"] = $this->getApplication()->includeComponent(
+					"bitrix:rating.vote",
+					(!empty($res["RATING_VOTE_ID"]) && ModuleManager::isModuleInstalled('intranet') ? "like_react" : "like"),
+					array(
+						"COMMENT" => "Y",
+						"ENTITY_TYPE_ID" => $this->arParams["RATING_TYPE_ID"],
+						"ENTITY_ID" => $result["ID"],
+						"OWNER_ID" => $result["AUTHOR"]["ID"],
+						"PATH_TO_USER_PROFILE" => $this->arParams["AUTHOR_URL"],
+						"VOTE_ID" => (!empty($res["RATING_VOTE_ID"]) ? $res["RATING_VOTE_ID"] : ""),
+						'CURRENT_USER_ID' => (isset($this->arParams['CURRENT_USER_ID']) ? (int)$this->arParams['CURRENT_USER_ID'] : 0),
+					) + $ratingValues,
+					$this,
+					array("HIDE_ICONS" => "Y")
+				);
 
-			$result["WEB"][(!empty($res["RATING_VOTE_ID"]) && ModuleManager::isModuleInstalled('intranet') ? "LIKE_REACT" : "BEFORE_ACTIONS")] .= ob_get_clean();
+				$result["WEB"][(!empty($res["RATING_VOTE_ID"]) && ModuleManager::isModuleInstalled('intranet') ? "LIKE_REACT" : "BEFORE_ACTIONS")] .= ob_get_clean();
+			}
 
-			ob_start();
-			$result["MOBILE"]["RATING"] = $this->getApplication()->includeComponent(
-				"bitrix:rating.vote",
-				"like_react",
-				array(
-					"MOBILE" => "Y",
-					"COMMENT" => "Y",
-					"ENTITY_TYPE_ID" => $this->arParams["RATING_TYPE_ID"],
-					"ENTITY_ID" => $result["ID"],
-					"OWNER_ID" => $result["AUTHOR"]["ID"],
-					"PATH_TO_USER_PROFILE" => $this->arParams["AUTHOR_URL"],
-					"VOTE_ID" => (!empty($res["RATING_VOTE_ID"]) ? $res["RATING_VOTE_ID"] : "")
-				) + $ratingValues,
-				$this,
-				array("HIDE_ICONS" => "Y")
-			);
-			$result["MOBILE"]["LIKE_REACT"] .= ob_get_clean();
+			if (isset($result['MOBILE']))
+			{
+				ob_start();
+				$result["MOBILE"]["RATING"] = $this->getApplication()->includeComponent(
+					"bitrix:rating.vote",
+					"like_react",
+					array(
+						"MOBILE" => "Y",
+						"COMMENT" => "Y",
+						"ENTITY_TYPE_ID" => $this->arParams["RATING_TYPE_ID"],
+						"ENTITY_ID" => $result["ID"],
+						"OWNER_ID" => $result["AUTHOR"]["ID"],
+						"PATH_TO_USER_PROFILE" => $this->arParams["AUTHOR_URL"],
+						"VOTE_ID" => (!empty($res["RATING_VOTE_ID"]) ? $res["RATING_VOTE_ID"] : "")
+					) + $ratingValues,
+					$this,
+					array("HIDE_ICONS" => "Y")
+				);
+				$result["MOBILE"]["LIKE_REACT"] .= ob_get_clean();
+			}
 		}
-
+		//3. Files
 		if (isset($res["FILES"]) && is_array($res["FILES"]))
 		{
 			$images = array();
@@ -568,7 +603,7 @@ HTML;
 					}
 				}
 			}
-			if (!empty($images))
+			if (!empty($images) && isset($result['WEB']))
 			{
 				ob_start();
 				?><div class="feed-com-files">
@@ -596,7 +631,9 @@ HTML;
 					?></div>
 				</div><?
 				$result["WEB"]["AFTER"] = preg_replace("/[\n\t]/", "", ob_get_clean()).$result["WEB"]["AFTER"];
-
+			}
+			if (!empty($images) && isset($result['MOBILE']))
+			{
 				ob_start();
 				?><div class="post-item-attached-img-wrap"><?
 					$ids = array();
@@ -611,11 +648,11 @@ HTML;
 							?>id="<?=$id?>" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2N88f7jfwAJWAPJBTw90AAAAABJRU5ErkJggg==" <?
 							?>data-src="<?=$thumbnail?>" border="0"></div><?
 					}
-				?><script>BitrixMobile.LazyLoad.registerImages(<?=CUtil::PhpToJSObject($ids)?>, oMSL.checkVisibility);</script><?
+				?><script>BitrixMobile.LazyLoad.registerImages(<?= Json::encode($ids) ?>, oMSL.checkVisibility);</script><?
 				?></div><?
 				$result["MOBILE"]["AFTER"] = preg_replace("/[\n\t]/", "", ob_get_clean()).$result["MOBILE"]["AFTER"];
 			}
-			if (!empty($files))
+			if (!empty($files) && isset($result['WEB']))
 			{
 				ob_start();
 				?><div class="feed-com-files feed-com-basic-files-entity">
@@ -646,7 +683,9 @@ HTML;
 					?></div>
 				</div><?
 				$result["WEB"]["AFTER"] = preg_replace("/[\n\t]/", "", ob_get_clean()).$result["WEB"]["AFTER"];
-
+			}
+			if (!empty($files) && isset($result['MOBILE']))
+			{
 				ob_start();
 				?><ul class="post-item-attached-file-wrap"><?
 					foreach($files as $file)
@@ -654,35 +693,38 @@ HTML;
 						?><li><?=$file["FILE_NAME"]?></li><?
 					}
 				?></ul><?
-				$res["MOBILE"]["AFTER"] .= ob_get_clean();
+				$result["MOBILE"]["AFTER"] .= ob_get_clean();
 			}
 		}
-		if (is_array($res["UF"]))
+		//4. UFs
+		if (is_array($res['UF']) && isset($result['WEB']))
 		{
 			ob_start();
 			$uf = ($res["WEB"]['UF'] ?? $res['UF']);
 			foreach ($uf as $arPostField)
 			{
-				if(!empty($arPostField["VALUE"]))
+				if (!empty($arPostField["VALUE"]))
 				{
 					$this->getApplication()->IncludeComponent(
 						"bitrix:system.field.view",
 						$arPostField["USER_TYPE"]["USER_TYPE_ID"],
-						array(
+						[
 							"arUserField" => $arPostField,
 							"TEMPLATE" => $this->getTemplateName(),
 							"LAZYLOAD" => (isset($arParams["LAZYLOAD"]) && $arParams["LAZYLOAD"] == "Y" ? "Y" : "N"),
 							"DISABLE_LOCAL_EDIT" => (isset($arParams["bPublicPage"]) && $arParams["bPublicPage"])
-						) + $arParams,
+						] + $arParams,
 						null,
-						array("HIDE_ICONS"=>"Y")
+						["HIDE_ICONS" => "Y"]
 					);
 				}
 			}
-			$result["WEB"]["AFTER"] = ob_get_clean().$result["WEB"]["AFTER"];
+			$result["WEB"]["AFTER"] = ob_get_clean() . $result["WEB"]["AFTER"];
+		}
 
+		if (is_array($res["UF"]) && isset($result['MOBILE']))
+		{
 			ob_start();
-
 			$uf = ($res["MOBILE"]['UF'] ?? $res['UF']);
 			foreach ($uf as $arPostField)
 			{
@@ -709,14 +751,14 @@ HTML;
 			}
 			$result["CLASSNAME"] .= " feed-com-block-uf";
 		}
-		$result = array_merge($result, ($this->isWeb() ? $result["WEB"] : $result["MOBILE"]));
+		$result = array_merge($result, ($this->isWeb() ? $result['WEB'] : $result['MOBILE']));
+		//endregion
 
 		return $result;
 	}
 
 	public function parseTemplate(array $res, array $arParams, $template)
 	{
-		global $USER;
 		static $extranetSiteId = null;
 
 		$todayString = ConvertTimeStamp();
@@ -736,25 +778,30 @@ HTML;
 				: "javascript:void();"
 		);
 
+		$authorType = $res["AUTHOR"]["TYPE"];
 		$authorStyle = '';
 		$authorTooltipParams = array();
 
-		if (!empty($res["AUTHOR"]["TYPE"]))
+		if (!empty($authorType))
 		{
-			if ($res["AUTHOR"]["TYPE"] == 'EMAILCRM')
+			if ($authorType === 'EMAILCRM')
 			{
 				$authorStyle = ' feed-com-name-emailcrm';
 			}
-			if ($res["AUTHOR"]["TYPE"] == 'EMAIL')
+			if ($authorType === 'EMAIL')
 			{
 				$authorStyle = ' feed-com-name-email';
 			}
-			else if ($res["AUTHOR"]["TYPE"] == 'EXTRANET')
+			else if ($authorType === 'COLLABER')
+			{
+				$authorStyle = ' feed-com-name-collaber';
+			}
+			else if ($authorType === 'EXTRANET')
 			{
 				$authorStyle = ' feed-com-name-extranet';
 			}
 		}
-		else if ($res["AUTHOR"]["IS_EXTRANET"] == "Y")
+		else if ($res["AUTHOR"]["IS_EXTRANET"] === "Y")
 		{
 			$authorStyle = ' feed-com-name-extranet';
 		}
@@ -764,7 +811,7 @@ HTML;
 			&& (
 				(isset($arParams["bPublicPage"]) && $arParams["bPublicPage"])
 				|| SITE_ID == $extranetSiteId
-				|| (!empty($res["AUTHOR"]["TYPE"]) && in_array($res["AUTHOR"]["TYPE"], array('EMAIL', 'EMAILCRM', 'EXTRANET')))
+				|| (!empty($authorType) && in_array($authorType, array('EMAIL', 'EMAILCRM', 'EXTRANET')))
 			)
 		)
 		{
@@ -780,7 +827,7 @@ HTML;
 					$strParams .= ($i > 0 ? '&' : '').urlencode($key).'='.urlencode($value);
 					$i++;
 				}
-				$authorUrl .= (strpos($authorUrl, '?') === false ? '?' : '&').$strParams;
+				$authorUrl .= (!str_contains($authorUrl, '?') ? '?' : '&').$strParams;
 			}
 		}
 
@@ -796,6 +843,8 @@ HTML;
 						: ""
 				)
 		);
+
+		$authorAvatarClass = $authorType === 'COLLABER' ? 'feed-com-avatar-collaber' : '';
 
 		$replacement = array(
 			"#ID#" =>
@@ -863,6 +912,10 @@ HTML;
 			"#CREATETASK_SHOW#" => (
 				empty($res["AUX"])
 				&& $arParams["RIGHTS"]["CREATETASK"] == "Y"
+				&& (
+				isset($res["WEB"])
+				|| (isset($res["MOBILE"]) && ModuleManager::isModuleInstalled('tasksmobile'))
+				)
 					? "Y"
 					: "N"
 			),
@@ -897,6 +950,7 @@ HTML;
 							: ""
 					)
 			),
+			"#AUTHOR_AVATAR_STYLE#" => $authorAvatarClass,
 			"#AUTHOR_AVATAR_BG#" => (
 				!empty($res["AUTHOR"]["AVATAR"])
 					? "background-image:url('" . Uri::urnEncode($res["AUTHOR"]["AVATAR"]) . "')"
@@ -907,6 +961,7 @@ HTML;
 					)
 				),
 			"#AUTHOR_URL#" => $authorUrl,
+			"#AUTHOR_TYPE#" => $authorType,
 			"#AUTHOR_NAME#" =>
 				CUser::FormatName(
 				$arParams["NAME_TEMPLATE"],
@@ -914,7 +969,7 @@ HTML;
 					"NAME" => $res["AUTHOR"]["NAME"],
 					"LAST_NAME" => $res["AUTHOR"]["LAST_NAME"],
 					"SECOND_NAME" => $res["AUTHOR"]["SECOND_NAME"],
-					"LOGIN" => $res["AUTHOR"]["LOGIN"],
+					"LOGIN" => $res["AUTHOR"]["LOGIN"] ?? null,
 					"NAME_LIST_FORMATTED" => ""
 				),
 				($arParams["SHOW_LOGIN"] != "N"),
@@ -931,7 +986,10 @@ HTML;
 			"#RATING_NONEMPTY_CLASS#" =>
 				(!empty($res['RATING']) && !empty($res['RATING']['TOTAL_VOTES']) && $res['RATING']['TOTAL_VOTES'] > 0 ? 'comment-block-rating-nonempty' : ''),
 			"background:url('') no-repeat center;" =>
-				""
+				"",
+			"#MOBILE_HINTS#" => (isset($res['SHOW_MOBILE_HINTS']) && $res['SHOW_MOBILE_HINTS'] === 'Y')
+				? '<span class="feed__mobile_btn"></span>'
+				: '',
 		);
 
 		return str_replace(array_merge(array_keys($replacement), array("\001")), array_merge(array_values($replacement), array("#")), $template);
@@ -983,7 +1041,7 @@ HTML;
 		$arParams["NAME_TEMPLATE"] = (isset($_REQUEST["NAME_TEMPLATE"]) && $_REQUEST["NAME_TEMPLATE"] ? $_REQUEST["NAME_TEMPLATE"] : (isset ($arParams["NAME_TEMPLATE"]) && $arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : \CSite::GetNameFormat()));
 		$arParams["SHOW_LOGIN"] = (isset($_REQUEST["SHOW_LOGIN"]) && $_REQUEST["SHOW_LOGIN"] == "Y" ? "Y" : (isset($arParams["SHOW_LOGIN"]) && $arParams["SHOW_LOGIN"] == "Y" ? "Y" : "N"));
 		$arParams["DATE_TIME_FORMAT"] = trim($arParams["DATE_TIME_FORMAT"]);
-		$arParams["FORM_ID"] = trim($arParams["FORM_ID"]);
+		$arParams["FORM_ID"] = trim($arParams["FORM_ID"] ?? '');
 		$arParams["SHOW_POST_FORM"] = ($arParams["SHOW_POST_FORM"] == "Y" || $arParams["FORM_ID"] <> '' ? "Y" : "N");
 		$arParams["BIND_VIEWER"] = (isset($arParams["BIND_VIEWER"]) && $arParams["BIND_VIEWER"] == "N" ? "N" : "Y");
 		$arParams["SIGN"] = $this->sign->sign($arParams["ENTITY_XML_ID"], "main.post.list");
@@ -1023,7 +1081,7 @@ HTML;
 					$path .= ($arParams["NAV_RESULT"]->NavPageNomer - 1);
 				else
 					$path .= ($arParams["NAV_RESULT"]->NavPageNomer + 1);
-				$arParams["NAV_STRING"] .= (strpos($arParams["NAV_STRING"], "?") === false ? "?" : "&").$path;
+				$arParams["NAV_STRING"] .= (!str_contains($arParams["NAV_STRING"], "?") ? "?" : "&").$path;
 			}
 		}
 		if (!empty($arParams["RECORDS"]))
@@ -1044,7 +1102,11 @@ HTML;
 
 			$arParams["~RECORDS"] = $arParams["RECORDS"];
 			foreach ($arParams["~RECORDS"] as $key => $res)
-				$arParams["RECORDS"][$key] = $this->buildComment($res);
+			{
+				$arParams["RECORDS"][$key] = $this->buildComment($res, !empty($arParams["PUSH&PULL"]["ID"])
+					? ['WEB', 'MOBILE'] : [$this->isWeb() ? 'WEB' : 'MOBILE'])
+				;
+			}
 		}
 
 		if ($this->getUserId() > 0)
@@ -1069,7 +1131,8 @@ HTML;
 						"height" => $arParams["AVATAR_SIZE"]
 					),
 					BX_RESIZE_IMAGE_EXACT
-				)
+				),
+				"IS_COLLABER" => self::isCollabUser($this->getUserId()),
 			);
 		}
 		else
@@ -1319,6 +1382,24 @@ HTML;
 						}
 					}
 				}
+
+
+				if ($res['UF'] && is_array($res['UF']))
+				{
+					foreach ($res['UF'] as $fieldName => $userField)
+					{
+						if (
+							$userField['USER_TYPE_ID'] === 'disk_file'
+							&& isset($userField['VALUE'])
+							&& is_array($userField['VALUE'])
+							&& Loader::includeModule('disk')
+						)
+						{
+							$res['UF'][$fieldName]['FILES'] = DiskUploaderController::getFileInfo($userField['VALUE']);
+						}
+					}
+				}
+
 				$records[$recordId] = [
 					'message' => $SHParser->getInnerHTML('<!--LOAD_SCRIPT-->', '<!--END_LOAD_SCRIPT-->').$message,
 					'messageBBCode' => $arParams["~RECORDS"][$recordId]["~POST_MESSAGE_TEXT"],
@@ -1352,26 +1433,24 @@ HTML;
 		return $APPLICATION;
 	}
 
-	protected function getUser()
+	protected function getUser(): ?\CUser
 	{
-		global $USER;
-		return $USER;
-	}
-
-	protected function getUserId()
-	{
-		static $userId = null;
-		if (is_null($userId))
+		if (!isset($this->user))
 		{
-			$userId = 0;
-
+			$this->user = null;
 			global $USER;
-			if (($USER instanceof \CUser) && $USER->IsAuthorized())
+			if (($USER instanceof \CUser))
 			{
-				$userId = $USER->GetID();
+				$this->user = $USER;
 			}
 		}
-		return $userId;
+
+		return $this->user;
+	}
+
+	protected function getUserId(): ?int
+	{
+		return $this->getUser()?->getId();
 	}
 
 	public function getDateTimeFormatted($timestamp, $arFormatParams)
@@ -1381,5 +1460,56 @@ HTML;
 			'DATETIME_FORMAT' => ($arFormatParams["DATE_TIME_FORMAT"] ?? false),
 			'DATETIME_FORMAT_WITHOUT_YEAR' => ($arFormatParams["DATE_TIME_FORMAT_WITHOUT_YEAR"] ?? false)
 		));
+	}
+
+	public function getAvatar()
+	{
+		global $USER;
+
+		static $avatar = null;
+
+		if ($avatar == null)
+		{
+			$avatar = '/bitrix/images/1.gif';
+			if ($USER?->IsAuthorized())
+			{
+				$u = CUser::GetByID($USER->GetID())->Fetch();
+				if (
+					intval($u["PERSONAL_PHOTO"]) <= 0
+					&& \Bitrix\Main\ModuleManager::isModuleInstalled('socialnetwork')
+				)
+				{
+					switch ($u["PERSONAL_GENDER"])
+					{
+						case "M":
+							$suffix = "male";
+							break;
+						case "F":
+							$suffix = "female";
+							break;
+						default:
+							$suffix = "unknown";
+					}
+					$u["PERSONAL_PHOTO"] = COption::GetOptionInt("socialnetwork", "default_user_picture_".$suffix, false, SITE_ID);
+				}
+
+				if ($u["PERSONAL_PHOTO"])
+				{
+					$res = CFile::ResizeImageGet(
+						$u["PERSONAL_PHOTO"],
+						array('width' => 100, 'height' => 100),
+						BX_RESIZE_IMAGE_EXACT,
+						false,
+						false,
+						true
+					);
+					if ($res["src"])
+					{
+						$avatar = $res["src"];
+					}
+				}
+			}
+		}
+		return $avatar;
 	}
 }

@@ -1,4 +1,5 @@
 <?php
+$MESS["UPLOADER_CLOUD_ERROR"] = "Fehler beim Hochladen der Datei in die Cloud (#CODE#).";
 $MESS["UPLOADER_FILE_LOAD_ABORTED"] = "Fehler beim Erhalten von Dateidaten.";
 $MESS["UPLOADER_FILE_SIZE_POSTFIXES"] = "Bytes| kB| MB| GB| TB";
 $MESS["UPLOADER_FILE_UPLOAD_ABORTED"] = "Hochladen der Datei wurde abgebrochen.";

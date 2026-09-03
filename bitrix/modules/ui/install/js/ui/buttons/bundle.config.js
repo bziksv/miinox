@@ -5,8 +5,9 @@ module.exports = {
 		css: 'dist/ui.buttons.bundle.css',
 	},
 	namespace: 'BX.UI',
-	adjustConfigPhp: false,
 	cssImages: {
-		type: 'inline'
-	}
+		type: 'inline',
+	},
+	browserslist: true,
+	transformClasses: true,
 };

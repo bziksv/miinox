@@ -1,4 +1,5 @@
 <?php
+
 IncludeModuleLangFile(__FILE__);
 
 if (!defined("T_BAD_CHARACTER")) define("T_BAD_CHARACTER", 401);
@@ -79,7 +80,6 @@ class CVuln
 
 class CVulnScanner
 {
-
 	public $vuln_count = 0;
 	public $arResult = array();
 
@@ -157,6 +157,17 @@ class CVulnScanner
 		$arResult = array();
 
 		$this->securing_list = array();
+
+		if ($function === 'unserialize')
+		{
+			foreach ($tokens as $token)
+			{
+				if (is_array($token) && isset($token[1]) && $token[1] === "'allowed_classes'")
+				{
+					return false;
+				}
+			}
+		}
 
 		$braces = 0;
 		$c_params = 1;
@@ -283,7 +294,7 @@ class CVulnScanner
 					$braces++;
 					$i++;
 				}
-				elseif($token === T_ISSET || ($token === T_STRING && substr($token_value, 0, 3) === 'is_'))
+				elseif($token === T_ISSET || ($token === T_STRING && str_starts_with($token_value, 'is_')))
 				{
 					$skip = true;
 				}
@@ -609,6 +620,10 @@ class CVulnScanner
 						{
 							$result = false;
 						}
+						elseif($token_value !== 'query' && $i > 0 && is_array($this->tokens[$i-1]) && in_array($this->tokens[$i-1][0], [T_PAAMAYIM_NEKUDOTAYIM, T_OBJECT_OPERATOR], true))
+						{
+							$result = false;
+						}
 						elseif($this->tokens[$i + 1] === '(')
 						{
 							$result = $this->getTokensInfo(array_slice($this->tokens, $i + 2, $this->getBraceEnd($this->tokens, $i + 2) - 1), false, $token_value);
@@ -620,12 +635,6 @@ class CVulnScanner
 
 						if($result !== false)
 						{
-							if($this->tokens[$i + 1] === '(')
-								$result = $this->getTokensInfo(array_slice($this->tokens, $i + 2, $this->getBraceEnd($this->tokens, $i + 2) - 1), false, $token_value);
-							else
-								$result = $this->getTokensInfo(array_slice($this->tokens, $i + 1, $this->getBraceEnd($this->tokens, $i + 1)), false, $token_value);
-
-
 							$tainted_vars = array();
 							foreach ($result[1] as $res)
 							{
@@ -817,7 +826,7 @@ class CVulnScanner
 		{
 			$taintedVars = array();
 			foreach ($tokensInfo[1] as $res)
-				$taintedVars[] = $res['varName'] ?? null;
+				$taintedVars[] = $res['var_name'] ?? null;
 
 			if(!isset($this->variables[$varName]))
 				$var = new CVariable($varName);
@@ -962,6 +971,11 @@ class CVulnScanner
 	{
 		for ($i = 0, $max = count($tokens); $i < $max; $i++)
 		{
+			if (!isset($tokens[$i]))
+			{
+				continue;
+			}
+
 			if($tokens[$i] === '`')
 			{
 				$f = 1;
@@ -1598,7 +1612,7 @@ class CVulnScanner
 					foreach ($var_declare->tainted_vars as $taint_var)
 					{
 						$res = $this->traverseVar($taint_var, $var_declare->id);
-						if($res && strpos($result, $res) === false)
+						if($res && !str_contains($result, $res))
 							$result .= $res;
 					}
 
@@ -1633,7 +1647,7 @@ class CVulnScanner
 	{
 		for ($i = 0; $i < $max; $i++)
 		{
-			if(($output[$i]->name === $output[$i]->name) && ($output[$i]->filename === $output[$i]->filename) && $output[$i]->tainted_vars === $output[$max]->tainted_vars)
+			if(($output[$i]->name === $output[$max]->name) && ($output[$i]->filename === $output[$max]->filename) && $output[$i]->tainted_vars === $output[$max]->tainted_vars)
 				return $i;
 		}
 		return false;
@@ -2093,7 +2107,7 @@ class CQAACheckListTests
 				'eregi' => Array(Array(2), Array()),
 				'sleep' => Array(Array(1), Array()),
 				// It's too difficult to validate, maybe in future versions
-				//'unserialize' => Array(Array(1), Array()),
+				'unserialize' => Array(Array(1), Array()),
 				//'extract' => Array(Array(1), Array()),
 				//'mb_parse_str' => Array(Array(1), Array()),
 				//'parse_str' => Array(Array(1), Array()),
@@ -2339,7 +2353,7 @@ class CQAACheckListTests
 			$vulnCount=0;
 			foreach ($NS['MESSAGE'] as $file_output)
 				if (!empty($file_output))
-					if (strpos($arDetailReport, $file_output['OUTPUT']) === false)
+					if (!str_contains($arDetailReport, $file_output['OUTPUT']))
 					{
 						$arDetailReport .= $file_output['OUTPUT'];
 						$vulnCount += $file_output['VULN_COUNT'];
@@ -2378,6 +2392,3 @@ class CQAACheckListTests
 	}
 
 }
-
-
-?>

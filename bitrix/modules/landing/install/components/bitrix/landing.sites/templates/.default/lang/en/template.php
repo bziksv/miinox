@@ -1,5 +1,6 @@
 <?php
 $MESS["LANDING_TPL_ACTIONS"] = "actions";
+$MESS["LANDING_TPL_ACTIONS_ARIA_SITE"] = "Actions for site \"#TITLE#\"";
 $MESS["LANDING_TPL_ACTION_ADD"] = "New Website";
 $MESS["LANDING_TPL_ACTION_ADDPAGE"] = "Create page";
 $MESS["LANDING_TPL_ACTION_ADDPAGE2"] = "Add a page";
@@ -48,7 +49,7 @@ $MESS["LANDING_TPL_DELETED"] = "Deleted";
 $MESS["LANDING_TPL_DEV_BTN"] = "Order now";
 $MESS["LANDING_TPL_DEV_HELP"] = "Need help with your website?";
 $MESS["LANDING_TPL_DEV_HELP_KNOWLEDGE"] = "Need help creating your knowledge base?";
-$MESS["LANDING_TPL_DEV_ORDER"] = "Order development with our partners";
+$MESS["LANDING_TPL_DEV_ORDER_MSGVER_1"] = "Submit implementation request to our partners";
 $MESS["LANDING_TPL_FEEDBACK_FORM_TITLE"] = "Submit request";
 $MESS["LANDING_TPL_PUBLIC_URL"] = "Published to domain #LINK#";
 $MESS["LANDING_TPL_TITLE"] = "Sites";

@@ -124,24 +124,22 @@
 		return fields;
 	};
 
-
 	/**
 	 * Manager.
-	 *
 	 */
 	function Manager()
-	{
+	{}
 
-	}
-	Manager.prototype.init = function (params)
+	Manager.prototype.init = function(params)
 	{
 		this.list = [];
+		this.toolbarId = params.toolbarId;
 		this.groupId = params.groupId || 0;
 		this.actionUri = params.actionUri || '';
 		this.onlyConnectorFilters = params.onlyConnectorFilters;
 		this.showContactSets = params.showContactSets;
 		this.prettyDateFormat = params.prettyDateFormat;
-		this.mess = params.mess || {patternTitle:"", newTitle: ""};
+		this.mess = params.mess || { patternTitle: '', newTitle: '' };
 		this.availableConnectors = params.availableConnectors || [];
 		this.context = BX(params.containerId);
 		this.isFrame = params.isFrame || false;
@@ -154,9 +152,11 @@
 		this.segmentTile = params.segmentTile || {};
 		this.filterCounterTag = params.filterCounterTag || null;
 
+		this.uiToolbar = BX.UI.ToolbarManager.get(this.toolbarId);
+		this.titleNode = Helper.getNode('segment-title', this.context);
 		this.ajaxAction = new BX.AjaxAction(this.actionUri);
-		this.form = new Form({node: this.context.querySelector('form')});
-		new FilterListener({'manager': this});
+		this.form = new Form({ node: this.context.querySelector('form') });
+		new FilterListener({ manager: this });
 
 		this.initUi();
 		this.initItems();
@@ -169,23 +169,30 @@
 			this.ui.title.value = Helper.replace(
 				this.mess.patternTitle,
 				{
-					'name': this.mess.newTitle,
-					'date': BX.date.format(this.prettyDateFormat)
-				}
+					name: this.mess.newTitle,
+					date: BX.date.format(this.prettyDateFormat),
+				},
 			);
 		}
 
 		Page.initButtons();
 
-		if (this.isFrame)
-		{
-			Helper.titleEditor.init({'dataNode': this.ui.title});
-		}
-
 		if (this.isFrame && this.isSaved)
 		{
 			top.BX.onCustomEvent(top, 'sender-segment-edit-change', [this.segmentTile]);
 			BX.Sender.Page.slider.close();
+		}
+
+		if (this.uiToolbar && this.isFrame)
+		{
+			this.uiToolbar.subscribe(BX.UI.ToolbarEvents.finishEditing, (event) => {
+				const updatedTitle = event.getData().updatedTitle;
+
+				if (updatedTitle && this.titleNode)
+				{
+					this.titleNode.value = updatedTitle;
+				}
+			});
 		}
 
 		return this;
@@ -218,20 +225,21 @@
 		}
 	};
 
-	Manager.prototype.initUi = function ()
+	Manager.prototype.initUi = function()
 	{
 		this.ui = {
 			counter: this.context.querySelector('[data-bx-counter]'),
 			countInfo: this.context.querySelector('[data-bx-count-info]'),
 			button: this.context.querySelector('[data-bx-button]'),
 			list: this.context.querySelector('[data-bx-list]'),
-			title: Helper.getNode('segment-title', this.context)
+			title: this.titleNode,
 		};
 
 		BX.unbindAll(this.ui.button);
 		BX.bind(this.ui.button, 'click', this.showMenuAdd.bind(this));
 	};
-	Manager.prototype.initItems = function ()
+
+	Manager.prototype.initItems = function()
 	{
 		var itemNodes = this.ui.list.querySelectorAll('[data-bx-item]');
 		itemNodes = BX.convert.nodeListToArray(itemNodes);
@@ -626,12 +634,17 @@
 		var filter = BX.Main.filterManager.getById(filterId)
 		var dealCategory = filter.getField('DEAL_CATEGORY_ID');
 		var hasValues = false;
+		let dealCategoryValue = '';
 
 		for(var id in filter.getFilterFieldsValues())
 		{
 			if(filter.getFilterFieldsValues().hasOwnProperty(id))
 			{
 				var value = filter.getFilterFieldsValues()[id];
+				if (id === 'DEAL_CATEGORY_ID')
+				{
+					dealCategoryValue = value;
+				}
 				if(
 					value !== 'exact' &&
 					value !== 'NONE' &&
@@ -648,12 +661,15 @@
 			}
 		}
 
-		if(dealCategory && hasValues)
+		if(
+			dealCategory
+			&& hasValues
+			&& dealCategoryValue === ''
+			&& Array.isArray(dealCategory.options.ITEMS)
+		)
 		{
-			if(typeof dealCategory.options.ITEMS[0] !== 'undefined')
-			{
-				this.setDefaultValue(dealCategory, {0: dealCategory.options.ITEMS[0].VALUE});
-			}
+			const filteredItems = dealCategory.options.ITEMS.filter(item => item.VALUE !== '').map(item => item.VALUE);
+			this.setDefaultValue(dealCategory, { ...filteredItems });
 		}
 
 		if (item)
@@ -664,24 +680,18 @@
 
 	FilterListener.prototype.setDefaultValue = function(field, value)
 	{
-		var container = field.parent.getFieldListContainer();
-		Object.entries(value).forEach(function (data) {
-			var fieldValue = data[1];
-
-			var fieldNode = container.querySelector(
-				"[data-name='"
+		const container = field.parent.getFieldListContainer();
+		const dataFieldValue = [];
+		const fieldNode = container.querySelector(
+			"[data-name='"
 				.concat(field.id, "'] [data-name='")
 				.concat(field.id, "'], [data-name='")
 				.concat(field.id, "'] [name='")
 				.concat(field.id, "']"));
+		Object.entries(value).forEach(function (data) {
+			var fieldValue = data[1];
 
 			if (fieldNode) {
-				var dataValue = fieldNode.getAttribute('data-value');
-				if(dataValue !== "[]")
-				{
-					return;
-				}
-
 				if (BX.Dom.hasClass(fieldNode, 'main-ui-multi-select')) {
 					var items = BX.Dom.attr(fieldNode, 'data-items');
 
@@ -723,13 +733,14 @@
 
 								nameNode.append(squareNode);
 							}
-							var value = [item];
-							fieldNode.setAttribute('data-value', JSON.stringify(value));
+							dataFieldValue.push(item);
 						}
 					}
 				}
 			}
 		});
+
+		fieldNode.setAttribute('data-value', JSON.stringify(dataFieldValue));
 	};
 	FilterListener.prototype.onFilterData = function (filterId, promise)
 	{

@@ -414,6 +414,7 @@ export class LinkUrl extends Text
 		switch (type)
 		{
 			case LinkUrl.TYPE_HREF_PAGE:
+			case LinkUrl.TYPE_PAGE:
 				data.title = BX.Landing.Loc.getMessage("LANDING_LINK_URL_TITLE_PAGE");
 				data.items =  {
 					"_self": BX.Landing.Loc.getMessage("FIELD_LINK_TARGET_SELF"),
@@ -813,7 +814,7 @@ export class LinkUrl extends Text
 	 */
 	createTypeSwitcher()
 	{
-		//type = PAGE || STORE || KNOWLEDGE
+		//type = PAGE || STORE || KNOWLEDGE || GROUP || VIBE || SMN
 		const type = BX.Landing.Env.getInstance().getType();
 		const items = [
 			{
@@ -825,16 +826,19 @@ export class LinkUrl extends Text
 				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_PAGE"),
 				value: LinkUrl.TYPE_HREF_PAGE,
 				className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--b24',
+				type: ['PAGE', 'STORE', 'KNOWLEDGE', 'GROUP', 'SMN'],
 			},
 			{
 				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_BLOCK"),
 				value: LinkUrl.TYPE_HREF_BLOCK,
 				className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--b24',
+				type: ['PAGE', 'STORE', 'KNOWLEDGE', 'GROUP', 'SMN'],
 			},
 			{
 				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_CRM"),
 				value: LinkUrl.TYPE_HREF_CRM_FORM,
 				className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--crm',
+				type: ['PAGE', 'STORE', 'KNOWLEDGE', 'GROUP', 'SMN'],
 			},
 			{
 				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_PRODUCT"),
@@ -873,17 +877,12 @@ export class LinkUrl extends Text
 				value: LinkUrl.TYPE_HREF_LINK,
 				className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--link',
 			},
-			{
-				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_FILE_MSGVER_1"),
-				value: LinkUrl.TYPE_HREF_FILE,
-				className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--file',
-				type: ['KNOWLEDGE', 'GROUP'],
-			},
+			this.getFileItem(),
 			{
 				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_USER"),
 				value: LinkUrl.TYPE_HREF_USER,
 				className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--user',
-				type: 'KNOWLEDGE',
+				type: ['KNOWLEDGE', 'GROUP'],
 			},
 			{
 				name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_DELETE_ACTION"),
@@ -892,7 +891,12 @@ export class LinkUrl extends Text
 			},
 		];
 		let setItems = [];
-		items.forEach(function(item) {
+		items.forEach((item) => {
+			if (item === null)
+			{
+				return;
+			}
+
 			if (
 				!item.hasOwnProperty('type')
 				|| item.type === type
@@ -901,7 +905,7 @@ export class LinkUrl extends Text
 			{
 				setItems.push(item);
 			}
-		})
+		});
 
 		if (!Type.isUndefined(this.constantType))
 		{
@@ -932,6 +936,21 @@ export class LinkUrl extends Text
 			className: 'landing-ui-field-link-url-dropdown-href-type',
 			classForTextNode: 'landing-ui-field-input-text',
 		});
+	}
+
+	getFileItem(): ?object
+	{
+		if (!BX.DiskFileDialog)
+		{
+			return null;
+		}
+
+		return {
+			name: BX.Landing.Loc.getMessage("LANDING_LINK_URL_ACTION_FILE_MSGVER_1"),
+			value: LinkUrl.TYPE_HREF_FILE,
+			className: 'landing-ui-field-link-url-select-action-item fas landing-ui-field-link-url-icon--file',
+			type: ['KNOWLEDGE', 'GROUP'],
+		};
 	}
 
 	/**
@@ -1410,7 +1429,11 @@ export class LinkUrl extends Text
 				<span class=\"landing-ui-field-url-placeholder-text\">
 					${BX.Landing.Utils.encodeDataValue(options.name)}
 				</span>
-				<span class=\"landing-ui-field-url-placeholder-delete\"></span>
+				<button
+					type=\"button\"
+					class=\"landing-ui-field-url-placeholder-delete\"
+					aria-label=\"${BX.Text.encode(BX.Landing.Loc.getMessage('LANDING_LINK_URL_PLACEHOLDER_DELETE'))}\"
+				></button>
 			</span>
 		`;
 
@@ -1461,6 +1484,7 @@ export class LinkUrl extends Text
 		this.setValue("");
 		BX.Landing.Utils.fireEvent(this.layout, "input");
 		this.onInputHandler(this.input.innerText);
+		this.input.focus();
 	}
 
 	/**
@@ -1593,7 +1617,10 @@ export class LinkUrl extends Text
 
 		if (valueText === '')
 		{
-			if (selectedHrefType === 'catalog')
+			if (
+				selectedHrefType === 'catalog'
+				|| selectedHrefType === 'landing'
+			)
 			{
 				return '';
 			}
@@ -1653,8 +1680,8 @@ export class LinkUrl extends Text
 			value = value.slice(value.indexOf(':') + 1);
 		}
 		const setRegs = [];
-		setRegs['phoneExtended'] = /(^[\d+][\d-]{4,14}\d$)|#crmPhone\d+/;
-		setRegs['phone'] = /^[\d+][\d-]{4,14}\d$/;
+		setRegs['phoneExtended'] = /(^[\d+][\d-\s]{3,25}\d$)|#crmPhone\d+/;
+		setRegs['phone'] = /^[\d+][\d-\s]{3,25}\d$/;
 		setRegs['mail'] = /^\S+@\S+[.]\S+$/i;
 		setRegs['skype'] = /^[a-z\d-.:]{6,32}$/i;
 		const type = this.hrefTypeSwithcer.getValue();

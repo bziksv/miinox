@@ -1,5 +1,8 @@
-<?
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
+<?php
+
+use Bitrix\Main\UserField\Types\FileType;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
@@ -24,8 +27,11 @@ return [
 		"/bitrix/js/ui/entity-editor/js/selector.js",
 		"/bitrix/js/ui/entity-editor/js/tool-panel.js",
 		"/bitrix/js/ui/entity-editor/js/field-configurator.js",
+		"/bitrix/js/ui/entity-editor/js/field-icon.js",
 		"/bitrix/js/ui/entity-editor/js/user-field.js",
 		"/bitrix/js/ui/entity-editor/js/validator.js",
+		"/bitrix/js/ui/entity-editor/js/pull.js",
+		"/bitrix/js/ui/entity-editor/user-field-configurators/tooltip-configurator.js",
 	],
 	"rel" => [
 		"ajax",
@@ -37,6 +43,7 @@ return [
 		"helper",
 		"core_money_editor",
 		"ui",
+		"ui.analytics",
 		"ui.hint",
 		"ui.notification",
 		"ui.dropdown",
@@ -46,5 +53,13 @@ return [
 		"ui.entity-selector",
 		"ui.design-tokens",
 		"ui.fonts.opensans",
-	]
+		"ui.icon-set.api.core",
+		"ui.icon-set.outline",
+		"ui.entity-editor.user-field-configurators.tooltip-configurator",
+		"intranet.old-interface.intranet-common",
+	],
+	'settings' => [
+		'isFileUserFieldViewingModesAvailable' => method_exists(FileType::class, 'isAvailableDefaultView'),
+		'isFileUserFieldIsAllowSwitchViewAvailable' => method_exists(FileType::class, 'getCorrectViewOrNull'),
+	],
 ];

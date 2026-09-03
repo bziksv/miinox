@@ -10,6 +10,7 @@ namespace Bitrix\Sender\Posting;
 use Bitrix\Main\Application;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Type\DateTime;
 use Bitrix\Sender\Connector;
 use Bitrix\Sender\Consent\Consent;
 use Bitrix\Sender\ContactTable;
@@ -149,9 +150,14 @@ class Builder
 			return true;
 		}
 
-		$entityProcessed = $this->groupQueueService->isEntityProcessed(Model\GroupQueueTable::TYPE['POSTING'], $postingId);
+		$entityProcessed = $this->groupQueueService->isEntityProcessed(
+			Model\GroupQueueTable::TYPE['POSTING'],
+			$postingId
+		);
+
 		if (
-			$postingData['MAILING_STATUS'] === Model\LetterTable::STATUS_SEND && $postingData['WAITING_RECIPIENT'] === 'N'
+			$postingData['MAILING_STATUS'] === Model\LetterTable::STATUS_SEND
+			&& $postingData['WAITING_RECIPIENT'] === 'N'
 			&& !$entityProcessed
 		)
 		{
@@ -162,17 +168,19 @@ class Builder
 		$this->checkDuplicates = $checkDuplicates;
 		$this->postingId = $postingId;
 		$this->groupCount = array();
-		
+
 		try
 		{
-			$this->messageConfiguration = Message\Adapter::getInstance($postingData['MESSAGE_TYPE'])
-				->loadConfiguration($postingData['MESSAGE_ID']);
+			$this->messageConfiguration =
+				Message\Adapter::getInstance($postingData['MESSAGE_TYPE'])
+					->loadConfiguration($postingData['MESSAGE_ID'])
+			;
 		}
 		catch (ArgumentException $e)
 		{
 			return true;
 		}
-		
+
 		if(!$checkDuplicates)
 		{
 			if($this->postingData['STATUS'] === PostingTable::STATUS_NEW)
@@ -207,6 +215,13 @@ class Builder
 
 		try
 		{
+			if ($postingData['WAITING_RECIPIENT'] !== 'Y')
+			{
+				Model\LetterTable::update($postingData['MAILING_CHAIN_ID'], [
+					'WAITING_RECIPIENT' => 'Y'
+				]);
+			}
+
 			$groups = $this->prepareGroups();
 			$message = Message\Adapter::create($this->postingData['MESSAGE_TYPE']);
 			foreach ($message->getSupportedRecipientTypes() as $typeId)
@@ -223,7 +238,6 @@ class Builder
 		{
 			return false;
 		}
-
 
 		Model\PostingTable::update(
 			$postingId,
@@ -258,13 +272,9 @@ class Builder
 
 	protected function prepareGroups()
 	{
-
 		$groups = [];
 		$groups = array_merge($groups, $this->getLetterConnectors($this->postingData['MAILING_CHAIN_ID']));
 		$groups = array_merge($groups, $this->getSubscriptionConnectors($this->postingData['MAILING_ID']));
-		Model\LetterTable::update($this->postingData['MAILING_CHAIN_ID'], [
-			'WAITING_RECIPIENT' => 'N'
-		]);
 
 		foreach ($groups as $group)
 		{
@@ -273,13 +283,14 @@ class Builder
 				continue;
 			}
 
+			$rebuild = $this->needsRebuildGroup($group);
 			if ($group['GROUP_ID'])
 			{
 				$this->groupQueueService
 					->addToDB(Model\GroupQueueTable::TYPE['POSTING'], $this->postingId, $group['GROUP_ID']);
 			}
 
-			if (in_array($group['STATUS'], [GroupTable::STATUS_NEW, GroupTable::STATUS_DONE]))
+			if ($rebuild && $group['GROUP_ID'])
 			{
 				SegmentDataBuilder::actualize($group['GROUP_ID'], true);
 				$this->stopRecipientListBuilding();
@@ -317,6 +328,17 @@ class Builder
 		return $groups;
 	}
 
+	private function needsRebuildGroup($group)
+	{
+		$isNewOrDone = in_array($group['STATUS'], [GroupTable::STATUS_NEW, GroupTable::STATUS_DONE]);
+		$isReadyAndReleased =
+			isset($group['GROUP_ID'])
+			&& $group['STATUS'] === GroupTable::STATUS_READY_TO_USE
+			&& $this->groupQueueService->isReleased($group['GROUP_ID']);
+
+		return $isNewOrDone || $isReadyAndReleased;
+	}
+
 	protected function runForRecipientType($usedPersonalizeFields = [], $groups = [])
 	{
 		// import recipients
@@ -336,6 +358,7 @@ class Builder
 			$connector->setDataTypeId($this->typeId);
 			if (is_array($group['ENDPOINT']['FIELDS']))
 			{
+				$connector->setCheckAccessRights(false);
 				$connector->setFieldValues($group['ENDPOINT']['FIELDS']);
 			}
 
@@ -553,19 +576,17 @@ class Builder
 
 		// add new contacts
 		$list = array_diff($codes, $existed);
-		$batch = array();
-		$sqlDateTimeFunction = Application::getConnection()->getSqlHelper()->getCurrentDateTimeFunction();
-		$updateFieldsOnDuplicate = array(
-			array('NAME' => 'DATE_UPDATE', 'VALUE' => $sqlDateTimeFunction),
-		);
+		$batch = [];
+		$insertDate = new DateTime();
+		$updateFieldsOnDuplicate = ['DATE_UPDATE'];
 		foreach ($list as $code)
 		{
-			$batchItem = array(
+			$batchItem = [
 				'TYPE_ID' => $this->typeId,
 				'CODE' => $code,
-				'DATE_INSERT' => array('VALUE' => $sqlDateTimeFunction),
-				'DATE_UPDATE' => array('VALUE' => $sqlDateTimeFunction),
-			);
+				'DATE_INSERT' => $insertDate,
+				'DATE_UPDATE' => $insertDate,
+			];
 
 			$key = 'NAME';
 			if (isset($dataList[$key]) && $dataList[$key])
@@ -581,7 +602,7 @@ class Builder
 		}
 
 
-		SqlBatch::insert($tableName, $batch, $updateFieldsOnDuplicate);
+		SqlBatch::insert($tableName, $batch, $updateFieldsOnDuplicate, ContactTable::getConflictFields());
 
 
 		$recipientDb = $connection->query(
@@ -825,7 +846,7 @@ class Builder
 		$dataList = array();
 		foreach($list as $code => $data)
 		{
-			if (!isset($data['EXCLUDED']) || $data['EXCLUDED'])
+			if (isset($data['EXCLUDED']) && $data['EXCLUDED'])
 			{
 				continue;
 			}
@@ -859,7 +880,8 @@ class Builder
 		SqlBatch::insert(
 			PostingRecipientTable::getTableName(),
 			$dataList,
-			array('USER_ID', 'FIELDS')
+			['USER_ID', 'FIELDS'],
+			PostingRecipientTable::getConflictFields(),
 		);
 	}
 

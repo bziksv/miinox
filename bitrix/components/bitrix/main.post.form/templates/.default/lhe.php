@@ -1,4 +1,4 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 if (!CModule::IncludeModule("fileman"))
 	return;
 /**
@@ -6,7 +6,19 @@ if (!CModule::IncludeModule("fileman"))
  * @var array $arParams
  */
 
+use Bitrix\Ui\Public\Services\Copilot\CopilotNameService;
+
+$copilotNameService = GetMessage('MPF_COPILOT');
+if (class_exists(CopilotNameService::class))
+{
+	$copilotNameService = (new CopilotNameService())->getCopilotName();
+}
+
 $possibleButtons = [
+	'Copilot' => [
+		'HTML' => '<i class="ui-icon-set --copilot-ai" id="bx-b-copilot-'.$arParams['FORM_ID'].'"></i><span class="main-post-form-toolbar-button-copilot">'.$copilotNameService."</span>",
+		'ID' => 'copilot',
+	],
 	'UploadFile' => [ //Custom button
 		'aliases' => ['UploadImage', 'UploadFile'],
 		// id is here just for compatibility and shoud be deleted at an opportunity
@@ -46,6 +58,11 @@ $actualButtons = array_filter($possibleButtons, function ($value, $key) use ($ar
 	$keys = array_merge([$key], (array_key_exists('aliases', $value) ? $value['aliases'] : []));
 	return sizeof(array_intersect($keys, $arParams['BUTTONS'])) > 0;
 }, ARRAY_FILTER_USE_BOTH);
+
+if (!$arParams['COPILOT_AVAILABLE'])
+{
+	unset($actualButtons['Copilot']);
+}
 
 if (isset($arParams['~BUTTONS_HTML']) && is_array($arParams['~BUTTONS_HTML']))
 {
@@ -143,7 +160,7 @@ $res = array_merge(
 		'width' => '100%',
 		'arSmilesSet' => $arResult["SMILES"]["SETS"],
 		'arSmiles' => $arResult["SMILES"]["VALUE"],
-		'content' => htmlspecialcharsBack($arParams["TEXT"]["VALUE"]),
+		'content' => isset($arParams["TEXT"]["VALUE"]) ? htmlspecialcharsBack($arParams["TEXT"]["VALUE"]) : '',
 		'iframeCss' =>
 			'.bx-spoiler {border:1px solid #cecece;background-color:#f6f6f6;padding: 8px 8px 8px 24px;color:#373737;border-radius:var(--ui-border-radius-sm, 2px);min-height:1em;margin: 0;}'.
 			(is_array($arParams["LHE"]) && isset($arParams["LHE"]["iframeCss"]) ? $arParams["LHE"]["iframeCss"] : ""),

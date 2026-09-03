@@ -15,6 +15,8 @@ Loc::loadMessages(__FILE__);
 /** @deprecated */
 class CSaleOrderProps
 {
+	private static array $arUsers = [];
+
 	/*
 	 * Checks order properties' values on the basis of order properties' restrictions
 	 *
@@ -30,11 +32,11 @@ class CSaleOrderProps
 		if (!is_array($arOrderPropsValues))
 			$arOrderPropsValues = array();
 
-		$arUser = null;
+		$arUser = self::$arUsers[$arOrder['USER_ID']] ?? null;
 
 		$arFilter = [
-			"PERSON_TYPE_ID" => $arOrder["PERSON_TYPE_ID"],
-			"ACTIVE" => "Y"
+			"=PERSON_TYPE_ID" => $arOrder["PERSON_TYPE_ID"],
+			"=ACTIVE" => "Y"
 		];
 
 		$relationFilter = [];
@@ -102,13 +104,29 @@ class CSaleOrderProps
 					{
 						if ($arUser == null)
 						{
-							$dbUser = CUser::GetList("ID", "desc", array("ID_EQUAL_EXACT" => $arOrder["USER_ID"]));
+							$dbUser = CUser::GetList(
+								'ID',
+								'desc',
+								['ID_EQUAL_EXACT' => $arOrder['USER_ID']],
+								[
+									'FIELDS' => ['EMAIL', 'NAME', 'LAST_NAME'],
+								],
+							);
 							$arUser = $dbUser->Fetch();
+							self::$arUsers[$arOrder['USER_ID']] = $arUser;
 						}
-						if ($arOrderProp["IS_EMAIL"] == "Y")
-							$curVal = is_array($arUser) ? $arUser["EMAIL"] : "";
-						elseif ($arOrderProp["IS_PAYER"] == "Y")
-							$curVal = is_array($arUser) ? $arUser["NAME"].($arUser["NAME"] == '' || $arUser["LAST_NAME"] == '' ? "" : " ").$arUser["LAST_NAME"] : "";
+						if ($arOrderProp['IS_EMAIL'] === 'Y')
+						{
+							$curVal = is_array($arUser) ? $arUser['EMAIL'] : '';
+						}
+						elseif ($arOrderProp['IS_PAYER'] === 'Y')
+						{
+							$curVal =
+								is_array($arUser)
+									? $arUser['NAME'].($arUser['NAME'] == '' || $arUser['LAST_NAME'] == '' ? '' : ' ') . $arUser['LAST_NAME']
+									: ''
+							;
+						}
 					}
 				}
 			}
@@ -156,7 +174,7 @@ class CSaleOrderProps
 						// if we came from places like CRM, we got location in CODEs, because CRM knows nothing about location IDs.
 						// so, CRM sends LOCATION_IN_CODES in options array. In the other case, we assume we got locations as IDs
 						$res = CSaleLocation::GetById($curVal);
-						if(intval($res['ID']))
+						if ($res)
 						{
 							$curVal = $res['ID'];
 							$locId = $res['ID'];
@@ -883,7 +901,7 @@ class CSaleOrderProps
 		{
 			$val = $DB->ForSql($val);
 
-			switch(ToUpper($key))
+			switch(mb_strtoupper($key))
 			{
 				case "PROPERTY_ID":
 					$strSqlSearch .= " AND PROPERTY_ID = '".trim($val)."' ";
@@ -905,7 +923,7 @@ class CSaleOrderProps
 		if ($strSqlSearch <> '')
 			$strSql .= " ".$strSqlSearch;
 
-		$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$dbRes = $DB->Query($strSql);
 
 		return $dbRes;
 	}
@@ -957,7 +975,7 @@ class CSaleOrderProps
 					"INSERT INTO b_sale_order_props_relation (PROPERTY_ID, ".$arInsert[0].") ".
 					"VALUES('".$ID."', ".$arInsert[1].")";
 
-				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+				$DB->Query($strSql);
 			}
 		}
 
@@ -1259,11 +1277,11 @@ final class CSaleOrderPropsAdapter implements FetchAdapter
 			{
 				if (mb_strpos($key, 'IS_') === 0)
 				{
-					$newProperty[$key] = ToUpper($value);
+					$newProperty[$key] = mb_strtoupper($value);
 				}
 				elseif(in_array($key, $correctFields))
 				{
-					$newProperty[$key] = ToUpper($value);
+					$newProperty[$key] = mb_strtoupper($value);
 				}
 			}
 

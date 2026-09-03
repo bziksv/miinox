@@ -18,12 +18,12 @@ return [
 		'.landing-block-node-menu-top-item' => [
 			'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_ITEM'),
 			'label' => ['.landing-block-node-menu-top-link'],
-			'group_label' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_ITEMS_TOP'),
+			'group_label' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_ITEMS_TOP_MSGVER_1'),
 		],
 		'.landing-block-node-menu-bottom-item' => [
 			'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_ITEM'),
 			'label' => ['.landing-block-node-menu-bottom-text'],
-			'group_label' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_ITEMS_BOTTOM'),
+			'group_label' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_ITEMS_BOTTOM_MSGVER_1'),
 		],
 	],
 	'nodes' => [
@@ -48,12 +48,6 @@ return [
 			'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_LINK'),
 			'type' => 'link',
 		],
-		'.landing-block-node-menu-bottom-link' => [
-			'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_LINK'),
-			'type' => 'link',
-			'group' => 'menu_link_bottom',
-			'skipContent' => true,
-		],
 		'.landing-block-node-menu-bottom-text' => [
 			'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_LINK'),
 			'type' => 'text',
@@ -61,16 +55,18 @@ return [
 			'allowInlineEdit' => false,
 			'textOnly' => true,
 		],
+		'.landing-block-node-menu-bottom-link' => [
+			'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_LINK'),
+			'type' => 'link',
+			'group' => 'menu_link_bottom',
+			'skipContent' => true,
+		],
 	],
 	'style' => [
 		'block' => [
 			'type' => ['block-default-wo-paddings', 'header-on-scroll', 'header-position'],
 		],
 		'nodes' => [
-			'.landing-block-node-title-container' => [
-				'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_TITLE'),
-				'type' => 'typo-link',
-			],
 			'.landing-block-node-text' => [
 				'name' => Loc::getMessage('LNDBLCK_STOREMENUV3_1_LINK_TEXT_2'),
 				'type' => ['typo'],

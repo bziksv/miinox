@@ -3,6 +3,8 @@
 namespace Bitrix\Sale\Internals;
 
 use Bitrix\Main\ORM\Data\DataManager;
+use Bitrix\Main\ORM\Event;
+use Bitrix\Main\ORM\EventResult;
 use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Fields\DatetimeField;
 use Bitrix\Main\ORM\Fields\FloatField;
@@ -34,7 +36,20 @@ use Bitrix\Main\Type\DateTime;
  * </ul>
  *
  * @package Bitrix\Sale
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_UserTransact_Query query()
+ * @method static EO_UserTransact_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_UserTransact_Result getById($id)
+ * @method static EO_UserTransact_Result getList(array $parameters = [])
+ * @method static EO_UserTransact_Entity getEntity()
+ * @method static \Bitrix\Sale\Internals\EO_UserTransact createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sale\Internals\EO_UserTransact_Collection createCollection()
+ * @method static \Bitrix\Sale\Internals\EO_UserTransact wakeUpObject($row)
+ * @method static \Bitrix\Sale\Internals\EO_UserTransact_Collection wakeUpCollection($rows)
+ */
 class UserTransactTable extends DataManager
 {
 	/**
@@ -80,11 +95,12 @@ class UserTransactTable extends DataManager
 			'AMOUNT' =>
 				(new FloatField('AMOUNT'))
 					->configureDefaultValue(0.0000)
+					->configureScale(8)
 			,
 			'CURRENCY' =>
 				(new StringField('CURRENCY'))
 					->configureRequired(true)
-					->addValidator([__CLASS__, 'validateCurrency'])
+					->addValidator(new LengthValidator(null, 3))
 			,
 			'DEBIT' => (new BooleanField('DEBIT'))
 				->configureValues('N', 'Y')
@@ -94,7 +110,7 @@ class UserTransactTable extends DataManager
 			'DESCRIPTION' =>
 				(new StringField('DESCRIPTION'))
 					->configureRequired(true)
-					->addValidator([__CLASS__, 'validateDescription'])
+					->addValidator(new LengthValidator(null, 255))
 			,
 			'NOTES' => (new TextField('NOTES')),
 			'PAYMENT_ID' => (new IntegerField('PAYMENT_ID')),
@@ -114,26 +130,42 @@ class UserTransactTable extends DataManager
 	}
 
 	/**
-	 * Returns validators for CURRENCY field.
+	 * Default onBeforeAdd handler. Absolutely necessary.
 	 *
-	 * @return array
+	 * @param Event $event Current data for add.
+	 * @return EventResult
 	 */
-	public static function validateCurrency(): array
+	public static function onBeforeAdd(Event $event): EventResult
 	{
-		return [
-			new LengthValidator(null, 3),
-		];
+		$result = new EventResult;
+		$data = $event->getParameter('fields');
+		if (!isset($data['TIMESTAMP_X']))
+		{
+			$result->modifyFields([
+				'TIMESTAMP_X' => new DateTime(),
+			]);
+		}
+
+		return $result;
 	}
 
 	/**
-	 * Returns validators for DESCRIPTION field.
+	 * Default onBeforeUpdate handler. Absolutely necessary.
 	 *
-	 * @return array
+	 * @param Event $event Current data for update.
+	 * @return EventResult
 	 */
-	public static function validateDescription(): array
+	public static function onBeforeUpdate(Event $event): EventResult
 	{
-		return [
-			new LengthValidator(null, 255),
-		];
+		$result = new EventResult;
+		$data = $event->getParameter('fields');
+		if (!isset($data['TIMESTAMP_X']))
+		{
+			$result->modifyFields([
+				'TIMESTAMP_X' => new DateTime(),
+			]);
+		}
+
+		return $result;
 	}
 }

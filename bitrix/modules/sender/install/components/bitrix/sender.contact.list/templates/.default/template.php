@@ -4,7 +4,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\Localization\Loc;
 
-/** @var CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
@@ -98,36 +98,17 @@ foreach ($arResult['ROWS'] as $index => $data)
 	);
 }
 
-ob_start();
-$APPLICATION->IncludeComponent(
-	"bitrix:main.ui.filter",
-	"",
-	array(
-		"FILTER_ID" => $arParams['FILTER_ID'],
-		"GRID_ID" => $arParams['GRID_ID'],
-		"FILTER" => $arResult['FILTERS'],
-		"FILTER_PRESETS" => $arResult['FILTER_PRESETS'],
-		"DISABLE_SEARCH" => true,
-		"ENABLE_LABEL" => true,
-	)
-);
-$filterLayout = ob_get_clean();
-
-$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' => array(
-	$arParams['LIST_ID'] ? null : array('type' => 'buttons', 'list' => [
+$APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", ['LIST' => [
+	$arParams['LIST_ID'] ? null : ['type' => 'buttons', 'list' => [
 		$arParams['CAN_EDIT']
 			?
 			[
 				'type' => 'add',
-				'id' => 'SENDER_BUTTON_ADD',
 				'caption' => Loc::getMessage('SENDER_CONTACT_LIST_BTN_ADD'),
 				'href' => $arParams['PATH_TO_IMPORT']
 			]
 			:
-			null
-	]),
-	array('type' => 'filter', 'content' => $filterLayout),
-	$arParams['LIST_ID'] ? null : array('type' => 'buttons', 'list' => [
+			null,
 		$arParams['SHOW_SETS']
 			?
 			[
@@ -143,8 +124,16 @@ $APPLICATION->IncludeComponent("bitrix:sender.ui.panel.title", "", array('LIST' 
 			'type' => 'settings',
 			'items' => ['import']
 		]
-	])),
-));
+	]],
+	['type' => 'filter', 'params' => [
+		"FILTER_ID" => $arParams['FILTER_ID'],
+		"GRID_ID" => $arParams['GRID_ID'],
+		"FILTER" => $arResult['FILTERS'],
+		"FILTER_PRESETS" => $arResult['FILTER_PRESETS'],
+		"DISABLE_SEARCH" => true,
+		"ENABLE_LABEL" => true,
+	]],
+]]);
 
 
 $snippet = new \Bitrix\Main\Grid\Panel\Snippet();
@@ -186,7 +175,7 @@ $APPLICATION->IncludeComponent(
 
 
 ?>
-	<script type="text/javascript">
+	<script>
 		BX.ready(function () {
 
 			BX.Sender.ContactList.init(<?=Json::encode(array(

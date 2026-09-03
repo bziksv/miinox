@@ -1,9 +1,4 @@
-<?php
-
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
-{
-	die();
-}
+<?php if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
 
 /**
  * @var CMain $APPLICATION
@@ -25,24 +20,7 @@ $url = (new \Bitrix\Main\Web\Uri($arParams["URL"]))
 	->deleteParams(["MID", "ID", "sessid", "AJAX_POST", "ENTITY_XML_ID", "ENTITY_TYPE", "ENTITY_ID", "REVIEW_ACTION", "ACTION", "MODE", "FILTER", "result"]);
 $link = ForumAddPageParams($url->getPathQuery(), array("MID" => "#ID#"), false, false);
 
-if (isset($arParams["PUBLIC_MODE"]) && $arParams["PUBLIC_MODE"])
-{
-	$editRight = "N";
-}
-else
-{
-	$editRight = (
-		$arResult["PANELS"]["EDIT"] == "N"
-			? (
-				$arParams["ALLOW_EDIT_OWN_MESSAGE"] === "ALL"
-					? "OWN"
-					: ($arParams["ALLOW_EDIT_OWN_MESSAGE"] === "LAST" ? "OWNLAST" : "N")
-			)
-			: "Y"
-	);
-}
-
-$canCreateTask = ($arResult['POST_CONTENT_TYPE_ID'] && !$arParams['PUBLIC_MODE']);
+$canCreateTask = ($arResult['POST_CONTENT_TYPE_ID'] && !(isset($arParams['PUBLIC_MODE']) && $arParams['PUBLIC_MODE']));
 
 $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 	"bitrix:main.post.list",
@@ -57,10 +35,10 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 		"NAV_RESULT" => $arResult["NAV_RESULT"] ?? null,
 		"PREORDER" => $arParams["PREORDER"],
 		"RIGHTS" => array(
-			"MODERATE" =>  $arResult["PANELS"]["MODERATE"],
-			"EDIT" => $editRight,
-			"DELETE" => $editRight,
-			'CREATETASK' => ($arResult['POST_CONTENT_TYPE_ID'] && !$arParams['PUBLIC_MODE'] ? 'Y' : 'N'),
+			"MODERATE" =>  $arResult["PANELS"]["MODERATE"] ?? null,
+			"EDIT" => $arResult['EDIT_RIGHT'],
+			"DELETE" => $arResult['EDIT_RIGHT'],
+			'CREATETASK' => ($arResult['POST_CONTENT_TYPE_ID'] && !(isset($arParams['PUBLIC_MODE']) && $arParams['PUBLIC_MODE']) ? 'Y' : 'N'),
 			'CREATESUBTASK' => ($canCreateTask && $arParams['ENTITY_TYPE'] === 'TK' ? 'Y' : 'N')
 		),
 		'POST_CONTENT_TYPE_ID' => $arResult['POST_CONTENT_TYPE_ID'],
@@ -84,13 +62,13 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 		"SHOW_LOGIN" => $arParams['SHOW_LOGIN'],
 
 		"DATE_TIME_FORMAT" => $arParams["DATE_TIME_FORMAT"],
-		"LAZYLOAD" => $arParams["LAZYLOAD"],
+		"LAZYLOAD" => $arParams["LAZYLOAD"] ?? null,
 
-		"NOTIFY_TAG" => ($arParams["bFromList"] ? "BLOG|COMMENT" : ""),
-		"NOTIFY_TEXT" => ($arParams["bFromList"] ? TruncateText(str_replace(Array("\r\n", "\n"), " ", $arParams["POST_DATA"]["~TITLE"]), 100) : ""),
+		"NOTIFY_TAG" => (isset($arParams["bFromList"]) && $arParams["bFromList"] ? "BLOG|COMMENT" : ""),
+		"NOTIFY_TEXT" => (isset($arParams["bFromList"]) && $arParams["bFromList"] ? TruncateText(str_replace(Array("\r\n", "\n"), " ", $arParams["POST_DATA"]["~TITLE"]), 100) : ""),
 		"SHOW_MINIMIZED" => $arParams["SHOW_MINIMIZED"],
 
-		"FORM_ID" => $arParams["FORM_ID"], // instead of SHOW_POST_FORM
+		"FORM_ID" => $arResult["SHOW_POST_FORM"] === 'N' ? '' : $arParams["FORM_ID"], // instead of SHOW_POST_FORM
 		"SHOW_POST_FORM" => $arResult["SHOW_POST_FORM"], // for old main.post.list
 
 		"IMAGE_SIZE" => $arParams["IMAGE_SIZE"] ?? null,

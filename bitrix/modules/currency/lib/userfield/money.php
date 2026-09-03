@@ -1,14 +1,11 @@
 <?php
+
 namespace Bitrix\Currency\UserField;
 
-use Bitrix\Currency\CurrencyManager;
 use Bitrix\Currency\Helpers\Editor;
-use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Security\Random;
 use Bitrix\Currency\UserField\Types\MoneyType;
 use Bitrix\Main\UserField\TypeBase;
-
-Loc::loadLanguageFile(__FILE__);
 
 /**
  * Class Money
@@ -148,11 +145,11 @@ class Money extends TypeBase
 
 	/**
 	 * @param $userField
-	 * @param $control
+	 * @param $additionalParameters
 	 * @return string
 	 * @deprecated
 	 */
-	public static function getEditFormHtmlMulty($userField, $control)
+	public static function getEditFormHtmlMulty($userField, $additionalParameters)
 	{
 		return MoneyType::renderEditForm($userField, $additionalParameters);
 	}

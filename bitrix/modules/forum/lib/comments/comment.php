@@ -3,17 +3,15 @@
 namespace Bitrix\Forum\Comments;
 
 use Bitrix\Forum\Internals\Error\ErrorCollection;
-use Bitrix\Forum\MessageTable;
+use Bitrix\Forum;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Loader;
-use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Web\Json;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Forum\Internals\Error\Error;
 use \Bitrix\Main\Event;
 use \Bitrix\Main\EventResult;
 use \Bitrix\Main\ArgumentException;
-use Bitrix\Main\Type\DateTime;
 
 Loc::loadMessages(__FILE__);
 
@@ -132,20 +130,26 @@ class Comment extends BaseObject
 		}
 
 		global $USER_FIELD_MANAGER;
-		if (!empty($result["SERVICE_TYPE"]))
+		$ufData = array_intersect_key(
+			$params,
+			$USER_FIELD_MANAGER->getUserFields(Forum\MessageTable::getUfId()),
+		);
+		if (!empty($ufData))
 		{
-			$fields = $USER_FIELD_MANAGER->getUserFields("FORUM_MESSAGE");
-			if (($ufData = array_intersect_key($params, $fields)) && !empty($ufData))
-			{
-				$USER_FIELD_MANAGER->editFormAddFields("FORUM_MESSAGE", $result, ["FORM" => $ufData]);
-			}
+			$USER_FIELD_MANAGER->editFormAddFields(Forum\MessageTable::getUfId(), $result, ["FORM" => $ufData]);
 		}
-		else
-		{
-			$USER_FIELD_MANAGER->editFormAddFields("FORUM_MESSAGE", $result);
-		}
+
 		$params = $result;
 		return true;
+	}
+
+	public function appendUserFields(array &$params): static
+	{
+		global $USER_FIELD_MANAGER;
+
+		$USER_FIELD_MANAGER->editFormAddFields(Forum\MessageTable::getUfId(), $params);
+
+		return $this;
 	}
 
 	private function updateStatisticModule($messageId)
@@ -184,14 +188,18 @@ class Comment extends BaseObject
 			"SOURCE_ID" => $params["SOURCE_ID"] ?? 0,
 
 			"POST_DATE" => array_key_exists("POST_DATE", $params) ? $params["POST_DATE"] : new \Bitrix\Main\Type\DateTime(),
-			"POST_MESSAGE" => trim($params["POST_MESSAGE"]),
+			"POST_MESSAGE" => (
+				isset($params["POST_MESSAGE"]) && is_string($params["POST_MESSAGE"])
+					? trim($params["POST_MESSAGE"])
+					: ''
+			),
 			"FILES" => $params["FILES"] ?? null,
 
 			"USE_SMILES" => $params["USE_SMILES"],
 
 			"AUTHOR_ID" => $this->getUser()->getId(),
-			"AUTHOR_NAME" => trim($params["AUTHOR_NAME"]),
-			"AUTHOR_EMAIL" => trim($params["AUTHOR_EMAIL"]),
+			"AUTHOR_NAME" => trim($params["AUTHOR_NAME"] ?? ''),
+			"AUTHOR_EMAIL" => trim($params["AUTHOR_EMAIL"] ?? ''),
 
 			"AUTHOR_IP" => $params["AUTHOR_IP"] ?? "<no address>",
 			"AUTHOR_REAL_IP" => $params["AUTHOR_REAL_IP"] ?? "<no address>",
@@ -201,10 +209,7 @@ class Comment extends BaseObject
 			"AUX_DATA" => $auxData,
 			"SERVICE_TYPE" => ($params["SERVICE_TYPE"] ?? null),
 			"SERVICE_DATA" => ($params["SERVICE_DATA"] ?? null),
-
-			"UF_TASK_COMMENT_TYPE" => ($params["UF_TASK_COMMENT_TYPE"] ?? null),
-			"UF_FORUM_MES_URL_PRV" => ($params["UF_FORUM_MES_URL_PRV"] ?? null),
-		);
+		) + array_filter($params, fn($key) => strpos($key, 'UF_') === 0, ARRAY_FILTER_USE_KEY);
 
 		if ($this->prepareFields($params, $this->errorCollection))
 		{
@@ -319,13 +324,15 @@ class Comment extends BaseObject
 			else if (($params = array(
 				"POST_MESSAGE" => trim($params["POST_MESSAGE"]),
 				"AUTHOR_ID" => $this->message["AUTHOR_ID"],
-				"AUTHOR_NAME" => (array_key_exists("AUTHOR_NAME", $params) ? trim($params["AUTHOR_NAME"]) : $this->message["AUTHOR_NAME"]),
-				"AUTHOR_EMAIL" => (array_key_exists("AUTHOR_EMAIL", $params) ? trim($params["AUTHOR_EMAIL"]) : $this->message["AUTHOR_EMAIL"]),
-				"USE_SMILES" => $params["USE_SMILES"],
-				"FILES" => $params["FILES"],
-				"AUX" => $params["AUX"],
-				"AUX_DATA" => $params["AUX_DATA"],
-			)) && $this->prepareFields($params, $this->errorCollection))
+				"AUTHOR_NAME" => $params["AUTHOR_NAME"] ?? $this->message["AUTHOR_NAME"],
+				"AUTHOR_EMAIL" => $params["AUTHOR_EMAIL"] ?? $this->message["AUTHOR_EMAIL"],
+				"USE_SMILES" => $params["USE_SMILES"] ?? 'Y',
+				"FILES" => $params["FILES"] ?? [],
+				"AUX" => $params["AUX"] ?? null,
+				"AUX_DATA" => $params["AUX_DATA"] ?? null,
+				) + array_filter($params, fn($key) => strpos($key, 'UF_') === 0, ARRAY_FILTER_USE_KEY))
+				&& $this->prepareFields($params, $this->errorCollection)
+			)
 			{
 				if (array_key_exists("POST_DATE", $paramsRaw))
 				{
@@ -355,7 +362,7 @@ class Comment extends BaseObject
 						$resLog = array();
 						foreach ($paramsRaw as $key => $val)
 						{
-							if ($val == $this->message[$key])
+							if (!isset($this->message[$key]) || $val == $this->message[$key])
 								continue;
 							else if ($key == "FILES")
 								$resLog["FILES"] = GetMessage("F_ATTACH_IS_MODIFIED");
@@ -406,7 +413,8 @@ class Comment extends BaseObject
 					"TOPIC_ID" => $this->topic["ID"],
 					"MESSAGE_ID" => $this->message["ID"],
 					"MESSAGE" => $this->getComment(),
-					"ACTION" => "DEL"
+					"ACTION" => "DEL",
+					'USER_ID' => $this->getUser()?->getId(),
 				));
 			/***************** Events OnBeforeCommentDelete ******************/
 			$event = new Event("forum", "OnBeforeCommentDelete", $fields);

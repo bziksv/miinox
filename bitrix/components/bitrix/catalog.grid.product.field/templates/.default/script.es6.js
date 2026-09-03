@@ -1,7 +1,7 @@
-import {Dom, Reflection, Type} from "main.core";
-import type {BaseEvent} from "main.core.events";
-import {EventEmitter} from "main.core.events";
-import {ProductSelector} from 'catalog.product-selector';
+import { Dom, Reflection } from 'main.core';
+import type { BaseEvent } from 'main.core.events';
+import { EventEmitter } from 'main.core.events';
+import { ProductSelector } from 'catalog.product-selector';
 
 const instances = new Map();
 
@@ -15,8 +15,10 @@ class ProductField
 	onCancelEditHandler = this.onCancelEdit.bind(this);
 	onBeforeGridRequestHandler = this.onBeforeGridRequest.bind(this);
 	onUnsubscribeEventsHandler = this.unsubscribeEvents.bind(this);
+	onSkuLoadedHandler = this.onSkuLoaded.bind(this);
+	onGridUpdateHandler = this.onGridUpdate.bind(this);
 
-	static getById(id: string): ?ImageInput
+	static getById(id: string): ?ProductField
 	{
 		return instances.get(id) || null;
 	}
@@ -24,6 +26,7 @@ class ProductField
 	constructor(id, settings = {})
 	{
 		this.selector = new ProductSelector(id, settings);
+		this.columnName = settings.columnName || 'CATALOG_PRODUCT';
 		this.componentName = settings.componentName || '';
 		this.signedParameters = settings.signedParameters || '';
 		this.rowIdMask = settings.rowIdMask || '#ID#';
@@ -35,10 +38,17 @@ class ProductField
 
 	subscribeEvents()
 	{
+		EventEmitter.incrementMaxListeners('Grid::thereEditedRows', 1);
+		EventEmitter.incrementMaxListeners('Grid::noEditedRows', 1);
+		EventEmitter.incrementMaxListeners('Grid::beforeRequest', 1);
+		EventEmitter.incrementMaxListeners('Grid::updated', 1);
+
 		EventEmitter.subscribe('Grid::thereEditedRows', this.onSelectEditHandler);
 		EventEmitter.subscribe('Grid::noEditedRows', this.onCancelEditHandler);
 		EventEmitter.subscribe('Grid::beforeRequest', this.onBeforeGridRequestHandler);
-		EventEmitter.subscribe('Grid::updated', this.onUnsubscribeEventsHandler);
+		EventEmitter.subscribe('Grid::updated', this.onGridUpdateHandler);
+		EventEmitter.subscribe('BX.Catalog.SkuTree::onSkuLoaded', this.onSkuLoadedHandler);
+		EventEmitter.subscribeOnce(this.selector, 'onBeforeChange', this.onUnsubscribeEventsHandler);
 	}
 
 	unsubscribeEvents()
@@ -47,7 +57,68 @@ class ProductField
 		EventEmitter.unsubscribe('Grid::noEditedRows', this.onCancelEditHandler);
 		EventEmitter.unsubscribe('Grid::beforeRequest', this.onBeforeGridRequestHandler);
 		EventEmitter.unsubscribe('Grid::updated', this.onUnsubscribeEventsHandler);
+		EventEmitter.unsubscribe('BX.Catalog.SkuTree::onSkuLoaded', this.onSkuLoadedHandler);
 		this.selector.unsubscribeEvents();
+	}
+
+	onSkuLoaded(event): void
+	{
+		const currentRowElement = document.getElementById(event.data.id).closest('.main-grid-row.main-grid-row-body');
+
+		if (
+			!currentRowElement
+			|| !currentRowElement.querySelectorAll('.main-grid-fixed-column')
+			|| currentRowElement.style.height
+		)
+		{
+			return;
+		}
+
+		const inlineElementList = [...currentRowElement.querySelectorAll('.main-grid-cell')];
+
+		if (inlineElementList.length === 0)
+		{
+			return;
+		}
+
+		const maxColumnsHeight = Math.max(...(inlineElementList.map((cell) => parseInt(Dom.style(cell, 'height'), 10))));
+
+		if (!maxColumnsHeight)
+		{
+			return;
+		}
+
+		Dom.style(currentRowElement, 'height', `${maxColumnsHeight}px`);
+	}
+
+	onGridUpdate()
+	{
+		setTimeout(() => {
+			document.querySelectorAll('.main-grid-row.main-grid-row-body').forEach(currentRowElement => {
+				if (currentRowElement.style.height)
+				{
+					return;
+				}
+
+				const inlineElements = [...currentRowElement.querySelectorAll('.main-grid-cell')];
+
+				if (inlineElements.length === 0)
+				{
+					return;
+				}
+
+				const maxColumnsHeight = Math.max(...(inlineElements.map((cell) => parseInt(Dom.style(cell, 'height'), 10))));
+
+				if (!maxColumnsHeight)
+				{
+					return;
+				}
+
+				Dom.style(currentRowElement, 'height', `${maxColumnsHeight}px`);
+			});
+		}, 0);
+
+		this.onUnsubscribeEventsHandler();
 	}
 
 	getSelector(): ProductSelector
@@ -129,7 +200,7 @@ class ProductField
 			return;
 		}
 
-		const cell = row.getCellById('CATALOG_PRODUCT');
+		const cell = row.getCellById(this.columnName);
 		if (cell)
 		{
 			Dom.removeClass(row.getContentContainer(cell), ProductField.EDIT_CLASS);
@@ -156,7 +227,7 @@ class ProductField
 			this.getSelector().clearLayout();
 			this.getSelector().layout();
 
-			const cell = row.getCellById('CATALOG_PRODUCT');
+			const cell = row.getCellById(this.columnName);
 			if (cell)
 			{
 				Dom.addClass(row.getContentContainer(cell), ProductField.EDIT_CLASS);

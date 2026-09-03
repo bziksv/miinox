@@ -20,12 +20,19 @@ $pageName = $this->getPageName();
 		<form method="POST" action="<?= str_replace('IS_AJAX=Y', '', POST_FORM_ACTION_URI);?>" id="<?= $id;?>-form">
 			<input type="hidden" name="action" value="accept_agreement" />
 			<?= bitrix_sessid_post();?>
+			<?php if (($arResult['AGREEMENT_INITIAL_PROMPT'] ?? '') !== ''): ?>
+				<input
+					type="hidden"
+					name="initial_prompt"
+					value="<?= htmlspecialcharsbx((string)$arResult['AGREEMENT_INITIAL_PROMPT']);?>"
+				/>
+			<?php endif; ?>
 			<?= $arResult['AGREEMENT']['TEXT'];?>
 		</form>
 	</div>
 </div>
 
-<script type="text/javascript">
+<script>
 	var landingAgreementPopup = function(params)
 	{
 		params = params || {};
@@ -38,6 +45,7 @@ $pageName = $this->getPageName();
 			draggable: true,
 			lightShadow: true,
 			overlay: true,
+			focusTrap: true,
 			className: '<?= $id;?>-wrapper',
 			buttons: [
 				new BX.PopupWindowButton({
@@ -62,7 +70,14 @@ $pageName = $this->getPageName();
 		oPopup.setTitleBar('<?= \CUtil::jsEscape($arResult['AGREEMENT']['NAME']);?>');
 		oPopup.show();
 	};
-	<?if ($pageName === 'landing_view' && !$arResult['AGREEMENT_ACCEPTED'] && \Bitrix\Landing\Site\Type::isPublicScope()):?>
+	<?php
+		$pageIsNeededAgreement = false;
+		if ($pageName === 'landing_view' || $pageName === 'ai')
+		{
+			$pageIsNeededAgreement = true;
+		}
+	?>
+	<?if ($pageIsNeededAgreement && !$arResult['AGREEMENT_ACCEPTED'] && \Bitrix\Landing\Site\Type::isPublicScope()):?>
 	landingAgreementPopup();
 	<?endif;?>
 </script>

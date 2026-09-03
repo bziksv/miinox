@@ -2,6 +2,8 @@
 
 global $APPLICATION;
 
+$dbType = \Bitrix\Main\Application::getConnection()->getType();
+
 IncludeModuleLangFile(__FILE__);
 
 if (file_exists(__DIR__."/deprecated.php"))
@@ -70,8 +72,8 @@ if(!defined("CACHED_b_forum_user"))
 		"textParser" => "classes/general/functions.php",
 		"forumTextParser" => "classes/general/functions.php",
 
-		"CForumNew" =>   "classes/mysql/forum_new.php",
-		"CForumGroup" => "classes/mysql/forum_new.php",
+		"CForumNew" =>   "classes/" . $dbType . "/forum_new.php",
+		"CForumGroup" => "classes/" . $dbType . "/forum_new.php",
 		"CForumSmile" => "classes/general/forum_new.php",
 		"_CForumDBResult"=>"classes/general/forum_new.php",
 
@@ -326,8 +328,6 @@ function ForumAddMessage(
 		//region 0. CAPTCHA
 		if (!$USER->IsAuthorized() && $forum["USE_CAPTCHA"]=="Y")
 		{
-			include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/captcha.php");
-
 			$cpt = new CCaptcha();
 			if ($captcha_code <> '')
 			{
@@ -367,8 +367,11 @@ function ForumAddMessage(
 		$arFieldsG["USE_SMILES"] = ($arFieldsG["USE_SMILES"] == "Y" ? "Y" : "N");
 		if (array_key_exists("ATTACH_IMG", $arFieldsG))
 		{
+			if (!empty($arFieldsG["ATTACH_IMG"]))
+			{
+				$arFieldsG["FILES"] = [$arFieldsG["ATTACH_IMG"]];
+			}
 			unset($arFieldsG["ATTACH_IMG"]);
-			$arFieldsG["FILES"] = [$arFieldsG["ATTACH_IMG"]];
 		}
 		$GLOBALS["USER_FIELD_MANAGER"]->EditFormAddFields("FORUM_MESSAGE", $arFieldsG);
 		//endregion
@@ -965,7 +968,7 @@ function ForumShowTopicPages($nMessages, $strUrl, $pagen_var = "PAGEN_1", $PAGE_
 	return $res_str;
 }
 
-function ForumMoveMessage($FID, $TID, $Message, $NewTID = 0, $arFields, &$strErrorMessage, &$strOKMessage, $iFileSize = false)
+function ForumMoveMessage($FID, $TID, $Message, $NewTID, $arFields, &$strErrorMessage, &$strOKMessage, $iFileSize = false)
 {
 	global $USER, $DB;
 	$arError = array();
@@ -1034,7 +1037,7 @@ function ForumMoveMessage($FID, $TID, $Message, $NewTID = 0, $arFields, &$strErr
 		// Create topic
 		if ($NewTID <= 0)
 		{
-			$arFields["APPROVED"] = ($arNewForum["MODERATION"]=="Y") ? "N" : "Y";
+			$arFields["APPROVED"] = (isset($arNewForum["MODERATION"]) && $arNewForum["MODERATION"]=="Y") ? "N" : "Y";
 			if ($arCurrUser["Perms"]["NewFID"] >= "Q")
 				$arFields["APPROVED"] = "Y";
 
@@ -1190,17 +1193,18 @@ function ForumPrintIconsList($num_cols, $value = "")
 
 	foreach ($arSmile as $res)
 	{
-		$width = ($res["IMAGE_WIDTH"] > 0 ? 'width="{$res["IMAGE_WIDTH"]}"' : '');
-		$height = ($res["IMAGE_HEIGHT"] > 0 ? 'width="{$res["IMAGE_HEIGHT"]}"' : '');
+		$width = (isset($res["IMAGE_WIDTH"]) && $res["IMAGE_WIDTH"] > 0 ? 'width="{$res["IMAGE_WIDTH"]}"' : '');
+		$height = (isset($res["IMAGE_HEIGHT"]) && $res["IMAGE_HEIGHT"] > 0 ? 'width="{$res["IMAGE_HEIGHT"]}"' : '');
 		$checked = '';
 		if (trim($res['TYPING']) == trim($value))
 		{
 			$checked = 'checked="checked"';
 		}
 
+		$classImg = $res["CLASS"] ?? '';
 		$res_str .= <<<HTML
 		<td>
-			<img src="{$strPath2Icons}{$res["IMAGE"]}" alt="{$res["NAME"]}" border="0" class="icons {$res["CLASS"]}" $width $height />
+			<img src="{$strPath2Icons}{$res["IMAGE"]}" alt="{$res["NAME"]}" border="0" class="icons {$classImg}" $width $height />
 			<input type="radio" name="ICON" value="{$res["TYPING"]}" $checked />
 		</td>
 HTML;
@@ -1474,8 +1478,8 @@ function ShowActiveUser($arFields = array())
 				$OnLineUser["GUEST"] = intval($res["COUNT_USER"]);
 		}while ($res = $db_res->GetNext());
 
-		$CountAllUsers = count($OnLineUser["USER"]) + $UserHideOnLine + $OnLineUser["GUEST"];
-		$result["GUEST"] = $OnLineUser["GUEST"];
+		$CountAllUsers = count($OnLineUser["USER"]) + $UserHideOnLine + ($OnLineUser["GUEST"] ?? 0);
+		$result["GUEST"] = ($OnLineUser["GUEST"] ?? 0);
 		$result["HIDE"] = $UserHideOnLine;
 		$result["REGISTER"] = intval(count($OnLineUser["USER"])+$UserHideOnLine);
 		$result["ALL"] = $CountAllUsers;
@@ -1488,7 +1492,7 @@ function ShowActiveUser($arFields = array())
 				$result["HEAD"] = str_replace("##", "<b>".round($period/60)."</b>", GetMessage("FORUM_AT_LAST_PERIOD"))." ".
 				GetMessage("FORUM_COUNT_ALL_USER").": <b>".$CountAllUsers."</b><br/>";
 			}
-			$OnLineUserStr = GetMessage("FORUM_COUNT_GUEST").": <b>".intval($OnLineUser["GUEST"])."</b>, ".
+			$OnLineUserStr = GetMessage("FORUM_COUNT_GUEST").": <b>".intval($OnLineUser["GUEST"] ?? 0)."</b>, ".
 				GetMessage("FORUM_COUNT_USER").": <b>".intval(count($OnLineUser["USER"])+$UserHideOnLine)."</b>,
 				".GetMessage("FORUM_FROM_THIS")." ".GetMessage("FORUM_COUNT_USER_HIDEFROMONLINE").": <b>".$UserHideOnLine."</b>";
 
@@ -1653,7 +1657,7 @@ function ForumActions($action, $arFields, &$strErrorMessage, &$strOKMessage)
 				{
 					$topic = \Bitrix\Forum\Topic::getById($topicId);
 					$forum = \Bitrix\Forum\Forum::getById($topic->getForumId());
-					if (is_string($arFields["PERMISSION"]))
+					if (isset($arFields["PERMISSION"]) && is_string($arFields["PERMISSION"]))
 					{
 						$usr->setPermissionOnForum($forum, $arFields["PERMISSION"]);
 					}

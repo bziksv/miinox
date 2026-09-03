@@ -1,4 +1,5 @@
 <?php
+
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
@@ -7,8 +8,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(
-	\Bitrix\Landing\Manager::getDocRoot() .
-	'/bitrix/modules/landing/blocks/.style.php'
+	\Bitrix\Landing\Manager::getDocRoot() . '/bitrix/modules/landing/blocks/.style.php'
 );
 
 return [
@@ -188,7 +188,8 @@ return [
 			'type' => 'buttons',
 			'items' => [
 				[
-					'name' => '<span class="landing-ui-align landing-ui-align-left"><em></em></span>', 'value' => 'text-left',
+					'name' => '<span class="landing-ui-align landing-ui-align-left"><em></em></span>',
+					'value' => 'text-left',
 				],
 				[
 					'name' => '<span class="landing-ui-align landing-ui-align-center"><em></em></span>',
@@ -211,7 +212,10 @@ return [
 			'type' => 'list',
 			'items' => [
 				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_NORMAL'), 'value' => 'word-break-normal'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_BREAK_ALL'), 'value' => 'word-break-break-all'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_BREAK_ALL'),
+					'value' => 'word-break-break-all',
+				],
 				//['name' => Loc::getMessage('LANDING_BLOCK_STYLE_WORD_BREAK_KEEP_ALL'), 'value' => 'word-break-keep-all'],
 			],
 		],
@@ -453,7 +457,8 @@ return [
 				['name' => 'g-color-brown--hover', 'value' => 'g-color-brown--hover'],
 				['name' => 'g-color-bluegray--hover', 'value' => 'g-color-bluegray--hover'],
 				[
-					'name' => 'g-theme-event-color-gray-dark-v1--hover', 'value' => 'g-theme-event-color-gray-dark-v1--hover',
+					'name' => 'g-theme-event-color-gray-dark-v1--hover',
+					'value' => 'g-theme-event-color-gray-dark-v1--hover',
 				],
 				['name' => 'g-theme-bitrix-color-v4--hover', 'value' => 'g-theme-bitrix-color-v4--hover'],
 			],
@@ -634,7 +639,8 @@ return [
 				['name' => 'g-bg-blue-radialgradient-circle', 'value' => 'g-bg-blue-radialgradient-circle'],
 				['name' => 'g-bg-darkgray-radialgradient-circle', 'value' => 'g-bg-darkgray-radialgradient-circle'],
 				[
-					'name' => 'g-bg-blue-radialgradient-circle-endless', 'value' => 'g-bg-blue-radialgradient-circle-endless',
+					'name' => 'g-bg-blue-radialgradient-circle-endless',
+					'value' => 'g-bg-blue-radialgradient-circle-endless',
 				],
 				['name' => 'g-bg-gray-verticalstripes-endless', 'value' => 'g-bg-gray-verticalstripes-endless'],
 				['name' => 'g-bg-pattern-gray-v1', 'value' => 'g-bg-pattern-gray-v1'],
@@ -817,7 +823,8 @@ return [
 				['name' => 'g-bg-blue-radialgradient-circle', 'value' => 'g-bg-blue-radialgradient-circle'],
 				['name' => 'g-bg-darkgray-radialgradient-circle', 'value' => 'g-bg-darkgray-radialgradient-circle'],
 				[
-					'name' => 'g-bg-blue-radialgradient-circle-endless', 'value' => 'g-bg-blue-radialgradient-circle-endless',
+					'name' => 'g-bg-blue-radialgradient-circle-endless',
+					'value' => 'g-bg-blue-radialgradient-circle-endless',
 				],
 				['name' => 'g-bg-gray-verticalstripes-endless', 'value' => 'g-bg-gray-verticalstripes-endless'],
 				['name' => 'g-bg-pattern-gray-v1', 'value' => 'g-bg-pattern-gray-v1'],
@@ -937,16 +944,34 @@ return [
 				['name' => 'g-bg-bluegray-opacity-0_5--hover', 'value' => 'g-bg-bluegray-opacity-0_5--hover'],
 				['name' => 'g-bg-bluegray-opacity-0_7--hover', 'value' => 'g-bg-bluegray-opacity-0_7--hover'],
 
-				['name' => 'g-theme-business-bg-blue-dark-v1--hover', 'value' => 'g-theme-business-bg-blue-dark-v1--hover'],
+				[
+					'name' => 'g-theme-business-bg-blue-dark-v1--hover',
+					'value' => 'g-theme-business-bg-blue-dark-v1--hover',
+				],
 				[
 					'name' => 'g-theme-business-bg-blue-dark-v1-opacity-0_9--hover',
 					'value' => 'g-theme-business-bg-blue-dark-v1-opacity-0_9--hover',
 				],
-				['name' => 'g-theme-business-bg-blue-dark-v2--hover', 'value' => 'g-theme-business-bg-blue-dark-v2--hover'],
-				['name' => 'g-theme-business-bg-blue-dark-v3--hover', 'value' => 'g-theme-business-bg-blue-dark-v3--hover'],
-				['name' => 'g-theme-architecture-bg-blue-dark-v1--hover', 'value' => 'g-theme-architecture-bg-blue-dark-v1--hover'],
-				['name' => 'g-theme-architecture-bg-blue-dark-v3--hover', 'value' => 'g-theme-architecture-bg-blue-dark-v3--hover'],
-				['name' => 'g-theme-architecture-bg-blue-dark-v4--hover', 'value' => 'g-theme-architecture-bg-blue-dark-v4--hover'],
+				[
+					'name' => 'g-theme-business-bg-blue-dark-v2--hover',
+					'value' => 'g-theme-business-bg-blue-dark-v2--hover',
+				],
+				[
+					'name' => 'g-theme-business-bg-blue-dark-v3--hover',
+					'value' => 'g-theme-business-bg-blue-dark-v3--hover',
+				],
+				[
+					'name' => 'g-theme-architecture-bg-blue-dark-v1--hover',
+					'value' => 'g-theme-architecture-bg-blue-dark-v1--hover',
+				],
+				[
+					'name' => 'g-theme-architecture-bg-blue-dark-v3--hover',
+					'value' => 'g-theme-architecture-bg-blue-dark-v3--hover',
+				],
+				[
+					'name' => 'g-theme-architecture-bg-blue-dark-v4--hover',
+					'value' => 'g-theme-architecture-bg-blue-dark-v4--hover',
+				],
 				['name' => 'g-theme-lawyer-bg-gray-dark-v1--hover', 'value' => 'g-theme-lawyer-bg-gray-dark-v1--hover'],
 				['name' => 'g-theme-event-bg-blue-dark-v2--hover', 'value' => 'g-theme-event-bg-blue-dark-v2--hover'],
 				['name' => 'g-theme-travel-bg-black-v1--hover', 'value' => 'g-theme-travel-bg-black-v1--hover'],
@@ -954,9 +979,18 @@ return [
 					'name' => 'g-theme-travel-bg-black-v1-opacity-0_8--hover',
 					'value' => 'g-theme-travel-bg-black-v1-opacity-0_8--hover',
 				],
-				['name' => 'g-theme-photography-bg-gray-dark-v2--hover', 'value' => 'g-theme-photography-bg-gray-dark-v2--hover'],
-				['name' => 'g-theme-photography-bg-gray-dark-v3--hover', 'value' => 'g-theme-photography-bg-gray-dark-v3--hover'],
-				['name' => 'g-theme-photography-bg-gray-dark-v4--hover', 'value' => 'g-theme-photography-bg-gray-dark-v4--hover'],
+				[
+					'name' => 'g-theme-photography-bg-gray-dark-v2--hover',
+					'value' => 'g-theme-photography-bg-gray-dark-v2--hover',
+				],
+				[
+					'name' => 'g-theme-photography-bg-gray-dark-v3--hover',
+					'value' => 'g-theme-photography-bg-gray-dark-v3--hover',
+				],
+				[
+					'name' => 'g-theme-photography-bg-gray-dark-v4--hover',
+					'value' => 'g-theme-photography-bg-gray-dark-v4--hover',
+				],
 				['name' => 'g-theme-bitrix-bg-dark-v1--hover', 'value' => 'g-theme-bitrix-bg-dark-v1--hover'],
 
 				['name' => 'g-bg-facebook--hover', 'value' => 'g-bg-facebook--hover'],
@@ -1124,6 +1158,12 @@ return [
 				['name' => 'g-bg-brown--before', 'value' => 'g-bg-brown--before'],
 			],
 		],
+		'background-color-after' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_BG_COLOR_BEFORE'),
+			'type' => 'color',
+			'subtype' => 'bg-color-after',
+			'items' => [],
+		],
 		'background-size' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_BACKGROUND_SIZE'),
 			'property' => 'background-size',
@@ -1276,28 +1316,35 @@ return [
 					'value' => 'u-navbar-color-gray-light-v5--fix-moment',
 				],
 				[
-					'name' => 'u-navbar-color-gray-dark-v1--fix-moment', 'value' => 'u-navbar-color-gray-dark-v1--fix-moment',
+					'name' => 'u-navbar-color-gray-dark-v1--fix-moment',
+					'value' => 'u-navbar-color-gray-dark-v1--fix-moment',
 				],
 				[
-					'name' => 'u-navbar-color-gray-dark-v2--fix-moment', 'value' => 'u-navbar-color-gray-dark-v2--fix-moment',
+					'name' => 'u-navbar-color-gray-dark-v2--fix-moment',
+					'value' => 'u-navbar-color-gray-dark-v2--fix-moment',
 				],
 				[
-					'name' => 'u-navbar-color-gray-dark-v3--fix-moment', 'value' => 'u-navbar-color-gray-dark-v3--fix-moment',
+					'name' => 'u-navbar-color-gray-dark-v3--fix-moment',
+					'value' => 'u-navbar-color-gray-dark-v3--fix-moment',
 				],
 				[
-					'name' => 'u-navbar-color-gray-dark-v4--fix-moment', 'value' => 'u-navbar-color-gray-dark-v4--fix-moment',
+					'name' => 'u-navbar-color-gray-dark-v4--fix-moment',
+					'value' => 'u-navbar-color-gray-dark-v4--fix-moment',
 				],
 				[
-					'name' => 'u-navbar-color-gray-dark-v5--fix-moment', 'value' => 'u-navbar-color-gray-dark-v5--fix-moment',
+					'name' => 'u-navbar-color-gray-dark-v5--fix-moment',
+					'value' => 'u-navbar-color-gray-dark-v5--fix-moment',
 				],
 				['name' => 'u-navbar-color-green--fix-moment', 'value' => 'u-navbar-color-green--fix-moment'],
 				['name' => 'u-navbar-color-blue--fix-moment', 'value' => 'u-navbar-color-blue--fix-moment'],
 				[
-					'name' => 'u-navbar-color-blue-dark-v1--fix-moment', 'value' => 'u-navbar-color-blue-dark-v1--fix-moment',
+					'name' => 'u-navbar-color-blue-dark-v1--fix-moment',
+					'value' => 'u-navbar-color-blue-dark-v1--fix-moment',
 				],
 				['name' => 'u-navbar-color-lightblue--fix-moment', 'value' => 'u-navbar-color-lightblue--fix-moment'],
 				[
-					'name' => 'u-navbar-color-lightblue-v1--fix-moment', 'value' => 'u-navbar-color-lightblue-v1--fix-moment',
+					'name' => 'u-navbar-color-lightblue-v1--fix-moment',
+					'value' => 'u-navbar-color-lightblue-v1--fix-moment',
 				],
 				['name' => 'u-navbar-color-darkblue--fix-moment', 'value' => 'u-navbar-color-darkblue--fix-moment'],
 				['name' => 'u-navbar-color-indigo--fix-moment', 'value' => 'u-navbar-color-indigo--fix-moment'],
@@ -1308,14 +1355,16 @@ return [
 				['name' => 'u-navbar-color-darkpurple--fix-moment', 'value' => 'u-navbar-color-darkpurple--fix-moment'],
 				['name' => 'u-navbar-color-pink--fix-moment', 'value' => 'u-navbar-color-pink--fix-moment'],
 				[
-					'name' => 'u-navbar-color-pink-dark-v1--fix-moment', 'value' => 'u-navbar-color-pink-dark-v1--fix-moment',
+					'name' => 'u-navbar-color-pink-dark-v1--fix-moment',
+					'value' => 'u-navbar-color-pink-dark-v1--fix-moment',
 				],
 				['name' => 'u-navbar-color-orange--fix-moment', 'value' => 'u-navbar-color-orange--fix-moment'],
 				['name' => 'u-navbar-color-deeporange--fix-moment', 'value' => 'u-navbar-color-deeporange--fix-moment'],
 				['name' => 'u-navbar-color-yellow--fix-moment', 'value' => 'u-navbar-color-yellow--fix-moment'],
 				['name' => 'u-navbar-color-aqua--fix-moment', 'value' => 'u-navbar-color-aqua--fix-moment'],
 				[
-					'name' => 'u-navbar-color-aqua-dark-v1--fix-moment', 'value' => 'u-navbar-color-aqua-dark-v1--fix-moment',
+					'name' => 'u-navbar-color-aqua-dark-v1--fix-moment',
+					'value' => 'u-navbar-color-aqua-dark-v1--fix-moment',
 				],
 				['name' => 'u-navbar-color-cyan--fix-moment', 'value' => 'u-navbar-color-cyan--fix-moment'],
 				['name' => 'u-navbar-color-teal--fix-moment', 'value' => 'u-navbar-color-teal--fix-moment'],
@@ -1334,13 +1383,16 @@ return [
 					'value' => 'u-navbar-color-primary--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-main--fix-moment--hover', 'value' => 'u-navbar-color-main--fix-moment--hover',
+					'name' => 'u-navbar-color-main--fix-moment--hover',
+					'value' => 'u-navbar-color-main--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-black--fix-moment--hover', 'value' => 'u-navbar-color-black--fix-moment--hover',
+					'name' => 'u-navbar-color-black--fix-moment--hover',
+					'value' => 'u-navbar-color-black--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-white--fix-moment--hover', 'value' => 'u-navbar-color-white--fix-moment--hover',
+					'name' => 'u-navbar-color-white--fix-moment--hover',
+					'value' => 'u-navbar-color-white--fix-moment--hover',
 				],
 				[
 					'name' => 'u-navbar-color-gray-light-v1--fix-moment--hover',
@@ -1383,10 +1435,12 @@ return [
 					'value' => 'u-navbar-color-gray-dark-v5--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-green--fix-moment--hover', 'value' => 'u-navbar-color-green--fix-moment--hover',
+					'name' => 'u-navbar-color-green--fix-moment--hover',
+					'value' => 'u-navbar-color-green--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-blue--fix-moment--hover', 'value' => 'u-navbar-color-blue--fix-moment--hover',
+					'name' => 'u-navbar-color-blue--fix-moment--hover',
+					'value' => 'u-navbar-color-blue--fix-moment--hover',
 				],
 				[
 					'name' => 'u-navbar-color-blue-dark-v1--fix-moment--hover',
@@ -1426,7 +1480,8 @@ return [
 					'value' => 'u-navbar-color-darkpurple--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-pink--fix-moment--hover', 'value' => 'u-navbar-color-pink--fix-moment--hover',
+					'name' => 'u-navbar-color-pink--fix-moment--hover',
+					'value' => 'u-navbar-color-pink--fix-moment--hover',
 				],
 				[
 					'name' => 'u-navbar-color-pink-dark-v1--fix-moment--hover',
@@ -1445,20 +1500,24 @@ return [
 					'value' => 'u-navbar-color-yellow--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-aqua--fix-moment--hover', 'value' => 'u-navbar-color-aqua--fix-moment--hover',
+					'name' => 'u-navbar-color-aqua--fix-moment--hover',
+					'value' => 'u-navbar-color-aqua--fix-moment--hover',
 				],
 				[
 					'name' => 'u-navbar-color-aqua-dark-v1--fix-moment--hover',
 					'value' => 'u-navbar-color-aqua-dark-v1--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-cyan--fix-moment--hover', 'value' => 'u-navbar-color-cyan--fix-moment--hover',
+					'name' => 'u-navbar-color-cyan--fix-moment--hover',
+					'value' => 'u-navbar-color-cyan--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-teal--fix-moment--hover', 'value' => 'u-navbar-color-teal--fix-moment--hover',
+					'name' => 'u-navbar-color-teal--fix-moment--hover',
+					'value' => 'u-navbar-color-teal--fix-moment--hover',
 				],
 				[
-					'name' => 'u-navbar-color-brown--fix-moment--hover', 'value' => 'u-navbar-color-brown--fix-moment--hover',
+					'name' => 'u-navbar-color-brown--fix-moment--hover',
+					'value' => 'u-navbar-color-brown--fix-moment--hover',
 				],
 				[
 					'name' => 'u-navbar-color-bluegray--fix-moment--hover',
@@ -1592,7 +1651,10 @@ return [
 			'type' => 'list',
 			'items' => [
 				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_NAVBAR_MARKER_NO'), 'value' => 'u-navbar-marker--no'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_NAVBAR_MARKER_ARROW'), 'value' => 'u-navbar-marker--arrow'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_NAVBAR_MARKER_ARROW'),
+					'value' => 'u-navbar-marker--arrow',
+				],
 			],
 		],
 
@@ -1606,20 +1668,21 @@ return [
 		// ),
 
 		'hamburger-size' => [
-			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MSGVER_1'),
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_SIZE'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MD'), 'value' => 'hamburger--md'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE_SM'), 'value' => 'hamburger--sm'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_SIZE_LG'), 'value' => 'hamburger--lg'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_SIZE_MD'), 'value' => 'hamburger--md'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_SIZE_SM'), 'value' => 'hamburger--sm'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_SIZE_LG'), 'value' => 'hamburger--lg'],
 			],
 		],
 		'hamburger-animation' => [
-			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMBURGER_ANIMATION'),
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_ICON'),
 			'type' => 'list',
 			'items' => [
-				['name' => '1 - boring', 'value' => 'hamburger--boring'],
-				['name' => '2 - slider', 'value' => 'hamburger--slider'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_ICON_SLIDER'), 'value' => 'hamburger--slider'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_ICON_MINUS'), 'value' => 'hamburger--minus'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_HAMB_ICON_ARROW'), 'value' => 'hamburger--arrow'],
 			],
 		],
 
@@ -1846,6 +1909,7 @@ return [
 				['name' => '25', 'value' => 'g-rounded-25'],
 				['name' => '30', 'value' => 'g-rounded-30'],
 				['name' => '50', 'value' => 'g-rounded-50'],
+				['name' => '100', 'value' => 'g-rounded-100'],
 			],
 		],
 		'border-width' => [
@@ -1919,37 +1983,48 @@ return [
 			'items' => [
 				['name' => Loc::getMessage('LANDING_TEXT_STYLE_WITHOUT_SHADOW'), 'value' => 'g-text-shadow-none'],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 1", 'value' => 'custom-text-shadow-1',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 1",
+					'value' => 'custom-text-shadow-1',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 2", 'value' => 'custom-text-shadow-2',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 2",
+					'value' => 'custom-text-shadow-2',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 3", 'value' => 'custom-text-shadow-3',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 3",
+					'value' => 'custom-text-shadow-3',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 4", 'value' => 'custom-text-shadow-4',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 4",
+					'value' => 'custom-text-shadow-4',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 5", 'value' => 'custom-text-shadow-5',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 5",
+					'value' => 'custom-text-shadow-5',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 6", 'value' => 'custom-text-shadow-6',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 6",
+					'value' => 'custom-text-shadow-6',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 7", 'value' => 'custom-text-shadow-7',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 7",
+					'value' => 'custom-text-shadow-7',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 8", 'value' => 'custom-text-shadow-8',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 8",
+					'value' => 'custom-text-shadow-8',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 9", 'value' => 'custom-text-shadow-9',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 9",
+					'value' => 'custom-text-shadow-9',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 10", 'value' => 'custom-text-shadow-10',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 10",
+					'value' => 'custom-text-shadow-10',
 				],
 				[
-					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 11", 'value' => 'custom-text-shadow-11',
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_SHADOW_NAME') . " 11",
+					'value' => 'custom-text-shadow-11',
 				],
 			],
 		],
@@ -2511,7 +2586,10 @@ return [
 				['name' => 'g-fill-lightblue--first', 'value' => 'g-fill-lightblue--first'],
 				['name' => 'g-fill-lightblue-opacity-0_1--first', 'value' => 'g-fill-lightblue-opacity-0_1--first'],
 				['name' => 'g-fill-lightblue-v1--first', 'value' => 'g-fill-lightblue-v1--first'],
-				['name' => 'g-fill-lightblue-v1-opacity-0_1--first', 'value' => 'g-fill-lightblue-v1-opacity-0_1--first'],
+				[
+					'name' => 'g-fill-lightblue-v1-opacity-0_1--first',
+					'value' => 'g-fill-lightblue-v1-opacity-0_1--first',
+				],
 				['name' => 'g-fill-darkblue--first', 'value' => 'g-fill-darkblue--first'],
 				['name' => 'g-fill-darkblue-opacity-0_1--first', 'value' => 'g-fill-darkblue-opacity-0_1--first'],
 				['name' => 'g-fill-indigo--first', 'value' => 'g-fill-indigo--first'],
@@ -2558,26 +2636,59 @@ return [
 				['name' => 'g-fill-bluegray-opacity-0_5--first', 'value' => 'g-fill-bluegray-opacity-0_5--first'],
 				['name' => 'g-fill-bluegray-opacity-0_7--first', 'value' => 'g-fill-bluegray-opacity-0_7--first'],
 
-				['name' => 'g-theme-business-fill-blue-dark-v1--first', 'value' => 'g-theme-business-fill-blue-dark-v1--first'],
+				[
+					'name' => 'g-theme-business-fill-blue-dark-v1--first',
+					'value' => 'g-theme-business-fill-blue-dark-v1--first',
+				],
 				[
 					'name' => 'g-theme-business-fill-blue-dark-v1-opacity-0_9--first',
 					'value' => 'g-theme-business-fill-blue-dark-v1-opacity-0_9--first',
 				],
-				['name' => 'g-theme-business-fill-blue-dark-v2--first', 'value' => 'g-theme-business-fill-blue-dark-v2--first'],
-				['name' => 'g-theme-business-fill-blue-dark-v3--first', 'value' => 'g-theme-business-fill-blue-dark-v3--first'],
-				['name' => 'g-theme-architecture-fill-blue-dark-v1--first', 'value' => 'g-theme-architecture-fill-blue-dark-v1--first'],
-				['name' => 'g-theme-architecture-fill-blue-dark-v3--first', 'value' => 'g-theme-architecture-fill-blue-dark-v3--first'],
-				['name' => 'g-theme-architecture-fill-blue-dark-v4--first', 'value' => 'g-theme-architecture-fill-blue-dark-v4--first'],
-				['name' => 'g-theme-lawyer-fill-gray-dark-v1--first', 'value' => 'g-theme-lawyer-fill-gray-dark-v1--first'],
-				['name' => 'g-theme-event-fill-blue-dark-v2--first', 'value' => 'g-theme-event-fill-blue-dark-v2--first'],
+				[
+					'name' => 'g-theme-business-fill-blue-dark-v2--first',
+					'value' => 'g-theme-business-fill-blue-dark-v2--first',
+				],
+				[
+					'name' => 'g-theme-business-fill-blue-dark-v3--first',
+					'value' => 'g-theme-business-fill-blue-dark-v3--first',
+				],
+				[
+					'name' => 'g-theme-architecture-fill-blue-dark-v1--first',
+					'value' => 'g-theme-architecture-fill-blue-dark-v1--first',
+				],
+				[
+					'name' => 'g-theme-architecture-fill-blue-dark-v3--first',
+					'value' => 'g-theme-architecture-fill-blue-dark-v3--first',
+				],
+				[
+					'name' => 'g-theme-architecture-fill-blue-dark-v4--first',
+					'value' => 'g-theme-architecture-fill-blue-dark-v4--first',
+				],
+				[
+					'name' => 'g-theme-lawyer-fill-gray-dark-v1--first',
+					'value' => 'g-theme-lawyer-fill-gray-dark-v1--first',
+				],
+				[
+					'name' => 'g-theme-event-fill-blue-dark-v2--first',
+					'value' => 'g-theme-event-fill-blue-dark-v2--first',
+				],
 				['name' => 'g-theme-travel-fill-black-v1--first', 'value' => 'g-theme-travel-fill-black-v1--first'],
 				[
 					'name' => 'g-theme-travel-fill-black-v1-opacity-0_8--first',
 					'value' => 'g-theme-travel-fill-black-v1-opacity-0_8--first',
 				],
-				['name' => 'g-theme-photography-fill-gray-dark-v2--first', 'value' => 'g-theme-photography-fill-gray-dark-v2--first'],
-				['name' => 'g-theme-photography-fill-gray-dark-v3--first', 'value' => 'g-theme-photography-fill-gray-dark-v3--first'],
-				['name' => 'g-theme-photography-fill-gray-dark-v4--first', 'value' => 'g-theme-photography-fill-gray-dark-v4--first'],
+				[
+					'name' => 'g-theme-photography-fill-gray-dark-v2--first',
+					'value' => 'g-theme-photography-fill-gray-dark-v2--first',
+				],
+				[
+					'name' => 'g-theme-photography-fill-gray-dark-v3--first',
+					'value' => 'g-theme-photography-fill-gray-dark-v3--first',
+				],
+				[
+					'name' => 'g-theme-photography-fill-gray-dark-v4--first',
+					'value' => 'g-theme-photography-fill-gray-dark-v4--first',
+				],
 				['name' => 'g-theme-bitrix-fill-dark-v1--first', 'value' => 'g-theme-bitrix-fill-dark-v1--first'],
 
 				['name' => 'g-fill-facebook--first', 'value' => 'g-fill-facebook--first'],
@@ -2658,7 +2769,10 @@ return [
 				['name' => 'g-fill-lightblue--second', 'value' => 'g-fill-lightblue--second'],
 				['name' => 'g-fill-lightblue-opacity-0_1--second', 'value' => 'g-fill-lightblue-opacity-0_1--second'],
 				['name' => 'g-fill-lightblue-v1--second', 'value' => 'g-fill-lightblue-v1--second'],
-				['name' => 'g-fill-lightblue-v1-opacity-0_1--second', 'value' => 'g-fill-lightblue-v1-opacity-0_1--second'],
+				[
+					'name' => 'g-fill-lightblue-v1-opacity-0_1--second',
+					'value' => 'g-fill-lightblue-v1-opacity-0_1--second',
+				],
 				['name' => 'g-fill-darkblue--second', 'value' => 'g-fill-darkblue--second'],
 				['name' => 'g-fill-darkblue-opacity-0_1--second', 'value' => 'g-fill-darkblue-opacity-0_1--second'],
 				['name' => 'g-fill-indigo--second', 'value' => 'g-fill-indigo--second'],
@@ -2705,26 +2819,59 @@ return [
 				['name' => 'g-fill-bluegray-opacity-0_5--second', 'value' => 'g-fill-bluegray-opacity-0_5--second'],
 				['name' => 'g-fill-bluegray-opacity-0_7--second', 'value' => 'g-fill-bluegray-opacity-0_7--second'],
 
-				['name' => 'g-theme-business-fill-blue-dark-v1--second', 'value' => 'g-theme-business-fill-blue-dark-v1--second'],
+				[
+					'name' => 'g-theme-business-fill-blue-dark-v1--second',
+					'value' => 'g-theme-business-fill-blue-dark-v1--second',
+				],
 				[
 					'name' => 'g-theme-business-fill-blue-dark-v1-opacity-0_9--second',
 					'value' => 'g-theme-business-fill-blue-dark-v1-opacity-0_9--second',
 				],
-				['name' => 'g-theme-business-fill-blue-dark-v2--second', 'value' => 'g-theme-business-fill-blue-dark-v2--second'],
-				['name' => 'g-theme-business-fill-blue-dark-v3--second', 'value' => 'g-theme-business-fill-blue-dark-v3--second'],
-				['name' => 'g-theme-architecture-fill-blue-dark-v1--second', 'value' => 'g-theme-architecture-fill-blue-dark-v1--second'],
-				['name' => 'g-theme-architecture-fill-blue-dark-v3--second', 'value' => 'g-theme-architecture-fill-blue-dark-v3--second'],
-				['name' => 'g-theme-architecture-fill-blue-dark-v4--second', 'value' => 'g-theme-architecture-fill-blue-dark-v4--second'],
-				['name' => 'g-theme-lawyer-fill-gray-dark-v1--second', 'value' => 'g-theme-lawyer-fill-gray-dark-v1--second'],
-				['name' => 'g-theme-event-fill-blue-dark-v2--second', 'value' => 'g-theme-event-fill-blue-dark-v2--second'],
+				[
+					'name' => 'g-theme-business-fill-blue-dark-v2--second',
+					'value' => 'g-theme-business-fill-blue-dark-v2--second',
+				],
+				[
+					'name' => 'g-theme-business-fill-blue-dark-v3--second',
+					'value' => 'g-theme-business-fill-blue-dark-v3--second',
+				],
+				[
+					'name' => 'g-theme-architecture-fill-blue-dark-v1--second',
+					'value' => 'g-theme-architecture-fill-blue-dark-v1--second',
+				],
+				[
+					'name' => 'g-theme-architecture-fill-blue-dark-v3--second',
+					'value' => 'g-theme-architecture-fill-blue-dark-v3--second',
+				],
+				[
+					'name' => 'g-theme-architecture-fill-blue-dark-v4--second',
+					'value' => 'g-theme-architecture-fill-blue-dark-v4--second',
+				],
+				[
+					'name' => 'g-theme-lawyer-fill-gray-dark-v1--second',
+					'value' => 'g-theme-lawyer-fill-gray-dark-v1--second',
+				],
+				[
+					'name' => 'g-theme-event-fill-blue-dark-v2--second',
+					'value' => 'g-theme-event-fill-blue-dark-v2--second',
+				],
 				['name' => 'g-theme-travel-fill-black-v1--second', 'value' => 'g-theme-travel-fill-black-v1--second'],
 				[
 					'name' => 'g-theme-travel-fill-black-v1-opacity-0_8--second',
 					'value' => 'g-theme-travel-fill-black-v1-opacity-0_8--second',
 				],
-				['name' => 'g-theme-photography-fill-gray-dark-v2--second', 'value' => 'g-theme-photography-fill-gray-dark-v2--second'],
-				['name' => 'g-theme-photography-fill-gray-dark-v3--second', 'value' => 'g-theme-photography-fill-gray-dark-v3--second'],
-				['name' => 'g-theme-photography-fill-gray-dark-v4--second', 'value' => 'g-theme-photography-fill-gray-dark-v4--second'],
+				[
+					'name' => 'g-theme-photography-fill-gray-dark-v2--second',
+					'value' => 'g-theme-photography-fill-gray-dark-v2--second',
+				],
+				[
+					'name' => 'g-theme-photography-fill-gray-dark-v3--second',
+					'value' => 'g-theme-photography-fill-gray-dark-v3--second',
+				],
+				[
+					'name' => 'g-theme-photography-fill-gray-dark-v4--second',
+					'value' => 'g-theme-photography-fill-gray-dark-v4--second',
+				],
 				['name' => 'g-theme-bitrix-fill-dark-v1--second', 'value' => 'g-theme-bitrix-fill-dark-v1--second'],
 
 				['name' => 'g-fill-facebook--second', 'value' => 'g-fill-facebook--second'],
@@ -2799,6 +2946,12 @@ return [
 				['name' => 'g-theme-bitrix-btn-v6', 'value' => 'g-theme-bitrix-btn-v6'],
 			],
 		],
+		'button-color-hover' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_BUTTON_COLOR_HOVER'),
+			'type' => 'color',
+			'subtype' => 'bg-color-hover',
+			'items' => [],
+		],
 		'animation' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ANIMATION'),
 			'property' => 'animation-name',
@@ -2855,37 +3008,73 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_N'), 'value' => 'u-block-border-none', 'hide' => ['block-border-margin', 'border-radius', 'block-border-position']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_Y'), 'value' => 'u-block-border', 'show' => ['block-border-margin', 'border-radius', 'block-border-position']],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_N'),
+					'value' => 'u-block-border-none',
+					'hide' => ['block-border-margin', 'border-radius', 'block-border-position'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_Y'),
+					'value' => 'u-block-border',
+					'show' => ['block-border-margin', 'border-radius', 'block-border-position'],
+				],
 			],
 		],
 		'block-border-margin' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_N'), 'value' => 'u-block-border-margin-none'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_SM'), 'value' => 'u-block-border-margin-sm'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_MD'), 'value' => 'u-block-border-margin-md'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_LG'), 'value' => 'u-block-border-margin-lg'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_N'),
+					'value' => 'u-block-border-margin-none',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_SM'),
+					'value' => 'u-block-border-margin-sm',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_MD'),
+					'value' => 'u-block-border-margin-md',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_LG'),
+					'value' => 'u-block-border-margin-lg',
+				],
 			],
 		],
 		'block-border-position' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_ALL'), 'value' => 'u-block-border-all'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_START'), 'value' => 'u-block-border-first'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_MIDDLE'), 'value' => 'u-block-border-middle'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_END'), 'value' => 'u-block-border-end'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_ALL'),
+					'value' => 'u-block-border-all',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_START'),
+					'value' => 'u-block-border-first',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_MIDDLE'),
+					'value' => 'u-block-border-middle',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-BLOCK_BORDER_POSITION_END'),
+					'value' => 'u-block-border-end',
+				],
 			],
 		],
 		'container-max-width' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE-CONTENT_CONTAINER'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-TEXT_CONTAINER_CONTAINER'), 'value' => 'g-max-width-container'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE-TEXT_CONTAINER_CONTAINER'),
+					'value' => 'g-max-width-container',
+				],
 				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-TEXT_CONTAINER_FULL'), 'value' => 'g-max-width-100x'],
 				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-TEXT_CONTAINER_MINI'), 'value' => 'g-max-width-800'],
+				['name' => Loc::getMessage('LANDING_BLOCK_STYLE-TEXT_CONTAINER_MAXI'), 'value' => 'g-max-width-1462'],
 			],
 		],
 		'button-type' => [
@@ -2894,8 +3083,14 @@ return [
 			'items' => [
 				['name' => Loc::getMessage('LANDING_BLOCK_BUTTON_STYLE_SOLID'), 'value' => 'g-btn-type-solid'],
 				['name' => Loc::getMessage('LANDING_BLOCK_BUTTON_STYLE_OUTLINE'), 'value' => 'g-btn-type-outline'],
-				['name' => Loc::getMessage('LANDING_BLOCK_BUTTON_STYLE_SOLID_DOUBLE'), 'value' => 'g-btn-type-solid-double'],
-				['name' => Loc::getMessage('LANDING_BLOCK_BUTTON_STYLE_OUTLINE_DOUBLE'), 'value' => 'g-btn-type-outline-double'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_BUTTON_STYLE_SOLID_DOUBLE'),
+					'value' => 'g-btn-type-solid-double',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_BUTTON_STYLE_OUTLINE_DOUBLE'),
+					'value' => 'g-btn-type-outline-double',
+				],
 			],
 		],
 		'button-size' => [
@@ -2942,12 +3137,30 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO'),
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 16:9', 'value' => 'embed-responsive-16by9'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:16', 'value' => 'embed-responsive-9by16'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 4:3', 'value' => 'embed-responsive-4by3'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 3:4', 'value' => 'embed-responsive-3by4'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 21:9', 'value' => 'embed-responsive-21by9'],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:21', 'value' => 'embed-responsive-9by21'],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 16:9',
+					'value' => 'embed-responsive-16by9',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:16',
+					'value' => 'embed-responsive-9by16',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 4:3',
+					'value' => 'embed-responsive-4by3',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 3:4',
+					'value' => 'embed-responsive-3by4',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 21:9',
+					'value' => 'embed-responsive-21by9',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:21',
+					'value' => 'embed-responsive-9by21',
+				],
 				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_S'), 'value' => 'embed-responsive-1by1'],
 			],
 		],
@@ -2955,13 +3168,41 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO') . ' ',
 			'type' => 'list',
 			'items' => [
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 4:3', 'value' => 'embed-responsive-4by3', 'hide' => ['video-scale']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 3:4', 'value' => 'embed-responsive-3by4', 'show' => ['video-scale']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 16:9', 'value' => 'embed-responsive-16by9', 'hide' => ['video-scale']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:16', 'value' => 'embed-responsive-9by16', 'show' => ['video-scale']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 21:9', 'value' => 'embed-responsive-21by9', 'hide' => ['video-scale']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:21', 'value' => 'embed-responsive-9by21', 'show' => ['video-scale']],
-				['name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_S'), 'value' => 'embed-responsive-1by1', 'hide' => ['video-scale']],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 4:3',
+					'value' => 'embed-responsive-4by3',
+					'hide' => ['video-scale'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 3:4',
+					'value' => 'embed-responsive-3by4',
+					'show' => ['video-scale'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 16:9',
+					'value' => 'embed-responsive-16by9',
+					'hide' => ['video-scale'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:16',
+					'value' => 'embed-responsive-9by16',
+					'show' => ['video-scale'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_H') . ', 21:9',
+					'value' => 'embed-responsive-21by9',
+					'hide' => ['video-scale'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_V') . ', 9:21',
+					'value' => 'embed-responsive-9by21',
+					'show' => ['video-scale'],
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_ORIENT_VIDEO_S'),
+					'value' => 'embed-responsive-1by1',
+					'hide' => ['video-scale'],
+				],
 			],
 		],
 		'video-scale' => [
@@ -2975,27 +3216,79 @@ return [
 				['name' => '200%', 'value' => 'scale-200'],
 			],
 		],
+		'widget-type' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WIDGET_TYPE'),
+			'type' => 'list',
+			'items' => [
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WIDGET_TYPE_BASIC'),
+					'value' => 'widget-type-basic'
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WIDGET_TYPE_ROUNDED'),
+					'value' => 'widget-type-rounded',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WIDGET_TYPE_ROUNDED_TOP'),
+					'value' => 'widget-type-rounded-top',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_WIDGET_TYPE_ROUNDED_BOTTOM'),
+					'value' => 'widget-type-rounded-bottom',
+				],
+			],
+		],
+		'display-element' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_STYLE_DISPLAY_ELEMENT'),
+			'type' => 'list',
+			'items' => [
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_DISPLAY_ELEMENT_SHOW'),
+					'value' => 'd-flex',
+				],
+				[
+					'name' => Loc::getMessage('LANDING_BLOCK_STYLE_DISPLAY_ELEMENT_HIDE'),
+					'value' => 'd-none'
+				],
+			],
+		],
 	],
 	'group' => [
 		'block-default' => [
-			'display', 'background', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top',
+			'display',
+			'background',
+			'padding-top',
+			'padding-bottom',
+			'padding-left',
+			'padding-right',
+			'margin-top',
 		],
 		'block-default-background-overlay' => [
-			'display', 'background-attachment', 'background-size',
-			'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'background-overlay',
-		],
-		'block-default-background-overlay-paddings-x' => [
-			'display', 'background-attachment', 'background-size', 'padding-left', 'padding-right', 'margin-top', 'background-overlay',
+			'display',
+			'background-attachment',
+			'background-size',
+			'padding-top',
+			'padding-bottom',
+			'padding-left',
+			'padding-right',
+			'margin-top',
+			'background-overlay',
 		],
 		'block-default-background-overlay-height-vh' => [
-			'display', 'background-attachment', 'background-size', 'height-vh',
-			'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'background-overlay',
+			'display',
+			'background-attachment',
+			'background-size',
+			'height-vh',
+			'padding-top',
+			'padding-bottom',
+			'padding-left',
+			'padding-right',
+			'margin-top',
+			'background-overlay',
 		],
 		'block-default-background' => [
 			'display',
 			'background',
-			'background-attachment',
-			'background-size',
 			'padding-top',
 			'padding-bottom',
 			'padding-left',
@@ -3005,8 +3298,6 @@ return [
 		'block-default-background-height-vh' => [
 			'display',
 			'background',
-			'background-attachment',
-			'background-size',
 			'height-vh',
 			'padding-top',
 			'padding-bottom',
@@ -3015,44 +3306,96 @@ return [
 			'margin-top',
 		],
 		'block-default-wo-background' => [
-			'display', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top',
-		],
-		'block-default-wo-background-height-vh' => [
-			'display', 'height-vh', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top',
+			'display',
+			'padding-top',
+			'padding-bottom',
+			'padding-left',
+			'padding-right',
+			'margin-top',
 		],
 		'block-default-wo-paddings' => ['display', 'background-color'],
 		'block-default-wo-background-vh-animation' => [
-			'display', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top',
-			'height-vh', 'animation',
+			'display',
+			'padding-top',
+			'padding-bottom',
+			'padding-left',
+			'padding-right',
+			'margin-top',
+			'height-vh',
+			'animation',
 		],
 		'block-border' => [
-			'background', 'block-border-type', 'block-border-margin', 'border-radius', 'block-border-position'
+			'background',
+			'block-border-type',
+			'block-border-margin',
+			'border-radius',
+			'block-border-position',
 		],
 		'paddings' => ['padding-top', 'padding-bottom', 'padding-left', 'padding-right'],
 		'margins' => ['margin-top', 'margin-bottom', 'margin-left', 'margin-right'],
 		'typo' => [
-			'text-align', 'color', 'font-size', 'font-family', 'font-weight',
-			'text-decoration', 'text-transform', 'line-height', 'letter-spacing', 'word-break', 'text-shadow',
-			'padding-top', 'padding-left', 'padding-right', 'margin-bottom'
+			'text-align',
+			'color',
+			'font-size',
+			'font-family',
+			'font-weight',
+			'text-decoration',
+			'text-transform',
+			'line-height',
+			'letter-spacing',
+			'word-break',
+			'text-shadow',
+			'padding-top',
+			'padding-left',
+			'padding-right',
+			'margin-bottom',
 		],
 		'typo-simple' => [
-			'font-size', 'font-family', 'font-weight', 'text-decoration', 'text-transform', 'line-height', 'letter-spacing',
+			'font-size',
+			'font-family',
+			'font-weight',
+			'text-decoration',
+			'text-transform',
+			'line-height',
+			'letter-spacing',
 		],
 		'typo-link' => [
-			'color', 'color-hover', 'font-size', 'font-family', 'font-weight',
-			'text-decoration', 'text-transform', 'letter-spacing', 'text-shadow',
+			'color',
+			'color-hover',
+			'font-size',
+			'font-family',
+			'font-weight',
+			'text-decoration',
+			'text-transform',
+			'letter-spacing',
+			'text-shadow',
 		],
 		'box' => [
-			'background-color', 'box-shadow', 'opacity',
+			'background-color',
+			'box-shadow',
+			'opacity',
 		],
 		'button' => [
-			'button-color', 'button-type', 'button-size', 'button-padding', 'border-radius',
-			'color', 'color-hover', 'font-family', 'text-transform',
+			'button-color',
+			'button-color-hover',
+			'button-type',
+			'button-size',
+			'button-padding',
+			'border-radius',
+			'color',
+			'color-hover',
+			'border-color-hover',
+			'font-family',
+			'text-transform',
 		],
 		'navbar' => ['navbar-align', 'navbar-color', 'navbar-color-hover'],
 		'navbar-bg-color' => ['navbar-align', 'navbar-color', 'navbar-bg', 'navbar-color-hover', 'navbar-bg-hover'],
 		'navbar-full' => [
-			'navbar-align', 'navbar-color', 'navbar-color-hover', 'navbar-color-fix-moment', 'navbar-color-fix-moment-hover',
+			'navbar-align',
+			'navbar-color',
+			'navbar-color-hover',
+			'navbar-color-fix-moment',
+			'navbar-color-fix-moment-hover',
 		],
 		'container' => ['container-max-width', 'padding-left', 'padding-right'],
 		'heading' => ['text-align', 'heading-v2', 'border-color', 'border-color-hover', 'margin-bottom'],
@@ -3062,5 +3405,6 @@ return [
 		'background-gradient' => ['background-color'],
 		'background-hover' => ['background-color-hover'],
 		// dont forget add new usage 'background' style in \Bitrix\Landing\Node\StyleImg::STYLES_WITH_IMAGE
+		'widget' => ['background', 'widget-type', 'margin-top', 'margin-bottom', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right'],
 	],
 ];

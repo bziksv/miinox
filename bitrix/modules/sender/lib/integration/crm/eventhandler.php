@@ -109,8 +109,9 @@ class EventHandler
 			$fields = $eventData['RECIPIENT']['FIELDS'];
 
 			$entityId = $fields['CRM_ENTITY_ID'] ?? $recipient['CONTACT_ID'];
+			$contactCode = !empty($recipient['CONTACT_CODE']) ? $recipient['CONTACT_CODE'] : $entityId;
 
-			if (!$entityId)
+			if (empty($entityId) || empty($contactCode))
 			{
 				continue;
 			}
@@ -121,7 +122,7 @@ class EventHandler
 				'FIELDS' => Json::encode($fields),
 				'ENTITY_ID' => $entityId,
 				'CONTACT_TYPE_ID' => $recipient['CONTACT_TYPE_ID'],
-				'CONTACT_CODE' => $recipient['CONTACT_CODE'],
+				'CONTACT_CODE' => $contactCode,
 			];
 		}
 
@@ -329,52 +330,44 @@ class EventHandler
 	}
 
 	/**
-	 * lock table from selecting of the other agents
+	 * Lock table from selecting of the other agents
+	 *
+	 * @param mixed $letterId LetterId
+	 *
 	 * @return bool
-	 * @throws SqlQueryException
-	 * @throws \Bitrix\Main\SystemException
 	 */
-	protected static function lockTimelineQueue($letterId)
+	protected static function lockTimelineQueue($letterId): bool
 	{
 		$connection = Application::getInstance()->getConnection();
-		if ($connection instanceof DB\MysqlCommonConnection)
-		{
-			$lockDb = $connection->query(
-				"SELECT GET_LOCK('time_line_queue_{$letterId}', 0) as L",
-				false,
-				"File: ".__FILE__."<br>Line: ".__LINE__
-			);
-			$lock   = $lockDb->fetch();
-			if ($lock["L"] == "1")
-			{
-				return true;
-			}
-		}
+		$lockName = self::getTimelineQueueLock((string)$letterId);
 
-		return false;
+		return $connection->lock($lockName);
 	}
 
 	/**
-	 * unlock table for select
+	 * Unlock table for select
+	 *
+	 * @param mixed $letterId LetterId
+	 *
 	 * @return bool
-	 * @throws SqlQueryException
-	 * @throws \Bitrix\Main\SystemException
 	 */
-	protected static function unlockTimelineQueue($letterId)
+	protected static function unlockTimelineQueue($letterId): bool
 	{
 		$connection = Application::getInstance()->getConnection();
-		if ($connection instanceof DB\MysqlCommonConnection)
-		{
-			$lockDb = $connection->query(
-				"SELECT RELEASE_LOCK('time_line_queue_{$letterId}') as L"
-			);
-			$lock   = $lockDb->fetch();
-			if ($lock["L"] != "0")
-			{
-				return true;
-			}
-		}
+		$lockName = self::getTimelineQueueLock((string)$letterId);
 
-		return false;
+		return $connection->unlock($lockName);
+	}
+
+	/**
+	 * Get timeline queue lock name
+	 *
+	 * @param string $letterId Letter Id
+	 *
+	 * @return string
+	 */
+	private static function getTimelineQueueLock(string $letterId): string
+	{
+		return "time_line_queue_$letterId";
 	}
 }

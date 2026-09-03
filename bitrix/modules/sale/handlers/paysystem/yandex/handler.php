@@ -5,12 +5,12 @@ namespace Sale\Handlers\PaySystem;
 use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Request;
-use Bitrix\Main\Text\Encoding;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Sale\BusinessValue;
 use Bitrix\Sale\PaySystem;
 use Bitrix\Sale\Payment;
+use Bitrix\Sale\PriceMaths;
 
 Loc::loadMessages(__FILE__);
 
@@ -27,7 +27,7 @@ class YandexHandler
 	 * @param Request|null $request
 	 * @return PaySystem\ServiceResult
 	 */
-	public function initiatePay(Payment $payment, Request $request = null)
+	public function initiatePay(Payment $payment, ?Request $request = null)
 	{
 		$params = array(
 			'URL' => $this->getUrl($payment, 'pay'),
@@ -73,15 +73,16 @@ class YandexHandler
 		$cause = Loc::getMessage('SALE_HPS_YANDEX_CUSTOMER_REJECTION');
 
 		$shopId = $this->getBusinessValue($payment, 'YANDEX_SHOP_ID');
+		$paymentCurrency = $this->getBusinessValue($payment, 'PAYMENT_CURRENCY');
 		$request = '
 			<returnPaymentRequest
 				clientOrderId=\''.$payment->getId().'\'
 				requestDT=\''.$requestDT.'\'
 				invoiceId=\''.$payment->getField('PS_INVOICE_ID').'\'
 				shopId=\''.$shopId.'\'
-				amount=\''.number_format($refundableSum, 2, '.', '').'\'
+				amount=\'' . PriceMaths::roundByFormatCurrency($refundableSum, $paymentCurrency, 2) . '\'
 				currency=\''.$currency.'\'
-				cause=\''.Encoding::convertEncoding($cause, LANG_CHARSET, 'UTF-8').'\'
+				cause=\''.$cause.'\'
 	        />';
 
 		$url = $this->getUrl($payment, 'return');
@@ -178,10 +179,10 @@ class YandexHandler
 		);
 
 		PaySystem\Logger::addDebugInfo(
-			'Yandex: calculatedHash='.ToUpper($hash)."; yandexHash=".ToUpper($request->get('md5'))
+			'Yandex: calculatedHash='.mb_strtoupper($hash)."; yandexHash=".mb_strtoupper($request->get('md5'))
 		);
 
-		return ToUpper($hash) === ToUpper($request->get('md5'));
+		return mb_strtoupper($hash) === mb_strtoupper($request->get('md5'));
 	}
 
 	/**
@@ -196,12 +197,12 @@ class YandexHandler
 	{
 		$sum = $request->get('orderSumAmount');
 		$paymentSum = $this->getBusinessValue($payment, 'PAYMENT_SHOULD_PAY');
-
+		$currency = $payment->getField('CURRENCY');
 		PaySystem\Logger::addDebugInfo(
-			'Yandex: yandexSum='.round($sum, 2)."; paymentSum=".round($paymentSum, 2)
+			'Yandex: yandexSum='.PriceMaths::roundByFormatCurrency($sum, $currency, 2)."; paymentSum=".PriceMaths::roundByFormatCurrency($paymentSum, $currency, 2)
 		);
 
-		return round($paymentSum, 2) == round($sum, 2);
+		return PriceMaths::roundByFormatCurrency($paymentSum, $currency, 2) == PriceMaths::roundByFormatCurrency($sum, $currency, 2);
 	}
 
 	/**
@@ -456,7 +457,7 @@ class YandexHandler
 	 * @param Payment $payment
 	 * @return bool
 	 */
-	protected function isTestMode(Payment $payment = null)
+	protected function isTestMode(?Payment $payment = null)
 	{
 		return ($this->getBusinessValue($payment, 'PS_IS_TEST') == 'Y');
 	}
@@ -630,7 +631,6 @@ class YandexHandler
 			"AC" => Loc::getMessage("SALE_HPS_YANDEX_Cards"),
 			"GP" => Loc::getMessage("SALE_HPS_YANDEX_Terminals"),
 			"MC" => Loc::getMessage("SALE_HPS_YANDEX_Mobile"),
-			"WM" => "WebMoney",
 			"SB" => Loc::getMessage("SALE_HPS_YANDEX_Sberbank"),
 			"MP" => Loc::getMessage("SALE_HPS_YANDEX_mPOS"),
 			"AB" => Loc::getMessage("SALE_HPS_YANDEX_AlphaClick"),
@@ -648,7 +648,7 @@ class YandexHandler
 	 */
 	public function isRefundableExtended()
 	{
-		$whiteList = array('PC', 'AC', 'MC', 'WM', 'MP', 'AB', 'MA', 'QW', 'KV', 'QP');
+		$whiteList = array('PC', 'AC', 'MC', 'MP', 'AB', 'MA', 'QW', 'KV', 'QP');
 		return in_array($this->service->getField('PS_MODE'), $whiteList);
 	}
 

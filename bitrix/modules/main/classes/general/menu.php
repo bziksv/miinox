@@ -144,7 +144,7 @@ class CMenu
 			return true;
 
 		/**
-		 * @global CAllMain $APPLICATION
+		 * @global CMain $APPLICATION
 		 * @global CCacheManager $CACHE_MANAGER
 		 * @noinspection PhpUnusedLocalVariableInspection
 		 */
@@ -188,7 +188,7 @@ class CMenu
 			return false;
 		}
 
-		$arMenuCache = false;
+		$arMenuCache = [];
 		$bCached = false;
 		$bCacheIsAllowed = CACHED_menu!==false && !$USER->IsAuthorized() && $this->MenuExtDir == '';
 		if($bCacheIsAllowed)
@@ -278,9 +278,9 @@ class CMenu
 			if(!$bSkipMenuItem)
 				$ITEM_INDEX++;
 
-			if(($pos = mb_strpos($LINK, "?"))!==false)
+			if((mb_strpos($LINK, "?"))!==false)
 				$ITEM_TYPE = "U";
-			elseif(mb_substr($LINK, -1) == "/")
+			elseif(str_ends_with($LINK, "/"))
 				$ITEM_TYPE = "D";
 			else
 				$ITEM_TYPE = "P";
@@ -431,7 +431,7 @@ class CMenu
 						$varvalue = urldecode(mb_substr($param, $eqpos + 1));
 					}
 
-					$globvarvalue = ($GLOBALS[$varname] ?? "");
+					$globvarvalue = ($_GET[$varname] ?? "");
 					if($globvarvalue != $varvalue)
 					{
 						$bOK = false;
@@ -449,7 +449,7 @@ class CMenu
 	function GetMenuHtmlEx()
 	{
 		/**
-		 * @global CAllMain $APPLICATION
+		 * @global CMain $APPLICATION
 		 * @noinspection PhpUnusedLocalVariableInspection
 		 */
 		global $USER, $DB, $APPLICATION; // must be!
@@ -512,7 +512,7 @@ class CMenu
 	function GetMenuHtml()
 	{
 		/**
-		 * @global CAllMain $APPLICATION
+		 * @global CMain $APPLICATION
 		 * @noinspection PhpUnusedLocalVariableInspection
 		 */
 		global $USER, $DB, $APPLICATION; // must be!

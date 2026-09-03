@@ -1,15 +1,15 @@
 <?php
 if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
-use Bitrix\Main\UI\Extension;
-
 /** @var $this \CBitrixComponentTemplate */
-/** @var \CAllMain $APPLICATION */
+/** @var CMain $APPLICATION */
 /** @var array $arResult*/
 /** @var array $arParams*/
 
 \CJSCore::Init(['sidepanel']);
 $this->addExternalCss($this->GetFolder() . '/loader.css');
+$urlToRedirect = array_key_exists('~PAGE_MODE_OFF_BACK_URL', $arParams) && $arParams['~PAGE_MODE_OFF_BACK_URL'] === null
+	? null : $arParams['PAGE_MODE_OFF_BACK_URL'];
 ?>
 
 <div class="ui-sidepanel-wrapper-loader-container">
@@ -18,26 +18,27 @@ $this->addExternalCss($this->GetFolder() . '/loader.css');
 	</svg>
 </div>
 
-<script type="text/javascript">
+<script>
 	BX.ready(function () {
 		var loader = BX('ui-sidepanel-wrapper-loader');
 		var link = window.location.href;
 		var rule = BX.SidePanel.Instance.getUrlRule(link);
 		var options = (rule && BX.type.isPlainObject(rule.options)) ? rule.options : {};
 		BX.SidePanel.Instance.open(link, options);
-
+<?php if ($urlToRedirect !== null): ?>
 		BX.addCustomEvent(
 			BX.SidePanel.Instance.getTopSlider(),
-			"SidePanel.Slider:onClose",
+			"SidePanel.Slider:onCloseComplete",
 			function ()
 			{
 				if (loader)
 				{
 					loader.style.display = '';
 				}
-				window.location.href = '<?=CUtil::JSEscape(htmlspecialcharsbx($arParams['PAGE_MODE_OFF_BACK_URL']))?>';
+				window.location.href = '<?=CUtil::JSEscape(htmlspecialcharsbx($urlToRedirect))?>';
 			}
 		);
+<?php endif;?>
 		BX.addCustomEvent(
 			BX.SidePanel.Instance.getTopSlider(),
 			"SidePanel.Slider:onLoad",

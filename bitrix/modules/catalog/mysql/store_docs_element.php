@@ -1,8 +1,8 @@
-<?
+<?php
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/general/store_docs_element.php");
 
-class CCatalogStoreDocsElement
-	extends CCatalogStoreDocsElementAll
+class CCatalogStoreDocsElement extends CCatalogStoreDocsElementAll
 {
 	public static function add($arFields)
 	{
@@ -18,7 +18,7 @@ class CCatalogStoreDocsElement
 		$arInsert = $DB->PrepareInsert("b_catalog_docs_element", $arFields);
 		$strSql = "INSERT INTO b_catalog_docs_element (".$arInsert[0].") VALUES(".$arInsert[1].")";
 
-		$res = $DB->Query($strSql, true, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$res = $DB->Query($strSql, true);
 		if(!$res)
 			return false;
 		$lastId = intval($DB->LastID());
@@ -43,7 +43,7 @@ class CCatalogStoreDocsElement
 
 		if (empty($arSelectFields))
 			$arSelectFields = array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE",
-				"BASE_PRICE", "BASE_PRICE_EXTRA", "BASE_PRICE_EXTRA_RATE"
+				"BASE_PRICE", "BASE_PRICE_EXTRA", "BASE_PRICE_EXTRA_RATE", "COMMENT",
 			);
 
 		$arFields = array(
@@ -57,6 +57,7 @@ class CCatalogStoreDocsElement
 			"BASE_PRICE" => array("FIELD" => "DE.BASE_PRICE", "TYPE" => "double"),
 			"BASE_PRICE_EXTRA" => array("FIELD" => "DE.BASE_PRICE_EXTRA", "TYPE" => "double"),
 			"BASE_PRICE_EXTRA_RATE" => array("FIELD" => "DE.BASE_PRICE_EXTRA_RATE", "TYPE" => "int"),
+			"COMMENT" => array("FIELD" => "DE.COMMENT", "TYPE" => "string"),
 
 			"IS_MULTIPLY_BARCODE" => array("FIELD" => "CP.BARCODE_MULTI", "TYPE" => "char", "FROM" => "INNER JOIN b_catalog_product CP ON (DE.ELEMENT_ID = CP.ID)"),
 			"RESERVED" => array("FIELD" => "CP.QUANTITY_RESERVED", "TYPE" => "double", "FROM" => "INNER JOIN b_catalog_product CP ON (DE.ELEMENT_ID = CP.ID)"),
@@ -75,7 +76,7 @@ class CCatalogStoreDocsElement
 			if (!empty($arSqls["GROUPBY"]))
 				$strSql .= " GROUP BY ".$arSqls["GROUPBY"];
 
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 			if ($arRes = $dbRes->Fetch())
 				return $arRes["CNT"];
 			else
@@ -103,7 +104,7 @@ class CCatalogStoreDocsElement
 			if (!empty($arSqls["GROUPBY"]))
 				$strSql_tmp .= " GROUP BY ".$arSqls["GROUPBY"];
 
-			$dbRes = $DB->Query($strSql_tmp, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql_tmp);
 			$cnt = 0;
 			if (empty($arSqls["GROUPBY"]))
 			{
@@ -125,7 +126,7 @@ class CCatalogStoreDocsElement
 			{
 				$strSql .= " LIMIT ".$intTopCount;
 			}
-			$dbRes = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
+			$dbRes = $DB->Query($strSql);
 		}
 		return $dbRes;
 	}

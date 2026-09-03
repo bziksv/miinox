@@ -1,4 +1,12 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) { die(); }
+
+use Bitrix\AI;
+use Bitrix\Main;
+
+/* @note To turn on Copilot in the main.post.form component, please, execute code:
+	\COption::SetOptionString('socialnetwork', 'ai_base_enabled', 'N');
+*/
 
 final class MainPostForm extends CBitrixComponent
 {
@@ -33,9 +41,22 @@ final class MainPostForm extends CBitrixComponent
 
 	private function prepareParams(&$arParams)
 	{
-		if($arParams["FORM_ID"] == '')
+		if (empty($arParams["FORM_ID"]))
+		{
 			$arParams["FORM_ID"] = "POST_FORM_".RandString(3);
+		}
 		$arParams['NAME_TEMPLATE'] = empty($arParams['NAME_TEMPLATE']) ? \CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), "", $arParams["NAME_TEMPLATE"]);
+		$arParams['COPILOT_AVAILABLE'] = $this->isCopilotEnabled();
+		$arParams['isAiImageEnabled'] ??= true;
+		$arParams['isDnDEnabled'] ??= true;
+
+		if (
+			$arParams['isAiImageEnabled']
+			&& $this->iaAIAvailable()
+		)
+		{
+			$arParams["PARSER"][] = 'AIImage';
+		}
 	}
 
 	public function executeComponent()
@@ -43,5 +64,29 @@ final class MainPostForm extends CBitrixComponent
 		$this->prepareParams($this->arParams);
 
 		$this->includeComponentTemplate();
+	}
+
+	private function iaAIAvailable(): bool
+	{
+		if (!Main\Loader::includeModule('ai'))
+		{
+			return false;
+		}
+
+		$engine = AI\Engine::getByCategory('image', new AI\Context('main', ''));
+
+		return !is_null($engine);
+	}
+
+	public function isCopilotEnabled(): bool
+	{
+		if (!Main\Loader::includeModule('ai'))
+		{
+			return false;
+		}
+
+		$engine = AI\Engine::getByCategory(AI\Engine::CATEGORIES['text'], AI\Context::getFake());
+
+		return !is_null($engine);
 	}
 }

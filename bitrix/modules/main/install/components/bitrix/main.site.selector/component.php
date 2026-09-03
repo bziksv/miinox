@@ -1,4 +1,10 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?><?
+<?php if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?><?php
+
+/**
+ * @global CUser $USER
+ * @var array $arParams
+ * @var string $componentName
+ */
 
 if (!is_array($arParams["SITE_LIST"]) || empty($arParams["SITE_LIST"]) || $arParams["SITE_LIST"][0] == "*all*")
 {
@@ -17,7 +23,13 @@ $bCache = $arParams["CACHE_TIME"] > 0 && ($arParams["CACHE_TYPE"] == "Y" || ($ar
 if ($bCache)
 {
 	$arCacheParams = array();
-	foreach ($arParams as $key => $value) if (mb_substr($key, 0, 1) != "~") $arCacheParams[$key] = $value;
+	foreach ($arParams as $key => $value)
+	{
+		if (!str_starts_with($key, "~"))
+		{
+			$arCacheParams[$key] = $value;
+		}
+	}
 	$cache = new CPHPCache;
 
 	$CACHE_ID = SITE_ID."|".$componentName."|".md5(serialize($arCacheParams))."|".$USER->GetGroups();

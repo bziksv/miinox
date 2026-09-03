@@ -1,4 +1,5 @@
-<?
+<?php
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/tools.php");
 
 IncludeModuleLangFile(__FILE__);
@@ -1225,12 +1226,9 @@ class CWizardTemplate
 
 		if (isset($GLOBALS["APPLICATION"]) && is_object($GLOBALS["APPLICATION"]))
 		{
-			$GLOBALS["APPLICATION"]->AddHeadString($styles);
 			IncludeAJAX();
-		}
-		//IncludeAJAX();
 
-		$styles = <<<STYLES
+			$styles = <<<STYLES
 <style type="text/css">
 			/*Data table*/
 			table.wizard-data-table
@@ -1284,7 +1282,9 @@ class CWizardTemplate
 			}
 </style>
 STYLES;
-		//$GLOBALS["APPLICATION"]->AddHeadString($styles);
+
+			$GLOBALS["APPLICATION"]->AddHeadString($styles);
+		}
 
 		$arErrors = $obStep->GetErrors();
 		$strError = "";
@@ -1335,7 +1335,7 @@ STYLES;
 </table>
 {#FORM_END#}
 
-<script type="text/javascript">
+<script>
 
 function WizardAutoSubmit()
 {
@@ -1481,7 +1481,7 @@ class CWizardAdminTemplate extends CWizardTemplate
 				$strError = '<div id="step_error">'.$strError."</div>";
 
 			$strJsError = '
-			<script type="text/javascript">
+			<script>
 				ShowWarnings(['.$strJsError.']);
 			</script>';
 		}
@@ -1551,6 +1551,10 @@ class CWizardAdminTemplate extends CWizardTemplate
 				padding-left: 2px;
 			}
 
+			.step-buttons input:enabled {
+				color:#3f4b54;
+			}
+
 			.step-buttons input {
 				-webkit-border-radius: 4px;
 				border-radius: 4px;
@@ -1563,7 +1567,6 @@ class CWizardAdminTemplate extends CWizardTemplate
 				background-image: -ms-linear-gradient(bottom, #d7e3e7, #fff)!important;
 				background-image: -o-linear-gradient(bottom, #d7e3e7, #fff)!important;
 				background-image: linear-gradient(bottom, #d7e3e7, #fff)!important;
-				color:#3f4b54;
 				cursor:pointer;
 				display:inline-block;
 				font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -1648,7 +1651,7 @@ class CWizardAdminTemplate extends CWizardTemplate
 
 		{$adminScript}
 
-		<script type="text/javascript">
+		<script>
 
 			top.BX.message({"ADMIN_WIZARD_EXIT_ALERT" : "{$alertText}"});
 
@@ -1814,5 +1817,3 @@ HTML;
 	}
 
 }
-
-?>

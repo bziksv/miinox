@@ -631,7 +631,7 @@ BX.CViewCoreElement.prototype.getComplexSaveButton = function(selfViewer, params
 					var ele = event.srcElement || event.target;
 					selfViewer.openMenu('bx-viewer-popup-down', BX(ele), [
 						((BX.CViewer.isDisabledLocalEdit || !BX.message.disk_revision_api)? null :
-							{text: BX.message('JS_CORE_VIEWER_SAVE_TO_OWN_FILES'), className: "bx-viewer-popup-item item-b24", href: '#', onclick: BX.delegate(function(e){
+							{text: BX.message('JS_CORE_VIEWER_SAVE_TO_OWN_FILES_MSGVER_1'), className: "bx-viewer-popup-item item-b24", href: '#', onclick: BX.delegate(function(e){
 								var link = this.addToLinkParam(BX.CViewer.enableInVersionDisk(2)? downloadUrl : this.src, 'saveToDisk', 1);
 								link = this.addToLinkParam(link, 'toWDController', 1);
 								link = BX.util.remove_url_param(link, 'showInViewer');
@@ -2783,19 +2783,7 @@ BX.CViewErrorIframeElement = function(params)
 				    props: {
 					    className: 'bx-viewer-too-big-title'
 				    },
-				    text: BX.message('JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP')
-			    }),
-			    BX.create('a', {
-				    props: {
-					    className: 'bx-viewer-btn'
-				    },
-				    events: {
-					    click: BX.delegate(function(e){
-						    document.location.href = (BX.browser.IsMac()? "http://dl.bitrix24.com/b24/bitrix24_desktop.dmg": "http://dl.bitrix24.com/b24/bitrix24_desktop.exe");
-						    return false;
-					    }, this)
-				    },
-				    text: BX.message('JS_CORE_VIEWER_DOWNLOAD_B24_DESKTOP_FULL')
+				    text: BX.message('JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP_MSGVER_1')
 			    }),
 			    BX.create('span', {
 				    props: {
@@ -4777,7 +4765,7 @@ BX.CViewer.prototype.openWindowForSelectDocumentService = function(params)
 
 BX.CViewer.prototype.helpDiskDialog = function(title, message, downloadUrl){
 	title = title || BX.message('JS_CORE_VIEWER_EDIT_IN_LOCAL_SERVICE');
-	message = message || BX.message('JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP');
+	message = message || BX.message('JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP_MSGVER_1');
 	var helpDiskDialog = BX.create('div', {
 		props: {
 			className: 'bx-viewer-confirm'
@@ -4818,7 +4806,7 @@ BX.CViewer.prototype.helpDiskDialog = function(title, message, downloadUrl){
 			text : (downloadUrl? BX.message('JS_CORE_VIEWER_DOWNLOAD_B24_DESKTOP_FULL'): BX.message('JS_CORE_VIEWER_DOWNLOAD_B24_DESKTOP')),
 			className : "popup-window-button-accept",
 			events : { click : BX.delegate(function() {
-					document.location.href = (BX.browser.IsMac()? "http://dl.bitrix24.com/b24/bitrix24_desktop.dmg": "http://dl.bitrix24.com/b24/bitrix24_desktop.exe");
+					document.location.href = (BX.browser.IsMac()? "https://dl.bitrix24.com/b24/bitrix24_desktop.dmg": "https://dl.bitrix24.com/b24/bitrix24_desktop.exe");
 				}, this
 			)}
 		}),
@@ -4915,7 +4903,7 @@ BX.CViewer.prototype.createPopupWindowFromErrorElement = function(errorElement){
 						props: {
 							className: 'bx-viewer-error-popup-text'
 						},
-						html: BX.message('JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP')
+						html: BX.message('JS_CORE_VIEWER_SERVICE_LOCAL_INSTALL_DESKTOP_MSGVER_1')
 					}) : null),
 					(!BX.CViewer.isDisabledLocalEdit? BX.create('span', {
 						props : {
@@ -4923,7 +4911,7 @@ BX.CViewer.prototype.createPopupWindowFromErrorElement = function(errorElement){
 						},
 						events : {
 							click : BX.delegate(function() {
-								document.location.href = (BX.browser.IsMac()? "http://dl.bitrix24.com/b24/bitrix24_desktop.dmg": "http://dl.bitrix24.com/b24/bitrix24_desktop.exe");
+								document.location.href = (BX.browser.IsMac()? "https://dl.bitrix24.com/b24/bitrix24_desktop.dmg": "https://dl.bitrix24.com/b24/bitrix24_desktop.exe");
 							}, this)
 						},
 						text : BX.message('JS_CORE_VIEWER_DOWNLOAD_B24_DESKTOP_FULL')
@@ -5486,3 +5474,4 @@ var CViewerUrlHelper = {
 };
 
 })(window);
+

@@ -3,7 +3,7 @@
  * Bitrix Framework
  * @package bitrix
  * @subpackage main
- * @copyright 2001-2020 Bitrix
+ * @copyright 2001-2023 Bitrix
  */
 
 namespace Bitrix\Main\File;
@@ -96,7 +96,7 @@ class Image
 	 * @param Image\Color|null $bgColor
 	 * @return bool
 	 */
-	public function rotate($angle, Image\Color $bgColor = null)
+	public function rotate($angle, ?Image\Color $bgColor = null)
 	{
 		if($bgColor === null)
 		{
@@ -130,6 +130,12 @@ class Image
 	 */
 	public function autoRotate($orientation)
 	{
+		if ($this->engine->substituted())
+		{
+			// no need to rotated a stub image
+			return false;
+		}
+
 		if($orientation > 1)
 		{
 			if($orientation == 7 || $orientation == 8)
@@ -150,7 +156,7 @@ class Image
 				$this->flipHorizontal();
 			}
 
-			$this->setOrientation(0);
+			$this->setOrientation(1);
 
 			return true;
 		}
@@ -176,6 +182,16 @@ class Image
 	public function resize(Image\Rectangle $source, Image\Rectangle $destination)
 	{
 		return $this->engine->resize($source, $destination);
+	}
+
+	/**
+	 * Blurs the image.
+	 * @param int $sigma
+	 * @return bool
+	 */
+	public function blur(int $sigma): bool
+	{
+		return $this->engine->blur($sigma);
 	}
 
 	/**
@@ -281,6 +297,16 @@ class Image
 	public function getDimensions()
 	{
 		return $this->engine->getDimensions();
+	}
+
+	/**
+	 * Returns true if the image exceeds maximum dimensions in options.
+	 *
+	 * @return bool
+	 */
+	public function exceedsMaxSize(): bool
+	{
+		return $this->engine->exceedsMaxSize();
 	}
 
 	/**

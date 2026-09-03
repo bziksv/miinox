@@ -38,9 +38,9 @@ abstract class EntityPropertyValue extends CollectableEntity
 	 * @throws Main\NotImplementedException
 	 */
 	abstract protected static function createPropertyValueObject(
-		array $property = null,
+		?array $property = null,
 		array $value = [],
-		array $relation = null
+		?array $relation = null
 	): EntityPropertyValue;
 
 	/**
@@ -80,6 +80,8 @@ abstract class EntityPropertyValue extends CollectableEntity
 	{
 		$propertyValues = [];
 		$propertyValuesMap = [];
+		$properties = [];
+		$propRelation = [];
 
 		if ($entity->getId() > 0)
 		{
@@ -87,9 +89,10 @@ abstract class EntityPropertyValue extends CollectableEntity
 				[
 					'select' => ['ID', 'NAME', 'VALUE', 'CODE', 'ORDER_PROPS_ID'],
 					'filter' => [
-						'ENTITY_ID' => $entity->getId(),
-						'ENTITY_TYPE' => static::getEntityType()
-					]
+						'=ENTITY_ID' => $entity->getId(),
+						'=ENTITY_TYPE' => static::getEntityType(),
+					],
+					'cache' => ['ttl' => 86400],
 				]
 			);
 			while ($row = $dbRes->fetch())
@@ -131,39 +134,44 @@ abstract class EntityPropertyValue extends CollectableEntity
 				'INPUT_FIELD_LOCATION',
 				'MULTIPLE',
 				'SETTINGS',
-				'ENTITY_TYPE'
+				'ENTITY_TYPE',
 			],
 			'filter' => static::constructPropertyFilter($entity),
 			'runtime' => static::getRelationRuntimeFields(),
 			'order' => ['SORT' => 'ASC'],
+			'cache' => [
+				'ttl' => 86400,
+				'cache_joins' => true,
+			],
 		];
 
 		$dbRes = $propertyClassName::getList($getListParams);
-		$properties = [];
-		$propRelation = [];
-
 		while ($row = $dbRes->fetch())
 		{
 			$properties[$row['ID']] = $row;
 			$propRelation[$row['ID']] = [];
 		}
 
-		$dbRes = OrderPropsRelationTable::getList(
-			[
-				'select' => [
-					'PROPERTY_ID',
-					'ENTITY_ID',
-					'ENTITY_TYPE'
-				],
-				'filter' => [
-					'PROPERTY_ID' => array_keys($properties)
-				]
-			]
-		);
-
-		while ($row = $dbRes->fetch())
+		if (!empty($properties))
 		{
-			$propRelation[$row['PROPERTY_ID']][] = $row;
+			$dbRes = OrderPropsRelationTable::getList(
+				[
+					'select' => [
+						'PROPERTY_ID',
+						'ENTITY_ID',
+						'ENTITY_TYPE',
+					],
+					'filter' => [
+						'PROPERTY_ID' => array_keys($properties),
+					],
+					'cache' => ['ttl' => 86400],
+				]
+			);
+
+			while ($row = $dbRes->fetch())
+			{
+				$propRelation[$row['PROPERTY_ID']][] = $row;
+			}
 		}
 
 		return [$properties, $propertyValues, $propRelation, $propertyValuesMap];
@@ -202,7 +210,8 @@ abstract class EntityPropertyValue extends CollectableEntity
 				'filter' => [
 					'=ENTITY_ID' => $entity->getId(),
 					'=ENTITY_TYPE' => static::getEntityType()
-				]
+				],
+				'cache' => ['ttl' => 86400],
 			]);
 
 			while ($row = $dbRes->fetch())
@@ -227,6 +236,7 @@ abstract class EntityPropertyValue extends CollectableEntity
 					'@ENTITY_ID' => $tpLandingList,
 					'=ENTITY_TYPE' => OrderPropsRelationTable::ENTITY_TYPE_LANDING,
 				],
+				'cache' => ['ttl' => 86400],
 				'limit' => 1
 			]);
 
@@ -247,6 +257,7 @@ abstract class EntityPropertyValue extends CollectableEntity
 					'@ENTITY_ID' => $tpList,
 					'=ENTITY_TYPE' => OrderPropsRelationTable::ENTITY_TYPE_TRADING_PLATFORM
 				],
+				'cache' => ['ttl' => 86400],
 				'limit' => 1
 			]);
 
@@ -436,7 +447,7 @@ abstract class EntityPropertyValue extends CollectableEntity
 	 * @param array|null $relation
 	 * @throws Main\SystemException|Main\LoaderException
 	 */
-	protected function __construct(array $property = null, array $value = [], array $relation = null)
+	protected function __construct(?array $property = null, array $value = [], ?array $relation = null)
 	{
 		if (!$property && !$value)
 		{
@@ -445,7 +456,7 @@ abstract class EntityPropertyValue extends CollectableEntity
 
 		if ($property)
 		{
-			if (is_array($property['SETTINGS']))
+			if (isset($property['SETTINGS']) && is_array($property['SETTINGS']))
 			{
 				$property += $property['SETTINGS'];
 				unset ($property['SETTINGS']);

@@ -1,31 +1,31 @@
-<?
-use Bitrix\Main\Localization\Loc,
-	Bitrix\Iblock;
+<?php
 
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Iblock;
 
 class CIBlockPropertySequence
 {
-	const USER_TYPE = 'Sequence';
+	/** @deprecated */
+	public const USER_TYPE = Iblock\PropertyTable::USER_TYPE_SEQUENCE;
 
 	public static function GetUserTypeDescription()
 	{
-		return array(
-			"PROPERTY_TYPE" => Iblock\PropertyTable::TYPE_NUMBER,
-			"USER_TYPE" => self::USER_TYPE,
-			"DESCRIPTION" => Loc::getMessage("IBLOCK_PROP_SEQUENCE_DESC"),
-			"GetPropertyFieldHtml" => array(__CLASS__, "GetPropertyFieldHtml"),
-			"GetPublicEditHTML" => array(__CLASS__, "GetPropertyFieldHtml"),
-			"PrepareSettings" =>array(__CLASS__, "PrepareSettings"),
-			"GetSettingsHTML" =>array(__CLASS__, "GetSettingsHTML"),
-			"GetAdminFilterHTML" => array(__CLASS__, "GetPublicFilterHTML"),
-			"GetPublicFilterHTML" => array(__CLASS__, "GetPublicFilterHTML"),
-			"AddFilterFields" => array(__CLASS__, "AddFilterFields"),
-			"GetUIFilterProperty" => array(__CLASS__, "GetUIFilterProperty"),
-			'GetUIEntityEditorProperty' => array(__CLASS__, 'GetUIEntityEditorProperty'),
-			'GetUIEntityEditorPropertyEditHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyEditHtml'),
-			'GetUIEntityEditorPropertyViewHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyViewHtml'),
-		);
+		return [
+			'PROPERTY_TYPE' => Iblock\PropertyTable::TYPE_NUMBER,
+			'USER_TYPE' => Iblock\PropertyTable::USER_TYPE_SEQUENCE,
+			'DESCRIPTION' => Loc::getMessage('IBLOCK_PROP_SEQUENCE_DESC'),
+			'GetPropertyFieldHtml' => [__CLASS__, 'GetPropertyFieldHtml'],
+			'GetPublicEditHTML' => [__CLASS__, 'GetPropertyFieldHtml'],
+			'PrepareSettings' => [__CLASS__, 'PrepareSettings'],
+			'GetSettingsHTML' => [__CLASS__, 'GetSettingsHTML'],
+			'GetAdminFilterHTML' => [__CLASS__, 'GetPublicFilterHTML'],
+			'GetPublicFilterHTML' => [__CLASS__, 'GetPublicFilterHTML'],
+			'AddFilterFields' => [__CLASS__, 'AddFilterFields'],
+			'GetUIFilterProperty' => [__CLASS__, 'GetUIFilterProperty'],
+			'GetUIEntityEditorProperty' => [__CLASS__, 'GetUIEntityEditorProperty'],
+			'GetUIEntityEditorPropertyEditHtml' => [__CLASS__, 'GetUIEntityEditorPropertyEditHtml'],
+			'GetUIEntityEditorPropertyViewHtml' => [__CLASS__, 'GetUIEntityEditorPropertyViewHtml'],
+		];
 	}
 
 	public static function AddFilterFields($arProperty, $strHTMLControlName, &$arFilter, &$filtered)
@@ -94,11 +94,18 @@ class CIBlockPropertySequence
 			$current_value = $seq->GetNext();
 		}
 
-		if(is_array($arProperty["USER_TYPE_SETTINGS"]) && $arProperty["USER_TYPE_SETTINGS"]["write"]==="Y")
-			return '<input type="text" size="5" name="'.$strHTMLControlName["VALUE"].'" value="'.$current_value.'">';
+		$fieldName = $strHTMLControlName['VALUE'] ?? '';
+		if (($arProperty['USER_TYPE_SETTINGS']['write'] ?? 'N') === 'Y')
+		{
+			return '<input type="text" size="5" name="' . $fieldName . '" value="' . $current_value . '">';
+		}
 		else
-			return '<input disabled type="text" size="5" name="'.$strHTMLControlName["VALUE"].'" value="'.$current_value.'">'.
-				'<input type="hidden" size="5" name="'.$strHTMLControlName["VALUE"].'" value="'.$current_value.'">';
+		{
+			return
+				'<input disabled type="text" size="5" name="' . $fieldName . '" value="' . $current_value . '">'
+				. '<input type="hidden" size="5" name="' . $fieldName . '" value="'. $current_value. '">'
+			;
+		}
 	}
 
 	public static function PrepareSettings($arProperty)
@@ -106,23 +113,21 @@ class CIBlockPropertySequence
 		//This method not for storing sequence value in the database
 		//but it just sets starting value for it
 		if(
-			is_array($arProperty["USER_TYPE_SETTINGS"])
-			&& isset($arProperty["USER_TYPE_SETTINGS"]["current_value"])
-			&& intval($arProperty["USER_TYPE_SETTINGS"]["current_value"]) > 0
+			is_array($arProperty['USER_TYPE_SETTINGS'])
+			&& isset($arProperty['USER_TYPE_SETTINGS']['current_value'])
+			&& (int)($arProperty['USER_TYPE_SETTINGS']['current_value']) > 0
 		)
 		{
-			$seq = new CIBlockSequence($arProperty["IBLOCK_ID"], $arProperty["ID"]);
-			$seq->SetNext($arProperty["USER_TYPE_SETTINGS"]["current_value"]);
+			$seq = new CIBlockSequence($arProperty['IBLOCK_ID'], $arProperty['ID']);
+			$seq->SetNext((int)$arProperty['USER_TYPE_SETTINGS']['current_value']);
 		}
 
-		if(is_array($arProperty["USER_TYPE_SETTINGS"]) && $arProperty["USER_TYPE_SETTINGS"]["write"]==="Y")
-			$strWritable = "Y";
-		else
-			$strWritable = "N";
+		$strWritable = ($arProperty['USER_TYPE_SETTINGS']['write'] ?? 'N') === 'Y' ? 'Y' : 'N';
 
-		$arProperty['USER_TYPE_SETTINGS'] = array(
-			"write" => $strWritable,
-		);
+		$arProperty['USER_TYPE_SETTINGS'] = [
+			'write' => $strWritable,
+		];
+
 		return $arProperty;
 	}
 
@@ -132,19 +137,19 @@ class CIBlockPropertySequence
 			"HIDE" => array("SEARCHABLE", "WITH_DESCRIPTION", "ROW_COUNT", "COL_COUNT", "DEFAULT_VALUE")
 		);
 
-		if(is_array($arProperty["USER_TYPE_SETTINGS"]) && $arProperty["USER_TYPE_SETTINGS"]["write"]==="Y")
-			$bWritable = true;
-		else
-			$bWritable = false;
+		$bWritable = ($arProperty['USER_TYPE_SETTINGS']['write'] ?? 'N') === 'Y';
 
 		$html = '
 			<tr valign="top">
 				<td>'.Loc::getMessage("IBLOCK_PROP_SEQ_SETTING_WRITABLE").':</td>
-				<td><input type="checkbox" name="'.$strHTMLControlName["NAME"].'[write]" value="Y" '.($bWritable? 'checked="checked"': '').'></td>
+				<td>
+					<input type="hidden" name="'.$strHTMLControlName["NAME"].'[write]" value="N">
+					<input type="checkbox" name="'.$strHTMLControlName["NAME"].'[write]" value="Y" '.($bWritable? 'checked="checked"': '').'>
+				</td>
 			</tr>
 		';
 
-		if($arProperty["ID"] > 0)
+		if ((int)($arProperty['ID'] ?? 0) > 0)
 		{
 			$seq = new CIBlockSequence($arProperty["IBLOCK_ID"], $arProperty["ID"]);
 			$current_value = $seq->GetCurrent();

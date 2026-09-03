@@ -5,6 +5,7 @@ use Bitrix\Landing\Hook\Page;
 use \Bitrix\Landing\Internals\HookDataTable as HookData;
 use \Bitrix\Main\Event;
 use \Bitrix\Main\EventResult;
+use CPHPCache;
 
 class Hook
 {
@@ -48,6 +49,33 @@ class Hook
 	];
 
 	/**
+	 * Hook codes which have visual effect
+	 */
+	const HOOKS_CODES_DESIGN = [
+		'BACKGROUND_USE',
+		'BACKGROUND_PICTURE',
+		'BACKGROUND_POSITION',
+		'BACKGROUND_COLOR',
+		'FONTS_CODE',
+		'THEME_CODE',
+		'THEME_USE',
+		'THEME_COLOR',
+		'THEMEFONTS_USE',
+		'THEMEFONTS_SKIP_H_FONT',
+		'THEMEFONTS_CODE_H',
+		'THEMEFONTS_CODE',
+		'THEMEFONTS_SIZE',
+		'THEMEFONTS_COLOR',
+		'THEMEFONTS_COLOR_H',
+		'THEMEFONTS_LINE_HEIGHT',
+		'THEMEFONTS_FONT_WEIGHT',
+		'THEMEFONTS_FONT_WEIGHT_H',
+	];
+
+	private const CACHE_TIME = 2592000; // 30 days
+	private const CACHE_DIR = '/landing/hook/';
+
+	/**
 	 * Get classes from dir.
 	 * @param string $dir Relative dir.
 	 * @return array
@@ -88,6 +116,58 @@ class Hook
 			return $data;
 		}
 
+		$isEditMode = self::$editMode ? 'N' : 'Y';
+
+		$cacheId = self::getCacheId($id, $type, $isEditMode, $asIs);
+		$data = self::getDataFromCache($cacheId);
+
+		if (empty($data))
+		{
+			$data = self::getDataFromDatabase($id, $type, $isEditMode, $asIs);
+			self::saveDataToCache($cacheId, $data);
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Get data from cache.
+	 *
+	 * @param string $cacheId.
+	 *
+	 * @return array
+	 */
+	private static function getDataFromCache(string $cacheId): array
+	{
+		$data = [];
+
+		$cache = new CPHPCache();
+		if ($cache->InitCache(self::CACHE_TIME, $cacheId, self::CACHE_DIR))
+		{
+			$vars = $cache->GetVars();
+			if (isset($vars[0]))
+			{
+				$data = $vars[0];
+			}
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Get data from database.
+	 *
+	 * @param int $id Entity id.
+	 * @param string $type Entity type.
+	 * @param string $isEditMode Edit mode flag ('Y' or 'N').
+	 * @param boolean $asIs Return row as is.
+	 *
+	 * @return array
+	 */
+	private static function getDataFromDatabase(int $id, string $type, string $isEditMode, bool $asIs): array
+	{
+		$data = [];
+
 		$res = HookData::getList([
 			'select' => [
 				'ID', 'HOOK', 'CODE', 'VALUE'
@@ -95,13 +175,14 @@ class Hook
 			'filter' => [
 				'ENTITY_ID' => $id,
 				'=ENTITY_TYPE' => $type,
-				'=PUBLIC' => self::$editMode ? 'N' : 'Y'
+				'=PUBLIC' => $isEditMode,
 			],
 			'order' => [
 				'ID' => 'asc'
-			]
+			],
 		]);
-		while ($row = $res->fetch())
+
+		foreach ($res->fetchAll() as $row)
 		{
 			if (!isset($data[$row['HOOK']]))
 			{
@@ -115,6 +196,22 @@ class Hook
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Save data to cache.
+	 *
+	 * @param string $cacheId.
+	 * @param array $data Data to save.
+	 */
+	private static function saveDataToCache(string $cacheId, array $data): void
+	{
+		$cache = new CPHPCache();
+		if (!$cache->InitCache(self::CACHE_TIME, $cacheId, self::CACHE_DIR))
+		{
+			$cache->StartDataCache();
+			$cache->EndDataCache([$data]);
+		}
 	}
 
 	/**
@@ -376,6 +473,8 @@ class Hook
 				HookData::delete($delId);
 			}
 		}
+
+		self::clearCache();
 	}
 
 	/**
@@ -548,6 +647,8 @@ class Hook
 				Landing::update($id, ['PUBLIC' => 'N']);
 			}
 		}
+
+		self::clearCache();
 	}
 
 	/**
@@ -667,6 +768,8 @@ class Hook
 				}
 			}
 		}
+
+		self::clearCache();
 	}
 
 	/**
@@ -782,12 +885,43 @@ class Hook
 			$editModeBack = self::$editMode;
 			self::$editMode = true;
 			self::saveData($id, self::ENTITY_TYPE_LANDING, $data);
+			if (array_key_exists('METAOG_IMAGE', $data))
+			{
+				self::deleteVibePreviewOptionsByLandingId($id);
+			}
 			self::indexContent($id, self::ENTITY_TYPE_LANDING);
 			if (Manager::getOption('public_hook_on_save') === 'Y')
 			{
 				self::publicationLandingWithSkipNeededPublication($id);
 			}
 			self::$editMode = $editModeBack;
+		}
+	}
+
+	private static function deleteVibePreviewOptionsByLandingId(int $landingId): void
+	{
+		$sites = Site::getList([
+			'select' => ['ID'],
+			'filter' => [
+				'=TYPE' => Site\Type::SCOPE_CODE_VIBE,
+				'=LANDING_ID_INDEX' => $landingId,
+				'CHECK_PERMISSIONS' => 'N',
+			],
+		]);
+		while ($site = $sites->fetch())
+		{
+			$vibes = \Bitrix\Landing\Vibe\Model\VibeTable::query()
+				->setSelect(['MODULE_ID', 'EMBED_ID'])
+				->where('SITE_ID', (int)$site['ID'])
+				->exec()
+			;
+			while ($vibe = $vibes->fetch())
+			{
+				$optionCode = 'vibe_preview_'
+					. md5((string)$vibe['MODULE_ID'] . '|' . (string)$vibe['EMBED_ID'])
+				;
+				\Bitrix\Main\Config\Option::delete('landing', ['name' => $optionCode]);
+			}
 		}
 	}
 
@@ -824,6 +958,8 @@ class Hook
 		{
 			HookData::delete($row['ID']);
 		}
+
+		self::clearCache();
 	}
 
 	/**
@@ -844,5 +980,15 @@ class Hook
 	public static function deleteForLanding($id)
 	{
 		self::deleteData($id, self::ENTITY_TYPE_LANDING);
+	}
+
+	private static function clearCache(): void
+	{
+		(new CPHPCache())->CleanDir(self::CACHE_DIR);
+	}
+
+	private static function getCacheId(int $entityId, string $entityType, string $isPublic, bool $asIs): string
+	{
+		return "hook_data_{$entityId}_{$entityType}_{$isPublic}_" . (int)$asIs;
 	}
 }

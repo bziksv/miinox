@@ -1,12 +1,12 @@
-<?
-/*
-##############################################
-# Bitrix: SiteManager                        #
-# Copyright (c) 2002-2006 Bitrix             #
-# http://www.bitrixsoft.com                  #
-# mailto:admin@bitrixsoft.com                #
-##############################################
-*/
+<?php
+
+/**
+ * Bitrix Framework
+ * @package bitrix
+ * @subpackage fileman
+ * @copyright 2001-2025 Bitrix
+ */
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/prolog.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/classes/general/sticker.php");
@@ -20,8 +20,6 @@ $action = isset($_REQUEST['sticker_action']) ? $_REQUEST['sticker_action'] : fal
 
 if (!check_bitrix_sessid())
 	die('<!--BX_STICKER_DUBLICATE_ACTION_REQUEST'.bitrix_sessid().'-->');
-
-CUtil::JSPostUnEscape();
 
 if($action == 'show_stickers' || $action == 'hide_stickers')
 {
@@ -116,7 +114,7 @@ elseif($action == 'save_sticker')
 			'COLLAPSED' => $_POST['collapsed'] == 'Y' ? 'Y' : 'N',
 			'COMPLETED' => $_POST['completed'] == 'Y' ? 'Y' : 'N',
 			'CLOSED' => $_POST['closed'] == 'Y' ? 'Y' : 'N',
-			'DELETED' => $_POST['deleted'] == 'Y' ? 'Y' : 'N',
+			'DELETED' => ($_POST['deleted'] ?? null) == 'Y' ? 'Y' : 'N',
 
 			'MARKER_TOP' => isset($_POST['marker']['top']) ? intval($_POST['marker']['top']) : 0,
 			'MARKER_LEFT' => isset($_POST['marker']['left']) ? intval($_POST['marker']['left']) : 0,
@@ -146,11 +144,17 @@ elseif ($action == 'show_list')
 {
 	if (isset($_REQUEST['list_action']) && in_array($_REQUEST['list_action'], array('del', 'restore', 'hide')))
 	{
-		$arIds = array();
-		for ($i = 0; $i < count($_REQUEST['list_ids']); $i++)
+		$arIds = [];
+
+		if (!empty($_REQUEST['list_ids']))
 		{
-			if (intval($_REQUEST['list_ids'][$i]) > 0)
-				$arIds[] = intval($_REQUEST['list_ids'][$i]);
+			foreach ($_REQUEST['list_ids'] as $listId)
+			{
+				if (intval($listId) > 0)
+				{
+					$arIds[] = intval($listId);
+				}
+			}
 		}
 
 		if ($_REQUEST['list_action'] == 'del')
@@ -166,7 +170,7 @@ elseif ($action == 'show_list')
 		}
 	}
 
-	$bJustResult = $_REQUEST['sticker_just_res'] == "Y";
+	$bJustResult = ($_REQUEST['sticker_just_res'] ?? null) == "Y";
 	$colorSchemes = array('bxst-yellow', 'bxst-green', 'bxst-blue', 'bxst-red', 'bxst-purple', 'bxst-gray');
 	$curPage = urldecode($_REQUEST['cur_page']);
 
@@ -246,7 +250,7 @@ elseif ($action == 'show_list')
 			)
 		));
 
-	$naviSize = intval($_REQUEST['navi_size']);
+	$naviSize = intval(($_REQUEST['navi_size'] ?? null));
 	if (!$naviSize)
 	{
 		$naviSize = CUserOptions::GetOption('fileman', "stickers_navi_size", 5);

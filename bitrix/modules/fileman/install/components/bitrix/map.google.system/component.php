@@ -6,7 +6,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 if (!isset($arParams['GOOGLE_VERSION']))
 	$arParams['GOOGLE_VERSION'] = '3';
 
-$arParams['DEV_MODE'] = $arParams['DEV_MODE'] == 'Y' ? 'Y' : 'N';
+$arParams['DEV_MODE'] = ($arParams['DEV_MODE'] ?? null) == 'Y' ? 'Y' : 'N';
 
 if($arParams['API_KEY'] == '')
 	$arParams['API_KEY'] =  Option::get('fileman', 'google_map_api_key', '');
@@ -63,7 +63,7 @@ $arResult['ALL_MAP_CONTROLS'] = array(
 'LARGE_MAP_CONTROL' => 'LargeMap', 'SMALL_MAP_CONTROL' => 'SmallMap', 'SMALL_ZOOM_CONTROL' => 'SmallZoom', 'MINIMAP' => 'OverviewMap', , 'HTYPECONTROL' => 'HierarchicalMapType', 'SCALELINE' => 'Scale'*/
 );
 
-if ($arResult['ALL_MAP_TYPES'][$arParams['INIT_MAP_TYPE']]) // compatibility
+if ($arResult['ALL_MAP_TYPES'][$arParams['INIT_MAP_TYPE']] ?? null) // compatibility
 	$arParams['INIT_MAP_TYPE'] = $arResult['ALL_MAP_TYPES'][$arParams['INIT_MAP_TYPE']];
 elseif (!$arParams['INIT_MAP_TYPE'] || !in_array($arParams['INIT_MAP_TYPE'], $arResult['ALL_MAP_TYPES']))
 	$arParams['INIT_MAP_TYPE'] = 'ROADMAP';
@@ -87,7 +87,7 @@ else
 {
 	foreach ($arParams['CONTROLS'] as $key => $control)
 	{
-		if (!$arResult['ALL_MAP_CONTROLS'][$control])
+		if (!($arResult['ALL_MAP_CONTROLS'][$control] ?? null))
 			unset($arParams['CONTROLS'][$key]);
 	}
 
@@ -95,7 +95,7 @@ else
 }
 
 $arParams['MAP_WIDTH'] = trim($arParams['MAP_WIDTH']);
-if (ToUpper($arParams['MAP_WIDTH']) != 'AUTO' && mb_substr($arParams['MAP_WIDTH'], -1, 1) != '%')
+if (mb_strtoupper($arParams['MAP_WIDTH']) != 'AUTO' && mb_substr($arParams['MAP_WIDTH'], -1, 1) != '%')
 {
 	$arParams['MAP_WIDTH'] = intval($arParams['MAP_WIDTH']);
 	if ($arParams['MAP_WIDTH'] <= 0) $arParams['MAP_WIDTH'] = 600;

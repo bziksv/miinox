@@ -23,8 +23,6 @@ class MainMailConfirmAjax
 		if (!is_object($USER) || !$USER->isAuthorized())
 			$error = getMessage('MAIN_MAIL_CONFIRM_AUTH');
 
-		\CUtil::jsPostUnescape();
-
 		if ($error === false)
 		{
 			$act = $_REQUEST['act'] ?? null;
@@ -71,6 +69,13 @@ class MainMailConfirmAjax
 			return $response;
 		}
 
+		$isAdmin = Main\Loader::includeModule('bitrix24') ? \CBitrix24::isPortalAdmin($USER->getId()) : $USER->isAdmin();
+		if ($USER->getId() !== $sender['USER_ID'] && !($sender['IS_PUBLIC'] && $isAdmin))
+		{
+			$error = getMessage('MAIN_MAIL_CONFIRM_AJAX_ERROR');
+			return $response;
+		}
+
 		if ($smtp = $sender['OPTIONS']['smtp'])
 		{
 			$response['smtp'] = [
@@ -79,6 +84,7 @@ class MainMailConfirmAjax
 				'protocol' => $smtp['protocol'],
 				'login' => $smtp['login'],
 				'limit' => $smtp['limit'],
+				'isOauth' => $smtp['isOauth'] ?? false,
 			];
 		}
 
@@ -106,6 +112,12 @@ class MainMailConfirmAjax
 		$smtp   = $_REQUEST['smtp'];
 		$code = mb_strtolower(trim($_REQUEST['code']));
 		$public = $isAdmin && $_REQUEST['public'] == 'Y';
+		$limit = $_REQUEST['smtp']['limit'] ?? null;
+		if ($limit !== null)
+		{
+			$limit = (int)$limit;
+			$limit = $limit < 0 ? 0 : $limit;
+		}
 
 		if (!check_email($email, true))
 		{
@@ -128,12 +140,10 @@ class MainMailConfirmAjax
 				'login'    => $smtp['login'],
 				'password' => $smtp['password'],
 			);
-			$limit = $_REQUEST['smtp']['limit']??null;
 
 			if ($limit !== null)
 			{
-				$limit = (int)$limit;
-				$smtp['limit'] = $limit < 0 ? 0 : $limit;
+				$smtp['limit'] = $limit;
 			}
 
 			if (!preg_match('/^([a-z0-9-]+\.)+[a-z0-9-]{2,20}$/i', $smtp['server']))
@@ -197,6 +207,20 @@ class MainMailConfirmAjax
 		$senderId = $_REQUEST['id'];
 		if ($senderId && is_numeric($senderId))
 		{
+			$senderItem = Main\Mail\Internal\SenderTable::getById((int)$senderId)->fetch();
+			if (empty($senderItem))
+			{
+				$error = getMessage('MAIN_MAIL_CONFIRM_AJAX_ERROR');
+
+				return [];
+			}
+			if ($USER->getId() !== $senderItem['USER_ID'] && !($senderItem['IS_PUBLIC'] && $isAdmin))
+			{
+				$error = getMessage('MAIN_MAIL_CONFIRM_AJAX_ERROR');
+
+				return [];
+			}
+
 			$queryParams = [
 				'filter' => [
 					'=ID' => (int)$senderId,
@@ -214,6 +238,21 @@ class MainMailConfirmAjax
 				if ($item['EMAIL'] == $email)
 				{
 					$alreadyConfirmed = true;
+					if (!empty($item['OPTIONS']['smtp']['isOauth']) && $update) {
+						$smtp = $item['OPTIONS']['smtp'];
+						if ($limit) {
+							$smtp['limit'] = $limit;
+						} else {
+							unset($smtp['limit']);
+						}
+					}
+					if(
+						empty($smtp['password'])
+						&& $item['OPTIONS']['smtp']['login'] === $smtp['login']
+					)
+					{
+						$smtp['password'] = $item['OPTIONS']['smtp']['password'];
+					}
 				}
 			}
 			else
@@ -294,6 +333,7 @@ class MainMailConfirmAjax
 			}
 
 			Main\Mail\Internal\SenderTable::update($senderId, $fields);
+
 			return ['senderId' => $senderId, 'confirmed' => $fields['IS_CONFIRMED']];
 		}
 		elseif (empty($code))

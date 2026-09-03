@@ -1,7 +1,7 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-/** @var CAllMain $APPLICATION*/
+/** @var CMain $APPLICATION*/
 /** @var array $arResult*/
 /** @var array $arParams*/
 
@@ -14,7 +14,7 @@ global $APPLICATION;
 $componentParameters = array(
 	'ID' => $arResult['ID'],
 	'NAME_TEMPLATE' => $arResult['NAME_TEMPLATE'],
-	'PATH_TO_USER_PROFILE' => $arResult['PATH_TO_CONSENTS'],
+	'PATH_TO_USER_PROFILE' => $arResult['PATH_TO_CONSENTS'] ?? null,
 	'PATH_TO_LIST' => $arResult['PATH_TO_LIST'],
 	'PATH_TO_EDIT' => $arResult['PATH_TO_EDIT'],
 	'PATH_TO_TIME' => $arResult['PATH_TO_TIME'],
@@ -35,12 +35,14 @@ $componentParameters = array(
 if ($_REQUEST['IFRAME'] == 'Y')
 {
 	$APPLICATION->IncludeComponent(
-		"bitrix:sender.pageslider.wrapper",
+		"bitrix:ui.sidepanel.wrapper",
 		"",
 		array(
 			'POPUP_COMPONENT_NAME' => "bitrix:sender.letter.time",
 			"POPUP_COMPONENT_TEMPLATE_NAME" => "",
 			"POPUP_COMPONENT_PARAMS" => $componentParameters,
+			"USE_UI_TOOLBAR" => "Y",
+			"USE_PADDING" => false,
 		)
 	);
 }
