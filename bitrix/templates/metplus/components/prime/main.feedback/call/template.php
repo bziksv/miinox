@@ -39,10 +39,6 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
     <div class="text-center">
         <input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
         <input type="submit" name="submit" class="main-btn form-callback_submit" value="Отправить">
-
-        <?if($arParams["USE_CAPTCHA"] == "Y"):?>
-            <div class="g-recaptcha" data-sitekey="<?=$arParams["CAPTCHA_SITE_KEY"]?>"></div>
-        <?endif;?>
     </div>
 
     <br>

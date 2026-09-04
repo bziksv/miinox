@@ -42,22 +42,6 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
         <textarea name="PREVIEW_TEXT" class="form-textarea" placeholder="Краткое описание к резюме*" required><?=$arResult['PREVIEW_TEXT']?></textarea>
     </div>
 
-    <?if($arParams["USE_CAPTCHA"] == "Y"):?>
-    <div class="form-group">
-        <div class="g-recaptcha" data-sitekey="<?=$arParams["CAPTCHA_SITE_KEY"]?>"></div>
-    </div>
-
-        <script>
-            window.onload = function() {
-                var $recaptcha = document.querySelector('#g-recaptcha-response');
-
-                if($recaptcha) {
-                    $recaptcha.setAttribute("required", "required");
-                }
-            };
-        </script>
-    <?endif;?>
-
     <div class="row form-static_footer">
         <? foreach($arResult['USER_FIELD'] as $field):
         if($field['PROPERTY_TYPE'] == "F"):

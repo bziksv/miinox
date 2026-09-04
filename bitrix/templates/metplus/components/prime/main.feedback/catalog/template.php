@@ -40,11 +40,6 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
         <textarea name="PREVIEW_TEXT" class="form-textarea" placeholder="Введите текст сообщения"><?=$arResult['PREVIEW_TEXT']?></textarea>
     </div>
     <div class="row">
-        <div class="col-sm-6">
-            <?if($arParams["USE_CAPTCHA"] == "Y"):?>
-                <div class="g-recaptcha" data-sitekey="<?=$arParams["CAPTCHA_SITE_KEY"]?>"></div>
-            <?endif;?>
-        </div>
         <div class="col-sm-6 static-form_right-column">
             <input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
             <input type="submit" name="submit" value="Перезвонить" class="form-static_submit-btn main-btn">

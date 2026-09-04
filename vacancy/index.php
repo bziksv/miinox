@@ -85,9 +85,6 @@ $APPLICATION->SetTitle("Вакансии");
 			1 => "EMAIL",
 			2 => "FILE",
 		),
-		"USE_CAPTCHA" => "Y",
-		"CAPTCHA_SITE_KEY" => "6Ld60c4UAAAAAGXC83w4_ZPy-Q6OErFzaVYjjNQl",
-		"CAPTCHA_SERVER_KEY" => "6Ld60c4UAAAAAP7qkcYtAQ_byWeHtD0kgGFiH0Q9",
 		"COMPONENT_TEMPLATE" => "vacancy"
 	),
 	false

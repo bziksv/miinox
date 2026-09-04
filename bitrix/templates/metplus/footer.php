@@ -38,7 +38,7 @@
             );?>
             <div class="footer-column">
                 <ul class="footer-contact_list">
-                    <li><a href="tel:+74952128506"><span class="glipf-call-answer"></span>+7 (495) 212-85-06</a></li>
+                    <li><a href="tel:+74951140102"><span class="glipf-call-answer"></span>+7 (495) 114-01-02</a></li>
                     <li><a href="mailto:info@miinox.ru" class="footer-mail"><span class="glipf-email"></span>info@miinox.ru</a></li>
                     <li>
                         <span class="glipf-clock"></span>Будни: 8:00 - 17:00 <br>Суббота, воскресенье — выходные
@@ -61,7 +61,6 @@
             <div class="col-lg-10">
                 <div class="rules">
 					© 2006–2026. ООО «Металлинвест Инокс» <br>
-                    394028, г. Воронеж, Монтажный проезд, д. 26, оф. 209
                     <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
                     <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
                 </div>
@@ -121,9 +120,6 @@
                         0 => "NAME",
                         1 => "PHONE",
                     ),
-                    "USE_CAPTCHA" => "N",
-                    "CAPTCHA_SITE_KEY" => "6Ld60c4UAAAAAGXC83w4_ZPy-Q6OErFzaVYjjNQl",
-                    "CAPTCHA_SERVER_KEY" => "6Ld60c4UAAAAAP7qkcYtAQ_byWeHtD0kgGFiH0Q9",
                     "COMPONENT_TEMPLATE" => "call"
                 ),
                 false

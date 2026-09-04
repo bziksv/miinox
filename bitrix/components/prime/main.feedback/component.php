@@ -15,9 +15,7 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 
 $arResult["PARAMS_HASH"] = md5(serialize($arParams).$this->GetTemplateName());
 
-$arParams["USE_CAPTCHA"] = $arParams["USE_CAPTCHA"];
-$arParams["CAPTCHA_SITE_KEY"] = $arParams["CAPTCHA_SITE_KEY"];
-$arParams["CAPTCHA_SERVER_KEY"] = $arParams["CAPTCHA_SERVER_KEY"];
+$arParams["USE_CAPTCHA"] = "N";
 
 $arParams["EVENT_NAME"] = trim($arParams["EVENT_NAME"]);
 if($arParams["EVENT_NAME"] == '')
@@ -48,27 +46,6 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["submit"] <> '' && (!isset($_P
 			}
 		}
 
-
-		if($arParams["USE_CAPTCHA"] == "Y" &&
-            $arParams["CAPTCHA_SITE_KEY"] &&
-            $arParams["CAPTCHA_SERVER_KEY"])
-		{
-		    if($recaptcha = $_REQUEST['g-recaptcha-response']){
-
-                $google_url = "https://www.google.com/recaptcha/api/siteverify";
-                $secret = $arParams["CAPTCHA_SERVER_KEY"];
-                $ip = $_SERVER['REMOTE_ADDR'];
-                $url = $google_url."?secret=".$secret."&response=".$recaptcha."&remoteip=".$ip;
-                $res = file_get_contents($url, true);
-                $res = json_decode($res, true);
-
-                if(!$res['success']){
-                    $arResult["ERROR_MESSAGE"][] = GetMessage("MF_CAPTCHA_WRONG");
-                }
-            }else
-                $arResult["ERROR_MESSAGE"][] = GetMessage("MF_CAPTHCA_EMPTY");
-
-		}
 
 		if(empty($arResult["ERROR_MESSAGE"])){
 			$el = new CIBlockElement;

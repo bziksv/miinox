@@ -119,7 +119,7 @@ $APPLICATION->SetTitle("О компании");
 		<div class="row align-items-center">
 			<div class="current-vacancies_left">
 				<div class="current-vacancies_img">
- <img alt="alt" src="/bitrix/templates/metplus/img/static/current-vacancies.png" data-src="/bitrix/templates/metplus/img/static/current-vacancies.png">
+					<img alt="Актуальные вакансии" src="<?=SITE_TEMPLATE_PATH?>/img/static/current-vacancies.png?v=miinox51" data-src="<?=SITE_TEMPLATE_PATH?>/img/static/current-vacancies.png?v=miinox51" width="405" height="481">
 				</div>
 			</div>
 			<div class="current-vacancies_right">

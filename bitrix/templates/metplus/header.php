@@ -10,8 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=brand86" rel="stylesheet" />
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=brand96" rel="stylesheet" />
 
 </head>
 <body>
@@ -39,7 +38,7 @@
                             </a>
                         </div>
                         <div class="head_phone-box tablet-small_hidden">
-                            <a href="tel:+74952128506" class="head_phone-number">+7 (495) 212-85-06</a>
+                            <a href="tel:+74951140102" class="head_phone-number">+7 (495) 114-01-02</a>
                         </div>
                         <div class="head_select-city tablet-small_hidden">
                             <a href="#citySelect" data-toggle="modal" class="select-city_btn">Выберите город:</a>
@@ -159,7 +158,7 @@
                 </div>
                 <div class="tablet-small_visible">
                     <div class="head_phone-box">
-                        <a href="tel:+74952128506" class="head_phone-number">+7 (495) 212-85-06</a>
+                        <a href="tel:+74951140102" class="head_phone-number">+7 (495) 114-01-02</a>
                     </div>
                 </div>
                 <div class="mobile-visible">

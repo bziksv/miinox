@@ -138,69 +138,90 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
  <!-- Бренды в движении - начало -->
 
 <style>
-
 .brands {
   overflow: hidden;
   display: flex;
   flex-direction: column;
   background-color: #000;
-  padding: 20px 0;
+  padding: 20px 0 10px;
 }
 
 .brands-row {
   width: 100%;
-  overflow: visible;;
+  overflow: hidden;
   position: relative;
 }
 
 .brands-track {
   display: flex;
-  animation: scroll-left 45s linear infinite;
+  width: max-content;
+  animation: scroll-left 50s linear infinite;
 }
 
 .bottom-row .brands-track {
-  animation: scroll-right 45s linear infinite;
+  animation: scroll-right 50s linear infinite;
 }
 
 .brand-item {
-  flex: 0 0 240px;
+  flex: 0 0 280px;
   height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #222;
   background-color: #000;
+  box-sizing: border-box;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.brand-item--wide {
+  flex: 0 0 380px;
 }
 
 .brand-item:hover {
-    transform: translateY(-10px);
-    border-color: #f8f8f8;
-    box-shadow: 
-        0 15px 30px rgba(248, 248, 248, 0.4),
-        0 0 0 1px rgba(248, 248, 248, 0.3);
-    filter: brightness(1.2);
-    z-index: 1000;
+  transform: translateY(-6px);
+  border-color: #f8f8f8;
+  box-shadow:
+    0 12px 24px rgba(248, 248, 248, 0.25),
+    0 0 0 1px rgba(248, 248, 248, 0.2);
+  filter: brightness(1.15);
+  z-index: 2;
 }
 
 .brand-item img {
-  max-width: 80%;
-  max-height: 80%;
+  display: block;
+  max-width: 74%;
+  max-height: 56%;
+  width: auto;
+  height: auto;
   object-fit: contain;
-  opacity: 0.8;
+  opacity: 0.95;
 }
 
-	.brands-header {
-color: #fff;
-text-align: center;
-font-size: 2.25rem;
-font-weight: 800;
-line-height: 1.1;
-margin-bottom: 1.5em;
-margin-top: 1em;
-text-transform: uppercase;
-	}
+.brand-item--wide img {
+  max-width: 88%;
+  max-height: 48%;
+}
 
-/* Бесшовная анимация */
+.brand-item a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.brands-header {
+  color: #fff;
+  text-align: center;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 1.5em;
+  margin-top: 1em;
+  text-transform: uppercase;
+}
+
 @keyframes scroll-left {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -211,56 +232,59 @@ text-transform: uppercase;
   to { transform: translateX(0); }
 }
 
-/* 📱 Адаптив */
 @media (max-width: 768px) {
   .brand-item {
-    flex: 0 0 160px;
-    height: 100px;
+    flex: 0 0 180px;
+    height: 96px;
+  }
+  .brand-item--wide {
+    flex: 0 0 260px;
   }
 }
 
-	.brands-link {
-		color: #fff;
-		text-transform: uppercase;
-		text-decoration: underline;
-		text-align: center;
-		margin: 50px auto;
-		width: auto;
-	}
+.brands-link {
+  color: #fff;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-align: center;
+  margin: 50px auto;
+  width: auto;
+}
 
-	.brands-link:hover {
-		color: #45aaee;
-		transition: linear color 0.2s;
-		text-decoration: underline;
-	}
-
+.brands-link:hover {
+  color: #45aaee;
+  transition: color 0.2s linear;
+  text-decoration: underline;
+}
 </style>
 
+<?php
+$partnersTpl = SITE_TEMPLATE_PATH . '/img/static/partners';
+$partnerItems = '
+  <div class="brand-item"><img src="' . $partnersTpl . '/mechel.svg" alt="Мечел"></div>
+  <div class="brand-item"><img src="' . $partnersTpl . '/severstal.svg" alt="Северсталь"></div>
+  <div class="brand-item"><img src="' . $partnersTpl . '/vtb.svg" alt="ВТБ"></div>
+  <div class="brand-item brand-item--wide">
+    <a href="https://marcegaglia.ru/ru/" target="_blank" rel="noopener">
+      <img src="' . $partnersTpl . '/marcegaglia.png" alt="Marcegaglia">
+    </a>
+  </div>
+  <div class="brand-item"><img src="' . $partnersTpl . '/kmi.svg" alt="KMI"></div>
+';
+?>
+
 <div class="brands">
-	<div class="brands-header">Наши партнеры</div>
- <!-- Верхняя строка - движется влево -->
+  <div class="brands-header">Наши партнеры</div>
 
   <div class="brands-row top-row">
-    <div class="brands-track">
-		<div class="brand-item"><img src="/upload/logo-amet.svg" alt="Амет"></div>
-      <div class="brand-item"><img src="/upload/evraz.svg" alt="Evraz"></div>
-      <div class="brand-item"><img src="/upload/mmk.svg" alt="Магнитогорский металлургический комбинат"></div>
-      <div class="brand-item"><img src="/upload/mechel.svg" alt="Mechel"></div>
-    </div>
+    <div class="brands-track"><?=$partnerItems?></div>
   </div>
-
- <!-- Нижняя строка - движется вправо -->
 
   <div class="brands-row bottom-row">
-    <div class="brands-track">
-		<div class="brand-item"><img height="80px" src="/upload/nlmk.svg" alt="НЛМК"></div>
-      <div class="brand-item"><img src="/upload/severstal.svg" alt="Северсталь"></div>
-      <div class="brand-item"><img src="/upload/vtb.svg" alt="ВТБ"></div>
-    </div>
+    <div class="brands-track"><?=$partnerItems?></div>
   </div>
 
-<a class="brands-link" target="_blank" href="/reviews/">Узнать больше</a>
-
+  <a class="brands-link" target="_blank" href="/reviews/">Узнать больше</a>
 </div>
 
 

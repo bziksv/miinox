@@ -35,9 +35,6 @@ $this->setFrameMode(false);
                         0 => "NAME",
                         1 => "PHONE",
                     ),
-                    "USE_CAPTCHA" => "N",	// Использовать защиту от автоматических сообщений (CAPTCHA) для неавторизованных пользователей
-                    "CAPTCHA_SITE_KEY" => "6Ld60c4UAAAAAGXC83w4_ZPy-Q6OErFzaVYjjNQl",
-                    "CAPTCHA_SERVER_KEY" => "6Ld60c4UAAAAAP7qkcYtAQ_byWeHtD0kgGFiH0Q9",
                     "COMPONENT_TEMPLATE" => "call"
                 ),
                     false
