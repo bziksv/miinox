@@ -23,6 +23,7 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
         </a>
     <?if (is_array($arColumns) && count($arColumns) > 0):?>
         <div class="dropdown-content is-animation">
+            <? $catalogPromoPlaced = false; ?>
             <?foreach($arColumns as $key=>$arColumn):?>
                 <ul class="dropdown-menu">
                     <? foreach ($arColumn as $nameKey => $arGroup): ?>
@@ -79,6 +80,9 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
                             </li>
                         <?endforeach;?>
                     <?endforeach;?>
+                    <? if (!$catalogPromoPlaced): $catalogPromoPlaced = true; ?>
+                    <? include $_SERVER['DOCUMENT_ROOT'].SITE_TEMPLATE_PATH.'/include/catalog_promos.php'; ?>
+                    <? endif; ?>
                 </ul>
             <?endforeach;?>
         </div>

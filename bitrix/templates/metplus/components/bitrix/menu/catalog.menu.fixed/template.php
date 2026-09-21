@@ -82,6 +82,7 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
                     </li>
                 <?endforeach;?>
             <?endforeach;?>
+            <? include $_SERVER['DOCUMENT_ROOT'].SITE_TEMPLATE_PATH.'/include/catalog_promos.php'; ?>
         </ul>
     </div>
 </div>

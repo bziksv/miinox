@@ -1412,7 +1412,7 @@ h3,
   overflow: auto;
   text-align: left;
   direction: ltr;
-  padding: .35em 0;
+  padding: 0.85em 0 0.35em;
 }
 .dropdown-content .dropdown-submenu {
   min-width: 280px;
@@ -1545,6 +1545,152 @@ h3,
 .dropdown-menu_item > a > span:not(.menu-icon):not(.menu-photo) {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.dropdown-content > .dropdown-menu {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+      flex-direction: column;
+}
+
+.dropdown-content > .dropdown-menu > .dropdown-menu_item {
+  -webkit-box-flex: 0;
+  -ms-flex: 0 0 auto;
+      flex: 0 0 auto;
+}
+
+.dropdown-menu_promos {
+  -webkit-box-flex: 0;
+  -ms-flex: 0 0 auto;
+      flex: 0 0 auto;
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+  -ms-flex-item-align: stretch;
+      align-self: stretch;
+}
+
+.catalog-promos {
+  margin: 1.75rem 1.15rem 0.85rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(32, 99, 128, 0.16);
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+      flex-direction: column;
+  gap: 1.25rem;
+}
+
+.catalog-promo-card {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+      flex-direction: column;
+}
+
+.catalog-promo_heading {
+  margin: 0 0 0.5rem;
+  font-family: 'Golos Text', 'roboto', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  color: #206380;
+}
+
+.catalog-promo {
+  position: relative;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: end;
+  -ms-flex-align: end;
+      align-items: flex-end;
+  height: 176px;
+  overflow: hidden;
+  color: #fff;
+  background: #184c61;
+  -webkit-box-shadow: 0 2px 10px rgba(24, 76, 97, 0.12);
+          box-shadow: 0 2px 10px rgba(24, 76, 97, 0.12);
+}
+
+.catalog-promo_img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  -o-object-position: center 28%;
+     object-position: center 28%;
+  -webkit-transition: -webkit-transform .45s ease;
+  transition: transform .45s ease;
+}
+
+.catalog-promo_body {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+      flex-direction: column;
+  -webkit-box-align: start;
+  -ms-flex-align: start;
+      align-items: flex-start;
+  width: 100%;
+  padding: 1rem 1.05rem 1.05rem;
+  background: linear-gradient(180deg, rgba(16, 40, 52, 0) 0%, rgba(16, 40, 52, 0.42) 42%, rgba(16, 40, 52, 0.92) 100%);
+}
+
+.catalog-promo_title {
+  font-family: 'Golos Text', 'roboto', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.catalog-promo_text {
+  margin-top: 0.35rem;
+  max-width: 17rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.catalog-promo_more {
+  margin-top: 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.catalog-promo:hover .catalog-promo_img {
+  -webkit-transform: scale(1.04);
+      -ms-transform: scale(1.04);
+          transform: scale(1.04);
+}
+
+.catalog-promo:hover .catalog-promo_more {
+  border-bottom-color: #fff;
 }
 
 .menu-photo {
@@ -4043,10 +4189,21 @@ h3,
 
 /**text-section***/
 .text-section {
+  position: relative;
   padding: 5em 0;
   color: #fff;
+  background-color: #184c61;
+  background-image: url(../img/bg/text-section_bg.jpg);
+  background-repeat: no-repeat;
+  background-position: center 0;
   -webkit-background-size: cover;
           background-size: cover;
+  will-change: background-position;
+}
+
+.text-section > .container {
+  position: relative;
+  z-index: 2;
 }
 
 .text-section p {

@@ -294,7 +294,7 @@ $partnerItems = '
 
 
 
-        <div class="text-section" data-parallax="scroll" data-position="top" data-bleed="10" data-natural-width="1917" data-natural-height="1159" data-image-src="<?=SITE_TEMPLATE_PATH?>/img/bg/text-section_bg.jpg">
+        <div class="text-section">
             <div class="container">
                 <?$APPLICATION->IncludeFile(SITE_TEMPLATE_PATH.'/inc/main_desc.php',
                     Array(),

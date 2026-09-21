@@ -46,7 +46,34 @@ jQuery(document).ready(function($) {
     $('#citySelect').modal('hide');
   });
   if (!is_mobile()) {
-    $('.text-section').parallax();
+    (function initTextSectionParallax() {
+      var $section = $('.text-section');
+      if (!$section.length) return;
+
+      var ticking = false;
+      var update = function() {
+        ticking = false;
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+        var offsetTop = $section.offset().top;
+        var height = $section.outerHeight();
+        var winH = window.innerHeight || document.documentElement.clientHeight;
+        if (scrollTop + winH < offsetTop || scrollTop > offsetTop + height) {
+          return;
+        }
+        var shift = Math.round((scrollTop - offsetTop) * 0.35);
+        $section.css('background-position', 'center ' + shift + 'px');
+      };
+
+      var onScroll = function() {
+        if (!ticking) {
+          ticking = true;
+          window.requestAnimationFrame(update);
+        }
+      };
+
+      $(window).on('scroll.miinoxTextParallax resize.miinoxTextParallax', onScroll);
+      update();
+    })();
   }
   if (is_mobile()) {
     $('.head-menu_catalog-item > a').on('click', function() {
