@@ -16,7 +16,10 @@ use Bitrix\Main\Localization\Loc;
 
             <td>
                 <span class="cart-table_mobile-text">Название товара</span>
-                {{NAME}}
+                <span class="cart-item_title">{{NAME}}</span>
+                {{#SHOW_CUT_NOTICE}}
+                <span class="cart-cut-notice">Потребуется порезка — длина не кратна 6&nbsp;м</span>
+                {{/SHOW_CUT_NOTICE}}
             </td>
 
             <?
@@ -50,12 +53,15 @@ use Bitrix\Main\Localization\Loc;
 
             <td>
                 <span class="cart-table_mobile-text">Количество</span>
-                <div class="wrapper-counter-btn" data-entity="basket-item-quantity-block">
-                    <button class="counter-back" data-entity="basket-item-quantity-minus"></button>
-                    <input type="text" value="{{QUANTITY}}" class="product-count" {{#NOT_AVAILABLE}} disabled="disabled"{{/NOT_AVAILABLE}}
-                    data-value="{{QUANTITY}}" data-entity="basket-item-quantity-field"
-                    id="basket-item-quantity-{{ID}}">
-                    <button class="counter-forward" data-entity="basket-item-quantity-plus"></button>
+                <div class="cart-qty">
+                    <div class="wrapper-counter-btn" data-entity="basket-item-quantity-block">
+                        <button class="counter-back" data-entity="basket-item-quantity-minus"></button>
+                        <input type="text" value="{{QUANTITY}}" class="product-count" {{#NOT_AVAILABLE}} disabled="disabled"{{/NOT_AVAILABLE}}
+                        data-value="{{QUANTITY}}" data-entity="basket-item-quantity-field"
+                        id="basket-item-quantity-{{ID}}">
+                        <button class="counter-forward" data-entity="basket-item-quantity-plus"></button>
+                    </div>
+                    {{#MEASURE_SHORT}}<span class="cart-qty_unit">{{MEASURE_SHORT}}</span>{{/MEASURE_SHORT}}
                 </div>
             </td>
 

@@ -8,86 +8,140 @@
 $component = $this->getComponent();
 $arParams = $component->applyTemplateModifications();
 
-/** Свойства товаров 1С, которые показываем в таблице (CODE => заголовок). */
-$propertyColumnsMap = [
-    'MARKA_STALI_SPLAVA_AKH' => 'Марка',
-    'DIAMETR_AKH' => 'Диаметр',
+/**
+ * Единица продажи раздела: метры или штуки (кг — тот же набор колонок).
+ * Заголовок таблицы один на раздел, по самой частой единице товаров.
+ */
+$unitPresets = [
+    'm' => [
+        'CODE' => 'm',
+        'PRICE' => 'руб./м',
+        'QTY' => 'Длина, м',
+        'STEP' => '0.01',
+        'MIN' => '0.01',
+    ],
+    'pc' => [
+        'CODE' => 'pc',
+        'PRICE' => 'руб./шт',
+        'QTY' => 'Кол-во, шт',
+        'STEP' => '1',
+        'MIN' => '1',
+    ],
+    'kg' => [
+        'CODE' => 'kg',
+        'PRICE' => 'руб./кг',
+        'QTY' => 'Кол-во, кг',
+        'STEP' => '0.01',
+        'MIN' => '0.01',
+    ],
+];
+
+$measureToUnit = [
+    1 => 'm',
+    4 => 'kg',
+    5 => 'pc',
+];
+
+$itemIds = [];
+foreach ($arResult['ITEMS'] as $arItem) {
+    $itemIds[] = (int)$arItem['ID'];
+}
+
+$measures = [];
+if ($itemIds) {
+    $productRes = CCatalogProduct::GetList(
+        [],
+        ['ID' => $itemIds],
+        false,
+        false,
+        ['ID', 'MEASURE']
+    );
+    while ($product = $productRes->Fetch()) {
+        $measures[(int)$product['ID']] = (int)$product['MEASURE'];
+    }
+}
+
+$unitVotes = [];
+foreach ($itemIds as $itemId) {
+    $unitCode = $measureToUnit[$measures[$itemId] ?? 0] ?? 'pc';
+    $unitVotes[$unitCode] = ($unitVotes[$unitCode] ?? 0) + 1;
+}
+arsort($unitVotes);
+$unitCode = $unitVotes ? (string)array_key_first($unitVotes) : 'pc';
+$unit = $unitPresets[$unitCode];
+
+$arResult['TABLE_UNIT'] = $unit;
+$arResult['FIELDS'] = [
+    'Наименование',
+    'Цена розница<span class="product-table_th-unit">' . $unit['PRICE'] . '</span>',
+    'Цена опт<span class="product-table_th-unit">' . $unit['PRICE'] . '</span>',
+    $unit['QTY'],
+    'В корзину',
+];
+
+/** Свойства для раскрывающегося фильтра над таблицей. */
+$filterProps = [
     'TOLSHCHINA_AKH' => 'Толщина',
     'DLINA_AKH' => 'Длина',
     'SHIRINA_AKH' => 'Ширина',
+    'SPOSOB_PRISOEDINENIYA_AKH' => 'Соединение',
     'DN_AKH' => 'DN',
-    'FORMA_AKH' => 'Форма',
     'POVERKHNOST_AKH' => 'Поверхность',
-    'SPOSOB_PRISOEDINENIYA_AKH' => 'Соед.',
+    'MARKA_STALI_SPLAVA_AKH' => 'Марка',
 ];
 
-/** Числовые/размерные колонки — серые боксы как на metplus list_g_k */
-$fieldBoxCodes = [
-    'DIAMETR_AKH' => true,
-    'TOLSHCHINA_AKH' => true,
-    'DLINA_AKH' => true,
-    'SHIRINA_AKH' => true,
-    'DN_AKH' => true,
-];
-
-$propHasValue = static function ($value): bool {
-    if (is_array($value)) {
-        $value = implode(', ', array_filter($value, static function ($v) {
-            return $v !== '' && $v !== null;
-        }));
-    }
-    $value = trim((string)$value);
-    return $value !== '' && $value !== '0' && $value !== '0.0' && $value !== '0,0';
-};
-
-$usedCodes = [];
-foreach ($arResult['ITEMS'] as $arItem) {
-    foreach ($propertyColumnsMap as $code => $title) {
-        if (isset($usedCodes[$code])) {
+$filterValue = static function ($raw): array {
+    $parts = is_array($raw) ? $raw : [$raw];
+    $out = [];
+    foreach ($parts as $part) {
+        $part = trim((string)$part);
+        if ($part === '' || $part === '0' || $part === '0.0' || $part === '0,0') {
             continue;
         }
-        $raw = $arItem['PROPERTIES'][$code]['VALUE'] ?? '';
-        if ($propHasValue($raw)) {
-            $usedCodes[$code] = true;
+        $out[] = $part;
+    }
+    return array_values(array_unique($out));
+};
+
+$facetValues = [];
+$arResult['TABLE_ROW_PROPS'] = [];
+foreach ($arResult['ITEMS'] as $arItem) {
+    $rowProps = [];
+    foreach ($filterProps as $code => $title) {
+        $values = $filterValue($arItem['PROPERTIES'][$code]['VALUE'] ?? '');
+        if (!$values) {
+            continue;
+        }
+        $rowProps[$code] = $values;
+        foreach ($values as $value) {
+            $facetValues[$code][$value] = true;
         }
     }
+    $arResult['TABLE_ROW_PROPS'][(int)$arItem['ID']] = $rowProps;
 }
 
-$arResult['TABLE_PROP_COLUMNS'] = [];
-foreach ($propertyColumnsMap as $code => $title) {
-    if (!empty($usedCodes[$code])) {
-        $arResult['TABLE_PROP_COLUMNS'][] = [
-            'CODE' => $code,
-            'TITLE' => $title,
-            'FIELD_BOX' => !empty($fieldBoxCodes[$code]),
-        ];
-    }
-}
-
-// Как на test.metplus-vrn.ru/catalog/list_g_k/: цена → Шт → корзина (без дубля «Итог»)
-$arResult['FIELDS'] = ['Наименование'];
-foreach ($arResult['TABLE_PROP_COLUMNS'] as $col) {
-    $arResult['FIELDS'][] = $col['TITLE'];
-}
-$arResult['FIELDS'][] = '₽ / кг<span class="product-table_th-unit">с&nbsp;НДС</span>';
-$arResult['FIELDS'][] = 'Шт<span class="product-table_th-unit">кол-во</span>';
-$arResult['FIELDS'][] = 'Купить';
-
-if (!empty($arResult['PATH'])) {
-    foreach (array_reverse($arResult['PATH']) as $section) {
-        $curSec = CIBlockSection::GetList(
-            [],
-            ['IBLOCK_ID' => $section['IBLOCK_ID'], 'ID' => $section['ID']],
-            false,
-            ['NAME', 'UF_FIELD_TABLE']
-        )->GetNext();
-        if ($curSec && !empty($curSec['UF_FIELD_TABLE']) && is_array($curSec['UF_FIELD_TABLE'])) {
-            foreach ($arResult['FIELDS'] as $key => $field) {
-                if (isset($curSec['UF_FIELD_TABLE'][$key]) && strlen(trim((string)$curSec['UF_FIELD_TABLE'][$key]))) {
-                    $arResult['FIELDS'][$key] = $curSec['UF_FIELD_TABLE'][$key];
-                }
-            }
-            break;
+$sortFilterValues = static function (array $values): array {
+    usort($values, static function ($a, $b) {
+        $na = str_replace(',', '.', $a);
+        $nb = str_replace(',', '.', $b);
+        $aNum = is_numeric($na);
+        $bNum = is_numeric($nb);
+        if ($aNum && $bNum) {
+            return (float)$na <=> (float)$nb;
         }
+        return strnatcasecmp($a, $b);
+    });
+    return $values;
+};
+
+$arResult['TABLE_FILTERS'] = [];
+foreach ($filterProps as $code => $title) {
+    if (empty($facetValues[$code]) || count($facetValues[$code]) < 2) {
+        continue;
     }
+    $arResult['TABLE_FILTERS'][] = [
+        'CODE' => $code,
+        'TITLE' => $title,
+        'VALUES' => $sortFilterValues(array_keys($facetValues[$code])),
+    ];
 }

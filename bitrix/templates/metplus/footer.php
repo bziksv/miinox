@@ -66,7 +66,11 @@
                 </div>
             </div>
             <div class="col-lg-2">
-                <a class="prime-incut white colour" style="padding: 1.2em 0 0;"></a>
+                <div class="logo-prime">
+                    <a href="https://prime-ltd.su/?from=https://miinox.ru/" target="_blank" rel="nofollow">
+                        <img src="<?=SITE_TEMPLATE_PATH?>/img/static/prime-logo-white.svg" width="170" height="37" alt="Prime">
+                    </a>
+                </div>
             </div>
 </div>
 		<hr style="margin: 25px 0;">
@@ -150,7 +154,7 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery-ui/jquery-ui.js"></script>
-<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=menu-right3"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=menu-open1"></script>
 
 </body>
 </html>

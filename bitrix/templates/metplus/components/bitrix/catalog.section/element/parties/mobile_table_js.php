@@ -14,22 +14,13 @@
             <strong data-text="Наименование товара"></strong>
             <span class="product-item_name" data-text="<?=($arItem['PROPERTIES']['SEO_NAME']['VALUE']) ? $arItem['PROPERTIES']['SEO_NAME']['VALUE'] : htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?>"></span>
         </li>
-        <? foreach (($arResult['TABLE_PROP_COLUMNS'] ?? []) as $col):
-            $val = is_callable($formatPropValue ?? null)
-                ? $formatPropValue($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? '')
-                : htmlspecialcharsbx((string)($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? ''));
-            if ($val === '') {
-                continue;
-            }
-            ?>
         <li>
-            <strong data-text="<?=htmlspecialcharsbx($col['TITLE'])?>"></strong>
-            <span data-text="<?=$val?>"></span>
+            <strong data-text="Цена розница <?=$arResult['TABLE_UNIT']['PRICE'] ?? 'руб./шт'?>"></strong>
+            <span data-text="<?=htmlspecialcharsbx((string)$priceRetailDisplay)?>"></span>
         </li>
-        <? endforeach; ?>
         <li>
-            <strong data-text="Цена руб/кг (с НДС)"></strong>
-            <span data-text="<?=htmlspecialcharsbx((string)$priceGroup)?>"></span>
+            <strong data-text="Цена опт <?=$arResult['TABLE_UNIT']['PRICE'] ?? 'руб./шт'?>"></strong>
+            <span data-text="<?=htmlspecialcharsbx((string)$priceOptDisplay)?>"></span>
         </li>
     </ul>
 

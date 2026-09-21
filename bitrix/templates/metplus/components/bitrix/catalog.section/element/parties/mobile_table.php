@@ -14,22 +14,13 @@
             <strong>Наименование товара</strong>
             <span class="product-item_name"><?=($arItem['PROPERTIES']['SEO_NAME']['VALUE']) ? $arItem['PROPERTIES']['SEO_NAME']['VALUE'] : htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?></span>
         </li>
-        <? foreach (($arResult['TABLE_PROP_COLUMNS'] ?? []) as $col):
-            $val = is_callable($formatPropValue ?? null)
-                ? $formatPropValue($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? '')
-                : htmlspecialcharsbx((string)($arItem['PROPERTIES'][$col['CODE']]['VALUE'] ?? ''));
-            if ($val === '') {
-                continue;
-            }
-            ?>
         <li>
-            <strong><?=htmlspecialcharsbx($col['TITLE'])?></strong>
-            <?=$val?>
+            <strong>Цена розница <?=$arResult['TABLE_UNIT']['PRICE'] ?? 'руб./шт'?></strong>
+            <?=$priceRetailDisplay?>
         </li>
-        <? endforeach; ?>
         <li>
-            <strong>Цена руб/кг (с НДС)</strong>
-            <?=$priceGroup?>
+            <strong>Цена опт <?=$arResult['TABLE_UNIT']['PRICE'] ?? 'руб./шт'?></strong>
+            <?=$priceOptDisplay?>
         </li>
     </ul>
 

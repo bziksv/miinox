@@ -389,6 +389,34 @@ foreach ($this->basketItems as $row)
 		$rowData['LABEL_VALUES'] = $labels;
 	}
 
+	$measure = mb_strtolower(trim((string)$rowData['MEASURE_TEXT']));
+	$measureShort = '';
+	if ($measure === 'м' || $measure === 'm' || mb_strpos($measure, 'метр') !== false) {
+		$measureShort = 'м';
+	} elseif ($measure === 'шт' || $measure === 'шт.' || $measure === 'pc' || $measure === 'pcs' || mb_strpos($measure, 'штук') !== false) {
+		$measureShort = 'шт';
+	} elseif ($measure === 'кг' || $measure === 'kg' || mb_strpos($measure, 'кило') !== false) {
+		$measureShort = 'кг';
+	} elseif ($measure !== '') {
+		$measureShort = $measure;
+	}
+	if ($measureShort === '' && CModule::IncludeModule('catalog')) {
+		$product = CCatalogProduct::GetByID((int)$rowData['PRODUCT_ID']);
+		$measureId = (int)($product['MEASURE'] ?? 0);
+		if ($measureId === 1) {
+			$measureShort = 'м';
+		} elseif ($measureId === 5) {
+			$measureShort = 'шт';
+		} elseif ($measureId === 4) {
+			$measureShort = 'кг';
+		}
+	}
+	$rowData['MEASURE_SHORT'] = $measureShort;
+	$isMeter = $measureShort === 'м';
+	$isPipe = mb_stripos((string)$rowData['NAME'], 'труб') !== false;
+	$qty = (float)$rowData['QUANTITY'];
+	$rowData['SHOW_CUT_NOTICE'] = $isPipe && $isMeter && abs(($qty / 6) - round($qty / 6)) > 0.001;
+
 	$result['BASKET_ITEM_RENDER_DATA'][] = $rowData;
 }
 

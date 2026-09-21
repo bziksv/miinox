@@ -1,15 +1,26 @@
-<?$APPLICATION->IncludeComponent("bitrix:sale.basket.basket.line", "basket.small", Array(
-    "HIDE_ON_BASKET_PAGES" => "N",
-    "PATH_TO_BASKET" => "/cart/",
-    "POSITION_FIXED" => "N",
-    "SHOW_AUTHOR" => "N",
-    "SHOW_EMPTY_VALUES" => "Y",
-    "SHOW_NUM_PRODUCTS" => "Y",
-    "SHOW_PERSONAL_LINK" => "N",
-    "SHOW_PRODUCTS" => "N",
-    "SHOW_REGISTRATION" => "N",
-    "SHOW_TOTAL_PRICE" => "N",
-    "COMPONENT_TEMPLATE" => ".default_old"
-),
-    false
-);?>
+<?php
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) {
+	die();
+}
+
+use Bitrix\Main\Loader;
+use Bitrix\Sale\Basket;
+use Bitrix\Sale\Fuser;
+
+$count = 0;
+if (Loader::includeModule('sale')) {
+	$fuserId = Fuser::getId(true);
+	$basket = Basket::loadItemsForFUser($fuserId, SITE_ID);
+	foreach ($basket as $item) {
+		if ($item->isDelay() || $item->getField('ORDER_ID')) {
+			continue;
+		}
+		$count++;
+	}
+	\Bitrix\Sale\BasketComponentHelper::updateFUserBasket($fuserId, SITE_ID);
+}
+?>
+<a href="/cart/">
+	<span class="glipf-cart"></span>
+	<span class="head-cart_number"><?=(int)$count?></span>
+</a>

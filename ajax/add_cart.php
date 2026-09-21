@@ -17,7 +17,13 @@ if (!CModule::IncludeModule('catalog') || !CModule::IncludeModule('sale')) {
 
 // 1С часто отдаёт QUANTITY=0 + запрет покупки при нуле → Add2Basket падает с «Товар отсутствует»
 if (function_exists('ensureCatalogProductOrderable')) {
-	ensureCatalogProductOrderable($id, 39);
+	ensureCatalogProductOrderable($id, 40);
 }
 
-Add2BasketByProductID($id, $quantity);
+$addedId = Add2BasketByProductID($id, $quantity);
+if ($addedId && \Bitrix\Main\Loader::includeModule('sale')) {
+	\Bitrix\Sale\BasketComponentHelper::updateFUserBasket(
+		\Bitrix\Sale\Fuser::getId(true),
+		SITE_ID
+	);
+}
