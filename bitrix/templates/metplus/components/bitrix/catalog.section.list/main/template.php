@@ -35,8 +35,18 @@ $promoItems = array(
 		'url' => 'https://vrn-ehk.ru/',
 	),
 );
-?><div class="category-section">
-    <div class="container">
+?><div class="category-section" data-cat-style="1">
+    <div class="container category-section_inner">
+        <aside class="category-style-switch" aria-label="Вариант оформления категорий">
+            <span class="category-style-switch_label">Вид</span>
+            <? for ($styleN = 1; $styleN <= 7; $styleN++): ?>
+                <button type="button"
+                    class="category-style-switch_btn<?= $styleN === 1 ? ' is-active' : '' ?>"
+                    data-cat-style="<?=$styleN?>"
+                    aria-pressed="<?= $styleN === 1 ? 'true' : 'false' ?>"
+                    title="Вариант <?=$styleN?>"><?=$styleN?></button>
+            <? endfor; ?>
+        </aside>
         <ul class="category-list category-list_photo category-list_photo-lg">
             <? foreach ($arResult['SECTIONS'] as &$arSection):
                 $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
@@ -65,6 +75,7 @@ $promoItems = array(
                             <? endif; ?>
                         </span>
                         <span class="category-item_text"><?=$arSection['NAME']?></span>
+                        <span class="category-item_cta" aria-hidden="true"></span>
                     </a>
                 </li>
             <?endforeach;?>

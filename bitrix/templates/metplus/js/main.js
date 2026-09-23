@@ -1153,7 +1153,39 @@ if ($('.map-container').length) {
           return false;
         });
 
-      }
-    }
+}
   }
 }
+}
+
+(function () {
+  var KEY = 'miinox_cat_style';
+  var root = document.querySelector('.category-section[data-cat-style]');
+  if (!root) return;
+  var buttons = root.querySelectorAll('.category-style-switch_btn');
+  if (!buttons.length) return;
+
+  function applyStyle(n) {
+    var style = String(Math.max(1, Math.min(7, parseInt(n, 10) || 1)));
+    root.setAttribute('data-cat-style', style);
+    try { localStorage.setItem(KEY, style); } catch (e) {}
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var on = btn.getAttribute('data-cat-style') === style;
+      if (on) btn.classList.add('is-active');
+      else btn.classList.remove('is-active');
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved) applyStyle(saved);
+
+  for (var j = 0; j < buttons.length; j++) {
+    buttons[j].addEventListener('click', function (e) {
+      e.preventDefault();
+      applyStyle(this.getAttribute('data-cat-style'));
+    });
+  }
+})();
