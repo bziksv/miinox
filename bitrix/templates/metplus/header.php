@@ -10,7 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=hometune12" rel="stylesheet" />
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=hometune13" rel="stylesheet" />
 
 </head>
 <body>
@@ -50,32 +50,6 @@
                         </div>
                     </div>
 
-                    <div class="main-head__search">
-                        <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title", Array(
-                            "CATEGORY_0" => array(
-                                0 => "iblock_1c_catalog",
-                            ),
-                            "CATEGORY_0_TITLE" => "",
-                            "CATEGORY_0_iblock_1c_catalog" => array(
-                                0 => "40",
-                            ),
-                            "IBLOCK_ID" => "40",
-                            "IBLOCK_TYPE" => "1c_catalog",
-                            "CHECK_DATES" => "N",
-                            "CONTAINER_ID" => "title-search",
-                            "INPUT_ID" => "title-search-input",
-                            "NUM_CATEGORIES" => "1",
-                            "ORDER" => "rank",
-                            "PAGE" => "/",
-                            "SHOW_INPUT" => "Y",
-                            "SHOW_OTHERS" => "N",
-                            "TOP_COUNT" => "5",
-                            "USE_LANGUAGE_GUESS" => "N",
-                        ),
-                            false
-                        );?>
-                    </div>
-
                     <div class="main-head_right-column">
                         <?$APPLICATION->IncludeComponent("bitrix:menu", "catalog.menu.fixed", Array(
                             "ROOT_MENU_TYPE" => "left",
@@ -99,6 +73,32 @@
                             <div class="hamburger-box">
                                 <div class="hamburger-inner"></div>
                             </div>
+                        </div>
+
+                        <div class="main-head__search">
+                            <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title", Array(
+                                "CATEGORY_0" => array(
+                                    0 => "iblock_1c_catalog",
+                                ),
+                                "CATEGORY_0_TITLE" => "",
+                                "CATEGORY_0_iblock_1c_catalog" => array(
+                                    0 => "40",
+                                ),
+                                "IBLOCK_ID" => "40",
+                                "IBLOCK_TYPE" => "1c_catalog",
+                                "CHECK_DATES" => "N",
+                                "CONTAINER_ID" => "title-search",
+                                "INPUT_ID" => "title-search-input",
+                                "NUM_CATEGORIES" => "1",
+                                "ORDER" => "rank",
+                                "PAGE" => "/",
+                                "SHOW_INPUT" => "Y",
+                                "SHOW_OTHERS" => "N",
+                                "TOP_COUNT" => "5",
+                                "USE_LANGUAGE_GUESS" => "N",
+                            ),
+                                false
+                            );?>
                         </div>
 
                         <?php

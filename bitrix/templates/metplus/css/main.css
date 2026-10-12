@@ -518,7 +518,7 @@ h3,
           justify-content: space-between;
 }
 
-/* Desktop: [logo phone hours city] [====search====] [lk cart] */
+/* Desktop: [logo phone hours city] [КАТАЛОГ?] [====search====] [lk cart] */
 .main-head__bar {
   display: -webkit-box;
   display: -ms-flexbox;
@@ -572,31 +572,32 @@ h3,
     gap: 18px;
   }
 
-  .main-head__search {
-    display: block;
-  }
-
   .main-head_right-column {
     display: -webkit-box !important;
     display: -ms-flexbox !important;
     display: flex !important;
-    -webkit-box-flex: 0 !important;
-    -webkit-flex: 0 0 auto !important;
-        -ms-flex: 0 0 auto !important;
-            flex: 0 0 auto !important;
+    -webkit-box-flex: 1 !important;
+    -webkit-flex: 1 1 auto !important;
+        -ms-flex: 1 1 auto !important;
+            flex: 1 1 auto !important;
     width: auto !important;
     max-width: none !important;
     min-width: 0;
     padding: 0;
-    -webkit-box-pack: end !important;
-    -webkit-justify-content: flex-end !important;
-        -ms-flex-pack: end !important;
-            justify-content: flex-end !important;
+    -webkit-box-pack: start !important;
+    -webkit-justify-content: flex-start !important;
+        -ms-flex-pack: start !important;
+            justify-content: flex-start !important;
     -webkit-box-align: center;
     -webkit-align-items: center;
         -ms-flex-align: center;
             align-items: center;
     gap: 12px;
+  }
+
+  .main-head__search {
+    display: block;
+    min-width: 200px;
   }
 
   .main-head .head-logo,
