@@ -120,7 +120,7 @@ jQuery(document).ready(function($) {
       return $from.closest('.head-menu_catalog-item, .fixed-menu_catalog, .head-menu_item');
     }
 
-    /** L2: лёгкий дотяг влево только если L3 реально не влезает; не уезжать к логотипу */
+    /** L2: не уезжать левее отступа шапки; влево только если L3 не влезает справа */
     function menuAlignCatalogPanel($wrap) {
       var $root = $wrap.children('.dropdown-content');
       if (!$root.length) {
@@ -128,17 +128,23 @@ jQuery(document).ready(function($) {
       }
       $root[0].style.setProperty('--menu-nudge-x', '0px');
       requestAnimationFrame(function() {
-        var pad = 24;
+        var pad = 28;
         var l3Reserve = 280;
-        var maxNudge = 80; // px — не больше небольшого сдвига от кнопки КАТАЛОГ
+        var maxNudge = 80;
         var rootEl = $root[0];
         var rootRect = rootEl.getBoundingClientRect();
-        var overflowRight = rootRect.right + l3Reserve - (window.innerWidth - pad);
-        if (overflowRight <= 0) {
-          return;
+        var nudge = 0;
+
+        if (rootRect.left < pad) {
+          nudge += pad - rootRect.left;
         }
-        var maxLeft = Math.max(0, rootRect.left - pad);
-        var nudge = -Math.min(overflowRight, maxLeft, maxNudge);
+
+        var overflowRight = rootRect.right + nudge + l3Reserve - (window.innerWidth - pad);
+        if (overflowRight > 0) {
+          var maxLeft = Math.max(0, rootRect.left + nudge - pad);
+          nudge -= Math.min(overflowRight, maxLeft, maxNudge);
+        }
+
         rootEl.style.setProperty('--menu-nudge-x', Math.round(nudge) + 'px');
       });
     }

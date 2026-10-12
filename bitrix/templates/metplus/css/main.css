@@ -1112,7 +1112,12 @@ h3,
   -webkit-flex: 1 1 0;
       -ms-flex: 1 1 0px;
           flex: 1 1 0;
-  margin-left: 1.35em;
+  margin-left: 2em;
+}
+
+.head-menu_item:first-child > a {
+  padding-left: 1.6em;
+  padding-right: 1.2em;
 }
 
 .head-menu_item:last-child {
@@ -1401,8 +1406,8 @@ h3,
   background-color: white;
   -webkit-box-shadow: 0 4px 16px rgba(0, 1, 5, 0.12);
           box-shadow: 0 4px 16px rgba(0, 1, 5, 0.12);
-  /* unskew скоса КАТАЛОГ + небольшой сдвиг; не уезжать к лого/городу */
-  --menu-shift-x: -56px;
+  /* unskew скоса КАТАЛОГ; без сильного ухода влево (полная ширина шапки) */
+  --menu-shift-x: 0px;
   --menu-nudge-x: 0px;
   -webkit-transform: skew(45deg) translate(calc(var(--menu-shift-x) + var(--menu-nudge-x)), 2px);
       -ms-transform: skew(45deg) translate(calc(var(--menu-shift-x) + var(--menu-nudge-x)), 2px);
