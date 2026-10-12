@@ -12,16 +12,16 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="services-section">
+<div class="services-section" id="home-services" data-svc-layout="quad">
     <div class="container">
         <div class="section-title">УСЛУГИ</div>
-        <div class="row">
+        <div class="services-grid">
             <?foreach($arResult["ITEMS"] as $arItem):?>
                 <?
                 $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
                 $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
                 ?>
-                <div class="col-md-4 col-sm-6">
+                <div class="services-grid__item" id="<?=$this->GetEditAreaId($arItem['ID']);?>">
                     <div class="service-item">
                         <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="service-item_mobile-link"></a>
                         <img data-src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="<?=$arItem['NAME']?>">
@@ -38,4 +38,3 @@ $this->setFrameMode(true);
         </div>
     </div>
 </div>
-

@@ -40,19 +40,19 @@
   min-height: 0;
   line-height: 0;
   overflow: hidden;
-  /* соотношение как у файлов — внутри брейкпоинта высота стабильна */
-  aspect-ratio: 1920 / 450;
+  /* чуть выше прежних 1920/450 */
+  aspect-ratio: 1920 / 520;
 }
 
 @media (max-width: 1199px) {
   .main-slide--picture {
-    aspect-ratio: 1200 / 400;
+    aspect-ratio: 1200 / 460;
   }
 }
 
 @media (max-width: 767px) {
   .main-slide--picture {
-    aspect-ratio: 768 / 420;
+    aspect-ratio: 768 / 460;
   }
 }
 

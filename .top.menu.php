@@ -1,46 +1,46 @@
 <?
 $aMenuLinks = Array(
 	Array(
-		"каталог", 
-		"catalog/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Каталог",
+		"/catalog/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"Прайс-лист", 
-		"prays/price_metall.xls", 
-		Array(), 
-		Array(), 
-		"" 
+		"Прайс-лист",
+		"/prays/price_metall.xls",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"услуги", 
-		"services/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Услуги",
+		"/services/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"отзывы", 
-		"reviews/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Отзывы",
+		"/reviews/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"контакты", 
-		"contact", 
-		Array(), 
-		Array(), 
-		"" 
+		"Контакты",
+		"/contact/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"о компании", 
-		"about/", 
-		Array(), 
-		Array(), 
-		"" 
-	)
+		"О компании",
+		"/about/",
+		Array(),
+		Array(),
+		""
+	),
 );
 ?>

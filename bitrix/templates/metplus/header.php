@@ -10,7 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=brand120" rel="stylesheet" />
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=hometune12" rel="stylesheet" />
 
 </head>
 <body>
@@ -29,8 +29,8 @@
     <header class="ui-header">
         <div class="main-head">
             <div class="container">
-                <div class="row">
-                    <div class="col-lg-5 col-md-6 col-sm-5 col-8 main-head_left-column">
+                <div class="main-head__bar">
+                    <div class="main-head_left-column">
                         <div class="head-logo">
                             <a href="/" title="Металлинвест Инокс">
                                 <img class="head-logo_mark" src="<?=SITE_TEMPLATE_PATH?>/img/static/logo-mark.svg?v=1" alt="" width="66" height="36">
@@ -40,12 +40,43 @@
                         <div class="head_phone-box tablet-small_hidden">
                             <a href="tel:+74951140102" class="head_phone-number">+7 (495) 114-01-02</a>
                         </div>
+                        <div class="head_opening-hours tablet-small_hidden" aria-label="График работы">
+                            <span class="head_opening-hours__line"><strong>Пн–Пт</strong> 8:00–17:00</span>
+                            <span class="head_opening-hours__line head_opening-hours__line_muted">Сб–Вс выходной</span>
+                        </div>
                         <div class="head_select-city tablet-small_hidden">
                             <a href="#citySelect" data-toggle="modal" class="select-city_btn">Выберите город:</a>
                             <div class="select-city_field">Москва</div>
                         </div>
                     </div>
-                    <div class="col-lg-7 col-md-6 col-sm-7 col-4 main-head_right-column">
+
+                    <div class="main-head__search">
+                        <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title", Array(
+                            "CATEGORY_0" => array(
+                                0 => "iblock_1c_catalog",
+                            ),
+                            "CATEGORY_0_TITLE" => "",
+                            "CATEGORY_0_iblock_1c_catalog" => array(
+                                0 => "40",
+                            ),
+                            "IBLOCK_ID" => "40",
+                            "IBLOCK_TYPE" => "1c_catalog",
+                            "CHECK_DATES" => "N",
+                            "CONTAINER_ID" => "title-search",
+                            "INPUT_ID" => "title-search-input",
+                            "NUM_CATEGORIES" => "1",
+                            "ORDER" => "rank",
+                            "PAGE" => "/",
+                            "SHOW_INPUT" => "Y",
+                            "SHOW_OTHERS" => "N",
+                            "TOP_COUNT" => "5",
+                            "USE_LANGUAGE_GUESS" => "N",
+                        ),
+                            false
+                        );?>
+                    </div>
+
+                    <div class="main-head_right-column">
                         <?$APPLICATION->IncludeComponent("bitrix:menu", "catalog.menu.fixed", Array(
                             "ROOT_MENU_TYPE" => "left",
                             "MENU_CACHE_TYPE" => "A",
@@ -70,30 +101,16 @@
                             </div>
                         </div>
 
-                        <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title", Array(
-                            "CATEGORY_0" => array(
-                                0 => "iblock_1c_catalog",
-                            ),
-                            "CATEGORY_0_TITLE" => "",
-                            "CATEGORY_0_iblock_1c_catalog" => array(
-                                0 => "40",
-                            ),
-                            "IBLOCK_ID" => "40",
-                            "IBLOCK_TYPE" => "1c_catalog",
-                            "CHECK_DATES" => "N",
-                            "CONTAINER_ID" => "title-search",
-                            "INPUT_ID" => "title-search-input",
-                            "NUM_CATEGORIES" => "1",
-                            "ORDER" => "rank",
-                            "PAGE" => "/",
-                            "SHOW_INPUT" => "Y",
-                            "SHOW_OTHERS" => "N",
-                            "TOP_COUNT" => "5",
-                            "USE_LANGUAGE_GUESS" => "N",
-                        ),
-                            false
-                        );?>
-
+                        <?php
+                        global $USER;
+                        $lkHref = (is_object($USER) && $USER->IsAuthorized()) ? '/personal/' : '/login/';
+                        ?>
+                        <a class="head-account" href="<?= htmlspecialcharsbx($lkHref) ?>" title="Личный кабинет" aria-label="Личный кабинет">
+                            <svg class="head-account__ico" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="8" r="3.4"></circle>
+                                <path d="M5.5 19.2c.9-3.2 3.3-4.8 6.5-4.8s5.6 1.6 6.5 4.8"></path>
+                            </svg>
+                        </a>
                         <div class="head-cart">
                             <?$APPLICATION->IncludeComponent("bitrix:sale.basket.basket.line", "basket.small", Array(
                                 "HIDE_ON_BASKET_PAGES" => "N",
