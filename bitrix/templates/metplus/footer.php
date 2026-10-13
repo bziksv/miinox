@@ -47,6 +47,7 @@
 
 				<p>Мы в социальных сетях:</p>
 				<div class="footer-social">
+					<?/* временно сети КМИ; позже заменить на miinox */?>
 					<a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
 						<img width="45" height="45" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-vk.svg?v=2" alt="ВКонтакте">
 					</a>

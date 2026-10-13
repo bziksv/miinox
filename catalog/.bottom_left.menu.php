@@ -1,46 +1,60 @@
 <?
 $aMenuLinks = Array(
 	Array(
-		"Арматура", 
-		"/catalog/armatura/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Нержавеющая сталь",
+		"/catalog/nerzhaveyushchaya_stal/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"Нержавеющая сталь", 
-		"/catalog/nerzhaveyushchaya-stal/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Цветной металлопрокат",
+		"/catalog/tsvetnye_metally/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"Лист стальной", 
-		"/catalog/list-stalnoy/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Трубы",
+		"/catalog/truby_nerzhaveyushchie/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"Балка двутавровая", 
-		"/catalog/balka-dvutavrovaya/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Листы",
+		"/catalog/listy_nerzhaveyushchie/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"Труба круглая", 
-		"/catalog/truba-kruglaya/", 
-		Array(), 
-		Array(), 
-		"" 
+		"Сортовой прокат",
+		"/catalog/sortovoy_prokat_nerzhaveyushchiy/",
+		Array(),
+		Array(),
+		""
 	),
 	Array(
-		"Труба профильная", 
-		"/catalog/truba-profilnaya/", 
-		Array(), 
-		Array(), 
-		"" 
-	)
+		"Фитинги",
+		"/catalog/soedinitelnaya_armatura_i_fitingi/",
+		Array(),
+		Array(),
+		""
+	),
+	Array(
+		"Алюминий",
+		"/catalog/alyuminiy/",
+		Array(),
+		Array(),
+		""
+	),
+	Array(
+		"Медь",
+		"/catalog/med/",
+		Array(),
+		Array(),
+		""
+	),
 );
 ?>
