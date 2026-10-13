@@ -141,7 +141,7 @@ $strSectionDelete = CIBlock::GetArrayByID($arParams["IBLOCK_ID"], "SECTION_DELET
 $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_CONFIRM'));
 $worldIndex = 0;
 ?>
-<div class="home-dual" id="home-dual" data-hd-theme="brand" data-hd-layout="cols" data-hd-items="rows">
+<div class="home-dual" id="home-dual" data-hd-theme="paper" data-hd-layout="cols" data-hd-items="list">
 <?php foreach ($arResult['HOME_WORLDS'] as $world):
 	$theme = $world['THEME'];
 	$primary = array();

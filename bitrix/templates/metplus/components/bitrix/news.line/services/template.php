@@ -12,7 +12,7 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="services-section" id="home-services" data-svc-layout="quad">
+<div class="services-section" id="home-services" data-svc-layout="bands" data-hd-theme="paper">
     <div class="container">
         <div class="section-title">УСЛУГИ</div>
         <div class="services-grid">

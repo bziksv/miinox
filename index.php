@@ -6,112 +6,6 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 ?>
 <main class="main-content main-content_home" data-home-version="new">
 
-        <aside class="home-tune" id="home-tune" aria-label="Настройки главной">
-            <button type="button" class="home-tune__fab" id="home-tune-fab" aria-expanded="false" aria-controls="home-tune-panel">
-                <span class="home-tune__fab-hint">Варианты</span>
-                <span class="home-tune__fab-val" data-home-tune-summary>Новая · Бренд</span>
-            </button>
-            <div class="home-tune__panel" id="home-tune-panel" hidden>
-                <div class="home-tune__group">
-                    <div class="home-tune__label">Главная</div>
-                    <div class="home-tune__row" role="group" aria-label="Версия главной">
-                        <button type="button" class="home-tune__chip" data-home-version="old">Старая</button>
-                        <button type="button" class="home-tune__chip is-active" data-home-version="new">Новая</button>
-                    </div>
-                </div>
-                <div class="home-tune__group" data-home-tune-new-only>
-                    <div class="home-tune__label">Пункты внутри</div>
-                    <div class="home-tune__items" role="group" aria-label="Вид пунктов">
-                        <button type="button" class="home-tune__theme is-active" data-hd-items="rows">
-                            <span class="home-tune__theme-name">Строки</span>
-                            <span class="home-tune__theme-desc">каждый пункт — кликабельная строка</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-items="cards">
-                            <span class="home-tune__theme-name">Карточки</span>
-                            <span class="home-tune__theme-desc">категория в отдельной плашке</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-items="chips">
-                            <span class="home-tune__theme-name">Чипы</span>
-                            <span class="home-tune__theme-desc">подпункты кнопками-плашками</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-items="directory">
-                            <span class="home-tune__theme-name">Справочник</span>
-                            <span class="home-tune__theme-desc">точки + больше воздуха</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-items="list">
-                            <span class="home-tune__theme-name">Список</span>
-                            <span class="home-tune__theme-desc">как в макете</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="home-tune__group" data-home-tune-new-only>
-                    <div class="home-tune__label">Услуги</div>
-                    <div class="home-tune__items" role="group" aria-label="Вид блока услуг">
-                        <button type="button" class="home-tune__theme is-active" data-svc-layout="quad">
-                            <span class="home-tune__theme-name">4 в ряд</span>
-                            <span class="home-tune__theme-desc">ровная сетка без дырки</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-svc-layout="tiles">
-                            <span class="home-tune__theme-name">2×2</span>
-                            <span class="home-tune__theme-desc">крупные квадраты</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-svc-layout="mosaic">
-                            <span class="home-tune__theme-name">Мозаика</span>
-                            <span class="home-tune__theme-desc">первая крупная + три справа</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-svc-layout="bands">
-                            <span class="home-tune__theme-name">Полосы</span>
-                            <span class="home-tune__theme-desc">горизонтальные карточки</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-svc-layout="classic">
-                            <span class="home-tune__theme-name">Классика</span>
-                            <span class="home-tune__theme-desc">старая сетка 3+1</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="home-tune__group" data-home-tune-new-only>
-                    <div class="home-tune__label">Цвет / стиль</div>
-                    <div class="home-tune__themes" role="group" aria-label="Цветовой вариант">
-                        <button type="button" class="home-tune__theme is-active" data-hd-theme="brand" title="Бренд">
-                            <span class="home-tune__swatch" style="--a:#d7e6ee;--b:#206380;--c:#f0e4d8;--d:#8a5a3a"></span>
-                            <span class="home-tune__theme-name">Бренд</span>
-                            <span class="home-tune__theme-desc">#206380 + тёплая бронза</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-theme="flat" title="Без переливов">
-                            <span class="home-tune__swatch" style="--a:#c8dae5;--b:#206380;--c:#e9d7c6;--d:#8a5a3a"></span>
-                            <span class="home-tune__theme-name">Без переливов</span>
-                            <span class="home-tune__theme-desc">как бренд, но ровный фон</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-theme="graphite" title="Графит">
-                            <span class="home-tune__swatch" style="--a:#eceff2;--b:#4a5560;--c:#efe8e1;--d:#6b5344"></span>
-                            <span class="home-tune__theme-name">Графит</span>
-                            <span class="home-tune__theme-desc">сталь / бронза, сдержанно</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-theme="paper" title="Бумага">
-                            <span class="home-tune__swatch" style="--a:#f5f7f8;--b:#206380;--c:#faf6f1;--d:#9a6b45"></span>
-                            <span class="home-tune__theme-name">Бумага</span>
-                            <span class="home-tune__theme-desc">светло, акцент в кнопках</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-theme="ink" title="Чернила">
-                            <span class="home-tune__swatch" style="--a:#173a4a;--b:#8ec4d8;--c:#3a2418;--d:#e0b089"></span>
-                            <span class="home-tune__theme-name">Чернила</span>
-                            <span class="home-tune__theme-desc">тёмные панели, светлый текст</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-theme="soft" title="Мягкий">
-                            <span class="home-tune__swatch" style="--a:#e8eef2;--b:#3a6f86;--c:#f3ebe3;--d:#a67c5d"></span>
-                            <span class="home-tune__theme-name">Мягкий</span>
-                            <span class="home-tune__theme-desc">приглушённые тона</span>
-                        </button>
-                        <button type="button" class="home-tune__theme" data-hd-theme="mock" title="Макет">
-                            <span class="home-tune__swatch" style="--a:#9fb8cc;--b:#35627d;--c:#d08c5c;--d:#a04c1c"></span>
-                            <span class="home-tune__theme-name">Макет</span>
-                            <span class="home-tune__theme-desc">как в HTML-концепте</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
         <?$APPLICATION->IncludeComponent(
 	"bitrix:news.line",
 	"slider_new",
@@ -140,7 +34,6 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 	)
 );?>
 
-        <div class="home-version home-version_new" data-home-pane="new">
         <?$APPLICATION->IncludeComponent(
 	"bitrix:catalog.section.list",
 	"home_dual",
@@ -164,33 +57,6 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 		"VIEW_MODE" => "LINE",
 	)
 );?>
-        </div>
-
-        <div class="home-version home-version_old" data-home-pane="old" hidden>
-        <?$APPLICATION->IncludeComponent(
-	"bitrix:catalog.section.list",
-	"main",
-	Array(
-		"ADD_SECTIONS_CHAIN" => "N",
-		"CACHE_FILTER" => "N",
-		"CACHE_GROUPS" => "Y",
-		"CACHE_TIME" => "36000000",
-		"CACHE_TYPE" => "A",
-		"COUNT_ELEMENTS" => "N",
-		"FILTER_NAME" => "sectionsFilter",
-		"IBLOCK_ID" => "40",
-		"IBLOCK_TYPE" => "1c_catalog",
-		"SECTION_CODE" => "",
-		"SECTION_FIELDS" => array(0=>"",1=>"",),
-		"SECTION_ID" => "",
-		"SECTION_URL" => "/catalog/#SECTION_CODE#/",
-		"SECTION_USER_FIELDS" => array("UF_*"),
-		"SHOW_PARENT_NAME" => "Y",
-		"TOP_DEPTH" => "1",
-		"VIEW_MODE" => "LINE",
-	)
-);?>
-        </div>
 
         <?$APPLICATION->IncludeComponent(
 	"bitrix:news.line",
