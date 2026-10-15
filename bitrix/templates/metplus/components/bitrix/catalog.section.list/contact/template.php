@@ -27,7 +27,7 @@ $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_C
                         $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
                         $this->AddDeleteAction($arSection['ID'], $arSection['DELETE_LINK'], $strSectionDelete, $arSectionDeleteParams);
                         ?>
-                            <li class="tab <?if(!$key):?>active<?endif;?>"><span class="tab-text"><?=$arSection['NAME']?></span></li>
+                            <li class="tab <?if($key === $arResult['DEFAULT_CITY_KEY']):?>active<?endif;?>"><span class="tab-text"><?=$arSection['NAME']?></span></li>
                         <?endforeach;?>
                     </ul>
                     <div class="content-tabs">
@@ -35,11 +35,11 @@ $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_C
                         $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
                         $this->AddDeleteAction($arSection['ID'], $arSection['DELETE_LINK'], $strSectionDelete, $arSectionDeleteParams);
                         ?>
-                        <div class="tab-item <?if(!$key):?>is-visible<?endif;?>">
+                        <div class="tab-item <?if($key === $arResult['DEFAULT_CITY_KEY']):?>is-visible<?endif;?>">
                             <div class="wrapper_select-office">
                                 <select class="js-select">
                                     <? foreach ($arSection['ITEMS'] as $arItem):?>
-                                        <option value="<?=$arItem['ID']?>" data-center="<?=$arItem['PROPERTIES']['CENTER']['VALUE']?>"><?=$arItem['NAME']?></option>
+                                        <option value="<?=$arItem['ID']?>" data-center="<?=$arItem['PROPERTIES']['CENTER']['VALUE']?>"<?=!empty($arItem['IS']) ? ' selected' : ''?>><?=$arItem['NAME']?></option>
                                     <?endforeach;?>
                                 </select>
                             </div>
@@ -97,7 +97,7 @@ $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_C
                 $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
                 $this->AddDeleteAction($arSection['ID'], $arSection['DELETE_LINK'], $strSectionDelete, $arSectionDeleteParams);
                 ?>
-                <div class="contact-img tab-item <?if(!$key):?>is-visible<?endif;?>">
+                <div class="contact-img tab-item <?if($key === $arResult['DEFAULT_CITY_KEY']):?>is-visible<?endif;?>">
                     <? foreach ($arSection['ITEMS'] as $k => $arItem): ?>
                         <?if($arItem['PREVIEW_PICTURE']):?>
                             <img class="contact-section-desc <?if($arItem['IS']):?>is-active<?endif;?>" data-src="<?=$arItem['PREVIEW_PICTURE']?>" alt="<?=$arItem['NAME']?>">

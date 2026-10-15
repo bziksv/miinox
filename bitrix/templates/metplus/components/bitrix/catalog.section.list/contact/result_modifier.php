@@ -5,10 +5,19 @@ $res = CIBlock::GetByID($arParams['IBLOCK_ID']);
 if($ar_res = $res->GetNext())
     $arResult['BLOCK'] = $ar_res;
 
+$defaultCityKey = 0;
+foreach ($arResult['SECTIONS'] as $key => $section) {
+    if (mb_stripos((string)$section['NAME'], 'Воронеж') !== false) {
+        $defaultCityKey = $key;
+        break;
+    }
+}
+$arResult['DEFAULT_CITY_KEY'] = $defaultCityKey;
+
 foreach ($arResult['SECTIONS'] as $key => &$arSection){
     $arSelect = Array("ID", "IBLOCK_ID", "NAME", "PREVIEW_PICTURE", "DATE_ACTIVE_FROM","PROPERTY_*");
     $arFilter = Array("IBLOCK_ID" => $arSection['IBLOCK_ID'], "ACTIVE" => "Y", "SECTION_ID" => $arSection['ID']);
-    $is = true;
+    $is = ($key === $defaultCityKey);
     $res = CIBlockElement::GetList(Array(), $arFilter, false, false, $arSelect);
     while($ob = $res->GetNextElement()){
         $arFields = $ob->GetFields();
@@ -20,4 +29,5 @@ foreach ($arResult['SECTIONS'] as $key => &$arSection){
         $is = false;
     }
 }
+unset($arSection);
 ?>

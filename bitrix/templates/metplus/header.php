@@ -46,7 +46,7 @@
                         </div>
                         <div class="head_select-city tablet-small_hidden">
                             <a href="#citySelect" data-toggle="modal" class="select-city_btn">Выберите город:</a>
-                            <div class="select-city_field">Москва</div>
+                            <div class="select-city_field">Воронеж</div>
                         </div>
                     </div>
 
@@ -170,7 +170,7 @@
                 <div class="tablet-visible">
                     <div class="head_select-city head_select-city_mobile">
                         <a href="#citySelect" data-toggle="modal" class="select-city_btn">Выберите город:</a>
-                        <span class="select-city_field">Москва</span>
+                        <span class="select-city_field">Воронеж</span>
                     </div>
                 </div>
                 <div class="tablet-small_visible">

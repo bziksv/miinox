@@ -1121,7 +1121,11 @@ if ($('.map-container').length) {
 
         // Создание экземпляра карты.
         var myMap = new ymaps.Map('map', {
-              center: $($(".js-select option").get(0)).data('center').split(','),
+              center: (
+                $('.tab-item.is-visible .js-select option:selected').data('center')
+                || $('.map-contact_box .js-select option:selected').data('center')
+                || $($('.js-select option').get(0)).data('center')
+              ).toString().split(','),
               zoom: 18,
               behaviors: ['default', 'scrollZoom'],
             }, {

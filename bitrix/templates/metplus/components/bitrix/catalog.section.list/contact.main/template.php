@@ -25,7 +25,7 @@ $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_C
         ?>
         <optgroup label="<?=$arSection['NAME']?>">
             <? foreach ($arSection['ITEMS'] as $arItem):?>
-            <option value="<?=$arItem['ID']?>" data-center="<?=$arItem['PROPERTIES']['CENTER']['VALUE']?>"><?=$arItem['NAME']?></option>
+            <option value="<?=$arItem['ID']?>" data-center="<?=$arItem['PROPERTIES']['CENTER']['VALUE']?>"<?=!empty($arItem['IS']) ? ' selected' : ''?>><?=$arItem['NAME']?></option>
             <?endforeach;?>
         </optgroup>
         <?endforeach;?>

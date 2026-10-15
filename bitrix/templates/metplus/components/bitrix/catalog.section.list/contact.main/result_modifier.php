@@ -19,6 +19,25 @@ foreach ($arResult['SECTIONS'] as $key => &$arSection){
         $arResult['ITEMS'][$arFields['ID']] = $arSection['ITEMS'][$arFields['ID']];
     }
 }
-$arResult['ITEMS'][key($arResult['ITEMS'])]['IS'] = true;
+unset($arSection);
 
+$defaultId = null;
+foreach ($arResult['ITEMS'] as $id => $item) {
+    if (mb_stripos((string)$item['NAME'], 'Воронеж') !== false) {
+        $defaultId = $id;
+        break;
+    }
+}
+if ($defaultId === null && !empty($arResult['ITEMS'])) {
+    $defaultId = key($arResult['ITEMS']);
+}
+if ($defaultId !== null) {
+    $arResult['ITEMS'][$defaultId]['IS'] = true;
+    foreach ($arResult['SECTIONS'] as &$arSection) {
+        if (!empty($arSection['ITEMS'][$defaultId])) {
+            $arSection['ITEMS'][$defaultId]['IS'] = true;
+        }
+    }
+    unset($arSection);
+}
 ?>
