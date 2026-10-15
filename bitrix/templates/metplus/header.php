@@ -38,7 +38,7 @@
                             </a>
                         </div>
                         <div class="head_phone-box tablet-small_hidden">
-                            <a href="tel:+74951140102" class="head_phone-number">+7 (495) 114-01-02</a>
+                            <a href="tel:+74732475555" class="head_phone-number">+7 (473) 247-55-55</a>
                         </div>
                         <div class="head_opening-hours tablet-small_hidden" aria-label="График работы">
                             <span class="head_opening-hours__line"><strong>Пн–Пт</strong> 8:00–17:00</span>
@@ -175,7 +175,7 @@
                 </div>
                 <div class="tablet-small_visible">
                     <div class="head_phone-box">
-                        <a href="tel:+74951140102" class="head_phone-number">+7 (495) 114-01-02</a>
+                        <a href="tel:+74732475555" class="head_phone-number">+7 (473) 247-55-55</a>
                     </div>
                 </div>
                 <div class="mobile-visible">
