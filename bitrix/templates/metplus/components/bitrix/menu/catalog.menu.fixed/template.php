@@ -14,8 +14,50 @@
 $this->setFrameMode(true);
 
 require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icons.php";
+
+/**
+ * Иконка/фото для пункта L2.
+ */
+$renderMenuItemMedia = static function (array $item) {
+	$menuPic = miinoxResolveSubcategoryImageSrc(
+		'',
+		(string)$item["TEXT"],
+		(string)$item["LINK"]
+	);
+	if ($menuPic !== '') {
+		?>
+		<span class="menu-photo"><img data-src="<?=htmlspecialcharsbx($menuPic)?>" alt=""></span>
+		<?php
+		return;
+	}
+	$icon = trim((string)($item["PARAMS"]["ICON_MENU"] ?? ''));
+	if ($icon === '' || strpos($icon, 'menu-icon_') === false) {
+		$icon = miinoxResolveMenuIcon(
+			(string)$item["TEXT"],
+			'',
+			(string)$item["LINK"]
+		);
+	}
+	?>
+	<span class="menu-icon <?=htmlspecialcharsbx($icon)?>"></span>
+	<?php
+};
+
+$resolveWorldTheme = static function (array $world) {
+	$nameLower = mb_strtolower((string)$world["TEXT"]);
+	$linkLower = mb_strtolower((string)$world["LINK"]);
+	if (
+		strpos($nameLower, 'цвет') !== false
+		|| strpos($linkLower, 'tsvet') !== false
+		|| strpos($linkLower, 'cvet') !== false
+		|| strpos($linkLower, 'цвет') !== false
+	) {
+		return 'copper';
+	}
+	return 'steel';
+};
 ?>
-<div class="fixed-menu_catalog">
+<div class="fixed-menu_catalog fixed-menu_catalog--tree">
     <a href="/#katalog" class="fixed-panel_catalog-btn"><span class="head-menu_text">КАТАЛОГ</span></a>
     <div class="dropdown-content">
         <ul class="dropdown-menu">
@@ -39,45 +81,25 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
                             $childIds[] = $childId;
                         }
                     }
-                    $hasSub = count($childIds) > 0;
+                    $world = $arResult["ALL_ITEMS"][$itemID];
+                    $theme = $resolveWorldTheme($world);
                     ?>
-                    <li class="dropdown-menu_item<?=$hasSub ? ' has-submenu' : ''?>">
-                        <a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>">
-                            <?
-                            $menuPic = miinoxResolveSubcategoryImageSrc(
-                                '',
-                                (string)$arResult["ALL_ITEMS"][$itemID]["TEXT"],
-                                (string)$arResult["ALL_ITEMS"][$itemID]["LINK"]
-                            );
-                            if ($menuPic !== ''):
-                            ?>
-                            <span class="menu-photo"><img data-src="<?=htmlspecialcharsbx($menuPic)?>" alt=""></span>
-                            <? else:
-                                $icon = trim((string)($arResult["ALL_ITEMS"][$itemID]["PARAMS"]["ICON_MENU"] ?? ''));
-                                if ($icon === '' || strpos($icon, 'menu-icon_') === false) {
-                                    $icon = miinoxResolveMenuIcon(
-                                        (string)$arResult["ALL_ITEMS"][$itemID]["TEXT"],
-                                        '',
-                                        (string)$arResult["ALL_ITEMS"][$itemID]["LINK"]
-                                    );
-                                }
-                            ?>
-                            <span class="menu-icon <?=$icon?>"></span>
-                            <? endif; ?>
-                            <span><?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?></span>
+                    <li class="dropdown-menu_world dropdown-menu_world--<?=$theme?>">
+                        <a class="dropdown-menu_world__title" href="<?=$world["LINK"]?>">
+                            <span><?=$world["TEXT"]?></span>
                         </a>
-                        <? if ($hasSub): ?>
-                        <div class="dropdown-submenu-content">
-                            <ul class="dropdown-submenu">
-                                <? foreach ($childIds as $childId): ?>
-                                    <li>
-                                        <a href="<?=$arResult["ALL_ITEMS"][$childId]["LINK"]?>">
-                                            <span><?=$arResult["ALL_ITEMS"][$childId]["TEXT"]?></span>
-                                        </a>
-                                    </li>
-                                <? endforeach; ?>
-                            </ul>
-                        </div>
+                        <? if ($childIds): ?>
+                        <ul class="dropdown-menu_world__list">
+                            <? foreach ($childIds as $childId): ?>
+                                <? $child = $arResult["ALL_ITEMS"][$childId]; ?>
+                                <li class="dropdown-menu_item">
+                                    <a href="<?=$child["LINK"]?>">
+                                        <? $renderMenuItemMedia($child); ?>
+                                        <span><?=$child["TEXT"]?></span>
+                                    </a>
+                                </li>
+                            <? endforeach; ?>
+                        </ul>
                         <? endif; ?>
                     </li>
                 <?endforeach;?>

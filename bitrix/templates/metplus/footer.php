@@ -73,10 +73,10 @@
                     </a>
                 </div>
             </div>
-</div>
+        </div>
 		<hr style="margin: 25px 0;">
 		<noindex><p style="font-size: 0.8rem;">На нашем сайте осуществляется сбор персональных данных и <a target="_blank" href="/upload/politics.pdf">cookies</a> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая пользоваться сайтом, вы соглашаетесь с использованием cookies и <a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a> в соответствии с нашей <a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a>. Чтобы отказаться от обработки, отключите сохранение cookies в настройках вашего браузера.</p></noindex>
-
+    </div>
 </footer>
 <!-- end main-footer -->
 <div class="scroll-to-top"></div>
@@ -155,7 +155,7 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery-ui/jquery-ui.js"></script>
-<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=katalog-scroll4"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=catalog-tree1"></script>
 
 </body>
 </html>

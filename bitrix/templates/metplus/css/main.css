@@ -1532,6 +1532,128 @@ h3,
   display: none !important;
 }
 
+/* Sticky КАТАЛОГ — один список по мирам (фоны как dual на главной) */
+.fixed-menu_catalog--tree .dropdown-content {
+  min-width: 320px;
+  width: 340px;
+  max-width: min(360px, calc(100vw - 48px));
+  background: #fff;
+}
+
+.fixed-menu_catalog--tree .dropdown-content > .dropdown-menu {
+  padding: 0;
+  gap: 0;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.55em;
+  -webkit-flex: 0 0 auto;
+      -ms-flex: 0 0 auto;
+          flex: 0 0 auto;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--steel {
+  background: linear-gradient(180deg, #e8f1f5 0%, #c5d7e2 100%);
+  color: #122834;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--copper {
+  background: linear-gradient(180deg, #e8d5c4 0%, #f6eee6 100%);
+  color: #3a2418;
+}
+
+/* Не сплошной #206380 — иначе сливается с кнопкой КАТАЛОГ */
+.fixed-menu_catalog--tree .dropdown-menu_world__title {
+  display: block;
+  position: relative;
+  margin: 0;
+  padding: 0.9em 1.15em 0.9em 1.35em;
+  font-family: 'Golos Text', 'roboto', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.72);
+  border: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world__title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  bottom: 0.55em;
+  width: 4px;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--steel .dropdown-menu_world__title {
+  color: #122834;
+  border-bottom-color: rgba(32, 99, 128, 0.28);
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--steel .dropdown-menu_world__title::before {
+  background: #206380;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--copper .dropdown-menu_world__title {
+  color: #3a2418;
+  border-bottom-color: rgba(138, 90, 58, 0.32);
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--copper .dropdown-menu_world__title::before {
+  background: #8a5a3a;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world__title:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.fixed-menu_catalog--tree .dropdown-content {
+  /* зазор от скошенной кнопки — не одна сплошная плашка */
+  margin-top: 4px;
+  -webkit-box-shadow: 0 6px 20px rgba(0, 1, 5, 0.14);
+          box-shadow: 0 6px 20px rgba(0, 1, 5, 0.14);
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.15em 0 0.35em;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world .dropdown-menu_item > a {
+  min-height: 44px;
+  padding: 0.35em 1.1em 0.35em 1.15em;
+  font-size: 15px;
+  font-weight: 400;
+  color: inherit;
+  background: transparent;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--steel .dropdown-menu_item > a:hover {
+  background: rgba(32, 99, 128, 0.1);
+  color: #184d63;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_world--copper .dropdown-menu_item > a:hover {
+  background: rgba(138, 90, 58, 0.12);
+  color: #6e452c;
+}
+
+.fixed-menu_catalog--tree .dropdown-menu_promos {
+  background: #fff;
+  margin-top: 0;
+}
+
+.fixed-menu_catalog--tree .dropdown-submenu-content {
+  display: none !important;
+}
+
 .dropdown-menu_item.is-active > .dropdown-submenu-content,
 .dropdown-menu_item.is-hover > .dropdown-submenu-content,
 .dropdown-menu_item:focus-within > .dropdown-submenu-content {
@@ -9569,6 +9691,15 @@ img.contact-section-desc.is-active {
   background: #206380;
   padding: 2.6em 0 1.2em;
   color: #fff;
+  width: 100%;
+}
+
+/* Как шапка / dual / услуги: контент от края до края, не 1200px */
+.main-footer > .container {
+  max-width: none !important;
+  width: 100%;
+  padding-left: 28px;
+  padding-right: 28px;
 }
 
 .footer-title {
