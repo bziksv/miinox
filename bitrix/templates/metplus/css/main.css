@@ -1614,8 +1614,7 @@ h3,
 }
 
 .fixed-menu_catalog--tree .dropdown-content {
-  /* зазор от скошенной кнопки — не одна сплошная плашка */
-  margin-top: 4px;
+  margin-top: 0;
   -webkit-box-shadow: 0 6px 20px rgba(0, 1, 5, 0.14);
           box-shadow: 0 6px 20px rgba(0, 1, 5, 0.14);
 }
