@@ -185,6 +185,13 @@ jQuery(document).ready(function($) {
 
     $(document).on('mouseenter', '.head-menu_catalog-item, .fixed-menu_catalog, .head-menu_item', function() {
       var $wrap = $(this);
+      // после клика «КАТАЛОГ» → #katalog не открывать выпадашку поверх dual-блока
+      if (($wrap.hasClass('fixed-menu_catalog') || $wrap.hasClass('head-menu_catalog-item'))
+          && window.miinoxSuppressCatalogHoverUntil
+          && Date.now() < window.miinoxSuppressCatalogHoverUntil) {
+        $wrap.removeClass('is-hover is-active');
+        return;
+      }
       menuClearTimer($wrap);
       $wrap.addClass('is-hover');
       if ($wrap.hasClass('head-menu_catalog-item') || $wrap.hasClass('fixed-menu_catalog')) {
@@ -198,6 +205,10 @@ jQuery(document).ready(function($) {
       // остаёмся внутри того же корня — не закрываем
       if (to && $wrap[0].contains(to)) {
         return;
+      }
+      // ушли с кнопки — снова можно открывать по hover
+      if ($wrap.hasClass('fixed-menu_catalog') || $wrap.hasClass('head-menu_catalog-item')) {
+        window.miinoxSuppressCatalogHoverUntil = 0;
       }
       menuScheduleClose($wrap, function() {
         $wrap.removeClass('is-hover');
@@ -773,6 +784,95 @@ jQuery(document).ready(function($) {
       $('.scroll-to-top').removeClass('scroll-to-top-visible');
     }
   });
+  // Якорь #katalog: нативный scroll (+ scroll-margin 140) оставляет серую полоску
+  // под sticky-шапкой (~64px). Доскролл вплотную к низу fixed-меню.
+  (function fixKatalogHashScroll() {
+    var HASH = '#katalog';
+    function headerOffset() {
+      var $h = $('.ui-header');
+      // sticky-высота = .main-head; полный хедер до sticky выше и даёт «полоску»
+      var $mh = $h.find('.main-head').first();
+      var stickyH = ($mh.outerHeight() || $h.outerHeight() || 64);
+      return Math.round(stickyH);
+    }
+    function closeCatalogDropdown() {
+      var $wrap = $('.fixed-menu_catalog, .head-menu_catalog-item');
+      $wrap.removeClass('is-hover is-active');
+      $wrap.find('.dropdown-menu_item').removeClass('is-hover is-active');
+      $wrap.each(function() {
+        var t = $(this).data('menuCloseTimer');
+        if (t) {
+          clearTimeout(t);
+          $(this).removeData('menuCloseTimer');
+        }
+      });
+      // не открывать снова, пока курсор просто «лежит» на кнопке после клика
+      window.miinoxSuppressCatalogHoverUntil = Date.now() + 800;
+    }
+    function scrollToKatalog(force) {
+      if (location.hash !== HASH && !force) {
+        return;
+      }
+      var el = document.getElementById('katalog');
+      if (!el) {
+        return;
+      }
+      closeCatalogDropdown();
+      // заранее включаем sticky, чтобы offset = реальной шапке, не Math.max(...,140)
+      if ($(window).scrollTop() > 40 || force) {
+        $('.ui-header').addClass('fixed-menu scroll-transform');
+        $('.global-wrapper').addClass('global-pad');
+      }
+      var top = el.getBoundingClientRect().top + window.pageYOffset - headerOffset();
+      window.scrollTo(0, Math.max(0, Math.round(top)));
+      updateStickyHeader();
+      var el2 = document.getElementById('katalog');
+      if (!el2) {
+        return;
+      }
+      var top2 = el2.getBoundingClientRect().top + window.pageYOffset - headerOffset();
+      if (Math.abs(window.pageYOffset - top2) > 1) {
+        window.scrollTo(0, Math.max(0, Math.round(top2)));
+      }
+      closeCatalogDropdown();
+    }
+    function scheduleKatalogScroll() {
+      scrollToKatalog(true);
+      setTimeout(function() { scrollToKatalog(true); }, 50);
+      setTimeout(function() { scrollToKatalog(true); }, 200);
+      setTimeout(function() { scrollToKatalog(true); }, 500);
+      setTimeout(function() { scrollToKatalog(true); }, 1000);
+    }
+    if (location.hash === HASH) {
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
+      scheduleKatalogScroll();
+      // load мог уже пройти к моменту ready — не полагаемся только на событие
+      if (document.readyState === 'complete') {
+        scheduleKatalogScroll();
+      } else {
+        $(window).on('load', scheduleKatalogScroll);
+      }
+    }
+    $(document).on('click', 'a[href="/#katalog"], a[href="#katalog"]', function(e) {
+      var path = location.pathname.replace(/\/+$/, '') || '/';
+      if (path !== '/' && path !== '') {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      if (location.hash !== HASH) {
+        history.pushState(null, '', HASH);
+      }
+      scrollToKatalog(true);
+    });
+    $(window).on('hashchange', function() {
+      if (location.hash === HASH) {
+        scrollToKatalog(true);
+      }
+    });
+  })();
   $('.scroll-to-top').on('click', function() {
     $('html, body').animate({
       scrollTop: 0

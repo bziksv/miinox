@@ -2,6 +2,7 @@
 $aMenuLinks = Array(
 	Array(
 		"КАТАЛОГ",
+		// catalog/ — чтобы подтянулся catalog/.bottom_left.menu.php; клик уйдёт на /#katalog редиректом
 		"catalog/",
 		Array(),
 		Array(),

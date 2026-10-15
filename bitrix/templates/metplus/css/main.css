@@ -497,7 +497,8 @@ h3,
 }
 
 .main-head {
-  padding: 1.3em 0 .6em;
+  /* было 1.3em сверху / 0.6em снизу — визуально «лишний» воздух сверху */
+  padding: 0.7em 0;
 }
 
 .main-head_left-column, .main-head_right-column {
@@ -752,10 +753,15 @@ h3,
 
   .fixed-menu .main-head_left-column {
     gap: 14px;
+    /* ниже скоса КАТАЛОГ — иначе город перехватывает клики по левому краю кнопки */
+    position: relative;
+    z-index: 1;
   }
 
   .fixed-menu .main-head_right-column {
     gap: 10px;
+    position: relative;
+    z-index: 2;
   }
 
   .fixed-menu .main-head .head-account,
@@ -769,6 +775,9 @@ h3,
     -webkit-flex-shrink: 0;
         -ms-flex-negative: 0;
             flex-shrink: 0;
+    /* скос уходит влево за layout-box — расширяем hit-area под tip */
+    margin-left: -36px;
+    padding-left: 36px;
   }
 
   .fixed-menu .fixed-menu_catalog .dropdown-content {
@@ -1428,6 +1437,23 @@ h3,
   right: -40px;
   top: -40px;
   height: 40px;
+}
+
+/* Sticky: мост не должен перекрывать низ скошенной КАТАЛОГ (клики/hover) */
+.fixed-menu_catalog > .fixed-panel_catalog-btn {
+  position: relative;
+  z-index: 3;
+}
+
+.fixed-menu_catalog > .dropdown-content {
+  z-index: 2;
+}
+
+.fixed-menu_catalog > .dropdown-content:before {
+  top: -6px;
+  height: 6px;
+  left: 0;
+  right: 0;
 }
 
 /* Как на референсе: L2/L3 фиксированной высоты — L3 hit-area на всю панель */
@@ -14062,6 +14088,11 @@ img.contact-section-desc.is-active {
 /* ==========================================================================
    Home dual catalog — темы и раскладки
    ========================================================================== */
+#katalog {
+  /* sticky .main-head ≈ 64px; больше — серая полоска под шапкой */
+  scroll-margin-top: 64px;
+}
+
 .home-dual {
   --hd-dir: 90deg;
   --hd-mask: to right;

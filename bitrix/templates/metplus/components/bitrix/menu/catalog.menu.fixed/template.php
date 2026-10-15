@@ -16,7 +16,7 @@ $this->setFrameMode(true);
 require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icons.php";
 ?>
 <div class="fixed-menu_catalog">
-    <a href="/catalog/" class="fixed-panel_catalog-btn"><span class="head-menu_text">КАТАЛОГ</span></a>
+    <a href="/#katalog" class="fixed-panel_catalog-btn"><span class="head-menu_text">КАТАЛОГ</span></a>
     <div class="dropdown-content">
         <ul class="dropdown-menu">
             <?foreach($arResult["MENU_STRUCTURE"] as $nameKey => $arColumns): ?>

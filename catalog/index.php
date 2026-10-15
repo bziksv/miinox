@@ -1,5 +1,13 @@
 <?
 define("HIDE_SIDEBAR", true);
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+
+// Корень каталога = блок на главной; разделы/товары (/catalog/xxx/) не трогаем
+$catalogRoot = $APPLICATION->GetCurPage(false);
+if ($catalogRoot === '/catalog/' || $catalogRoot === '/catalog' || $catalogRoot === '/catalog/index.php') {
+	LocalRedirect('/#katalog');
+}
+
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "В разделе представлен каталог продукции Металлинвест Плюс, специализирующейся на поставках нержавейки и цветного металла");
 $APPLICATION->SetTitle("Каталог продукции Металлинвест Плюс");
