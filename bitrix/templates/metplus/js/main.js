@@ -1299,3 +1299,61 @@ if ($('.map-container').length) {
     });
   }
 })();
+
+(function () {
+  var KEY = 'miinox_footer_layout';
+  var LABELS = {
+    '1': 'v1 · колонки',
+    '2': 'v2 · мачта',
+    '3': 'v3 · кабинет',
+    '4': 'v4 · планка',
+    '5': 'v5 · склад'
+  };
+  var footer = document.querySelector('.main-footer');
+  var tune = document.getElementById('footer-tune');
+  if (!footer || !tune) return;
+
+  var fab = document.getElementById('footer-tune-fab');
+  var panel = document.getElementById('footer-tune-panel');
+  var valEl = document.getElementById('footer-tune-val');
+  var chips = tune.querySelectorAll('.footer-tune__chip[data-footer-layout]');
+
+  function applyLayout(n) {
+    var layout = String(Math.max(1, Math.min(5, parseInt(n, 10) || 1)));
+    footer.setAttribute('data-footer-layout', layout);
+    try { localStorage.setItem(KEY, layout); } catch (e) {}
+    if (valEl) valEl.textContent = LABELS[layout] || ('v' + layout);
+    for (var i = 0; i < chips.length; i++) {
+      var chip = chips[i];
+      var on = chip.getAttribute('data-footer-layout') === layout;
+      if (on) chip.classList.add('is-active');
+      else chip.classList.remove('is-active');
+      chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  applyLayout(saved || '1');
+
+  if (fab && panel) {
+    fab.addEventListener('click', function () {
+      var open = fab.getAttribute('aria-expanded') === 'true';
+      fab.setAttribute('aria-expanded', open ? 'false' : 'true');
+      if (open) panel.setAttribute('hidden', '');
+      else panel.removeAttribute('hidden');
+    });
+    document.addEventListener('click', function (e) {
+      if (!tune.contains(e.target) && fab.getAttribute('aria-expanded') === 'true') {
+        fab.setAttribute('aria-expanded', 'false');
+        panel.setAttribute('hidden', '');
+      }
+    });
+  }
+
+  for (var j = 0; j < chips.length; j++) {
+    chips[j].addEventListener('click', function () {
+      applyLayout(this.getAttribute('data-footer-layout'));
+    });
+  }
+})();

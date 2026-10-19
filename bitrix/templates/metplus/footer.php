@@ -1,84 +1,155 @@
-<footer class="main-footer">
+<footer class="main-footer" data-footer-layout="1">
     <div class="container">
-        <div class="row">
-            <?$APPLICATION->IncludeComponent("bitrix:menu", "bottom.menu", Array(
-                "ROOT_MENU_TYPE" => "bottom",   // Тип меню для первого уровня
-                "MENU_CACHE_TYPE" => "A",   // Тип кеширования
-                "MENU_CACHE_TIME" => "36000000",    // Время кеширования (сек.)
-                "MENU_CACHE_USE_GROUPS" => "Y", // Учитывать права доступа
-                "MENU_THEME" => "site", // Тема меню
-                "CACHE_SELECTED_ITEMS" => "N",
-                "MENU_CACHE_GET_VARS" => "",    // Значимые переменные запроса
-                "MAX_LEVEL" => "2", // Уровень вложенности меню
-                "CHILD_MENU_TYPE" => "bottom_left", // Тип меню для остальных уровней
-                "USE_EXT" => "Y",   // Подключать файлы с именами вида .тип_меню.menu_ext.php
-                "DELAY" => "N", // Откладывать выполнение шаблона меню
-                "ALLOW_MULTI_SELECT" => "N",    // Разрешить несколько активных пунктов одновременно
-                "COMPONENT_TEMPLATE" => "catalog_horizontal"
-            ),
-                false
-            );?>
-
-            <?$APPLICATION->IncludeComponent("bitrix:menu", "bottom_useful.menu", Array(
-                "ROOT_MENU_TYPE" => "bottom_useful",    // Тип меню для первого уровня
-                "MENU_CACHE_TYPE" => "A",   // Тип кеширования
-                "MENU_CACHE_TIME" => "36000000",    // Время кеширования (сек.)
-                "MENU_CACHE_USE_GROUPS" => "Y", // Учитывать права доступа
-                "MENU_THEME" => "site", // Тема меню
-                "CACHE_SELECTED_ITEMS" => "N",
-                "MENU_CACHE_GET_VARS" => "",    // Значимые переменные запроса
-                "MAX_LEVEL" => "1", // Уровень вложенности меню
-                "CHILD_MENU_TYPE" => "bottom_useful",   // Тип меню для остальных уровней
-                "USE_EXT" => "Y",   // Подключать файлы с именами вида .тип_меню.menu_ext.php
-                "DELAY" => "N", // Откладывать выполнение шаблона меню
-                "ALLOW_MULTI_SELECT" => "N",    // Разрешить несколько активных пунктов одновременно
-                "COMPONENT_TEMPLATE" => "catalog_horizontal"
-            ),
-                false
-            );?>
-            <div class="footer-column">
-                <ul class="footer-contact_list">
-                    <li><a href="tel:+74951140102"><span class="glipf-call-answer"></span>+7 (495) 114-01-02</a></li>
-                    <li><a href="mailto:info@miinox.ru" class="footer-mail"><span class="glipf-email"></span>info@miinox.ru</a></li>
-                    <li>
-                        <span class="glipf-clock"></span>Будни: 8:00 - 17:00 <br>Суббота, воскресенье — выходные
-                    </li>
-				</ul>
-
-				<p>Мы в социальных сетях:</p>
-				<div class="footer-social">
-					<?/* временно сети КМИ; позже заменить на miinox */?>
-					<a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
-						<img width="45" height="45" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-vk.svg?v=2" alt="ВКонтакте">
-					</a>
-					<a class="footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
-						<img width="45" height="45" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-telegram.svg?v=2" alt="Telegram">
-					</a>
-				</div>
- </div>
-
- </div>
-        <div class="row">
-            <div class="col-lg-10">
-                <div class="rules">
-					© 2006–2026. ООО «Металлинвест Инокс» <br>
-                    <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
-                    <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
+        <div class="footer-shell">
+            <div class="footer-rail">
+                <div class="footer-brand">
+                    <a class="footer-brand__logo" href="/" aria-label="Металлинвест Инокс">
+                        <img src="<?=SITE_TEMPLATE_PATH?>/img/static/logo-header-white.svg" width="220" height="28" alt="Металлинвест Инокс">
+                    </a>
+                    <p class="footer-brand__tag">Нержавейка и цветной металлопрокат · поставки со склада</p>
+                </div>
+                <div class="footer-column footer-column--contacts">
+                    <a class="footer-phone" href="tel:+74951140102">
+                        <span class="glipf-call-answer" aria-hidden="true"></span>+7 (495) 114-01-02
+                    </a>
+                    <ul class="footer-contact_list">
+                        <li class="footer-contact_list__phone">
+                            <a href="tel:+74951140102"><span class="glipf-call-answer"></span>+7 (495) 114-01-02</a>
+                        </li>
+                        <li>
+                            <a href="mailto:info@miinox.ru" class="footer-mail"><span class="glipf-email"></span>info@miinox.ru</a>
+                        </li>
+                        <li class="footer-hours">
+                            <span class="glipf-clock" aria-hidden="true"></span>
+                            <span class="footer-hours__text">
+                                <span class="footer-hours__line">Будни: 8:00–17:00</span>
+                                <span class="footer-hours__line footer-hours__line--off">Сб–Вс — выходные</span>
+                            </span>
+                        </li>
+                    </ul>
+                    <p class="footer-social-label">Мы в социальных сетях:</p>
+                    <div class="footer-social">
+                        <?/* временно сети КМИ; позже заменить на miinox */?>
+                        <a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
+                            <img width="40" height="40" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-vk.svg?v=2" alt="ВКонтакте">
+                        </a>
+                        <a class="footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
+                            <img width="40" height="40" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-telegram.svg?v=2" alt="Telegram">
+                        </a>
+                    </div>
                 </div>
             </div>
-            <div class="col-lg-2">
-                <div class="logo-prime">
-                    <a href="https://prime-ltd.su/?from=https://miinox.ru/" target="_blank" rel="nofollow">
-                        <img src="<?=SITE_TEMPLATE_PATH?>/img/static/prime-logo-white.svg" width="170" height="37" alt="Prime">
+
+            <div class="footer-desk">
+                <div class="footer-desk__brand">
+                    <a class="footer-brand__logo" href="/" aria-label="Металлинвест Инокс">
+                        <img src="<?=SITE_TEMPLATE_PATH?>/img/static/logo-header-white.svg" width="220" height="28" alt="Металлинвест Инокс">
                     </a>
+                    <p class="footer-brand__tag">Нержавейка и цветной металлопрокат · поставки со склада</p>
                 </div>
+                <div class="footer-desk__place">
+                    <span class="glipf-place" aria-hidden="true"></span>
+                    <span>
+                        <strong>Склад, Москва</strong>
+                        Ленинский г.о., д. Горки, промзона, 25АС1
+                        <a href="/contact/">Все адреса</a>
+                    </span>
+                </div>
+                <div class="footer-desk__reach">
+                    <a class="footer-phone" href="tel:+74951140102">+7 (495) 114-01-02</a>
+                    <a class="footer-desk__cta" href="#callback" data-toggle="modal">Заказать звонок</a>
+                    <div class="footer-desk__meta">
+                        <a href="mailto:info@miinox.ru">info@miinox.ru</a>
+                        <span>Будни 8:00–17:00</span>
+                        <span class="footer-social">
+                            <a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
+                                <img width="32" height="32" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-vk.svg?v=2" alt="">
+                            </a>
+                            <a class="footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
+                                <img width="32" height="32" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-telegram.svg?v=2" alt="">
+                            </a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-main row">
+                <?$APPLICATION->IncludeComponent("bitrix:menu", "bottom.menu", Array(
+                    "ROOT_MENU_TYPE" => "bottom",
+                    "MENU_CACHE_TYPE" => "A",
+                    "MENU_CACHE_TIME" => "36000000",
+                    "MENU_CACHE_USE_GROUPS" => "Y",
+                    "MENU_THEME" => "site",
+                    "CACHE_SELECTED_ITEMS" => "N",
+                    "MENU_CACHE_GET_VARS" => "",
+                    "MAX_LEVEL" => "2",
+                    "CHILD_MENU_TYPE" => "bottom_left",
+                    "USE_EXT" => "Y",
+                    "DELAY" => "N",
+                    "ALLOW_MULTI_SELECT" => "N",
+                    "COMPONENT_TEMPLATE" => "catalog_horizontal"
+                ),
+                    false
+                );?>
+
+                <?$APPLICATION->IncludeComponent("bitrix:menu", "bottom_useful.menu", Array(
+                    "ROOT_MENU_TYPE" => "bottom_useful",
+                    "MENU_CACHE_TYPE" => "A",
+                    "MENU_CACHE_TIME" => "36000000",
+                    "MENU_CACHE_USE_GROUPS" => "Y",
+                    "MENU_THEME" => "site",
+                    "CACHE_SELECTED_ITEMS" => "N",
+                    "MENU_CACHE_GET_VARS" => "",
+                    "MAX_LEVEL" => "1",
+                    "CHILD_MENU_TYPE" => "bottom_useful",
+                    "USE_EXT" => "Y",
+                    "DELAY" => "N",
+                    "ALLOW_MULTI_SELECT" => "N",
+                    "COMPONENT_TEMPLATE" => "catalog_horizontal"
+                ),
+                    false
+                );?>
+            </div>
+
+            <div class="footer-legal">
+                <div class="footer-legal__row">
+                    <div class="rules">
+                        © 2006–2026. ООО «Металлинвест Инокс» <br>
+                        <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
+                        <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
+                    </div>
+                    <div class="logo-prime">
+                        <a href="https://prime-ltd.su/?from=https://miinox.ru/" target="_blank" rel="nofollow">
+                            <img src="<?=SITE_TEMPLATE_PATH?>/img/static/prime-logo-white.svg" width="170" height="37" alt="Prime">
+                        </a>
+                    </div>
+                </div>
+                <hr class="footer-legal__rule">
+                <noindex><p class="footer-legal__cookies">На нашем сайте осуществляется сбор персональных данных и <a target="_blank" href="/upload/politics.pdf">cookies</a> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая пользоваться сайтом, вы соглашаетесь с использованием cookies и <a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a> в соответствии с нашей <a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a>. Чтобы отказаться от обработки, отключите сохранение cookies в настройках вашего браузера.</p></noindex>
             </div>
         </div>
-		<hr style="margin: 25px 0;">
-		<noindex><p style="font-size: 0.8rem;">На нашем сайте осуществляется сбор персональных данных и <a target="_blank" href="/upload/politics.pdf">cookies</a> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая пользоваться сайтом, вы соглашаетесь с использованием cookies и <a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a> в соответствии с нашей <a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a>. Чтобы отказаться от обработки, отключите сохранение cookies в настройках вашего браузера.</p></noindex>
     </div>
 </footer>
 <!-- end main-footer -->
+
+<div class="footer-tune" id="footer-tune">
+    <button type="button" class="footer-tune__fab" id="footer-tune-fab" aria-expanded="false" aria-controls="footer-tune-panel">
+        <span class="footer-tune__fab-hint">Подвал</span>
+        <span class="footer-tune__fab-val" id="footer-tune-val">v1 · колонки</span>
+    </button>
+    <div class="footer-tune__panel" id="footer-tune-panel" hidden>
+        <div class="footer-tune__label">Компоновка</div>
+        <div class="footer-tune__row" role="group" aria-label="Версия подвала">
+            <button type="button" class="footer-tune__chip is-active" data-footer-layout="1" aria-pressed="true">1 · Колонки</button>
+            <button type="button" class="footer-tune__chip" data-footer-layout="2" aria-pressed="false">2 · Мачта</button>
+            <button type="button" class="footer-tune__chip" data-footer-layout="3" aria-pressed="false">3 · Кабинет</button>
+            <button type="button" class="footer-tune__chip" data-footer-layout="4" aria-pressed="false">4 · Планка</button>
+            <button type="button" class="footer-tune__chip" data-footer-layout="5" aria-pressed="false">5 · Склад</button>
+        </div>
+        <p class="footer-tune__hint">Выбор сохраняется в этом браузере</p>
+    </div>
+</div>
+
 <div class="scroll-to-top"></div>
 </div>
 <!-- END GLOBAL-WRAPPER -->
@@ -155,7 +226,7 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery-ui/jquery-ui.js"></script>
-<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=catalog-tree1"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=footer-tune5"></script>
 
 </body>
 </html>
