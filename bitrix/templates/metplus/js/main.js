@@ -17,27 +17,43 @@ jQuery(document).ready(function($) {
   if (!is_mobile()) {
     $('.dropdown-content').addClass('is-animation');
   }
-  $(".fixed-menu_hamburger").on("click", function() {
-    $(this).toggleClass('is-active');
-    $('.head-nav').slideToggle(100);
-    if (is_mobile()) {
-      $('html').toggleClass('is-hidden');
+  function setUiHeaderHeightVar() {
+    var $mh = $('.ui-header .main-head').first();
+    var h = Math.round(($mh.outerHeight() || $('.ui-header').outerHeight() || 64));
+    document.documentElement.style.setProperty('--ui-header-h', h + 'px');
+  }
+
+  function closeMobileNav() {
+    $('.ui-header').removeClass('is-nav-open');
+    $(".hamburger").removeClass('is-active');
+    $('html').removeClass('is-hidden');
+    $('.head-nav').removeAttr('style');
+  }
+
+  function toggleMobileNav($btn) {
+    var open = !$('.ui-header').hasClass('is-nav-open');
+    $(".hamburger").toggleClass('is-active', open);
+    if (open) {
+      setUiHeaderHeightVar();
+      $('.ui-header').addClass('is-nav-open');
+      $('html').addClass('is-hidden');
+      // без inline height от старого slideToggle
+      $('.head-nav').stop(true, true).removeAttr('style').show();
+    } else {
+      closeMobileNav();
     }
-  });
-  $(".tablet-hamburger").on("click", function() {
-    $(this).toggleClass('is-active');
-    $('.head-nav').slideToggle(100);
-    if (is_mobile()) {
-      $('html').toggleClass('is-hidden');
-    }
+  }
+
+  $(".fixed-menu_hamburger, .tablet-hamburger").on("click", function() {
+    toggleMobileNav($(this));
   });
   $(window).resize(function() {
     if ($(window).width() > 991) {
-      $('.head-nav').removeAttr('style');
-      $(".hamburger").removeClass('is-active');
-      $('html').removeClass('is-hidden');
+      closeMobileNav();
       $('.catalog-menu').removeAttr('style');
-      $('.catalog_sidebar-title').removeClass('is-active')
+      $('.catalog_sidebar-title').removeClass('is-active');
+    } else if ($('.ui-header').hasClass('is-nav-open')) {
+      setUiHeaderHeightVar();
     }
   });
   $('.modal-city_list-unstyled li').on('click', function() {
@@ -45,36 +61,41 @@ jQuery(document).ready(function($) {
     $('.select-city_field').text(text);
     $('#citySelect').modal('hide');
   });
-  if (!is_mobile()) {
-    (function initTextSectionParallax() {
-      var $section = $('.text-section');
-      if (!$section.length) return;
+  (function initTextSectionParallax() {
+    var section = document.querySelector('.text-section');
+    if (!section) return;
 
-      var ticking = false;
-      var update = function() {
-        ticking = false;
-        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-        var offsetTop = $section.offset().top;
-        var height = $section.outerHeight();
-        var winH = window.innerHeight || document.documentElement.clientHeight;
-        if (scrollTop + winH < offsetTop || scrollTop > offsetTop + height) {
-          return;
-        }
-        var shift = Math.round((scrollTop - offsetTop) * 0.35);
-        $section.css('background-position', 'center ' + shift + 'px');
-      };
+    var ticking = false;
 
-      var onScroll = function() {
-        if (!ticking) {
-          ticking = true;
-          window.requestAnimationFrame(update);
-        }
-      };
+    var update = function() {
+      ticking = false;
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+      var rect = section.getBoundingClientRect();
+      var offsetTop = rect.top + scrollTop;
+      var height = section.offsetHeight;
+      var winH = window.innerHeight || document.documentElement.clientHeight;
+      if (scrollTop + winH < offsetTop || scrollTop > offsetTop + height) {
+        return;
+      }
+      // слой ::before выше секции (~35%) — сдвиг не открывает #184c61
+      var maxShift = Math.round(height * 0.32);
+      var shift = Math.round((scrollTop - offsetTop) * 0.4);
+      if (shift > maxShift) shift = maxShift;
+      if (shift < -maxShift) shift = -maxShift;
+      section.style.setProperty('--parallax-y', shift + 'px');
+    };
 
-      $(window).on('scroll.miinoxTextParallax resize.miinoxTextParallax', onScroll);
-      update();
-    })();
-  }
+    var onScroll = function() {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(update);
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  })();
   if (is_mobile()) {
     $('.head-menu_catalog-item > a').on('click', function() {
       if ($(this).siblings('.dropdown-content').length) {
@@ -761,6 +782,17 @@ jQuery(document).ready(function($) {
   });
   var heightTopHead = $('.ui-header').outerHeight() || 120;
   function updateStickyHeader() {
+    // открытое мобильное меню — не трогаем sticky (иначе пляшет от scroll-lock / address bar)
+    if ($('.ui-header').hasClass('is-nav-open')) {
+      return;
+    }
+    var narrow = window.matchMedia('(max-width: 575px)').matches;
+    // на телефоне шапка и так position:fixed — без translate −100px
+    if (narrow) {
+      $('.ui-header').addClass('fixed-menu scroll-transform');
+      $('.global-wrapper').addClass('global-pad');
+      return;
+    }
     // пересчёт: админ-панель Bitrix / ресайз меняют высоту шапки
     if (!$('.ui-header').hasClass('fixed-menu')) {
       heightTopHead = $('.ui-header').outerHeight() || heightTopHead;

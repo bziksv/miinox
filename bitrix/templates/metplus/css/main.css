@@ -5439,16 +5439,34 @@ h3,
 
 /**text-section***/
 .text-section {
+  --parallax-y: 0px;
   position: relative;
+  overflow: hidden;
   padding: 5em 0;
   color: #fff;
   background-color: #184c61;
+}
+
+/* Картинка на слое выше секции — параллакс без «дыр» цвета */
+.text-section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -40%;
+  height: 180%;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #184c61;
   background-image: url(../img/bg/text-section_bg.jpg);
   background-repeat: no-repeat;
-  background-position: center 0;
+  background-position: center center;
   -webkit-background-size: cover;
           background-size: cover;
-  will-change: background-position;
+  -webkit-transform: translate3d(0, var(--parallax-y), 0);
+      -ms-transform: translate3d(0, var(--parallax-y), 0);
+          transform: translate3d(0, var(--parallax-y), 0);
+  will-change: transform;
 }
 
 .text-section > .container {
@@ -11212,37 +11230,130 @@ img.contact-section-desc.is-active {
         -ms-flex-align: center;
             align-items: center;
   }
-  .head-nav {
-    display: none;
-    position: absolute;
-    left: 0;
-    top: 100%;
-    max-height: 100vh;
-    overflow: auto;
-    padding-bottom: 45px;
-    width: 100%;
-    z-index: 100;
-  }
-  .head-nav .container {
-    max-width: 100%;
-  }
-  .head-menu {
-    display: block;
-  }
-  .head-menu_item {
-    border-right: none;
-    border-bottom: 2px solid #fff;
+  /* Без sticky-«уезда» −100px — иначе шапка/меню пляшут на планшете и при open */
+  .fixed-menu {
     -webkit-transform: none;
         -ms-transform: none;
             transform: none;
   }
+  .scroll-transform {
+    -webkit-transition: none;
+         -o-transition: none;
+            transition: none;
+  }
+
+  .head-nav {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--ui-header-h, 64px);
+    bottom: auto;
+    /* top+bottom+overflow схлопывали панель в высоту контента */
+    height: calc(100vh - var(--ui-header-h, 64px));
+    height: calc(100dvh - var(--ui-header-h, 64px));
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 45px;
+    width: 100%;
+    z-index: 200;
+    background: #206380;
+    margin: 0;
+  }
+  .fixed-menu .head-nav {
+    display: none;
+    position: fixed;
+    top: var(--ui-header-h, 64px);
+    bottom: auto;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - var(--ui-header-h, 64px));
+    height: calc(100dvh - var(--ui-header-h, 64px));
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #206380;
+    z-index: 200;
+  }
+  .ui-header.is-nav-open .head-nav,
+  .ui-header.is-nav-open.fixed-menu .head-nav {
+    display: block !important;
+  }
+  .head-nav .container {
+    max-width: 100%;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    margin: 0;
+  }
+  .head-menu {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  /* Сброс скосов/полей десктопа — иначе линии «лесенкой» */
+  .head-menu_item,
+  .head-menu_item:first-child,
+  .head-menu_item:last-child {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    -webkit-box-flex: 0 !important;
+    -webkit-flex: none !important;
+        -ms-flex: none !important;
+            flex: none !important;
+    -webkit-transform: none !important;
+        -ms-transform: none !important;
+            transform: none !important;
+  }
+  .head-menu_item > a,
+  .head-menu_item:first-child > a,
+  .head-menu_item:last-child > a {
+    display: -webkit-box !important;
+    display: -ms-flexbox !important;
+    display: flex !important;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    width: 100% !important;
+    min-height: 52px;
+    padding: 0.9em 1.25rem !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.9) !important;
+    -webkit-transform: none !important;
+        -ms-transform: none !important;
+            transform: none !important;
+    background: transparent;
+  }
+  .head-menu_item:last-child > a:before,
+  .head-menu_item:last-child > a:hover:before,
+  .head-menu_item:last-child.active:before,
+  .head-menu_catalog-item > a:before,
+  .head-menu_catalog-item > a:hover:before,
+  .head-menu_catalog-item.active:before {
+    content: none !important;
+    display: none !important;
+  }
   .head-menu_text {
+    display: block;
+    width: 100%;
+    text-align: center;
     -webkit-transform: none;
         -ms-transform: none;
             transform: none;
   }
   .head-menu_catalog-item {
-    background: #2a8fad;
+    background: transparent;
   }
   .head-menu_catalog-item > a {
     position: relative;
@@ -11257,7 +11368,7 @@ img.contact-section-desc.is-active {
     position: absolute;
     top: -5px;
     bottom: 0;
-    right: 1em;
+    right: 1.25rem;
     margin: auto;
     -webkit-transform: rotate(45deg);
         -ms-transform: rotate(45deg);
@@ -11306,14 +11417,133 @@ img.contact-section-desc.is-active {
   .tablet-visible {
     display: block;
   }
-  .head_select-city_mobile {
-    display: block;
-    color: #fff;
-    padding: 1em 0;
-    text-align: center;
+  .head-nav .tablet-visible,
+  .head-nav .tablet-small_visible,
+  .head-nav .mobile-visible {
+    width: 100%;
+    margin: 0;
+    padding: 0;
   }
-  .head_select-city_mobile .select-city_btn {
-    border-bottom-color: #fff;
+
+  /* Поиск сверху: белые поля + поле с отступами, лупа внутри */
+  .head-nav__search,
+  .head-nav .mobile-visible.head-nav__search {
+    display: block !important;
+    background: #fff;
+    padding: 10px 14px 12px;
+    border-bottom: 1px solid rgba(32, 99, 128, 0.12);
+  }
+  .head-nav__search > div {
+    width: 100%;
+  }
+  .head-nav__search .head_form-search,
+  .head-nav .head-nav__search .head_form-search {
+    max-width: none;
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    border: 1px solid rgba(32, 99, 128, 0.22);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .head-nav__search .head_form-search_input {
+    color: #1a2a33;
+    background: #fff;
+    border: 0;
+    border-radius: 8px;
+    height: 100%;
+    line-height: 42px;
+    padding: 0 2.75rem 0 0.9em;
+  }
+  .head-nav__search .head_form-search_input:focus {
+    border: 0;
+    outline: none;
+  }
+  .head-nav__search .wrapper_submit-btn {
+    right: 12px;
+    width: 2rem;
+  }
+  .head-nav__search .head_form-search_input::-webkit-input-placeholder {
+    color: rgba(26, 42, 51, 0.45);
+  }
+  .head-nav__search .head_form-search_input::-moz-placeholder {
+    color: rgba(26, 42, 51, 0.45);
+  }
+  .head-nav__search .head_form-search_input:-ms-input-placeholder {
+    color: rgba(26, 42, 51, 0.45);
+  }
+  .head-nav__search .head_form-search_input::placeholder {
+    color: rgba(26, 42, 51, 0.45);
+  }
+  .head-nav__search .glipf-search {
+    color: #206380;
+  }
+
+  /* Город: одна кнопка «Город · Воронеж», белый текст */
+  .head_select-city_mobile {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    margin: 0;
+    padding: 1em 1.25rem;
+    text-align: center;
+    text-decoration: none;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.9);
+  }
+  .head_select-city_mobile .select-city_label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    border: 0;
+  }
+  .head_select-city_mobile .select-city_field {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #fff;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.7);
+    line-height: 1.3;
+  }
+  .head_select-city_mobile:hover .select-city_field {
+    border-bottom-color: transparent;
+  }
+
+  .head-nav .head_phone-box {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 0.9em 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.9);
+  }
+  .head-nav .head_phone-number {
+    color: #fff;
+    line-height: 1.3;
+    text-align: center;
   }
   .global-pad {
     padding-top: 71px;

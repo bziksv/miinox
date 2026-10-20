@@ -10,7 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=home-dual-fix" rel="stylesheet" />
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=nav-search3" rel="stylesheet" />
 
 </head>
 <body>
@@ -139,6 +139,31 @@
         </div>
         <nav class="head-nav">
             <div class="container">
+                <div class="mobile-visible head-nav__search">
+                    <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title.mobile", Array(
+                        "CATEGORY_0" => array(
+                            0 => "iblock_1c_catalog",
+                        ),
+                        "CATEGORY_0_TITLE" => "",
+                        "CATEGORY_0_iblock_1c_catalog" => array(
+                            0 => "40",
+                        ),
+                        "IBLOCK_ID" => "40",
+                        "IBLOCK_TYPE" => "1c_catalog",
+                        "CHECK_DATES" => "N",
+                        "CONTAINER_ID" => "title-search-mobile",
+                        "INPUT_ID" => "title-search-mobile-input",
+                        "NUM_CATEGORIES" => "1",
+                        "ORDER" => "rank",
+                        "PAGE" => "/",
+                        "SHOW_INPUT" => "Y",
+                        "SHOW_OTHERS" => "N",
+                        "TOP_COUNT" => "5",
+                        "USE_LANGUAGE_GUESS" => "N",
+                    ),
+                        false
+                    );?>
+                </div>
                 <?
 					$IS_HIDDEN_MENU = true;
 					$curDir = $APPLICATION->GetCurDir();
@@ -149,59 +174,34 @@
 						$IS_HIDDEN_MENU = false;
 				
 					$APPLICATION->IncludeComponent("bitrix:menu", "top.menu", Array(
-                    "ROOT_MENU_TYPE" => "top",	// Тип меню для первого уровня
-                    "MENU_CACHE_TYPE" => "A",	// Тип кеширования
-                    "MENU_CACHE_TIME" => "36000000",	// Время кеширования (сек.)
-                    "MENU_CACHE_USE_GROUPS" => "Y",	// Учитывать права доступа
-                    "MENU_THEME" => "site",	// Тема меню
+                    "ROOT_MENU_TYPE" => "top",
+                    "MENU_CACHE_TYPE" => "A",
+                    "MENU_CACHE_TIME" => "36000000",
+                    "MENU_CACHE_USE_GROUPS" => "Y",
+                    "MENU_THEME" => "site",
                     "CACHE_SELECTED_ITEMS" => "N",
                     "IBLOCK_ID" => "40",
-                    "MENU_CACHE_GET_VARS" => "",	// Значимые переменные запроса
-                    "MAX_LEVEL" => "3",	// Уровень вложенности меню
-                    "CHILD_MENU_TYPE" => "left",	// Тип меню для остальных уровней
-                    "USE_EXT" => "Y",	// Подключать файлы с именами вида .тип_меню.menu_ext.php
-                    "DELAY" => "N",	// Откладывать выполнение шаблона меню
-                    "ALLOW_MULTI_SELECT" => "N",	// Разрешить несколько активных пунктов одновременно
+                    "MENU_CACHE_GET_VARS" => "",
+                    "MAX_LEVEL" => "3",
+                    "CHILD_MENU_TYPE" => "left",
+                    "USE_EXT" => "Y",
+                    "DELAY" => "N",
+                    "ALLOW_MULTI_SELECT" => "N",
                     "COMPONENT_TEMPLATE" => "catalog_horizontal",
 					"IS_HIDDEN_MENU" => $IS_HIDDEN_MENU,
                 ),
                     false
                 );?>
                 <div class="tablet-visible">
-                    <div class="head_select-city head_select-city_mobile">
-                        <a href="#citySelect" data-toggle="modal" class="select-city_btn">Выберите город:</a>
+                    <a href="#citySelect" data-toggle="modal" class="head_select-city head_select-city_mobile">
+                        <span class="select-city_label">Город</span>
                         <span class="select-city_field">Воронеж</span>
-                    </div>
+                    </a>
                 </div>
                 <div class="tablet-small_visible">
                     <div class="head_phone-box">
                         <a href="tel:+74732475555" class="head_phone-number">+7 (473) 247-55-55</a>
                     </div>
-                </div>
-                <div class="mobile-visible">
-                    <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title.mobile", Array(
-                        "CATEGORY_0" => array(	// Ограничение области поиска
-                            0 => "iblock_1c_catalog",
-                        ),
-                        "CATEGORY_0_TITLE" => "",	// Название категории
-                        "CATEGORY_0_iblock_1c_catalog" => array(
-                            0 => "40",
-                        ),
-                        "IBLOCK_ID" => "40",
-                        "IBLOCK_TYPE" => "1c_catalog",
-                        "CHECK_DATES" => "N",	// Искать только в активных по дате документах
-                        "CONTAINER_ID" => "title-search-mobile",	// ID контейнера, по ширине которого будут выводиться результаты
-                        "INPUT_ID" => "title-search-mobile-input",	// ID строки ввода поискового запроса
-                        "NUM_CATEGORIES" => "1",	// Количество категорий поиска
-                        "ORDER" => "rank",	// Сортировка результатов
-                        "PAGE" => "/",	// Страница выдачи результатов поиска (доступен макрос #SITE_DIR#)
-                        "SHOW_INPUT" => "Y",	// Показывать форму ввода поискового запроса
-                        "SHOW_OTHERS" => "N",	// Показывать категорию "прочее"
-                        "TOP_COUNT" => "5",	// Количество результатов в каждой категории
-                        "USE_LANGUAGE_GUESS" => "N",	// Включить автоопределение раскладки клавиатуры
-                    ),
-                        false
-                    );?>
                 </div>
             </div>
         </nav>
