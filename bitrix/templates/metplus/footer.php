@@ -1,4 +1,4 @@
-<footer class="main-footer" data-footer-layout="1">
+<footer class="main-footer">
     <div class="container">
         <div class="footer-shell">
             <div class="footer-rail">
@@ -13,9 +13,6 @@
                         <span class="glipf-call-answer" aria-hidden="true"></span>+7 (495) 114-01-02
                     </a>
                     <ul class="footer-contact_list">
-                        <li class="footer-contact_list__phone">
-                            <a href="tel:+74951140102"><span class="glipf-call-answer"></span>+7 (495) 114-01-02</a>
-                        </li>
                         <li>
                             <a href="mailto:info@miinox.ru" class="footer-mail"><span class="glipf-email"></span>info@miinox.ru</a>
                         </li>
@@ -27,7 +24,6 @@
                             </span>
                         </li>
                     </ul>
-                    <p class="footer-social-label">Мы в социальных сетях:</p>
                     <div class="footer-social">
                         <?/* временно сети КМИ; позже заменить на miinox */?>
                         <a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
@@ -36,39 +32,6 @@
                         <a class="footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
                             <img width="40" height="40" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-telegram.svg?v=2" alt="Telegram">
                         </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="footer-desk">
-                <div class="footer-desk__brand">
-                    <a class="footer-brand__logo" href="/" aria-label="Металлинвест Инокс">
-                        <img src="<?=SITE_TEMPLATE_PATH?>/img/static/logo-header-white.svg" width="220" height="28" alt="Металлинвест Инокс">
-                    </a>
-                    <p class="footer-brand__tag">Нержавейка и цветной металлопрокат · поставки со склада</p>
-                </div>
-                <div class="footer-desk__place">
-                    <span class="glipf-place" aria-hidden="true"></span>
-                    <span>
-                        <strong>Склад, Москва</strong>
-                        Ленинский г.о., д. Горки, промзона, 25АС1
-                        <a href="/contact/">Все адреса</a>
-                    </span>
-                </div>
-                <div class="footer-desk__reach">
-                    <a class="footer-phone" href="tel:+74951140102">+7 (495) 114-01-02</a>
-                    <a class="footer-desk__cta" href="#callback" data-toggle="modal">Заказать звонок</a>
-                    <div class="footer-desk__meta">
-                        <a href="mailto:info@miinox.ru">info@miinox.ru</a>
-                        <span>Будни 8:00–17:00</span>
-                        <span class="footer-social">
-                            <a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
-                                <img width="32" height="32" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-vk.svg?v=2" alt="">
-                            </a>
-                            <a class="footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
-                                <img width="32" height="32" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-telegram.svg?v=2" alt="">
-                            </a>
-                        </span>
                     </div>
                 </div>
             </div>
@@ -111,17 +74,18 @@
                 );?>
             </div>
 
+            <div class="logo-prime">
+                <a href="https://prime-ltd.su/?from=https://miinox.ru/" target="_blank" rel="nofollow">
+                    <img src="<?=SITE_TEMPLATE_PATH?>/img/static/prime-logo-white.svg" width="170" height="37" alt="Prime">
+                </a>
+            </div>
+
             <div class="footer-legal">
                 <div class="footer-legal__row">
                     <div class="rules">
                         © 2006–2026. ООО «Металлинвест Инокс» <br>
                         <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
                         <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
-                    </div>
-                    <div class="logo-prime">
-                        <a href="https://prime-ltd.su/?from=https://miinox.ru/" target="_blank" rel="nofollow">
-                            <img src="<?=SITE_TEMPLATE_PATH?>/img/static/prime-logo-white.svg" width="170" height="37" alt="Prime">
-                        </a>
                     </div>
                 </div>
                 <hr class="footer-legal__rule">
@@ -131,24 +95,6 @@
     </div>
 </footer>
 <!-- end main-footer -->
-
-<div class="footer-tune" id="footer-tune">
-    <button type="button" class="footer-tune__fab" id="footer-tune-fab" aria-expanded="false" aria-controls="footer-tune-panel">
-        <span class="footer-tune__fab-hint">Подвал</span>
-        <span class="footer-tune__fab-val" id="footer-tune-val">v1 · колонки</span>
-    </button>
-    <div class="footer-tune__panel" id="footer-tune-panel" hidden>
-        <div class="footer-tune__label">Компоновка</div>
-        <div class="footer-tune__row" role="group" aria-label="Версия подвала">
-            <button type="button" class="footer-tune__chip is-active" data-footer-layout="1" aria-pressed="true">1 · Колонки</button>
-            <button type="button" class="footer-tune__chip" data-footer-layout="2" aria-pressed="false">2 · Мачта</button>
-            <button type="button" class="footer-tune__chip" data-footer-layout="3" aria-pressed="false">3 · Кабинет</button>
-            <button type="button" class="footer-tune__chip" data-footer-layout="4" aria-pressed="false">4 · Планка</button>
-            <button type="button" class="footer-tune__chip" data-footer-layout="5" aria-pressed="false">5 · Склад</button>
-        </div>
-        <p class="footer-tune__hint">Выбор сохраняется в этом браузере</p>
-    </div>
-</div>
 
 <div class="scroll-to-top"></div>
 </div>
@@ -226,7 +172,7 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery-ui/jquery-ui.js"></script>
-<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=footer-tune5"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=footer-v3-prime"></script>
 
 </body>
 </html>
