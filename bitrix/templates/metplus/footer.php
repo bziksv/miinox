@@ -9,12 +9,16 @@
                     <p class="footer-brand__tag">Нержавейка и цветной металлопрокат · поставки со склада</p>
                 </div>
                 <div class="footer-column footer-column--contacts">
-                    <a class="footer-phone" href="tel:+74951140102">
-                        <span class="glipf-call-answer" aria-hidden="true"></span>+7 (495) 114-01-02
-                    </a>
                     <ul class="footer-contact_list">
                         <li>
-                            <a href="mailto:info@miinox.ru" class="footer-mail"><span class="glipf-email"></span>info@miinox.ru</a>
+                            <a class="footer-phone" href="tel:+74732475555">
+                                <span class="glipf-call-answer" aria-hidden="true"></span>+7 (473) 247-55-55
+                            </a>
+                        </li>
+                        <li>
+                            <a href="mailto:info@miinox.ru" class="footer-mail">
+                                <span class="glipf-email" aria-hidden="true"></span>info@miinox.ru
+                            </a>
                         </li>
                         <li class="footer-hours">
                             <span class="glipf-clock" aria-hidden="true"></span>
