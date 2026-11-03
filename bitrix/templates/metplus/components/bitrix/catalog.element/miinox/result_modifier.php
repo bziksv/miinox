@@ -12,8 +12,9 @@ $measureToUnit = [
     5 => ['CODE' => 'pc', 'SHORT' => 'шт', 'LABEL' => 'штука'],
 ];
 $measureId = 5;
+$product = [];
 if (CModule::IncludeModule('catalog')) {
-    $product = CCatalogProduct::GetByID($productId);
+    $product = CCatalogProduct::GetByID($productId) ?: [];
     if ($product) {
         $measureId = (int)$product['MEASURE'];
     }
@@ -48,6 +49,39 @@ foreach (['DETAIL_PICTURE', 'PREVIEW_PICTURE'] as $field) {
 }
 $arResult['CARD_IMAGES'] = array_values(array_unique($images));
 $arResult['CARD_PLACEHOLDER'] = $arResult['CARD_IMAGES'] === [];
+if ($arResult['CARD_PLACEHOLDER']) {
+    $base = SITE_TEMPLATE_PATH . '/img/static/';
+    $arResult['CARD_IMAGES'] = [
+        $base . 'product-ph-1.svg',
+        $base . 'product-ph-2.svg',
+        $base . 'product-ph-3.svg',
+        $base . 'product-ph-4.svg',
+    ];
+}
+
+$sectionId = (int)($arResult['IBLOCK_SECTION_ID'] ?? 0);
+$sectionCode = '';
+$crumbs = [
+    ['TITLE' => 'Главная страница', 'LINK' => '/'],
+    ['TITLE' => 'Каталог', 'LINK' => '/catalog/'],
+];
+if ($sectionId > 0) {
+    $nav = CIBlockSection::GetNavChain($iblockId, $sectionId, ['ID', 'NAME', 'SECTION_PAGE_URL', 'CODE']);
+    while ($section = $nav->GetNext()) {
+        $crumbs[] = [
+            'TITLE' => $section['NAME'],
+            'LINK' => $section['SECTION_PAGE_URL'],
+        ];
+        $sectionCode = (string)$section['CODE'];
+    }
+}
+$crumbs[] = ['TITLE' => (string)$arResult['NAME'], 'LINK' => ''];
+$arResult['CARD_CRUMBS'] = $crumbs;
+
+$qty = isset($product['QUANTITY']) ? (float)$product['QUANTITY'] : 0.0;
+$thresholds = include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/stock_thresholds.php';
+$stockLimit = $thresholds[$sectionCode ?? ''] ?? 1000;
+$arResult['CARD_STOCK_LIMITED'] = $qty <= (float)$stockLimit;
 
 $skipCodes = [
     'SEO_NAME',
