@@ -6151,11 +6151,19 @@ h3,
 }
 
 .catalog-menu_item {
-  margin-bottom: 0.75em;
+  margin-bottom: 0;
+  padding: 0.7em 0;
+  border-bottom: 1px solid rgba(32, 99, 128, 0.12);
+}
+
+.catalog-menu_item:first-child {
+  padding-top: 0;
 }
 
 .catalog-menu_item:last-child {
   margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .catalog-menu_item .menu-icon {
@@ -6258,32 +6266,39 @@ h3,
 }
 
 .catalog-submenu {
-  padding-left: 0;
   display: none;
-  margin-top: 6px;
+  margin: 0.65rem 0 0.15rem 0.35rem;
+  padding: 0.15rem 0 0.15rem 0.7rem;
+  border-left: 2px solid rgba(32, 99, 128, 0.22);
 }
 
-.catalog-submenu li {
-  margin-bottom: .2em;
+.catalog-submenu li + li {
+  margin-top: 2px;
 }
 
 .catalog-submenu a {
-  color: #484848;
-  font-size: 1rem;
-  border-bottom: 1px solid transparent;
-  -webkit-transition: color .3s, border-bottom-color .3s;
-  -o-transition: color .3s, border-bottom-color .3s;
-  transition: color .3s, border-bottom-color .3s;
+  display: block;
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: #24343c;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  border-bottom: 0;
+  -webkit-transition: color .2s, background-color .2s;
+  -o-transition: color .2s, background-color .2s;
+  transition: color .2s, background-color .2s;
 }
 
-.catalog-submenu a:hover,
-.catalog-submenu a.is-current {
-  border-bottom-color: #206380;
+.catalog-submenu a:hover {
   color: #206380;
+  background: rgba(32, 99, 128, 0.06);
 }
 
 .catalog-submenu a.is-current {
-  font-weight: 700;
+  color: #206380;
+  font-weight: 600;
+  background: rgba(32, 99, 128, 0.1);
 }
 
 .sidebar-catalog .price-list_box {
