@@ -6110,6 +6110,31 @@ h3,
   overflow-x: auto;
 }
 
+/* Каталог раздела — на всю ширину окна, как каталог на главной */
+.subcategory-section > .container {
+  max-width: none !important;
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .subcategory-section .catalog_left-column {
+    -webkit-box-flex: 0;
+    -webkit-flex: 0 0 300px;
+        -ms-flex: 0 0 300px;
+            flex: 0 0 300px;
+    max-width: 300px;
+  }
+
+  .subcategory-section .catalog_right-column {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1 1 auto;
+        -ms-flex: 1 1 auto;
+            flex: 1 1 auto;
+    max-width: none;
+    width: auto;
+  }
+}
+
 .sidebar-catalog_content {
   background: #fff;
   -webkit-box-shadow: 0 0 16px rgba(0, 0, 0, 0.07);
