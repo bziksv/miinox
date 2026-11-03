@@ -19,6 +19,8 @@ if (!count($arResult['ITEMS'])) {
 }
 
 $unit = $arResult['TABLE_UNIT'] ?? [
+    'CODE' => 'pc',
+    'SHORT' => 'шт',
     'PRICE' => 'руб./шт',
     'QTY' => 'Кол-во, шт',
     'STEP' => '1',
@@ -179,9 +181,11 @@ $buyColIndex = 4;
             <td class="product-table_cell-price<?=$priceRetail === '' ? ' product-table_cell-price--empty' : ''?>"><?=$priceRetailDisplay?></td>
             <td class="product-table_cell-price<?=$priceOpt === '' ? ' product-table_cell-price--empty' : ''?>"><?=$priceOptDisplay?></td>
 
+            <? $rowUnit = $arResult['TABLE_ROW_UNITS'][(int)$arItem['ID']] ?? $unit; ?>
             <td class="product-table_cell-qty">
                 <div class="product-table_field">
-                    <input type="number" class="product-table-input" name="pieces" min="<?=$unit['MIN']?>" step="<?=$unit['STEP']?>" value="1" placeholder="0" inputmode="decimal">
+                    <input type="number" class="product-table-input" name="pieces" min="<?=$rowUnit['MIN']?>" step="<?=$rowUnit['STEP']?>" value="1" placeholder="0" inputmode="decimal">
+                    <span class="product-table_field-unit"><?=htmlspecialcharsbx($rowUnit['SHORT'])?></span>
                 </div>
             </td>
 

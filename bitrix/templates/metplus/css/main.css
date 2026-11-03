@@ -6972,6 +6972,20 @@ h3,
   width: 3.5em;
 }
 
+.product-table_field:has(.product-table_field-unit) {
+  width: auto;
+  gap: 0.28em;
+}
+
+.product-table_field-unit {
+  -webkit-flex: 0 0 auto;
+  -ms-flex: 0 0 auto;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: #5a6b7d;
+}
+
 .product-table_field--restricted,
 .product-table_field--locked {
   min-width: 3.75em;
