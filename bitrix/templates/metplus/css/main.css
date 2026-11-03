@@ -50,7 +50,7 @@ body {
 }
 
 .global-pad {
-  padding-top: 165px;
+  padding-top: var(--header-static-h, 121px);
 }
 
 ol, ul {
@@ -10353,9 +10353,6 @@ img.contact-section-desc.is-active {
 }
 
 @media only screen and (max-width: 1390px) {
-  .global-pad {
-    padding-top: 143px;
-  }
   .dropdown-content {
     left: 0;
   }
@@ -11592,9 +11589,6 @@ img.contact-section-desc.is-active {
     color: #fff;
     line-height: 1.3;
     text-align: center;
-  }
-  .global-pad {
-    padding-top: 71px;
   }
   .fixed-panel_catalog-btn .head-menu_text {
     -webkit-transform: skew(45deg);
@@ -13091,9 +13085,6 @@ img.contact-section-desc.is-active {
   }
   .dropdown-content {
     min-width: auto;
-  }
-  .global-pad {
-    padding-top: 55px;
   }
   .category-column {
     -webkit-box-flex: 100%;

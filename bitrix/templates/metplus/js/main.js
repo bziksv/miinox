@@ -803,21 +803,15 @@ jQuery(document).ready(function($) {
       return;
     }
     var narrow = window.matchMedia('(max-width: 575px)').matches;
-    // на телефоне шапка и так position:fixed — без translate −100px
-    if (narrow) {
-      $('.ui-header').addClass('fixed-menu scroll-transform');
-      $('.global-wrapper').addClass('global-pad');
-      return;
-    }
-    // пересчёт: админ-панель Bitrix / ресайз меняют высоту шапки
+    // пересчёт до fixed: компенсация = высота шапки в потоке, не запас 165px
     if (!$('.ui-header').hasClass('fixed-menu')) {
       heightTopHead = $('.ui-header').outerHeight() || heightTopHead;
     }
-    if ($(window).scrollTop() > Math.max(heightTopHead - 8, 40)) {
-      $('.ui-header').addClass('fixed-menu');
+    // на телефоне шапка и так position:fixed — без translate −100px
+    if (narrow || $(window).scrollTop() > Math.max(heightTopHead - 8, 40)) {
+      document.documentElement.style.setProperty('--header-static-h', heightTopHead + 'px');
+      $('.ui-header').addClass('fixed-menu scroll-transform');
       $('.global-wrapper').addClass('global-pad');
-      // сразу выводим sticky (без 100ms «провала» за экран)
-      $('.ui-header').addClass('scroll-transform');
     } else {
       $('.ui-header').removeClass('fixed-menu');
       $('.ui-header').removeClass('scroll-transform');
@@ -868,6 +862,10 @@ jQuery(document).ready(function($) {
       closeCatalogDropdown();
       // заранее включаем sticky, чтобы offset = реальной шапке, не Math.max(...,140)
       if ($(window).scrollTop() > 40 || force) {
+        var padH = $('.ui-header').hasClass('fixed-menu')
+          ? heightTopHead
+          : ($('.ui-header').outerHeight() || heightTopHead);
+        document.documentElement.style.setProperty('--header-static-h', padH + 'px');
         $('.ui-header').addClass('fixed-menu scroll-transform');
         $('.global-wrapper').addClass('global-pad');
       }
