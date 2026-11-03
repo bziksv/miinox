@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-label="$>B> B>20@0 ?>O28BAO ?>765">
+  <rect width="1200" height="1200" fill="#e7f0f4"/>
+  <g transform="translate(180 420)">
+    <ellipse cx="420" cy="250" rx="340" ry="28" fill="#206380" opacity=".12"/>
+    <g transform="rotate(-8 420 140)">
+      <rect x="40" y="70" width="700" height="150" rx="8" fill="url(#pipe)"/>
+      <rect x="40" y="112" width="700" height="6" fill="#fff" opacity=".55"/>
+      <ellipse cx="740" cy="145" rx="36" ry="75" fill="#d5e4ec"/>
+      <ellipse cx="740" cy="145" rx="24" ry="58" fill="#1c3340"/>
+    </g>
+  </g>
+  <defs>
+    <linearGradient id="pipe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5d7385"/>
+      <stop offset=".18" stop-color="#f4f8fb"/>
+      <stop offset=".4" stop-color="#9fb2c2"/>
+      <stop offset=".58" stop-color="#2c4252"/>
+      <stop offset=".78" stop-color="#c5d6e2"/>
+      <stop offset="1" stop-color="#6b8496"/>
+    </linearGradient>
+  </defs>
+</svg>

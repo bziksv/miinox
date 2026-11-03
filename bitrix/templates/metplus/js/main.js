@@ -296,17 +296,7 @@ jQuery(document).ready(function($) {
   $('.product-table').on('click', '.product-item_buy-btn', function () {
     $(this).closest('tr').find('.product-item_cart-btn').trigger('click');
   });
-  $(".product-table").on("click", ".product-item_cart-btn", function() {
-    var $btn = $(this);
-    var $qty = $btn.closest('tr').find('.product-table-input[name="pieces"]');
-    var qty = 1;
-    if ($qty.length) {
-      qty = parseFloat(String($qty.val()).replace(',', '.'));
-      if (!isFinite(qty) || qty <= 0) {
-        qty = 1;
-      }
-    }
-
+  function miinoxAddToCart($btn, qty) {
     $btn.clone().css({
       'position': 'absolute',
       'z-index': '1000',
@@ -331,6 +321,32 @@ jQuery(document).ready(function($) {
       });
     });
 
+    return false;
+  }
+  $(".product-table").on("click", ".product-item_cart-btn", function() {
+    var $btn = $(this);
+    var $qty = $btn.closest('tr').find('.product-table-input[name="pieces"]');
+    var qty = 1;
+    if ($qty.length) {
+      qty = parseFloat(String($qty.val()).replace(',', '.'));
+      if (!isFinite(qty) || qty <= 0) {
+        qty = 1;
+      }
+    }
+    miinoxAddToCart($btn, qty);
+    return false;
+  });
+  $(document).on("click", ".product-card__add", function() {
+    var $btn = $(this);
+    var $qty = $btn.closest(".product-card").find("[name='pieces']");
+    var qty = 1;
+    if ($qty.length) {
+      qty = parseFloat(String($qty.val()).replace(',', '.'));
+      if (!isFinite(qty) || qty <= 0) {
+        qty = 1;
+      }
+    }
+    miinoxAddToCart($btn, qty);
     return false;
   });
   $(".product-item_buy-btn").on("click", function() {

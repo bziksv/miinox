@@ -149,7 +149,7 @@ $buyColIndex = 4;
                     <span class="product-availability-marker__tip"><?=htmlspecialcharsbx($availTip)?></span>
                 </button>
                 <span class="product-item_name<?=$limited ? ' product-item_name-mod' : ''?>">
-					<a href="javascript:void(0)"><?=$productName?></a>
+					<a href="<?=htmlspecialcharsbx((string)($arItem['DETAIL_PAGE_URL'] ?? ''))?>"><?=$productName?></a>
                 </span>
                 <span class="product-availability">
                     <? if ($limited): ?>

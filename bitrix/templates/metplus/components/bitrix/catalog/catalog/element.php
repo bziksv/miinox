@@ -26,7 +26,7 @@ else
 	$basketAction = (isset($arParams['DETAIL_ADD_TO_BASKET_ACTION']) ? $arParams['DETAIL_ADD_TO_BASKET_ACTION'] : array());
 }
 
-$isSidebar = ($arParams['SIDEBAR_DETAIL_SHOW'] == 'Y' && !empty($arParams['SIDEBAR_PATH']));
+$isSidebar = false;
 $isSidebarLeft = isset($arParams['SIDEBAR_SECTION_POSITION']) && $arParams['SIDEBAR_SECTION_POSITION'] === 'left';
 ?>
 
@@ -218,7 +218,7 @@ $isSidebarLeft = isset($arParams['SIDEBAR_SECTION_POSITION']) && $arParams['SIDE
 			$componentElementParams['USER_CONSENT_IS_LOADED'] = $arParams['USER_CONSENT_IS_LOADED'];
 		}
 
-		$elementId = $APPLICATION->IncludeComponent('bitrix:catalog.element', 'bootstrap_v4', $componentElementParams,
+		$elementId = $APPLICATION->IncludeComponent('bitrix:catalog.element', 'miinox', $componentElementParams,
 			$component
 		);
 		$GLOBALS['CATALOG_CURRENT_ELEMENT_ID'] = $elementId;

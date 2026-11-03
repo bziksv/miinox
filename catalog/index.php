@@ -24,6 +24,7 @@ if($code &&  $cat == "catalog"){
 }
 ?>
 	<main class="main-content">
+		<? if (!empty($curSec['NAME'])): ?>
 		<div class="inner-page_title-section" <? if($background): ?>style="background: url(<?=$background?>) no-repeat center top;" <? endif; ?> >
 			<div class="container">
                 <?
@@ -33,9 +34,10 @@ if($code &&  $cat == "catalog"){
                     );
                 }
                 ?>
-				<h1><?=($curSec['NAME']) ? $curSec['NAME'] : "КАТАЛОГ ПРОДУКЦИИ";?></h1>
+				<h1><?=$curSec['NAME']?></h1>
 			</div>
 		</div>
+		<? endif; ?>
 		<!-- end inner-page_title-section -->
 		<?$APPLICATION->IncludeComponent(
 	"bitrix:catalog", 
