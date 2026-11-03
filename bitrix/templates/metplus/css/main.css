@@ -6117,6 +6117,11 @@ h3,
 }
 
 @media (min-width: 992px) {
+  .subcategory-section > .container > .row {
+    -ms-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+  }
+
   .subcategory-section .catalog_left-column {
     -webkit-box-flex: 0;
     -webkit-flex: 0 0 300px;
@@ -6127,11 +6132,12 @@ h3,
 
   .subcategory-section .catalog_right-column {
     -webkit-box-flex: 1;
-    -webkit-flex: 1 1 auto;
-        -ms-flex: 1 1 auto;
-            flex: 1 1 auto;
-    max-width: none;
+    -webkit-flex: 1 1 0;
+        -ms-flex: 1 1 0px;
+            flex: 1 1 0;
+    max-width: calc(100% - 300px);
     width: auto;
+    min-width: 0;
   }
 }
 
