@@ -128,7 +128,8 @@ $buyColIndex = 4;
             $priceOpt = getGroupPriceForProduct(17, $arItem['ID']) ?: '';
             $priceRetailDisplay = $priceRetail !== '' ? $priceRetail : 'по запросу';
             $priceOptDisplay = $priceOpt !== '' ? $priceOpt : 'по запросу';
-            $limited = (int)$arItem['CATALOG_QUANTITY'] < 1000;
+            $stockLimit = (float)($arResult['STOCK_THRESHOLD'] ?? 1000);
+            $limited = (float)$arItem['CATALOG_QUANTITY'] <= $stockLimit;
             $availTip = $limited
                 ? 'Количество ограничено, уточняйте у менеджера.'
                 : 'В наличии на складе.';

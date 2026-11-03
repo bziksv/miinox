@@ -71,6 +71,10 @@ $unitCode = $unitVotes ? (string)array_key_first($unitVotes) : 'pc';
 $unit = $unitPresets[$unitCode];
 
 $arResult['TABLE_UNIT'] = $unit;
+
+$stockThresholds = include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/stock_thresholds.php';
+$sectionCode = (string)($arResult['CODE'] ?? '');
+$arResult['STOCK_THRESHOLD'] = $stockThresholds[$sectionCode] ?? 1000;
 $arResult['FIELDS'] = [
     'Наименование',
     'Цена розница<span class="product-table_th-unit">' . $unit['PRICE'] . '</span>',
