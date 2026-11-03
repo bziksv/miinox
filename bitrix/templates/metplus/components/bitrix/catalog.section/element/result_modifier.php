@@ -195,14 +195,22 @@ $sortFilterValues = static function (array $values): array {
     return $values;
 };
 
+$filterMatrix = include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/catalog_filter_matrix.php';
+$allowedFilters = $filterMatrix[(string)($arResult['CODE'] ?? '')] ?? null;
+
 $arResult['TABLE_FILTERS'] = [];
 foreach ($filterProps as $code => $title) {
-    if (empty($facetValues[$code]) || count($facetValues[$code]) < 2) {
+    $values = $facetValues[$code] ?? [];
+    if ($allowedFilters !== null) {
+        if (!in_array($code, $allowedFilters, true) || !$values) {
+            continue;
+        }
+    } elseif (count($values) < 2) {
         continue;
     }
     $arResult['TABLE_FILTERS'][] = [
         'CODE' => $code,
         'TITLE' => $title,
-        'VALUES' => $sortFilterValues(array_keys($facetValues[$code])),
+        'VALUES' => $sortFilterValues(array_keys($values)),
     ];
 }
