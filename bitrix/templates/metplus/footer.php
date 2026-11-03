@@ -176,7 +176,7 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery-ui/jquery-ui.js"></script>
-<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=parallax-on"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=table-stripe"></script>
 
 </body>
 </html>

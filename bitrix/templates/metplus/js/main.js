@@ -1063,6 +1063,7 @@ jQuery(document).ready(function($) {
         $count.prop('hidden', true);
       }
       var tokens = q ? q.split(' ').filter(Boolean) : [];
+      var filtering = tokens.length > 0 || filterCount > 0;
       var visible = 0;
       $rows.each(function() {
         var $row = $(this);
@@ -1074,10 +1075,15 @@ jQuery(document).ready(function($) {
           });
         }
         $row.toggle(ok);
+        $row.removeClass('is-row-alt');
         if (ok) {
+          if (filtering && visible % 2 === 0) {
+            $row.addClass('is-row-alt');
+          }
           visible++;
         }
       });
+      $table.find('tbody').toggleClass('is-filtered', filtering);
       if (!q && filterCount === 0) {
         $meta.text('');
       } else if (visible === 0) {

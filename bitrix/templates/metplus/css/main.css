@@ -7123,6 +7123,14 @@ h3,
   background: #fff;
 }
 
+.product-table tbody.is-filtered tr {
+  background: #fff;
+}
+
+.product-table tbody.is-filtered tr.is-row-alt {
+  background: #EEEEEE;
+}
+
 .product-item_name > a {
   color: #2c2c2c;
   font-weight: 500;
