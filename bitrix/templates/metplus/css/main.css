@@ -16188,8 +16188,15 @@ img.contact-section-desc.is-active {
 }
 
 .account-page__inner {
-  width: min(1100px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+}
+
+@media (min-width: 992px) {
+  .account-page {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
 }
 
 .account-head {
@@ -16375,6 +16382,22 @@ img.contact-section-desc.is-active {
   vertical-align: middle;
 }
 
+.account-table tbody tr:hover td {
+  background: rgba(32, 99, 128, 0.06);
+}
+
+.account-table a {
+  color: #206380;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.account-table a:hover,
+.account-table a:focus {
+  color: #184c61;
+}
+
 .account-table th:last-child,
 .account-table td:last-child {
   padding-right: 0;
@@ -16392,6 +16415,64 @@ img.contact-section-desc.is-active {
 
 .account-status.is-canceled {
   color: #8d2b2b;
+}
+
+.account-back {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  color: #206380;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.account-back:hover,
+.account-back:focus {
+  color: #184c61;
+}
+
+.account-order-sum {
+  color: #14222d;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.account-props {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem 1.5rem;
+  margin: 0 0 1.1rem;
+}
+
+.account-props dt {
+  margin: 0;
+  color: #5c6b76;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.account-props dd {
+  margin: 0.15rem 0 0;
+  color: #14222d;
+  font-weight: 700;
+}
+
+.account-comment {
+  margin: 0 0 1.1rem;
+  color: #14222d;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.account-comment span {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: #5c6b76;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 @media (max-width: 860px) {

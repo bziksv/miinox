@@ -157,7 +157,7 @@ $logoutUrl = $APPLICATION->GetCurPageParam('logout=yes&' . bitrix_sessid_get(), 
                                     $canceled = (string)$order['CANCELED'] === 'Y';
                                     ?>
                                     <tr>
-                                        <td><?=htmlspecialcharsbx((string)($order['ACCOUNT_NUMBER'] ?: $order['ID']))?></td>
+                                        <td><a href="/personal/order/<?=(int)$order['ID']?>/"><?=htmlspecialcharsbx((string)($order['ACCOUNT_NUMBER'] ?: $order['ID']))?></a></td>
                                         <td><?=htmlspecialcharsbx($date)?></td>
                                         <td><span class="account-status<?=$canceled ? ' is-canceled' : ''?>"><?=htmlspecialcharsbx($canceled ? 'Отменён' : $statusName)?></span></td>
                                         <td><?=htmlspecialcharsbx(number_format((float)$order['PRICE'], 0, ',', ' ') . ' ₽')?></td>
