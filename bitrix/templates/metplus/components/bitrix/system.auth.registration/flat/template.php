@@ -131,8 +131,9 @@ new BX.PhoneAuth({
 document.getElementById('bx_auth_secure').style.display = '';
 </script>
 <?php endif?>
-				<input type="password" name="USER_PASSWORD" maxlength="255" value="<?=$arResult["USER_PASSWORD"]?>" autocomplete="off" />
+				<input type="password" name="USER_PASSWORD" id="reg-password" maxlength="255" value="<?=$arResult["USER_PASSWORD"]?>" autocomplete="new-password" />
 			</div>
+			<button type="button" class="auth-pass-gen" id="reg-pass-gen">Сгенерировать пароль</button>
 		</div>
 
 		<div class="bx-authform-formgroup-container">
@@ -145,7 +146,7 @@ document.getElementById('bx_auth_secure').style.display = '';
 document.getElementById('bx_auth_secure_conf').style.display = '';
 </script>
 <?php endif?>
-				<input type="password" name="USER_CONFIRM_PASSWORD" maxlength="255" value="<?=$arResult["USER_CONFIRM_PASSWORD"]?>" autocomplete="off" />
+				<input type="password" name="USER_CONFIRM_PASSWORD" id="reg-password-confirm" maxlength="255" value="<?=$arResult["USER_CONFIRM_PASSWORD"]?>" autocomplete="new-password" />
 			</div>
 		</div>
 
@@ -158,14 +159,12 @@ document.getElementById('bx_auth_secure_conf').style.display = '';
 		</div>
 <?php endif?>
 
-<?php if($arResult["PHONE_REGISTRATION"]):?>
 		<div class="bx-authform-formgroup-container">
-			<div class="bx-authform-label-container"><?php if($arResult["PHONE_REQUIRED"]):?><span class="bx-authform-starrequired">*</span><?php endif?><?= GetMessage("main_register_phone_number")?></div>
+			<div class="bx-authform-label-container"><span class="bx-authform-starrequired">*</span>Телефон</div>
 			<div class="bx-authform-input-container">
-				<input type="text" name="USER_PHONE_NUMBER" maxlength="255" value="<?=$arResult["USER_PHONE_NUMBER"]?>" />
+				<input type="tel" name="USER_PHONE_NUMBER" maxlength="20" value="<?=$arResult["USER_PHONE_NUMBER"]?>" inputmode="tel" autocomplete="tel" placeholder="+7 900 000-00-00" required />
 			</div>
 		</div>
-<?php endif?>
 
 <?php if($arResult["USER_PROPERTIES"]["SHOW"] == "Y"):?>
 	<?php foreach ($arResult["USER_PROPERTIES"]["DATA"] as $FIELD_NAME => $arUserField):?>
@@ -198,7 +197,7 @@ $APPLICATION->IncludeComponent(
 			<div class="bx-authform-label-container">
 				<span class="bx-authform-starrequired">*</span><?=GetMessage("CAPTCHA_REGF_PROMT")?>
 			</div>
-			<div class="bx-captcha"><img src="/bitrix/tools/captcha.php?captcha_sid=<?=$arResult["CAPTCHA_CODE"]?>" width="180" height="40" alt="CAPTCHA" /></div>
+			<div class="bx-captcha"><img src="/ajax/captcha.php?captcha_sid=<?=$arResult["CAPTCHA_CODE"]?>" width="240" height="72" alt="Код с картинки" /></div>
 			<div class="bx-authform-input-container">
 				<input type="text" name="captcha_word" maxlength="50" value="" autocomplete="off"/>
 			</div>
@@ -222,12 +221,33 @@ $APPLICATION->IncludeComponent(
 			<span class="bx-authform-starrequired">*</span><?=GetMessage("AUTH_REQ")?>
 		</div>
 
-		<p class="auth-back"><a href="<?=$arResult["AUTH_AUTH_URL"]?>" rel="nofollow">Войти</a></p>
+		<p class="auth-back">У вас уже есть аккаунт? <a href="<?=$arResult["AUTH_AUTH_URL"]?>" rel="nofollow">Войти</a></p>
 
 	</form>
 
 <script>
 document.bform.USER_NAME.focus();
+(function () {
+    var button = document.getElementById('reg-pass-gen');
+    var password = document.getElementById('reg-password');
+    var confirm = document.getElementById('reg-password-confirm');
+    if (!button || !password || !confirm) return;
+    var alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    function pick(source) {
+        var list = new Uint32Array(1);
+        crypto.getRandomValues(list);
+        return source[list[0] % source.length];
+    }
+    button.addEventListener('click', function () {
+        var value = pick('ABCDEFGHJKLMNPQRSTUVWXYZ') + pick('abcdefghijkmnpqrstuvwxyz') + pick('23456789');
+        while (value.length < 10) value += pick(alphabet);
+        password.type = 'text';
+        confirm.type = 'text';
+        password.value = value;
+        confirm.value = value;
+        password.focus();
+    });
+})();
 </script>
 
 <?php endif?>

@@ -15760,9 +15760,45 @@ img.contact-section-desc.is-active {
   outline: none;
 }
 
+.auth-card .bx-captcha {
+  display: flex;
+  justify-content: center;
+  margin: 0.35rem 0 0.55rem;
+  padding: 0.55rem;
+  border: 1px solid #d5e0e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .auth-card .bx-captcha img {
+  display: block;
+  width: 240px;
   max-width: 100%;
   height: auto;
+}
+
+.auth-card .auth-pass-gen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #206380;
+  border-radius: 8px;
+  background: #fff;
+  color: #206380;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-card .auth-pass-gen:hover,
+.auth-card .auth-pass-gen:focus {
+  background: rgba(32, 99, 128, 0.08);
+  color: #184c61;
 }
 
 .auth-card .auth-check {

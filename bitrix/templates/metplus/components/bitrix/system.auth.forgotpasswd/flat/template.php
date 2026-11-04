@@ -72,7 +72,7 @@ if(!empty($arParams["~AUTH_RESULT"]["MESSAGE"])):
 			<input type="submit" class="btn btn-primary" name="send_account_info" value="<?=GetMessage("AUTH_SEND")?>" />
 		</div>
 
-		<p class="auth-back"><a href="<?=$arResult["AUTH_AUTH_URL"]?>">Войти</a></p>
+		<p class="auth-back">Вспомнили пароль? <a href="<?=$arResult["AUTH_AUTH_URL"]?>">Войти</a></p>
 
 	</form>
 

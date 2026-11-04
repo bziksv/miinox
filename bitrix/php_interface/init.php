@@ -62,3 +62,24 @@ function bxModifySaleMails($orderID, &$eventName, &$arFields)
     if($_COOKIE['roistat_visit'])
         $arFields["ROI_VISIT"] = $_COOKIE['roistat_visit'];
 }
+
+AddEventHandler('main', 'OnBeforeUserRegister', 'miinoxRequireRegisterPhone');
+function miinoxRequireRegisterPhone(&$fields)
+{
+    $digits = preg_replace('/\D+/', '', (string)($fields['PHONE_NUMBER'] ?? ''));
+    if (strlen($digits) === 11 && $digits[0] === '8') {
+        $digits = '7' . substr($digits, 1);
+    }
+    if (strlen($digits) === 10) {
+        $digits = '7' . $digits;
+    }
+    if (strlen($digits) !== 11 || $digits[0] !== '7') {
+        $GLOBALS['APPLICATION']->ThrowException('Укажите телефон в формате +7XXXXXXXXXX');
+        return false;
+    }
+
+    $phone = '+' . $digits;
+    $fields['PHONE_NUMBER'] = $phone;
+    $fields['PERSONAL_PHONE'] = $phone;
+    return true;
+}
