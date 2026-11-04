@@ -664,6 +664,61 @@ jQuery(document).ready(function($) {
     return path === '/cart' || path.indexOf('/cart/s/') === 0;
   }
 
+  window.miinoxSplitCart = function () {
+    if (window.miinoxSplitCart.lock) return;
+    var table = document.getElementById('basket-item-table');
+    if (!table) return;
+    window.miinoxSplitCart.lock = true;
+    try {
+      var page = document.getElementById('miinox-cart-page');
+      var shareIds = page ? String(page.getAttribute('data-share-ids') || '').split(',').filter(Boolean) : [];
+      var rows = Array.prototype.slice.call(table.querySelectorAll('tr[data-entity="basket-item"]'));
+      Array.prototype.slice.call(table.querySelectorAll('.cart-split')).forEach(function (row) {
+        row.remove();
+      });
+      if (!rows.length) return;
+      var hasFlag = rows.some(function (row) { return row.getAttribute('data-from-share') === 'Y'; });
+      var own = [];
+      var share = [];
+      rows.forEach(function (row) {
+        var flagged = row.getAttribute('data-from-share') === 'Y';
+        var productId = row.getAttribute('data-product-id') || '';
+        var fromShare = flagged || (!hasFlag && shareIds.indexOf(productId) !== -1);
+        (fromShare ? share : own).push(row);
+      });
+      if (!share.length) return;
+      var header = table.querySelector('tr');
+      var splitRow = function (extraClass, text) {
+        var tr = document.createElement('tr');
+        tr.className = 'cart-split' + (extraClass ? ' ' + extraClass : '');
+        var td = document.createElement('td');
+        td.colSpan = 6;
+        td.textContent = text;
+        tr.appendChild(td);
+        return tr;
+      };
+      var cursor = header;
+      if (own.length) {
+        var ownHead = splitRow('', 'Ваши товары');
+        cursor.after(ownHead);
+        cursor = ownHead;
+        own.forEach(function (row) {
+          cursor.after(row);
+          cursor = row;
+        });
+      }
+      var shareHead = splitRow('cart-split--share', 'Добавлено по ссылке');
+      cursor.after(shareHead);
+      cursor = shareHead;
+      share.forEach(function (row) {
+        cursor.after(row);
+        cursor = row;
+      });
+    } finally {
+      window.miinoxSplitCart.lock = false;
+    }
+  };
+
   function miinoxShowShareNotice() {
     var $page = $('#miinox-cart-page');
     if (!$page.length) return;
@@ -672,6 +727,9 @@ jQuery(document).ready(function($) {
     var $body = $('.cart-content_first .cart-content_body').first();
     if (!$body.length || $body.find('.cart-share-notice').length) return;
     $('<p class="cart-share-notice"></p>').text(text).prependTo($body);
+    if (window.miinoxSplitCart) {
+      window.miinoxSplitCart();
+    }
   }
 
   function miinoxOpenCart(options) {

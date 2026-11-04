@@ -417,6 +417,20 @@ foreach ($this->basketItems as $row)
 	$qty = (float)$rowData['QUANTITY'];
 	$rowData['SHOW_CUT_NOTICE'] = $isPipe && $isMeter && abs(($qty / 6) - round($qty / 6)) > 0.001;
 
+	$fromShare = !empty($row['PROPS_ALL']['MIINOX_SHARE']);
+	if (!empty($rowData['PROPS']) && is_array($rowData['PROPS'])) {
+		foreach ($rowData['PROPS'] as $prop) {
+			if ((string)($prop['CODE'] ?? '') === 'MIINOX_SHARE') {
+				$fromShare = true;
+				break;
+			}
+		}
+		$rowData['PROPS'] = array_values(array_filter($rowData['PROPS'], static function ($prop) {
+			return (string)($prop['CODE'] ?? '') !== 'MIINOX_SHARE';
+		}));
+	}
+	$rowData['FROM_SHARE'] = $fromShare ? 'Y' : '';
+
 	$result['BASKET_ITEM_RENDER_DATA'][] = $rowData;
 }
 

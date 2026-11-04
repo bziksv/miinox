@@ -1184,6 +1184,10 @@
 
 				this.createBasketItem(this.sortedItems[i]);
 			}
+
+			if (window.miinoxSplitCart) {
+				window.miinoxSplitCart();
+			}
 		},
 
 		createBasketItem: function(itemId)
@@ -1313,6 +1317,10 @@
 				{
 					this.createBasketItem(item.ID);
 				}
+			}
+
+			if (window.miinoxSplitCart) {
+				window.miinoxSplitCart();
 			}
 		},
 

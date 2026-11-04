@@ -161,6 +161,9 @@ if (empty($arResult['ERROR_MESSAGE']))
 			siteTemplateId: '<?=CUtil::JSEscape($component->getSiteTemplateId())?>',
 			templateFolder: '<?=CUtil::JSEscape($templateFolder)?>'
 		});
+		if (window.miinoxSplitCart) {
+			window.miinoxSplitCart();
+		}
 	</script>
 	<?
 }

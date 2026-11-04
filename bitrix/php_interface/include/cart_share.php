@@ -198,7 +198,7 @@ function miinoxApplySharedCart(string $code): string
 	}
 
 	if (in_array($code, miinoxSharedCartAppliedCodes(), true)) {
-		return 'Эти товары уже добавлены к вашей корзине.';
+		return 'Позиции из ссылки показаны отдельно от ваших.';
 	}
 
 	$items = json_decode((string)$row['ITEMS'], true);
@@ -231,7 +231,7 @@ function miinoxApplySharedCart(string $code): string
 				}
 				$name = trim((string)($prop['NAME'] ?? ''));
 				$value = trim((string)($prop['VALUE'] ?? ''));
-				if ($name === '' || $value === '') {
+				if ($name === '' || $value === '' || (string)($prop['CODE'] ?? '') === 'MIINOX_SHARE') {
 					continue;
 				}
 				$props[] = [
@@ -242,8 +242,18 @@ function miinoxApplySharedCart(string $code): string
 				];
 			}
 		}
-		$basketId = Add2BasketByProductID($productId, $quantity, [], $props ?: false);
-		if ($basketId) {
+		$props[] = [
+			'NAME' => 'По ссылке',
+			'CODE' => 'MIINOX_SHARE',
+			'VALUE' => $code,
+			'SORT' => 1000,
+		];
+		$addResult = \Bitrix\Catalog\Product\Basket::addProduct([
+			'PRODUCT_ID' => $productId,
+			'QUANTITY' => $quantity,
+			'PROPS' => $props,
+		], [], ['USE_MERGE' => 'N']);
+		if ($addResult->isSuccess()) {
 			$added++;
 		} else {
 			$failed++;
@@ -257,7 +267,86 @@ function miinoxApplySharedCart(string $code): string
 		return 'Не удалось добавить товары из ссылки.';
 	}
 	if ($failed > 0) {
-		return 'Товары из ссылки добавлены к вашей корзине. Часть позиций уже недоступна. Ваши товары сохранены.';
+		return 'По ссылке добавлены отдельные позиции — они под вашими товарами. Часть позиций из ссылки уже недоступна.';
 	}
-	return 'Товары из ссылки добавлены к вашей корзине. Ваши позиции сохранены.';
+	return 'По ссылке добавлены отдельные позиции — они под вашими товарами.';
+}
+
+function miinoxSharedCartProductIds(string $code): array
+{
+	$code = strtolower((string)preg_replace('/[^a-zA-Z0-9]/', '', $code));
+	if ($code === '' || !miinoxSharedCartEnsureTable()) {
+		return [];
+	}
+	$connection = Application::getConnection();
+	$sqlHelper = $connection->getSqlHelper();
+	$row = $connection->query(
+		"SELECT ITEMS, FUSER_ID FROM miinox_shared_cart WHERE CODE='" . $sqlHelper->forSql($code) . "' LIMIT 1"
+	)->fetch();
+	if (!$row) {
+		return [];
+	}
+	if (\Bitrix\Main\Loader::includeModule('sale')) {
+		$myFuser = (int)\Bitrix\Sale\Fuser::getId(true);
+		if ((int)$row['FUSER_ID'] > 0 && (int)$row['FUSER_ID'] === $myFuser) {
+			return [];
+		}
+	}
+	$items = json_decode((string)$row['ITEMS'], true);
+	if (!is_array($items)) {
+		return [];
+	}
+	$ids = [];
+	foreach ($items as $item) {
+		if (!is_array($item)) {
+			continue;
+		}
+		$productId = (int)($item['PRODUCT_ID'] ?? 0);
+		if ($productId > 0) {
+			$ids[$productId] = $productId;
+		}
+	}
+	return array_values($ids);
+}
+
+function miinoxTagSharedBasketLines(string $code): array
+{
+	$ids = miinoxSharedCartProductIds($code);
+	if (!$ids || !\Bitrix\Main\Loader::includeModule('sale')) {
+		return $ids;
+	}
+	$code = strtolower((string)preg_replace('/[^a-zA-Z0-9]/', '', $code));
+	$basket = \Bitrix\Sale\Basket::loadItemsForFUser(\Bitrix\Sale\Fuser::getId(true), SITE_ID);
+	$changed = false;
+	foreach ($basket as $item) {
+		if ($item->isDelay() || $item->getField('ORDER_ID') || !in_array((int)$item->getProductId(), $ids, true)) {
+			continue;
+		}
+		$props = $item->getPropertyCollection();
+		if (!$props) {
+			continue;
+		}
+		$has = false;
+		foreach ($props as $prop) {
+			if ((string)$prop->getField('CODE') === 'MIINOX_SHARE') {
+				$has = true;
+				break;
+			}
+		}
+		if ($has) {
+			continue;
+		}
+		$propItem = $props->createItem();
+		$propItem->setFields([
+			'NAME' => 'По ссылке',
+			'CODE' => 'MIINOX_SHARE',
+			'VALUE' => $code,
+			'SORT' => 1000,
+		]);
+		$changed = true;
+	}
+	if ($changed) {
+		$basket->save();
+	}
+	return $ids;
 }
