@@ -8200,6 +8200,44 @@ h3,
   margin-top: 1.7em;
 }
 
+.static-form__consent {
+  margin-top: 0.35rem;
+}
+
+.static-form .auth-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  color: #24343c;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.static-form .auth-check input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0.15rem 0 0;
+  accent-color: #206380;
+  cursor: pointer;
+}
+
+.static-form .auth-check a {
+  color: #206380;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.static-form .auth-check a:hover,
+.static-form .auth-check a:focus {
+  color: #184c61;
+  text-decoration: underline;
+}
+
 .vacancy-section .form-resume_title {
   margin-bottom: 1em;
 }

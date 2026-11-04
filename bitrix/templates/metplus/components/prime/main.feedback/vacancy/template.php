@@ -42,6 +42,10 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
         <textarea name="PREVIEW_TEXT" class="form-textarea" placeholder="Краткое описание к резюме*" required><?=$arResult['PREVIEW_TEXT']?></textarea>
     </div>
 
+    <div class="form-group static-form__consent">
+        <?php include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/auth_consent.php'; ?>
+    </div>
+
     <div class="row form-static_footer">
         <? foreach($arResult['USER_FIELD'] as $field):
         if($field['PROPERTY_TYPE'] == "F"):

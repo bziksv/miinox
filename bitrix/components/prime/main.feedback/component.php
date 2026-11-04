@@ -46,6 +46,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["submit"] <> '' && (!isset($_P
 			}
 		}
 
+		if ($this->GetTemplateName() === 'vacancy' && (string)($_POST['personal_consent'] ?? '') !== 'Y') {
+			$arResult["ERROR_MESSAGE"][] = 'Нужно согласие на обработку персональных данных';
+		}
+
 
 		if(empty($arResult["ERROR_MESSAGE"])){
 			$el = new CIBlockElement;
