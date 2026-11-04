@@ -66,13 +66,14 @@ $crumbs = [
     ['TITLE' => 'Каталог', 'LINK' => '/catalog/'],
 ];
 if ($sectionId > 0) {
-    $nav = CIBlockSection::GetNavChain($iblockId, $sectionId, ['ID', 'NAME', 'SECTION_PAGE_URL', 'CODE']);
-    while ($section = $nav->GetNext()) {
+    $nav = CIBlockSection::GetNavChain($iblockId, $sectionId, ['ID', 'NAME', 'CODE']);
+    while ($section = $nav->Fetch()) {
+        $code = (string)$section['CODE'];
         $crumbs[] = [
-            'TITLE' => $section['NAME'],
-            'LINK' => $section['SECTION_PAGE_URL'],
+            'TITLE' => trim((string)$section['NAME']),
+            'LINK' => $code !== '' ? '/catalog/' . $code . '/' : '',
         ];
-        $sectionCode = (string)$section['CODE'];
+        $sectionCode = $code;
     }
 }
 $crumbs[] = ['TITLE' => (string)$arResult['NAME'], 'LINK' => ''];

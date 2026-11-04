@@ -15330,6 +15330,11 @@ img.contact-section-desc.is-active {
   color: #5c6b76;
 }
 
+.product-card__crumbs li a:hover {
+  color: #206380;
+  border-bottom-color: #206380;
+}
+
 .product-card__crumbs li:last-child {
   color: #14222d;
   font-weight: 600;
