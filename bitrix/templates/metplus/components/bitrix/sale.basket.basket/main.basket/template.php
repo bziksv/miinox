@@ -117,7 +117,7 @@ if (empty($arResult['ERROR_MESSAGE']))
                 * цена за единицу товара будет уточнена оператором
 				</small></p>
 
-			<noindex><small><p>На нашем сайте осуществляется сбор персональных данных и <span style="color: #206380;"><a target="_blank" href="/upload/politics.pdf">cookies</a></span> для улучшения работы сайта, персонализации контента и анализа посещаемости. Продолжая, вы соглашаетесь с использованием cookies и <span style="color: #206380;"><a target="_blank" href="/upload/compliance.pdf">обработкой ваших данных</a></span> в соответствии с нашей <span style="color: #206380;"><a target="_blank" href="/upload/politics.pdf">Политикой конфиденциальности</a></span>.</p></small></noindex>
+			<noindex><small><p>Наш сайт использует cookies для работоспособности и сбора статистики: с их помощью мы анализируем пользовательскую активность, улучшаем работу сайта и делаем рекламу более релевантной. Оставаясь на сайте, вы даёте <a href="/upload/compliance.pdf" target="_blank" rel="nofollow noopener">согласие на обработку персональных данных</a> и принимаете <a href="/upload/politics.pdf" target="_blank" rel="nofollow noopener">Политику обработки персональных данных</a>. Также применяются рекомендательные технологии. Сохранение cookies можно отключить в настройках браузера в любой момент.</p></small></noindex>
         </div>
 
         <div class="cart-content_footer" data-entity="basket-total-block"></div>
