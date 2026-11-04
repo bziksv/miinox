@@ -54,6 +54,10 @@ if(check_bitrix_sessid() && $_SERVER["REQUEST_METHOD"] == "POST")
         }
     }
 
+    if ((string)$request['personal_consent'] !== 'Y') {
+        $arResult["ERROR_MESSAGE"][] = 'Нужно согласие на обработку персональных данных';
+    }
+
     if(empty($arResult["ERROR_MESSAGE"]))
     {
 
