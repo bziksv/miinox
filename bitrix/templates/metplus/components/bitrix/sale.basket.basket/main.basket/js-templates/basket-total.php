@@ -9,7 +9,7 @@ use Bitrix\Main\Localization\Loc;
 <script id="basket-total-template" type="text/html">
 
     <div class="left-column">
-        <a href="" class="gray-btn back-site_btn js_back-site">Вернуться к сайту</a>
+        <a href="/" class="gray-btn back-site_btn js_back-site">Вернуться к сайту</a>
     </div>
     <div class="right-column">
         <div class="cart-total-price">

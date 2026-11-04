@@ -655,17 +655,77 @@ jQuery(document).ready(function($) {
     }
   });
 
-  $('.head-cart').on('click', 'a', function() {
+  function miinoxCartPath() {
+    return (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+  }
 
-    $.get("/ajax/", { component: "cart" }).done(function(data) {
-      $('.cart-content > .cart-content_first').html(data);
-      $('.cart-content').addClass('is-open');
-      if (!is_mobile()) {
-        $('html').addClass('is-hidden');
+  function miinoxIsCartPath(path) {
+    path = path || miinoxCartPath();
+    return path === '/cart' || path.indexOf('/cart/s/') === 0;
+  }
+
+  function miinoxShowShareNotice() {
+    var $page = $('#miinox-cart-page');
+    if (!$page.length) return;
+    var text = $.trim($page.attr('data-share-notice') || '');
+    if (!text) return;
+    var $body = $('.cart-content_first .cart-content_body').first();
+    if (!$body.length || $body.find('.cart-share-notice').length) return;
+    $('<p class="cart-share-notice"></p>').text(text).prependTo($body);
+  }
+
+  function miinoxOpenCart(options) {
+    options = options || {};
+    var $root = $('.cart-content');
+    var filled = $.trim($root.children('.cart-content_first').text()) !== '';
+    if (!options.force && $root.hasClass('is-open') && filled) {
+      if (options.push && !miinoxIsCartPath()) {
+        history.pushState({ miinoxCart: true }, '', '/cart/');
+      }
+      return;
+    }
+    $root.addClass('is-open');
+    if (!is_mobile()) {
+      $('html').addClass('is-hidden');
+    }
+    $.get('/ajax/', { component: 'cart' }).done(function(data) {
+      $root.children('.cart-content_first').html(data);
+      if (!$root.hasClass('is-open')) return;
+      miinoxShowShareNotice();
+      if (options.push && !miinoxIsCartPath()) {
+        history.pushState({ miinoxCart: true }, '', '/cart/');
       }
     });
+  }
 
+  function miinoxCloseCart(fromPop) {
+    $('.cart-content, .cart-content_second, .cart-content_third').removeClass('is-open');
+    $('html').removeClass('is-hidden');
+    if (fromPop) return;
+    if (history.state && history.state.miinoxCart) {
+      history.back();
+      return;
+    }
+    if (miinoxIsCartPath() && $('#miinox-cart-page').length) {
+      window.location.href = '/';
+    }
+  }
+
+  $('.head-cart').on('click', 'a', function() {
+    miinoxOpenCart({ push: true });
     return false;
+  });
+
+  if (miinoxIsCartPath() || $('#miinox-cart-page').length) {
+    miinoxOpenCart({ push: false });
+  }
+
+  window.addEventListener('popstate', function() {
+    if (miinoxIsCartPath()) {
+      miinoxOpenCart({ push: false, force: true });
+    } else {
+      miinoxCloseCart(true);
+    }
   });
 
   $('.cart-content').on('click', '.js-checkout', function() {
@@ -686,17 +746,63 @@ jQuery(document).ready(function($) {
   });
 
   $('.cart-content').on('click', '.cart-close', function () {
-    $('.cart-content').removeClass('is-open');
-    $('.cart-content_second').removeClass('is-open');
-    $('.cart-content_third').removeClass('is-open');
-    $('html').removeClass('is-hidden');
+    miinoxCloseCart(false);
+  });
+
+  $('.cart-content').on('click', '.js_back-site', function () {
+    if ($(this).closest('.cart-content_second, .cart-content_third').length) {
+      return;
+    }
+    miinoxCloseCart(false);
+    return false;
+  });
+
+  $('.cart-content').on('click', '.cart-share__btn', function () {
+    var $box = $(this).closest('.cart-share');
+    var $status = $box.find('.cart-share__status');
+    $box.addClass('is-ready');
+    $status.text('Сохраняем набор…');
+    $.post('/ajax/cart_share.php', { sessid: $(this).attr('data-sessid') }).done(function (data) {
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { data = null; }
+      }
+      if (!data || !data.url) {
+        $status.text((data && data.error) || 'Не удалось создать ссылку.');
+        return;
+      }
+      $box.find('.cart-share__url').val(data.url);
+      $status.text('Ссылка готова. Чужие товары не удалятся, набор добавится к ним.');
+    }).fail(function () {
+      $status.text('Не удалось создать ссылку.');
+    });
+    return false;
+  });
+
+  $('.cart-content').on('click', '.cart-share__copy', function () {
+    var $box = $(this).closest('.cart-share');
+    var input = $box.find('.cart-share__url').get(0);
+    if (!input || !input.value) return false;
+    var done = function () {
+      $box.find('.cart-share__status').text('Ссылка скопирована.');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(input.value).then(done).catch(function () {
+        input.focus();
+        input.select();
+        document.execCommand('copy');
+        done();
+      });
+    } else {
+      input.focus();
+      input.select();
+      document.execCommand('copy');
+      done();
+    }
+    return false;
   });
 
   $('.js-back-site_2').on('click', function() {
-    $('.cart-content').removeClass('is-open');
-    $('.cart-content_second').removeClass('is-open');
-    $('.cart-content_third').removeClass('is-open');
-    $('html').removeClass('is-hidden');
+    miinoxCloseCart(false);
     return false;
   });
   if ($(window).width() < 575) {

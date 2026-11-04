@@ -1,5 +1,13 @@
 <?php
 $arUrlRewrite=array (
+  30 =>
+  array (
+    'CONDITION' => '#^/cart/s/([0-9a-zA-Z]+)/?#',
+    'RULE' => 'share=$1',
+    'ID' => '',
+    'PATH' => '/cart/index.php',
+    'SORT' => 10,
+  ),
   1 => 
   array (
     'CONDITION' => '#^/online/([\\.\\-0-9a-zA-Z]+)(/?)([^/]*)#',

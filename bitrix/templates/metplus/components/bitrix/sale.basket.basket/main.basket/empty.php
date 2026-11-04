@@ -38,7 +38,7 @@ use Bitrix\Main\Localization\Loc;
 
     <div class="cart-content_footer">
         <div class="left-column">
-            <a href="" class="gray-btn back-site_btn js_back-site">Вернуться к сайту</a>
+            <a href="/" class="gray-btn back-site_btn js_back-site">Вернуться к сайту</a>
         </div>
     </div>
 

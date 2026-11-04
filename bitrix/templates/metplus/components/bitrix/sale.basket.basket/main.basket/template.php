@@ -83,7 +83,20 @@ if (empty($arResult['ERROR_MESSAGE']))
 	<div class="container" id="basket-root">
 
         <div class="cart-content_header">
-            <div class="cart-content_title">Состав корзины</div>
+            <div class="cart-share">
+                <div class="cart-content_heading">
+                    <div class="cart-content_title">Состав корзины</div>
+                    <button type="button" class="cart-share__btn" data-sessid="<?=bitrix_sessid()?>">Поделиться</button>
+                </div>
+                <div class="cart-share__panel">
+                    <p class="cart-share__hint">Ссылка откроет этот набор. Если у получателя уже есть товары, они останутся, а эти позиции добавятся к ним.</p>
+                    <div class="cart-share__row">
+                        <input type="text" class="cart-share__url" readonly value="" aria-label="Ссылка на корзину">
+                        <button type="button" class="cart-share__copy">Копировать</button>
+                    </div>
+                    <p class="cart-share__status"></p>
+                </div>
+            </div>
             <button type="button" class="cart-close" aria-label="Закрыть"></button>
             <ul class="cart-steps">
                 <li class="cart-step_item active active-mod">Шаг 1</li>

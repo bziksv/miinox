@@ -6,6 +6,7 @@ if (in_array($miinoxHost, ['localhost', 'localhost:8091', '127.0.0.1', '127.0.0.
 }
 
 require_once $_SERVER["DOCUMENT_ROOT"] . "/bitrix/php_interface/include/functions.php";
+require_once $_SERVER["DOCUMENT_ROOT"] . "/bitrix/php_interface/include/cart_share.php";
 
 function priceDiscount($id){
     global $USER;
