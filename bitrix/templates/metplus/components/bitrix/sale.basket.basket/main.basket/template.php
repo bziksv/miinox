@@ -86,7 +86,7 @@ if (empty($arResult['ERROR_MESSAGE']))
             <div class="cart-share">
                 <div class="cart-content_heading">
                     <div class="cart-content_title">Состав корзины</div>
-                    <button type="button" class="cart-share__btn" data-sessid="<?=bitrix_sessid()?>">Поделиться</button>
+                    <button type="button" class="cart-share__btn" data-sessid="<?=bitrix_sessid()?>">Поделиться корзиной</button>
                 </div>
                 <div class="cart-share__panel">
                     <p class="cart-share__hint">Ссылка откроет этот набор. Если у получателя уже есть товары, они останутся, а эти позиции добавятся к ним.</p>
