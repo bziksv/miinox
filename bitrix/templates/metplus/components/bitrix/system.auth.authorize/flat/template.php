@@ -47,9 +47,9 @@ if (!empty($arResult['ERROR_MESSAGE'])):
 <?php endforeach?>
 
 		<div class="bx-authform-formgroup-container">
-			<div class="bx-authform-label-container">E-mail</div>
+			<div class="bx-authform-label-container">Логин или e-mail</div>
 			<div class="bx-authform-input-container">
-				<input type="email" name="USER_LOGIN" maxlength="255" value="<?=$arResult["LAST_LOGIN"]?>" autocomplete="username" />
+				<input type="text" name="USER_LOGIN" maxlength="255" value="<?=$arResult["LAST_LOGIN"]?>" autocomplete="username" />
 			</div>
 		</div>
 		<div class="bx-authform-formgroup-container">
