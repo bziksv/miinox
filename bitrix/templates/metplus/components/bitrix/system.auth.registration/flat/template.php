@@ -115,13 +115,6 @@ new BX.PhoneAuth({
 		</div>
 
 		<div class="bx-authform-formgroup-container">
-			<div class="bx-authform-label-container"><span class="bx-authform-starrequired">*</span><?=GetMessage("AUTH_LOGIN_MIN")?></div>
-			<div class="bx-authform-input-container">
-				<input type="text" name="USER_LOGIN" maxlength="255" value="<?=$arResult["USER_LOGIN"]?>" />
-			</div>
-		</div>
-
-		<div class="bx-authform-formgroup-container">
 			<div class="bx-authform-label-container"><span class="bx-authform-starrequired">*</span><?=GetMessage("AUTH_PASSWORD_REQ")?></div>
 			<div class="bx-authform-input-container">
 <?php if($arResult["SECURE_AUTH"]):?>

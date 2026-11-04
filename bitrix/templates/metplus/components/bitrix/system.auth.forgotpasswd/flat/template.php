@@ -37,7 +37,7 @@ if(!empty($arParams["~AUTH_RESULT"]["MESSAGE"])):
 		<?= bitrix_sessid_post(); ?>
 
 		<div class="bx-authform-formgroup-container">
-			<div class="bx-authform-label-container"><?= GetMessage("AUTH_LOGIN_EMAIL")?></div>
+			<div class="bx-authform-label-container">E-mail</div>
 			<div class="bx-authform-input-container">
 				<input type="text" name="USER_LOGIN" maxlength="255" value="<?=$arResult["USER_LOGIN"]?>" />
 				<input type="hidden" name="USER_EMAIL" />

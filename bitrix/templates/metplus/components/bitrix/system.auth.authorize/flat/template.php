@@ -64,9 +64,9 @@ $APPLICATION->IncludeComponent("bitrix:socserv.auth.form",
 <?php endforeach?>
 
 		<div class="bx-authform-formgroup-container">
-			<div class="bx-authform-label-container"><?=GetMessage("AUTH_LOGIN")?></div>
+			<div class="bx-authform-label-container">E-mail</div>
 			<div class="bx-authform-input-container">
-				<input type="text" name="USER_LOGIN" maxlength="255" value="<?=$arResult["LAST_LOGIN"]?>" />
+				<input type="email" name="USER_LOGIN" maxlength="255" value="<?=$arResult["LAST_LOGIN"]?>" autocomplete="username" />
 			</div>
 		</div>
 		<div class="bx-authform-formgroup-container">

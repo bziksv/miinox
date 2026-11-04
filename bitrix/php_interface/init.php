@@ -66,6 +66,11 @@ function bxModifySaleMails($orderID, &$eventName, &$arFields)
 AddEventHandler('main', 'OnBeforeUserRegister', 'miinoxRequireRegisterPhone');
 function miinoxRequireRegisterPhone(&$fields)
 {
+    $email = trim((string)($fields['EMAIL'] ?? ''));
+    if ($email !== '') {
+        $fields['LOGIN'] = $email;
+    }
+
     $digits = preg_replace('/\D+/', '', (string)($fields['PHONE_NUMBER'] ?? ''));
     if (strlen($digits) === 11 && $digits[0] === '8') {
         $digits = '7' . substr($digits, 1);
