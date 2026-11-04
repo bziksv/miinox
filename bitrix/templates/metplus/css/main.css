@@ -15958,3 +15958,225 @@ img.contact-section-desc.is-active {
     grid-template-columns: 1fr;
   }
 }
+
+.account-page {
+  padding: 1.5rem 15px 3.5rem;
+  background: #f3f6f8;
+}
+
+.account-page__inner {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+}
+
+.account-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.account-head h1 {
+  margin: 0;
+  color: #14222d;
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.account-head p {
+  margin: 0.3rem 0 0;
+  color: #5c6b76;
+  font-size: 0.95rem;
+}
+
+.account-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border: 1px solid #206380;
+  border-radius: 8px;
+  color: #206380;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.account-logout:hover,
+.account-logout:focus {
+  background: rgba(32, 99, 128, 0.08);
+  color: #184c61;
+  text-decoration: none;
+}
+
+.account-note {
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+.account-note--ok {
+  background: #e8f6ee;
+  color: #1d6b3a;
+}
+
+.account-note--err {
+  background: #fdecec;
+  color: #8d2b2b;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.account-card {
+  padding: 1.25rem 1.2rem 1.3rem;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(24, 76, 97, 0.08);
+}
+
+.account-card h2,
+.account-card__head h2 {
+  margin: 0;
+  color: #14222d;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.account-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.account-card__head a {
+  color: #206380;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.account-card__head a:hover,
+.account-card__head a:focus {
+  color: #184c61;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.8rem;
+}
+
+.account-field span {
+  color: #5c6b76;
+  font-size: 0.82rem;
+}
+
+.account-field input {
+  width: 100%;
+  height: 46px;
+  padding: 0 0.85rem;
+  border: 1px solid #c5d3df;
+  border-radius: 8px;
+  background: #fff;
+  color: #14222d;
+  font: inherit;
+  font-size: 16px;
+}
+
+.account-field input:focus {
+  border-color: #206380;
+  outline: none;
+}
+
+.account-card form button {
+  width: 100%;
+  height: 48px;
+  margin-top: 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #206380;
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-card form button:hover {
+  background: #184c61;
+}
+
+.account-empty {
+  margin: 0;
+  color: #5c6b76;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.account-table-wrap {
+  overflow-x: auto;
+}
+
+.account-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.account-table th {
+  padding: 0 0.7rem 0.55rem 0;
+  border-bottom: 1px solid #d5e0e6;
+  color: #5c6b76;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.account-table td {
+  padding: 0.7rem 0.7rem 0.7rem 0;
+  border-bottom: 1px solid #e6eef2;
+  color: #14222d;
+  vertical-align: middle;
+}
+
+.account-table th:last-child,
+.account-table td:last-child {
+  padding-right: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.account-status {
+  display: inline-block;
+  max-width: 16rem;
+  color: #206380;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.account-status.is-canceled {
+  color: #8d2b2b;
+}
+
+@media (max-width: 860px) {
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-head {
+    align-items: flex-start;
+  }
+}
