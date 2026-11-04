@@ -10,7 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=legal-4" rel="stylesheet" />
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=forms-consent" rel="stylesheet" />
 
 </head>
 <body>

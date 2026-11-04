@@ -41,15 +41,7 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
         <input type="submit" name="submit" class="main-btn form-callback_submit" value="Отправить">
     </div>
 
-    <br>
-    <div class="text-center">
-        <span class="form-static_policy-text">
-
-Нажимая кнопку вы соглашаетесь с 
-<a href="/upload/politics.pdf" target="_blank">политикой конфилициальности </a>
-и 
-<a href="/upload/compliance.pdf" target="_blank">правилами обработки персональных данных</a>
-
-</span>
+    <div class="form-consent">
+        <?php include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/auth_consent.php'; ?>
     </div>
 </form>

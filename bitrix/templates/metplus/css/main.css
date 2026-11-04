@@ -8284,11 +8284,14 @@ h3,
   margin-top: 1.7em;
 }
 
-.static-form__consent {
-  margin-top: 0.35rem;
+.static-form__consent,
+.form-consent {
+  margin: 0.85rem 0 0.4rem;
 }
 
-.static-form .auth-check {
+.static-form .auth-check,
+.form-callback .auth-check,
+.form-static_small .auth-check {
   display: flex;
   align-items: flex-start;
   gap: 0.55rem;
@@ -8300,7 +8303,9 @@ h3,
   cursor: pointer;
 }
 
-.static-form .auth-check input {
+.static-form .auth-check input,
+.form-callback .auth-check input,
+.form-static_small .auth-check input {
   flex: 0 0 18px;
   width: 18px;
   height: 18px;
@@ -8309,7 +8314,9 @@ h3,
   cursor: pointer;
 }
 
-.static-form .auth-check a {
+.static-form .auth-check a,
+.form-callback .auth-check a,
+.form-static_small .auth-check a {
   color: #206380;
   font-weight: 700;
   text-decoration: underline;
@@ -8317,7 +8324,11 @@ h3,
 }
 
 .static-form .auth-check a:hover,
-.static-form .auth-check a:focus {
+.static-form .auth-check a:focus,
+.form-callback .auth-check a:hover,
+.form-callback .auth-check a:focus,
+.form-static_small .auth-check a:hover,
+.form-static_small .auth-check a:focus {
   color: #184c61;
   text-decoration: underline;
 }

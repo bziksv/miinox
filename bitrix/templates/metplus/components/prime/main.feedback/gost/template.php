@@ -39,6 +39,9 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
             <input type="submit" name="submit" class="form-static_small-submit main-btn" value="Перезвонить">
         </div>
     </div>
+    <div class="form-consent">
+        <?php include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/auth_consent.php'; ?>
+    </div>
 </form>
 
 

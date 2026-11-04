@@ -46,15 +46,10 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 
         <div class="col-md-4">
             <input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
+            <div class="form-consent">
+                <?php include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/auth_consent.php'; ?>
+            </div>
             <input type="submit" name="submit" value="Отправить" class="form-static_submit-btn main-btn">
-
-            <span class="form-static_policy-text">
-Нажимая кнопку вы соглашаетесь с 
-<a href="/upload/politics.pdf" target="_blank">политикой конфилициальности </a>
-и 
-<a href="/upload/compliance.pdf" target="_blank">правилами обработки персональных данных</a>
-
-</span>
         </div>
     </div>
 </form>

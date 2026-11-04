@@ -69,6 +69,9 @@ if(!empty($arParams["~AUTH_RESULT"]["MESSAGE"])):
 <?php endif?>
 
 		<div class="bx-authform-formgroup-container">
+			<?php include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/auth_consent.php'; ?>
+		</div>
+		<div class="bx-authform-formgroup-container">
 			<input type="submit" class="btn btn-primary" name="send_account_info" value="<?=GetMessage("AUTH_SEND")?>" />
 		</div>
 
