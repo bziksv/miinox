@@ -10029,9 +10029,23 @@ img.contact-section-desc.is-active {
 
 .footer-legal__cookies {
   font-size: 0.8rem;
-  margin: 0;
-  opacity: 0.88;
+  margin: 0.85rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
   line-height: 1.45;
+}
+
+.footer-legal a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.footer-legal a:hover,
+.footer-legal a:focus {
+  color: #fff;
+  text-decoration: underline;
 }
 
 @media (max-width: 991px) {
@@ -10109,7 +10123,13 @@ img.contact-section-desc.is-active {
 }
 .rules a{
   display: block;
+  width: -webkit-fit-content;
+  width: fit-content;
   font-size: 0.8rem;
+}
+
+.rules a + a {
+  margin-top: 0.28rem;
 }
 
 .logo-prime {
