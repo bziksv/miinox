@@ -15762,19 +15762,21 @@ img.contact-section-desc.is-active {
 
 .auth-card .bx-captcha {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin: 0.35rem 0 0.55rem;
-  padding: 0.55rem;
-  border: 1px solid #d5e0e6;
-  border-radius: 8px;
-  background: #fff;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
 }
 
 .auth-card .bx-captcha img {
   display: block;
-  width: 240px;
+  width: auto;
   max-width: 100%;
   height: auto;
+  border: 1px solid #d5e0e6;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .auth-card .auth-pass-gen {

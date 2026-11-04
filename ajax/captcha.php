@@ -8,21 +8,49 @@ $_SERVER['HTTP_ACCEPT_ENCODING'] = '';
 
 require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php';
 
-$cpt = new CCaptcha();
-$cpt->SetImageSize(240, 72);
-$cpt->SetTextWriting(0, 0, 18, 40, 44, 34);
-$cpt->SetEllipsesNumber(0);
-$cpt->SetLinesNumber(0);
-$cpt->SetTextTransparent(false, 0);
-$cpt->SetBGColor([255, 255, 255]);
-$cpt->SetTextColor([20, 34, 45]);
-$cpt->SetBorderColor([213, 224, 230]);
-
 $sid = (isset($_GET['captcha_sid']) && is_string($_GET['captcha_sid'])) ? $_GET['captcha_sid'] : '';
-if ($sid !== '' && $cpt->InitCode($sid)) {
-    $cpt->Output();
-} else {
+$cpt = new CCaptcha();
+if ($sid === '' || !$cpt->InitCode($sid)) {
     $cpt->OutputError();
+    return;
 }
 
-require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/epilog_after.php';
+$code = preg_replace('/\D+/', '', (string)$cpt->code);
+$chars = preg_split('//u', $code, -1, PREG_SPLIT_NO_EMPTY);
+if (!$chars) {
+    $cpt->OutputError();
+    return;
+}
+
+$font = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/fonts/font.ttf';
+$fontSize = 36;
+$padX = 16;
+$gap = 14;
+$widths = [];
+$total = 0;
+foreach ($chars as $char) {
+    $bounds = imagettfbbox($fontSize, 0, $font, $char);
+    $width = abs($bounds[2] - $bounds[0]) + 4;
+    $widths[] = $width;
+    $total += $width;
+}
+
+$imageWidth = $padX * 2 + $total + $gap * (count($chars) - 1);
+$imageHeight = 84;
+$image = imagecreatetruecolor($imageWidth, $imageHeight);
+$background = imagecolorallocate($image, 255, 255, 255);
+$ink = imagecolorallocate($image, 20, 34, 45);
+imagefilledrectangle($image, 0, 0, $imageWidth, $imageHeight, $background);
+
+$x = $padX;
+foreach ($chars as $index => $char) {
+    imagettftext($image, $fontSize, 0, $x, 58, $ink, $font, $char);
+    $x += $widths[$index] + $gap;
+}
+
+header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+header('Content-Type: image/jpeg');
+imagejpeg($image, null, 95);
+imagedestroy($image);

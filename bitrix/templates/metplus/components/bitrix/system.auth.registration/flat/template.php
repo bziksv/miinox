@@ -190,16 +190,23 @@ $APPLICATION->IncludeComponent(
 
 	<?php endforeach;?>
 <?php endif;?>
-<?php if ($arResult["USE_CAPTCHA"] == "Y"):?>
-		<input type="hidden" name="captcha_sid" value="<?=$arResult["CAPTCHA_CODE"]?>" />
+<?php if ($arResult["USE_CAPTCHA"] == "Y"):
+    $captchaSid = (string)$arResult["CAPTCHA_CODE"];
+    $digitCaptcha = new CCaptcha();
+    $digitCaptcha->SetCodeChars(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
+    $digitCaptcha->SetCodeLength(5);
+    $digitCaptcha->SetCaptchaCode();
+    $captchaSid = (string)$digitCaptcha->GetSID();
+?>
+		<input type="hidden" name="captcha_sid" value="<?=htmlspecialcharsbx($captchaSid)?>" />
 
 		<div class="bx-authform-formgroup-container">
 			<div class="bx-authform-label-container">
-				<span class="bx-authform-starrequired">*</span><?=GetMessage("CAPTCHA_REGF_PROMT")?>
+				<span class="bx-authform-starrequired">*</span>Введите цифры с картинки
 			</div>
-			<div class="bx-captcha"><img src="/ajax/captcha.php?captcha_sid=<?=$arResult["CAPTCHA_CODE"]?>" width="240" height="72" alt="Код с картинки" /></div>
+			<div class="bx-captcha"><img src="/ajax/captcha.php?captcha_sid=<?=htmlspecialcharsbx($captchaSid)?>" width="280" height="84" alt="Цифры с картинки" /></div>
 			<div class="bx-authform-input-container">
-				<input type="text" name="captcha_word" maxlength="50" value="" autocomplete="off"/>
+				<input type="text" name="captcha_word" maxlength="5" inputmode="numeric" autocomplete="off" />
 			</div>
 		</div>
 
