@@ -34,23 +34,6 @@ if (!empty($arResult['ERROR_MESSAGE'])):
 
 	<h3 class="bx-title"><?=GetMessage("AUTH_PLEASE_AUTH")?></h3>
 
-<?php if($arResult["AUTH_SERVICES"]):?>
-	<?php
-$APPLICATION->IncludeComponent("bitrix:socserv.auth.form",
-	"flat",
-	array(
-		"AUTH_SERVICES" => $arResult["AUTH_SERVICES"],
-		"AUTH_URL" => $arResult["AUTH_URL"],
-		"POST" => $arResult["POST"],
-	),
-	$component,
-	array("HIDE_ICONS"=>"Y")
-);
-?>
-
-	<hr class="bxe-light">
-<?php endif?>
-
 	<form name="form_auth" method="post" target="_top" action="<?=$arResult["AUTH_URL"]?>">
 
 		<input type="hidden" name="AUTH_FORM" value="Y" />
