@@ -32,6 +32,35 @@ foreach ($arResult['CARD_SPECS'] as $spec) {
         $facts[] = $spec;
     }
 }
+$factIcon = static function (string $name, string $value): string {
+    $s = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+    $wrap = static function (string $body): string {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' . $body . '</svg>';
+    };
+    if ($name === 'Форма') {
+        $shape = mb_strtolower($value, 'UTF-8');
+        if (mb_strpos($shape, 'квадрат') !== false) {
+            return $wrap('<rect x="5" y="5" width="14" height="14" rx="1.6" ' . $s . '/>');
+        }
+        if (mb_strpos($shape, 'прямоуг') !== false) {
+            return $wrap('<rect x="3.5" y="7" width="17" height="10" rx="1.6" ' . $s . '/>');
+        }
+        if (mb_strpos($shape, 'шести') !== false) {
+            return $wrap('<path d="M12 4.2 19 8.1v7.8L12 19.8 5 15.9V8.1Z" ' . $s . '/>');
+        }
+        return $wrap('<circle cx="12" cy="12" r="6.5" ' . $s . '/>');
+    }
+    $icons = [
+        'Диаметр' => '<circle cx="12" cy="12" r="6.4" ' . $s . '/><path d="M7.2 16.5 16.8 7.5" ' . $s . '/>',
+        'Толщина' => '<path d="M4.5 6.2h15M4.5 17.8h15M12 6.2v11.6" ' . $s . '/><path d="m9.2 9.4 2.8-3.2 2.8 3.2M9.2 14.6 12 17.8l2.8-3.2" ' . $s . '/>',
+        'Длина' => '<path d="M4.5 12h15" ' . $s . '/><path d="m7.4 9.2-2.9 2.8 2.9 2.8M16.6 9.2l2.9 2.8-2.9 2.8" ' . $s . '/>',
+        'Ширина' => '<path d="M6.2 4.5v15M17.8 4.5v15M6.2 12h11.6" ' . $s . '/><path d="m9.4 9.2-3.2 2.8 3.2 2.8M14.6 9.2l3.2 2.8-3.2 2.8" ' . $s . '/>',
+        'Марка стали/сплава' => '<path d="M12 3.8 19.2 12 12 20.2 4.8 12Z" ' . $s . '/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
+        'Поверхность' => '<rect x="4.5" y="4.5" width="15" height="15" rx="2" ' . $s . '/><path d="m8 15.4 7.4-7.4M7.2 12.2 12.2 7.2M12.2 16.8l4.6-4.6" ' . $s . '/>',
+        'DN' => '<circle cx="12" cy="12" r="7.2" ' . $s . '/><circle cx="12" cy="12" r="3" ' . $s . '/>',
+    ];
+    return $wrap($icons[$name] ?? '<circle cx="12" cy="12" r="6" ' . $s . '/>');
+};
 ?>
 <div class="product-card-page">
     <ul class="breadcrumbs product-card__crumbs">
@@ -68,9 +97,13 @@ foreach ($arResult['CARD_SPECS'] as $spec) {
             <?php if ($facts): ?>
             <ul class="product-card__facts">
                 <?php foreach ($facts as $fact): ?>
+                <?php $factValue = implode(', ', $fact['VALUES']); ?>
                 <li>
-                    <span><?=htmlspecialcharsbx($fact['NAME'])?></span>
-                    <b><?=htmlspecialcharsbx(implode(', ', $fact['VALUES']))?></b>
+                    <span class="product-card__fact-icon" aria-hidden="true"><?=$factIcon($fact['NAME'], $factValue)?></span>
+                    <span class="product-card__fact-copy">
+                        <span><?=htmlspecialcharsbx($fact['NAME'])?></span>
+                        <b><?=htmlspecialcharsbx($factValue)?></b>
+                    </span>
                 </li>
                 <?php endforeach; ?>
             </ul>

@@ -10,7 +10,7 @@
 
     <? $APPLICATION->ShowHead(); ?>
     <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css?v=w1630b" rel="stylesheet" />
-    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=card-crumbs" rel="stylesheet" />
+    <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css?v=card-fact-icons3" rel="stylesheet" />
 
 </head>
 <body>
