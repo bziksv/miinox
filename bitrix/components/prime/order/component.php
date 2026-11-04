@@ -43,6 +43,80 @@ if($arParams['PERSON_TYPE']){
     }
 }
 
+$prefill = [];
+if (is_object($USER) && $USER->IsAuthorized()) {
+    $profile = CUser::GetByID((int)$USER->GetID())->Fetch() ?: [];
+    $fullName = trim(implode(' ', array_filter([
+        trim((string)($profile['LAST_NAME'] ?? '')),
+        trim((string)($profile['NAME'] ?? '')),
+        trim((string)($profile['SECOND_NAME'] ?? '')),
+    ])));
+    $phone = '';
+    foreach (['PERSONAL_PHONE', 'PERSONAL_MOBILE', 'WORK_PHONE'] as $phoneField) {
+        $phone = trim((string)($profile[$phoneField] ?? ''));
+        if ($phone !== '') {
+            break;
+        }
+    }
+    $address = trim(implode(', ', array_filter([
+        trim((string)($profile['PERSONAL_CITY'] ?? '')),
+        trim((string)($profile['PERSONAL_STREET'] ?? '')),
+    ])));
+    foreach ($arResult['FIELD'] as $field) {
+        $code = (string)$field['CODE'];
+        $value = '';
+        if (($field['IS_EMAIL'] ?? '') === 'Y') {
+            $value = trim((string)($profile['EMAIL'] ?? ''));
+        } elseif (($field['IS_PHONE'] ?? '') === 'Y') {
+            $value = $phone;
+        } elseif ($code === 'COMPANY') {
+            $value = trim((string)($profile['WORK_COMPANY'] ?? ''));
+        } elseif (($field['IS_PAYER'] ?? '') === 'Y' || ($field['IS_PROFILE_NAME'] ?? '') === 'Y') {
+            $value = $fullName;
+        } elseif (($field['IS_ADDRESS'] ?? '') === 'Y') {
+            $value = $address;
+        } elseif ($code === 'CITY') {
+            $value = trim((string)($profile['PERSONAL_CITY'] ?? ''));
+        } elseif ($code === 'ZIP') {
+            $value = trim((string)($profile['PERSONAL_ZIP'] ?? ''));
+        }
+        if ($value !== '') {
+            $prefill[$code] = $value;
+        }
+    }
+
+    $lastOrder = CSaleOrder::GetList(
+        ['ID' => 'DESC'],
+        ['USER_ID' => (int)$USER->GetID(), 'LID' => SITE_ID],
+        false,
+        ['nTopCount' => 1],
+        ['ID']
+    )->Fetch();
+    if ($lastOrder) {
+        $propRes = CSaleOrderPropsValue::GetList([], ['ORDER_ID' => (int)$lastOrder['ID']]);
+        while ($prop = $propRes->Fetch()) {
+            $code = (string)$prop['CODE'];
+            $value = trim((string)$prop['VALUE']);
+            if ($value !== '' && empty($prefill[$code])) {
+                $prefill[$code] = $value;
+            }
+        }
+    }
+}
+
+if (!empty($arResult['FIELD'])) {
+    $posted = check_bitrix_sessid() && $_SERVER['REQUEST_METHOD'] === 'POST';
+    foreach ($arResult['FIELD'] as &$field) {
+        $code = (string)$field['CODE'];
+        if ($posted && isset($_REQUEST[$code]) && is_string($_REQUEST[$code])) {
+            $field['VALUE'] = $_REQUEST[$code];
+        } else {
+            $field['VALUE'] = (string)($prefill[$code] ?? '');
+        }
+    }
+    unset($field);
+}
+
 if(check_bitrix_sessid() && $_SERVER["REQUEST_METHOD"] == "POST")
 {
     $request = Context::getCurrent()->getRequest();

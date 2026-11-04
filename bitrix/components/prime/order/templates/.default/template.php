@@ -36,7 +36,7 @@ $this->setFrameMode(true);
                 <? foreach ($arResult['FIELD'] as $field):?>
                 <div class="col-md-6">
                     <div class="form-group">
-                        <input type="<?=($field['DESCRIPTION']) ?: 'text'?>" class="form-input" name="<?=$field['CODE']?>" placeholder="<?=$field['NAME']?><?if($field['REQUIED'] == 'Y'):?>*<?endif;?>" <?if($field['REQUIED'] == 'Y'):?>required<?endif;?>>
+                        <input type="<?=($field['DESCRIPTION']) ?: 'text'?>" class="form-input" name="<?=$field['CODE']?>" value="<?=htmlspecialcharsbx((string)($field['VALUE'] ?? ''))?>" placeholder="<?=$field['NAME']?><?if($field['REQUIED'] == 'Y'):?>*<?endif;?>" <?if($field['REQUIED'] == 'Y'):?>required<?endif;?>>
                     </div>
                 </div>
                 <? endforeach; ?>
