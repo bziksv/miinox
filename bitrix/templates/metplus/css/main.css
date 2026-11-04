@@ -15335,10 +15335,21 @@ img.contact-section-desc.is-active {
   }
 }
 
+.main-content > .row.bx-site {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.main-content > .row.bx-site > .col {
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .product-card-page {
-  width: min(1280px, calc(100% - 56px));
-  margin: 0 auto;
-  padding: 1.25rem 0 3.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 1.25rem 15px 3.5rem;
 }
 
 .product-card__crumbs {
