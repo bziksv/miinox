@@ -26,6 +26,12 @@
             <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var loader = document.querySelector('.wrapper-loader');
+            if (loader) loader.style.display = 'none';
+        });
+    </script>
     <header class="ui-header">
         <div class="main-head">
             <div class="container">

@@ -1,31 +1,28 @@
-<?
-define("NEED_AUTH", true);
-require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
+<?php
+define('NEED_AUTH', true);
+require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/header.php';
 
-$userName = CUser::GetFullName();
-if (!$userName)
-	$userName = CUser::GetLogin();
-?>
-<script>
-	<?if ($userName):?>
-	BX.localStorage.set("eshop_user_name", "<?=CUtil::JSEscape($userName)?>", 604800);
-	<?else:?>
-	BX.localStorage.remove("eshop_user_name");
-	<?endif?>
+global $USER;
 
-	<?if (isset($_REQUEST["backurl"]) && strlen($_REQUEST["backurl"])>0 && preg_match('#^/\w#', $_REQUEST["backurl"])):?>
-	document.location.href = "<?=CUtil::JSEscape($_REQUEST["backurl"])?>";
-	<?endif?>
-</script>
-<?
-if (is_string($_REQUEST["backurl"]) && strpos($_REQUEST["backurl"], "/") === 0)
-{
-	LocalRedirect($_REQUEST["backurl"]);
+$userName = '';
+if (is_object($USER)) {
+    $userName = trim((string)$USER->GetFullName());
+    if ($userName === '') {
+        $userName = (string)$USER->GetLogin();
+    }
 }
 
-$APPLICATION->SetTitle("Вход на сайт");
+$backurl = (isset($_REQUEST['backurl']) && is_string($_REQUEST['backurl'])) ? $_REQUEST['backurl'] : '';
+$backurlSafe = $backurl !== ''
+    && strpos($backurl, '/') === 0
+    && strpos($backurl, '//') !== 0
+    && stripos($backurl, '/login') !== 0
+    && !preg_match('/[\r\n]/', $backurl);
+$target = $backurlSafe ? $backurl : '/';
 ?>
-<p class="notetext">Вы зарегистрированы и успешно авторизовались.</p>
-
-<p><a href="/">Вернуться на главную страницу</a></p>
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>
+<script>
+	BX.localStorage.set("eshop_user_name", "<?=CUtil::JSEscape($userName)?>", 604800);
+	document.location.replace("<?=CUtil::JSEscape($target)?>");
+</script>
+<?php
+require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/footer.php';
