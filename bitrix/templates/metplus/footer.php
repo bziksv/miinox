@@ -88,12 +88,14 @@
                 <div class="footer-legal__row">
                     <div class="rules">
                         © 2006–2026. ООО «Металлинвест Инокс» <br>
-                        <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
-                        <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
+                        <a href="/legal/consent/" target="_blank">Согласие на обработку персональных данных</a>
+                        <a href="/legal/privacy/" target="_blank">Политика обработки персональных данных</a>
+                        <a href="/legal/cookie/" target="_blank">Политика использования cookie-файлов</a>
+                        <a href="/legal/recommendations/" target="_blank">Правила применения рекомендательных технологий</a>
                     </div>
                 </div>
                 <hr class="footer-legal__rule">
-                <noindex><p class="footer-legal__cookies">Наш сайт использует cookies для работоспособности и сбора статистики: с их помощью мы анализируем пользовательскую активность, улучшаем работу сайта и делаем рекламу более релевантной. Оставаясь на сайте, вы даёте <a href="/upload/compliance.pdf" target="_blank" rel="nofollow noopener">согласие на обработку персональных данных</a> и принимаете <a href="/upload/politics.pdf" target="_blank" rel="nofollow noopener">Политику обработки персональных данных</a>. Также применяются рекомендательные технологии. Сохранение cookies можно отключить в настройках браузера в любой момент.</p></noindex>
+                <noindex><p class="footer-legal__cookies">Наш сайт использует <a href="/legal/cookie/" target="_blank" rel="nofollow noopener">cookies</a> для работоспособности и сбора статистики: с их помощью мы анализируем пользовательскую активность, улучшаем работу сайта и делаем рекламу более релевантной. Оставаясь на сайте, вы даёте <a href="/legal/consent/" target="_blank" rel="nofollow noopener">согласие на обработку персональных данных</a> и принимаете <a href="/legal/privacy/" target="_blank" rel="nofollow noopener">Политику обработки персональных данных</a>. Также применяются <a href="/legal/recommendations/" target="_blank" rel="nofollow noopener">рекомендательные технологии</a>. Сохранение cookies можно отключить в настройках браузера в любой момент.</p></noindex>
             </div>
         </div>
     </div>
