@@ -38,8 +38,26 @@ $userId = (int)$USER->GetID();
 $order = null;
 $items = [];
 $props = [];
+$productUrls = [];
+$sectionCodes = [];
 $statusName = '';
 $hasWeight = false;
+
+$productCardUrl = static function (array $element) use (&$sectionCodes): string {
+    $code = trim((string)($element['CODE'] ?? ''));
+    $sectionId = (int)($element['IBLOCK_SECTION_ID'] ?? 0);
+    if ($code === '' || $sectionId <= 0 || !CModule::IncludeModule('iblock')) {
+        return '';
+    }
+    if (!isset($sectionCodes[$sectionId])) {
+        $section = CIBlockSection::GetList([], ['ID' => $sectionId], false, ['ID', 'CODE'])->Fetch();
+        $sectionCodes[$sectionId] = $section ? trim((string)$section['CODE']) : '';
+    }
+    if ($sectionCodes[$sectionId] === '') {
+        return '';
+    }
+    return '/catalog/' . rawurlencode($sectionCodes[$sectionId]) . '/' . rawurlencode($code) . '/';
+};
 
 if ($userId > 0 && CModule::IncludeModule('sale')) {
     $order = CSaleOrder::GetList(
@@ -75,6 +93,71 @@ if ($userId > 0 && CModule::IncludeModule('sale')) {
                 'NAME' => (string)$prop['NAME'],
                 'VALUE' => $value,
             ];
+        }
+
+        if (CModule::IncludeModule('iblock')) {
+            $productIds = [];
+            foreach ($items as $item) {
+                $productId = (int)$item['PRODUCT_ID'];
+                if ($productId > 0) {
+                    $productIds[$productId] = $productId;
+                }
+            }
+            if ($productIds) {
+                $elementRes = CIBlockElement::GetList(
+                    [],
+                    ['ID' => array_values($productIds), 'ACTIVE' => 'Y'],
+                    false,
+                    false,
+                    ['ID', 'CODE', 'IBLOCK_SECTION_ID']
+                );
+                while ($element = $elementRes->Fetch()) {
+                    $url = $productCardUrl($element);
+                    if ($url !== '') {
+                        $productUrls[(int)$element['ID']] = $url;
+                    }
+                }
+            }
+            foreach ($items as $item) {
+                $productId = (int)$item['PRODUCT_ID'];
+                if ($productId <= 0 || isset($productUrls[$productId])) {
+                    continue;
+                }
+                $element = null;
+                $xmlId = trim((string)($item['PRODUCT_XML_ID'] ?? ''));
+                if ($xmlId !== '') {
+                    $element = CIBlockElement::GetList(
+                        [],
+                        ['IBLOCK_ID' => 40, 'ACTIVE' => 'Y', '=XML_ID' => $xmlId],
+                        false,
+                        ['nTopCount' => 1],
+                        ['ID', 'CODE', 'IBLOCK_SECTION_ID']
+                    )->Fetch() ?: null;
+                }
+                if (!$element) {
+                    $name = trim((string)$item['NAME']);
+                    if ($name !== '') {
+                        $byName = CIBlockElement::GetList(
+                            [],
+                            ['IBLOCK_ID' => 40, 'ACTIVE' => 'Y', '=NAME' => $name],
+                            false,
+                            ['nTopCount' => 2],
+                            ['ID', 'CODE', 'IBLOCK_SECTION_ID']
+                        );
+                        $first = $byName->Fetch() ?: null;
+                        $second = $byName->Fetch() ?: null;
+                        if ($first && !$second) {
+                            $element = $first;
+                        }
+                    }
+                }
+                if ($element) {
+                    $url = $productCardUrl($element);
+                    if ($url !== '') {
+                        $productUrls[$productId] = $url;
+                    }
+                }
+            }
         }
     }
 }
@@ -142,8 +225,12 @@ $comment = $order ? trim((string)$order['USER_DESCRIPTION']) : '';
                                     $weightText = rtrim(rtrim(number_format($kg, 3, ',', ' '), '0'), ',') . ' кг';
                                 }
                                 ?>
+                                <?php
+                                $productUrl = $productUrls[(int)$item['PRODUCT_ID']] ?? '';
+                                $productName = htmlspecialcharsbx((string)$item['NAME']);
+                                ?>
                                 <tr>
-                                    <td><?=htmlspecialcharsbx((string)$item['NAME'])?></td>
+                                    <td><?php if ($productUrl !== ''): ?><a href="<?=htmlspecialcharsbx($productUrl)?>"><?=$productName?></a><?php else: ?><?=$productName?><?php endif; ?></td>
                                     <td><?=htmlspecialcharsbx($qtyText)?></td>
                                     <?php if ($hasWeight): ?><td><?=htmlspecialcharsbx($weightText !== '' ? $weightText : '—')?></td><?php endif; ?>
                                     <td><?=htmlspecialcharsbx($formatMoney((float)$item['PRICE']))?></td>
