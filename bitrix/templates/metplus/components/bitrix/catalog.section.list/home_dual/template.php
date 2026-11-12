@@ -30,20 +30,6 @@ $shortName = static function ($name) {
 	return $n;
 };
 
-$childShort = static function ($name) use ($shortName) {
-	$n = $shortName($name);
-	// «Труба круглая нерж…» → «Круглая»
-	if (preg_match('/^Труба\s+(.+)$/iu', $n, $m)) {
-		$n = $m[1];
-	}
-	$n = preg_replace('/\s*наржавеющ\w*/iu', '', $n);
-	$n = trim(preg_replace('/\s+/u', ' ', $n));
-	if ($n !== '' && function_exists('mb_strtoupper')) {
-		$n = mb_strtoupper(mb_substr($n, 0, 1)) . mb_substr($n, 1);
-	}
-	return $n !== '' ? $n : $shortName($name);
-};
-
 $worldTitle = static function ($name, $theme) {
 	if ($theme === 'steel') {
 		return 'Нержавеющая сталь';
@@ -192,7 +178,7 @@ $worldIndex = 0;
 								<?php foreach ($cat['CHILDREN'] as $child):
 									$childUrl = (string)($child['SECTION_PAGE_URL'] ?? '');
 									?>
-									<li><a href="<?= htmlspecialcharsbx($childUrl) ?>"><?= htmlspecialcharsbx($childShort($child['NAME'])) ?></a></li>
+									<li><a href="<?= htmlspecialcharsbx($childUrl) ?>"><?= htmlspecialcharsbx($child['NAME']) ?></a></li>
 								<?php endforeach; ?>
 							</ul>
 						<?php endif; ?>
