@@ -84,16 +84,51 @@ if($arCurSection['IBLOCK_SECTION_ID']){
 
 if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
     $arCurSection['UF_IN_STOCK'] = "1";
+
+$menuActiveIds = array();
+$catalogWorld = 'steel';
+$catalogWorldIsCopper = static function ($code, $name) {
+    $code = mb_strtolower((string)$code);
+    $name = mb_strtolower((string)$name);
+    return strpos($code, 'tsvet') !== false
+        || strpos($code, 'cvet') !== false
+        || mb_strpos($name, 'цвет') !== false;
+};
+if (!empty($arCurSection['ID'])) {
+    if ($catalogWorldIsCopper($arCurSection['CODE'] ?? '', $arCurSection['NAME'] ?? '')) {
+        $catalogWorld = 'copper';
+    }
+    $menuActiveIds[] = (int)$arCurSection['ID'];
+    $menuParentId = (int)($arCurSection['IBLOCK_SECTION_ID'] ?? 0);
+    $menuGuard = 0;
+    while ($menuParentId > 0 && $menuGuard < 6) {
+        $menuActiveIds[] = $menuParentId;
+        $menuParent = CIBlockSection::GetList(
+            array(),
+            array('ID' => $menuParentId, 'IBLOCK_ID' => $arParams['IBLOCK_ID']),
+            false,
+            array('ID', 'IBLOCK_SECTION_ID', 'CODE', 'NAME')
+            )->Fetch();
+        if (!$menuParent) {
+            break;
+        }
+        if ($catalogWorldIsCopper($menuParent['CODE'] ?? '', $menuParent['NAME'] ?? '')) {
+            $catalogWorld = 'copper';
+        }
+        $menuParentId = (int)($menuParent['IBLOCK_SECTION_ID'] ?? 0);
+        $menuGuard++;
+    }
+}
 ?>
 
-    <section class="subcategory-section">
+    <section class="subcategory-section<?= $catalogWorld === 'copper' ? ' catalog-world-copper' : '' ?>">
         <div class="container">
             <div class="row">
 
                 <div class="catalog_left-column">
-                    <aside class="sidebar-catalog">
+                    <aside class="sidebar-catalog" data-active-ids="<?= htmlspecialcharsbx(implode(',', $menuActiveIds)) ?>">
                         <div class="sidebar-catalog_content">
-                            <div class="sidebar-title catalog_sidebar-title">Каталог продукции</div>
+                            <div class="sidebar-title catalog_sidebar-title is-active">Каталог продукции</div>
                             <?$APPLICATION->IncludeComponent("bitrix:menu", "catalog.menu", Array(
                                 "ROOT_MENU_TYPE" => "left",	// Тип меню для первого уровня
                                 "IBLOCK_ID" => $arParams["IBLOCK_ID"],

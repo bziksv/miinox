@@ -38,9 +38,22 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
 		}
 	}
 	$itemDbId = $item["PARAMS"]["ID"] ?? null;
+	$itemCode = '';
+	if (preg_match('#/catalog/([^/?#]+)/?#u', (string)$item["LINK"], $itemCodeMatch)) {
+		$itemCode = mb_strtolower($itemCodeMatch[1]);
+	}
+	$itemText = mb_strtolower((string)$item["TEXT"]);
+	$itemTheme = 'steel';
+	if (
+		strpos($itemCode, 'tsvet') !== false
+		|| strpos($itemCode, 'cvet') !== false
+		|| mb_strpos($itemText, 'цвет') !== false
+	) {
+		$itemTheme = 'copper';
+	}
 	?>
-    <li class="catalog-menu_item">
-        <a href="<?=$item["LINK"]?>">
+    <li class="catalog-menu_item catalog-menu_item_<?= $itemTheme ?> is-open">
+        <a href="<?=$item["LINK"]?>" data-id="<?= (int)$itemDbId ?>">
             <? if ($menuPic !== ''): ?>
             <span class="menu-photo"><img src="<?=htmlspecialcharsbx($menuPic)?>?v=norm2" alt="" loading="lazy"></span>
             <? else: ?>
@@ -63,7 +76,7 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
 				$childDbId = $child["PARAMS"]["ID"] ?? null;
 				?>
                 <li>
-                    <a href="<?=$child["LINK"]?>">
+                    <a href="<?=$child["LINK"]?>" data-id="<?= (int)$childDbId ?>">
                         <? if ($isJsHidden($childDbId)): ?>
                             <span data-text="<?=$child["TEXT"]?>"></span>
                         <? else: ?>

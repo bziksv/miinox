@@ -62,7 +62,7 @@ $factIcon = static function (string $name, string $value): string {
     return $wrap($icons[$name] ?? '<circle cx="12" cy="12" r="6" ' . $s . '/>');
 };
 ?>
-<div class="product-card-page">
+<div class="product-card-page<?= ($arResult['CARD_WORLD'] ?? '') === 'copper' ? ' catalog-world-copper' : '' ?>">
     <ul class="breadcrumbs product-card__crumbs">
         <?php foreach ($arResult['CARD_CRUMBS'] as $index => $crumb): ?>
             <li>

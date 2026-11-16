@@ -61,6 +61,7 @@ if ($arResult['CARD_PLACEHOLDER']) {
 
 $sectionId = (int)($arResult['IBLOCK_SECTION_ID'] ?? 0);
 $sectionCode = '';
+$cardWorld = 'steel';
 $crumbs = [
     ['TITLE' => 'Главная страница', 'LINK' => '/'],
     ['TITLE' => 'Каталог', 'LINK' => '/catalog/'],
@@ -69,6 +70,15 @@ if ($sectionId > 0) {
     $nav = CIBlockSection::GetNavChain($iblockId, $sectionId, ['ID', 'NAME', 'CODE']);
     while ($section = $nav->Fetch()) {
         $code = (string)$section['CODE'];
+        $worldCode = mb_strtolower($code);
+        $worldName = mb_strtolower(trim((string)$section['NAME']));
+        if (
+            strpos($worldCode, 'tsvet') !== false
+            || strpos($worldCode, 'cvet') !== false
+            || mb_strpos($worldName, 'цвет') !== false
+        ) {
+            $cardWorld = 'copper';
+        }
         $crumbs[] = [
             'TITLE' => trim((string)$section['NAME']),
             'LINK' => $code !== '' ? '/catalog/' . $code . '/' : '',
@@ -78,6 +88,7 @@ if ($sectionId > 0) {
 }
 $crumbs[] = ['TITLE' => (string)$arResult['NAME'], 'LINK' => ''];
 $arResult['CARD_CRUMBS'] = $crumbs;
+$arResult['CARD_WORLD'] = $cardWorld;
 
 $qty = isset($product['QUANTITY']) ? (float)$product['QUANTITY'] : 0.0;
 $thresholds = include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/stock_thresholds.php';
