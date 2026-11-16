@@ -49,19 +49,11 @@ foreach (['DETAIL_PICTURE', 'PREVIEW_PICTURE'] as $field) {
 }
 $arResult['CARD_IMAGES'] = array_values(array_unique($images));
 $arResult['CARD_PLACEHOLDER'] = $arResult['CARD_IMAGES'] === [];
-if ($arResult['CARD_PLACEHOLDER']) {
-    $base = SITE_TEMPLATE_PATH . '/img/static/';
-    $arResult['CARD_IMAGES'] = [
-        $base . 'product-ph-1.svg',
-        $base . 'product-ph-2.svg',
-        $base . 'product-ph-3.svg',
-        $base . 'product-ph-4.svg',
-    ];
-}
 
 $sectionId = (int)($arResult['IBLOCK_SECTION_ID'] ?? 0);
 $sectionCode = '';
 $cardWorld = 'steel';
+$sectionHay = mb_strtolower((string)($arResult['NAME'] ?? ''));
 $crumbs = [
     ['TITLE' => 'Главная страница', 'LINK' => '/'],
     ['TITLE' => 'Каталог', 'LINK' => '/catalog/'],
@@ -72,6 +64,7 @@ if ($sectionId > 0) {
         $code = (string)$section['CODE'];
         $worldCode = mb_strtolower($code);
         $worldName = mb_strtolower(trim((string)$section['NAME']));
+        $sectionHay .= ' ' . $worldName . ' ' . $worldCode;
         if (
             strpos($worldCode, 'tsvet') !== false
             || strpos($worldCode, 'cvet') !== false
@@ -89,6 +82,25 @@ if ($sectionId > 0) {
 $crumbs[] = ['TITLE' => (string)$arResult['NAME'], 'LINK' => ''];
 $arResult['CARD_CRUMBS'] = $crumbs;
 $arResult['CARD_WORLD'] = $cardWorld;
+
+if ($arResult['CARD_PLACEHOLDER']) {
+    $base = SITE_TEMPLATE_PATH . '/img/static/';
+    $files = ['product-ph-1.svg', 'product-ph-2.svg', 'product-ph-3.svg', 'product-ph-4.svg'];
+    if ($cardWorld === 'copper') {
+        if (preg_match('/угол/u', $sectionHay)) {
+            $files = ['product-ph-cu-angle-1.svg', 'product-ph-cu-sheet-3.svg', 'product-ph-cu-sheet-4.svg', 'product-ph-cu-sheet-2.svg'];
+        } elseif (preg_match('/труб|кондиц/u', $sectionHay)) {
+            $files = ['product-ph-cu-tube-1.svg', 'product-ph-cu-tube-2.svg', 'product-ph-cu-sheet-3.svg', 'product-ph-cu-tube-4.svg'];
+        } elseif (preg_match('/прут|круг|шестигран|проволок/u', $sectionHay)) {
+            $files = ['product-ph-cu-bar-1.svg', 'product-ph-cu-bar-2.svg', 'product-ph-cu-sheet-3.svg', 'product-ph-cu-bar-4.svg'];
+        } else {
+            $files = ['product-ph-cu-sheet-1.svg', 'product-ph-cu-sheet-2.svg', 'product-ph-cu-sheet-3.svg', 'product-ph-cu-sheet-4.svg'];
+        }
+    }
+    $arResult['CARD_IMAGES'] = array_map(static function ($file) use ($base) {
+        return $base . $file . '?v=cu2';
+    }, $files);
+}
 
 $qty = isset($product['QUANTITY']) ? (float)$product['QUANTITY'] : 0.0;
 $thresholds = include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/stock_thresholds.php';

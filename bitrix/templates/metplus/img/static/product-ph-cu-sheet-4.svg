@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900">
+  <rect width="1200" height="900" fill="#ead9cb"/>
+  <polygon points="0,560 1200,430 1200,640 0,770" fill="#8d7b6c"/>
+  <polygon points="0,180 1200,50 1200,430 0,560" fill="url(#edgeface)"/>
+  <polygon points="0,500 1200,370 1200,430 0,560" fill="#ddd0c4"/>
+  <polygon points="0,180 480,130 480,510 0,560" fill="#fff" opacity=".2"/>
+  <defs>
+    <linearGradient id="edgeface" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbf7f2"/>
+      <stop offset=".45" stop-color="#e7dbd0"/>
+      <stop offset="1" stop-color="#c9b7a6"/>
+    </linearGradient>
+  </defs>
+</svg>
