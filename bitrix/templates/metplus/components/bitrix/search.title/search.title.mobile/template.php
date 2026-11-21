@@ -25,11 +25,11 @@ $CONTAINER_ID = CUtil::JSEscape($CONTAINER_ID);
 if($arParams["SHOW_INPUT"] !== "N"):?>
 	<div id="<?echo $CONTAINER_ID?>">
 
-        <form action="<?=$arResult["FORM_ACTION"]?>" class="head_form-search">
-            <input type="text" name="q" id="<?echo $INPUT_ID?>" value="<?=$_REQUEST['q']?>" class="head_form-search_input" placeholder="Введите ваш запрос" autocomplete="off">
-            <div class="wrapper_submit-btn">
+        <form action="<?=$arResult["FORM_ACTION"]?>" class="mi-head_form-search">
+            <input type="text" name="q" id="<?echo $INPUT_ID?>" value="<?=$_REQUEST['q']?>" class="mi-head_form-search_input" placeholder="Введите ваш запрос" autocomplete="off">
+            <div class="mi-wrapper_submit-btn">
                 <span class="glipf-search"></span>
-                <input type="submit" name="s" class="form-search_submit-btn" value="" disabled>
+                <input type="submit" name="s" class="mi-form-search_submit-btn" value="" disabled>
             </div>
         </form>
 	</div>

@@ -11,11 +11,11 @@
 /** @var string $componentPath */
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);?>
-<div class="title-h3">Введити запрос для поиска нужного документа</div>
-<form action="<?=$arResult["FORM_ACTION"]?>" class="form_document-search">
-    <input type="text" name="q" class="form_document-search_input" placeholder="Введите ваш запрос">
-    <div class="wrapper_submit-btn">
+<div class="mi-title-h3">Введити запрос для поиска нужного документа</div>
+<form action="<?=$arResult["FORM_ACTION"]?>" class="mi-form_document-search">
+    <input type="text" name="q" class="mi-form_document-search_input" placeholder="Введите ваш запрос">
+    <div class="mi-wrapper_submit-btn">
         <span class="glipf-search"></span>
-        <input type="submit" name="s" class="form-search_submit-btn" value="">
+        <input type="submit" name="s" class="mi-form-search_submit-btn" value="">
     </div>
 </form>

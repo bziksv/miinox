@@ -12,16 +12,16 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="title-h3"><?=$arResult['BLOCK']['NAME']?></div>
-<ul class="vacancy-section_advatages-list">
+<div class="mi-title-h3"><?=$arResult['BLOCK']['NAME']?></div>
+<ul class="mi-vacancy-section_advatages-list">
     <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
     <?
     $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
     $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
     ?>
     <li>
-        <span class="advatages-icon <?=$arItem['CODE']?>"></span>
-        <span class="advatages-title"><?=$arItem['~NAME']?></span>
+        <span class="mi-advatages-icon <?=$arItem['CODE']?>"></span>
+        <span class="mi-advatages-title"><?=$arItem['~NAME']?></span>
         <p><?=$arItem['PREVIEW_TEXT']?></p>
     </li>
     <?endforeach;?>

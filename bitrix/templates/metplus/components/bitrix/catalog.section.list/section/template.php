@@ -21,7 +21,7 @@ $strSectionEdit = CIBlock::GetArrayByID($arParams["IBLOCK_ID"], "SECTION_EDIT");
 $strSectionDelete = CIBlock::GetArrayByID($arParams["IBLOCK_ID"], "SECTION_DELETE");
 $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_CONFIRM'));
 ?>
-<div class="title-h3 title-h3_mod"><?=$arResult['SECTION']['NAME'];?></div>
+<div class="mi-title-h3 mi-title-h3_mod"><?=$arResult['SECTION']['NAME'];?></div>
 <div class="row">
     <? foreach ($arResult['SECTIONS'] as &$arSection):
         $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
@@ -37,15 +37,15 @@ $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_C
             );
         }
         ?>
-        <div class="col-md-6 subcategory-column">
-            <div class="subcategory-item">
+        <div class="col-md-6 mi-subcategory-column">
+            <div class="mi-subcategory-item">
                 <a href="<?=$arSection['SECTION_PAGE_URL']?>">
-                    <span class="subcategory-item_img">
+                    <span class="mi-subcategory-item_img">
                         <? if ($pictureSrc): ?>
                             <img src="<?=htmlspecialcharsbx($pictureSrc)?>?v=norm2" data-src="<?=htmlspecialcharsbx($pictureSrc)?>?v=norm2" alt="<?=htmlspecialcharsbx($arSection['NAME'])?>" loading="lazy">
                         <? endif; ?>
                     </span>
-                    <span class="subcategory-item_name"><?=$arSection['NAME']?></span>
+                    <span class="mi-subcategory-item_name"><?=$arSection['NAME']?></span>
                 </a>
             </div>
         </div>

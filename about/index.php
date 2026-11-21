@@ -3,8 +3,8 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "О компании, ее история, инфографика и план развития");
 $APPLICATION->SetPageProperty("title", "О компании «Металлинвест Инокс»");
 $APPLICATION->SetTitle("О компании");
-?><main class="main-content">
-<div class="inner-page_title-section">
+?><main class="mi-main-content">
+<div class="mi-inner-page_title-section">
 	<div class="container">
 		 <?$APPLICATION->IncludeComponent(
 	"bitrix:breadcrumb",
@@ -17,20 +17,20 @@ $APPLICATION->SetTitle("О компании");
 	</div>
 </div>
  <!-- end inner-page_title-section -->
-<div class="about-us_section">
+<div class="mi-about-us_section">
 	<div class="container">
-		<div class="title-h3">
+		<div class="mi-title-h3">
 			 Общая информация о компании
 		</div>
 		<div class="row">
-			<div class="about-us_left-column">
+			<div class="mi-about-us_left-column">
 				 <?$APPLICATION->IncludeFile(SITE_TEMPLATE_PATH.'/inc/about_us.php',
                     Array(),
                     Array("MODE" => "html",)
                 );?>
 			</div>
-			<div class="about-us_right-column">
-				<div class="about-us_img">
+			<div class="mi-about-us_right-column">
+				<div class="mi-about-us_img">
 					 <img alt="alt" src="/upload/medialibrary/2ee/2eef062f917044e3cb18751eab76f653.jpg">
 				</div>
 			</div>
@@ -114,22 +114,22 @@ $APPLICATION->SetTitle("О компании");
 		"SORT_ORDER2" => "ASC"
 	)
 );?> <!-- end photo-galery_section -->
-<div class="current-vacancies_section">
+<div class="mi-current-vacancies_section">
 	<div class="container">
 		<div class="row align-items-center">
-			<div class="current-vacancies_left">
-				<div class="current-vacancies_img">
+			<div class="mi-current-vacancies_left">
+				<div class="mi-current-vacancies_img">
 					<img alt="Актуальные вакансии" src="<?=SITE_TEMPLATE_PATH?>/img/static/current-vacancies.png?v=miinox51" data-src="<?=SITE_TEMPLATE_PATH?>/img/static/current-vacancies.png?v=miinox51" width="405" height="481">
 				</div>
 			</div>
-			<div class="current-vacancies_right">
-				<div class="top-text">
+			<div class="mi-current-vacancies_right">
+				<div class="mi-top-text">
 					 Хотите работать у нас?
 				</div>
-				<div class="current-vacancies_title">
-					 Посмотрите актуальные <span class="min blue-color">вакансии</span>
+				<div class="mi-current-vacancies_title">
+					 Посмотрите актуальные <span class="min mi-blue-color">вакансии</span>
 				</div>
- <a href="/vacancy/" class="main-btn">Смотреть вакансии</a>
+ <a href="/vacancy/" class="mi-main-btn">Смотреть вакансии</a>
 			</div>
 		</div>
 	</div>

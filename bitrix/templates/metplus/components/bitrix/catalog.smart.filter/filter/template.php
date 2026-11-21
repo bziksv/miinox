@@ -14,8 +14,8 @@ $this->setFrameMode(true);
 if(!count($arResult["ITEMS"]))
     return false;
 ?>
-<div class="filter-box">
-    <div class="filter-box_title is-active">
+<div class="mi-filter-box">
+    <div class="mi-filter-box_title mi-is-active">
         Фильтр
     </div>
 
@@ -49,9 +49,9 @@ if(!count($arResult["ITEMS"]))
                     switch ($arItem["DISPLAY_TYPE"]){
                         default:
                             ?>
-                            <div class="filter-box_column">
-                                <div class="filter-item">
-                                    <span class="filter-item_title"><?=$arItem["NAME"]?></span>
+                            <div class="mi-filter-box_column">
+                                <div class="mi-filter-item">
+                                    <span class="mi-filter-item_title"><?=$arItem["NAME"]?></span>
                                     <select class="js-select" name="<?=$arCur["CONTROL_NAME_ALT"]?>" onchange="smartFilter.keyup(this)">
                                         <option value=""><?=$arItem["NAME"]?></option>
                                         <? foreach ($arItem["VALUES"] as $arValue): ?>
@@ -66,9 +66,9 @@ if(!count($arResult["ITEMS"]))
                 <?} ?>
             </div>
 
-            <div class="filter-box_footer" id="modef">
-                <a href="<?echo $arResult["FILTER_URL"]?>" class="main-btn filter_search-btn"><span id="modef_num">Искать</span></a>
-                <a href="?del_filter=Сбросить" class="filter_reset-btn"><span class="glipf-reset"></span>Сбросить фильтр</a>
+            <div class="mi-filter-box_footer" id="modef">
+                <a href="<?echo $arResult["FILTER_URL"]?>" class="mi-main-btn mi-filter_search-btn"><span id="modef_num">Искать</span></a>
+                <a href="?del_filter=Сбросить" class="mi-filter_reset-btn"><span class="glipf-reset"></span>Сбросить фильтр</a>
             </div>
         </form>
     </div>

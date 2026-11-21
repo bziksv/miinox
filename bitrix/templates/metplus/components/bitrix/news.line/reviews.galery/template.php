@@ -12,17 +12,17 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="reviews-section">
+<div class="mi-reviews-section">
     <div class="container">
-        <div class="title-h3"><?=$arResult['BLOCK']['NAME']?></div>
-        <div class="row review_mobile-slider">
+        <div class="mi-title-h3"><?=$arResult['BLOCK']['NAME']?></div>
+        <div class="row mi-review_mobile-slider">
             <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
             <?
             $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
             $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
             ?>
                 <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="review-item">
+                <div class="mi-review-item">
                     <a href="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" class="fancybox" data-fancybox="group">
                         <img data-src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="<?=$arItem['NAME']?>">
                     </a>

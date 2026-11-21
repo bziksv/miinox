@@ -15,6 +15,6 @@ if (isset($_REQUEST['share']) && is_string($_REQUEST['share']) && $_REQUEST['sha
 require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/header.php';
 $APPLICATION->SetTitle('Корзина');
 ?>
-<main class="main-content" id="miinox-cart-page" data-share-notice="<?=htmlspecialcharsbx($miinoxShareNotice)?>" data-share-ids="<?=htmlspecialcharsbx($miinoxShareIds)?>"></main>
+<main class="mi-main-content" id="miinox-cart-page" data-share-notice="<?=htmlspecialcharsbx($miinoxShareNotice)?>" data-share-ids="<?=htmlspecialcharsbx($miinoxShareIds)?>"></main>
 <?php
 require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/footer.php';

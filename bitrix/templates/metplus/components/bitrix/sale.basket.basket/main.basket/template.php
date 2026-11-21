@@ -82,10 +82,10 @@ if (empty($arResult['ERROR_MESSAGE']))
 	?>
 	<div class="container" id="basket-root">
 
-        <div class="cart-content_header">
+        <div class="mi-cart-content_header">
             <div class="cart-share">
                 <div class="cart-content_heading">
-                    <div class="cart-content_title">Состав корзины</div>
+                    <div class="mi-cart-content_title">Состав корзины</div>
                     <button type="button" class="cart-share__btn" data-sessid="<?=bitrix_sessid()?>">Поделиться корзиной</button>
                 </div>
                 <div class="cart-share__panel">
@@ -97,11 +97,11 @@ if (empty($arResult['ERROR_MESSAGE']))
                     <p class="cart-share__status"></p>
                 </div>
             </div>
-            <button type="button" class="cart-close" aria-label="Закрыть"></button>
-            <ul class="cart-steps">
-                <li class="cart-step_item active active-mod">Шаг 1</li>
-                <li class="cart-step_item">Шаг 2</li>
-                <li class="cart-step_item">Шаг 3</li>
+            <button type="button" class="mi-cart-close" aria-label="Закрыть"></button>
+            <ul class="mi-cart-steps">
+                <li class="mi-cart-step_item active mi-active-mod">Шаг 1</li>
+                <li class="mi-cart-step_item">Шаг 2</li>
+                <li class="mi-cart-step_item">Шаг 3</li>
             </ul>
         </div>
 
@@ -113,9 +113,9 @@ if (empty($arResult['ERROR_MESSAGE']))
             </div>
         </div>
 
-        <div class="cart-content_body">
-            <div class="wrapper_cart-table">
-                <table class="cart-table" id="basket-item-table">
+        <div class="mi-cart-content_body">
+            <div class="mi-wrapper_cart-table">
+                <table class="mi-cart-table" id="basket-item-table">
                     <tr>
                         <? foreach($arParams['COLUMNS_LIST_HEADER'] as $col): ?>
                             <th><?=$col?></th>
@@ -124,14 +124,14 @@ if (empty($arResult['ERROR_MESSAGE']))
 
                 </table>
             </div>
-            <textarea class="cart-table_textarea" placeholder="Комментарий к заказу"></textarea>
+            <textarea class="mi-cart-table_textarea" placeholder="Комментарий к заказу"></textarea>
             <p><small>
                 Расчеты и размеры товара являются предварительными. После оформления заказа с вами свяжутся наши операторы.
                 * цена за единицу товара будет уточнена оператором
 				</small></p>
         </div>
 
-        <div class="cart-content_footer" data-entity="basket-total-block"></div>
+        <div class="mi-cart-content_footer" data-entity="basket-total-block"></div>
 	</div>
 	<?
 	if (!empty($arResult['CURRENCIES']) && Main\Loader::includeModule('currency'))

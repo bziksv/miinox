@@ -10,8 +10,8 @@ if (empty($arResult['ITEMS'])) {
     return;
 }
 ?>
-<section class="main-section main-section--picture">
-    <div class="main-slider main-slider--picture">
+<section class="mi-main-section main-section--picture">
+    <div class="mi-main-slider main-slider--picture">
         <?php foreach ($arResult['ITEMS'] as $arItem):
             $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem['IBLOCK_ID'], 'ELEMENT_EDIT'));
             $this->AddDeleteAction(

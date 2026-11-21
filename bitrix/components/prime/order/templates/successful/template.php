@@ -13,21 +13,21 @@
 $this->setFrameMode(true);
 ?>
 <div class="container">
-    <div class="cart-content_header">
-        <div class="cart-content_title">Заявка оформлена</div>
-        <button type="button" class="cart-close" aria-label="Закрыть"></button>
-        <ul class="cart-steps">
-            <li class="cart-step_item">Шаг 1</li>
-            <li class="cart-step_item cart-step_item-second">Шаг 2</li>
-            <li class="cart-step_item active">Шаг 3</li>
+    <div class="mi-cart-content_header">
+        <div class="mi-cart-content_title">Заявка оформлена</div>
+        <button type="button" class="mi-cart-close" aria-label="Закрыть"></button>
+        <ul class="mi-cart-steps">
+            <li class="mi-cart-step_item">Шаг 1</li>
+            <li class="mi-cart-step_item mi-cart-step_item-second">Шаг 2</li>
+            <li class="mi-cart-step_item active">Шаг 3</li>
         </ul>
     </div>
-    <div class="cart-content_body cart-content_body-mod text-center">
-        <div class="check-icon"></div>
-        <div class="thanks-text">
+    <div class="mi-cart-content_body mi-cart-content_body-mod mi-text-center">
+        <div class="mi-check-icon"></div>
+        <div class="mi-thanks-text">
             Спасибо за Ваш заказ!
             <small>Специалист в ближайшее время с Вами свяжется и уточнит все детали</small>
         </div>
-        <a href="" class="main-btn js-back-site_2">Вернуться на сайт</a>
+        <a href="" class="mi-main-btn js-back-site_2">Вернуться на сайт</a>
     </div>
 </div>

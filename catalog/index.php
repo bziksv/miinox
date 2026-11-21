@@ -23,9 +23,9 @@ if($code &&  $cat == "catalog"){
         $background = CFile::GetPath($curSec['UF_TOP_PIC']);
 }
 ?>
-	<main class="main-content">
+	<main class="mi-main-content">
 		<? if (!empty($curSec['NAME'])): ?>
-		<div class="inner-page_title-section" <? if($background): ?>style="background: url(<?=$background?>) no-repeat center top;" <? endif; ?> >
+		<div class="mi-inner-page_title-section" <? if($background): ?>style="background: url(<?=$background?>) no-repeat center top;" <? endif; ?> >
 			<div class="container">
                 <?
                 if($APPLICATION->GetCurPage(false) == "/catalog/"){

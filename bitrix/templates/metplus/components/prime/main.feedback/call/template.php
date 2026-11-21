@@ -11,9 +11,9 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
  */
 ?>
 
-<form action="<?=POST_FORM_ACTION_URI?>" method="POST" enctype="multipart/form-data" class="form-callback">
+<form action="<?=POST_FORM_ACTION_URI?>" method="POST" enctype="multipart/form-data" class="mi-form-callback">
     <?=bitrix_sessid_post()?>
-    <div class="form-callback_title">
+    <div class="mi-form-callback_title">
         Заказать звонок
         <small>Введите Ваш номер телефона <span class="min">и мы вам перезвоним.</span></small>
         <?if(!empty($arResult["ERROR_MESSAGE"]))
@@ -24,10 +24,10 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
         ?>
     </div>
     <? foreach($arResult['USER_FIELD'] as $field):?>
-    <div class="form-group">
-        <labek class="form-label"><?=$field['NAME']?><?if($field['IS_REQUIRED'] == "Y"):?>*<?endif?>:</labek>
+    <div class="mi-form-group">
+        <labek class="mi-form-label"><?=$field['NAME']?><?if($field['IS_REQUIRED'] == "Y"):?>*<?endif?>:</labek>
         <input type="<?=($field['CODE'] == 'PHONE') ? 'tel' : 'text'?>"
-               class="form-input"
+               class="mi-form-input"
                name="<?=$field['CODE']?>"
                value="<?=$arResult[$field['CODE']]?>"
                placeholder="<?=$field['NAME']?>"
@@ -36,9 +36,9 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
     </div>
     <? endforeach; ?>
 
-    <div class="text-center">
+    <div class="mi-text-center">
         <input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
-        <input type="submit" name="submit" class="main-btn form-callback_submit" value="Отправить">
+        <input type="submit" name="submit" class="mi-main-btn mi-form-callback_submit" value="Отправить">
     </div>
 
     <div class="form-consent">

@@ -121,14 +121,14 @@ if (!empty($arCurSection['ID'])) {
 }
 ?>
 
-    <section class="subcategory-section<?= $catalogWorld === 'copper' ? ' catalog-world-copper' : '' ?>">
+    <section class="mi-subcategory-section<?= $catalogWorld === 'copper' ? ' catalog-world-copper' : '' ?>">
         <div class="container">
             <div class="row">
 
-                <div class="catalog_left-column">
-                    <aside class="sidebar-catalog" data-active-ids="<?= htmlspecialcharsbx(implode(',', $menuActiveIds)) ?>">
-                        <div class="sidebar-catalog_content">
-                            <div class="sidebar-title catalog_sidebar-title is-active">Каталог продукции</div>
+                <div class="mi-catalog_left-column">
+                    <aside class="mi-sidebar-catalog" data-active-ids="<?= htmlspecialcharsbx(implode(',', $menuActiveIds)) ?>">
+                        <div class="mi-sidebar-catalog_content">
+                            <div class="mi-sidebar-title mi-catalog_sidebar-title mi-is-active">Каталог продукции</div>
                             <?$APPLICATION->IncludeComponent("bitrix:menu", "catalog.menu", Array(
                                 "ROOT_MENU_TYPE" => "left",	// Тип меню для первого уровня
                                 "IBLOCK_ID" => $arParams["IBLOCK_ID"],
@@ -148,18 +148,18 @@ if (!empty($arCurSection['ID'])) {
                                 false
                             );?>
                         </div>
-                        <div class="tablet-hidden">
-                            <div class="price-list_box">
-                                <div class="price-list_box-content">
+                        <div class="mi-tablet-hidden">
+                            <div class="mi-price-list_box">
+                                <div class="mi-price-list_box-content">
                                     <img alt="alt" src="<?=SITE_TEMPLATE_PATH?>/img/static/price-list_img.jpg">
-                                    <a href="/prays/price_metall.xls" class="download-price_btn main-btn"><span class="glipf-download"></span>Скачать прайс</a>
+                                    <a href="/prays/price_metall.xls" class="mi-download-price_btn mi-main-btn"><span class="glipf-download"></span>Скачать прайс</a>
                                 </div>
                             </div>
                         </div>
                     </aside>
                 </div>
 
-                <div class="catalog_right-column">
+                <div class="mi-catalog_right-column">
 
                         <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array(
                                 "SITE_ID" => SITE_ID
@@ -169,7 +169,7 @@ if (!empty($arCurSection['ID'])) {
 
 
                            <? if(intval($arCurSection['ELEMENT_CNT']) > 0 && trim((string)($arCurSection['UF_DESCRIPTION_TOP'] ?? '')) !== ''): ?>
-                            <div class="unified-text-section top">
+                            <div class="mi-unified-text-section top">
                                 <?=$arCurSection['UF_DESCRIPTION_TOP'];?>
                             </div>
                             <? endif; ?>
@@ -202,7 +202,7 @@ if (!empty($arCurSection['ID'])) {
 
                         <? if(intval($arCurSection['ELEMENT_CNT']) > 0): ?>
                         <? if (false): /* фильтр временно скрыт */ ?>
-                        <div class="catalog-section-header">
+                        <div class="mi-catalog-section-header">
                             <?$APPLICATION->IncludeComponent("bitrix:catalog.smart.filter", "filter", array(
                                     "IBLOCK_TYPE" => $arParams["IBLOCK_TYPE"],
                                     "IBLOCK_ID" => $arParams["IBLOCK_ID"],
@@ -234,13 +234,13 @@ if (!empty($arCurSection['ID'])) {
                         </div>
                         <? endif; ?>
                         <? else: ?>
-                            <div class="row form-content_mod" style="padding: 0 1em;">
-                                <div class="col-lg-12 form-content_mod-desc">
-                                    <div class="form-content_title title-h3">
+                            <div class="row mi-form-content_mod" style="padding: 0 1em;">
+                                <div class="col-lg-12 mi-form-content_mod-desc">
+                                    <div class="mi-form-content_title mi-title-h3">
                                         На текущий момент данных товаров нет, но мы можем привезти под заказ.
                                         Для заказа заполните форму ниже и наши менеджеры свяжутся с Вами.
                                     </div>
-                                    <span class="top-small_text"></span>
+                                    <span class="mi-top-small_text"></span>
                                     <?$APPLICATION->IncludeComponent(
                                         "prime:main.feedback",
                                         "reviews",
@@ -393,7 +393,7 @@ if (!empty($arCurSection['ID'])) {
                         ?>
 
 					<? if($arCurSection['DEPTH_LEVEL'] > 1): ?>
-					<div class="unified-text-section">
+					<div class="mi-unified-text-section">
 						<?=$arCurSection['DESCRIPTION'];?>
 					</div>
 					<? endif; ?>
@@ -449,10 +449,10 @@ if (!empty($arCurSection['ID'])) {
     <!-- end category-section -->
 
 <? if(false): ?>
-<div class="form-content">
+<div class="mi-form-content">
     <div class="container">
-        <div class="form-content_title title-h3">Остались вопросы? <span class="blue-color">Задайте</span> их прямо сейчас</div>
-        <span class="top-small_text">Отправьте заявку и специалист свяжется с Вами</span>
+        <div class="mi-form-content_title mi-title-h3">Остались вопросы? <span class="mi-blue-color">Задайте</span> их прямо сейчас</div>
+        <span class="mi-top-small_text">Отправьте заявку и специалист свяжется с Вами</span>
         <?$APPLICATION->IncludeComponent("prime:main.feedback", "catalog", Array(
             "EVENT_MESSAGE_ID" => array(	// Почтовые шаблоны для отправки письма
                 0 => "87",

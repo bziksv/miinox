@@ -12,10 +12,10 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="row delivery-section_header">
+<div class="row mi-delivery-section_header">
     <div class="col-xl-5 col-lg-6">
-        <div class="title-h3"><?=$arResult['BLOCK']['NAME']?></div>
-        <p class="top-text">
+        <div class="mi-title-h3"><?=$arResult['BLOCK']['NAME']?></div>
+        <p class="mi-top-text">
             <?=$arResult['BLOCK']['DESCRIPTION']?>
         </p>
         <div class="row">
@@ -24,10 +24,10 @@ $this->setFrameMode(true);
             $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
             $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
             ?>
-            <div class="col-sm-6 delivery-column">
-                <div class="delivery-item">
-                    <span class="delivery-item_icon <?=$arItem['CODE']?>"></span>
-                    <div class="delivery-item_title"><?=$arItem['NAME']?></div>
+            <div class="col-sm-6 mi-delivery-column">
+                <div class="mi-delivery-item">
+                    <span class="mi-delivery-item_icon <?=$arItem['CODE']?>"></span>
+                    <div class="mi-delivery-item_title"><?=$arItem['NAME']?></div>
                     <p><?=$arItem['PREVIEW_TEXT']?></p>
                 </div>
             </div>
@@ -35,7 +35,7 @@ $this->setFrameMode(true);
         </div>
     </div>
     <div class="col-xl-7 col-lg-6">
-        <div class="delivery-img">
+        <div class="mi-delivery-img">
             <img data-src="<?=CFile::GetPath($arResult['BLOCK']['PICTURE'])?>" alt="<?=$arResult['BLOCK']['NAME']?>">
         </div>
     </div>

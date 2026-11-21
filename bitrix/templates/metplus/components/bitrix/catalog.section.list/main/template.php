@@ -35,19 +35,19 @@ $promoItems = array(
 		'url' => 'https://vrn-ehk.ru/',
 	),
 );
-?><div class="category-section" data-cat-style="2">
+?><div class="mi-category-section" data-cat-style="2">
     <div class="container category-section_inner">
         <aside class="category-style-switch" aria-label="Вариант оформления категорий">
             <span class="category-style-switch_label">Вид</span>
             <? for ($styleN = 1; $styleN <= 7; $styleN++): ?>
                 <button type="button"
-                    class="category-style-switch_btn<?= $styleN === 2 ? ' is-active' : '' ?>"
+                    class="category-style-switch_btn<?= $styleN === 2 ? ' mi-is-active' : '' ?>"
                     data-cat-style="<?=$styleN?>"
                     aria-pressed="<?= $styleN === 2 ? 'true' : 'false' ?>"
                     title="Вариант <?=$styleN?>"><?=$styleN?></button>
             <? endfor; ?>
         </aside>
-        <ul class="category-list category-list_photo category-list_photo-lg">
+        <ul class="mi-category-list category-list_photo category-list_photo-lg">
             <? foreach ($arResult['SECTIONS'] as &$arSection):
                 $this->AddEditAction($arSection['ID'], $arSection['EDIT_LINK'], $strSectionEdit);
                 $this->AddDeleteAction($arSection['ID'], $arSection['DELETE_LINK'], $strSectionDelete, $arSectionDeleteParams);
@@ -62,7 +62,7 @@ $promoItems = array(
                     );
                 }
                 ?>
-                <li class="category-item category-item_photo category-item_photo-lg" id="<?=$this->GetEditAreaId($arSection['ID']);?>">
+                <li class="mi-category-item category-item_photo category-item_photo-lg" id="<?=$this->GetEditAreaId($arSection['ID']);?>">
                     <? if($arSection['UF_IN_STOCK']): ?>
                         <div class="badge main">
                             <span class="in-stock" data-text="В наличии"></span>
@@ -80,12 +80,12 @@ $promoItems = array(
                 </li>
             <?endforeach;?>
         </ul>
-        <ul class="category-list category-list_mod category-list_mod-photo">
+        <ul class="mi-category-list category-list_mod category-list_mod-photo">
             <? foreach ($promoItems as $promo):
                 $promoSrc = miinoxResolveSubcategoryImageSrc($promo['code'], $promo['name'], '');
                 ?>
-            <li class="category-item_mod category-item_mod-photo">
-                <div class="category-item_mod-content">
+            <li class="mi-category-item_mod category-item_mod-photo">
+                <div class="mi-category-item_mod-content">
                     <span class="category-item_mod-img">
                         <? if ($promoSrc): ?>
                             <img data-src="<?=htmlspecialcharsbx($promoSrc)?>" alt="<?=htmlspecialcharsbx($promo['name'])?>">
@@ -93,12 +93,12 @@ $promoItems = array(
                     </span>
                     <span class="category-item_mod-body">
                         <span class="text"><?=htmlspecialcharsbx($promo['name'])?></span>
-                        <a href="<?=htmlspecialcharsbx($promo['url'])?>" class="site-link" target="_blank" rel="noopener">Перейти на сайт</a>
+                        <a href="<?=htmlspecialcharsbx($promo['url'])?>" class="mi-site-link" target="_blank" rel="noopener">Перейти на сайт</a>
                     </span>
                 </div>
             </li>
             <? endforeach; ?>
         </ul>
-		<a href="/prays/price_metall.xls" class="download-price_btn main-btn"><span class="glipf-download"></span>Скачать прайс</a>
+		<a href="/prays/price_metall.xls" class="mi-download-price_btn mi-main-btn"><span class="glipf-download"></span>Скачать прайс</a>
     </div>
 </div>

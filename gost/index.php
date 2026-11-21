@@ -4,8 +4,8 @@ $APPLICATION->SetPageProperty("description", "ГОСТЫ И ТУ на метал
 $APPLICATION->SetPageProperty("title", "ГОСТЫ И ТУ");
 $APPLICATION->SetTitle("ГОСТЫ И ТУ | Металлопрокат | МеталлИнвест");
 ?>
-    <main class="main-content">
-        <div class="inner-page_title-section">
+    <main class="mi-main-content">
+        <div class="mi-inner-page_title-section">
             <div class="container">
                 <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array("SITE_ID" => SITE_ID),
                     false

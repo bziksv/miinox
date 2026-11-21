@@ -12,10 +12,10 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<form action="<?=$arResult["FORM_ACTION"]?>" class="head_form-search mobile-hidden">
-    <input type="text" name="q" class="head_form-search_input" value="<?=$_REQUEST['q']?>" placeholder="Введите ваш запрос">
-    <div class="wrapper_submit-btn">
+<form action="<?=$arResult["FORM_ACTION"]?>" class="mi-head_form-search mi-mobile-hidden">
+    <input type="text" name="q" class="mi-head_form-search_input" value="<?=$_REQUEST['q']?>" placeholder="Введите ваш запрос">
+    <div class="mi-wrapper_submit-btn">
         <span class="glipf-search"></span>
-        <input type="submit" name="s" class="form-search_submit-btn" value="">
+        <input type="submit" name="s" class="mi-form-search_submit-btn" value="">
     </div>
 </form>

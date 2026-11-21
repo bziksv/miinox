@@ -12,7 +12,7 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="services-mod_section">
+<div class="mi-services-mod_section">
     <div class="container">
         <div class="row">
             <?$APPLICATION->IncludeComponent(

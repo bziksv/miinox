@@ -13,9 +13,9 @@
 
 $this->setFrameMode(true);
 ?>
-<div class="footer-column">
-    <div class="footer-title"><a href="">полезное</a></div>
-    <ul class="footer-menu">
+<div class="mi-footer-column">
+    <div class="mi-footer-title"><a href="">полезное</a></div>
+    <ul class="mi-footer-menu">
         <?foreach($arResult["MENU_STRUCTURE"] as $itemID => $arColumns):?>
         <?$existPictureDescColomn = ($arResult["ALL_ITEMS"][$itemID]["PARAMS"]["picture_src"] || $arResult["ALL_ITEMS"][$itemID]["PARAMS"]["description"]) ? true : false;?>
         <li><a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>"><?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?></a></li>

@@ -3,5 +3,5 @@ $cartUrl = !empty($arParams['PATH_TO_BASKET']) ? $arParams['PATH_TO_BASKET'] : '
 ?>
 <a href="<?=htmlspecialcharsbx($cartUrl)?>">
     <span class="glipf-cart"></span>
-    <span class="head-cart_number"><?=(int)$arResult['NUM_PRODUCTS']?></span>
+    <span class="mi-head-cart_number"><?=(int)$arResult['NUM_PRODUCTS']?></span>
 </a>

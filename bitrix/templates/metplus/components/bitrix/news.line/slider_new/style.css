@@ -1,4 +1,4 @@
-.main-section.main-section--picture {
+.mi-main-section.main-section--picture {
   background: none !important;
   background-image: none !important;
   padding: 0 !important;
@@ -84,7 +84,7 @@
   line-height: normal;
 }
 
-.main-slider.main-slider--picture .slick-dots {
+.mi-main-slider.main-slider--picture .slick-dots {
   position: absolute;
   left: 0;
   right: 0;
@@ -99,7 +99,7 @@
     bottom: 8px;
   }
 
-  .main-slider.main-slider--picture .slick-dots {
+  .mi-main-slider.main-slider--picture .slick-dots {
     bottom: 8px !important;
   }
 }

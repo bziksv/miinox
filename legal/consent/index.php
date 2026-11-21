@@ -2,7 +2,7 @@
 require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/header.php';
 $APPLICATION->SetTitle('Согласие на обработку персональных данных');
 ?>
-<main class="main-content">
+<main class="mi-main-content">
     <div class="legal-wrap">
         <?php include __DIR__ . '/body.html'; ?>
     </div>

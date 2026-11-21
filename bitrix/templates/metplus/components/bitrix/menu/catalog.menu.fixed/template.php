@@ -39,7 +39,7 @@ $renderMenuItemMedia = static function (array $item) {
 		);
 	}
 	?>
-	<span class="menu-icon <?=htmlspecialcharsbx($icon)?>"></span>
+	<span class="mi-menu-icon <?=htmlspecialcharsbx($icon)?>"></span>
 	<?php
 };
 
@@ -57,10 +57,10 @@ $resolveWorldTheme = static function (array $world) {
 	return 'steel';
 };
 ?>
-<div class="fixed-menu_catalog fixed-menu_catalog--tree">
-    <a href="/#katalog" class="fixed-panel_catalog-btn"><span class="head-menu_text">КАТАЛОГ</span></a>
-    <div class="dropdown-content">
-        <ul class="dropdown-menu">
+<div class="mi-fixed-menu_catalog fixed-menu_catalog--tree">
+    <a href="/#katalog" class="mi-fixed-panel_catalog-btn"><span class="mi-head-menu_text">КАТАЛОГ</span></a>
+    <div class="mi-dropdown-content">
+        <ul class="mi-dropdown-menu">
             <?foreach($arResult["MENU_STRUCTURE"] as $nameKey => $arColumns): ?>
                 <? if (!is_array($arColumns) || empty($arColumns)) continue; ?>
                 <? foreach ($arColumns as $itemID => $arItemColumns): ?>
@@ -92,7 +92,7 @@ $resolveWorldTheme = static function (array $world) {
                         <ul class="dropdown-menu_world__list">
                             <? foreach ($childIds as $childId): ?>
                                 <? $child = $arResult["ALL_ITEMS"][$childId]; ?>
-                                <li class="dropdown-menu_item">
+                                <li class="mi-dropdown-menu_item">
                                     <a href="<?=$child["LINK"]?>">
                                         <? $renderMenuItemMedia($child); ?>
                                         <span><?=$child["TEXT"]?></span>

@@ -12,10 +12,10 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="gost-section">
+<div class="mi-gost-section">
 	<div class="container">
-		<div class="gost-section_header">
-			<div class="left-column">
+		<div class="mi-gost-section_header">
+			<div class="mi-left-column">
                 <?$APPLICATION->IncludeComponent(
                     "bitrix:search.form",
                     "flat",
@@ -25,7 +25,7 @@ $this->setFrameMode(true);
                     $component
                 );?>
 			</div>
-			<div class="right-column">
+			<div class="mi-right-column">
                 <?/*$APPLICATION->IncludeComponent("prime:main.feedback", "gost", Array(
                     "EVENT_MESSAGE_ID" => array('88'),	// Почтовые шаблоны для отправки письма
                     "IBLOCK_ID" => "34",	// Код информационного блока

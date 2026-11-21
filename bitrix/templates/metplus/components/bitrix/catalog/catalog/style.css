@@ -56,12 +56,12 @@
 }
 /* #### */
 
-.catalog_right-column.to-order{
+.mi-catalog_right-column.to-order{
 	position: relative;
 	padding: 1em;
 }
 
-.catalog_right-column .to_order-back{
+.mi-catalog_right-column .to_order-back{
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -74,7 +74,7 @@
 	opacity: 0.9;
 }
 
-.catalog_right-column .to_order-main {
+.mi-catalog_right-column .to_order-main {
 	position: absolute;
 	top: 290px;
 	width: 100%;
@@ -82,7 +82,7 @@
 	z-index: 3;
 }
 
-.catalog_right-column .to_order-main .to_order-text{
+.mi-catalog_right-column .to_order-main .to_order-text{
 	font-size: 45px;
 	font-weight: 500;
 	color: #FFFFFF;

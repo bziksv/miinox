@@ -12,22 +12,22 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="title-h3"><?=$arResult['BLOCK']['NAME']?></div>
-<div class="row wrapper-vacanvy">
+<div class="mi-title-h3"><?=$arResult['BLOCK']['NAME']?></div>
+<div class="row mi-wrapper-vacanvy">
     <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
     <?
     $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
     $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
     ?>
     <div class="col-md-6">
-        <div class="vacancy-item">
-            <div class="vacancy-item_title"><?=$arItem['NAME']?></div>
-            <span class="vacancy-item_list-title">Обязанности:</span>
+        <div class="mi-vacancy-item">
+            <div class="mi-vacancy-item_title"><?=$arItem['NAME']?></div>
+            <span class="mi-vacancy-item_list-title">Обязанности:</span>
             <?=$arItem['PREVIEW_TEXT']?>
-            <div class="vacancy-item_hidden">
+            <div class="mi-vacancy-item_hidden">
                 <?=$arItem['DETAIL_TEXT']?>
             </div>
-            <div class="vacancy-item_more-details">Подробнее</div>
+            <div class="mi-vacancy-item_more-details">Подробнее</div>
         </div>
     </div>
     <?endforeach;?>

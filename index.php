@@ -1,10 +1,10 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetPageProperty("description", "ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» предлагает купить изделия из металлопроката в Москве по ценам производителя! Широкий ассортимент продукции в нашем каталоге!");
-$APPLICATION->SetPageProperty("title", "Металлопрокат в Москве от ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» | Низкие цены от поставщиков | Купить металлопрокат в Москве и Московской области ");
-$APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» - изделия из металлопроката");
+$APPLICATION->SetPageProperty("description", "ООО «Металлинвест Инокс» предлагает купить нержавеющий и цветной металлопрокат. Широкий ассортимент продукции в нашем каталоге.");
+$APPLICATION->SetPageProperty("title", "Нержавеющий и цветной металлопрокат | ООО «Металлинвест Инокс»");
+$APPLICATION->SetTitle("ООО «Металлинвест Инокс»");
 ?>
-<main class="main-content main-content_home" data-home-version="new">
+<main class="mi-main-content main-content_home" data-home-version="new">
 
         <?$APPLICATION->IncludeComponent(
 	"bitrix:news.line",
@@ -78,7 +78,7 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 	)
 );?>
 
-        <div class="text-section">
+        <div class="mi-text-section">
             <div class="container">
                 <?$APPLICATION->IncludeFile(SITE_TEMPLATE_PATH.'/inc/main_desc.php',
                     Array(),
@@ -87,7 +87,7 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
             </div>
         </div>
 
-        <div class="map-container">
+        <div class="mi-map-container">
             <?$APPLICATION->IncludeComponent(
 	"bitrix:catalog.section.list",
 	"contact.main",

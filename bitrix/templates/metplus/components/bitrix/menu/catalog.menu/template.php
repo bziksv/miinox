@@ -24,7 +24,7 @@ $isJsHidden = static function ($itemId) use ($jsHiddenIds) {
 
 require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icons.php";
 ?>
-<ul class="catalog-menu">
+<ul class="mi-catalog-menu">
 <?foreach($arResult["MENU_STRUCTURE"] as $itemID => $arColumns):?>
 	<? if (!isset($arResult["ALL_ITEMS"][$itemID])) continue; ?>
 	<?
@@ -52,12 +52,12 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
 		$itemTheme = 'copper';
 	}
 	?>
-    <li class="catalog-menu_item catalog-menu_item_<?= $itemTheme ?> is-open">
+    <li class="mi-catalog-menu_item catalog-menu_item_<?= $itemTheme ?> mi-is-open">
         <a href="<?=$item["LINK"]?>" data-id="<?= (int)$itemDbId ?>">
             <? if ($menuPic !== ''): ?>
             <span class="menu-photo"><img src="<?=htmlspecialcharsbx($menuPic)?>?v=norm2" alt="" loading="lazy"></span>
             <? else: ?>
-            <span class="menu-icon <?=$icon?>"></span>
+            <span class="mi-menu-icon <?=$icon?>"></span>
             <? endif; ?>
             <? if ($isJsHidden($itemDbId)): ?>
                 <span data-text="<?=mb_strtoupper($item["TEXT"])?>"></span>
@@ -68,7 +68,7 @@ require_once $_SERVER["DOCUMENT_ROOT"].SITE_TEMPLATE_PATH."/include/catalog_icon
     <?if (is_array($arColumns) && count($arColumns) > 0):?>
         <?foreach($arColumns as $key=>$arRow):?>
 			<? if (!is_array($arRow) || empty($arRow)) continue; ?>
-            <ul class="catalog-submenu">
+            <ul class="mi-catalog-submenu">
             <?foreach($arRow as $itemIdLevel_2=>$arLevel_3):?>
 				<? if (!isset($arResult["ALL_ITEMS"][$itemIdLevel_2])) continue; ?>
 				<?

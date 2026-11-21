@@ -14,16 +14,16 @@ $this->setFrameMode(true);
 ?>
 
 <?if($arParams["DISPLAY_NAME"]!="N" && $arResult["NAME"]):?>
-<h1 class="news-detailed_title" style="color:#2b2b2b"><?=$arResult["NAME"]?></h1>
+<h1 class="mi-news-detailed_title" style="color:#2b2b2b"><?=$arResult["NAME"]?></h1>
 <?endif;?>
 
 <?if($arParams["DISPLAY_DATE"]!="N" && $arResult["DISPLAY_ACTIVE_FROM"]):?>
-    <span class="news-detailed_date"><?=$arResult["DISPLAY_ACTIVE_FROM"]?></span>
+    <span class="mi-news-detailed_date"><?=$arResult["DISPLAY_ACTIVE_FROM"]?></span>
 <?endif;?>
 <p><?echo $arResult["DETAIL_TEXT"];?></p>
 
 <?foreach($arResult['IMAGES'] as $img):?>
-<figure class="news-detailed_img">
+<figure class="mi-news-detailed_img">
     <img data-src="<?=$img?>" alt="<?=$arResult["NAME"]?>">
 </figure>
 <?endforeach;?>

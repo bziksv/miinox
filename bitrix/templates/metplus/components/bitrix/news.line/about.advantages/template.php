@@ -12,9 +12,9 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="advantages-mod_section">
+<div class="mi-advantages-mod_section">
     <div class="container">
-        <div class="title-h3"><?=$arResult['BLOCK']['NAME']?></div>
+        <div class="mi-title-h3"><?=$arResult['BLOCK']['NAME']?></div>
         <div class="row">
             <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
             <?
@@ -22,9 +22,9 @@ $this->setFrameMode(true);
             $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
             ?>
                 <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
-                <div class="advantages-item">
-                    <span class="advantages-item_icon <?=$arItem['CODE']?>"></span>
-                    <div class="advantages-item_title">
+                <div class="mi-advantages-item">
+                    <span class="mi-advantages-item_icon <?=$arItem['CODE']?>"></span>
+                    <div class="mi-advantages-item_title">
                         <?=$arItem['~NAME']?>
                     </div>
                     <p><?=$arItem['PREVIEW_TEXT']?></p>

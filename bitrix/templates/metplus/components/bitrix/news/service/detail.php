@@ -13,7 +13,7 @@
 $this->setFrameMode(true);
 
 ?>
-<div class="services-detailed_section">
+<div class="mi-services-detailed_section">
     <div class="container">
         <?$ElementID = $APPLICATION->IncludeComponent(
             "bitrix:news.detail",

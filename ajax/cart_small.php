@@ -22,5 +22,5 @@ if (Loader::includeModule('sale')) {
 ?>
 <a href="/cart/">
 	<span class="glipf-cart"></span>
-	<span class="head-cart_number"><?=(int)$count?></span>
+	<span class="mi-head-cart_number"><?=(int)$count?></span>
 </a>

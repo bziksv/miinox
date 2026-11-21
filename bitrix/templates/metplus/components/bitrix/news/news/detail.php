@@ -12,7 +12,7 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<article class="news-detailed">
+<article class="mi-news-detailed">
     <div class="container">
         <div class="row">
             <div class="col-xl-9 col-lg-8 col-md-8">
@@ -129,7 +129,7 @@ $this->setFrameMode(true);
                     $component
                 );?>
 
-                <a href="<?=$arResult["FOLDER"].$arResult["URL_TEMPLATES"]["news"]?>" class="blue-border_btn all-news_btn"><?=GetMessage("T_NEWS_DETAIL_BACK")?></a>
+                <a href="<?=$arResult["FOLDER"].$arResult["URL_TEMPLATES"]["news"]?>" class="mi-blue-border_btn mi-all-news_btn"><?=GetMessage("T_NEWS_DETAIL_BACK")?></a>
             </div>
         </div>
     </div>

@@ -6,8 +6,8 @@ $APPLICATION->SetPageProperty("description", "На этой странице м�
 $APPLICATION->SetTitle("Вакансии");
 ?>
 
-    <main class="main-content">
-        <div class="inner-page_title-section">
+    <main class="mi-main-content">
+        <div class="mi-inner-page_title-section">
             <div class="container">
                 <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array("SITE_ID" => SITE_ID),
                     false
@@ -16,7 +16,7 @@ $APPLICATION->SetTitle("Вакансии");
             </div>
         </div>
         <!-- end inner-page_title-section -->
-        <div class="vacancy-section">
+        <div class="mi-vacancy-section">
             <div class="container">
                 <?$APPLICATION->IncludeComponent("bitrix:news.line", "vacancy.advatages", Array(
                     "ACTIVE_DATE_FORMAT" => "d.m.Y",	// Формат показа даты
@@ -69,7 +69,7 @@ $APPLICATION->SetTitle("Вакансии");
                 ),
                     false
                 );?>
-                <div class="title-h3">Вы хотите работать с нами? Отправьте свое резюме</div>
+                <div class="mi-title-h3">Вы хотите работать с нами? Отправьте свое резюме</div>
                 <?$APPLICATION->IncludeComponent(
 	"prime:main.feedback",
 	"vacancy",

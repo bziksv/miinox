@@ -18,15 +18,15 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 }
 ?>
 
-<form action="<?=POST_FORM_ACTION_URI?>" method="POST" enctype="multipart/form-data" class="static-form">
+<form action="<?=POST_FORM_ACTION_URI?>" method="POST" enctype="multipart/form-data" class="mi-static-form">
     <?=bitrix_sessid_post()?>
 
     <div class="row">
         <? foreach($arResult['USER_FIELD'] as $field):?>
         <div class="col-md-4">
-            <div class="form-group">
+            <div class="mi-form-group">
                 <input type="<?=($field['CODE'] == 'PHONE') ? 'tel' : 'text'?>"
-                       class="form-input"
+                       class="mi-form-input"
                        name="<?=$field['CODE']?>"
                        value="<?=$arResult[$field['CODE']]?>"
                        placeholder="<?=$field['NAME']?> <?if($field['IS_REQUIRED'] == "Y"):?>*<?endif?>"
@@ -39,8 +39,8 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 
     <div class="row">
         <div class="col-md-8">
-            <div class="form-group">
-                <textarea name="PREVIEW_TEXT" class="form-textarea" placeholder="Введите текст сообщения *" required><?=$arResult['PREVIEW_TEXT']?></textarea>
+            <div class="mi-form-group">
+                <textarea name="PREVIEW_TEXT" class="mi-form-textarea" placeholder="Введите текст сообщения *" required><?=$arResult['PREVIEW_TEXT']?></textarea>
             </div>
         </div>
 
@@ -49,7 +49,7 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
             <div class="form-consent">
                 <?php include $_SERVER['DOCUMENT_ROOT'] . SITE_TEMPLATE_PATH . '/include/auth_consent.php'; ?>
             </div>
-            <input type="submit" name="submit" value="Отправить" class="form-static_submit-btn main-btn">
+            <input type="submit" name="submit" value="Отправить" class="mi-form-static_submit-btn mi-main-btn">
         </div>
     </div>
 </form>

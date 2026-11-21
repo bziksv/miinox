@@ -5,7 +5,7 @@ if(!$arParams['ID'])
 <div class="to_order-main">
     <div class="to_order-text" data-text="Данная продукция находится на складе в<br/>Воронеже.<br/>Только под заказ!"></div>
     <div class="to_order-btn">
-        <a href="#" class="main-btn" id="inStockCat" data-cat_id="<?=$arParams['ID']?>">
+        <a href="#" class="mi-main-btn" id="inStockCat" data-cat_id="<?=$arParams['ID']?>">
             Я согласен, заказать <span class="glipf-cart"></span>
         </a>
     </div>

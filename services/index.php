@@ -5,8 +5,8 @@ $APPLICATION->SetPageProperty("keywords", "Услуги компании МЕТ�
 $APPLICATION->SetPageProperty("description", "Услуги компании МЕТАЛЛИНВЕСТ");
 $APPLICATION->SetTitle("Услуги");
 ?>
-<main class="main-content">
-<div class="inner-page_title-section">
+<main class="mi-main-content">
+<div class="mi-inner-page_title-section">
 	<div class="container">
 		 <?$APPLICATION->IncludeComponent(
 	"bitrix:breadcrumb",

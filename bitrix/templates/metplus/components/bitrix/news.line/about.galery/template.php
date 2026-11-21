@@ -12,7 +12,7 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="photo-galery_section">
+<div class="mi-photo-galery_section">
     <div class="container">
         <div class="row">
             <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
@@ -21,7 +21,7 @@ $this->setFrameMode(true);
             $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
             ?>
                 <div class="col-md-4 col-sm-6">
-                <div class="photo-galery_item">
+                <div class="mi-photo-galery_item">
                     <a href="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" class="fancybox" data-fancybox="group">
                         <img alt="<?=$arItem['NAME']?>" src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" data-src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>">
                     </a>

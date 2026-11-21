@@ -12,7 +12,7 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="news-section">
+<div class="mi-news-section">
     <div class="container">
         <?$APPLICATION->IncludeComponent(
             "bitrix:news.list",

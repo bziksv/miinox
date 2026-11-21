@@ -1,4 +1,4 @@
-<footer class="main-footer">
+<footer class="mi-main-footer">
     <div class="container">
         <div class="footer-shell">
             <div class="footer-rail">
@@ -8,15 +8,15 @@
                     </a>
                     <p class="footer-brand__tag">Нержавейка и цветной металлопрокат · поставки со склада</p>
                 </div>
-                <div class="footer-column footer-column--contacts">
-                    <ul class="footer-contact_list">
+                <div class="mi-footer-column footer-column--contacts">
+                    <ul class="mi-footer-contact_list">
                         <li>
                             <a class="footer-phone" href="tel:+74732475555">
                                 <span class="glipf-call-answer" aria-hidden="true"></span>+7 (473) 247-55-55
                             </a>
                         </li>
                         <li>
-                            <a href="mailto:info@miinox.ru" class="footer-mail">
+                            <a href="mailto:info@miinox.ru" class="mi-footer-mail">
                                 <span class="glipf-email" aria-hidden="true"></span>info@miinox.ru
                             </a>
                         </li>
@@ -29,11 +29,7 @@
                         </li>
                     </ul>
                     <div class="footer-social">
-                        <?/* временно сети КМИ; позже заменить на miinox */?>
-                        <a class="footer-social_link" href="https://vk.com/metplusvrn" rel="nofollow" target="_blank" aria-label="ВКонтакте">
-                            <img width="40" height="40" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-vk.svg?v=2" alt="ВКонтакте">
-                        </a>
-                        <a class="footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
+                            <a class="mi-footer-social_link" href="https://t.me/Metallinvest36" rel="nofollow" target="_blank" aria-label="Telegram">
                             <img width="40" height="40" src="<?=SITE_TEMPLATE_PATH?>/img/static/social-telegram.svg?v=2" alt="Telegram">
                         </a>
                     </div>
@@ -102,25 +98,25 @@
 </footer>
 <!-- end main-footer -->
 
-<div class="scroll-to-top"></div>
+<div class="mi-scroll-to-top"></div>
 </div>
 <!-- END GLOBAL-WRAPPER -->
-<div class="cart-content">
+<div class="mi-cart-content">
     <div class="cart-content_first"></div>
-    <div class="cart-content_second"></div>
+    <div class="mi-cart-content_second"></div>
 </div>
 
 <div aria-hidden="true" class="modal fade js-modal" id="citySelect" role="dialog">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-city" role="document">
-        <div class="modal-content">
-            <div class="modal-city_title section-title">Выберите ваш город</div>
-            <button aria-label="Close" class="close uhified_close-btn" data-dismiss="modal" type="button"></button>
+    <div class="modal-dialog modal-dialog-centered mi-modal-dialog-city" role="document">
+        <div class="mi-modal-content">
+            <div class="modal-city_title mi-section-title">Выберите ваш город</div>
+            <button aria-label="Close" class="close mi-uhified_close-btn" data-dismiss="modal" type="button"></button>
             <div class="row">
-                <ul class="modal-city_list-unstyled col-sm-6">
+                <ul class="mi-modal-city_list-unstyled col-sm-6">
                     <li>Москва</li>
                     <li>Воронеж</li>
                 </ul>
-                <ul class="modal-city_list-unstyled col-sm-6">
+                <ul class="mi-modal-city_list-unstyled col-sm-6">
                     <li>Старый Оскол</li>
                     <li>Лиски</li>
                 </ul>
@@ -130,9 +126,9 @@
 </div>
 
 <div aria-hidden="true" class="modal fade js-modal" id="callback" role="dialog">
-    <div class="modal-dialog modal-dialog-centered modal-callback" role="document">
-        <div class="modal-content">
-            <button aria-label="Close" class="close uhified_close-btn" data-dismiss="modal" type="button"></button>
+    <div class="modal-dialog modal-dialog-centered mi-modal-callback" role="document">
+        <div class="mi-modal-content">
+            <button aria-label="Close" class="close mi-uhified_close-btn" data-dismiss="modal" type="button"></button>
 
             <?$APPLICATION->IncludeComponent(
                 "prime:main.feedback",
@@ -158,10 +154,10 @@
 
 <? if($_REQUEST["success"]): ?>
     <div aria-hidden="true" class="modal fade js-modal" id="success_msg" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-callback" role="document">
-            <div class="modal-content">
-                <button aria-label="Close" class="close uhified_close-btn" data-dismiss="modal" type="button"></button>
-                <div class="form-callback_title">
+        <div class="modal-dialog modal-dialog-centered mi-modal-callback" role="document">
+            <div class="mi-modal-content">
+                <button aria-label="Close" class="close mi-uhified_close-btn" data-dismiss="modal" type="button"></button>
+                <div class="mi-form-callback_title">
                     Сообщение отправлено!
                     <small>Мы обязательно <span class="min">вам перезвоним.</span></small>
                 </div>
@@ -178,7 +174,7 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery-ui/jquery-ui.js"></script>
-<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=sidebar-worlds"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/js/main.js?v=mi-burger"></script>
 
 </body>
 </html>

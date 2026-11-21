@@ -12,26 +12,26 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="recommended-transportation_content">
-    <div class="title-h3"><?=$arResult['BLOCK']['NAME']?></div>
+<div class="mi-recommended-transportation_content">
+    <div class="mi-title-h3"><?=$arResult['BLOCK']['NAME']?></div>
     <div class="row">
         <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
         <?
         $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
         $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
         ?>
-        <div class="col-md-4 transport-column">
-            <div class="transport-item">
-                <span class="transport-item_title"><?=$arItem['NAME']?> </span>
-                <div class="transport-item_img transport-item_img-mod">
+        <div class="col-md-4 mi-transport-column">
+            <div class="mi-transport-item">
+                <span class="mi-transport-item_title"><?=$arItem['NAME']?> </span>
+                <div class="mi-transport-item_img mi-transport-item_img-mod">
                     <img data-src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="<?=$arItem['NAME']?>">
                 </div>
             </div>
         </div>
         <?endforeach;?>
     </div>
-    <div class="recommended-transportation_footer">
-        <div class="left-column">
+    <div class="mi-recommended-transportation_footer">
+        <div class="mi-left-column">
 			<p>Для вашего удобства мы оперативно доставляем нержавеющий и цветной металлопрокат по Москве, Московской области и всей территории РФ.</p>
 			<p>Стоимость доставки рассчитывается индивидуально в зависимости от расстояния и веса заказа. В стоимость включена загрузка (до 60 мин.) и разгрузка автомобиля силами клиента (до 60 мин). Плюс 1 час въезд в ТТК.</p> 
 			<p>Задержка транспорта свыше этого времени, оплачивается по факту простоя из расчета стоимости часа.</p>
@@ -94,11 +94,11 @@ $this->setFrameMode(true);
 			<p>Обращаем Ваше внимание, место выгрузки металлопроката и беспрепятственный проезд к нему клиент должен обеспечить самостоятельно!</p>
 
         </div>
-        <div class="right-column">
-            <div class="price-list_box">
-                <div class="price-list_box-content">
+        <div class="mi-right-column">
+            <div class="mi-price-list_box">
+                <div class="mi-price-list_box-content">
                     <img alt="alt" src="<?=SITE_TEMPLATE_PATH?>/img/static/price-list_img.jpg">
-					<a href="/prays/prays_dostavka.pdf" class="download-price_btn main-btn"><span class="glipf-download"></span>Скачать прайс</a>
+					<a href="/prays/prays_dostavka.pdf" class="mi-download-price_btn mi-main-btn"><span class="glipf-download"></span>Скачать прайс</a>
                 </div>
             </div>
         </div>

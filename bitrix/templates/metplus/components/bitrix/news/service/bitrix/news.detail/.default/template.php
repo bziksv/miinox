@@ -15,17 +15,17 @@ $this->setFrameMode(true);
 
 
 <? foreach ($arResult['ITEMS'] as $key => $arItem): ?>
-<div class="row services-detailed_box">
-    <div class="left-column <? if($key % 2): ?>order-md-2<? endif;?>">
-        <div class="services-detailed_img">
+<div class="row mi-services-detailed_box">
+    <div class="mi-left-column <? if($key % 2): ?>mi-order-md-2<? endif;?>">
+        <div class="mi-services-detailed_img">
             <img data-src="<?=$arItem['IMG']?>" alt="<?=$arResult['NAME']?>">
         </div>
     </div>
-    <div class="right-column"><?=$arItem['TEXT']?></div>
+    <div class="mi-right-column"><?=$arItem['TEXT']?></div>
 </div>
 <?endforeach;?>
 
-<div class="services-detailed_footer">
+<div class="mi-services-detailed_footer">
     <span class="text">Узнайте стоимость всех услуг</span>
-    <a href="<?=CFile::GetPath($arResult['PROPERTIES']['PRICE']['VALUE'])?>" class="download-price_btn main-btn" download><span class="glipf-download"></span>Скачать прайс</a>
+    <a href="<?=CFile::GetPath($arResult['PROPERTIES']['PRICE']['VALUE'])?>" class="mi-download-price_btn mi-main-btn" download><span class="glipf-download"></span>Скачать прайс</a>
 </div>

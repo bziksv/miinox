@@ -19,9 +19,9 @@ $this->setFrameMode(true);
         $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
         ?>
         <div class="col-md-<?if($key % 2):?>5<?else:?>7<?endif;?>">
-            <div class="advantages-item">
-                <span class="advantages-item_icon <?=$arItem['CODE']?>"></span>
-                <div class="advantages-item_title"><?=$arItem['~NAME']?></div>
+            <div class="mi-advantages-item">
+                <span class="mi-advantages-item_icon <?=$arItem['CODE']?>"></span>
+                <div class="mi-advantages-item_title"><?=$arItem['~NAME']?></div>
                 <p><?=$arItem['PREVIEW_TEXT']?></p>
             </div>
         </div>

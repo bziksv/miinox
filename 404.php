@@ -7,8 +7,8 @@ define("HIDE_SIDEBAR", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 
-$APPLICATION->SetTitle("Страница не найдена");?><div class="main-content">
-	<div class="category-section_mod">
+$APPLICATION->SetTitle("Страница не найдена");?><div class="mi-main-content">
+	<div class="mi-category-section_mod">
 		<div class="container"> 
 			<div class="row">
 

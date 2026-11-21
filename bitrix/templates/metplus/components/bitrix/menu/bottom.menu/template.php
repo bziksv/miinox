@@ -13,18 +13,18 @@
 
 $this->setFrameMode(true);
 ?>
-<div class="footer-column">
+<div class="mi-footer-column">
     <div class="row">
         <?foreach($arResult["MENU_STRUCTURE"] as $itemID => $arColumns):?>
         <?$existPictureDescColomn = ($arResult["ALL_ITEMS"][$itemID]["PARAMS"]["picture_src"] || $arResult["ALL_ITEMS"][$itemID]["PARAMS"]["description"]) ? true : false;?>
         <div class="col-lg-4 col-md-6 col-6">
-            <div class="footer-title">
+            <div class="mi-footer-title">
                 <a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>">
                     <?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?>
                 </a>
             </div>
             <?foreach($arColumns as $key=>$arRow):?>
-            <ul class="footer-menu">
+            <ul class="mi-footer-menu">
                 <?foreach($arRow as $itemIdLevel_2=>$arLevel_3):?>
                 <li>
                     <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">

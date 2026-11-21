@@ -11,14 +11,14 @@
 /** @var string $componentPath */
 /** @var CBitrixComponent $component */
 ?>
-<div class="row wrapper_gost-item">
+<div class="row mi-wrapper_gost-item">
     <?if(count($arResult["SEARCH"])>0):?>
         <?foreach($arResult["SEARCH"] as $arItem):?>
             <div class="col-xl-3 col-lg-4 col-md-4 col-sm-6">
-                <div class="gost-item">
+                <div class="mi-gost-item">
                     <a href="<?echo CFile::GetPath($arItem["PROPERTIES"]["FILE"]["VALUE"])?>" download>
-                        <span class="gost-item_icon glipf-pdf"></span>
-                        <div class="gost-item-desc">
+                        <span class="mi-gost-item_icon glipf-pdf"></span>
+                        <div class="mi-gost-item-desc">
                             <p><?echo $arItem["TITLE_FORMATED"]?></p>
                         </div>
                     </a>
@@ -27,7 +27,7 @@
         <?endforeach;?>
     <?else:?>
     <div class="col-xl-3 col-lg-4 col-md-4 col-sm-6">
-        <div class="gost-item"><?=GetMessage("SEARCH_NOTHING_TO_FOUND")?></div>
+        <div class="mi-gost-item"><?=GetMessage("SEARCH_NOTHING_TO_FOUND")?></div>
     </div>
     <?endif;?>
 </div>

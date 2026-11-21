@@ -5,8 +5,8 @@ $APPLICATION->SetPageProperty("description", "Раздел с полезными
 $APPLICATION->SetTitle("Статьи и полезные материалы");
 ?>
 
-    <main class="main-content">
-        <div class="inner-page_title-section">
+    <main class="mi-main-content">
+        <div class="mi-inner-page_title-section">
             <div class="container">
                 <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array("SITE_ID" => SITE_ID),
                     false

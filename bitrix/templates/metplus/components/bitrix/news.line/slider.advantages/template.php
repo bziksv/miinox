@@ -12,8 +12,8 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="wrapper_advantages-slider">
-    <div class="advantages-slider">
+<div class="mi-wrapper_advantages-slider">
+    <div class="mi-advantages-slider">
         <?foreach($arResult["ITEMS"] as $key => $arItem): ?>
             <?
             $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
@@ -24,12 +24,12 @@ $this->setFrameMode(true);
                     <span class="quotes">“</span>
                     <?=$arItem['PREVIEW_TEXT']?>
                 </p>
-                <div class="advantages-slide_img">
+                <div class="mi-advantages-slide_img">
                     <img data-src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="<?=$arItem['NAME']?>">
                 </div>
             </div>
         <?endforeach;?>
     </div>
-    <div class="advantages-slide_dots js-dots"></div>
+    <div class="mi-advantages-slide_dots js-dots"></div>
 </div>
 

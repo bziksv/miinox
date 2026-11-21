@@ -5,8 +5,8 @@ $APPLICATION->SetPageProperty("title", "Доставка продукции кл
 $APPLICATION->SetTitle("delivery");
 ?>
 
-    <main class="main-content">
-        <div class="inner-page_title-section">
+    <main class="mi-main-content">
+        <div class="mi-inner-page_title-section">
             <div class="container">
                 <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array("SITE_ID" => SITE_ID),
                     false
@@ -15,7 +15,7 @@ $APPLICATION->SetTitle("delivery");
             </div>
         </div>
         <!-- end inner-page_title-section -->
-        <div class="delivery-section">
+        <div class="mi-delivery-section">
             <div class="container">
                 <?$APPLICATION->IncludeComponent("bitrix:news.line", "delivery.header", Array(
                     "ACTIVE_DATE_FORMAT" => "d.m.Y",	// Формат показа даты

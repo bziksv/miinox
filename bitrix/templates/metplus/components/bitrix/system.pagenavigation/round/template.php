@@ -2,12 +2,12 @@
 
 <?if ($arResult["NavShowAlways"] || $arResult["NavPageCount"] > 1):?>
 
-    <ul class="main-pagination">
+    <ul class="mi-main-pagination">
 
         <?if ($arResult["NAV"]["PAGE_NUMBER"] == 1):?>
-            <li class="prev-page"><a href="#"></a></li>
+            <li class="mi-prev-page"><a href="#"></a></li>
         <?else:?>
-            <li class="prev-page active"><a href="<?=$arResult["NAV"]["URL"]["PREV_PAGE"]?>"></a></li>
+            <li class="mi-prev-page active"><a href="<?=$arResult["NAV"]["URL"]["PREV_PAGE"]?>"></a></li>
         <?endif;?>
 
         <?for ($PAGE_NUMBER=$arResult["NAV"]["START_PAGE"]; $PAGE_NUMBER<=$arResult["NAV"]["END_PAGE"]; $PAGE_NUMBER++):?>
@@ -19,9 +19,9 @@
         <?endfor;?>
 
         <?if ($arResult["NAV"]["PAGE_NUMBER"] == $arResult["NAV"]["PAGE_COUNT"]):?>
-            <li class="next-page"><a href=""></a></li>
+            <li class="mi-next-page"><a href=""></a></li>
         <?else:?>
-            <li class="next-page active"><a href="<?=$arResult["NAV"]["URL"]["NEXT_PAGE"]?>"></a></li>
+            <li class="mi-next-page active"><a href="<?=$arResult["NAV"]["URL"]["NEXT_PAGE"]?>"></a></li>
         <?endif;?>
 
     </ul>

@@ -12,9 +12,9 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="services-section" id="home-services" data-svc-layout="bands" data-hd-theme="paper">
+<div class="mi-services-section" id="home-services" data-svc-layout="bands" data-hd-theme="paper">
     <div class="container">
-        <div class="section-title">УСЛУГИ</div>
+        <div class="mi-section-title">УСЛУГИ</div>
         <div class="services-grid">
             <?foreach($arResult["ITEMS"] as $arItem):?>
                 <?
@@ -22,14 +22,14 @@ $this->setFrameMode(true);
                 $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
                 ?>
                 <div class="services-grid__item" id="<?=$this->GetEditAreaId($arItem['ID']);?>">
-                    <div class="service-item">
-                        <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="service-item_mobile-link"></a>
+                    <div class="mi-service-item">
+                        <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="mi-service-item_mobile-link"></a>
                         <img data-src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="<?=$arItem['NAME']?>">
-                        <div class="service-item_desc">
-                            <span class="service-item_title"><?=$arItem['NAME']?></span>
-                            <div class="service-item_desc-body">
+                        <div class="mi-service-item_desc">
+                            <span class="mi-service-item_title"><?=$arItem['NAME']?></span>
+                            <div class="mi-service-item_desc-body">
                                 <p><?=$arItem['PREVIEW_TEXT']?></p>
-                                <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="service-item_btn">Подробнее</a>
+                                <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="mi-service-item_btn">Подробнее</a>
                             </div>
                         </div>
                     </div>

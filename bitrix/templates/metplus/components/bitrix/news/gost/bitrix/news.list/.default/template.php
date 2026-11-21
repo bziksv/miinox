@@ -12,17 +12,17 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="row wrapper_gost-item">
+<div class="row mi-wrapper_gost-item">
     <?foreach($arResult["ITEMS"] as $arItem):?>
     <?
     $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
     $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
     ?>
     <div class="col-xl-3 col-lg-4 col-md-4 col-sm-6">
-        <div class="gost-item">
+        <div class="mi-gost-item">
             <a href="<?echo CFile::GetPath($arItem["PROPERTIES"]["FILE"]["VALUE"])?>" download>
-                <span class="gost-item_icon glipf-pdf"></span>
-                <div class="gost-item-desc">
+                <span class="mi-gost-item_icon glipf-pdf"></span>
+                <div class="mi-gost-item-desc">
                     <p><?echo $arItem["NAME"]?></p>
                 </div>
             </a>

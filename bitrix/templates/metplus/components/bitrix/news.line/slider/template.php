@@ -12,9 +12,9 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<div class="main-section" <? if($arResult["ITEMS"][0]['PREVIEW_PICTURE']['SRC']): ?>style="background: url(<?=$arResult["ITEMS"][0]['PREVIEW_PICTURE']['SRC']?>) no-repeat center top;"<? endif;?>>
+<div class="mi-main-section" <? if($arResult["ITEMS"][0]['PREVIEW_PICTURE']['SRC']): ?>style="background: url(<?=$arResult["ITEMS"][0]['PREVIEW_PICTURE']['SRC']?>) no-repeat center top;"<? endif;?>>
     <div class="container">
-        <div class="main-slider">
+        <div class="mi-main-slider">
             <?foreach($arResult["ITEMS"] as $arItem):?>
                 <?
                 $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
@@ -27,7 +27,7 @@ $this->setFrameMode(true);
 					<div class="slider-subtitle"><?=$arItem["PROPERTIES"]["SUBTITLE"]["VALUE"]?></div>
 					
 					<div class="slider-text"><?=$arItem['PREVIEW_TEXT']?></div>
-                    <a href="<?echo $arItem["CODE"]?>" class="main-btn main-section_catalog-btn"><?echo $arItem["NAME"]?></a>
+                    <a href="<?echo $arItem["CODE"]?>" class="mi-main-btn mi-main-section_catalog-btn"><?echo $arItem["NAME"]?></a>
                 </div>
             <?endforeach;?>
         </div>

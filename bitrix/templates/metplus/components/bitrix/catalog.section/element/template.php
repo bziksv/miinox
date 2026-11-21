@@ -102,7 +102,7 @@ $buyColIndex = 4;
 </div>
 
 <div class="product-table-wrap">
-<table class="product-table" id="product-table">
+<table class="mi-product-table" id="mi-product-table">
     <thead>
         <tr>
             <? foreach ($arResult['FIELDS'] as $key => $field):
@@ -144,14 +144,14 @@ $buyColIndex = 4;
                 : '';
             ?>
         <tr<?=$rowPropsJson !== '' ? ' data-props="'.$rowPropsJson.'"' : ''?>>
-            <td class="product-table_first-cell">
+            <td class="mi-product-table_first-cell">
                 <button type="button" class="product-availability-marker<?=$limited ? ' product-availability-marker--limited' : ''?>" aria-label="<?=htmlspecialcharsbx($availTip)?>">
                     <span class="product-availability-marker__tip"><?=htmlspecialcharsbx($availTip)?></span>
                 </button>
-                <span class="product-item_name<?=$limited ? ' product-item_name-mod' : ''?>">
+                <span class="mi-product-item_name<?=$limited ? ' product-item_name-mod' : ''?>">
 					<a href="<?=htmlspecialcharsbx((string)($arItem['DETAIL_PAGE_URL'] ?? ''))?>"><?=$productName?></a>
                 </span>
-                <span class="product-availability">
+                <span class="mi-product-availability">
                     <? if ($limited): ?>
                         <? if ($arResult['UF_JS_MANAGER'] && $arResult['UF_JS_MANAGER'] <= $inc_manager): ?>
                             <span class="manager" data-text="Количество ограничено, уточняйте у менеджера."></span>
@@ -190,7 +190,7 @@ $buyColIndex = 4;
             </td>
 
             <td class="product-table_col-buy">
-                <a href="javascript:void(0)" class="add-to-cart-action product-item_cart-btn" id="<?=$arItem['ID']?>" title="В корзину" aria-label="В корзину"><span class="glipf-cart"></span></a>
+                <a href="javascript:void(0)" class="add-to-cart-action mi-product-item_cart-btn" id="<?=$arItem['ID']?>" title="В корзину" aria-label="В корзину"><span class="glipf-cart"></span></a>
             </td>
         </tr>
         <? endforeach; ?>
@@ -200,8 +200,8 @@ $buyColIndex = 4;
 
 <div class="row product-table-legend-row">
     <div class="col-md-6">
-        <div class="product-availability_text">Наличие товара на складе</div>
-        <div class="product-availability_text yellow">Количество ограничено, уточняйте у менеджера</div>
+        <div class="mi-product-availability_text">Наличие товара на складе</div>
+        <div class="mi-product-availability_text yellow">Количество ограничено, уточняйте у менеджера</div>
     </div>
 
     <? if ($arParams["DISPLAY_BOTTOM_PAGER"]): ?>
@@ -212,5 +212,5 @@ $buyColIndex = 4;
 </div>
 
 <? if ($arParams["DEPTH_LEVEL"] == "1"): ?>
-	<div class="unified-text-section"><?=$arResult['DESCRIPTION'];?></div>
+	<div class="mi-unified-text-section"><?=$arResult['DESCRIPTION'];?></div>
 <? endif; ?>

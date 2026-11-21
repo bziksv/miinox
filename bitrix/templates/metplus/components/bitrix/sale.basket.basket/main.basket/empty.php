@@ -3,17 +3,17 @@
 use Bitrix\Main\Localization\Loc;
 ?>
 <div class="container">
-    <div class="cart-content_header">
-        <div class="cart-content_title">Состав корзины</div>
-        <button type="button" class="cart-close" aria-label="Закрыть"></button>
-        <ul class="cart-steps">
-            <li class="cart-step_item active active-mod">Шаг 1</li>
-            <li class="cart-step_item">Шаг 2</li>
-            <li class="cart-step_item">Шаг 3</li>
+    <div class="mi-cart-content_header">
+        <div class="mi-cart-content_title">Состав корзины</div>
+        <button type="button" class="mi-cart-close" aria-label="Закрыть"></button>
+        <ul class="mi-cart-steps">
+            <li class="mi-cart-step_item active mi-active-mod">Шаг 1</li>
+            <li class="mi-cart-step_item">Шаг 2</li>
+            <li class="mi-cart-step_item">Шаг 3</li>
         </ul>
     </div>
 
-    <div class="cart-content_body">
+    <div class="mi-cart-content_body">
         <div class="empty-cart" style="text-align: center">
             <img src="<?=$this->GetFolder()?>/images/empty_cart.svg" style="margin-bottom: 30px">
             <div class="bx-sbb-empty-cart-text"><?=Loc::getMessage("SBB_EMPTY_BASKET_TITLE")?></div>
@@ -36,9 +36,9 @@ use Bitrix\Main\Localization\Loc;
         </div>
     </div>
 
-    <div class="cart-content_footer">
-        <div class="left-column">
-            <a href="/" class="gray-btn back-site_btn js_back-site">Вернуться к сайту</a>
+    <div class="mi-cart-content_footer">
+        <div class="mi-left-column">
+            <a href="/" class="mi-gray-btn mi-back-site_btn js_back-site">Вернуться к сайту</a>
         </div>
     </div>
 
